@@ -102,8 +102,8 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         Dispatcher dispatcher = pulsar.getBrokerService().getTopicReference(topic).get().getSubscription("sub").getDispatcher();
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 1000));
         List<String> bucketKeys =
-                ((PersistentDispatcherMultipleConsumers) dispatcher).getCursor().getCursorProperties().keySet().stream()
-                        .filter(x -> x.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)).toList();
+                ((AbstractPersistentDispatcherMultipleConsumers) dispatcher).getCursor().getCursorProperties().keySet()
+                        .stream().filter(x -> x.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)).toList();
 
         c1.close();
 
@@ -117,8 +117,8 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
 
         Dispatcher dispatcher2 = pulsar.getBrokerService().getTopicReference(topic).get().getSubscription("sub").getDispatcher();
         List<String> bucketKeys2 =
-                ((PersistentDispatcherMultipleConsumers) dispatcher2).getCursor().getCursorProperties().keySet().stream()
-                        .filter(x -> x.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)).toList();
+                ((AbstractPersistentDispatcherMultipleConsumers) dispatcher2).getCursor().getCursorProperties().keySet()
+                        .stream().filter(x -> x.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)).toList();
 
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher2.getNumberOfDelayedMessages(), 1000));
         Assert.assertEquals(bucketKeys, bucketKeys2);
@@ -152,7 +152,7 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 1000));
 
         Map<String, String> cursorProperties =
-                ((PersistentDispatcherMultipleConsumers) dispatcher).getCursor().getCursorProperties();
+                ((AbstractPersistentDispatcherMultipleConsumers) dispatcher).getCursor().getCursorProperties();
         List<Long> bucketIds = cursorProperties.entrySet().stream()
                 .filter(x -> x.getKey().startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX + "delayed.bucket")).map(
                         x -> Long.valueOf(x.getValue())).toList();
@@ -339,7 +339,7 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 1000));
 
         Map<String, String> cursorProperties =
-                ((PersistentDispatcherMultipleConsumers) dispatcher).getCursor().getCursorProperties();
+                ((AbstractPersistentDispatcherMultipleConsumers) dispatcher).getCursor().getCursorProperties();
         List<Long> bucketIds = cursorProperties.entrySet().stream()
                 .filter(x -> x.getKey().startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX + "delayed.bucket")).map(
                         x -> Long.valueOf(x.getValue())).toList();

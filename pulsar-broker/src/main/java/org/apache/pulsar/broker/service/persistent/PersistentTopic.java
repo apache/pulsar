@@ -2449,9 +2449,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 }
 
                 if (Subscription.isIndividualAckMode(subscription.getType())) {
-                    if (subscription.getDispatcher() instanceof PersistentDispatcherMultipleConsumers) {
-                        PersistentDispatcherMultipleConsumers dispatcher =
-                                (PersistentDispatcherMultipleConsumers) subscription.getDispatcher();
+                    if (subscription.getDispatcher() instanceof AbstractPersistentDispatcherMultipleConsumers) {
+                        AbstractPersistentDispatcherMultipleConsumers dispatcher =
+                                (AbstractPersistentDispatcherMultipleConsumers) subscription.getDispatcher();
                         topicStatsStream.writePair("blockedSubscriptionOnUnackedMsgs",
                                 dispatcher.isBlockedDispatcherOnUnackedMsgs());
                         topicStatsStream.writePair("unackedMessages",
@@ -2758,11 +2758,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     // subscription metrics
                     PersistentSubscription sub = subscriptions.get(Codec.decode(c.getName()));
                     if (sub != null) {
-                        if (sub.getDispatcher() instanceof PersistentDispatcherMultipleConsumers) {
-                            PersistentDispatcherMultipleConsumers dispatcher =
-                                (PersistentDispatcherMultipleConsumers) sub.getDispatcher();
-                            cs.subscriptionHavePendingRead = dispatcher.havePendingRead;
-                            cs.subscriptionHavePendingReplayRead = dispatcher.havePendingReplayRead;
+                        if (sub.getDispatcher() instanceof AbstractPersistentDispatcherMultipleConsumers) {
+                            AbstractPersistentDispatcherMultipleConsumers dispatcher =
+                                (AbstractPersistentDispatcherMultipleConsumers) sub.getDispatcher();
+                            cs.subscriptionHavePendingRead = dispatcher.isHavePendingRead();
+                            cs.subscriptionHavePendingReplayRead = dispatcher.isHavePendingReplayRead();
                         } else if (sub.getDispatcher() instanceof PersistentDispatcherSingleActiveConsumer) {
                             PersistentDispatcherSingleActiveConsumer dispatcher =
                                 (PersistentDispatcherSingleActiveConsumer) sub.getDispatcher();

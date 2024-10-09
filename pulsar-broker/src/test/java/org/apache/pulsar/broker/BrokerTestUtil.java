@@ -36,6 +36,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import java.util.stream.Stream;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -207,14 +208,28 @@ public class BrokerTestUtil {
      * Receive messages concurrently from multiple consumers and handles them using the provided message handler.
      *
      * @param messageHandler the message handler
-     * @param quietTimeout the duration of quiet time after which the method will stop waiting for more messages
-     * @param consumers the consumers to receive messages from
-     * @param <T> the message value type
+     * @param quietTimeout   the duration of quiet time after which the method will stop waiting for more messages
+     * @param consumers      the consumers to receive messages from
+     * @param <T>            the message value type
+     */
+    public static <T> void receiveMessagesInThreads(BiFunction<Consumer<T>, Message<T>, Boolean> messageHandler,
+                                                    final Duration quietTimeout,
+                                                    Consumer<T>... consumers) {
+        receiveMessagesInThreads(messageHandler, quietTimeout, Arrays.stream(consumers).sequential());
+    }
+
+    /**
+     * Receive messages concurrently from multiple consumers and handles them using the provided message handler.
+     *
+     * @param messageHandler the message handler
+     * @param quietTimeout   the duration of quiet time after which the method will stop waiting for more messages
+     * @param consumers      the consumers to receive messages from
+     * @param <T>            the message value type
      */
     public static <T> void receiveMessagesInThreads(BiFunction<Consumer<T>, Message<T>, Boolean> messageHandler,
                                              final Duration quietTimeout,
-                                             Consumer<T>... consumers) {
-        FutureUtil.waitForAll(Arrays.stream(consumers).sequential().map(consumer -> {
+                                             Stream<Consumer<T>> consumers) {
+        FutureUtil.waitForAll(consumers.map(consumer -> {
             return CompletableFuture.runAsync(() -> {
                 try {
                     while (!Thread.currentThread().isInterrupted()) {

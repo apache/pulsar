@@ -66,6 +66,7 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -526,7 +527,8 @@ public class PersistentDispatcherFailoverConsumerTest {
 
         PersistentTopic topic =
                 new PersistentTopic(successTopicName, ledgerMock, pulsarTestContext.getBrokerService());
-        PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
+        AbstractPersistentDispatcherMultipleConsumers
+                dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
         Consumer consumer1 = createConsumer(topic, 0, 2, false, 1);
         Consumer consumer2 = createConsumer(topic, 0, 2, false, 2);
         Consumer consumer3 = createConsumer(topic, 0, 2, false, 3);
@@ -571,7 +573,8 @@ public class PersistentDispatcherFailoverConsumerTest {
     public void testFewBlockedConsumerSamePriority() throws Exception{
         PersistentTopic topic =
                 new PersistentTopic(successTopicName, ledgerMock, pulsarTestContext.getBrokerService());
-        PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
+        AbstractPersistentDispatcherMultipleConsumers
+                dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
         Consumer consumer1 = createConsumer(topic, 0, 2, false, 1);
         Consumer consumer2 = createConsumer(topic, 0, 2, false, 2);
         Consumer consumer3 = createConsumer(topic, 0, 2, false, 3);
@@ -599,7 +602,8 @@ public class PersistentDispatcherFailoverConsumerTest {
     public void testFewBlockedConsumerDifferentPriority() throws Exception {
         PersistentTopic topic =
                 new PersistentTopic(successTopicName, ledgerMock, pulsarTestContext.getBrokerService());
-        PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
+        AbstractPersistentDispatcherMultipleConsumers
+                dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
         Consumer consumer1 = createConsumer(topic, 0, 2, false, 1);
         Consumer consumer2 = createConsumer(topic, 0, 2, false, 2);
         Consumer consumer3 = createConsumer(topic, 0, 2, false, 3);
@@ -654,7 +658,8 @@ public class PersistentDispatcherFailoverConsumerTest {
     public void testFewBlockedConsumerDifferentPriority2() throws Exception {
         PersistentTopic topic =
                 new PersistentTopic(successTopicName, ledgerMock, pulsarTestContext.getBrokerService());
-        PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
+        AbstractPersistentDispatcherMultipleConsumers
+                dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
         Consumer consumer1 = createConsumer(topic, 0, 2, true, 1);
         Consumer consumer2 = createConsumer(topic, 0, 2, true, 2);
         Consumer consumer3 = createConsumer(topic, 0, 2, true, 3);
@@ -677,7 +682,7 @@ public class PersistentDispatcherFailoverConsumerTest {
     }
 
     @SuppressWarnings("unchecked")
-    private Consumer getNextConsumer(PersistentDispatcherMultipleConsumers dispatcher) throws Exception {
+    private Consumer getNextConsumer(AbstractPersistentDispatcherMultipleConsumers dispatcher) throws Exception {
 
         Consumer consumer = dispatcher.getNextConsumer();
 

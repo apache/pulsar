@@ -34,8 +34,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.SneakyThrows;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
+import org.apache.pulsar.broker.service.StickyKeyDispatcher;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.Consumer;
@@ -47,19 +47,39 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.tests.KeySharedImplementationType;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
+import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
-public class KeySharedSubscriptionTest extends ProducerConsumerBase {
+public class KeySharedSubscriptionMaxUnackedMessagesTest extends ProducerConsumerBase {
+    private final KeySharedImplementationType implementationType;
+
+    // Comment out the next line (Factory annotation) to run tests manually in IntelliJ, one-by-one
+    @Factory
+    public static Object[] createTestInstances() {
+        return KeySharedImplementationType.generateTestInstances(KeySharedSubscriptionMaxUnackedMessagesTest::new);
+    }
+
+    public KeySharedSubscriptionMaxUnackedMessagesTest() {
+        // set the default implementation type for manual running in IntelliJ
+        this(KeySharedImplementationType.DEFAULT);
+    }
+
+    public KeySharedSubscriptionMaxUnackedMessagesTest(KeySharedImplementationType implementationType) {
+        this.implementationType = implementationType;
+    }
 
     @Override
     @BeforeMethod
     protected void setup() throws Exception {
+        conf.setSubscriptionKeySharedUseClassicPersistentImplementation(implementationType.classic);
+        conf.setSubscriptionSharedUseClassicPersistentImplementation(implementationType.classic);
         conf.setMaxUnackedMessagesPerConsumer(10);
         super.internalSetup();
         super.producerBaseSetup();
@@ -82,16 +102,17 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     @DataProvider
     public Object[][] subType() {
-        return new Object[][] {
-                { SubscriptionType.Shared, null },
-                { SubscriptionType.Key_Shared, KeySharedSelectorType.AutoSplit_ConsistentHashing },
-                { SubscriptionType.Key_Shared, KeySharedSelectorType.AutoSplit_Classic },
-                { SubscriptionType.Key_Shared, KeySharedSelectorType.Sticky }
-        };
+        return implementationType.prependImplementationTypeToData(new Object[][]{
+                {SubscriptionType.Shared, null},
+                {SubscriptionType.Key_Shared, KeySharedSelectorType.AutoSplit_ConsistentHashing},
+                {SubscriptionType.Key_Shared, KeySharedSelectorType.AutoSplit_Classic},
+                {SubscriptionType.Key_Shared, KeySharedSelectorType.Sticky}
+        });
     }
 
     @Test(dataProvider = "subType", timeOut = 30000)
-    public void testCanRecoverConsumptionWhenLiftMaxUnAckedMessagesRestriction(SubscriptionType subscriptionType,
+    public void testCanRecoverConsumptionWhenLiftMaxUnAckedMessagesRestriction(KeySharedImplementationType impl,
+                                                                               SubscriptionType subscriptionType,
                                                                                KeySharedSelectorType selectorType)
             throws PulsarClientException {
         if (selectorType == KeySharedSelectorType.AutoSplit_Classic) {
@@ -258,8 +279,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     private StickyKeyConsumerSelector getSelector(String topic, String subscription) {
         Topic t = pulsar.getBrokerService().getTopicIfExists(topic).get().get();
         PersistentSubscription sub = (PersistentSubscription) t.getSubscription(subscription);
-        PersistentStickyKeyDispatcherMultipleConsumers dispatcher =
-                (PersistentStickyKeyDispatcherMultipleConsumers) sub.getDispatcher();
+        StickyKeyDispatcher dispatcher = (StickyKeyDispatcher) sub.getDispatcher();
         return dispatcher.getSelector();
     }
 }

@@ -44,7 +44,7 @@ import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker-api")
-public class PersistentDispatcherMultipleConsumersTest extends ProducerConsumerBase {
+public class PersistentDispatcherMultipleConsumersClassicTest extends ProducerConsumerBase {
 
     @BeforeClass(alwaysRun = true)
     @Override
@@ -131,8 +131,8 @@ public class PersistentDispatcherMultipleConsumersTest extends ProducerConsumerB
         Subscription sub = Mockito.mock(PersistentSubscription.class);
         Mockito.doReturn(topic).when(sub).getTopic();
         // Mock the dispatcher.
-        PersistentDispatcherMultipleConsumers dispatcher =
-                Mockito.spy(new PersistentDispatcherMultipleConsumers(topic, cursor, sub));
+        PersistentDispatcherMultipleConsumersClassic dispatcher =
+                Mockito.spy(new PersistentDispatcherMultipleConsumersClassic(topic, cursor, sub));
         // Return 10 permits to make the dispatcher can read more entries.
         Mockito.doReturn(10).when(dispatcher).getFirstAvailableConsumerPermits();
 
@@ -154,12 +154,12 @@ public class PersistentDispatcherMultipleConsumersTest extends ProducerConsumerB
 
         // Mock the readEntriesOrWait(...) to simulate the cursor is closed.
         Mockito.doAnswer(inv -> {
-            AbstractPersistentDispatcherMultipleConsumers dispatcher1 = inv.getArgument(2);
+            PersistentDispatcherMultipleConsumersClassic dispatcher1 = inv.getArgument(2);
             dispatcher1.readEntriesFailed(new ManagedLedgerException.CursorAlreadyClosedException("cursor closed"),
                     null);
             return null;
-        }).when(cursor).asyncReadEntriesWithSkipOrWait(Mockito.anyInt(), Mockito.anyLong(), Mockito.eq(dispatcher),
-                Mockito.any(), Mockito.any(), Mockito.any());
+        }).when(cursor).asyncReadEntriesOrWait(Mockito.anyInt(), Mockito.anyLong(), Mockito.eq(dispatcher),
+                Mockito.any(), Mockito.any());
 
         dispatcher.readMoreEntries();
 

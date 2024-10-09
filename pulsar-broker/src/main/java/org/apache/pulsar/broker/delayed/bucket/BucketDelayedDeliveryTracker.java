@@ -57,7 +57,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.delayed.AbstractDelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.proto.DelayedIndex;
 import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
-import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
@@ -105,7 +105,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     private CompletableFuture<Void> pendingLoad = null;
 
-    public BucketDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher,
+    public BucketDelayedDeliveryTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher,
                                         Timer timer, long tickTimeMillis,
                                         boolean isDelayedDeliveryDeliverAtTimeStrict,
                                         BucketSnapshotStorage bucketSnapshotStorage,
@@ -117,7 +117,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 maxIndexesPerBucketSnapshotSegment, maxNumBuckets);
     }
 
-    public BucketDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher,
+    public BucketDelayedDeliveryTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher,
                                         Timer timer, long tickTimeMillis, Clock clock,
                                         boolean isDelayedDeliveryDeliverAtTimeStrict,
                                         BucketSnapshotStorage bucketSnapshotStorage,

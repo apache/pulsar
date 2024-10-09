@@ -32,6 +32,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
+import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -104,8 +105,8 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, false).join().get();
         Dispatcher dispatcher = persistentTopic.getSubscription(cursorName).getDispatcher();
-        if (dispatcher instanceof PersistentDispatcherMultipleConsumers) {
-            ((PersistentDispatcherMultipleConsumers) dispatcher).readMoreEntries();
+        if (dispatcher instanceof AbstractPersistentDispatcherMultipleConsumers) {
+            ((AbstractPersistentDispatcherMultipleConsumers) dispatcher).readMoreEntriesAsync();
         } else if (dispatcher instanceof PersistentDispatcherSingleActiveConsumer) {
             PersistentDispatcherSingleActiveConsumer persistentDispatcherSingleActiveConsumer =
                     ((PersistentDispatcherSingleActiveConsumer) dispatcher);

@@ -36,7 +36,7 @@ import org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.bucket.BucketSnapshotStorage;
 import org.apache.pulsar.broker.delayed.bucket.RecoverDelayedDeliveryTrackerException;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,7 +78,7 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
     }
 
     @Override
-    public DelayedDeliveryTracker newTracker(PersistentDispatcherMultipleConsumers dispatcher) {
+    public DelayedDeliveryTracker newTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher) {
         String topicName = dispatcher.getTopic().getName();
         String subscriptionName = dispatcher.getSubscription().getName();
         BrokerService brokerService = dispatcher.getTopic().getBrokerService();
@@ -97,7 +97,7 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
     }
 
     @VisibleForTesting
-    BucketDelayedDeliveryTracker newTracker0(PersistentDispatcherMultipleConsumers dispatcher)
+    BucketDelayedDeliveryTracker newTracker0(AbstractPersistentDispatcherMultipleConsumers dispatcher)
             throws RecoverDelayedDeliveryTrackerException {
         return new BucketDelayedDeliveryTracker(dispatcher, timer, tickTimeMillis,
                 isDelayedDeliveryDeliverAtTimeStrict, bucketSnapshotStorage, delayedDeliveryMinIndexCountPerBucket,

@@ -41,12 +41,18 @@ import org.apache.pulsar.utils.ConcurrentBitmapSortedLongPairSet;
 public class MessageRedeliveryController {
 
     private final boolean allowOutOfOrderDelivery;
+    private final boolean isClassicDispatcher;
     private final ConcurrentBitmapSortedLongPairSet messagesToRedeliver;
     private final ConcurrentLongLongPairHashMap hashesToBeBlocked;
     private final ConcurrentLongLongHashMap hashesRefCount;
 
     public MessageRedeliveryController(boolean allowOutOfOrderDelivery) {
+        this(allowOutOfOrderDelivery, false);
+    }
+
+    public MessageRedeliveryController(boolean allowOutOfOrderDelivery, boolean isClassicDispatcher) {
         this.allowOutOfOrderDelivery = allowOutOfOrderDelivery;
+        this.isClassicDispatcher = isClassicDispatcher;
         this.messagesToRedeliver = new ConcurrentBitmapSortedLongPairSet();
         if (!allowOutOfOrderDelivery) {
             this.hashesToBeBlocked = ConcurrentLongLongPairHashMap
@@ -65,7 +71,7 @@ public class MessageRedeliveryController {
 
     public void add(long ledgerId, long entryId, long stickyKeyHash) {
         if (!allowOutOfOrderDelivery) {
-            if (stickyKeyHash == STICKY_KEY_HASH_NOT_SET) {
+            if (!isClassicDispatcher && stickyKeyHash == STICKY_KEY_HASH_NOT_SET) {
                 throw new IllegalArgumentException("Sticky key hash is not set. It is required.");
             }
             boolean inserted = hashesToBeBlocked.putIfAbsent(ledgerId, entryId, stickyKeyHash, 0);

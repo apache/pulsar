@@ -25,8 +25,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
-import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -93,7 +93,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
 
         DispatchRateLimiter subRateLimiter = null;
         Dispatcher subDispatcher = topic.getSubscription(subName).getDispatcher();
-        if (subDispatcher instanceof PersistentDispatcherMultipleConsumers) {
+        if (subDispatcher instanceof AbstractPersistentDispatcherMultipleConsumers) {
             subRateLimiter = subDispatcher.getRateLimiter().get();
         } else if (subDispatcher instanceof PersistentDispatcherSingleActiveConsumer) {
             subRateLimiter = subDispatcher.getRateLimiter().get();
@@ -180,7 +180,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
 
         DispatchRateLimiter subRateLimiter = null;
         Dispatcher subDispatcher = topic.getSubscription(subName).getDispatcher();
-        if (subDispatcher instanceof PersistentDispatcherMultipleConsumers) {
+        if (subDispatcher instanceof AbstractPersistentDispatcherMultipleConsumers) {
             subRateLimiter = subDispatcher.getRateLimiter().get();
         } else if (subDispatcher instanceof PersistentDispatcherSingleActiveConsumer) {
             subRateLimiter = subDispatcher.getRateLimiter().get();
@@ -264,7 +264,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
 
         DispatchRateLimiter subRateLimiter = null;
         Dispatcher subDispatcher = topic.getSubscription(subName).getDispatcher();
-        if (subDispatcher instanceof PersistentDispatcherMultipleConsumers) {
+        if (subDispatcher instanceof AbstractPersistentDispatcherMultipleConsumers) {
             subRateLimiter = subDispatcher.getRateLimiter().get();
         } else if (subDispatcher instanceof PersistentDispatcherSingleActiveConsumer) {
             subRateLimiter = subDispatcher.getRateLimiter().get();
@@ -356,7 +356,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
 
         DispatchRateLimiter subRateLimiter = null;
         Dispatcher subDispatcher = topic.getSubscription(subName).getDispatcher();
-        if (subDispatcher instanceof PersistentDispatcherMultipleConsumers) {
+        if (subDispatcher instanceof AbstractPersistentDispatcherMultipleConsumers) {
             subRateLimiter = subDispatcher.getRateLimiter().get();
         } else if (subDispatcher instanceof PersistentDispatcherSingleActiveConsumer) {
             subRateLimiter = subDispatcher.getRateLimiter().get();
@@ -442,7 +442,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
 
         DispatchRateLimiter subRateLimiter = null;
         Dispatcher subDispatcher = topic.getSubscription(subName).getDispatcher();
-        if (subDispatcher instanceof PersistentDispatcherMultipleConsumers) {
+        if (subDispatcher instanceof AbstractPersistentDispatcherMultipleConsumers) {
             subRateLimiter = subDispatcher.getRateLimiter().get();
         } else if (subDispatcher instanceof PersistentDispatcherSingleActiveConsumer) {
             subRateLimiter = subDispatcher.getRateLimiter().get();
@@ -649,7 +649,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
 
         DispatchRateLimiter subRateLimiter = null;
         Dispatcher subDispatcher = topic.getSubscription(subName).getDispatcher();
-        if (subDispatcher instanceof PersistentDispatcherMultipleConsumers) {
+        if (subDispatcher instanceof AbstractPersistentDispatcherMultipleConsumers) {
             subRateLimiter = subDispatcher.getRateLimiter().get();
         } else if (subDispatcher instanceof PersistentDispatcherSingleActiveConsumer) {
             subRateLimiter = subDispatcher.getRateLimiter().get();
@@ -805,7 +805,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
 
         DispatchRateLimiter subRateLimiter = null;
         Dispatcher subDispatcher = topic.getSubscription(subName1).getDispatcher();
-        if (subDispatcher instanceof PersistentDispatcherMultipleConsumers) {
+        if (subDispatcher instanceof AbstractPersistentDispatcherMultipleConsumers) {
             subRateLimiter = subDispatcher.getRateLimiter().get();
         } else if (subDispatcher instanceof PersistentDispatcherSingleActiveConsumer) {
             subRateLimiter = subDispatcher.getRateLimiter().get();
@@ -855,7 +855,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
             .subscribe();
 
         subDispatcher = topic2.getSubscription(subName2).getDispatcher();
-        if (subDispatcher instanceof PersistentDispatcherMultipleConsumers) {
+        if (subDispatcher instanceof AbstractPersistentDispatcherMultipleConsumers) {
             subRateLimiter = subDispatcher.getRateLimiter().get();
         } else if (subDispatcher instanceof PersistentDispatcherSingleActiveConsumer) {
             subRateLimiter = subDispatcher.getRateLimiter().get();

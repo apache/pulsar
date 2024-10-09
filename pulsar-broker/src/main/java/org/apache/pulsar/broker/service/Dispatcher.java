@@ -153,8 +153,8 @@ public interface Dispatcher {
 
     /**
      * Trigger a new "readMoreEntries" if the dispatching has been paused before. This method is only implemented in
-     * {@link org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers} right now, other
-     * implements are not necessary to implement this method.
+     * {@link org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers} right now,
+     * other implementations do not necessary implement this method.
      * @return did a resume.
      */
     default boolean checkAndResumeIfPaused(){

@@ -818,6 +818,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int subscriptionKeySharedConsistentHashingReplicaPoints = 100;
 
     @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "For persistent Key_Shared subscriptions, enables the use of the classic implementation of the "
+                    + "Key_Shared subscription that was used before Pulsar 4.0.0 and PIP-379.",
+            dynamic = true
+    )
+    private boolean subscriptionKeySharedUseClassicPersistentImplementation = false;
+
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "For persistent Shared subscriptions, enables the use of the classic implementation of the Shared "
+                    + "subscription that was used before Pulsar 4.0.0.",
+            dynamic = true
+    )
+    private boolean subscriptionSharedUseClassicPersistentImplementation = false;
+
+    @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Set the default behavior for message deduplication in the broker.\n\n"
             + "This can be overridden per-namespace. If enabled, broker will reject"

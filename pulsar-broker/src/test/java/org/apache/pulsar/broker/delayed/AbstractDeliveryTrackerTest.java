@@ -38,7 +38,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.Test;
@@ -49,7 +49,7 @@ public abstract class AbstractDeliveryTrackerTest {
     protected final Timer timer =
             new HashedWheelTimer(new DefaultThreadFactory("pulsar-in-memory-delayed-delivery-test"),
                     500, TimeUnit.MILLISECONDS);
-    protected PersistentDispatcherMultipleConsumers dispatcher;
+    protected AbstractPersistentDispatcherMultipleConsumers dispatcher;
     protected Clock clock;
 
     protected AtomicLong clockTime;

@@ -720,7 +720,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         AtomicInteger reScheduleReadInMsCalled = new AtomicInteger(0);
         AtomicBoolean delayAllMessages = new AtomicBoolean(true);
 
-        PersistentDispatcherMultipleConsumers dispatcher;
+        AbstractPersistentDispatcherMultipleConsumers dispatcher;
         if (isKeyShared) {
             dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
                     topicMock, cursorMock, subscriptionMock, configMock,

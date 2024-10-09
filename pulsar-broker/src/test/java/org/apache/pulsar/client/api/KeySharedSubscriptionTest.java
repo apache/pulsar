@@ -65,10 +65,13 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.DrainingHashesTracker;
 import org.apache.pulsar.broker.service.PendingAcksMap;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
+import org.apache.pulsar.broker.service.StickyKeyDispatcher;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentStickyKeyDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers;
@@ -79,6 +82,7 @@ import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.tests.KeySharedImplementationType;
 import org.assertj.core.api.Assertions;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
@@ -89,53 +93,80 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
+import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
 public class KeySharedSubscriptionTest extends ProducerConsumerBase {
-
     private static final Logger log = LoggerFactory.getLogger(KeySharedSubscriptionTest.class);
     private static final List<String> keys = Arrays.asList("0", "1", "2", "3", "4", "5", "6", "7", "8", "9");
     private static final String SUBSCRIPTION_NAME = "key_shared";
+    private final KeySharedImplementationType implementationType;
+
+    // Comment out the next line (Factory annotation) to run tests manually in IntelliJ, one-by-one
+    @Factory
+    public static Object[] createTestInstances() {
+        return KeySharedImplementationType.generateTestInstances(KeySharedSubscriptionTest::new);
+    }
+
+    public KeySharedSubscriptionTest() {
+        // set the default implementation type for manual running in IntelliJ
+        this(KeySharedImplementationType.DEFAULT);
+    }
+
+    public KeySharedSubscriptionTest(KeySharedImplementationType implementationType) {
+        this.implementationType = implementationType;
+    }
+
+    private Object[][] prependImplementationTypeToData(Object[][] data) {
+        return implementationType.prependImplementationTypeToData(data);
+    }
+
+    @DataProvider(name = "currentImplementationType")
+    public Object[] currentImplementationType() {
+        return new Object[]{ implementationType };
+    }
 
     @DataProvider(name = "batch")
-    public Object[] batchProvider() {
-        return new Object[] {
-                false,
-                true
-        };
+    public Object[][] batchProvider() {
+        return prependImplementationTypeToData(new Object[][]{
+                {false},
+                {true}
+        });
     }
 
     @DataProvider(name = "partitioned")
     public Object[][] partitionedProvider() {
-        return new Object[][] {
-                { false },
-                { true }
-        };
+        return prependImplementationTypeToData(new Object[][]{
+                {false},
+                {true}
+        });
     }
 
     @DataProvider(name = "data")
     public Object[][] dataProvider() {
-        return new Object[][] {
+        return prependImplementationTypeToData(new Object[][]{
                 // Topic-Type and "Batching"
-                { "persistent", false  },
-                { "persistent", true  },
-                { "non-persistent", false },
-                { "non-persistent", true },
-        };
+                {"persistent", false},
+                {"persistent", true},
+                {"non-persistent", false},
+                {"non-persistent", true},
+        });
     }
 
     @DataProvider(name = "topicDomain")
     public Object[][] topicDomainProvider() {
-        return new Object[][] {
-                { "persistent" },
-                { "non-persistent" }
-        };
+        return prependImplementationTypeToData(new Object[][]{
+                {"persistent"},
+                {"non-persistent"}
+        });
     }
 
     @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
+        conf.setSubscriptionKeySharedUseClassicPersistentImplementation(implementationType.classic);
+        conf.setSubscriptionSharedUseClassicPersistentImplementation(implementationType.classic);
         this.conf.setUnblockStuckSubscriptionEnabled(true);
         super.internalSetup();
         super.producerBaseSetup();
@@ -170,7 +201,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     private static final int NUMBER_OF_KEYS = 300;
 
     @Test(dataProvider = "data")
-    public void testSendAndReceiveWithHashRangeAutoSplitStickyKeyConsumerSelector(String topicType, boolean enableBatch)
+    public void testSendAndReceiveWithHashRangeAutoSplitStickyKeyConsumerSelector(KeySharedImplementationType impl,
+                                                                                  String topicType, boolean enableBatch)
             throws PulsarClientException {
         String topic = topicType + "://public/default/key_shared-" + UUID.randomUUID();
 
@@ -197,7 +229,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "data")
-    public void testSendAndReceiveWithBatching(String topicType, boolean enableBatch) throws Exception {
+    public void testSendAndReceiveWithBatching(KeySharedImplementationType impl, String topicType, boolean enableBatch) throws Exception {
         String topic = topicType + "://public/default/key_shared-" + UUID.randomUUID();
 
         @Cleanup
@@ -242,7 +274,9 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "batch")
-    public void testSendAndReceiveWithHashRangeExclusiveStickyKeyConsumerSelector(boolean enableBatch) throws PulsarClientException {
+    public void testSendAndReceiveWithHashRangeExclusiveStickyKeyConsumerSelector(KeySharedImplementationType impl,
+                                                                                  boolean enableBatch)
+            throws PulsarClientException {
         String topic = "persistent://public/default/key_shared_exclusive-" + UUID.randomUUID();
 
         @Cleanup
@@ -294,8 +328,9 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "data")
     public void testConsumerCrashSendAndReceiveWithHashRangeAutoSplitStickyKeyConsumerSelector(
-        String topicType,
-        boolean enableBatch
+            KeySharedImplementationType impl,
+            String topicType,
+            boolean enableBatch
     ) throws PulsarClientException, InterruptedException {
         String topic = topicType + "://public/default/key_shared_consumer_crash-" + UUID.randomUUID();
 
@@ -338,8 +373,9 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "data")
     public void testNoKeySendAndReceiveWithHashRangeAutoSplitStickyKeyConsumerSelector(
-        String topicType,
-        boolean enableBatch
+            KeySharedImplementationType impl,
+            String topicType,
+            boolean enableBatch
     ) throws PulsarClientException {
         String topic = topicType + "://public/default/key_shared_no_key-" + UUID.randomUUID();
 
@@ -365,7 +401,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "batch")
-    public void testNoKeySendAndReceiveWithHashRangeExclusiveStickyKeyConsumerSelector(boolean enableBatch)
+    public void testNoKeySendAndReceiveWithHashRangeExclusiveStickyKeyConsumerSelector(KeySharedImplementationType impl,
+                                                                                       boolean enableBatch)
             throws PulsarClientException {
         String topic = "persistent://public/default/key_shared_no_key_exclusive-" + UUID.randomUUID();
 
@@ -415,7 +452,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "batch")
-    public void testOrderingKeyWithHashRangeAutoSplitStickyKeyConsumerSelector(boolean enableBatch)
+    public void testOrderingKeyWithHashRangeAutoSplitStickyKeyConsumerSelector(KeySharedImplementationType impl,
+                                                                               boolean enableBatch)
             throws PulsarClientException {
         String topic = "persistent://public/default/key_shared_ordering_key-" + UUID.randomUUID();
 
@@ -443,7 +481,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "batch")
-    public void testOrderingKeyWithHashRangeExclusiveStickyKeyConsumerSelector(boolean enableBatch)
+    public void testOrderingKeyWithHashRangeExclusiveStickyKeyConsumerSelector(KeySharedImplementationType impl,
+                                                                               boolean enableBatch)
             throws PulsarClientException {
         String topic = "persistent://public/default/key_shared_exclusive_ordering_key-" + UUID.randomUUID();
 
@@ -512,8 +551,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
-    public void testCannotUseAcknowledgeCumulative() throws PulsarClientException {
+    @Test(dataProvider = "currentImplementationType")
+    public void testCannotUseAcknowledgeCumulative(KeySharedImplementationType impl) throws PulsarClientException {
         String topic = "persistent://public/default/key_shared_ack_cumulative-" + UUID.randomUUID();
 
         @Cleanup
@@ -538,7 +577,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "batch")
-    public void testMakingProgressWithSlowerConsumer(boolean enableBatch) throws Exception {
+    public void testMakingProgressWithSlowerConsumer(KeySharedImplementationType impl, boolean enableBatch) throws Exception {
         String topic = "testMakingProgressWithSlowerConsumer-" + UUID.randomUUID();
         String slowKey = "slowKey";
 
@@ -620,8 +659,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
-    public void testOrderingWhenAddingConsumers() throws Exception {
+    @Test(dataProvider = "currentImplementationType")
+    public void testOrderingWhenAddingConsumers(KeySharedImplementationType impl) throws Exception {
         String topic = "testOrderingWhenAddingConsumers-" + UUID.randomUUID();
         int numberOfKeys = 10;
 
@@ -668,13 +707,13 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @SneakyThrows
-    private PersistentStickyKeyDispatcherMultipleConsumers getDispatcher(String topic, String subscription) {
-        return (PersistentStickyKeyDispatcherMultipleConsumers) pulsar.getBrokerService().getTopicIfExists(topic).get()
+    private StickyKeyDispatcher getDispatcher(String topic, String subscription) {
+        return (StickyKeyDispatcher) pulsar.getBrokerService().getTopicIfExists(topic).get()
                 .get().getSubscription(subscription).getDispatcher();
     }
 
-    @Test
-    public void testReadAheadWithConfiguredLookAheadLimit() throws Exception {
+    @Test(dataProvider = "currentImplementationType")
+    public void testReadAheadWithConfiguredLookAheadLimit(KeySharedImplementationType impl) throws Exception {
         String topic = "testReadAheadWithConfiguredLookAheadLimit-" + UUID.randomUUID();
 
         // Set the look ahead limit to 50 for subscriptions
@@ -730,8 +769,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         assertTrue(entryId < 100);
     }
 
-    @Test
-    public void testRemoveFirstConsumer() throws Exception {
+    @Test(dataProvider = "currentImplementationType")
+    public void testRemoveFirstConsumer(KeySharedImplementationType impl) throws Exception {
         String topic = "testReadAheadWhenAddingConsumers-" + UUID.randomUUID();
         int numberOfKeys = 10;
 
@@ -788,8 +827,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
-    public void testHashRangeConflict() throws PulsarClientException {
+    @Test(dataProvider = "currentImplementationType")
+    public void testHashRangeConflict(KeySharedImplementationType impl) throws PulsarClientException {
         final String topic = "persistent://public/default/testHashRangeConflict-" + UUID.randomUUID().toString();
         final String sub = "test";
 
@@ -799,7 +838,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Consumer<String> consumer2 = createFixedHashRangesConsumer(topic, sub, Range.of(100,399));
         Assert.assertTrue(consumer2.isConnected());
 
-        PersistentStickyKeyDispatcherMultipleConsumers dispatcher = getDispatcher(topic, sub);
+        StickyKeyDispatcher dispatcher = getDispatcher(topic, sub);
         Assert.assertEquals(dispatcher.getConsumers().size(), 2);
 
         try {
@@ -849,8 +888,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Assert.assertFalse(dispatcher.isConsumerConnected());
     }
 
-    @Test
-    public void testWithMessageCompression() throws Exception {
+    @Test(dataProvider = "currentImplementationType")
+    public void testWithMessageCompression(KeySharedImplementationType impl) throws Exception {
         final String topic = "testWithMessageCompression" + UUID.randomUUID().toString();
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
@@ -876,8 +915,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test
-    public void testAttachKeyToMessageMetadata() throws PulsarClientException {
+    @Test(dataProvider = "currentImplementationType")
+    public void testAttachKeyToMessageMetadata(KeySharedImplementationType impl) throws PulsarClientException {
         String topic = "persistent://public/default/key_shared-" + UUID.randomUUID();
 
         @Cleanup
@@ -904,8 +943,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3), 1000);
     }
 
-    @Test
-    public void testContinueDispatchMessagesWhenMessageTTL() throws Exception {
+    @Test(dataProvider = "currentImplementationType")
+    public void testContinueDispatchMessagesWhenMessageTTL(KeySharedImplementationType impl) throws Exception {
         int defaultTTLSec = 3;
         int totalMessages = 1000;
         int numberOfKeys = 50;
@@ -922,7 +961,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .subscribe();
 
-        PersistentStickyKeyDispatcherMultipleConsumers dispatcher = getDispatcher(topic, subName);
+        StickyKeyDispatcher dispatcher = getDispatcher(topic, subName);
         StickyKeyConsumerSelector selector = dispatcher.getSelector();
 
         @Cleanup
@@ -964,7 +1003,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         if (received != null) {
             int stickyKeyHash = selector.makeStickyKeyHash(received.getKeyBytes());
             DrainingHashesTracker.DrainingHashEntry entry =
-                    dispatcher.getDrainingHashesTracker().getEntry(stickyKeyHash);
+                    !impl.classic ? getDrainingHashesTracker(dispatcher).getEntry(stickyKeyHash) : null;
             Assertions.fail("Received message %s with sticky key hash that should have been blocked: %d. entry=%s, "
                             + "included in blockedHashes=%s",
                     received.getMessageId(), stickyKeyHash, entry, blockedHashes.contains(stickyKeyHash));
@@ -982,10 +1021,10 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             received = consumer3.receive(1, TimeUnit.SECONDS);
         } catch (PulsarClientException ignore) {
         }
-        if (received != null) {
+        if (received != null && !impl.classic) {
             int stickyKeyHash = selector.makeStickyKeyHash(received.getKeyBytes());
             DrainingHashesTracker.DrainingHashEntry entry =
-                    dispatcher.getDrainingHashesTracker().getEntry(stickyKeyHash);
+                    !impl.classic ? getDrainingHashesTracker(dispatcher).getEntry(stickyKeyHash) : null;
             Assertions.fail("Received message %s with sticky key hash that should have been blocked: %d. entry=%s, "
                             + "included in blockedHashes=%s",
                     received.getMessageId(), stickyKeyHash, entry, blockedHashes.contains(stickyKeyHash));
@@ -1018,8 +1057,12 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 count -> assertThat(count.get()).isGreaterThan(0));
     }
 
+    private DrainingHashesTracker getDrainingHashesTracker(Dispatcher dispatcher) {
+        return ((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher).getDrainingHashesTracker();
+    }
+
     @Test(dataProvider = "partitioned")
-    public void testOrderingWithConsumerListener(boolean partitioned) throws Exception {
+    public void testOrderingWithConsumerListener(KeySharedImplementationType impl, boolean partitioned) throws Exception {
         final String topic = "persistent://public/default/key_shared-" + UUID.randomUUID();
         if (partitioned) {
             admin.topics().createPartitionedTopic(topic, 3);
@@ -1075,8 +1118,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test
-    public void testKeySharedConsumerWithEncrypted() throws Exception {
+    @Test(dataProvider = "currentImplementationType")
+    public void testKeySharedConsumerWithEncrypted(KeySharedImplementationType impl) throws Exception {
         final String topic = "persistent://public/default/key_shared-" + UUID.randomUUID();
         final int totalMessages = 100;
 
@@ -1142,7 +1185,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "topicDomain")
-    public void testSelectorChangedAfterAllConsumerDisconnected(String topicDomain) throws PulsarClientException,
+    public void testSelectorChangedAfterAllConsumerDisconnected(KeySharedImplementationType impl, String topicDomain) throws PulsarClientException,
             ExecutionException, InterruptedException {
         final String topicName = TopicName.get(topicDomain, "public", "default",
                 "testSelectorChangedAfterAllConsumerDisconnected" + UUID.randomUUID()).toString();
@@ -1187,8 +1230,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         consumer1.close();
     }
 
-    @Test
-    public void testAllowOutOfOrderDeliveryChangedAfterAllConsumerDisconnected() throws Exception {
+    @Test(dataProvider = "currentImplementationType")
+    public void testAllowOutOfOrderDeliveryChangedAfterAllConsumerDisconnected(KeySharedImplementationType impl) throws Exception {
         final String topicName = "persistent://public/default/change-allow-ooo-delivery-" + UUID.randomUUID();
         final String subName = "my-sub";
 
@@ -1207,7 +1250,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         producer.send("message".getBytes());
         Awaitility.await().untilAsserted(() -> assertNotNull(consumer1.receive(100, TimeUnit.MILLISECONDS)));
 
-        PersistentStickyKeyDispatcherMultipleConsumers dispatcher = getDispatcher(topicName, subName);
+        StickyKeyDispatcher dispatcher = getDispatcher(topicName, subName);
         assertTrue(dispatcher.isAllowOutOfOrderDelivery());
         consumer1.close();
 
@@ -1225,8 +1268,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         consumer2.close();
     }
 
-    @Test(timeOut = 30_000)
-    public void testCheckConsumersWithSameName() throws Exception {
+    @Test(timeOut = 30_000, dataProvider = "currentImplementationType")
+    public void testCheckConsumersWithSameName(KeySharedImplementationType impl) throws Exception {
         final String topicName = "persistent://public/default/same-name-" + UUID.randomUUID();
         final String subName = "my-sub";
         final String consumerName = "name";
@@ -1270,25 +1313,37 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         @Cleanup("shutdownNow")
         ExecutorService e = Executors.newCachedThreadPool();
         e.submit(() -> {
-            while (l.getCount() > 0) {
+            while (l.getCount() > 0 && !Thread.currentThread().isInterrupted()) {
                 try {
                     Message<String> msg = c2.receive(1, TimeUnit.SECONDS);
+                    if (msg == null) {
+                        continue;
+                    }
                     c2.acknowledge(msg);
                     l.countDown();
                 } catch (PulsarClientException ex) {
                     ex.printStackTrace();
+                    if (ex instanceof PulsarClientException.AlreadyClosedException) {
+                        break;
+                    }
                 }
             }
         });
 
         e.submit(() -> {
-            while (l.getCount() > 0) {
+            while (l.getCount() > 0 && !Thread.currentThread().isInterrupted()) {
                 try {
                     Message<String> msg = c3.receive(1, TimeUnit.SECONDS);
+                    if (msg == null) {
+                        continue;
+                    }
                     c3.acknowledge(msg);
                     l.countDown();
                 } catch (PulsarClientException ex) {
                     ex.printStackTrace();
+                    if (ex instanceof PulsarClientException.AlreadyClosedException) {
+                        break;
+                    }
                 }
             }
         });
@@ -1303,7 +1358,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     private KeySharedMode getKeySharedModeOfSubscription(Topic topic, String subscription) {
         if (TopicName.get(topic.getName()).getDomain().equals(TopicDomain.persistent)) {
-            return ((PersistentStickyKeyDispatcherMultipleConsumers) topic.getSubscription(subscription)
+            return ((StickyKeyDispatcher) topic.getSubscription(subscription)
                     .getDispatcher()).getKeySharedMode();
         } else if (TopicName.get(topic.getName()).getDomain().equals(TopicDomain.non_persistent)) {
             return ((NonPersistentStickyKeyDispatcherMultipleConsumers) topic.getSubscription(subscription)
@@ -1390,45 +1445,37 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
      */
     private void receiveAndCheckDistribution(List<Consumer<?>> consumers, int expectedTotalMessage) throws PulsarClientException {
         // Add a key so that we know this key was already assigned to one consumer
-        Map<String, Consumer<?>> keyToConsumer = new HashMap<>();
-        Map<Consumer<?>, Integer> messagesPerConsumer = new HashMap<>();
+        Map<String, Consumer<?>> keyToConsumer = new ConcurrentHashMap<>();
+        Map<Consumer<?>, AtomicInteger> messagesPerConsumer = new ConcurrentHashMap<>();
+        AtomicInteger totalMessages = new AtomicInteger();
 
-        int totalMessages = 0;
+        BiFunction<Consumer<Object>, Message<Object>, Boolean> messageHandler = (consumer, msg) -> {
+            totalMessages.incrementAndGet();
+            messagesPerConsumer.computeIfAbsent(consumer, k -> new AtomicInteger()).incrementAndGet();
+            try {
+                consumer.acknowledge(msg);
+            } catch (PulsarClientException e) {
+                throw new RuntimeException(e);
+            }
 
-        for (Consumer<?> c : consumers) {
-            int messagesForThisConsumer = 0;
-            while (true) {
-                Message<?> msg = c.receive(100, TimeUnit.MILLISECONDS);
-                if (msg == null) {
-                    // Go to next consumer
-                    messagesPerConsumer.put(c, messagesForThisConsumer);
-                    break;
-                }
-
-                ++totalMessages;
-                ++messagesForThisConsumer;
-                c.acknowledge(msg);
-
-                if (msg.hasKey() || msg.hasOrderingKey()) {
-                    String key = msg.hasOrderingKey() ? new String(msg.getOrderingKey()) : msg.getKey();
-                    Consumer<?> assignedConsumer = keyToConsumer.get(key);
-                    if (assignedConsumer == null) {
-                        // This is a new key
-                        keyToConsumer.put(key, c);
-                    } else {
-                        // The consumer should be the same
-                        assertEquals(c, assignedConsumer);
-                    }
+            if (msg.hasKey() || msg.hasOrderingKey()) {
+                String key = msg.hasOrderingKey() ? new String(msg.getOrderingKey()) : msg.getKey();
+                Consumer<?> assignedConsumer = keyToConsumer.putIfAbsent(key, consumer);
+                if (assignedConsumer != null && !assignedConsumer.equals(consumer)) {
+                    assertEquals(consumer, assignedConsumer);
                 }
             }
-        }
+            return true;
+        };
+
+        BrokerTestUtil.receiveMessagesInThreads(messageHandler, Duration.ofMillis(250),
+                consumers.stream().map(Consumer.class::cast));
 
         final double PERCENT_ERROR = 0.40; // 40 %
-
-        double expectedMessagesPerConsumer = totalMessages / consumers.size();
-        Assert.assertEquals(expectedTotalMessage, totalMessages);
-        for (int count : messagesPerConsumer.values()) {
-            Assert.assertEquals(count, expectedMessagesPerConsumer, expectedMessagesPerConsumer * PERCENT_ERROR);
+        double expectedMessagesPerConsumer = totalMessages.get() / (double) consumers.size();
+        Assert.assertEquals(expectedTotalMessage, totalMessages.get());
+        for (AtomicInteger count : messagesPerConsumer.values()) {
+            Assert.assertEquals(count.get(), expectedMessagesPerConsumer, expectedMessagesPerConsumer * PERCENT_ERROR);
         }
     }
 
@@ -1531,8 +1578,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
-    public void testStickyKeyRangesRestartConsumers() throws Exception {
+    @Test(dataProvider = "currentImplementationType")
+    public void testStickyKeyRangesRestartConsumers(KeySharedImplementationType impl) throws Exception {
         final String topic = TopicName.get("persistent", "public", "default",
                 "testStickyKeyRangesRestartConsumers" + UUID.randomUUID()).toString();
 
@@ -1663,8 +1710,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         producerFuture.get();
     }
 
-    @Test
-    public void testContinueDispatchMessagesWhenMessageDelayed() throws Exception {
+    @Test(dataProvider = "currentImplementationType")
+    public void testContinueDispatchMessagesWhenMessageDelayed(KeySharedImplementationType impl) throws Exception {
         int delayedMessages = 40;
         int messages = 40;
         int sum = 0;
@@ -1765,8 +1812,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         return replyReadCounter;
     }
 
-    @Test
-    public void testNoRepeatedReadAndDiscard() throws Exception {
+    @Test(dataProvider = "currentImplementationType")
+    public void testNoRepeatedReadAndDiscard(KeySharedImplementationType impl) throws Exception {
         int delayedMessages = 100;
         int numberOfKeys = delayedMessages;
         final String topic = newUniqueName("persistent://public/default/tp");
@@ -1839,10 +1886,10 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     @DataProvider(name = "allowKeySharedOutOfOrder")
     public Object[][] allowKeySharedOutOfOrder() {
-        return new Object[][]{
+        return prependImplementationTypeToData(new Object[][]{
                 {true},
                 {false}
-        };
+        });
     }
 
     /**
@@ -1860,7 +1907,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
      *   - at last, all messages will be received.
      */
     @Test(timeOut = 180 * 1000, dataProvider = "allowKeySharedOutOfOrder") // the test will be finished in 60s.
-    public void testRecentJoinedPosWillNotStuckOtherConsumer(boolean allowKeySharedOutOfOrder) throws Exception {
+    public void testRecentJoinedPosWillNotStuckOtherConsumer(KeySharedImplementationType impl, boolean allowKeySharedOutOfOrder) throws Exception {
         final int messagesSentPerTime = 100;
         final Set<Integer> totalReceivedMessages = new TreeSet<>();
         final String topic = newUniqueName("persistent://public/default/tp");
@@ -2020,8 +2067,10 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         admin.topics().delete(topic, false);
     }
 
-    @Test
-    public void testReadAheadLimit() throws Exception {
+    @Test(dataProvider = "currentImplementationType")
+    public void testReadAheadLimit(KeySharedImplementationType impl) throws Exception {
+        // skip for classic implementation since the feature is not implemented
+        impl.skipIfClassic();
         String topic = "testReadAheadLimit-" + UUID.randomUUID();
         int numberOfKeys = 1000;
         long pauseTime = 100L;
@@ -2040,7 +2089,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .subscribe()
                 .close();
 
-        PersistentStickyKeyDispatcherMultipleConsumers dispatcher = getDispatcher(topic, subscriptionName);
+        StickyKeyDispatcher dispatcher = getDispatcher(topic, subscriptionName);
 
         // create a function to use for checking the number of messages in replay
         Runnable checkLimit = () -> {
@@ -2145,16 +2194,18 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     private StickyKeyConsumerSelector getSelector(String topic, String subscription) {
         Topic t = pulsar.getBrokerService().getTopicIfExists(topic).get().get();
         PersistentSubscription sub = (PersistentSubscription) t.getSubscription(subscription);
-        PersistentStickyKeyDispatcherMultipleConsumers dispatcher =
-                (PersistentStickyKeyDispatcherMultipleConsumers) sub.getDispatcher();
+        StickyKeyDispatcher dispatcher = (StickyKeyDispatcher) sub.getDispatcher();
         return dispatcher.getSelector();
     }
 
     // This test case simulates a rolling restart scenario with behaviors that can trigger out-of-order issues.
     // In earlier versions of Pulsar, this issue occurred in about 25% of cases.
     // To increase the probability of reproducing the issue, use the invocationCount parameter.
-    @Test//(invocationCount = 50)
-    public void testOrderingAfterReconnects() throws Exception {
+    @Test(dataProvider = "currentImplementationType")//(invocationCount = 50)
+    public void testOrderingAfterReconnects(KeySharedImplementationType impl) throws Exception {
+        // skip for classic implementation since this fails
+        impl.skipIfClassic();
+
         String topic = newUniqueName("testOrderingAfterReconnects");
         int numberOfKeys = 1000;
         long pauseTime = 100L;
