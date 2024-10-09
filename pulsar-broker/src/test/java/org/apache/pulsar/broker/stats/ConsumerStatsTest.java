@@ -74,6 +74,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -245,7 +246,7 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
                 "connectedSince",
                 "clientVersion");
 
-        final String topicName = "persistent://prop/use/ns-abc/testConsumerStatsOutput";
+        final String topicName = "persistent://my-property/my-ns/testConsumerStatsOutput";
         final String subName = "my-subscription";
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
@@ -267,6 +268,30 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         }
 
         consumer.close();
+    }
+
+    @DataProvider(name = "invalidTopicName")
+    public static Object[][] invalidTopicName() {
+        // some topic names in non-exist namespace
+        return new Object[][]{
+                {"persistent://prop/use/ns-abc/testNonExistNamespace"},
+                {"persistent://prop/ns-abc/testNonExistNamespace"}
+        };
+    }
+
+    @Test(dataProvider = "invalidTopicName")
+    public void testNonExistNamespace(String invalidTopicName) throws Exception {
+        final String subName = "my-subscription";
+        try {
+            Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                    .topic(invalidTopicName)
+                    .subscriptionType(SubscriptionType.Shared)
+                    .subscriptionName(subName)
+                    .subscribe();
+            Assert.fail("should have failed");
+        } catch (Exception e) {
+            // ok
+        }
     }
 
 
