@@ -132,7 +132,7 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
         Assert.assertEquals(lookupResultSet.size(), 1);
     }
 
-    @Test
+    @Test(groups = "flaky")
     public void testForceDeletePartitionedTopicWithSub() throws Exception {
         final int numPartitions = 10;
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));

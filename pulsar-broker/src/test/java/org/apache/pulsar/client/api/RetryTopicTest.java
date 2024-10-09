@@ -257,6 +257,9 @@ public class RetryTopicTest extends ProducerConsumerBase {
     public void testRetryTopicProperties() throws Exception {
         final String topic = "persistent://my-property/my-ns/retry-topic";
 
+        byte[] key = "key".getBytes();
+        byte[] orderingKey = "orderingKey".getBytes();
+
         final int maxRedeliveryCount = 3;
 
         final int sendMessages = 10;
@@ -285,7 +288,11 @@ public class RetryTopicTest extends ProducerConsumerBase {
 
         Set<String> originMessageIds = new HashSet<>();
         for (int i = 0; i < sendMessages; i++) {
-            MessageId msgId = producer.send(String.format("Hello Pulsar [%d]", i).getBytes());
+            MessageId msgId = producer.newMessage()
+                    .value(String.format("Hello Pulsar [%d]", i).getBytes())
+                    .keyBytes(key)
+                    .orderingKey(orderingKey)
+                    .send();
             originMessageIds.add(msgId.toString());
         }
 
@@ -298,6 +305,10 @@ public class RetryTopicTest extends ProducerConsumerBase {
             if (message.hasProperty(RetryMessageUtil.SYSTEM_PROPERTY_RECONSUMETIMES)) {
                 // check the REAL_TOPIC property
                 assertEquals(message.getProperty(RetryMessageUtil.SYSTEM_PROPERTY_REAL_TOPIC), topic);
+                assertTrue(message.hasKey());
+                assertEquals(message.getKeyBytes(), key);
+                assertTrue(message.hasOrderingKey());
+                assertEquals(message.getOrderingKey(), orderingKey);
                 retryMessageIds.add(message.getProperty(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID));
             }
             consumer.reconsumeLater(message, 1, TimeUnit.SECONDS);
@@ -317,6 +328,10 @@ public class RetryTopicTest extends ProducerConsumerBase {
             if (message.hasProperty(RetryMessageUtil.SYSTEM_PROPERTY_RECONSUMETIMES)) {
                 // check the REAL_TOPIC property
                 assertEquals(message.getProperty(RetryMessageUtil.SYSTEM_PROPERTY_REAL_TOPIC), topic);
+                assertTrue(message.hasKey());
+                assertEquals(message.getKeyBytes(), key);
+                assertTrue(message.hasOrderingKey());
+                assertEquals(message.getOrderingKey(), orderingKey);
                 deadLetterMessageIds.add(message.getProperty(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID));
             }
             deadLetterConsumer.acknowledge(message);

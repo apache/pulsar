@@ -81,7 +81,7 @@ public class PulsarTestClient extends PulsarClientImpl {
 
         AtomicReference<Supplier<ClientCnx>> clientCnxSupplierReference = new AtomicReference<>();
         ConnectionPool connectionPool = new ConnectionPool(InstrumentProvider.NOOP, clientConfigurationData, eventLoopGroup,
-                () -> clientCnxSupplierReference.get().get());
+                () -> clientCnxSupplierReference.get().get(), null);
 
         return new PulsarTestClient(clientConfigurationData, eventLoopGroup, connectionPool,
                 clientCnxSupplierReference);

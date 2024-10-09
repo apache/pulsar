@@ -73,7 +73,7 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
             StatsLogger statsLogger, BookieAddressResolver bookieAddressResolver) {
         MetadataStore store;
         try {
-            store = BookieRackAffinityMapping.createMetadataStore(conf);
+            store = BookieRackAffinityMapping.getMetadataStore(conf);
         } catch (MetadataException e) {
             throw new RuntimeException(METADATA_STORE_INSTANCE + " failed initialized");
         }

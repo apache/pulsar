@@ -123,7 +123,7 @@ public class ClientBuilderImplTest {
         PulsarClient.builder().connectionMaxIdleSeconds(60);
         // test config not correct.
         try {
-            PulsarClient.builder().connectionMaxIdleSeconds(30);
+            PulsarClient.builder().connectionMaxIdleSeconds(14);
             fail();
         } catch (IllegalArgumentException e){
         }

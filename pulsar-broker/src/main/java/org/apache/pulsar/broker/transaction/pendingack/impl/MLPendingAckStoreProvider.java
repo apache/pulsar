@@ -25,9 +25,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.exception.pendingack.TransactionPendingAckException;
@@ -84,7 +86,8 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
         }
 
         PersistentTopic originPersistentTopic = (PersistentTopic) subscription.getTopic();
-        PulsarService pulsarService = originPersistentTopic.getBrokerService().getPulsar();
+        BrokerService brokerService = originPersistentTopic.getBrokerService();
+        PulsarService pulsarService = brokerService.getPulsar();
 
         final Timer brokerClientSharedTimer =
                 pulsarService.getBrokerClientSharedTimer();
@@ -103,79 +106,116 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
 
         String pendingAckTopicName = MLPendingAckStore
                 .getTransactionPendingAckStoreSuffix(originPersistentTopic.getName(), subscription.getName());
-        originPersistentTopic.getBrokerService().getManagedLedgerFactory()
-                .asyncExists(TopicName.get(pendingAckTopicName)
-                        .getPersistenceNamingEncoding()).thenAccept(exist -> {
-            TopicName topicName;
-            if (exist) {
-                topicName = TopicName.get(pendingAckTopicName);
-            } else {
-                topicName = TopicName.get(originPersistentTopic.getName());
-            }
-            originPersistentTopic.getBrokerService()
-                    .getManagedLedgerConfig(topicName).thenAccept(config -> {
-                config.setCreateIfMissing(true);
-                originPersistentTopic.getBrokerService().getManagedLedgerFactory()
-                        .asyncOpen(TopicName.get(pendingAckTopicName).getPersistenceNamingEncoding(),
-                                config, new AsyncCallbacks.OpenLedgerCallback() {
-                                    @Override
-                                    public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
-                                        ledger.asyncOpenCursor(
-                                                MLPendingAckStore.getTransactionPendingAckStoreCursorName(),
-                                                InitialPosition.Earliest, new AsyncCallbacks.OpenCursorCallback() {
-                                                    @Override
-                                                    public void openCursorComplete(ManagedCursor cursor, Object ctx) {
-                                                        pendingAckStoreFuture.complete(new MLPendingAckStore(ledger,
-                                                                cursor,
-                                                                subscription.getCursor(),
-                                                                originPersistentTopic
-                                                                        .getBrokerService()
-                                                                        .getPulsar()
-                                                                        .getConfiguration()
-                                                                        .getTransactionPendingAckLogIndexMinLag(),
-                                                                txnLogBufferedWriterConfig,
-                                                                brokerClientSharedTimer, bufferedWriterMetrics));
-                                                        if (log.isDebugEnabled()) {
-                                                            log.debug("{},{} open MLPendingAckStore cursor success",
-                                                                    originPersistentTopic.getName(),
-                                                                    subscription.getName());
-                                                        }
-                                                    }
+        TopicName pendingAckTopicNameObject = TopicName.get(pendingAckTopicName);
+        brokerService.getManagedLedgerFactoryForTopic(pendingAckTopicNameObject)
+                .thenAccept(managedLedgerFactory -> {
+                    managedLedgerFactory.asyncExists(pendingAckTopicNameObject
+                            .getPersistenceNamingEncoding()).thenAccept(exist -> {
+                        TopicName topicName;
+                        if (exist) {
+                            topicName = pendingAckTopicNameObject;
+                        } else {
+                            topicName = TopicName.get(originPersistentTopic.getName());
+                        }
+                        brokerService.getManagedLedgerConfig(topicName).thenAccept(config -> {
+                            internalNewPendingAckStore(subscription, config, brokerService, topicName,
+                                    pendingAckTopicNameObject, pendingAckStoreFuture, txnLogBufferedWriterConfig,
+                                    brokerClientSharedTimer, originPersistentTopic);
+                        }).exceptionally(e -> {
+                            Throwable t = FutureUtil.unwrapCompletionException(e);
+                            log.error("[{}] [{}] Failed to get managedLedger config when init pending ack "
+                                            + "store!",
+                                    originPersistentTopic, subscription, t);
+                            pendingAckStoreFuture.completeExceptionally(t);
+                            return null;
 
-                                                    @Override
-                                                    public void openCursorFailed(ManagedLedgerException exception,
-                                                                                 Object ctx) {
-                                                        log.error("{},{} open MLPendingAckStore cursor failed."
-                                                                , originPersistentTopic.getName(),
-                                                                subscription.getName(), exception);
-                                                        pendingAckStoreFuture.completeExceptionally(exception);
-                                                    }
-                                                }, null);
-                                    }
-
-                                    @Override
-                                    public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                                        log.error("{}, {} open MLPendingAckStore managedLedger failed."
-                                                , originPersistentTopic.getName(), subscription.getName(), exception);
-                                        pendingAckStoreFuture.completeExceptionally(exception);
-                                    }
-                                }, () -> CompletableFuture.completedFuture(true), null);
+                        });
                     }).exceptionally(e -> {
                         Throwable t = FutureUtil.unwrapCompletionException(e);
-                        log.error("[{}] [{}] Failed to get managedLedger config when init pending ack store!",
+                        log.error("[{}] [{}] Failed to check the pending ack topic exist when init pending ack store!",
                                 originPersistentTopic, subscription, t);
                         pendingAckStoreFuture.completeExceptionally(t);
                         return null;
-
                     });
                 }).exceptionally(e -> {
                     Throwable t = FutureUtil.unwrapCompletionException(e);
-                    log.error("[{}] [{}] Failed to check the pending ack topic exist when init pending ack store!",
-                            originPersistentTopic, subscription, t);
+                    log.error("[{}] [{}] Failed to get managedLedger config when init pending ack store!",
+                            pendingAckTopicNameObject, subscription, t);
                     pendingAckStoreFuture.completeExceptionally(t);
                     return null;
                 });
         return pendingAckStoreFuture;
+    }
+
+    private static void internalNewPendingAckStore(PersistentSubscription subscription, ManagedLedgerConfig config,
+                                                   BrokerService brokerService, TopicName topicName,
+                                                   TopicName pendingAckTopicNameObject,
+                                                   CompletableFuture<PendingAckStore> pendingAckStoreFuture,
+                                                   TxnLogBufferedWriterConfig txnLogBufferedWriterConfig,
+                                                   Timer brokerClientSharedTimer,
+                                                   PersistentTopic originPersistentTopic) {
+        config.setCreateIfMissing(true);
+        brokerService
+                .getManagedLedgerFactoryForTopic(topicName, config.getStorageClassName())
+                .asyncOpen(pendingAckTopicNameObject.getPersistenceNamingEncoding(),
+                        config, new AsyncCallbacks.OpenLedgerCallback() {
+                            @Override
+                            public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
+                                ledger.asyncOpenCursor(
+                                        MLPendingAckStore.getTransactionPendingAckStoreCursorName(),
+                                        InitialPosition.Earliest,
+                                        new AsyncCallbacks.OpenCursorCallback() {
+                                            @Override
+                                            public void openCursorComplete(ManagedCursor cursor,
+                                                                           Object ctx) {
+                                                pendingAckStoreFuture.complete(
+                                                        new MLPendingAckStore(ledger,
+                                                                cursor,
+                                                                subscription.getCursor(),
+                                                                brokerService
+                                                                        .getPulsar()
+                                                                        .getConfiguration()
+                                                                        .getTransactionPendingAckLogIndexMinLag(),
+                                                                txnLogBufferedWriterConfig,
+                                                                brokerClientSharedTimer,
+                                                                bufferedWriterMetrics,
+                                                                brokerService
+                                                                        .getPulsar()
+                                                                        .getOrderedExecutor()
+                                                                        .chooseThread()));
+                                                if (log.isDebugEnabled()) {
+                                                    log.debug(
+                                                            "{},{} open MLPendingAckStore cursor "
+                                                                    + "success",
+                                                            originPersistentTopic.getName(),
+                                                            subscription.getName());
+                                                }
+                                            }
+
+                                            @Override
+                                            public void openCursorFailed(
+                                                    ManagedLedgerException exception,
+                                                    Object ctx) {
+                                                log.error(
+                                                        "{},{} open MLPendingAckStore cursor "
+                                                                + "failed."
+                                                        , originPersistentTopic.getName(),
+                                                        subscription.getName(), exception);
+                                                pendingAckStoreFuture.completeExceptionally(
+                                                        exception);
+                                            }
+                                        }, null);
+                            }
+
+                            @Override
+                            public void openLedgerFailed(ManagedLedgerException exception,
+                                                         Object ctx) {
+                                log.error("{}, {} open MLPendingAckStore managedLedger failed."
+                                        , originPersistentTopic.getName(), subscription.getName(),
+                                        exception);
+                                pendingAckStoreFuture.completeExceptionally(exception);
+                            }
+                        }, () -> CompletableFuture.completedFuture(true), null);
     }
 
     @Override
@@ -183,8 +223,10 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
         PersistentTopic originPersistentTopic = (PersistentTopic) subscription.getTopic();
         String pendingAckTopicName = MLPendingAckStore
                 .getTransactionPendingAckStoreSuffix(originPersistentTopic.getName(), subscription.getName());
-        return originPersistentTopic.getBrokerService().getManagedLedgerFactory()
-                .asyncExists(TopicName.get(pendingAckTopicName).getPersistenceNamingEncoding());
+        TopicName topicName = TopicName.get(pendingAckTopicName);
+        return originPersistentTopic.getBrokerService().getManagedLedgerFactoryForTopic(topicName)
+                .thenCompose(managedLedgerFactory -> managedLedgerFactory.asyncExists(
+                        topicName.getPersistenceNamingEncoding()));
     }
 
     private static class MLTxnPendingAckLogBufferedWriterMetrics extends TxnLogBufferedWriterMetricsStats{

@@ -54,7 +54,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -98,6 +97,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaHash;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.BackoffBuilder;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
@@ -173,7 +173,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private long lastBatchSendNanoTime;
 
     private Optional<Long> topicEpoch = Optional.empty();
-    private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<Throwable>();
+    private final AtomicInteger previousExceptionCount = new AtomicInteger();
 
     private boolean errorState;
 
@@ -378,80 +378,83 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         pendingMessagesUpDownCounter.increment();
         pendingBytesUpDownCounter.add(msgSize);
 
-        sendAsync(interceptorMessage, new SendCallback() {
-            SendCallback nextCallback = null;
-            MessageImpl<?> nextMsg = null;
-            long createdAt = System.nanoTime();
-
-            @Override
-            public CompletableFuture<MessageId> getFuture() {
-                return future;
-            }
-
-            @Override
-            public SendCallback getNextSendCallback() {
-                return nextCallback;
-            }
-
-            @Override
-            public MessageImpl<?> getNextMessage() {
-                return nextMsg;
-            }
-
-            @Override
-            public void sendComplete(Exception e) {
-                long latencyNanos = System.nanoTime() - createdAt;
-                pendingMessagesUpDownCounter.decrement();
-                pendingBytesUpDownCounter.subtract(msgSize);
-
-                try {
-                    if (e != null) {
-                        latencyHistogram.recordFailure(latencyNanos);
-                        stats.incrementSendFailed();
-                        onSendAcknowledgement(interceptorMessage, null, e);
-                        future.completeExceptionally(e);
-                    } else {
-                        latencyHistogram.recordSuccess(latencyNanos);
-                        publishedBytesCounter.add(msgSize);
-                        onSendAcknowledgement(interceptorMessage, interceptorMessage.getMessageId(), null);
-                        future.complete(interceptorMessage.getMessageId());
-                        stats.incrementNumAcksReceived(latencyNanos);
-                    }
-                } finally {
-                    interceptorMessage.getDataBuffer().release();
-                }
-
-                while (nextCallback != null) {
-                    SendCallback sendCallback = nextCallback;
-                    MessageImpl<?> msg = nextMsg;
-                    // Retain the buffer used by interceptors callback to get message. Buffer will release after
-                    // complete interceptors.
-                    try {
-                        msg.getDataBuffer().retain();
-                        if (e != null) {
-                            stats.incrementSendFailed();
-                            onSendAcknowledgement(msg, null, e);
-                            sendCallback.getFuture().completeExceptionally(e);
-                        } else {
-                            onSendAcknowledgement(msg, msg.getMessageId(), null);
-                            sendCallback.getFuture().complete(msg.getMessageId());
-                            stats.incrementNumAcksReceived(System.nanoTime() - createdAt);
-                        }
-                        nextMsg = nextCallback.getNextMessage();
-                        nextCallback = nextCallback.getNextSendCallback();
-                    } finally {
-                        msg.getDataBuffer().release();
-                    }
-                }
-            }
-
-            @Override
-            public void addCallback(MessageImpl<?> msg, SendCallback scb) {
-                nextMsg = msg;
-                nextCallback = scb;
-            }
-        });
+        sendAsync(interceptorMessage, new DefaultSendMessageCallback(future, interceptorMessage, msgSize));
         return future;
+    }
+
+    private class DefaultSendMessageCallback implements SendCallback {
+
+        CompletableFuture<MessageId> sendFuture;
+        MessageImpl<?> currentMsg;
+        int msgSize;
+        long createdAt = System.nanoTime();
+        SendCallback nextCallback = null;
+        MessageImpl<?> nextMsg = null;
+
+        DefaultSendMessageCallback(CompletableFuture<MessageId> sendFuture, MessageImpl<?> currentMsg, int msgSize) {
+            this.sendFuture = sendFuture;
+            this.currentMsg = currentMsg;
+            this.msgSize = msgSize;
+        }
+
+        @Override
+        public CompletableFuture<MessageId> getFuture() {
+            return sendFuture;
+        }
+
+        @Override
+        public SendCallback getNextSendCallback() {
+            return nextCallback;
+        }
+
+        @Override
+        public MessageImpl<?> getNextMessage() {
+            return nextMsg;
+        }
+
+        @Override
+        public void sendComplete(Throwable e, OpSendMsgStats opSendMsgStats) {
+            SendCallback loopingCallback = this;
+            MessageImpl<?> loopingMsg = currentMsg;
+            while (loopingCallback != null) {
+                onSendComplete(e, loopingCallback, loopingMsg);
+                loopingMsg = loopingCallback.getNextMessage();
+                loopingCallback = loopingCallback.getNextSendCallback();
+            }
+        }
+
+        private void onSendComplete(Throwable e, SendCallback sendCallback, MessageImpl<?> msg) {
+            long createdAt = (sendCallback instanceof ProducerImpl.DefaultSendMessageCallback)
+                    ? ((DefaultSendMessageCallback) sendCallback).createdAt : this.createdAt;
+            long latencyNanos = System.nanoTime() - createdAt;
+            pendingMessagesUpDownCounter.decrement();
+            pendingBytesUpDownCounter.subtract(msgSize);
+            ByteBuf payload = msg.getDataBuffer();
+            if (payload == null) {
+                log.error("[{}] [{}] Payload is null when calling onSendComplete, which is not expected.",
+                        topic, producerName);
+            } else {
+                ReferenceCountUtil.safeRelease(payload);
+            }
+            if (e != null) {
+                latencyHistogram.recordFailure(latencyNanos);
+                stats.incrementSendFailed();
+                onSendAcknowledgement(msg, null, e);
+                sendCallback.getFuture().completeExceptionally(e);
+            } else {
+                latencyHistogram.recordSuccess(latencyNanos);
+                publishedBytesCounter.add(msgSize);
+                stats.incrementNumAcksReceived(latencyNanos);
+                onSendAcknowledgement(msg, msg.getMessageId(), null);
+                sendCallback.getFuture().complete(msg.getMessageId());
+            }
+        }
+
+        @Override
+        public void addCallback(MessageImpl<?> msg, SendCallback scb) {
+            nextMsg = msg;
+            nextCallback = scb;
+        }
     }
 
     @Override
@@ -838,7 +841,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 log.warn("[{}] [{}] GetOrCreateSchema error", topic, producerName, t);
                 if (t instanceof PulsarClientException.IncompatibleSchemaException) {
                     msg.setSchemaState(MessageImpl.SchemaState.Broken);
-                    callback.sendComplete((PulsarClientException.IncompatibleSchemaException) t);
+                    callback.sendComplete(t, null);
                 }
             } else {
                 log.info("[{}] [{}] GetOrCreateSchema succeed", topic, producerName);
@@ -981,19 +984,19 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             case Closing:
             case Closed:
                 callback.sendComplete(
-                        new PulsarClientException.AlreadyClosedException("Producer already closed", sequenceId));
+                        new PulsarClientException.AlreadyClosedException("Producer already closed", sequenceId), null);
                 return false;
             case ProducerFenced:
-                callback.sendComplete(new PulsarClientException.ProducerFencedException("Producer was fenced"));
+                callback.sendComplete(new PulsarClientException.ProducerFencedException("Producer was fenced"), null);
                 return false;
             case Terminated:
                 callback.sendComplete(
-                        new PulsarClientException.TopicTerminatedException("Topic was terminated", sequenceId));
+                        new PulsarClientException.TopicTerminatedException("Topic was terminated", sequenceId), null);
                 return false;
             case Failed:
             case Uninitialized:
             default:
-                callback.sendComplete(new PulsarClientException.NotConnectedException(sequenceId));
+                callback.sendComplete(new PulsarClientException.NotConnectedException(sequenceId), null);
                 return false;
         }
     }
@@ -1008,20 +1011,20 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             } else {
                 if (!semaphore.map(Semaphore::tryAcquire).orElse(true)) {
                     callback.sendComplete(new PulsarClientException.ProducerQueueIsFullError(
-                            "Producer send queue is full", sequenceId));
+                            "Producer send queue is full", sequenceId), null);
                     return false;
                 }
 
                 if (!client.getMemoryLimitController().tryReserveMemory(payloadSize)) {
                     semaphore.ifPresent(Semaphore::release);
                     callback.sendComplete(new PulsarClientException.MemoryBufferIsFullError(
-                            "Client memory buffer is full", sequenceId));
+                            "Client memory buffer is full", sequenceId), null);
                     return false;
                 }
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            callback.sendComplete(new PulsarClientException(e, sequenceId));
+            callback.sendComplete(new PulsarClientException(e, sequenceId), null);
             return false;
         }
 
@@ -1298,7 +1301,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private void completeCallbackAndReleaseSemaphore(long payloadSize, SendCallback callback, Exception exception) {
         semaphore.ifPresent(Semaphore::release);
         client.getMemoryLimitController().releaseMemory(payloadSize);
-        callback.sendComplete(exception);
+        callback.sendComplete(exception, null);
     }
 
     /**
@@ -1591,7 +1594,17 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     rpcLatencyHistogram.recordFailure(now - this.lastSentAt);
                 }
 
-                callback.sendComplete(finalEx);
+                OpSendMsgStats opSendMsgStats = OpSendMsgStatsImpl.builder()
+                        .uncompressedSize(uncompressedSize)
+                        .sequenceId(sequenceId)
+                        .retryCount(retryCount)
+                        .batchSizeByte(batchSizeByte)
+                        .numMessagesInBatch(numMessagesInBatch)
+                        .highestSequenceId(highestSequenceId)
+                        .totalChunks(totalChunks)
+                        .chunkId(chunkId)
+                        .build();
+                callback.sendComplete(finalEx, opSendMsgStats);
             }
         }
 
@@ -1735,7 +1748,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     @Override
     public CompletableFuture<Void> connectionOpened(final ClientCnx cnx) {
-        previousExceptions.clear();
+        previousExceptionCount.set(0);
         getConnectionHandler().setMaxMessageSize(cnx.getMaxMessageSize());
         setChunkMaxMessageSize();
 
@@ -1941,7 +1954,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         boolean nonRetriableError = !PulsarClientException.isRetriableError(exception);
         boolean timeout = System.currentTimeMillis() > lookupDeadline;
         if (nonRetriableError || timeout) {
-            exception.setPreviousExceptions(previousExceptions);
+            exception.setPreviousExceptionCount(previousExceptionCount);
             if (producerCreatedFuture.completeExceptionally(exception)) {
                 if (nonRetriableError) {
                     log.info("[{}] Producer creation failed for producer {} with unretriableError = {}",
@@ -1954,7 +1967,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 client.cleanupProducer(this);
             }
         } else {
-            previousExceptions.add(exception);
+            previousExceptionCount.incrementAndGet();
         }
     }
 

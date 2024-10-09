@@ -19,12 +19,12 @@
 package org.apache.pulsar.client.impl;
 
 import static java.lang.String.format;
+import static org.apache.pulsar.client.api.PulsarClientException.FailedFeatureCheck.SupportsGetPartitionedMetadataWithoutAutoCreation;
 import io.netty.buffer.ByteBuf;
 import io.opentelemetry.api.common.Attributes;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -33,6 +33,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.lang3.mutable.MutableObject;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
@@ -46,6 +47,8 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.util.Backoff;
+import org.apache.pulsar.common.util.BackoffBuilder;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,7 +62,7 @@ public class BinaryProtoLookupService implements LookupService {
     private final String listenerName;
     private final int maxLookupRedirects;
 
-    private final ConcurrentHashMap<TopicName, CompletableFuture<LookupTopicResult>>
+    private final ConcurrentHashMap<Pair<TopicName, Map<String, String>>, CompletableFuture<LookupTopicResult>>
             lookupInProgress = new ConcurrentHashMap<>();
 
     private final ConcurrentHashMap<TopicName, CompletableFuture<PartitionedTopicMetadata>>
@@ -117,10 +120,12 @@ public class BinaryProtoLookupService implements LookupService {
     public CompletableFuture<LookupTopicResult> getBroker(TopicName topicName) {
         long startTime = System.nanoTime();
         final MutableObject<CompletableFuture> newFutureCreated = new MutableObject<>();
+        final Pair<TopicName, Map<String, String>> key = Pair.of(topicName,
+                client.getConfiguration().getLookupProperties());
         try {
-            return lookupInProgress.computeIfAbsent(topicName, tpName -> {
-                CompletableFuture<LookupTopicResult> newFuture =
-                        findBroker(serviceNameResolver.resolveHost(), false, topicName, 0);
+            return lookupInProgress.computeIfAbsent(key, tpName -> {
+                CompletableFuture<LookupTopicResult> newFuture = findBroker(serviceNameResolver.resolveHost(), false,
+                        topicName, 0, key.getRight());
                 newFutureCreated.setValue(newFuture);
 
                 newFuture.thenRun(() -> {
@@ -134,7 +139,7 @@ public class BinaryProtoLookupService implements LookupService {
         } finally {
             if (newFutureCreated.getValue() != null) {
                 newFutureCreated.getValue().whenComplete((v, ex) -> {
-                    lookupInProgress.remove(topicName, newFutureCreated.getValue());
+                    lookupInProgress.remove(key, newFutureCreated.getValue());
                 });
             }
         }
@@ -144,12 +149,15 @@ public class BinaryProtoLookupService implements LookupService {
      * calls broker binaryProto-lookup api to get metadata of partitioned-topic.
      *
      */
-    public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName) {
+    @Override
+    public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(
+            TopicName topicName, boolean metadataAutoCreationEnabled, boolean useFallbackForNonPIP344Brokers) {
         final MutableObject<CompletableFuture> newFutureCreated = new MutableObject<>();
         try {
             return partitionedMetadataInProgress.computeIfAbsent(topicName, tpName -> {
-                CompletableFuture<PartitionedTopicMetadata> newFuture =
-                        getPartitionedTopicMetadata(serviceNameResolver.resolveHost(), topicName);
+                CompletableFuture<PartitionedTopicMetadata> newFuture = getPartitionedTopicMetadata(
+                        serviceNameResolver.resolveHost(), topicName, metadataAutoCreationEnabled,
+                        useFallbackForNonPIP344Brokers);
                 newFutureCreated.setValue(newFuture);
                 return newFuture;
             });
@@ -163,7 +171,7 @@ public class BinaryProtoLookupService implements LookupService {
     }
 
     private CompletableFuture<LookupTopicResult> findBroker(InetSocketAddress socketAddress,
-            boolean authoritative, TopicName topicName, final int redirectCount) {
+            boolean authoritative, TopicName topicName, final int redirectCount, Map<String, String> properties) {
         CompletableFuture<LookupTopicResult> addressFuture = new CompletableFuture<>();
 
         if (maxLookupRedirects > 0 && redirectCount > maxLookupRedirects) {
@@ -174,7 +182,8 @@ public class BinaryProtoLookupService implements LookupService {
 
         client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
             long requestId = client.newRequestId();
-            ByteBuf request = Commands.newLookup(topicName.toString(), listenerName, authoritative, requestId);
+            ByteBuf request = Commands.newLookup(topicName.toString(), listenerName, authoritative, requestId,
+                    properties);
             clientCnx.newLookup(request, requestId).whenComplete((r, t) -> {
                 if (t != null) {
                     // lookup failed
@@ -199,7 +208,7 @@ public class BinaryProtoLookupService implements LookupService {
 
                         // (2) redirect to given address if response is: redirect
                         if (r.redirect) {
-                            findBroker(responseBrokerAddress, r.authoritative, topicName, redirectCount + 1)
+                            findBroker(responseBrokerAddress, r.authoritative, topicName, redirectCount + 1, properties)
                                 .thenAccept(addressFuture::complete)
                                 .exceptionally((lookupException) -> {
                                     Throwable cause = FutureUtil.unwrapCompletionException(lookupException);
@@ -246,14 +255,32 @@ public class BinaryProtoLookupService implements LookupService {
     }
 
     private CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(InetSocketAddress socketAddress,
-            TopicName topicName) {
+            TopicName topicName, boolean metadataAutoCreationEnabled, boolean useFallbackForNonPIP344Brokers) {
 
         long startTime = System.nanoTime();
         CompletableFuture<PartitionedTopicMetadata> partitionFuture = new CompletableFuture<>();
 
         client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
+            boolean finalAutoCreationEnabled = metadataAutoCreationEnabled;
+            if (!metadataAutoCreationEnabled && !clientCnx.isSupportsGetPartitionedMetadataWithoutAutoCreation()) {
+                if (useFallbackForNonPIP344Brokers) {
+                    log.info("[{}] Using original behavior of getPartitionedTopicMetadata(topic) in "
+                            + "getPartitionedTopicMetadata(topic, false) "
+                            + "since the target broker does not support PIP-344 and fallback is enabled.", topicName);
+                    finalAutoCreationEnabled = true;
+                } else {
+                    partitionFuture.completeExceptionally(
+                            new PulsarClientException.FeatureNotSupportedException("The feature of "
+                                    + "getting partitions without auto-creation is not supported by the broker. "
+                                    + "Please upgrade the broker to version that supports PIP-344 to resolve this "
+                                    + "issue.",
+                                    SupportsGetPartitionedMetadataWithoutAutoCreation));
+                    return;
+                }
+            }
             long requestId = client.newRequestId();
-            ByteBuf request = Commands.newPartitionMetadataRequest(topicName.toString(), requestId);
+            ByteBuf request = Commands.newPartitionMetadataRequest(topicName.toString(), requestId,
+                    finalAutoCreationEnabled);
             clientCnx.newLookup(request, requestId).whenComplete((r, t) -> {
                 if (t != null) {
                     histoGetTopicMetadata.recordFailure(System.nanoTime() - startTime);
@@ -373,17 +400,7 @@ public class BinaryProtoLookupService implements LookupService {
                         log.debug("[namespace: {}] Success get topics list in request: {}",
                                 namespace, requestId);
                     }
-                    // do not keep partition part of topic name
-                    List<String> result = new ArrayList<>();
-                    r.getTopics().forEach(topic -> {
-                        String filtered = TopicName.get(topic).getPartitionedTopicName();
-                        if (!result.contains(filtered)) {
-                            result.add(filtered);
-                        }
-                    });
-
-                    getTopicsResultFuture.complete(new GetTopicsResult(result, r.getTopicsHash(),
-                            r.isFiltered(), r.isChanged()));
+                    getTopicsResultFuture.complete(r);
                 }
                 client.getCnxPool().releaseConnection(clientCnx);
             });

@@ -34,12 +34,13 @@ import java.nio.file.Paths;
 import java.security.Key;
 import java.security.KeyPair;
 import java.util.Date;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import javax.crypto.SecretKey;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
-import org.apache.pulsar.cli.converters.picocli.TimeUnitToSecondsConverter;
+import org.apache.pulsar.cli.converters.picocli.TimeUnitToMillisConverter;
 import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -127,7 +128,7 @@ public class TokensCliUtils {
                 "--expiry-time"},
                 description = "Relative expiry time for the token (eg: 1h, 3d, 10y)."
                         + " (m=minutes) Default: no expiration",
-                converter = TimeUnitToSecondsConverter.class)
+                converter = TimeUnitToMillisConverter.class)
         private Long expiryTime = null;
 
         @Option(names = {"-sk",
@@ -139,6 +140,11 @@ public class TokensCliUtils {
                 "--private-key"},
                 description = "Pass the private key for signing the token. This can either be: data:, file:, etc..")
         private String privateKey;
+
+        @Option(names = {"-hs",
+                "--headers"},
+                description = "Additional headers to token. Format: --headers key1=value1")
+        private Map<String, Object> headers;
 
         @Override
         public Integer call() throws Exception {
@@ -166,7 +172,7 @@ public class TokensCliUtils {
                     ? Optional.empty()
                     : Optional.of(new Date(System.currentTimeMillis() + expiryTime));
 
-            String token = AuthTokenUtils.createToken(signingKey, subject, optExpiryTime);
+            String token = AuthTokenUtils.createToken(signingKey, subject, optExpiryTime, Optional.ofNullable(headers));
             System.out.println(token);
 
             return 0;
@@ -285,11 +291,10 @@ public class TokensCliUtils {
             }
 
             // Validate the token
-            @SuppressWarnings("unchecked")
             Jwt<?, Claims> jwt = Jwts.parserBuilder()
                     .setSigningKey(validationKey)
                     .build()
-                    .parse(token);
+                    .parseClaimsJws(token);
 
             System.out.println(jwt.getBody());
             return 0;

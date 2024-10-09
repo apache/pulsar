@@ -19,6 +19,7 @@
 
 
 ARG GLIBC_VERSION=2.38
+ARG ALPINE_VERSION=3.20
 
 FROM ubuntu:22.04 as build
 ARG GLIBC_VERSION
@@ -51,7 +52,7 @@ RUN tar --dereference --hard-dereference -zcf /glibc-bin.tar.gz /usr/glibc-compa
 
 ################################################
 ## Build the APK package
-FROM alpine:3.19 as apk
+FROM alpine:$ALPINE_VERSION as apk
 ARG GLIBC_VERSION
 
 RUN apk add abuild sudo build-base

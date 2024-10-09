@@ -100,12 +100,10 @@ public class CmdFunctions extends CmdBase {
      */
     @Getter
     abstract class NamespaceCommand extends BaseCommand {
-        @Option(names = "--tenant", description = "The tenant of a Pulsar Function",
-                defaultValue = PUBLIC_TENANT)
+        @Option(names = "--tenant", description = "The tenant of a Pulsar Function")
         protected String tenant;
 
-        @Option(names = "--namespace", description = "The namespace of a Pulsar Function",
-                defaultValue = DEFAULT_NAMESPACE)
+        @Option(names = "--namespace", description = "The namespace of a Pulsar Function")
         protected String namespace;
     }
 
@@ -117,12 +115,10 @@ public class CmdFunctions extends CmdBase {
         @Option(names = "--fqfn", description = "The Fully Qualified Function Name (FQFN) for the function")
         protected String fqfn;
 
-        @Option(names = "--tenant", description = "The tenant of a Pulsar Function",
-                defaultValue = PUBLIC_TENANT)
+        @Option(names = "--tenant", description = "The tenant of a Pulsar Function")
         protected String tenant;
 
-        @Option(names = "--namespace", description = "The namespace of a Pulsar Function",
-                defaultValue = DEFAULT_NAMESPACE)
+        @Option(names = "--namespace", description = "The namespace of a Pulsar Function")
         protected String namespace;
 
         @Option(names = "--name", description = "The name of a Pulsar Function")
@@ -170,11 +166,9 @@ public class CmdFunctions extends CmdBase {
         @Option(names = "--fqfn", description = "The Fully Qualified Function Name (FQFN) for the function"
                 + " #Java, Python")
         protected String fqfn;
-        @Option(names = "--tenant", description = "The tenant of a Pulsar Function #Java, Python, Go",
-                defaultValue = PUBLIC_TENANT)
+        @Option(names = "--tenant", description = "The tenant of a Pulsar Function #Java, Python, Go")
         protected String tenant;
-        @Option(names = "--namespace", description = "The namespace of a Pulsar Function #Java, Python, Go",
-                defaultValue = DEFAULT_NAMESPACE)
+        @Option(names = "--namespace", description = "The namespace of a Pulsar Function #Java, Python, Go")
         protected String namespace;
         @Option(names = "--name", description = "The name of a Pulsar Function #Java, Python, Go")
         protected String functionName;
@@ -377,6 +371,9 @@ public class CmdFunctions extends CmdBase {
         @Option(names = "--dead-letter-topic",
                 description = "The topic where messages that are not processed successfully are sent to #Java")
         protected String deadLetterTopic;
+        @Option(names = "--runtime-flags", description = "Any flags that you want to pass to a runtime"
+                + " (for process & Kubernetes runtime only).")
+        protected String runtimeFlags;
         protected FunctionConfig functionConfig;
         protected String userCodeFile;
 
@@ -674,6 +671,10 @@ public class CmdFunctions extends CmdBase {
                 userCodeFile = functionConfig.getPy();
             } else if (functionConfig.getGo() != null) {
                 userCodeFile = functionConfig.getGo();
+            }
+
+            if (null != runtimeFlags) {
+                functionConfig.setRuntimeFlags(runtimeFlags);
             }
 
             // check if configs are valid

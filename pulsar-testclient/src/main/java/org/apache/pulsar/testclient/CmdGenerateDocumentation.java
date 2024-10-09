@@ -24,57 +24,41 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.proxy.socket.client.PerformanceClient;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
-import picocli.CommandLine.ParameterException;
-import picocli.CommandLine.ScopeType;
+import picocli.CommandLine.Spec;
 
 @Slf4j
-public class CmdGenerateDocumentation {
+@Command(name = "gen-doc", description = "Generate documentation automatically.")
+public class CmdGenerateDocumentation extends CmdBase{
 
-    @Command(description = "Generate documentation automatically.", showDefaultValues = true, scope = ScopeType.INHERIT)
-    static class Arguments {
+    @Option(names = {"-n", "--command-names"}, description = "List of command names")
+    private List<String> commandNames = new ArrayList<>();
 
-        @Option(names = {"-h", "--help"}, description = "Help message", help = true)
-        boolean help;
-
-        @Option(names = {"-n", "--command-names"}, description = "List of command names")
-        private List<String> commandNames = new ArrayList<>();
-
+    public CmdGenerateDocumentation() {
+        super("gen-doc");
     }
 
-    public static void main(String[] args) throws Exception {
-        final Arguments arguments = new Arguments();
-        CommandLine commander = new CommandLine(arguments);
-        commander.setCommandName("pulsar-perf gen-doc");
-        try {
-            commander.parseArgs(args);
-        } catch (ParameterException e) {
-            System.out.println(e.getMessage());
-            commander.usage(commander.getOut());
-            PerfClientUtils.exit(1);
-        }
+    @Spec
+    CommandSpec spec;
 
-
-        if (arguments.help) {
-            commander.usage(commander.getOut());
-            PerfClientUtils.exit(1);
-        }
+    @Override
+    public void run() throws Exception {
+        CommandLine commander = spec.commandLine();
 
         Map<String, Class<?>> cmdClassMap = new LinkedHashMap<>();
-        cmdClassMap.put("produce", Class.forName("org.apache.pulsar.testclient.PerformanceProducer$Arguments"));
-        cmdClassMap.put("consume", Class.forName("org.apache.pulsar.testclient.PerformanceConsumer$Arguments"));
-        cmdClassMap.put("transaction", Class.forName("org.apache.pulsar.testclient.PerformanceTransaction$Arguments"));
-        cmdClassMap.put("read", Class.forName("org.apache.pulsar.testclient.PerformanceReader$Arguments"));
-        cmdClassMap.put("monitor-brokers", Class.forName("org.apache.pulsar.testclient.BrokerMonitor$Arguments"));
-        cmdClassMap.put("simulation-client",
-                Class.forName("org.apache.pulsar.testclient.LoadSimulationClient$MainArguments"));
-        cmdClassMap.put("simulation-controller",
-                Class.forName("org.apache.pulsar.testclient.LoadSimulationController$MainArguments"));
-        cmdClassMap.put("websocket-producer",
-                Class.forName("org.apache.pulsar.proxy.socket.client.PerformanceClient$Arguments"));
-        cmdClassMap.put("managed-ledger", Class.forName("org.apache.pulsar.testclient.ManagedLedgerWriter$Arguments"));
+        cmdClassMap.put("produce", PerformanceProducer.class);
+        cmdClassMap.put("consume", PerformanceConsumer.class);
+        cmdClassMap.put("transaction", PerformanceTransaction.class);
+        cmdClassMap.put("read", PerformanceReader.class);
+        cmdClassMap.put("monitor-brokers", BrokerMonitor.class);
+        cmdClassMap.put("simulation-client", LoadSimulationClient.class);
+        cmdClassMap.put("simulation-controller", LoadSimulationController.class);
+        cmdClassMap.put("websocket-producer", PerformanceClient.class);
+        cmdClassMap.put("managed-ledger", ManagedLedgerWriter.class);
 
         for (Map.Entry<String, Class<?>> entry : cmdClassMap.entrySet()) {
             String cmd = entry.getKey();
@@ -84,12 +68,12 @@ public class CmdGenerateDocumentation {
             commander.addSubcommand(cmd, constructor.newInstance());
         }
 
-        if (arguments.commandNames.size() == 0) {
+        if (this.commandNames.size() == 0) {
             for (Map.Entry<String, CommandLine> cmd : commander.getSubcommands().entrySet()) {
                 generateDocument(cmd.getKey(), commander);
             }
         } else {
-            for (String commandName : arguments.commandNames) {
+            for (String commandName : this.commandNames) {
                 generateDocument(commandName, commander);
             }
         }

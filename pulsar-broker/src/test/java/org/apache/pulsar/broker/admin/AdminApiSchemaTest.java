@@ -467,4 +467,34 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
             assertTrue(e.getMessage().contains("Incompatible schema: exists schema type STRING, new schema type INT8"));
         }
     }
+
+    @Test
+    public void testCompatibilityWithEmpty() throws Exception {
+        List<Schema<?>> checkSchemas = List.of(
+                Schema.STRING,
+                Schema.JSON(SchemaDefinition.builder().withPojo(Foo.class).withProperties(PROPS).build()),
+                Schema.AVRO(SchemaDefinition.builder().withPojo(Foo.class).withProperties(PROPS).build()),
+                Schema.KeyValue(Schema.STRING, Schema.STRING)
+        );
+        for (Schema<?> schema : checkSchemas) {
+            SchemaInfo schemaInfo = schema.getSchemaInfo();
+            String topicName = schemaCompatibilityNamespace + "/testCompatibilityWithEmpty";
+            PostSchemaPayload postSchemaPayload = new PostSchemaPayload(schemaInfo.getType().toString(),
+                    schemaInfo.getSchemaDefinition(), new HashMap<>());
+
+            // check compatibility with empty schema
+            IsCompatibilityResponse isCompatibilityResponse =
+                    admin.schemas().testCompatibility(topicName, postSchemaPayload);
+            assertTrue(isCompatibilityResponse.isCompatibility());
+            assertEquals(isCompatibilityResponse.getSchemaCompatibilityStrategy(), SchemaCompatibilityStrategy.FULL.name());
+
+            // set schema compatibility strategy is FULL_TRANSITIVE to cover checkCompatibilityWithAll
+            admin.namespaces().setSchemaCompatibilityStrategy(schemaCompatibilityNamespace, SchemaCompatibilityStrategy.FULL_TRANSITIVE);
+            isCompatibilityResponse = admin.schemas().testCompatibility(topicName, postSchemaPayload);
+            assertTrue(isCompatibilityResponse.isCompatibility());
+            assertEquals(isCompatibilityResponse.getSchemaCompatibilityStrategy(), SchemaCompatibilityStrategy.FULL_TRANSITIVE.name());
+            // set back to FULL
+            admin.namespaces().setSchemaCompatibilityStrategy(schemaCompatibilityNamespace, SchemaCompatibilityStrategy.FULL);
+        }
+    }
 }

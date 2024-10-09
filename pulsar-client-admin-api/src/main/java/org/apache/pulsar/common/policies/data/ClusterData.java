@@ -65,6 +65,10 @@ public interface ClusterData {
 
     String getBrokerClientTlsKeyStore();
 
+    String getBrokerClientSslFactoryPlugin();
+
+    String getBrokerClientSslFactoryPluginParams();
+
     String getListenerName();
 
     interface Builder {
@@ -111,6 +115,10 @@ public interface ClusterData {
         Builder brokerClientTlsKeyStore(String keyStore);
 
         Builder listenerName(String listenerName);
+
+        Builder brokerClientSslFactoryPlugin(String sslFactoryPlugin);
+
+        Builder brokerClientSslFactoryPluginParams(String sslFactoryPluginParams);
 
         ClusterData build();
     }

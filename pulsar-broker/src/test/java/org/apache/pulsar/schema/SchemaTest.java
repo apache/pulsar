@@ -23,6 +23,7 @@ import static org.apache.pulsar.schema.compatibility.SchemaCompatibilityCheckTes
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
@@ -32,6 +33,7 @@ import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Sets;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -58,6 +60,8 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl;
+import org.apache.pulsar.broker.service.schema.SchemaStorageFormat;
+import org.apache.pulsar.broker.service.schema.SchemaStorageFormat.SchemaLocator;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -81,15 +85,20 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.SchemaMetadata;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.MetadataSerde;
+import org.apache.pulsar.metadata.api.Stat;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -117,6 +126,11 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @DataProvider(name = "topicDomain")
+    public static Object[] topicDomain() {
+        return new Object[] { "persistent://", "non-persistent://" };
     }
 
     @Test
@@ -1330,19 +1344,19 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
      *       the new consumer to register new schema. But before we can solve this problem, we need to modify
      *       "CmdProducer" to let the Broker know that the Producer uses a schema of type "AUTO_PRODUCE_BYTES".
      */
-    @Test
-    public void testAutoProduceAndSpecifiedConsumer() throws Exception {
+    @Test(dataProvider = "topicDomain")
+    public void testAutoProduceAndSpecifiedConsumer(String domain) throws Exception {
         final String namespace = PUBLIC_TENANT + "/ns_" + randomName(16);
         admin.namespaces().createNamespace(namespace, Sets.newHashSet(CLUSTER_NAME));
-        final String topicName = "persistent://" + namespace + "/tp_" + randomName(16);
+        final String topicName = domain + namespace + "/tp_" + randomName(16);
         admin.topics().createNonPartitionedTopic(topicName);
 
         Producer producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topicName).create();
         try {
             pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName("sub1").subscribe();
-            fail("Should throw ex: Topic does not have schema to check");
+            fail("Should throw ex: Failed to add schema to an active topic with empty(BYTES) schema");
         } catch (Exception ex){
-            assertTrue(ex.getMessage().contains("Topic does not have schema to check"));
+            assertTrue(ex.getMessage().contains("Failed to add schema to an active topic with empty(BYTES) schema"));
         }
 
         // Cleanup.
@@ -1410,4 +1424,98 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    /**
+     * This test validates that consumer/producers should recover on topic whose 
+     * schema ledgers are not able to open due to non-recoverable error.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testDeletedSchemaLedgerRecovery() throws Exception {
+        final String tenant = PUBLIC_TENANT;
+        final String namespace = "test-namespace-" + randomName(16);
+        final String topicOne = "test-multi-version-schema-one";
+        final String subName = "test";
+        final String topicName = TopicName.get(TopicDomain.persistent.value(), tenant, namespace, topicOne).toString();
+
+        admin.namespaces().createNamespace(tenant + "/" + namespace, Sets.newHashSet(CLUSTER_NAME));
+
+        // (1) create schema
+        Producer<Schemas.PersonTwo> producer = pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo> builder().withAlwaysAllowNull(false)
+                        .withSupportSchemaVersioning(true).withPojo(Schemas.PersonTwo.class).build()))
+                .topic(topicName).create();
+
+        Schemas.PersonTwo personTwo = new Schemas.PersonTwo();
+        personTwo.setId(1);
+        personTwo.setName("Tom");
+
+        Consumer<Schemas.PersonTwo> consumer = pulsarClient
+                .newConsumer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo> builder().withAlwaysAllowNull(false)
+                        .withSupportSchemaVersioning(true).withPojo(Schemas.PersonTwo.class).build()))
+                .subscriptionName(subName).topic(topicName).subscribe();
+
+        producer.send(personTwo);
+        producer.close();
+        consumer.close();
+
+        // (2) Delete schema ledger
+        MetadataCache<SchemaStorageFormat.SchemaLocator> locatorEntryCache = pulsar.getLocalMetadataStore()
+                .getMetadataCache(new MetadataSerde<SchemaStorageFormat.SchemaLocator>() {
+                    @Override
+                    public byte[] serialize(String path, SchemaStorageFormat.SchemaLocator value) {
+                        return value.toByteArray();
+                    }
+
+                    @Override
+                    public SchemaStorageFormat.SchemaLocator deserialize(String path, byte[] content, Stat stat)
+                            throws IOException {
+                        return SchemaStorageFormat.SchemaLocator.parseFrom(content);
+                    }
+                });
+        String path = "/schemas/public/" + namespace + "/test-multi-version-schema-one";
+        SchemaLocator schema = locatorEntryCache.get(path).get().get();
+        schema = locatorEntryCache.get(path).get().get();
+        long ledgerId = schema.getInfo().getPosition().getLedgerId();
+        pulsar.getBookKeeperClient().deleteLedger(ledgerId);
+
+        // (3) Topic should recover from deleted schema and should allow to create consumer and producer
+        consumer = pulsarClient
+                .newConsumer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo> builder().withAlwaysAllowNull(false)
+                        .withSupportSchemaVersioning(true).withPojo(Schemas.PersonTwo.class).build()))
+                .subscriptionName(subName).topic(topicName).subscribe();
+
+        producer = pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo> builder().withAlwaysAllowNull(false)
+                        .withSupportSchemaVersioning(true).withPojo(Schemas.PersonTwo.class).build()))
+                .topic(topicName).create();
+        assertNotNull(consumer);
+        assertNotNull(producer);
+        consumer.close();
+        producer.close();
+    }
+
+    @Test
+    public void testTopicSchemaMetadata() throws Exception {
+        final String tenant = PUBLIC_TENANT;
+        final String namespace = "test-namespace-" + randomName(16);
+        final String topicOne = "metadata-topic";
+        final String topicName = TopicName.get(TopicDomain.persistent.value(), tenant, namespace, topicOne).toString();
+
+        admin.namespaces().createNamespace(tenant + "/" + namespace, Sets.newHashSet(CLUSTER_NAME));
+
+        @Cleanup
+        Producer<Schemas.PersonTwo> producer = pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo> builder().withAlwaysAllowNull(false)
+                        .withSupportSchemaVersioning(true).withPojo(Schemas.PersonTwo.class).build()))
+                .topic(topicName).create();
+
+        SchemaMetadata metadata = admin.schemas().getSchemaMetadata(topicName);
+
+        assertNotNull(metadata);
+        assertNotNull(metadata.info);
+        assertNotEquals(metadata.info.getLedgerId(), 0);
+        assertEquals(metadata.info.getEntryId(), 0);
+        assertEquals(metadata.index.size(), 1);
+    }
 }

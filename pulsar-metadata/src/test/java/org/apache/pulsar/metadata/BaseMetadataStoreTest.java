@@ -100,7 +100,7 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
         };
     }
 
-    private synchronized String getOxiaServerConnectString() {
+    protected synchronized String getOxiaServerConnectString() {
         if (oxiaServer == null) {
             oxiaServer = new OxiaContainer(OxiaContainer.DEFAULT_IMAGE_NAME);
             oxiaServer.start();
@@ -145,10 +145,11 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
                                             int retryCount,
                                             long intSleepTimeInMillis) throws Exception {
         assertTrue(retryStrategically((__) -> {
-            if (actual.get().equals(expectedAndRetry)) {
+            Object actualObject = actual.get();
+            if (actualObject.equals(expectedAndRetry)) {
                 return false;
             }
-            assertEquals(actual.get(), expected);
+            assertEquals(actualObject, expected);
             return true;
         }, retryCount, intSleepTimeInMillis));
     }

@@ -85,7 +85,8 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         String args = String.format(argString, topic, pulsar.getBrokerServiceUrl());
         Thread thread = new Thread(() -> {
             try {
-                PerformanceProducer.main(args.split(" "));
+                PerformanceProducer producer = new PerformanceProducer();
+                producer.run(args.split(" "));
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -97,26 +98,20 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
 
         thread.start();
 
-        int count1 = 0;
-        int count2 = 0;
-        for (int i = 0; i < 10; i++) {
-            Message<byte[]> message = consumer1.receive(1, TimeUnit.SECONDS);
-            if (message == null) {
-                break;
-            }
-            count1++;
-            consumer1.acknowledge(message);
-        }
-        for (int i = 0; i < 10; i++) {
-            Message<byte[]> message = consumer2.receive(1, TimeUnit.SECONDS);
-            if (message == null) {
-                break;
-            }
-            count2++;
-            consumer2.acknowledge(message);
-        }
-        //in key_share mode, only one consumer can get msg
-        Assert.assertTrue(count1 == 0 || count2 == 0);
+        // in key_shared mode if no message key is set, both consumers should receive messages
+        Awaitility.await()
+                .untilAsserted(() -> {
+                    Message<byte[]> message = consumer1.receive(1, TimeUnit.SECONDS);
+                    assertNotNull(message);
+                    consumer1.acknowledge(message);
+                });
+
+        Awaitility.await()
+                .untilAsserted(() -> {
+                    Message<byte[]> message = consumer2.receive(1, TimeUnit.SECONDS);
+                    assertNotNull(message);
+                    consumer2.acknowledge(message);
+                });
 
         consumer1.close();
         consumer2.close();
@@ -131,7 +126,8 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         String newArgs = String.format(newArgString, topic2, pulsar.getBrokerServiceUrl());
         Thread thread2 = new Thread(() -> {
             try {
-                PerformanceProducer.main(newArgs.split(" "));
+                PerformanceProducer producer = new PerformanceProducer();
+                producer.run(newArgs.split(" "));
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -147,19 +143,15 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         Awaitility.await()
                 .untilAsserted(() -> {
                     Message<byte[]> message = newConsumer1.receive(1, TimeUnit.SECONDS);
-                    if (message != null) {
-                        newConsumer1.acknowledge(message);
-                    }
                     assertNotNull(message);
+                    newConsumer1.acknowledge(message);
                 });
 
         Awaitility.await()
                 .untilAsserted(() -> {
                     Message<byte[]> message = newConsumer2.receive(1, TimeUnit.SECONDS);
-                    if (message != null) {
-                        newConsumer2.acknowledge(message);
-                    }
                     assertNotNull(message);
+                    newConsumer2.acknowledge(message);
                 });
 
         thread2.interrupt();
@@ -169,23 +161,23 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
 
     @Test(timeOut = 20000)
     public void testBatchingDisabled() throws Exception {
-        PerformanceProducer.Arguments arguments = new PerformanceProducer.Arguments();
+        PerformanceProducer producer = new PerformanceProducer();
 
         int producerId = 0;
 
         String topic = testTopic + UUID.randomUUID();
-        arguments.topics = List.of(topic);
-        arguments.msgRate = 10;
-        arguments.serviceURL = pulsar.getBrokerServiceUrl();
-        arguments.numMessages = 500;
-        arguments.disableBatching = true;
+        producer.topics = List.of(topic);
+        producer.msgRate = 10;
+        producer.serviceURL = pulsar.getBrokerServiceUrl();
+        producer.numMessages = 500;
+        producer.disableBatching = true;
 
-        ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(arguments)
-                .enableTransaction(arguments.isEnableTransaction);
+        ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(producer)
+                .enableTransaction(producer.isEnableTransaction);
         @Cleanup
         PulsarClient client = clientBuilder.build();
-
-        ProducerBuilderImpl<byte[]> builder = (ProducerBuilderImpl<byte[]>) PerformanceProducer.createProducerBuilder(client, arguments, producerId);
+        ProducerBuilderImpl<byte[]> builder = (ProducerBuilderImpl<byte[]>) producer.createProducerBuilder(client,
+                producerId);
         Assert.assertFalse(builder.getConf().isBatchingEnabled());
     }
 
@@ -196,7 +188,8 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         String args = String.format(argString, topic, pulsar.getBrokerServiceUrl(), pulsar.getWebServiceAddress());
         Thread thread = new Thread(() -> {
             try {
-                PerformanceProducer.main(args.split(" "));
+                PerformanceProducer producer = new PerformanceProducer();
+                producer.run(args.split(" "));
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -227,7 +220,8 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
                 .subscriptionType(SubscriptionType.Key_Shared).subscribe();
         new Thread(() -> {
             try {
-                PerformanceProducer.main(args.split(" "));
+                PerformanceProducer producer = new PerformanceProducer();
+                producer.run(args.split(" "));
             } catch (Exception e) {
                 log.error("Failed to start perf producer");
             }

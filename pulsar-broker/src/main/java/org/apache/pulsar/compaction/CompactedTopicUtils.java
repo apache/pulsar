@@ -30,8 +30,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
@@ -42,7 +41,7 @@ public class CompactedTopicUtils {
     @Beta
     public static void asyncReadCompactedEntries(TopicCompactionService topicCompactionService,
                                                  ManagedCursor cursor, int maxEntries,
-                                                 long bytesToRead, PositionImpl maxReadPosition,
+                                                 long bytesToRead, Position maxReadPosition,
                                                  boolean readFromEarliest, AsyncCallbacks.ReadEntriesCallback callback,
                                                  boolean wait, @Nullable Consumer consumer) {
         Objects.requireNonNull(topicCompactionService);
@@ -50,11 +49,11 @@ public class CompactedTopicUtils {
         checkArgument(maxEntries > 0);
         Objects.requireNonNull(callback);
 
-        final PositionImpl readPosition;
+        final Position readPosition;
         if (readFromEarliest) {
-            readPosition = PositionImpl.EARLIEST;
+            readPosition = PositionFactory.EARLIEST;
         } else {
-            readPosition = (PositionImpl) cursor.getReadPosition();
+            readPosition = cursor.getReadPosition();
         }
 
         // TODO: redeliver epoch link https://github.com/apache/pulsar/issues/13690
@@ -75,8 +74,7 @@ public class CompactedTopicUtils {
                 return CompletableFuture.completedFuture(null);
             }
 
-            ManagedCursorImpl managedCursor = (ManagedCursorImpl) cursor;
-            int numberOfEntriesToRead = managedCursor.applyMaxSizeCap(maxEntries, bytesToRead);
+            int numberOfEntriesToRead = cursor.applyMaxSizeCap(maxEntries, bytesToRead);
 
             return topicCompactionService.readCompactedEntries(readPosition, numberOfEntriesToRead)
                     .thenAccept(entries -> {
@@ -94,7 +92,7 @@ public class CompactedTopicUtils {
                         for (Entry entry : entries) {
                             entriesSize += entry.getLength();
                         }
-                        managedCursor.updateReadStats(entries.size(), entriesSize);
+                        cursor.updateReadStats(entries.size(), entriesSize);
 
                         Entry lastEntry = entries.get(entries.size() - 1);
                         cursor.seek(lastEntry.getPosition().getNext(), true);
@@ -102,13 +100,7 @@ public class CompactedTopicUtils {
                     });
         }).exceptionally((exception) -> {
             exception = FutureUtil.unwrapCompletionException(exception);
-            ManagedLedgerException managedLedgerException;
-            if (exception instanceof ManagedLedgerException) {
-                managedLedgerException = (ManagedLedgerException) exception;
-            } else {
-                managedLedgerException = new ManagedLedgerException(exception);
-            }
-            callback.readEntriesFailed(managedLedgerException, readEntriesCtx);
+            callback.readEntriesFailed(ManagedLedgerException.getManagedLedgerException(exception), readEntriesCtx);
             return null;
         });
     }

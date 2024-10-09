@@ -59,7 +59,10 @@ public class LeaderElectionServiceTest {
 
     @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
-        bkEnsemble.stop();
+        if (bkEnsemble != null) {
+            bkEnsemble.stop();
+            bkEnsemble = null;
+        }
         log.info("---- bk stopped ----");
     }
 

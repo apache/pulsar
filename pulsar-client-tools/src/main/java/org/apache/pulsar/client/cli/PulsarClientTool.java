@@ -111,6 +111,8 @@ public class PulsarClientTool implements CommandHook {
     String tlsKeyStoreType;
     String tlsKeyStorePath;
     String tlsKeyStorePassword;
+    String sslFactoryPlugin;
+    String sslFactoryPluginParams;
 
     protected final CommandLine commander;
     protected CmdProduce produceCommand;
@@ -152,6 +154,8 @@ public class PulsarClientTool implements CommandHook {
         this.tlsKeyStorePassword = properties.getProperty("tlsKeyStorePassword");
         this.tlsKeyFilePath = properties.getProperty("tlsKeyFilePath");
         this.tlsCertificateFilePath = properties.getProperty("tlsCertificateFilePath");
+        this.sslFactoryPlugin = properties.getProperty("sslFactoryPlugin");
+        this.sslFactoryPluginParams = properties.getProperty("sslFactoryPluginParams");
 
         pulsarClientPropertiesProvider = PulsarClientPropertiesProvider.create(properties);
         commander.setDefaultValueProvider(pulsarClientPropertiesProvider);
@@ -191,6 +195,9 @@ public class PulsarClientTool implements CommandHook {
                 .tlsKeyStoreType(tlsKeyStoreType)
                 .tlsKeyStorePath(tlsKeyStorePath)
                 .tlsKeyStorePassword(tlsKeyStorePassword);
+
+        clientBuilder.sslFactoryPlugin(sslFactoryPlugin)
+                .sslFactoryPluginParams(sslFactoryPluginParams);
 
         if (isNotBlank(rootParams.proxyServiceURL)) {
             if (rootParams.proxyProtocol == null) {

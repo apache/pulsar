@@ -34,6 +34,7 @@ import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.events.ActionType;
 import org.apache.pulsar.common.events.PulsarEvent;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,6 +70,7 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
     protected CompletableFuture<Reader<PulsarEvent>> newReaderAsyncInternal() {
         return client.newReader(avroSchema)
                 .topic(topicName.toString())
+                .subscriptionRolePrefix(SystemTopicNames.SYSTEM_READER_PREFIX)
                 .startMessageId(MessageId.earliest)
                 .readCompacted(true)
                 .createAsync()

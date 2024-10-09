@@ -25,6 +25,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertFalse;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import java.io.Closeable;
@@ -37,6 +38,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.admin.cli.CmdSinks.LocalSinkRunner;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.Sinks;
@@ -807,5 +809,15 @@ public class TestCmdSinks {
         Assert.assertEquals(config.get("float"), 1000.0);
         Assert.assertEquals(config.get("float_string"), "1000.0");
         Assert.assertEquals(config.get("created_at"), "Mon Jul 02 00:33:15 +0000 2018");
+    }
+
+    @Test
+    public void testExcludeDeprecatedOptions() throws Exception {
+        SinkConfig testSinkConfig = getSinkConfig();
+        LocalSinkRunner localSinkRunner = spy(new CmdSinks(() -> pulsarAdmin)).getLocalSinkRunner();
+        localSinkRunner.sinkConfig = testSinkConfig;
+        localSinkRunner.deprecatedBrokerServiceUrl = "pulsar://localhost:6650";
+        List<String> localRunArgs = localSinkRunner.getLocalRunArgs();
+        assertFalse(String.join(",", localRunArgs).contains("--deprecated"));
     }
 }

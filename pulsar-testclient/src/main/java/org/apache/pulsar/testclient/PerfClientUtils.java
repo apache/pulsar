@@ -85,6 +85,11 @@ public class PerfClientUtils {
             clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
         }
 
+        if (isNotBlank(arguments.sslfactoryPlugin)) {
+            clientBuilder.sslFactoryPlugin(arguments.sslfactoryPlugin)
+                    .sslFactoryPluginParams(arguments.sslFactoryPluginParams);
+        }
+
         if (arguments.tlsAllowInsecureConnection != null) {
             clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
         }
@@ -109,6 +114,11 @@ public class PerfClientUtils {
 
         if (isNotBlank(arguments.authPluginClassName)) {
             pulsarAdminBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
+        }
+
+        if (isNotBlank(arguments.sslfactoryPlugin)) {
+            pulsarAdminBuilder.sslFactoryPlugin(arguments.sslfactoryPlugin)
+                    .sslFactoryPluginParams(arguments.sslFactoryPluginParams);
         }
 
         if (arguments.tlsAllowInsecureConnection != null) {

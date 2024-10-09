@@ -51,7 +51,7 @@ import org.testng.annotations.Test;
 public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorConcurrencyTest.class);
-    
+
     @DataProvider(name = "useOpenRangeSet")
     public static Object[][] useOpenRangeSet() {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
@@ -325,7 +325,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < N; i++) {
             ledger.addEntry(("entry" + i).getBytes());
         }
-        long currentLedger = ((PositionImpl) cursors.get(0).getMarkDeletedPosition()).getLedgerId();
+        long currentLedger = cursors.get(0).getMarkDeletedPosition().getLedgerId();
 
         // empty the cache
         ((ManagedLedgerImpl) ledger).entryCache.invalidateAllEntries(currentLedger);

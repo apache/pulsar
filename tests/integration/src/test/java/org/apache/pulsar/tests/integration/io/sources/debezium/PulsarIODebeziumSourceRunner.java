@@ -19,9 +19,9 @@
 package org.apache.pulsar.tests.integration.io.sources.debezium;
 
 import com.google.common.base.Preconditions;
+import dev.failsafe.Failsafe;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-import net.jodah.failsafe.Failsafe;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;

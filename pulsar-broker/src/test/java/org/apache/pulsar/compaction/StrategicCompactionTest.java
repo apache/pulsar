@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.compaction;
 
-import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.MSG_COMPRESSION_TYPE;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl.MSG_COMPRESSION_TYPE;
 import static org.testng.Assert.assertEquals;
 
 import java.util.ArrayList;
@@ -74,7 +74,7 @@ public class StrategicCompactionTest extends CompactionTest {
     }
 
     @Override
-    protected TwoPhaseCompactor getCompactor() {
+    protected PublishingOrderCompactor getCompactor() {
         return compactor;
     }
 
