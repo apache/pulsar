@@ -133,9 +133,12 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         if (NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject()) || isSelf(topicName)) {
             return CompletableFuture.completedFuture(null);
         }
-        return pulsarService.getNamespaceService().checkTopicExists(NamespaceEventsSystemTopicFactory
-                .getEventsTopicName(topicName.getNamespaceObject())).thenCompose(topicExistsInfo -> {
-            if (topicExistsInfo.isExists()) {
+        TopicName changeEvents = NamespaceEventsSystemTopicFactory.getEventsTopicName(topicName.getNamespaceObject());
+        return pulsarService.getNamespaceService().checkTopicExists(changeEvents).thenCompose(topicExistsInfo -> {
+            // If the system topic named "__change_events" has been deleted, it means all the data in the topic have
+            // been deleted, so we do not need to delete the message that we want to delete again.
+            if (!topicExistsInfo.isExists()) {
+                log.info("Skip delete topic-level policies because {} has been removed before", changeEvents);
                 return CompletableFuture.completedFuture(null);
             }
             return sendTopicPolicyEvent(topicName, ActionType.DELETE, null);
