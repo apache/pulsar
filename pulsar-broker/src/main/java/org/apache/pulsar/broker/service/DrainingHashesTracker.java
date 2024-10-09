@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static org.apache.pulsar.broker.service.StickyKeyConsumerSelector.STICKY_KEY_HASH_NOT_SET;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.PrimitiveIterator;
@@ -120,7 +121,12 @@ public class DrainingHashesTracker {
         public synchronized boolean clearHash(int hash) {
             drainingHashes.remove(hash);
             drainingHashesClearedTotal++;
-            return drainingHashes.isEmpty();
+            boolean empty = drainingHashes.isEmpty();
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Cleared hash {} in stats. empty={} totalCleared={} hashes={}",
+                        dispatcherName, hash, empty, drainingHashesClearedTotal, drainingHashes.getCardinality());
+            }
+            return empty;
         }
 
         public synchronized void updateConsumerStats(Consumer consumer, ConsumerStatsImpl consumerStats) {
@@ -179,6 +185,10 @@ public class DrainingHashesTracker {
         }
         DrainingHashEntry entry = drainingHashes.get(stickyHash);
         if (entry == null) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Adding and incrementing draining hash {} for consumer id:{} name:{}", dispatcherName,
+                        stickyHash, consumer.consumerId(), consumer.consumerName());
+            }
             entry = new DrainingHashEntry(consumer);
             drainingHashes.put(stickyHash, entry);
             // update the consumer specific stats
@@ -189,6 +199,11 @@ public class DrainingHashesTracker {
                     "Consumer " + entry.getConsumer() + " is already draining hash " + stickyHash
                             + " in dispatcher " + dispatcherName + ". Same hash being used for consumer " + consumer
                             + ".");
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Draining hash {} incrementing {} consumer id:{} name:{}", dispatcherName, stickyHash,
+                        entry.refCount + 1, consumer.consumerId(), consumer.consumerName());
+            }
         }
         entry.incrementRefCount();
     }
@@ -233,6 +248,10 @@ public class DrainingHashesTracker {
                             + ".");
         }
         if (entry.decrementRefCount()) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Draining hash {} removing consumer id:{} name:{}", dispatcherName, stickyHash,
+                        consumer.consumerId(), consumer.consumerName());
+            }
             DrainingHashEntry removed = drainingHashes.remove(stickyHash);
             // update the consumer specific stats
             consumerDrainingHashesStatsMap.compute(new ConsumerIdentityWrapper(consumer),
@@ -243,12 +262,20 @@ public class DrainingHashesTracker {
                         }
                         return consumerDrainingHashesStats;
                     });
+            if (log.isDebugEnabled()) {
+                log.debug("consumerDrainingHashesStatsMap size: {}", consumerDrainingHashesStatsMap.size());
+            }
             if (!closing && removed.isBlocking()) {
                 if (batchLevel > 0) {
                     unblockedWhileBatching = true;
                 } else {
                     unblockingHandler.stickyKeyHashUnblocked(stickyHash);
                 }
+            }
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Draining hash {} decrementing {} consumer id:{} name:{}", dispatcherName, stickyHash,
+                        entry.refCount, consumer.consumerId(), consumer.consumerName());
             }
         }
     }

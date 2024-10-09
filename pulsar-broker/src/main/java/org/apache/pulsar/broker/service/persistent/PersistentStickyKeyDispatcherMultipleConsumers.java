@@ -351,8 +351,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             return false;
         }
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Adding {}:{} to pending acks for consumer {} with sticky key hash {}",
-                    getName(), ledgerId, entryId, consumer, stickyKeyHash);
+            log.debug("[{}] Adding {}:{} to pending acks for consumer id:{} name:{} with sticky key hash {}",
+                    getName(), ledgerId, entryId, consumer.consumerId(), consumer.consumerName(), stickyKeyHash);
         }
         // allow adding the message to pending acks and sending the message to the consumer
         return true;

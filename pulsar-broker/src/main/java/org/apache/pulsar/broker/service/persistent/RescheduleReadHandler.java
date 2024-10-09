@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Reschedules reads so that the possible pending read is cancelled if it's waiting for more entries.
@@ -30,6 +31,7 @@ import java.util.function.LongSupplier;
  * that should be handled. This will also batch multiple calls together to reduce the number of
  * operations.
  */
+@Slf4j
 class RescheduleReadHandler {
     private static final int UNSET = -1;
     private static final int NO_PENDING_READ = 0;
@@ -70,15 +72,27 @@ class RescheduleReadHandler {
                 // are entries in the replay queue.
                 if (maxReadOpCount != NO_PENDING_READ && readOpCounterSupplier.getAsLong() == maxReadOpCount
                         && hasEntriesInReplayQueue.getAsBoolean()) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Cancelling pending read request because it's waiting for more entries");
+                    }
                     cancelPendingRead.run();
                 }
                 // Re-schedule read immediately, or join the next scheduled read
+                if (log.isDebugEnabled()) {
+                    log.debug("Triggering read");
+                }
                 rescheduleReadImmediately.run();
             };
             long rescheduleDelay = readIntervalMsSupplier.getAsLong();
             if (rescheduleDelay > 0) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Scheduling after {} ms", rescheduleDelay);
+                }
                 executor.schedule(runnable, rescheduleDelay, TimeUnit.MILLISECONDS);
             } else {
+                if (log.isDebugEnabled()) {
+                    log.debug("Running immediately");
+                }
                 runnable.run();
             }
         } else {
