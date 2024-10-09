@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Objects;
 import lombok.Data;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.apache.pulsar.common.policies.data.DrainingHash;
 import org.apache.pulsar.common.util.DateFormatter;
 
 /**
@@ -98,9 +99,11 @@ public class ConsumerStatsImpl implements ConsumerStats {
 
     /**
      * For Key_Shared subscription in AUTO_SPLIT ordered mode:
-     * a map where the key is the hash value and the value is the number of unacked messages for that hash.
+     * Retrieves the draining hashes for this consumer.
+     *
+     * @return a list of draining hashes for this consumer
      */
-    public Map<Integer, Integer> drainingHashesUnackedMessagesByHash;
+    public List<DrainingHash> drainingHashes;
 
     /** Address of this consumer. */
     private String address;
@@ -149,7 +152,7 @@ public class ConsumerStatsImpl implements ConsumerStats {
         this.drainingHashesCount = stats.drainingHashesCount;
         this.drainingHashesClearedTotal += stats.drainingHashesClearedTotal;
         this.drainingHashesUnackedMessages = stats.drainingHashesUnackedMessages;
-        this.drainingHashesUnackedMessagesByHash = stats.drainingHashesUnackedMessagesByHash;
+        this.drainingHashes = stats.drainingHashes;
         this.keyHashRanges = stats.keyHashRanges;
         this.keyHashRangeArrays = stats.keyHashRangeArrays;
         return this;

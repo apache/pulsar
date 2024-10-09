@@ -19,15 +19,17 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.service.StickyKeyConsumerSelector.STICKY_KEY_HASH_NOT_SET;
-import it.unimi.dsi.fastutil.ints.Int2IntMap;
-import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.PrimitiveIterator;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.policies.data.DrainingHash;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.DrainingHashImpl;
 import org.roaringbitmap.RoaringBitmap;
 
 /**
@@ -122,9 +124,8 @@ public class DrainingHashesTracker {
         }
 
         public synchronized void updateConsumerStats(Consumer consumer, ConsumerStatsImpl consumerStats) {
-            int drainingHashesCount = 0;
             int drainingHashesUnackedMessages = 0;
-            Int2IntMap drainingHashesUnackedMessagesByHash = new Int2IntOpenHashMap();
+            List<DrainingHash> drainingHashesStats = new ArrayList<>();
             PrimitiveIterator.OfInt hashIterator = drainingHashes.stream().iterator();
             while (hashIterator.hasNext()) {
                 int hash = hashIterator.nextInt();
@@ -134,15 +135,18 @@ public class DrainingHashesTracker {
                             consumer);
                     continue;
                 }
-                int unackedMessage = entry.refCount;
-                drainingHashesUnackedMessagesByHash.put(hash, unackedMessage);
-                drainingHashesUnackedMessages += unackedMessage;
-                drainingHashesCount++;
+                int unackedMessages = entry.refCount;
+                DrainingHashImpl drainingHash = new DrainingHashImpl();
+                drainingHash.hash = hash;
+                drainingHash.unackMsgs = unackedMessages;
+                drainingHash.blockedAttempts = entry.blockedCount;
+                drainingHashesStats.add(drainingHash);
+                drainingHashesUnackedMessages += unackedMessages;
             }
-            consumerStats.drainingHashesCount = drainingHashesCount;
+            consumerStats.drainingHashesCount = drainingHashesStats.size();
             consumerStats.drainingHashesClearedTotal = drainingHashesClearedTotal;
             consumerStats.drainingHashesUnackedMessages = drainingHashesUnackedMessages;
-            consumerStats.drainingHashesUnackedMessagesByHash = drainingHashesUnackedMessagesByHash;
+            consumerStats.drainingHashes = drainingHashesStats;
         }
     }
 

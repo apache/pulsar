@@ -101,11 +101,11 @@ public interface ConsumerStats {
 
     /**
      * For Key_Shared subscription in AUTO_SPLIT ordered mode:
-     * Retrieves the number of unacked messages grouped by their hash values.
+     * Retrieves the draining hashes for this consumer.
      *
-     * @return a map where the key is the hash value and the value is the number of unacked messages for that hash
+     * @return a list of draining hashes for this consumer
      */
-    Map<Integer, Integer> getDrainingHashesUnackedMessagesByHash();
+    List<DrainingHash> getDrainingHashes();
 
     /** Address of this consumer. */
     String getAddress();
