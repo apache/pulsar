@@ -1256,6 +1256,34 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 20000)
+    public void cursorPersistenceWithLedgerForceRecovery() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setLedgerForceRecovery(true);
+
+        ManagedLedger ledger = factory.open("my_test_ledger", config);
+        ManagedCursor c1 = ledger.openCursor("c1");
+        ledger.addEntry("dummy-entry-1".getBytes(Encoding));
+        ledger.addEntry("dummy-entry-2".getBytes(Encoding));
+        ledger.addEntry("dummy-entry-3".getBytes(Encoding));
+
+        List<Entry> entries = c1.readEntries(2);
+        Position p1 = entries.get(1).getPosition();
+        c1.markDelete(p1);
+        entries.forEach(Entry::release);
+
+        entries = c1.readEntries(1);
+        entries.forEach(Entry::release);
+
+        // Reopen
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ledger = factory2.open("my_test_ledger", config);
+        c1 = ledger.openCursor("c1");
+
+        assertEquals(c1.getMarkDeletedPosition(), p1);
+    }
+
+    @Test(timeOut = 20000)
     void cursorPersistence2() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger",
                 new ManagedLedgerConfig().setMetadataMaxEntriesPerLedger(1));
