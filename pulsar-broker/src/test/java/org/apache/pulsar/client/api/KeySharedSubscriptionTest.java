@@ -65,6 +65,7 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.DrainingHashesTracker;
@@ -1444,45 +1445,37 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
      */
     private void receiveAndCheckDistribution(List<Consumer<?>> consumers, int expectedTotalMessage) throws PulsarClientException {
         // Add a key so that we know this key was already assigned to one consumer
-        Map<String, Consumer<?>> keyToConsumer = new HashMap<>();
-        Map<Consumer<?>, Integer> messagesPerConsumer = new HashMap<>();
+        Map<String, Consumer<?>> keyToConsumer = new ConcurrentHashMap<>();
+        Map<Consumer<?>, AtomicInteger> messagesPerConsumer = new ConcurrentHashMap<>();
+        AtomicInteger totalMessages = new AtomicInteger();
 
-        int totalMessages = 0;
+        BiFunction<Consumer<Object>, Message<Object>, Boolean> messageHandler = (consumer, msg) -> {
+            totalMessages.incrementAndGet();
+            messagesPerConsumer.computeIfAbsent(consumer, k -> new AtomicInteger()).incrementAndGet();
+            try {
+                consumer.acknowledge(msg);
+            } catch (PulsarClientException e) {
+                throw new RuntimeException(e);
+            }
 
-        for (Consumer<?> c : consumers) {
-            int messagesForThisConsumer = 0;
-            while (true) {
-                Message<?> msg = c.receive(100, TimeUnit.MILLISECONDS);
-                if (msg == null) {
-                    // Go to next consumer
-                    messagesPerConsumer.put(c, messagesForThisConsumer);
-                    break;
-                }
-
-                ++totalMessages;
-                ++messagesForThisConsumer;
-                c.acknowledge(msg);
-
-                if (msg.hasKey() || msg.hasOrderingKey()) {
-                    String key = msg.hasOrderingKey() ? new String(msg.getOrderingKey()) : msg.getKey();
-                    Consumer<?> assignedConsumer = keyToConsumer.get(key);
-                    if (assignedConsumer == null) {
-                        // This is a new key
-                        keyToConsumer.put(key, c);
-                    } else {
-                        // The consumer should be the same
-                        assertEquals(c, assignedConsumer);
-                    }
+            if (msg.hasKey() || msg.hasOrderingKey()) {
+                String key = msg.hasOrderingKey() ? new String(msg.getOrderingKey()) : msg.getKey();
+                Consumer<?> assignedConsumer = keyToConsumer.putIfAbsent(key, consumer);
+                if (assignedConsumer != null && !assignedConsumer.equals(consumer)) {
+                    assertEquals(consumer, assignedConsumer);
                 }
             }
-        }
+            return true;
+        };
+
+        BrokerTestUtil.receiveMessagesInThreads(messageHandler, Duration.ofMillis(250),
+                consumers.stream().map(Consumer.class::cast));
 
         final double PERCENT_ERROR = 0.40; // 40 %
-
-        double expectedMessagesPerConsumer = totalMessages / consumers.size();
-        Assert.assertEquals(expectedTotalMessage, totalMessages);
-        for (int count : messagesPerConsumer.values()) {
-            Assert.assertEquals(count, expectedMessagesPerConsumer, expectedMessagesPerConsumer * PERCENT_ERROR);
+        double expectedMessagesPerConsumer = totalMessages.get() / (double) consumers.size();
+        Assert.assertEquals(expectedTotalMessage, totalMessages.get());
+        for (AtomicInteger count : messagesPerConsumer.values()) {
+            Assert.assertEquals(count.get(), expectedMessagesPerConsumer, expectedMessagesPerConsumer * PERCENT_ERROR);
         }
     }
 
