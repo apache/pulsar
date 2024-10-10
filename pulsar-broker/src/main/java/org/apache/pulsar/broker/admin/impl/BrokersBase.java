@@ -387,7 +387,11 @@ public class BrokersBase extends AdminResource {
                     asyncResponse.resume(Response.ok("ok").build());
                 }).exceptionally(ex -> {
                     if (!isRedirectException(ex)) {
-                        LOG.error("[{}] Fail to run health check.", clientAppId(), ex);
+                        if (isNotFoundException(ex)) {
+                            LOG.warn("[{}] Failed to run health check: {}", clientAppId(), ex.getMessage());
+                        } else {
+                            LOG.error("[{}] Failed to run health check.", clientAppId(), ex);
+                        }
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
