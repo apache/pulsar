@@ -39,7 +39,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -53,6 +52,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.PendingAcksMap;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
@@ -88,6 +88,7 @@ import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -232,9 +233,21 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         Assert.assertEquals(updatedStats.getBytesOutCounter(), 1280);
     }
 
-    @Test
-    public void testConsumerStatsOutput() throws Exception {
-        Set<String> allowedFields = Sets.newHashSet(
+    @DataProvider(name = "classicAndSubscriptionType")
+    public Object[][] classicAndSubscriptionType() {
+        return new Object[][]{
+                {false, SubscriptionType.Shared},
+                {true, SubscriptionType.Key_Shared},
+                {false, SubscriptionType.Key_Shared}
+        };
+    }
+
+    @Test(dataProvider = "classicAndSubscriptionType")
+    public void testConsumerStatsOutput(boolean classicDispatchers, SubscriptionType subscriptionType)
+            throws Exception {
+        conf.setSubscriptionSharedUseClassicPersistentImplementation(classicDispatchers);
+        conf.setSubscriptionKeySharedUseClassicPersistentImplementation(classicDispatchers);
+        Set<String> expectedFields = Sets.newHashSet(
                 "msgRateOut",
                 "msgThroughputOut",
                 "bytesOutCounter",
@@ -247,21 +260,56 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
                 "unackedMessages",
                 "avgMessagesPerEntry",
                 "blockedConsumerOnUnackedMsgs",
-                "readPositionWhenJoining",
                 "lastAckedTime",
                 "lastAckedTimestamp",
                 "lastConsumedTime",
                 "lastConsumedTimestamp",
                 "lastConsumedFlowTimestamp",
-                "keyHashRanges",
                 "metadata",
                 "address",
                 "connectedSince",
-                "clientVersion");
-
-        final String topicName = "persistent://prop/use/ns-abc/testConsumerStatsOutput";
+                "clientVersion",
+                "drainingHashesCount",
+                "drainingHashesClearedTotal",
+                "drainingHashesUnackedMessages"
+        );
+        if (subscriptionType == SubscriptionType.Key_Shared) {
+            if (classicDispatchers) {
+                expectedFields.addAll(List.of(
+                        "readPositionWhenJoining",
+                        "keyHashRanges"
+                ));
+            } else {
+                expectedFields.addAll(List.of(
+                        "drainingHashes",
+                        "keyHashRangeArrays"
+                ));
+            }
+        }
+        final String topicName = newUniqueName("persistent://my-property/my-ns/testConsumerStatsOutput");
         final String subName = "my-subscription";
 
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionType(subscriptionType)
+                .subscriptionName(subName)
+                .subscribe();
+
+        String topicStatsUri =
+                String.format("%s/admin/v2/%s/stats", pulsar.getWebServiceAddress(), topicName.replace("://", "/"));
+        String topicStatsJson = BrokerTestUtil.getJsonResourceAsString(topicStatsUri);
+        ObjectMapper mapper = ObjectMapperFactory.create();
+        JsonNode node = mapper.readTree(topicStatsJson).get("subscriptions").get(subName).get("consumers").get(0);
+        assertThat(node.fieldNames()).toIterable().containsExactlyInAnyOrderElementsOf(expectedFields);
+    }
+
+    @Test
+    public void testLastConsumerFlowTimestamp() throws PulsarClientException, PulsarAdminException {
+        final String topicName = newUniqueName("persistent://my-property/my-ns/testLastConsumerFlowTimestamp");
+        final String subName = "my-subscription";
+
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
@@ -269,18 +317,9 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
                 .subscribe();
 
         TopicStats stats = admin.topics().getStats(topicName);
-        ObjectMapper mapper = ObjectMapperFactory.create();
         ConsumerStats consumerStats = stats.getSubscriptions()
                 .get(subName).getConsumers().get(0);
         Assert.assertTrue(consumerStats.getLastConsumedFlowTimestamp() > 0);
-        JsonNode node = mapper.readTree(mapper.writer().writeValueAsString(consumerStats));
-        Iterator<String> itr = node.fieldNames();
-        while (itr.hasNext()) {
-            String field = itr.next();
-            Assert.assertTrue(allowedFields.contains(field), field + " should not be exposed");
-        }
-
-        consumer.close();
     }
 
 
