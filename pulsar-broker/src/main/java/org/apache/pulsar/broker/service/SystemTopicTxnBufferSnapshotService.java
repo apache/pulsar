@@ -22,12 +22,16 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.systopic.SystemTopicClientBase;
-import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.broker.transaction.buffer.impl.TableView;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -42,6 +46,8 @@ public class SystemTopicTxnBufferSnapshotService<T> {
     protected final EventType systemTopicType;
 
     private final ConcurrentHashMap<NamespaceName, ReferenceCountedWriter<T>> refCountedWriterMap;
+    @Getter
+    private final TableView<T> tableView;
 
     // The class ReferenceCountedWriter will maintain the reference count,
     // when the reference count decrement to 0, it will be removed from writerFutureMap, the writer will be closed.
@@ -95,13 +101,16 @@ public class SystemTopicTxnBufferSnapshotService<T> {
 
     }
 
-    public SystemTopicTxnBufferSnapshotService(PulsarClient client, EventType systemTopicType,
-                                               Class<T> schemaType) {
+    public SystemTopicTxnBufferSnapshotService(PulsarService pulsar, EventType systemTopicType,
+                                               Class<T> schemaType) throws PulsarServerException {
+        final var client = (PulsarClientImpl) pulsar.getClient();
         this.namespaceEventsSystemTopicFactory = new NamespaceEventsSystemTopicFactory(client);
         this.systemTopicType = systemTopicType;
         this.schemaType = schemaType;
         this.clients = new ConcurrentHashMap<>();
         this.refCountedWriterMap = new ConcurrentHashMap<>();
+        this.tableView = new TableView<>(this::createReader,
+                client.getConfiguration().getOperationTimeoutMs(), pulsar.getExecutor());
     }
 
     public CompletableFuture<SystemTopicClient.Reader<T>> createReader(TopicName topicName) {
@@ -142,8 +151,26 @@ public class SystemTopicTxnBufferSnapshotService<T> {
 
     public void close() throws Exception {
         for (Map.Entry<NamespaceName, SystemTopicClient<T>> entry : clients.entrySet()) {
-            entry.getValue().close();
+            try {
+                entry.getValue().close();
+            } catch (Exception e) {
+                log.error("Failed to close system topic client for namespace {}", entry.getKey(), e);
+            }
         }
+        clients.clear();
+        for (Map.Entry<NamespaceName, ReferenceCountedWriter<T>> entry : refCountedWriterMap.entrySet()) {
+            CompletableFuture<SystemTopicClient.Writer<T>> future = entry.getValue().getFuture();
+            if (!future.isCompletedExceptionally()) {
+                future.thenAccept(writer -> {
+                    try {
+                        writer.close();
+                    } catch (Exception e) {
+                        log.error("Failed to close writer for namespace {}", entry.getKey(), e);
+                    }
+                });
+            }
+        }
+        refCountedWriterMap.clear();
     }
 
 }

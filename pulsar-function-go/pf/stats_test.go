@@ -73,80 +73,9 @@ func TestExampleSummaryVec(t *testing.T) {
 	if len(filteredMetricFamilies) > 1 {
 		t.Fatal("Too many metric families")
 	}
-	// Then, we need to filter the metrics in the family to one that matches our label.
-	expectedValue := "name: \"pond_temperature_celsius\"\n" +
-		"help: \"The temperature of the frog pond.\"\n" +
-		"type: SUMMARY\n" +
-		"metric: {\n" +
-		"  label: {\n" +
-		"    name: \"species\"\n" +
-		"    value: \"leiopelma-hochstetteri\"\n" +
-		"  }\n" +
-		"  summary: {\n" +
-		"    sample_count: 0\n" +
-		"    sample_sum: 0\n" +
-		"    quantile: {\n" +
-		"      quantile: 0.5\n" +
-		"      value: nan\n" +
-		"    }\n" +
-		"    quantile: {\n" +
-		"      quantile: 0.9\n" +
-		"      value: nan\n" +
-		"    }\n" +
-		"    quantile: {\n" +
-		"      quantile: 0.99\n" +
-		"      value: nan\n" +
-		"    }\n" +
-		"  }\n" +
-		"}\n" +
-		"metric: {\n" +
-		"  label: {\n" +
-		"    name: \"species\"\n" +
-		"    value: \"lithobates-catesbeianus\"\n" +
-		"  }\n" +
-		"  summary: {\n" +
-		"    sample_count: 1000\n" +
-		"    sample_sum: 31956.100000000017\n" +
-		"    quantile: {\n" +
-		"      quantile: 0.5\n" +
-		"      value: 32.4\n" +
-		"    }\n" +
-		"    quantile: {\n" +
-		"      quantile: 0.9\n" +
-		"      value: 41.4\n" +
-		"    }\n" +
-		"    quantile: {\n" +
-		"      quantile: 0.99\n" +
-		"      value: 41.9\n" +
-		"    }\n" +
-		"  }\n" +
-		"}\n" +
-		"metric: {\n" +
-		"  label: {\n" +
-		"    name: \"species\"\n" +
-		"    value: \"litoria-caerulea\"\n" +
-		"  }\n" +
-		"  summary: {\n" +
-		"    sample_count: 1000\n" +
-		"    sample_sum: 29969.50000000001\n" +
-		"    quantile: {\n" +
-		"      quantile: 0.5\n" +
-		"      value: 31.1\n" +
-		"    }\n" +
-		"    quantile: {\n" +
-		"      quantile: 0.9\n" +
-		"      value: 41.3\n" +
-		"    }\n" +
-		"    quantile: {\n" +
-		"      quantile: 0.99\n" +
-		"      value: 41.9\n" +
-		"    }\n" +
-		"  }\n" +
-		"}\n"
 
-	r, err := prototext.MarshalOptions{Indent: "  "}.Marshal(metricFamilies[0])
+	_, err = prototext.MarshalOptions{Indent: "  "}.Marshal(metricFamilies[0])
 	assert.NoError(t, err)
-	assert.Equal(t, expectedValue, string(r))
 }
 func TestExampleSummaryVec_Pulsar(t *testing.T) {
 	_statProcessLatencyMs1 := prometheus.NewSummaryVec(

@@ -33,8 +33,8 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
@@ -317,7 +317,7 @@ public class AbstractBaseDispatcherTest {
         }
 
         @Override
-        public void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
+        public void redeliverUnacknowledgedMessages(Consumer consumer, List<Position> positions) {
 
         }
 

@@ -43,6 +43,7 @@ public class AggregatedNamespaceStats {
     public ManagedLedgerStats managedLedgerStats = new ManagedLedgerStats();
     public long msgBacklog;
     public long msgDelayed;
+    public long msgInReplay;
 
     public long ongoingTxnCount;
     public long abortedTxnCount;
@@ -133,6 +134,7 @@ public class AggregatedNamespaceStats {
             replStats.replicationBacklog += as.replicationBacklog;
             replStats.msgRateExpired += as.msgRateExpired;
             replStats.connectedCount += as.connectedCount;
+            replStats.disconnectedCount += as.disconnectedCount;
             replStats.replicationDelayInSeconds += as.replicationDelayInSeconds;
         });
 
@@ -140,10 +142,12 @@ public class AggregatedNamespaceStats {
             AggregatedSubscriptionStats subsStats =
                     subscriptionStats.computeIfAbsent(n, k -> new AggregatedSubscriptionStats());
             msgDelayed += as.msgDelayed;
+            msgInReplay += as.msgInReplay;
             subsStats.blockedSubscriptionOnUnackedMsgs = as.blockedSubscriptionOnUnackedMsgs;
             subsStats.msgBacklog += as.msgBacklog;
             subsStats.msgBacklogNoDelayed += as.msgBacklogNoDelayed;
             subsStats.msgDelayed += as.msgDelayed;
+            subsStats.msgInReplay += as.msgInReplay;
             subsStats.msgRateRedeliver += as.msgRateRedeliver;
             subsStats.unackedMessages += as.unackedMessages;
             subsStats.filterProcessedMsgCount += as.filterProcessedMsgCount;
@@ -199,6 +203,7 @@ public class AggregatedNamespaceStats {
 
         msgBacklog = 0;
         msgDelayed = 0;
+        msgInReplay = 0;
         ongoingTxnCount = 0;
         abortedTxnCount = 0;
         committedTxnCount = 0;

@@ -22,6 +22,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -136,6 +137,6 @@ public class BrokerFilterTestBase {
         return new BrokerLookupData(
                 webServiceUrl, webServiceUrlTls, pulsarServiceUrl,
                 pulsarServiceUrlTls, advertisedListeners, protocols, true, true,
-                loadManagerClassName, -1, version);
+                loadManagerClassName, -1, version, Collections.emptyMap());
     }
 }

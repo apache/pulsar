@@ -69,6 +69,29 @@ else
     JAVA=$JAVA_HOME/bin/java
 fi
 
+# JAVA_MAJOR_VERSION should get set by conf/bkenv.sh, just in case it's not
+if [[ -z $JAVA_MAJOR_VERSION ]]; then
+  for token in $("$JAVA" -version 2>&1 | grep 'version "'); do
+      if [[ $token =~ \"([[:digit:]]+)\.([[:digit:]]+)(.*)\" ]]; then
+          if [[ ${BASH_REMATCH[1]} == "1" ]]; then
+            JAVA_MAJOR_VERSION=${BASH_REMATCH[2]}
+          else
+            JAVA_MAJOR_VERSION=${BASH_REMATCH[1]}
+          fi
+          break
+      elif [[ $token =~ \"([[:digit:]]+)(.*)\" ]]; then
+          # Process the java versions without dots, such as `17-internal`.
+          JAVA_MAJOR_VERSION=${BASH_REMATCH[1]}
+          break
+      fi
+  done
+fi
+
+if [[ $JAVA_MAJOR_VERSION -lt 17 ]]; then
+    echo "Error: Bookkeeper included in Pulsar requires Java 17 or later." 1>&2
+    exit 1
+fi
+
 # exclude tests jar
 RELEASE_JAR=`ls $BK_HOME/bookkeeper-server-*.jar 2> /dev/null | grep -v tests | tail -1`
 if [ $? == 0 ]; then
@@ -168,17 +191,12 @@ OPTS="$OPTS -Dlog4j.configurationFile=`basename $BOOKIE_LOG_CONF`"
 # Allow Netty to use reflection access
 OPTS="$OPTS -Dio.netty.tryReflectionSetAccessible=true"
 
-IS_JAVA_8=$( $JAVA -version 2>&1 | grep version | grep '"1\.8' )
-# Start --add-opens options
-# '--add-opens' option is not supported in jdk8
-if [[ -z "$IS_JAVA_8" ]]; then
-  # BookKeeper: enable posix_fadvise usage and DirectMemoryCRC32Digest (https://github.com/apache/bookkeeper/pull/3234)
-  OPTS="$OPTS --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.util.zip=ALL-UNNAMED"
-  # Netty: enable java.nio.DirectByteBuffer
-  # https://github.com/netty/netty/blob/4.1/common/src/main/java/io/netty/util/internal/PlatformDependent0.java
-  # https://github.com/netty/netty/issues/12265
-  OPTS="$OPTS --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
-fi
+# BookKeeper: enable posix_fadvise usage and DirectMemoryCRC32Digest (https://github.com/apache/bookkeeper/pull/3234)
+OPTS="$OPTS --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.util.zip=ALL-UNNAMED"
+# Netty: enable java.nio.DirectByteBuffer
+# https://github.com/netty/netty/blob/4.1/common/src/main/java/io/netty/util/internal/PlatformDependent0.java
+# https://github.com/netty/netty/issues/12265
+OPTS="$OPTS --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
 
 OPTS="-cp $BOOKIE_CLASSPATH $OPTS"
 
@@ -214,20 +232,20 @@ OPTS="$OPTS $BK_METADATA_OPTIONS"
 #Change to BK_HOME to support relative paths
 cd "$BK_HOME"
 if [ $COMMAND == "bookie" ]; then
-    exec $JAVA $OPTS $JMX_ARGS org.apache.bookkeeper.server.Main --conf $BOOKIE_CONF $@
+    exec $JAVA $OPTS $JMX_ARGS org.apache.bookkeeper.server.Main --conf $BOOKIE_CONF "$@"
 elif [ $COMMAND == "autorecovery" ]; then
-    exec $JAVA $OPTS $JMX_ARGS org.apache.bookkeeper.replication.AutoRecoveryMain --conf $BOOKIE_CONF $@
+    exec $JAVA $OPTS $JMX_ARGS org.apache.bookkeeper.replication.AutoRecoveryMain --conf $BOOKIE_CONF "$@"
 elif [ $COMMAND == "localbookie" ]; then
     NUMBER=$1
     shift
-    exec $JAVA $OPTS $JMX_ARGS org.apache.bookkeeper.util.LocalBookKeeper $NUMBER $BOOKIE_CONF $@
+    exec $JAVA $OPTS $JMX_ARGS org.apache.bookkeeper.util.LocalBookKeeper $NUMBER $BOOKIE_CONF "$@"
 elif [ $COMMAND == "upgrade" ]; then
-    exec $JAVA $OPTS org.apache.bookkeeper.bookie.FileSystemUpgrade --conf $BOOKIE_CONF $@
+    exec $JAVA $OPTS org.apache.bookkeeper.bookie.FileSystemUpgrade --conf $BOOKIE_CONF "$@"
 elif [ $COMMAND == "shell" ]; then
     ENTRY_FORMATTER_ARG="-DentryFormatterClass=${ENTRY_FORMATTER_CLASS:-org.apache.bookkeeper.util.StringEntryFormatter}"
-    exec $JAVA $OPTS $ENTRY_FORMATTER_ARG org.apache.bookkeeper.bookie.BookieShell -conf $BOOKIE_CONF $@
+    exec $JAVA $OPTS $ENTRY_FORMATTER_ARG org.apache.bookkeeper.bookie.BookieShell -conf $BOOKIE_CONF "$@"
 elif [ $COMMAND == "help" -o $COMMAND == "--help" -o $COMMAND == "-h" ]; then
     bookkeeper_help;
 else
-    exec $JAVA $OPTS $COMMAND $@
+    exec $JAVA $OPTS $COMMAND "$@"
 fi

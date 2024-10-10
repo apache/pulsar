@@ -21,28 +21,44 @@ package org.apache.pulsar.broker.loadbalance.extensions;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import com.google.common.collect.Sets;
+import com.google.common.io.Resources;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateMetadataStoreTableViewImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.scheduler.TransferShedder;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 
 public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServiceBaseTest {
+
+    final static String caCertPath = Resources.getResource("certificate-authority/certs/ca.cert.pem").getPath();
+    final static String brokerCertPath =
+            Resources.getResource("certificate-authority/server-keys/broker.cert.pem").getPath();
+    final static String brokerKeyPath =
+            Resources.getResource("certificate-authority/server-keys/broker.key-pk8.pem").getPath();
 
     protected PulsarService pulsar1;
     protected PulsarService pulsar2;
@@ -60,33 +76,52 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
 
     protected LookupService lookupService;
 
-    protected ExtensibleLoadManagerImplBaseTest(String defaultTestNamespace) {
-        this.defaultTestNamespace = defaultTestNamespace;
+    protected String serviceUnitStateTableViewClassName;
+
+    protected ArrayList<PulsarClient> clients = new ArrayList<>();
+
+    @DataProvider(name = "serviceUnitStateTableViewClassName")
+    public static Object[][] serviceUnitStateTableViewClassName() {
+        return new Object[][]{
+                {ServiceUnitStateTableViewImpl.class.getName()},
+                {ServiceUnitStateMetadataStoreTableViewImpl.class.getName()}
+        };
     }
 
-    protected ServiceConfiguration initConfig(ServiceConfiguration conf) {
-        // Set the inflight state waiting time and ownership monitor delay time to 5 seconds to avoid
-        // stuck when doing unload.
-        conf.setLoadBalancerInFlightServiceUnitStateWaitingTimeInMillis(5 * 1000);
-        conf.setLoadBalancerServiceUnitStateMonitorIntervalInSeconds(1);
+    protected ExtensibleLoadManagerImplBaseTest(String defaultTestNamespace, String serviceUnitStateTableViewClassName) {
+        this.defaultTestNamespace = defaultTestNamespace;
+        this.serviceUnitStateTableViewClassName = serviceUnitStateTableViewClassName;
+    }
+
+    @Override
+    protected void doInitConf() throws Exception {
+        super.doInitConf();
+        updateConfig(conf);
+    }
+
+
+    protected ServiceConfiguration updateConfig(ServiceConfiguration conf) {
         conf.setForceDeleteNamespaceAllowed(true);
-        conf.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
-        conf.setAllowAutoTopicCreation(true);
         conf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
         conf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
+        conf.setLoadManagerServiceUnitStateTableViewClassName(serviceUnitStateTableViewClassName);
+        conf.setLoadBalancerReportUpdateMaxIntervalMinutes(1);
         conf.setLoadBalancerSheddingEnabled(false);
         conf.setLoadBalancerDebugModeEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
+        conf.setWebServicePortTls(Optional.of(0));
+        conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setTlsCertificateFilePath(brokerCertPath);
+        conf.setTlsKeyFilePath(brokerKeyPath);
+        conf.setTlsTrustCertsFilePath(caCertPath);
         return conf;
     }
 
     @Override
     @BeforeClass(alwaysRun = true)
     protected void setup() throws Exception {
-        initConfig(conf);
         super.internalSetup(conf);
         pulsar1 = pulsar;
-        var conf2 = initConfig(getDefaultConf());
+        var conf2 = updateConfig(getDefaultConf());
         additionalPulsarTestContext = createAdditionalPulsarTestContext(conf2);
         pulsar2 = additionalPulsarTestContext.getPulsarService();
 
@@ -106,13 +141,44 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
         admin.namespaces().setNamespaceReplicationClusters(defaultTestNamespace,
                 Sets.newHashSet(this.conf.getClusterName()));
         lookupService = (LookupService) FieldUtils.readDeclaredField(pulsarClient, "lookup", true);
+
+        for (int i = 0; i < 4; i++) {
+            clients.add(pulsarClient(lookupUrl.toString(), 100));
+        }
     }
+
+    private static PulsarClient pulsarClient(String url, int intervalInMillis) throws PulsarClientException {
+        return
+                PulsarClient.builder()
+                        .serviceUrl(url)
+                        .statsInterval(intervalInMillis, TimeUnit.MILLISECONDS).build();
+    }
+
 
     @Override
     @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
-        this.additionalPulsarTestContext.close();
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        for (PulsarClient client : clients) {
+            futures.add(client.closeAsync());
+        }
+        futures.add(pulsar2.closeAsync());
+
+        if (additionalPulsarTestContext != null) {
+            additionalPulsarTestContext.close();
+            additionalPulsarTestContext = null;
+        }
         super.internalCleanup();
+        try {
+            FutureUtil.waitForAll(futures).join();
+        } catch (Throwable e) {
+            // skip error
+        }
+        pulsar1 = pulsar2 = null;
+        primaryLoadManager = secondaryLoadManager = null;
+        channel1 = channel2 = null;
+        lookupService = null;
+
     }
 
     @BeforeMethod(alwaysRun = true)
@@ -144,7 +210,7 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
                 FieldUtils.readField(secondaryLoadManager, "serviceUnitStateChannel", true);
     }
 
-    protected CompletableFuture<NamespaceBundle> getBundleAsync(PulsarService pulsar, TopicName topic) {
+    protected static CompletableFuture<NamespaceBundle> getBundleAsync(PulsarService pulsar, TopicName topic) {
         return pulsar.getNamespaceService().getBundleAsync(topic);
     }
 

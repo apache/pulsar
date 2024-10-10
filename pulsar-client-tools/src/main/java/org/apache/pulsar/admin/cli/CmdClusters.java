@@ -364,6 +364,14 @@ public class CmdClusters extends CmdBase {
                 description = "path for the TLS certificate file", required = false)
         protected String brokerClientCertificateFilePath;
 
+        @Option(names = "--tls-factory-plugin",
+                description = "TLS Factory Plugin to be used to generate SSL Context and SSL Engine")
+        protected String brokerClientSslFactoryPlugin;
+
+        @Option(names = "--tls-factory-plugin-params",
+                description = "Parameters used by the TLS Factory Plugin")
+        protected String brokerClientSslFactoryPluginParams;
+
         @Option(names = "--listener-name",
                 description = "listenerName when client would like to connect to cluster", required = false)
         protected String listenerName;
@@ -439,6 +447,12 @@ public class CmdClusters extends CmdBase {
             }
             if (brokerClientCertificateFilePath != null) {
                 builder.brokerClientCertificateFilePath(brokerClientCertificateFilePath);
+            }
+            if (StringUtils.isNotBlank(brokerClientSslFactoryPlugin)) {
+                builder.brokerClientSslFactoryPlugin(brokerClientSslFactoryPlugin);
+            }
+            if (StringUtils.isNotBlank(brokerClientSslFactoryPluginParams)) {
+                builder.brokerClientSslFactoryPluginParams(brokerClientSslFactoryPluginParams);
             }
 
             if (listenerName != null) {

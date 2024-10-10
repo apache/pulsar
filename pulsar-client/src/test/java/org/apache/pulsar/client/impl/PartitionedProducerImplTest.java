@@ -47,6 +47,7 @@ import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.customroute.PartialRoundRobinMessageRouterImpl;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.assertj.core.util.Sets;
@@ -78,6 +79,7 @@ public class PartitionedProducerImplTest {
 
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
 
+        when(client.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
         when(client.getConfiguration()).thenReturn(clientConfigurationData);
         when(client.timer()).thenReturn(timer);
         when(client.newProducer()).thenReturn(producerBuilderImpl);

@@ -19,13 +19,16 @@
 package org.apache.pulsar.client.impl.conf;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import io.opentelemetry.api.OpenTelemetry;
 import io.swagger.annotations.ApiModelProperty;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -41,6 +44,8 @@ import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.util.Secret;
+import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
+
 
 /**
  * This is a simple holder of the client configuration values.
@@ -48,6 +53,7 @@ import org.apache.pulsar.client.util.Secret;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ClientConfigurationData implements Serializable, Cloneable {
     private static final long serialVersionUID = 1L;
 
@@ -133,7 +139,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             value = "Release the connection if it is not used for more than [connectionMaxIdleSeconds] seconds. "
                     + "If  [connectionMaxIdleSeconds] < 0, disabled the feature that auto release the idle connections"
     )
-    private int connectionMaxIdleSeconds = 180;
+    private int connectionMaxIdleSeconds = 60;
 
     @ApiModelProperty(
             name = "useTcpNoDelay",
@@ -176,6 +182,18 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             value = "Whether the hostname is validated when the client creates a TLS connection with brokers."
     )
     private boolean tlsHostnameVerificationEnable = false;
+
+    @ApiModelProperty(
+            name = "sslFactoryPlugin",
+            value = "SSL Factory Plugin class to provide SSLEngine and SSLContext objects. The default "
+                    + " class used is DefaultPulsarSslFactory.")
+    private String sslFactoryPlugin = DefaultPulsarSslFactory.class.getName();
+
+    @ApiModelProperty(
+            name = "sslFactoryPluginParams",
+            value = "SSL Factory plugin configuration parameters.")
+    private String sslFactoryPluginParams = "";
+
     @ApiModelProperty(
             name = "concurrentLookupRequest",
             value = "The number of concurrent lookup requests that can be sent on each broker connection. "
@@ -395,6 +413,10 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     )
     private String description;
 
+    private Map<String, String> lookupProperties;
+
+    private transient OpenTelemetry openTelemetry;
+
     /**
      * Gets the authentication settings for the client.
      *
@@ -457,5 +479,13 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     public String getSocks5ProxyPassword() {
         return Objects.nonNull(socks5ProxyPassword) ? socks5ProxyPassword : System.getProperty("socks5Proxy.password");
+    }
+
+    public void setLookupProperties(Map<String, String> lookupProperties) {
+        this.lookupProperties = Collections.unmodifiableMap(lookupProperties);
+    }
+
+    public Map<String, String> getLookupProperties() {
+        return (lookupProperties == null) ? Collections.emptyMap() : Collections.unmodifiableMap(lookupProperties);
     }
 }

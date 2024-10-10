@@ -27,6 +27,16 @@ workerHostname: localhost
 workerPort: 6750
 workerPortTls: 6751
 
+# Enable or disable the use of HA proxy protocol for resolving the client IP for http/https requests.
+webServiceHaProxyProtocolEnabled: false
+
+# Trust X-Forwarded-For header for resolving the client IP for http/https requests. Default is false.
+webServiceTrustXForwardedFor: false
+
+# Add detailed client/remote and server/local addresses and ports to http/https request logging.
+# Defaults to true when either webServiceHaProxyProtocolEnabled or webServiceTrustXForwardedFor is enabled.
+webServiceLogDetailedAddresses: null
+
 # The Configuration metadata store url
 # Examples:
 # * zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181

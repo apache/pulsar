@@ -24,6 +24,8 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+
+import java.lang.reflect.Method;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -37,6 +39,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
+import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.protocol.ByteBufPair;
@@ -224,6 +227,9 @@ public class MessageChecksumTest extends BrokerTestBase {
                 .create();
         TypedMessageBuilderImpl<byte[]> msgBuilder = (TypedMessageBuilderImpl<byte[]>) producer.newMessage()
                 .value("a message".getBytes());
+        Method method = TypedMessageBuilderImpl.class.getDeclaredMethod("beforeSend");
+        method.setAccessible(true);
+        method.invoke(msgBuilder);
         MessageMetadata msgMetadata = msgBuilder.getMetadataBuilder()
                 .setProducerName("test")
                 .setSequenceId(1)
@@ -233,7 +239,7 @@ public class MessageChecksumTest extends BrokerTestBase {
         // WHEN
         // protocol message is created with checksum
         ByteBufPair cmd = Commands.newSend(1, 1, 1, ChecksumType.Crc32c, msgMetadata, payload);
-        OpSendMsg op = OpSendMsg.create((MessageImpl<byte[]>) msgBuilder.getMessage(), cmd, 1, null);
+        OpSendMsg op = OpSendMsg.create(LatencyHistogram.NOOP, (MessageImpl<byte[]>) msgBuilder.getMessage(), cmd, 1, null);
 
         // THEN
         // the checksum validation passes

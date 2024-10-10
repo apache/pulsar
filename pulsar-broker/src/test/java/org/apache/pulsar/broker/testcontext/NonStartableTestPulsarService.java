@@ -71,7 +71,7 @@ class NonStartableTestPulsarService extends AbstractTestPulsarService {
         super(spyConfig, config, localMetadataStore, configurationMetadataStore, compactionServiceFactory,
                 brokerInterceptor, bookKeeperClientFactory, null);
         setPulsarResources(pulsarResources);
-        setManagedLedgerClientFactory(managedLedgerClientFactory);
+        setManagedLedgerStorage(managedLedgerClientFactory);
         try {
             setBrokerService(brokerServiceCustomizer.apply(
                     spyConfig.getBrokerService().spy(TestBrokerService.class, this, getIoEventLoopGroup())));

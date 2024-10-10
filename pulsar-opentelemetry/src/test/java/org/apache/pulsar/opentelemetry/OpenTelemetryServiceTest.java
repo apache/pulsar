@@ -198,4 +198,52 @@ public class OpenTelemetryServiceTest {
         // Validate that the callback has not being called.
         assertThat(callback).isFalse();
     }
+
+    @Test
+    public void testJvmRuntimeMetrics() {
+        // Attempt collection of GC metrics. The metrics should be populated regardless if GC is triggered or not.
+        Runtime.getRuntime().gc();
+
+        var metrics = reader.collectAllMetrics();
+
+        // Process Metrics
+        // Replaces process_cpu_seconds_total
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.cpu.time"));
+
+        // Memory Metrics
+        // Replaces jvm_memory_bytes_used
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.memory.used"));
+        // Replaces jvm_memory_bytes_committed
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.memory.committed"));
+        // Replaces jvm_memory_bytes_max
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.memory.limit"));
+        // Replaces jvm_memory_bytes_init
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.memory.init"));
+        // Replaces jvm_memory_pool_allocated_bytes_total
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.memory.used_after_last_gc"));
+
+        // Buffer Pool Metrics
+        // Replaces jvm_buffer_pool_used_bytes
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.buffer.memory.usage"));
+        // Replaces jvm_buffer_pool_capacity_bytes
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.buffer.memory.limit"));
+        // Replaces jvm_buffer_pool_used_buffers
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.buffer.count"));
+
+        // Garbage Collector Metrics
+        // Replaces jvm_gc_collection_seconds
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.gc.duration"));
+
+        // Thread Metrics
+        // Replaces jvm_threads_state, jvm_threads_current and jvm_threads_daemon
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.thread.count"));
+
+        // Class Loading Metrics
+        // Replaces jvm_classes_currently_loaded
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.class.count"));
+        // Replaces jvm_classes_loaded_total
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.class.loaded"));
+        // Replaces jvm_classes_unloaded_total
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric).hasName("jvm.class.unloaded"));
+    }
 }

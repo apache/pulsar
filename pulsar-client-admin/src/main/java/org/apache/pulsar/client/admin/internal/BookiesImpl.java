@@ -32,8 +32,8 @@ import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 public class BookiesImpl extends BaseResource implements Bookies {
     private final WebTarget adminBookies;
 
-    public BookiesImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public BookiesImpl(WebTarget web, Authentication auth, long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         adminBookies = web.path("/admin/v2/bookies");
     }
 

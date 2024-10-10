@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.AsyncCallback;
@@ -36,6 +37,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.metadata.api.Stat;
@@ -54,6 +56,8 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                                    String name, final Supplier<CompletableFuture<Boolean>> mlOwnershipChecker) {
         super(factory, bookKeeper, store, config, scheduledExecutor, name, mlOwnershipChecker);
         this.sourceMLName = config.getShadowSourceName();
+        // ShadowManagedLedgerImpl does not implement add entry timeout yet, so this variable will always be false.
+        this.currentLedgerTimeoutTriggered = new AtomicBoolean(false);
     }
 
     /**
@@ -95,7 +99,9 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                 }
 
                 if (mlInfo.hasTerminatedPosition()) {
-                    lastConfirmedEntry = new PositionImpl(mlInfo.getTerminatedPosition());
+                    MLDataFormats.NestedPositionInfo terminatedPosition = mlInfo.getTerminatedPosition();
+                    lastConfirmedEntry =
+                            PositionFactory.create(terminatedPosition.getLedgerId(), terminatedPosition.getEntryId());
                     log.info("[{}][{}] Recovering managed ledger terminated at {}", name, sourceMLName,
                             lastConfirmedEntry);
                 }
@@ -125,7 +131,8 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                         currentLedger = lh;
 
                         if (managedLedgerInterceptor != null) {
-                            managedLedgerInterceptor.onManagedLedgerLastLedgerInitialize(name, lh)
+                            managedLedgerInterceptor
+                                    .onManagedLedgerLastLedgerInitialize(name, createLastEntryHandle(lh))
                                     .thenRun(() -> ShadowManagedLedgerImpl.super.initialize(callback, ctx))
                                     .exceptionally(ex -> {
                                         callback.initializeFailed(
@@ -202,13 +209,13 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
         if (currentLedger == null) {
             return;
         }
-        lastConfirmedEntry = new PositionImpl(currentLedger.getId(), currentLedger.getLastAddConfirmed());
+        lastConfirmedEntry = PositionFactory.create(currentLedger.getId(), currentLedger.getLastAddConfirmed());
         // bypass empty ledgers, find last ledger with Message if possible.
         while (lastConfirmedEntry.getEntryId() == -1) {
             Map.Entry<Long, LedgerInfo> formerLedger = ledgers.lowerEntry(lastConfirmedEntry.getLedgerId());
             if (formerLedger != null) {
                 LedgerInfo ledgerInfo = formerLedger.getValue();
-                lastConfirmedEntry = PositionImpl.get(ledgerInfo.getLedgerId(), ledgerInfo.getEntries() - 1);
+                lastConfirmedEntry = PositionFactory.create(ledgerInfo.getLedgerId(), ledgerInfo.getEntries() - 1);
             } else {
                 break;
             }
@@ -278,7 +285,9 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
         sourceLedgersStat = stat;
 
         if (mlInfo.hasTerminatedPosition()) {
-            lastConfirmedEntry = new PositionImpl(mlInfo.getTerminatedPosition());
+            MLDataFormats.NestedPositionInfo terminatedPosition = mlInfo.getTerminatedPosition();
+            lastConfirmedEntry =
+                    PositionFactory.create(terminatedPosition.getLedgerId(), terminatedPosition.getEntryId());
             log.info("[{}][{}] Process managed ledger terminated at {}", name, sourceMLName, lastConfirmedEntry);
         }
 

@@ -37,12 +37,11 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -101,20 +100,12 @@ public class MessageDeduplication {
     // Map that contains the highest sequenceId that have been sent by each producers. The map will be updated before
     // the messages are persisted
     @VisibleForTesting
-    final ConcurrentOpenHashMap<String, Long> highestSequencedPushed =
-            ConcurrentOpenHashMap.<String, Long>newBuilder()
-                    .expectedItems(16)
-                    .concurrencyLevel(1)
-                    .build();
+    final Map<String, Long> highestSequencedPushed = new ConcurrentHashMap<>();
 
     // Map that contains the highest sequenceId that have been persistent by each producers. The map will be updated
     // after the messages are persisted
     @VisibleForTesting
-    final ConcurrentOpenHashMap<String, Long> highestSequencedPersisted =
-            ConcurrentOpenHashMap.<String, Long>newBuilder()
-            .expectedItems(16)
-            .concurrencyLevel(1)
-            .build();
+    final Map<String, Long> highestSequencedPersisted = new ConcurrentHashMap<>();
 
     // Number of persisted entries after which to store a snapshot of the sequence ids map
     private final int snapshotInterval;
@@ -157,9 +148,15 @@ public class MessageDeduplication {
 
         // Replay all the entries and apply all the sequence ids updates
         log.info("[{}] Replaying {} entries for deduplication", topic.getName(), managedCursor.getNumberOfEntries());
-        CompletableFuture<Void> future = new CompletableFuture<>();
+        CompletableFuture<Position> future = new CompletableFuture<>();
         replayCursor(future);
-        return future;
+        return future.thenCompose(lastPosition -> {
+            if (lastPosition != null && snapshotCounter >= snapshotInterval) {
+                snapshotCounter = 0;
+                return takeSnapshot(lastPosition);
+            }
+            return CompletableFuture.completedFuture(null);
+        });
     }
 
     /**
@@ -168,11 +165,11 @@ public class MessageDeduplication {
      *
      * @param future future to trigger when the replay is complete
      */
-    private void replayCursor(CompletableFuture<Void> future) {
+    private void replayCursor(CompletableFuture<Position> future) {
         managedCursor.asyncReadEntries(100, new ReadEntriesCallback() {
             @Override
             public void readEntriesComplete(List<Entry> entries, Object ctx) {
-
+                Position lastPosition = null;
                 for (Entry entry : entries) {
                     ByteBuf messageMetadataAndPayload = entry.getDataBuffer();
                     MessageMetadata md = Commands.parseMessageMetadata(messageMetadataAndPayload);
@@ -182,7 +179,8 @@ public class MessageDeduplication {
                     highestSequencedPushed.put(producerName, sequenceId);
                     highestSequencedPersisted.put(producerName, sequenceId);
                     producerRemoved(producerName);
-
+                    snapshotCounter++;
+                    lastPosition = entry.getPosition();
                     entry.release();
                 }
 
@@ -191,7 +189,7 @@ public class MessageDeduplication {
                     pulsar.getExecutor().execute(() -> replayCursor(future));
                 } else {
                     // Done replaying
-                    future.complete(null);
+                    future.complete(lastPosition);
                 }
             }
 
@@ -199,7 +197,7 @@ public class MessageDeduplication {
             public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
                 future.completeExceptionally(exception);
             }
-        }, null, PositionImpl.LATEST);
+        }, null, PositionFactory.LATEST);
     }
 
     public Status getStatus() {
@@ -211,7 +209,7 @@ public class MessageDeduplication {
      * returning a future to track the completion of the task
      */
     public CompletableFuture<Void> checkStatus() {
-        boolean shouldBeEnabled = isDeduplicationEnabled();
+        boolean shouldBeEnabled = topic.isDeduplicationEnabled();
         synchronized (this) {
             if (status == Status.Recovering || status == Status.Removing) {
                 // If there's already a transition happening, check later for status
@@ -397,7 +395,7 @@ public class MessageDeduplication {
     /**
      * Call this method whenever a message is persisted to get the chance to trigger a snapshot.
      */
-    public void recordMessagePersisted(PublishContext publishContext, PositionImpl position) {
+    public void recordMessagePersisted(PublishContext publishContext, Position position) {
         if (!isEnabled() || publishContext.isMarkerMessage()) {
             return;
         }
@@ -427,18 +425,20 @@ public class MessageDeduplication {
         }
 
         highestSequencedPushed.clear();
-        for (String producer : highestSequencedPersisted.keys()) {
+        for (String producer : highestSequencedPersisted.keySet()) {
             highestSequencedPushed.put(producer, highestSequencedPersisted.get(producer));
         }
     }
 
-    private void takeSnapshot(Position position) {
+    private CompletableFuture<Void> takeSnapshot(Position position) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
         if (log.isDebugEnabled()) {
             log.debug("[{}] Taking snapshot of sequence ids map", topic.getName());
         }
 
         if (!snapshotTaking.compareAndSet(false, true)) {
-            return;
+            future.complete(null);
+            return future;
         }
 
         Map<String, Long> snapshot = new TreeMap<>();
@@ -456,18 +456,18 @@ public class MessageDeduplication {
                 }
                 lastSnapshotTimestamp = System.currentTimeMillis();
                 snapshotTaking.set(false);
+                future.complete(null);
             }
 
             @Override
             public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
-                log.warn("[{}] Failed to store new deduplication snapshot at {}", topic.getName(), position);
+                log.warn("[{}] Failed to store new deduplication snapshot at {}",
+                        topic.getName(), position, exception);
                 snapshotTaking.set(false);
+                future.completeExceptionally(exception);
             }
         }, null);
-    }
-
-    private boolean isDeduplicationEnabled() {
-        return topic.getHierarchyTopicPolicies().getDeduplicationEnabled().get();
+        return future;
     }
 
     /**
@@ -545,11 +545,11 @@ public class MessageDeduplication {
                 || currentTimeStamp - lastSnapshotTimestamp < TimeUnit.SECONDS.toMillis(interval)) {
             return;
         }
-        PositionImpl position = (PositionImpl) managedLedger.getLastConfirmedEntry();
+        Position position = managedLedger.getLastConfirmedEntry();
         if (position == null) {
             return;
         }
-        PositionImpl markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
+        Position markDeletedPosition = managedCursor.getMarkDeletedPosition();
         if (markDeletedPosition != null && position.compareTo(markDeletedPosition) <= 0) {
             return;
         }

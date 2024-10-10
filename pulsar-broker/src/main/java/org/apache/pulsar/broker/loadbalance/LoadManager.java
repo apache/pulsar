@@ -31,6 +31,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerWrap
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.lookup.LookupResult;
+import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.Reflections;
@@ -52,6 +53,10 @@ public interface LoadManager {
 
     void start() throws PulsarServerException;
 
+    default boolean started() {
+        return true;
+    }
+
     /**
      * Is centralized decision making to assign a new bundle.
      */
@@ -63,7 +68,7 @@ public interface LoadManager {
     Optional<ResourceUnit> getLeastLoaded(ServiceUnitId su) throws Exception;
 
     default CompletableFuture<Optional<LookupResult>> findBrokerServiceUrl(
-            Optional<ServiceUnitId> topic, ServiceUnitId bundle) {
+            Optional<ServiceUnitId> topic, ServiceUnitId bundle, LookupOptions options) {
         throw new UnsupportedOperationException();
     }
 

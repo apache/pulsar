@@ -59,7 +59,7 @@ public class PrometheusMetricsClient {
         // or
         // pulsar_subscriptions_count{cluster="standalone", namespace="public/default",
         // topic="persistent://public/default/test-2"} 0.0
-        Pattern pattern = Pattern.compile("^(\\w+)\\{([^}]+)}\\s([+-]?[\\d\\w.-]+)$");
+        Pattern pattern = Pattern.compile("^(\\w+)\\{([^}]+)}\\s([+-]?[\\d\\w.+-]+)$");
         Pattern tagsPattern = Pattern.compile("(\\w+)=\"([^\"]+)\"(,\\s?)?");
 
         Splitter.on("\n").split(metrics).forEach(line -> {

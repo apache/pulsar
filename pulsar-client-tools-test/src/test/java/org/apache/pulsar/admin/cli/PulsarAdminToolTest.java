@@ -81,6 +81,7 @@ import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.admin.internal.OffloadProcessStatusImpl;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.TransactionIsolationLevel;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -198,6 +199,10 @@ public class PulsarAdminToolTest {
         doReturn("null").when(mockBrokerStats).getMetrics();
         brokerStats.run(split("monitoring-metrics"));
         verify(mockBrokerStats).getMetrics();
+
+        doReturn(null).when(mockBrokerStats).getAllocatorStats("default");
+        brokerStats.run(split("allocator-stats default"));
+        verify(mockBrokerStats).getAllocatorStats("default");
     }
 
     @Test
@@ -436,7 +441,15 @@ public class PulsarAdminToolTest {
         namespaces.run(split("get-clusters myprop/clust/ns1"));
         verify(mockNamespaces).getNamespaceReplicationClusters("myprop/clust/ns1");
 
-        namespaces.run(split("set-subscription-types-enabled myprop/clust/ns1 -t Shared,Failover"));
+            namespaces.run(split("set-allowed-clusters myprop/clust/ns1 -c use,usw,usc"));
+            verify(mockNamespaces).setNamespaceAllowedClusters("myprop/clust/ns1",
+                    Sets.newHashSet("use", "usw", "usc"));
+
+            namespaces.run(split("get-allowed-clusters myprop/clust/ns1"));
+            verify(mockNamespaces).getNamespaceAllowedClusters("myprop/clust/ns1");
+
+
+            namespaces.run(split("set-subscription-types-enabled myprop/clust/ns1 -t Shared,Failover"));
         verify(mockNamespaces).setSubscriptionTypesEnabled("myprop/clust/ns1",
                 Sets.newHashSet(SubscriptionType.Shared, SubscriptionType.Failover));
 
@@ -1744,7 +1757,8 @@ public class PulsarAdminToolTest {
         verify(mockTopics).deletePartitionedTopic("persistent://myprop/clust/ns1/ds1", true);
 
         cmdTopics.run(split("peek-messages persistent://myprop/clust/ns1/ds1 -s sub1 -n 3"));
-        verify(mockTopics).peekMessages("persistent://myprop/clust/ns1/ds1", "sub1", 3);
+        verify(mockTopics).peekMessages("persistent://myprop/clust/ns1/ds1", "sub1", 3,
+                false, TransactionIsolationLevel.READ_COMMITTED);
 
         MessageImpl message = mock(MessageImpl.class);
         when(message.getData()).thenReturn(new byte[]{});

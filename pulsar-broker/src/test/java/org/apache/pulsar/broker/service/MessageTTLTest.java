@@ -23,15 +23,23 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -100,7 +108,7 @@ public class MessageTTLTest extends BrokerTestBase {
         CursorStats statsBeforeExpire = internalStatsBeforeExpire.cursors.get(subscriptionName);
         log.info("markDeletePosition before expire {}", statsBeforeExpire.markDeletePosition);
         assertEquals(statsBeforeExpire.markDeletePosition,
-                PositionImpl.get(firstMessageId.getLedgerId(), -1).toString());
+                PositionFactory.create(firstMessageId.getLedgerId(), -1).toString());
 
         Awaitility.await().timeout(30, TimeUnit.SECONDS)
                 .pollDelay(3, TimeUnit.SECONDS).untilAsserted(() -> {
@@ -110,7 +118,7 @@ public class MessageTTLTest extends BrokerTestBase {
             PersistentTopicInternalStats internalStatsAfterExpire = admin.topics().getInternalStats(topicName);
             CursorStats statsAfterExpire = internalStatsAfterExpire.cursors.get(subscriptionName);
             log.info("markDeletePosition after expire {}", statsAfterExpire.markDeletePosition);
-            assertEquals(statsAfterExpire.markDeletePosition, PositionImpl.get(lastMessageId.getLedgerId(),
+            assertEquals(statsAfterExpire.markDeletePosition, PositionFactory.create(lastMessageId.getLedgerId(),
                     lastMessageId.getEntryId() ).toString());
         });
     }
@@ -138,4 +146,92 @@ public class MessageTTLTest extends BrokerTestBase {
         topicRefMock.onUpdate(topicPolicies);
         verify(topicRefMock, times(2)).checkMessageExpiry();
     }
+
+    @Test
+    public void testTtlFilteredByIgnoreSubscriptions() throws Exception {
+        String topicName = "persistent://prop/ns-abc/testTTLFilteredByIgnoreSubscriptions";
+        String subName = "__SUB_FILTER";
+        cleanup();
+        Set<String> ignoredSubscriptions = new HashSet<>();
+        ignoredSubscriptions.add(subName);
+        int defaultTtl = 5;
+        conf.setAdditionalSystemCursorNames(ignoredSubscriptions);
+        conf.setTtlDurationDefaultInSeconds(defaultTtl);
+        super.baseSetup();
+
+        pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName(subName)
+                .subscribe().close();
+
+        @Cleanup
+        org.apache.pulsar.client.api.Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topicName).create();
+
+        final int messages = 10;
+
+        for (int i = 0; i < messages; i++) {
+            String message = "my-message-" + i;
+            producer.send(message);
+        }
+        producer.close();
+
+        Optional<Topic> topic = pulsar.getBrokerService().getTopicReference(topicName);
+        assertTrue(topic.isPresent());
+        PersistentSubscription subscription = (PersistentSubscription) topic.get().getSubscription(subName);
+
+        Thread.sleep((defaultTtl - 1) * 1000);
+        topic.get().checkMessageExpiry();
+        // Wait the message expire task done and make sure the message does not expire early.
+        Thread.sleep(1000);
+        assertEquals(subscription.getNumberOfEntriesInBacklog(false), 10);
+        Thread.sleep(2000);
+        topic.get().checkMessageExpiry();
+        // Wait the message expire task done.
+        retryStrategically((test) -> subscription.getNumberOfEntriesInBacklog(false) == 0, 5, 200);
+        // The message should not expire because the subscription is ignored.
+        assertEquals(subscription.getNumberOfEntriesInBacklog(false), 10);
+
+        conf.setAdditionalSystemCursorNames(new TreeSet<>());
+    }
+
+    @Test
+    public void testTtlWithoutIgnoreSubscriptions() throws Exception {
+        String topicName = "persistent://prop/ns-abc/testTTLWithoutIgnoreSubscriptions";
+        String subName = "__SUB_FILTER";
+        cleanup();
+        int defaultTtl = 5;
+        conf.setTtlDurationDefaultInSeconds(defaultTtl);
+        conf.setBrokerDeleteInactiveTopicsEnabled(false);
+        super.baseSetup();
+
+        pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName(subName)
+                .subscribe().close();
+
+        @Cleanup
+        org.apache.pulsar.client.api.Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topicName).create();
+
+        final int messages = 10;
+
+        for (int i = 0; i < messages; i++) {
+            String message = "my-message-" + i;
+            producer.send(message);
+        }
+        producer.close();
+
+        Optional<Topic> topic = pulsar.getBrokerService().getTopicReference(topicName);
+        assertTrue(topic.isPresent());
+        PersistentSubscription subscription = (PersistentSubscription) topic.get().getSubscription(subName);
+
+        Thread.sleep((defaultTtl - 1) * 1000);
+        topic.get().checkMessageExpiry();
+        // Wait the message expire task done and make sure the message does not expire early.
+        Thread.sleep(1000);
+        assertEquals(subscription.getNumberOfEntriesInBacklog(false), 10);
+        Thread.sleep(2000);
+        topic.get().checkMessageExpiry();
+        // Wait the message expire task done and make sure the message expired.
+        retryStrategically((test) -> subscription.getNumberOfEntriesInBacklog(false) == 0, 5, 200);
+        assertEquals(subscription.getNumberOfEntriesInBacklog(false), 0);
+    }
+
 }

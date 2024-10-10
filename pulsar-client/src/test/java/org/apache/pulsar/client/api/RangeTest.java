@@ -61,4 +61,44 @@ public class RangeTest {
     public void testInvalid() {
         Range.of(0, -5);
     }
+
+    @Test
+    public void testCompareTo() {
+        Range range1 = Range.of(0, 5);
+        Range range2 = Range.of(0, 5);
+        Range range3 = Range.of(0, 10);
+        Range range4 = Range.of(5, 10);
+
+        Assert.assertEquals(0, range1.compareTo(range2));
+        Assert.assertTrue(range1.compareTo(range3) < 0);
+        Assert.assertTrue(range3.compareTo(range1) > 0);
+        Assert.assertTrue(range1.compareTo(range4) < 0);
+        Assert.assertTrue(range4.compareTo(range1) > 0);
+    }
+
+    @Test
+    public void testContains() {
+        Range range = Range.of(0, 5);
+
+        Assert.assertTrue(range.contains(0));
+        Assert.assertTrue(range.contains(3));
+        Assert.assertTrue(range.contains(5));
+        Assert.assertFalse(range.contains(-1));
+        Assert.assertFalse(range.contains(6));
+    }
+
+    @Test
+    public void testSize() {
+        Range range = Range.of(0, 0);
+        Assert.assertEquals(1, range.size());
+
+        range = Range.of(0, 1);
+        Assert.assertEquals(2, range.size());
+
+        range = Range.of(0, 5);
+        Assert.assertEquals(6, range.size());
+
+        range = Range.of(3, 3);
+        Assert.assertEquals(1, range.size());
+    }
 }

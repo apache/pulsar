@@ -28,6 +28,7 @@ import static org.mockito.Mockito.reset;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -218,7 +219,7 @@ public class BrokerIsolationPoliciesFilterTest {
                 webServiceUrl, webServiceUrlTls, pulsarServiceUrl,
                 pulsarServiceUrlTls, advertisedListeners, protocols,
                 persistentTopicsEnabled, nonPersistentTopicsEnabled,
-                ExtensibleLoadManagerImpl.class.getName(), System.currentTimeMillis(), "3.0.0");
+                ExtensibleLoadManagerImpl.class.getName(), System.currentTimeMillis(), "3.0.0", Collections.emptyMap());
     }
 
     public LoadManagerContext getContext() {

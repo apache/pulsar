@@ -74,9 +74,11 @@ public final class TopicPoliciesAuthZTest extends MockedPulsarStandalone {
     public void after() {
         if (superUserAdmin != null) {
             superUserAdmin.close();
+            superUserAdmin = null;
         }
         if (tenantManagerAdmin != null) {
             tenantManagerAdmin.close();
+            tenantManagerAdmin = null;
         }
         close();
     }

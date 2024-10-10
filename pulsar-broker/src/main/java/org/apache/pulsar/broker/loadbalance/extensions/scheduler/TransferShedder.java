@@ -362,7 +362,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
             final double targetStd = conf.getLoadBalancerBrokerLoadTargetStd();
             boolean transfer = conf.isLoadBalancerTransferEnabled();
             if (stats.std() > targetStd
-                    || isUnderLoaded(context, stats.peekMinBroker(), stats.avg)
+                    || isUnderLoaded(context, stats.peekMinBroker(), stats)
                     || isOverLoaded(context, stats.peekMaxBroker(), stats.avg)) {
                 unloadConditionHitCount++;
             } else {
@@ -390,7 +390,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                 UnloadDecision.Reason reason;
                 if (stats.std() > targetStd) {
                     reason = Overloaded;
-                } else if (isUnderLoaded(context, stats.peekMinBroker(), stats.avg)) {
+                } else if (isUnderLoaded(context, stats.peekMinBroker(), stats)) {
                     reason = Underloaded;
                     if (debugMode) {
                         log.info(String.format("broker:%s is underloaded:%s although "
@@ -669,19 +669,27 @@ public class TransferShedder implements NamespaceUnloadStrategy {
     }
 
 
-    private boolean isUnderLoaded(LoadManagerContext context, String broker, double avgLoad) {
+    private boolean isUnderLoaded(LoadManagerContext context, String broker, LoadStats stats) {
         var brokerLoadDataOptional = context.brokerLoadDataStore().get(broker);
         if (brokerLoadDataOptional.isEmpty()) {
             return false;
         }
         var brokerLoadData = brokerLoadDataOptional.get();
-        if (brokerLoadData.getMsgThroughputEMA() < 1) {
+
+        var underLoadedMultiplier =
+                Math.min(0.5, Math.max(0.0, context.brokerConfiguration().getLoadBalancerBrokerLoadTargetStd() / 2.0));
+
+        if (brokerLoadData.getWeightedMaxEMA() < stats.avg * underLoadedMultiplier) {
             return true;
         }
 
-        return brokerLoadData.getWeightedMaxEMA()
-                < avgLoad * Math.min(0.5, Math.max(0.0,
-                context.brokerConfiguration().getLoadBalancerBrokerLoadTargetStd() / 2));
+        var maxBrokerLoadDataOptional = context.brokerLoadDataStore().get(stats.peekMaxBroker());
+        if (maxBrokerLoadDataOptional.isEmpty()) {
+            return false;
+        }
+
+        return brokerLoadData.getMsgThroughputEMA()
+                < maxBrokerLoadDataOptional.get().getMsgThroughputEMA() * underLoadedMultiplier;
     }
 
     private boolean isOverLoaded(LoadManagerContext context, String broker, double avgLoad) {
