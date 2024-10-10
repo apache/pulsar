@@ -894,7 +894,7 @@ jobs:
 
       - name: Run Trivy container scan
         id: trivy_scan
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.26.0
         if: ${{ github.repository == 'apache/pulsar' && github.event_name != 'pull_request' }}
         continue-on-error: true
         with:
