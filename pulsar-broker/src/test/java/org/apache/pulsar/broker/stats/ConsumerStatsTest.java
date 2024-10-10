@@ -23,6 +23,7 @@ import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructor
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.INTEGER;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.AssertJUnit.assertEquals;
@@ -496,18 +497,18 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
 
     @Test
     public void testKeySharedDrainingHashesConsumerStats() throws Exception {
-        conf.setSubscriptionKeySharedUseConsistentHashing(true);
-        conf.setSubscriptionKeySharedConsistentHashingReplicaPoints(100);
         String topic = newUniqueName("testKeySharedDrainingHashesConsumerStats");
         String subscriptionName = "sub";
         int numberOfKeys = 10;
 
+        // Create a producer for the topic
         @Cleanup
         Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
                 .topic(topic)
                 .enableBatching(false)
                 .create();
 
+        // Create the first consumer (c1) for the topic
         @Cleanup
         Consumer<Integer> c1 = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
@@ -517,9 +518,11 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .subscribe();
 
+        // Get the dispatcher and selector for the topic
         StickyKeyDispatcher dispatcher = getDispatcher(topic, subscriptionName);
         StickyKeyConsumerSelector selector = dispatcher.getSelector();
 
+        // Send 20 messages with keys cycling from 0 to numberOfKeys-1
         for (int i = 0; i < 20; i++) {
             String key = String.valueOf(i % numberOfKeys);
             int stickyKeyHash = selector.makeStickyKeyHash(key.getBytes(StandardCharsets.UTF_8));
@@ -530,11 +533,11 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
                     .send();
         }
 
+        // Wait until all the already published messages have been pre-fetched by c1
         PendingAcksMap c1PendingAcks = dispatcher.getConsumers().get(0).getPendingAcks();
-        // Wait until all the already published messages have been pre-fetched by C1.
         Awaitility.await().ignoreExceptions().until(() -> c1PendingAcks.size() == 20);
 
-        // Adding a new consumer.
+        // Add a new consumer (c2) for the topic
         @Cleanup
         Consumer<Integer> c2 = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
@@ -543,39 +546,46 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .subscribe();
 
-        //BrokerTestUtil.logTopicStats(log, pulsar.getWebServiceAddress(), topic);
-
-        SubscriptionStats subscriptionStats =
-                admin.topics().getStats(topic).getSubscriptions().get(subscriptionName);
+        // Get the subscription stats and consumer stats
+        SubscriptionStats subscriptionStats = admin.topics().getStats(topic).getSubscriptions().get(subscriptionName);
         ConsumerStats c1Stats = subscriptionStats.getConsumers().get(0);
         ConsumerStats c2Stats = subscriptionStats.getConsumers().get(1);
 
         Set<Integer> c2HashesByStats = new HashSet<>();
         Set<Integer> c2HashesByDispatcher = new HashSet<>();
-
         Map<Integer, Integer> c1DrainingHashesExpected = new HashMap<>();
+
+        // Determine which hashes are assigned to c2 and which are draining from c1
         for (int i = 0; i < 20; i++) {
+            // use the same key as in the sent messages
             String key = String.valueOf(i % numberOfKeys);
             int hash = selector.makeStickyKeyHash(key.getBytes(StandardCharsets.UTF_8));
+            // Validate that the hash is assigned to c2 in stats
             if ("c2".equals(findConsumerNameForHash(subscriptionStats, hash))) {
                 c2HashesByStats.add(hash);
             }
+            // use the selector to determine the expected draining hashes for c1
             org.apache.pulsar.broker.service.Consumer selected = selector.select(hash);
             if ("c2".equals(selected.consumerName())) {
                 c2HashesByDispatcher.add(hash);
                 c1DrainingHashesExpected.compute(hash, (k, v) -> v == null ? 1 : v + 1);
             }
         }
+
+        // Validate that the hashes assigned to c2 match between stats and dispatcher
         assertThat(c2HashesByStats).containsExactlyInAnyOrderElementsOf(c2HashesByDispatcher);
 
+        // Validate the draining hashes for c1
         assertThat(c1Stats.getDrainingHashes()).extracting(DrainingHash::getHash)
                 .containsExactlyInAnyOrderElementsOf(c2HashesByStats);
         assertThat(c1Stats.getDrainingHashes()).extracting(DrainingHash::getHash, DrainingHash::getUnackMsgs)
                 .containsExactlyInAnyOrderElementsOf(c1DrainingHashesExpected.entrySet().stream()
                         .map(e -> Tuple.tuple(e.getKey(), e.getValue())).toList());
 
-        assertThat(c2Stats.getDrainingHashes()).isNullOrEmpty();
+        // Validate that c2 has no draining hashes
+        assertThat(c2Stats.getDrainingHashes()).isEmpty();
 
+        // Send another 20 messages
         for (int i = 0; i < 20; i++) {
             producer.newMessage()
                     .key(String.valueOf(i % numberOfKeys))
@@ -583,24 +593,24 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
                     .send();
         }
 
-        // validate blocked attempts
+        // Validate blocked attempts for c1
         Awaitility.await().ignoreExceptions().untilAsserted(() -> {
-            SubscriptionStats stats =
-                    admin.topics().getStats(topic).getSubscriptions().get(subscriptionName);
+            SubscriptionStats stats = admin.topics().getStats(topic).getSubscriptions().get(subscriptionName);
             assertThat(stats.getConsumers().get(0).getDrainingHashes()).isNotEmpty().allSatisfy(dh -> {
-                assertThat(dh).extracting(DrainingHash::getBlockedAttempts).matches(attempts -> attempts > 0);
+                assertThat(dh).extracting(DrainingHash::getBlockedAttempts)
+                        .asInstanceOf(INTEGER)
+                        .isGreaterThan(0);
             });
         });
 
-        // acknowledging messages that were sent before c2 joined should clear all draining hashes
-
-        // ack 19 messages
+        // Acknowledge messages that were sent before c2 joined, to clear all draining hashes
         for (int i = 0; i < 20; i++) {
             Message<Integer> message = c1.receive(1, TimeUnit.SECONDS);
             log.info("Acking message with value {} key {}", message.getValue(), message.getKey());
             c1.acknowledge(message);
+
             if (i == 18) {
-                // now there should be one draining hash left
+                // Validate that there is one draining hash left
                 Awaitility.await().pollInterval(Duration.ofSeconds(1)).atMost(Duration.ofSeconds(3))
                         .untilAsserted(() -> {
                             SubscriptionStats stats =
@@ -613,8 +623,9 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
                             });
                         });
             }
+
             if (i == 19) {
-                // now there should be no draining hashes left
+                // Validate that there are no draining hashes left
                 Awaitility.await().pollInterval(Duration.ofSeconds(1)).atMost(Duration.ofSeconds(3))
                         .untilAsserted(() -> {
                             SubscriptionStats stats =
@@ -626,7 +637,6 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
                         });
             }
         }
-
     }
 
     private String findConsumerNameForHash(SubscriptionStats subscriptionStats, int hash) {
