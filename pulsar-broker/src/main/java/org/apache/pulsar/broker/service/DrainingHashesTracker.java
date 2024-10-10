@@ -338,6 +338,10 @@ public class DrainingHashesTracker {
      * @param consumerStats the consumer stats to update the values to
      */
     public void updateConsumerStats(Consumer consumer, ConsumerStatsImpl consumerStats) {
+        consumerStats.drainingHashesCount = 0;
+        consumerStats.drainingHashesClearedTotal = 0;
+        consumerStats.drainingHashesUnackedMessages = 0;
+        consumerStats.drainingHashes = Collections.emptyList();
         ConsumerDrainingHashesStats consumerDrainingHashesStats =
                 consumerDrainingHashesStatsMap.get(new ConsumerIdentityWrapper(consumer));
         if (consumerDrainingHashesStats != null) {
