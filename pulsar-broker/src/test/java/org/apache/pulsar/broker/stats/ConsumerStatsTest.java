@@ -555,7 +555,9 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         Set<Integer> c2HashesByDispatcher = new HashSet<>();
         Map<Integer, Integer> c1DrainingHashesExpected = new HashMap<>();
 
+        int expectedDrainingHashesUnackMessages = 0;
         // Determine which hashes are assigned to c2 and which are draining from c1
+        // run for the same keys as the sent messages
         for (int i = 0; i < 20; i++) {
             // use the same key as in the sent messages
             String key = String.valueOf(i % numberOfKeys);
@@ -569,6 +571,7 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
             if ("c2".equals(selected.consumerName())) {
                 c2HashesByDispatcher.add(hash);
                 c1DrainingHashesExpected.compute(hash, (k, v) -> v == null ? 1 : v + 1);
+                expectedDrainingHashesUnackMessages++;
             }
         }
 
@@ -584,6 +587,14 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
 
         // Validate that c2 has no draining hashes
         assertThat(c2Stats.getDrainingHashes()).isEmpty();
+
+        // Validate counters
+        assertThat(c1Stats.getDrainingHashesCount()).isEqualTo(c2HashesByStats.size());
+        assertThat(c1Stats.getDrainingHashesClearedTotal()).isEqualTo(0);
+        assertThat(c1Stats.getDrainingHashesUnackedMessages()).isEqualTo(expectedDrainingHashesUnackMessages);
+        assertThat(c2Stats.getDrainingHashesCount()).isEqualTo(0);
+        assertThat(c2Stats.getDrainingHashesClearedTotal()).isEqualTo(0);
+        assertThat(c2Stats.getDrainingHashesUnackedMessages()).isEqualTo(0);
 
         // Send another 20 messages
         for (int i = 0; i < 20; i++) {
@@ -637,6 +648,20 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
                         });
             }
         }
+
+        // Get the subscription stats and consumer stats
+        subscriptionStats = admin.topics().getStats(topic).getSubscriptions().get(subscriptionName);
+        c1Stats = subscriptionStats.getConsumers().get(0);
+        c2Stats = subscriptionStats.getConsumers().get(1);
+
+        // Validate counters
+        assertThat(c1Stats.getDrainingHashesCount()).isEqualTo(0);
+        assertThat(c1Stats.getDrainingHashesClearedTotal()).isEqualTo(c2HashesByStats.size());
+        assertThat(c1Stats.getDrainingHashesUnackedMessages()).isEqualTo(0);
+        assertThat(c2Stats.getDrainingHashesCount()).isEqualTo(0);
+        assertThat(c2Stats.getDrainingHashesClearedTotal()).isEqualTo(0);
+        assertThat(c2Stats.getDrainingHashesUnackedMessages()).isEqualTo(0);
+
     }
 
     private String findConsumerNameForHash(SubscriptionStats subscriptionStats, int hash) {
