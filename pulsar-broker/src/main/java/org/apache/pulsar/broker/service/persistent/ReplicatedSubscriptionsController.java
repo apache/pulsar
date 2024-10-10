@@ -81,12 +81,15 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                     "Counter of currently pending snapshots")
             .register();
 
+    // timeouts use SnapshotOperationResult.TIMEOUT.attributes on the same metric
+    @PulsarDeprecatedMetric(
+            newMetricName = OpenTelemetryReplicatedSubscriptionStats.SNAPSHOT_OPERATION_COUNT_METRIC_NAME)
+    @Deprecated
     private static final Counter timedoutSnapshotsMetric = Counter
             .build().name("pulsar_replicated_subscriptions_snapshot_timeouts")
             .help("Counter of timed out snapshots").register();
 
     private final OpenTelemetryReplicatedSubscriptionStats stats;
-
 
     public ReplicatedSubscriptionsController(PersistentTopic topic, String localCluster) {
         this.topic = topic;
