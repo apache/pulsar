@@ -279,14 +279,19 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     }
 
     private synchronized void internalRedeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
-
-        if (consumerEpoch > consumer.getConsumerEpoch()) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}-{}] Update epoch, old epoch [{}], new epoch [{}]",
-                        name, consumer, consumer.getConsumerEpoch(), consumerEpoch);
-            }
-            consumer.setConsumerEpoch(consumerEpoch);
+        // redeliver epoch is bigger than current consumer epoch, so don't need to handle this redeliver request
+        if (consumerEpoch < consumer.getConsumerEpoch()) {
+            log.warn("[{}-{}] Update epoch, old epoch [{}] bigger than new epoch [{}]",
+                    name, consumer, consumer.getConsumerEpoch(), consumerEpoch);
+            return;
         }
+
+        if (log.isDebugEnabled()) {
+            log.debug("[{}-{}] Update epoch, old epoch [{}] new epoch [{}]",
+                    name, consumer, consumer.getConsumerEpoch(), consumerEpoch);
+        }
+
+        consumer.setConsumerEpoch(consumerEpoch);
 
         if (consumer != getActiveConsumer()) {
             log.info("[{}-{}] Ignoring reDeliverUnAcknowledgedMessages: Only the active consumer can call resend",
