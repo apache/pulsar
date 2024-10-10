@@ -672,7 +672,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
                 .exceptionally(e -> {
                     Throwable ex = e.getCause();
                     if (brokerService.pulsar().getConfig().isSchemaLedgerForceRecovery()
-                            && !((SchemaException) ex).isRecoverable()) {
+                            && (ex instanceof SchemaException && !((SchemaException) ex).isRecoverable())) {
                         return false;
                     }
                     throw ex instanceof CompletionException ? (CompletionException) ex : new CompletionException(ex);
