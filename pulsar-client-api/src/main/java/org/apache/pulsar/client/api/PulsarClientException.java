@@ -1113,6 +1113,8 @@ public class PulsarClientException extends IOException {
             newException = new TransactionConflictException(msg);
         } else if (cause instanceof TopicDoesNotExistException) {
             newException = new TopicDoesNotExistException(msg);
+        } else if (cause instanceof SubscriptionNotFoundException) {
+            newException = new SubscriptionNotFoundException(msg);
         } else if (cause instanceof ProducerFencedException) {
             newException = new ProducerFencedException(msg);
         } else if (cause instanceof MemoryBufferIsFullError) {
