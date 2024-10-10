@@ -63,7 +63,6 @@
         <module>kafka-connect-adaptor</module>
         <module>kafka-connect-adaptor-nar</module>
         <module>debezium</module>
-        <module>hdfs2</module>
         <module>canal</module>
         <module>file</module>
         <module>netty</module>
@@ -97,7 +96,6 @@
         <module>hdfs3</module>
         <module>jdbc</module>
         <module>data-generator</module>
-        <module>hdfs2</module>
         <module>canal</module>
         <module>file</module>
         <module>netty</module>
