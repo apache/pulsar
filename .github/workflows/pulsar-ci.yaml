@@ -890,7 +890,7 @@ jobs:
         run: src/check-binary-license.sh ./distribution/server/target/apache-pulsar-*-bin.tar.gz && src/check-binary-license.sh ./distribution/shell/target/apache-pulsar-shell-*-bin.tar.gz
 
       - name: Run Trivy container scan
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.26.0
         if: ${{ github.repository == 'apache/pulsar' && github.event_name != 'pull_request' }}
         with:
           image-ref: "apachepulsar/pulsar:latest"
