@@ -404,7 +404,6 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
             createBrokerAdminClient();
             initializeCluster(admin, namespaceName);
         }
-
         try {
             proxyClient.newConsumer().topic("persistent://my-tenant/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscribe();
@@ -585,9 +584,9 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         adminClient.namespaces().createNamespace(namespaceName);
 
         adminClient.namespaces().grantPermissionOnNamespace(namespaceName, "Proxy",
-                Sets.newHashSet(AuthAction.consume, AuthAction.produce));
+                Sets.newHashSet(AuthAction.consume, AuthAction.create_topic));
         adminClient.namespaces().grantPermissionOnNamespace(namespaceName, "Client",
-                Sets.newHashSet(AuthAction.consume, AuthAction.produce));
+                Sets.newHashSet(AuthAction.consume, AuthAction.create_topic));
     }
 
     private void createProxyAdminClient(boolean enableTlsHostnameVerification) throws Exception {
