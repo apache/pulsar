@@ -87,11 +87,13 @@ import org.apache.pulsar.broker.service.plugin.EntryFilterTest;
 import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
 import org.apache.pulsar.broker.testcontext.MockEntryFilterProvider;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.client.admin.GrantTopicPermissionOptions;
 import org.apache.pulsar.client.admin.ListNamespaceTopicsOptions;
 import org.apache.pulsar.client.admin.Mode;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
+import org.apache.pulsar.client.admin.RevokeTopicPermissionOptions;
 import org.apache.pulsar.client.admin.Topics.QueryParam;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -3661,5 +3663,62 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
                 changed, List.of(".*-unload-test-a.*", ".*-unload-test-c.*"), List.of("b1", "b2"),
                 List.of(".*", "broker.*")
         );
+    }
+
+    @Test
+    public void testGrantAndRevokePermissions() throws Exception {
+
+        String namespace = newUniqueName(defaultTenant + "/") + "-unload-test-";
+        String namespace2 = newUniqueName(defaultTenant + "/") + "-unload-test-";
+        admin.namespaces().createNamespace(namespace, Set.of("test"));
+        admin.namespaces().createNamespace(namespace2, Set.of("test"));
+        //
+        final String topic1 = "persistent://" + namespace + "/test1";
+        final String topic2 = "persistent://" + namespace + "/test2";
+        final String topic3 = "non-persistent://" + namespace + "/test3";
+        final String topic4 = "persistent://" + namespace2 + "/test4";;
+
+        admin.topics().createPartitionedTopic(topic1, 3);
+        admin.topics().createPartitionedTopic(topic2, 3);
+        admin.topics().createPartitionedTopic(topic3, 3);
+        admin.topics().createPartitionedTopic(topic4, 3);
+        pulsarClient.newProducer().topic(topic1).create().close();
+        pulsarClient.newProducer().topic(topic2).create().close();
+        pulsarClient.newProducer().topic(topic3).create().close();
+        pulsarClient.newProducer().topic(topic4).create().close();
+
+        List<GrantTopicPermissionOptions> grantPermissionOptions = new ArrayList<>();
+        grantPermissionOptions.add(GrantTopicPermissionOptions.builder().topic(topic1).role("role1").actions(Set.of(AuthAction.produce)).build());
+        grantPermissionOptions.add(GrantTopicPermissionOptions.builder().topic(topic4).role("role4").actions(Set.of(AuthAction.produce)).build());
+        try {
+            admin.namespaces().grantPermissionOnTopics(grantPermissionOptions);
+            fail("Should go here, because there are two namespaces");
+        } catch (Exception ex) {
+            Assert.assertTrue(ex != null);
+        }
+        grantPermissionOptions.clear();
+        grantPermissionOptions.add(GrantTopicPermissionOptions.builder().topic(topic1).role("role1").actions(Set.of(AuthAction.produce)).build());
+        grantPermissionOptions.add(GrantTopicPermissionOptions.builder().topic(topic2).role("role2").actions(Set.of(AuthAction.consume)).build());
+        grantPermissionOptions.add(GrantTopicPermissionOptions.builder().topic(topic3).role("role3").actions(Set.of(AuthAction.produce, AuthAction.consume)).build());
+        admin.namespaces().grantPermissionOnTopics(grantPermissionOptions);
+
+        final Map<String, Set<AuthAction>> permissions1 = admin.topics().getPermissions(topic1);
+        final Map<String, Set<AuthAction>> permissions2 = admin.topics().getPermissions(topic2);
+        final Map<String, Set<AuthAction>> permissions3 = admin.topics().getPermissions(topic3);
+
+        Assert.assertEquals(permissions1.get("role1"), Set.of(AuthAction.produce));
+        Assert.assertEquals(permissions2.get("role2"), Set.of(AuthAction.consume));
+        Assert.assertEquals(permissions3.get("role3"), Set.of(AuthAction.produce, AuthAction.consume));
+        //
+        List<RevokeTopicPermissionOptions> revokePermissionOptions = new ArrayList<>();
+        revokePermissionOptions.add(RevokeTopicPermissionOptions.builder().topic(topic1).role("role1").build());
+        revokePermissionOptions.add(RevokeTopicPermissionOptions.builder().topic(topic2).role("role2").build());
+        admin.namespaces().revokePermissionOnTopics(revokePermissionOptions);
+
+        final Map<String, Set<AuthAction>> permissions11 = admin.topics().getPermissions(topic1);
+        final Map<String, Set<AuthAction>> permissions22 = admin.topics().getPermissions(topic2);
+
+        Assert.assertTrue(permissions11.isEmpty());
+        Assert.assertTrue(permissions22.isEmpty());
     }
 }
