@@ -111,6 +111,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
     private final ReplicatorStatsImpl stats = new ReplicatorStatsImpl();
 
     protected volatile boolean fetchSchemaInProgress = false;
+    private volatile boolean waitForCursorRewinding = false;
 
     public PersistentReplicator(String localCluster, PersistentTopic localTopic, ManagedCursor cursor,
                                    String remoteCluster, String remoteTopic,
@@ -138,9 +139,15 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
     @Override
     protected void setProducerAndTriggerReadEntries(Producer<byte[]> producer) {
-        // Rewind the cursor to be sure to read again all non-acked messages sent while restarting.
-        cursor.rewind();
-        cursor.cancelPendingReadRequest();
+        waitForCursorRewinding = true;
+
+        // Repeat until there are no read operations in progress
+        if (STATE_UPDATER.get(this) == State.Starting && HAVE_PENDING_READ_UPDATER.get(this) == TRUE
+                && !cursor.cancelPendingReadRequest()) {
+            brokerService.getPulsar().getExecutor()
+                    .schedule(() -> setProducerAndTriggerReadEntries(producer), 10, TimeUnit.MILLISECONDS);
+            return;
+        }
 
         /**
          * 1. Try change state to {@link Started}.
@@ -153,6 +160,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
             if (!(producer instanceof ProducerImpl)) {
                 log.error("[{}] The partitions count between two clusters is not the same, the replicator can not be"
                         + " created successfully: {}", replicatorId, state);
+                waitForCursorRewinding = false;
                 doCloseProducerAsync(producer, () -> {});
                 throw new ClassCastException(producer.getClass().getName() + " can not be cast to ProducerImpl");
             }
@@ -163,6 +171,11 @@ public abstract class PersistentReplicator extends AbstractReplicator
             backOff.reset();
             // activate cursor: so, entries can be cached.
             this.cursor.setActive();
+
+            // Rewind the cursor to be sure to read again all non-acked messages sent while restarting
+            cursor.rewind();
+            waitForCursorRewinding = false;
+
             // read entries
             readMoreEntries();
         } else {
@@ -178,6 +191,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 log.error("[{}] Replicator state is not expected, so close the producer. Replicator state: {}",
                         replicatorId, changeStateRes.getRight());
             }
+            waitForCursorRewinding = false;
             // Close the producer if change the state fail.
             doCloseProducerAsync(producer, () -> {});
         }
@@ -269,6 +283,11 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
             // Schedule read
             if (HAVE_PENDING_READ_UPDATER.compareAndSet(this, FALSE, TRUE)) {
+                if (waitForCursorRewinding) {
+                    log.info("[{}] Skip the reading because repl producer is starting", replicatorId);
+                    HAVE_PENDING_READ_UPDATER.set(this, FALSE);
+                    return;
+                }
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule read of {} messages", replicatorId, messagesToRead);
                 }
