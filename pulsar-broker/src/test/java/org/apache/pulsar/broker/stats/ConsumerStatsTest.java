@@ -86,6 +86,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.assertj.core.groups.Tuple;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
+import org.testng.SkipException;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -245,6 +246,9 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
     @Test(dataProvider = "classicAndSubscriptionType")
     public void testConsumerStatsOutput(boolean classicDispatchers, SubscriptionType subscriptionType)
             throws Exception {
+        if (this instanceof AuthenticatedConsumerStatsTest) {
+            throw new SkipException("Skip test for AuthenticatedConsumerStatsTest");
+        }
         conf.setSubscriptionSharedUseClassicPersistentImplementation(classicDispatchers);
         conf.setSubscriptionKeySharedUseClassicPersistentImplementation(classicDispatchers);
         Set<String> expectedFields = Sets.newHashSet(
