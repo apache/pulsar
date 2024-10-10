@@ -64,8 +64,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     private final WebTarget adminNamespaces;
     private final WebTarget adminV2Namespaces;
 
-    public NamespacesImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public NamespacesImpl(WebTarget web, Authentication auth, long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         adminNamespaces = web.path("/admin/namespaces");
         adminV2Namespaces = web.path("/admin/v2/namespaces");
     }
@@ -1993,4 +1993,28 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public boolean getDispatcherPauseOnAckStatePersistent(String namespace) throws PulsarAdminException {
         return sync(() -> getDispatcherPauseOnAckStatePersistentAsync(namespace));
     }
+
+    @Override
+    public List<String> getNamespaceAllowedClusters(String namespace) throws PulsarAdminException {
+        return sync(() -> getNamespaceAllowedClustersAsync(namespace));
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getNamespaceAllowedClustersAsync(String namespace) {
+        return asyncGetNamespaceParts(new FutureCallback<List<String>>(){}, namespace, "allowedClusters");
+    }
+
+    @Override
+    public void setNamespaceAllowedClusters(String namespace, Set<String> clusterIds) throws PulsarAdminException {
+        sync(() -> setNamespaceAllowedClustersAsync(namespace, clusterIds));
+    }
+
+    @Override
+    public CompletableFuture<Void> setNamespaceAllowedClustersAsync(String namespace, Set<String> clusterIds) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "allowedClusters");
+        return asyncPostRequest(path, Entity.entity(clusterIds, MediaType.APPLICATION_JSON));
+    }
+
+
 }

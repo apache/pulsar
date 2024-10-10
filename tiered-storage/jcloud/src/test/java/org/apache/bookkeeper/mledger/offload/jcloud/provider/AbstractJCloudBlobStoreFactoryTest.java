@@ -98,9 +98,9 @@ public abstract class AbstractJCloudBlobStoreFactoryTest {
         blobStore.completeMultipartUpload(mpu, parts);
     }
     
-    protected void deleteBlobAndVerify(String conatinerName, String blobName) {
-        blobStore.removeBlob(conatinerName, blobName);
-        Assert.assertFalse(blobStore.blobExists(conatinerName, blobName));
+    protected void deleteBlobAndVerify(String containerName, String blobName) {
+        blobStore.removeBlob(containerName, blobName);
+        Assert.assertFalse(blobStore.blobExists(containerName, blobName));
     }
     
     protected void deleteContainerAndVerify(String containerName) {

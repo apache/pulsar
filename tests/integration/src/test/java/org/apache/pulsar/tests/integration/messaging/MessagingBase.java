@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -150,11 +151,11 @@ public abstract class MessagingBase extends PulsarTestSuite {
                 }
             }
         }
-        // Make sure key will not be distributed to multiple consumers
+        // Make sure key will not be distributed to multiple consumers (except null key)
         Set<String> allKeys = Sets.newHashSet();
-        consumerKeys.forEach((k, v) -> v.forEach(key -> {
+        consumerKeys.forEach((k, v) -> v.stream().filter(Objects::nonNull).forEach(key -> {
             assertTrue(allKeys.add(key),
-                    "Key "+ key +  "is distributed to multiple consumers" );
+                    "Key " + key + " is distributed to multiple consumers" );
         }));
         assertEquals(messagesReceived.size(), messagesToReceive);
     }

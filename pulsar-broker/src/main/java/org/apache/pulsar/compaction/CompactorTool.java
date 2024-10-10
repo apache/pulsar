@@ -86,7 +86,9 @@ public class CompactorTool {
         if (internalListener.getBrokerServiceUrlTls() != null && brokerConfig.isBrokerClientTlsEnabled()) {
             clientBuilder.serviceUrl(internalListener.getBrokerServiceUrlTls().toString())
                     .allowTlsInsecureConnection(brokerConfig.isTlsAllowInsecureConnection())
-                    .enableTlsHostnameVerification(brokerConfig.isTlsHostnameVerificationEnabled());
+                    .enableTlsHostnameVerification(brokerConfig.isTlsHostnameVerificationEnabled())
+                    .sslFactoryPlugin(brokerConfig.getBrokerClientSslFactoryPlugin())
+                    .sslFactoryPluginParams(brokerConfig.getBrokerClientSslFactoryPluginParams());
             if (brokerConfig.isBrokerClientTlsEnabledWithKeyStore()) {
                 clientBuilder.useKeyStoreTls(true)
                         .tlsKeyStoreType(brokerConfig.getBrokerClientTlsKeyStoreType())
@@ -165,12 +167,12 @@ public class CompactorTool {
                 new DefaultThreadFactory("compactor-io"));
 
         @Cleanup
-        BookKeeper bk = bkClientFactory.create(brokerConfig, store, eventLoopGroup, Optional.empty(), null);
+        BookKeeper bk = bkClientFactory.create(brokerConfig, store, eventLoopGroup, Optional.empty(), null).get();
 
         @Cleanup
         PulsarClient pulsar = createClient(brokerConfig);
 
-        Compactor compactor = new TwoPhaseCompactor(brokerConfig, pulsar, bk, scheduler);
+        Compactor compactor = new PublishingOrderCompactor(brokerConfig, pulsar, bk, scheduler);
         long ledgerId = compactor.compact(arguments.topic).get();
         log.info("Compaction of topic {} complete. Compacted to ledger {}", arguments.topic, ledgerId);
     }

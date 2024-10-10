@@ -39,7 +39,8 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.admin.impl.TransactionsBase;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.web.RestException;
@@ -438,7 +439,7 @@ public class Transactions extends TransactionsBase {
         try {
             checkTransactionCoordinatorEnabled();
             validateTopicName(tenant, namespace, encodedTopic);
-            PositionImpl position = new PositionImpl(ledgerId, entryId);
+            Position position = PositionFactory.create(ledgerId, entryId);
             internalGetPositionStatsPendingAckStats(authoritative, subName, position, batchIndex)
                     .thenAccept(asyncResponse::resume)
                     .exceptionally(ex -> {

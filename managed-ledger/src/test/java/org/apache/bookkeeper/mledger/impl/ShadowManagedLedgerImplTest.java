@@ -32,6 +32,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
@@ -127,7 +128,7 @@ public class ShadowManagedLedgerImplTest extends MockedBookKeeperTestCase {
         }
 
         {// test write entry with ledgerId > currentLedger
-            PositionImpl fakePos = PositionImpl.get(newPos.getLedgerId() + 1, newPos.getEntryId());
+            Position fakePos = PositionFactory.create(newPos.getLedgerId() + 1, newPos.getEntryId());
 
             CompletableFuture<Position> future = new CompletableFuture<>();
             shadowML.asyncAddEntry(data, new AsyncCallbacks.AddEntryCallback() {

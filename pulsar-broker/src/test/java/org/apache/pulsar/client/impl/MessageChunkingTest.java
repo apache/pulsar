@@ -37,8 +37,8 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -164,7 +164,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         assertTrue(producerStats.getChunkedMessageRate() > 0);
 
         ManagedCursorImpl mcursor = (ManagedCursorImpl) topic.getManagedLedger().getCursors().iterator().next();
-        PositionImpl readPosition = (PositionImpl) mcursor.getReadPosition();
+        Position readPosition = mcursor.getReadPosition();
 
         for (MessageId msgId : msgIds) {
             consumer.acknowledge(msgId);
@@ -270,7 +270,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         }
 
         ManagedCursorImpl mcursor = (ManagedCursorImpl) topic.getManagedLedger().getCursors().iterator().next();
-        PositionImpl readPosition = (PositionImpl) mcursor.getReadPosition();
+        Position readPosition = mcursor.getReadPosition();
 
         consumer.acknowledgeCumulative(lastMsgId);
 

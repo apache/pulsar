@@ -56,7 +56,7 @@ public interface ServiceUrlProvider extends AutoCloseable {
      *
      */
     @Override
-    default void close() {
+    default void close() throws Exception {
         // do nothing
     }
 }

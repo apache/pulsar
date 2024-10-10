@@ -70,6 +70,8 @@ public class BinaryProtoLookupServiceTest {
         doReturn(cnxPool).when(client).getCnxPool();
         doReturn(clientConfig).when(client).getConfiguration();
         doReturn(1L).when(client).newRequestId();
+        ClientConfigurationData data = new ClientConfigurationData();
+        doReturn(data).when(client).getConfiguration();
 
         lookup = spy(
                 new BinaryProtoLookupService(client, "pulsar://localhost:6650", false, mock(ExecutorService.class)));

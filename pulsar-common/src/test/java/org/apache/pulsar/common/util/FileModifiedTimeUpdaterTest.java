@@ -48,6 +48,11 @@ public class FileModifiedTimeUpdaterTest {
             this.authParam = authParam;
         }
 
+        @Override
+        public boolean hasDataForTls() {
+            return true;
+        }
+
         public boolean hasDataFromCommand() {
             return true;
         }
@@ -107,14 +112,17 @@ public class FileModifiedTimeUpdaterTest {
         createFile(Paths.get(certFile));
         provider.certFilePath = certFile;
         provider.keyFilePath = certFile;
-        NettyClientSslContextRefresher refresher = new NettyClientSslContextRefresher(null, false, certFile,
-                provider, null, null, 1);
-        Thread.sleep(5000);
-        Paths.get(certFile).toFile().delete();
-        // update the file
-        createFile(Paths.get(certFile));
-        Awaitility.await().atMost(30, TimeUnit.SECONDS).until(()-> refresher.needUpdate());
-        assertTrue(refresher.needUpdate());
+        PulsarSslConfiguration pulsarSslConfiguration = PulsarSslConfiguration.builder()
+                .allowInsecureConnection(false).tlsTrustCertsFilePath(certFile).authData(provider).build();
+        try (PulsarSslFactory pulsarSslFactory = new DefaultPulsarSslFactory()) {
+            pulsarSslFactory.initialize(pulsarSslConfiguration);
+            Thread.sleep(5000);
+            Paths.get(certFile).toFile().delete();
+            // update the file
+            createFile(Paths.get(certFile));
+            Awaitility.await().atMost(30, TimeUnit.SECONDS).until(pulsarSslFactory::needsUpdate);
+            assertTrue(pulsarSslFactory.needsUpdate());
+        }
     }
 
 }

@@ -63,6 +63,7 @@ import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
+import org.apache.pulsar.utils.ResourceUtils;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs;
@@ -83,6 +84,14 @@ import org.testng.annotations.Test;
  */
 @Test(groups = "broker")
 public class LoadBalancerTest {
+
+    public final static String CA_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
+    public final static String BROKER_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
+    public final static String BROKER_KEY_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
+
     LocalBookkeeperEnsemble bkEnsemble;
 
     private static final Logger log = LoggerFactory.getLogger(LoadBalancerTest.class);
@@ -126,6 +135,9 @@ public class LoadBalancerTest {
             config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
             config.setAdvertisedAddress(localhost+i);
             config.setLoadBalancerEnabled(false);
+            config.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+            config.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+            config.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
 
             pulsarServices[i] = new PulsarService(config);
             pulsarServices[i].start();

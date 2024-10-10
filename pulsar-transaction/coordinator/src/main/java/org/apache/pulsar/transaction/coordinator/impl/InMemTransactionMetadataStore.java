@@ -23,12 +23,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreAttributes;
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
@@ -48,6 +50,11 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     private final LongAdder commitTransactionCount;
     private final LongAdder abortTransactionCount;
     private final LongAdder transactionTimeoutCount;
+
+    private volatile TransactionMetadataStoreAttributes attributes = null;
+    private static final AtomicReferenceFieldUpdater<InMemTransactionMetadataStore, TransactionMetadataStoreAttributes>
+            ATTRIBUTES_FIELD_UPDATER = AtomicReferenceFieldUpdater.newUpdater(
+                    InMemTransactionMetadataStore.class, TransactionMetadataStoreAttributes.class, "attributes");
 
     InMemTransactionMetadataStore(TransactionCoordinatorID tcID) {
         this.tcID = tcID;
@@ -164,5 +171,14 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     @Override
     public List<TxnMeta> getSlowTransactions(long timeout) {
         return null;
+    }
+
+    @Override
+    public TransactionMetadataStoreAttributes getAttributes() {
+        if (attributes != null) {
+            return attributes;
+        }
+        return ATTRIBUTES_FIELD_UPDATER.updateAndGet(this,
+                old -> old != null ? old : new TransactionMetadataStoreAttributes(this));
     }
 }

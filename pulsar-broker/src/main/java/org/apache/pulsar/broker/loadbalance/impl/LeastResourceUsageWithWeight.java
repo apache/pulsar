@@ -68,8 +68,8 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
                     localData.getDirectMemory().percentUsage(), localData.getBandwidthIn().percentUsage(),
                     localData.getBandwidthOut().percentUsage(), conf.getLoadBalancerCPUResourceWeight(),
                     conf.getLoadBalancerMemoryResourceWeight(), conf.getLoadBalancerDirectMemoryResourceWeight(),
-                    conf.getLoadBalancerBandwithInResourceWeight(),
-                    conf.getLoadBalancerBandwithOutResourceWeight());
+                    conf.getLoadBalancerBandwidthInResourceWeight(),
+                    conf.getLoadBalancerBandwidthOutResourceWeight());
         }
 
         if (log.isDebugEnabled()) {
@@ -99,8 +99,8 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
         double resourceUsage = brokerData.getLocalData().getMaxResourceUsageWithWeight(
                 conf.getLoadBalancerCPUResourceWeight(),
                 conf.getLoadBalancerDirectMemoryResourceWeight(),
-                conf.getLoadBalancerBandwithInResourceWeight(),
-                conf.getLoadBalancerBandwithOutResourceWeight());
+                conf.getLoadBalancerBandwidthInResourceWeight(),
+                conf.getLoadBalancerBandwidthOutResourceWeight());
         historyUsage = historyUsage == null
                 ? resourceUsage : historyUsage * historyPercentage + (1 - historyPercentage) * resourceUsage;
         if (log.isDebugEnabled()) {
@@ -110,8 +110,8 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
                             + "OUT weight: {} ",
                     broker, historyUsage, historyPercentage, conf.getLoadBalancerCPUResourceWeight(),
                     conf.getLoadBalancerMemoryResourceWeight(), conf.getLoadBalancerDirectMemoryResourceWeight(),
-                    conf.getLoadBalancerBandwithInResourceWeight(),
-                    conf.getLoadBalancerBandwithOutResourceWeight());
+                    conf.getLoadBalancerBandwidthInResourceWeight(),
+                    conf.getLoadBalancerBandwidthOutResourceWeight());
         }
         brokerAvgResourceUsageWithWeight.put(broker, historyUsage);
         return historyUsage;

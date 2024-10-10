@@ -38,8 +38,8 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     private final WebTarget adminNonPersistentTopics;
     private final WebTarget adminV2NonPersistentTopics;
 
-    public NonPersistentTopicsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public NonPersistentTopicsImpl(WebTarget web, Authentication auth, long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         adminNonPersistentTopics = web.path("/admin");
         adminV2NonPersistentTopics = web.path("/admin/v2");
     }

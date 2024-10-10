@@ -259,12 +259,14 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
                 .subscribe();
 
         // Simulate race condition with high frequency of calls to dispatcher.readMoreEntries()
-        PersistentDispatcherMultipleConsumers d = (PersistentDispatcherMultipleConsumers) ((PersistentTopic) pulsar
-                .getBrokerService().getTopicReference(topic).get()).getSubscription("shared-sub").getDispatcher();
+        AbstractPersistentDispatcherMultipleConsumers d =
+                (AbstractPersistentDispatcherMultipleConsumers) ((PersistentTopic) pulsar
+                        .getBrokerService().getTopicReference(topic).get()).getSubscription("shared-sub")
+                        .getDispatcher();
         Thread t = new Thread(() -> {
             while (true) {
                 synchronized (d) {
-                    d.readMoreEntries();
+                    d.readMoreEntriesAsync();
                 }
 
                 try {

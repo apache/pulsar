@@ -62,7 +62,6 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentPartitionedTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentTopicStatsImpl;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -98,8 +97,20 @@ public class NonPersistentTopics extends PersistentTopics {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Is check configuration required to automatically create topic")
             @QueryParam("checkAllowAutoCreation") @DefaultValue("false") boolean checkAllowAutoCreation) {
-        super.getPartitionedMetadata(asyncResponse, tenant, namespace, encodedTopic, authoritative,
-                checkAllowAutoCreation);
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateTopicOwnershipAsync(topicName, authoritative).whenComplete((__, ex) -> {
+            if (ex != null) {
+                Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+                if (isNot307And404Exception(actEx)) {
+                    log.error("[{}] Failed to get internal stats for topic {}", clientAppId(), topicName, ex);
+                }
+                resumeAsyncResponseExceptionally(asyncResponse, actEx);
+            } else {
+                // "super.getPartitionedMetadata" will handle error itself.
+                super.getPartitionedMetadata(asyncResponse, tenant, namespace, encodedTopic, authoritative,
+                        checkAllowAutoCreation);
+            }
+        });
     }
 
     @GET
@@ -466,18 +477,17 @@ public class NonPersistentTopics extends PersistentTopics {
             } else {
                 validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange, true, true)
                         .thenAccept(nsBundle -> {
-                            ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>> bundleTopics =
-                                    pulsar().getBrokerService()
-                                            .getMultiLayerTopicsMap().get(namespaceName.toString());
+                            final var bundleTopics = pulsar().getBrokerService().getMultiLayerTopicsMap()
+                                    .get(namespaceName.toString());
                             if (bundleTopics == null || bundleTopics.isEmpty()) {
                                 asyncResponse.resume(Collections.emptyList());
                                 return;
                             }
                             final List<String> topicList = new ArrayList<>();
                             String bundleKey = namespaceName.toString() + "/" + nsBundle.getBundleRange();
-                            ConcurrentOpenHashMap<String, Topic> topicMap = bundleTopics.get(bundleKey);
+                            final var topicMap = bundleTopics.get(bundleKey);
                             if (topicMap != null) {
-                                topicList.addAll(topicMap.keys().stream()
+                                topicList.addAll(topicMap.keySet().stream()
                                         .filter(name -> !TopicName.get(name).isPersistent())
                                         .collect(Collectors.toList()));
                             }

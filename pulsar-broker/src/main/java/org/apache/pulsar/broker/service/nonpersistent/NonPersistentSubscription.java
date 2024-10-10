@@ -27,7 +27,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
@@ -521,7 +520,7 @@ public class NonPersistentSubscription extends AbstractSubscription {
     }
 
     @Override
-    public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
+    public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, List<Position> positions) {
         // No-op
     }
 

@@ -36,7 +36,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.http.HttpStatus;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -49,8 +50,8 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.TransactionIsolationLevel;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TransactionIsolationLevel;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
@@ -189,8 +190,8 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         TransactionInBufferStats transactionInBufferStats = admin.transactions()
                 .getTransactionInBufferStatsAsync(new TxnID(transaction.getTxnIdMostBits(),
                         transaction.getTxnIdLeastBits()), topic).get();
-        PositionImpl position =
-                PositionImpl.get(((MessageIdImpl) messageId).getLedgerId(), ((MessageIdImpl) messageId).getEntryId());
+        Position position =
+                PositionFactory.create(((MessageIdImpl) messageId).getLedgerId(), ((MessageIdImpl) messageId).getEntryId());
         assertEquals(transactionInBufferStats.startPosition, position.toString());
         assertFalse(transactionInBufferStats.aborted);
 
@@ -310,10 +311,10 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         Map<String, TransactionInBufferStats> producedPartitions = transactionMetadata.producedPartitions;
         Map<String, Map<String, TransactionInPendingAckStats>> ackedPartitions = transactionMetadata.ackedPartitions;
 
-        PositionImpl position1 = getPositionByMessageId(messageId1);
-        PositionImpl position2 = getPositionByMessageId(messageId2);
-        PositionImpl position3 = getPositionByMessageId(messageId3);
-        PositionImpl position4 = getPositionByMessageId(messageId4);
+        Position position1 = getPositionByMessageId(messageId1);
+        Position position2 = getPositionByMessageId(messageId2);
+        Position position3 = getPositionByMessageId(messageId3);
+        Position position4 = getPositionByMessageId(messageId4);
 
         assertFalse(producedPartitions.get(topic1).aborted);
         assertFalse(producedPartitions.get(topic2).aborted);
@@ -375,7 +376,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(transactionBufferStats.state, "Ready");
         assertEquals(transactionBufferStats.maxReadPosition,
-                PositionImpl.get(((MessageIdImpl) messageId).getLedgerId(),
+                PositionFactory.create(((MessageIdImpl) messageId).getLedgerId(),
                         ((MessageIdImpl) messageId).getEntryId() + 1).toString());
         assertTrue(transactionBufferStats.lastSnapshotTimestamps > currentTime);
         assertNull(transactionBufferStats.lowWaterMarks);
@@ -509,8 +510,8 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         assertEquals(transactionMetadata.timeoutAt, 60000);
     }
 
-    private static PositionImpl getPositionByMessageId(MessageId messageId) {
-        return PositionImpl.get(((MessageIdImpl) messageId).getLedgerId(), ((MessageIdImpl) messageId).getEntryId());
+    private static Position getPositionByMessageId(MessageId messageId) {
+        return PositionFactory.create(((MessageIdImpl) messageId).getLedgerId(), ((MessageIdImpl) messageId).getEntryId());
     }
 
     @Test(timeOut = 20000)
@@ -625,21 +626,23 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         producer.newMessage(transaction).send();
         transaction.abort().get();
 
-        // Get transaction buffer internal stats and verify single snapshot stats
-        TransactionBufferInternalStats stats = admin.transactions()
-                .getTransactionBufferInternalStatsAsync(topic2, true).get();
-        assertEquals(stats.snapshotType, AbortedTxnProcessor.SnapshotType.Single.toString());
-        assertNotNull(stats.singleSnapshotSystemTopicInternalStats);
+        Awaitility.await().untilAsserted(() -> {
+            // Get transaction buffer internal stats and verify single snapshot stats
+            TransactionBufferInternalStats stats = admin.transactions()
+                    .getTransactionBufferInternalStatsAsync(topic2, true).get();
+            assertEquals(stats.snapshotType, AbortedTxnProcessor.SnapshotType.Single.toString());
+            assertNotNull(stats.singleSnapshotSystemTopicInternalStats);
 
-        // Get managed ledger internal stats for the transaction buffer snapshot topic
-        PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(
-                TopicName.get(topic2).getNamespace() + "/" + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
-        verifyManagedLedgerInternalStats(stats.singleSnapshotSystemTopicInternalStats.managedLedgerInternalStats,
-                internalStats);
-        assertTrue(stats.singleSnapshotSystemTopicInternalStats.managedLedgerName
-                .contains(SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT));
-        assertNull(stats.segmentInternalStats);
-        assertNull(stats.segmentIndexInternalStats);
+            // Get managed ledger internal stats for the transaction buffer snapshot topic
+            PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(
+                    TopicName.get(topic2).getNamespace() + "/" + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
+            verifyManagedLedgerInternalStats(stats.singleSnapshotSystemTopicInternalStats.managedLedgerInternalStats,
+                    internalStats);
+            assertTrue(stats.singleSnapshotSystemTopicInternalStats.managedLedgerName
+                    .contains(SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT));
+            assertNull(stats.segmentInternalStats);
+            assertNull(stats.segmentIndexInternalStats);
+        });
 
         // Configure segmented snapshot and set segment size
         pulsar.getConfig().setTransactionBufferSnapshotSegmentSize(9);
@@ -651,28 +654,31 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         producer.newMessage(transaction).send();
         transaction.abort().get();
 
-        // Get transaction buffer internal stats and verify segmented snapshot stats
-        stats = admin.transactions().getTransactionBufferInternalStatsAsync(topic3, true).get();
-        assertEquals(stats.snapshotType, AbortedTxnProcessor.SnapshotType.Segment.toString());
-        assertNull(stats.singleSnapshotSystemTopicInternalStats);
-        assertNotNull(stats.segmentInternalStats);
+        Awaitility.await().untilAsserted(() -> {
+            // Get transaction buffer internal stats and verify segmented snapshot stats
+            TransactionBufferInternalStats stats =
+                    admin.transactions().getTransactionBufferInternalStatsAsync(topic3, true).get();
+            assertEquals(stats.snapshotType, AbortedTxnProcessor.SnapshotType.Segment.toString());
+            assertNull(stats.singleSnapshotSystemTopicInternalStats);
+            assertNotNull(stats.segmentInternalStats);
 
-        // Get managed ledger internal stats for the transaction buffer segments topic
-        internalStats = admin.topics().getInternalStats(
-                TopicName.get(topic2).getNamespace() + "/" +
-                        SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS);
-        verifyManagedLedgerInternalStats(stats.segmentInternalStats.managedLedgerInternalStats, internalStats);
-        assertTrue(stats.segmentInternalStats.managedLedgerName
-                .contains(SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS));
+            // Get managed ledger internal stats for the transaction buffer segments topic
+            PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(
+                    TopicName.get(topic2).getNamespace() + "/" +
+                            SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS);
+            verifyManagedLedgerInternalStats(stats.segmentInternalStats.managedLedgerInternalStats, internalStats);
+            assertTrue(stats.segmentInternalStats.managedLedgerName
+                    .contains(SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS));
 
-        // Get managed ledger internal stats for the transaction buffer indexes topic
-        assertNotNull(stats.segmentIndexInternalStats);
-        internalStats = admin.topics().getInternalStats(
-                TopicName.get(topic2).getNamespace() + "/" +
-                        SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES);
-        verifyManagedLedgerInternalStats(stats.segmentIndexInternalStats.managedLedgerInternalStats, internalStats);
-        assertTrue(stats.segmentIndexInternalStats.managedLedgerName
-                .contains(SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES));
+            // Get managed ledger internal stats for the transaction buffer indexes topic
+            assertNotNull(stats.segmentIndexInternalStats);
+            internalStats = admin.topics().getInternalStats(
+                    TopicName.get(topic2).getNamespace() + "/" +
+                            SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES);
+            verifyManagedLedgerInternalStats(stats.segmentIndexInternalStats.managedLedgerInternalStats, internalStats);
+            assertTrue(stats.segmentIndexInternalStats.managedLedgerName
+                    .contains(SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES));
+        });
     }
 
 
@@ -963,7 +969,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             } else {
                 producer.newMessage(txn).value("msg-aborted").send();
                 txn.abort();
-            } 
+            }
         }
         // Then sends 1 uncommitted transactional messages.
         Transaction txn = pulsarClient.newTransaction().build().get();
@@ -972,7 +978,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         for (int i = 0; i < n - 1; i++) {
             producer.newMessage().value("msg-after-uncommitted").send();
         }
-        
+
         // peek n message, all messages value should be "msg"
         {
             List<Message<byte[]>> peekMsgs = admin.topics().peekMessages(topic, "t-sub", n,
@@ -1035,11 +1041,11 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             } else {
                 String value = new String(peekMsg.getValue());
                 assertTrue(value.equals("msg") || value.equals("msg-aborted"));
-            } 
+            }
         }
         for (int i = 4 * n; i < peekMsgs.size(); i++) {
             Message<byte[]> peekMsg = peekMsgs.get(i);
-            assertEquals(new String(peekMsg.getValue()), "msg-uncommitted"); 
+            assertEquals(new String(peekMsg.getValue()), "msg-uncommitted");
         }
     }
 

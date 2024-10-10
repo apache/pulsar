@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.service.schema;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ScheduledExecutorService;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.schema.validator.SchemaRegistryServiceWithSchemaDataValidator;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -44,13 +44,13 @@ public interface SchemaRegistryService extends SchemaRegistry {
     }
 
     static SchemaRegistryService create(SchemaStorage schemaStorage, Set<String> schemaRegistryCompatibilityCheckers,
-                                        ScheduledExecutorService scheduler) {
+                                        PulsarService pulsarService) {
         if (schemaStorage != null) {
             try {
                 Map<SchemaType, SchemaCompatibilityCheck> checkers = getCheckers(schemaRegistryCompatibilityCheckers);
                 checkers.put(SchemaType.KEY_VALUE, new KeyValueSchemaCompatibilityCheck(checkers));
                 return SchemaRegistryServiceWithSchemaDataValidator.of(
-                        new SchemaRegistryServiceImpl(schemaStorage, checkers, scheduler));
+                        new SchemaRegistryServiceImpl(schemaStorage, checkers, pulsarService));
             } catch (Exception e) {
                 LOG.warn("Unable to create schema registry storage, defaulting to empty storage", e);
             }

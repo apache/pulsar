@@ -43,6 +43,8 @@ public class AggregatedSubscriptionStats {
 
     public long msgDelayed;
 
+    public long msgInReplay;
+
     long msgOutCounter;
 
     long bytesOutCounter;
