@@ -1520,9 +1520,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
         // if not gracefully, verify the broker is inactive by health-check.
         if (!gracefully) {
-            if (channelDisabled()) {
-                return;
-            }
             try {
                 healthCheckBrokerAsync(broker).get(
                         pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
@@ -1530,12 +1527,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                         broker);
                 return;
             } catch (Exception e) {
-                if (e instanceof ExecutionException && e.getCause() instanceof PulsarAdminException.NotFoundException) {
-                    log.info("The broker is not healthy, skip {}'s orphan bundle cleanup", broker);
-                    return;
-                }
                 if (debug()) {
-                    log.info("Failed to check broker:{} health", broker, e);
+                    if (e instanceof ExecutionException
+                            && e.getCause() instanceof PulsarAdminException.NotFoundException) {
+                        log.info("The broker {} is not healthy because it's not found", broker);
+                    } else {
+                        log.info("Failed to check broker:{} health", broker, e);
+                    }
                 }
                 log.info("Checked the broker:{} health. Continue the orphan bundle cleanup", broker);
             }
