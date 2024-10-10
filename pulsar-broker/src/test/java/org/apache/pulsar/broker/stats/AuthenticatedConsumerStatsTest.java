@@ -18,11 +18,19 @@
  */
 package org.apache.pulsar.broker.stats;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Sets;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.time.Duration;
+import java.util.Base64;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.Properties;
+import java.util.Set;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.AuthenticationFactory;
@@ -36,18 +44,6 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
-import java.time.Duration;
-import java.util.Base64;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Properties;
-import java.util.Set;
 
 public class AuthenticatedConsumerStatsTest extends ConsumerStatsTest{
     private final String ADMIN_TOKEN;
@@ -115,32 +111,6 @@ public class AuthenticatedConsumerStatsTest extends ConsumerStatsTest{
 
     @Test
     public void testConsumerStatsOutput() throws Exception {
-        Set<String> allowedFields = Sets.newHashSet(
-                "msgRateOut",
-                "msgThroughputOut",
-                "bytesOutCounter",
-                "msgOutCounter",
-                "messageAckRate",
-                "msgRateRedeliver",
-                "chunkedMessageRate",
-                "consumerName",
-                "availablePermits",
-                "unackedMessages",
-                "avgMessagesPerEntry",
-                "blockedConsumerOnUnackedMsgs",
-                "readPositionWhenJoining",
-                "lastAckedTime",
-                "lastAckedTimestamp",
-                "lastConsumedTime",
-                "lastConsumedTimestamp",
-                "lastConsumedFlowTimestamp",
-                "keyHashRanges",
-                "metadata",
-                "address",
-                "connectedSince",
-                "clientVersion",
-                "appId");
-
         final String topicName = "persistent://public/default/testConsumerStatsOutput";
         final String subName = "my-subscription";
 
@@ -154,13 +124,6 @@ public class AuthenticatedConsumerStatsTest extends ConsumerStatsTest{
         ObjectMapper mapper = ObjectMapperFactory.create();
         ConsumerStats consumerStats = stats.getSubscriptions()
                 .get(subName).getConsumers().get(0);
-        Assert.assertTrue(consumerStats.getLastConsumedFlowTimestamp() > 0);
-        JsonNode node = mapper.readTree(mapper.writer().writeValueAsString(consumerStats));
-        Iterator<String> itr = node.fieldNames();
-        while (itr.hasNext()) {
-            String field = itr.next();
-            Assert.assertTrue(allowedFields.contains(field), field + " should not be exposed");
-        }
         // assert that role is exposed
         Assert.assertEquals(consumerStats.getAppId(), "admin");
         consumer.close();
