@@ -38,6 +38,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentWaitCallba
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.NonDurableCursorImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.Consumer;
@@ -535,6 +536,17 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Error reading transaction entries : {}, - Retrying to read in {} seconds", name,
                         exception.getMessage(), waitTimeMillis / 1000.0);
+            }
+        } else if (exception instanceof ManagedLedgerException.CursorAlreadyClosedException) {
+            // Read entry failed because cursor is NonDurableCursor and is closed.
+            // In this case, there is no need to trigger more read operations
+            // since the next read operation would directly skip and finish.
+            // Just wait for a new NonDurableCursor open and read again.
+            if (cursor instanceof NonDurableCursorImpl) {
+                log.debug("[{}-{}] Error reading entries at {} : {}. " +
+                                "No need to retry read more entry since it is NonDurableCursor and is closed",
+                        name, c, cursor.getReadPosition(), exception.getMessage());
+                return;
             }
         } else if (!(exception instanceof TooManyRequestsException)) {
             log.error("[{}-{}] Error reading entries at {} : {} - Retrying to read in {} seconds", name, c,
