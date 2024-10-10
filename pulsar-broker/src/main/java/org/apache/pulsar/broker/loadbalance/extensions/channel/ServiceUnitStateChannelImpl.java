@@ -87,6 +87,7 @@ import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -1291,6 +1292,14 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                                         broker, cleanupJobs.size());
                             }
                         }
+                    })
+                    .exceptionally(e -> {
+                        if (FutureUtil.unwrapCompletionException(e) instanceof PulsarAdminException.NotFoundException) {
+                            log.warn("{} Failed to run health check: {}", broker, e.getMessage());
+                        } else {
+                            log.error("{} Failed to run health check", broker, e);
+                        }
+                        return null;
                     });
         }
     }
@@ -1323,12 +1332,19 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
+    private boolean channelDisabled() {
+        final var channelState = this.channelState;
+        if (channelState == Disabled || channelState == Closed) {
+            log.warn("[{}] Skip scheduleCleanup because the state is {} now", brokerId, channelState);
+            return true;
+        }
+        return false;
+    }
+
     private void scheduleCleanup(String broker, long delayInSecs) {
         var scheduled = new MutableObject<CompletableFuture<Void>>();
         try {
-            final var channelState = this.channelState;
-            if (channelState == Disabled || channelState == Closed) {
-                log.warn("[{}] Skip scheduleCleanup because the state is {} now", brokerId, channelState);
+            if (channelDisabled()) {
                 return;
             }
             cleanupJobs.computeIfAbsent(broker, k -> {
@@ -1462,6 +1478,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     private void doHealthCheckBrokerAsyncWithRetries(String brokerId, int retry, CompletableFuture<Void> future) {
+        if (channelDisabled()) {
+            future.complete(null);
+            return;
+        }
         try {
             var admin = getPulsarAdmin();
             admin.brokers().healthcheckAsync(TopicVersion.V2, Optional.of(brokerId))
@@ -1472,7 +1492,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                             return;
                         }
                         if (retry == MAX_BROKER_HEALTH_CHECK_RETRY) {
-                            log.error("Failed health-check broker :{}", brokerId, e);
                             future.completeExceptionally(FutureUtil.unwrapCompletionException(e));
                         } else {
                             pulsar.getExecutor()
@@ -1501,6 +1520,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
         // if not gracefully, verify the broker is inactive by health-check.
         if (!gracefully) {
+            if (channelDisabled()) {
+                return;
+            }
             try {
                 healthCheckBrokerAsync(broker).get(
                         pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
@@ -1508,6 +1530,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                         broker);
                 return;
             } catch (Exception e) {
+                if (e instanceof ExecutionException && e.getCause() instanceof PulsarAdminException.NotFoundException) {
+                    log.info("The broker is not healthy, skip {}'s orphan bundle cleanup", broker);
+                    return;
+                }
                 if (debug()) {
                     log.info("Failed to check broker:{} health", broker, e);
                 }
