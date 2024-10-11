@@ -497,11 +497,6 @@
       </dependency>
       <dependency>
         <groupId>org.apache.pulsar</groupId>
-        <artifactId>pulsar-io-hdfs2</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.pulsar</groupId>
         <artifactId>pulsar-io-hdfs3</artifactId>
         <version>${project.version}</version>
       </dependency>
