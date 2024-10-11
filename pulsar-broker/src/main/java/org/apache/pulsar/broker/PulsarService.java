@@ -1689,6 +1689,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 .timer(brokerClientSharedTimer)
                 .internalExecutorProvider(brokerClientSharedInternalExecutorProvider)
                 .externalExecutorProvider(brokerClientSharedExternalExecutorProvider)
+                .scheduledExecutorProvider(brokerClientSharedScheduledExecutorProvider)
                 .lookupExecutorProvider(brokerClientSharedLookupExecutorProvider)
                 .build();
     }
