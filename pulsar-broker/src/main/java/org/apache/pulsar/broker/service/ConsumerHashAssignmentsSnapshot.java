@@ -71,8 +71,8 @@ public class ConsumerHashAssignmentsSnapshot {
         return new ConsumerHashAssignmentsSnapshot(Collections.emptyList());
     }
 
-    public ImpactedConsumersResult resolveImpactedConsumers(ConsumerHashAssignmentsSnapshot other) {
-        return resolveConsumerRemovedHashRanges(this.hashRangeAssignments, other.hashRangeAssignments);
+    public ImpactedConsumersResult resolveImpactedConsumers(ConsumerHashAssignmentsSnapshot assignmentsAfter) {
+        return resolveConsumerRemovedHashRanges(this.hashRangeAssignments, assignmentsAfter.hashRangeAssignments);
     }
 
     /**
