@@ -278,7 +278,7 @@ public class LocalRunner implements AutoCloseable {
         } else {
             directoryPath = Path.of(directory);
         }
-        return directoryPath.toAbsolutePath().toString();
+        return directoryPath.toAbsolutePath().normalize().toString();
     }
 
     private static File createNarExtractionTempDirectory() {
