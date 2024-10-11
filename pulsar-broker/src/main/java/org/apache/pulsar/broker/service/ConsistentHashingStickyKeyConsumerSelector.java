@@ -27,12 +27,14 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Range;
 
 /**
  * This is a consumer selector using consistent hashing to evenly split
  * the number of keys assigned to each consumer.
  */
+@Slf4j
 public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyConsumerSelector {
     // use NUL character as field separator for hash key calculation
     private static final String KEY_SEPARATOR = "\0";
@@ -76,17 +78,35 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             ConsumerIdentityWrapper consumerIdentityWrapper = new ConsumerIdentityWrapper(consumer);
             // Insert multiple points on the hash ring for every consumer
             // The points are deterministically added based on the hash of the consumer name
+            int hashPointsAdded = 0;
+            int hashPointCollisions = 0;
             for (int i = 0; i < numberOfPoints; i++) {
                 int consumerNameIndex =
                         consumerNameIndexTracker.increaseConsumerRefCountAndReturnIndex(consumerIdentityWrapper);
                 int hash = calculateHashForConsumerAndIndex(consumer, consumerNameIndex, i);
-                // When there's a collision, the new consumer will replace the old one.
-                // This is a rare case, and it is acceptable to replace the old consumer since there
-                // are multiple points for each consumer. This won't affect the overall distribution significantly.
-                ConsumerIdentityWrapper removed = hashRing.put(hash, consumerIdentityWrapper);
-                if (removed != null) {
-                    consumerNameIndexTracker.decreaseConsumerRefCount(removed);
+                // When there's a collision, the entry won't be added to the hash ring.
+                // This isn't a problem with the consumerNameIndexTracker solution since the collisions won't align
+                // for all hash ring points when using the same consumer name. This won't affect the overall
+                // distribution significantly when the number of hash ring points is sufficiently large (>100).
+                ConsumerIdentityWrapper existing = hashRing.putIfAbsent(hash, consumerIdentityWrapper);
+                if (existing != null) {
+                    hashPointCollisions++;
+                    // reduce the ref count which was increased before adding since the consumer was not added
+                    consumerNameIndexTracker.decreaseConsumerRefCount(consumerIdentityWrapper);
+                } else {
+                    hashPointsAdded++;
                 }
+            }
+            if (hashPointsAdded == 0) {
+                log.error("Failed to add consumer '{}' to the hash ring. There were {} collisions. Consider increasing "
+                                + "the number of points ({}) per consumer by setting "
+                                + "subscriptionKeySharedConsistentHashingReplicaPoints={}",
+                        consumer, hashPointCollisions, numberOfPoints,
+                        Math.max((int) (numberOfPoints * 1.5d), numberOfPoints + 1));
+            }
+            if (log.isDebugEnabled()) {
+                log.debug("Added consumer '{}' with {} points, {} collisions", consumer, hashPointsAdded,
+                        hashPointCollisions);
             }
             if (!addOrRemoveReturnsImpactedConsumersResult) {
                 return CompletableFuture.completedFuture(Optional.empty());
