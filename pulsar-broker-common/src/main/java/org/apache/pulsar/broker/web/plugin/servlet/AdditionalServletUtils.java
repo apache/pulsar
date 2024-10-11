@@ -74,7 +74,7 @@ public class AdditionalServletUtils {
      */
     public AdditionalServletDefinitions searchForServlets(String additionalServletDirectory,
                                                           String narExtractionDirectory) throws IOException {
-        Path path = Paths.get(additionalServletDirectory).toAbsolutePath();
+        Path path = Paths.get(additionalServletDirectory).toAbsolutePath().normalize();
         log.info("Searching for additional servlets in {}", path);
 
         AdditionalServletDefinitions servletDefinitions = new AdditionalServletDefinitions();
@@ -119,7 +119,7 @@ public class AdditionalServletUtils {
     public AdditionalServletWithClassLoader load(
             AdditionalServletMetadata metadata, String narExtractionDirectory) throws IOException {
 
-        final File narFile = metadata.getArchivePath().toAbsolutePath().toFile();
+        final File narFile = metadata.getArchivePath().toAbsolutePath().normalize().toFile();
         NarClassLoader ncl = NarClassLoaderBuilder.builder()
                 .narFile(narFile)
                 .parentClassLoader(AdditionalServlet.class.getClassLoader())
