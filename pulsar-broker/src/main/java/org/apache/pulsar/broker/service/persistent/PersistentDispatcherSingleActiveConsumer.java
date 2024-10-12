@@ -527,8 +527,11 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             // since the next read operation would directly skip and finish.
             // Just wait for a new NonDurableCursor open and read again.
             if (cursor instanceof NonDurableCursorImpl) {
-                log.debug("[{}-{}] Error reading entries at {} : {} - Retrying to read in {} seconds", name, c,
-                        cursor.getReadPosition(), exception.getMessage(), waitTimeMillis / 1000.0);
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}-{}] Error reading entries at {} : {}. " +
+                                    "No need to retry read more entry since it is NonDurableCursor and is closed",
+                            name, c, cursor.getReadPosition(), exception.getMessage());
+                }
                 return;
             }
         } else if (!(exception instanceof TooManyRequestsException)) {
