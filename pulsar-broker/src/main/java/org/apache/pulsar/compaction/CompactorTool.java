@@ -72,8 +72,8 @@ public class CompactorTool {
         @Option(names = {"-g", "--generate-docs"}, description = "Generate docs")
         private boolean generateDocs = false;
 
-        @Option(names = {"-ct", "--compactor-type"}, description = "Choose compactor type, " +
-                "valid types are [PUBLISHING, EVENT_TIME]")
+        @Option(names = {"-ct", "--compactor-type"}, description = "Choose compactor type, "
+                + "valid types are [PUBLISHING, EVENT_TIME]")
         private CompactorType compactorType = CompactorType.PUBLISHING;
     }
 
