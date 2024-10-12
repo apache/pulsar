@@ -99,3 +99,4 @@ test-reports/
 .mvn/.gradle-enterprise/
 # Gradle Develocity
 .mvn/.develocity/
+.vscode
