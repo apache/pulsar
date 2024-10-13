@@ -2475,7 +2475,6 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-client-api</module>
         <module>pulsar-client</module>
         <module>pulsar-client-shaded</module>
-        <module>pulsar-client-1x-base</module>
         <module>pulsar-client-admin-api</module>
         <module>pulsar-client-admin</module>
         <module>pulsar-client-admin-shaded</module>
