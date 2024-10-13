@@ -161,6 +161,19 @@ public class NonPersistentSubscription extends AbstractSubscription {
         } else {
             if (consumer.subType() != dispatcher.getType()) {
                 return FutureUtil.failedFuture(new SubscriptionBusyException("Subscription is of different type"));
+            } else if (dispatcher.getType() == SubType.Key_Shared) {
+                KeySharedMeta dispatcherKsm = dispatcher.getConsumers().get(0).getKeySharedMeta();
+                KeySharedMeta consumerKsm = consumer.getKeySharedMeta();
+                if (dispatcherKsm.getKeySharedMode() != consumerKsm.getKeySharedMode()) {
+                    return FutureUtil.failedFuture(
+                            new SubscriptionBusyException("Subscription is of different key_shared mode"));
+                }
+                if (dispatcherKsm.isAllowOutOfOrderDelivery() != consumerKsm.isAllowOutOfOrderDelivery()) {
+                    return FutureUtil.failedFuture(
+                            new SubscriptionBusyException(dispatcherKsm.isAllowOutOfOrderDelivery()
+                                    ? "Subscription allows out of order delivery" :
+                                    "Subscription does not allow out of order delivery"));
+                }
             }
         }
 
