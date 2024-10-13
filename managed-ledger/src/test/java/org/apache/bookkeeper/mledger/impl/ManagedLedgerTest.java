@@ -4361,9 +4361,10 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             // Detect the current ledger is full by the timed task. (Imitate: the timed task `checkLedgerRollTask` call
             // `rollCurrentLedgerIfFull` periodically).
             ml.rollCurrentLedgerIfFull();
-            // the ledger closing in the `rollCurrentLedgerIfFull` is async, so the wait is needed.
-            Awaitility.await().untilAsserted(() -> assertEquals(ml.ledgers.size(), 2));
         }
+        // wait the new ledger create
+        Awaitility.await().untilAsserted(() -> assertEquals(ml.ledgers.size(), 2));
+
         // Act: Trigger trimming to delete the previous current ledger.
         ml.internalTrimLedgers(false, Futures.NULL_PROMISE);
         // Verify: A new ledger will be opened after the current ledger is closed and the previous current ledger can be
