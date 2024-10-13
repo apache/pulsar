@@ -100,3 +100,4 @@ test-reports/
 # Gradle Develocity
 .mvn/.develocity/
 .vscode
+effective-pom.xml
