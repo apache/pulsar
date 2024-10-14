@@ -232,7 +232,7 @@ public class PulsarClientImpl implements PulsarClient {
             this.internalExecutorProvider = internalExecutorProvider != null ? internalExecutorProvider :
                     new ExecutorProvider(conf.getNumIoThreads(), "pulsar-client-internal");
             this.lookupExecutorProvider = lookupExecutorProvider != null ? lookupExecutorProvider :
-                    new ExecutorProvider(conf.getNumIoThreads(), "pulsar-client-lookup");
+                    new ExecutorProvider(1, "pulsar-client-lookup");
             if (conf.getServiceUrl().startsWith("http")) {
                 lookup = new HttpLookupService(instrumentProvider, conf, this.eventLoopGroup);
             } else {
