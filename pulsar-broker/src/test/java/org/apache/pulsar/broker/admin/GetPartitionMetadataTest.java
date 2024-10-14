@@ -47,6 +47,7 @@ import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
@@ -56,7 +57,7 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
 @Slf4j
-public class GetPartitionMetadataTest {
+public class GetPartitionMetadataTest extends TestRetrySupport {
 
     protected static final String DEFAULT_NS = "public/default";
 
@@ -72,8 +73,10 @@ public class GetPartitionMetadataTest {
     protected PulsarClientImpl clientWithHttpLookup1;
     protected PulsarClientImpl clientWitBinaryLookup1;
 
+    @Override
     @BeforeClass(alwaysRun = true)
     protected void setup() throws Exception {
+        incrementSetupNumber();
         bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble.start();
         // Start broker.
@@ -85,8 +88,10 @@ public class GetPartitionMetadataTest {
         admin1.namespaces().createNamespace(DEFAULT_NS);
     }
 
+    @Override
     @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
+        markCurrentSetupNumberCleaned();
         cleanupBrokers();
         if (bkEnsemble != null) {
             bkEnsemble.stop();
