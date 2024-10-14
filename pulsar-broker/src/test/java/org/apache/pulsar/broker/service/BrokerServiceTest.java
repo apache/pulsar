@@ -1928,7 +1928,9 @@ public class BrokerServiceTest extends BrokerTestBase {
         // Mock the checkTopicNsOwnership to throw ServiceUnitNotReadyException
         BrokerService spyService = spy(service);
         doReturn(CompletableFuture.failedFuture(
-                new BrokerServiceException.ServiceUnitNotReadyException("Test exception")))
+                new BrokerServiceException.ServiceUnitNotReadyException("Namespace bundle for topic "
+                        + "(persistent://xxx/xxx/xxx-partition-0) not served by this instance:xyz. "
+                        + "Please redo the lookup. Request is denied: namespace=pfs/ons")))
             .when(spyService).checkTopicNsOwnership(topicName);
 
         pulsar.setBrokerService(spyService);

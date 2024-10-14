@@ -1320,7 +1320,9 @@ public class BrokerService implements Closeable {
         topicFuture.exceptionally(t -> {
             // If the broker is not the owner of the topic, the client will redirect to another broker.
             // In this case, we should not record as a topic load failure.
-            if (!(FutureUtil.unwrapCompletionException(t) instanceof ServiceUnitNotReadyException)) {
+            Throwable cause = FutureUtil.unwrapCompletionException(t);
+            if (!(cause instanceof ServiceUnitNotReadyException)
+                    && !(cause.getMessage().contains("not served by this instance"))) {
                 getPulsarStats().recordTopicLoadFailed();
             }
             pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
@@ -1618,7 +1620,9 @@ public class BrokerService implements Closeable {
         topicFuture.exceptionally(t -> {
             // If the broker is not the owner of the topic, the client will redirect to another broker.
             // In this case, we should not record as a topic load failure.
-            if (!(FutureUtil.unwrapCompletionException(t) instanceof ServiceUnitNotReadyException)) {
+            Throwable cause = FutureUtil.unwrapCompletionException(t);
+            if (!(cause instanceof ServiceUnitNotReadyException)
+                    && !(cause.getMessage().contains("not served by this instance"))) {
                 getPulsarStats().recordTopicLoadFailed();
             }
             return Optional.empty();
