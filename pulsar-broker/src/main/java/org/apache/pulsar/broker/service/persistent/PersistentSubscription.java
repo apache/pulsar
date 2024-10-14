@@ -308,20 +308,28 @@ public class PersistentSubscription extends AbstractSubscription {
                     }
                 } else {
                     if (consumer.subType() != dispatcher.getType()) {
-                        return FutureUtil.failedFuture(
-                                new SubscriptionBusyException("Subscription is of different type"));
+                        return FutureUtil.failedFuture(new SubscriptionBusyException(
+                                String.format("Subscription is of different type. Active subscription type of '%s' "
+                                        + "is different than the connecting consumer's type '%s'.",
+                                        dispatcher.getType(), consumer.subType())));
                     } else if (dispatcher.getType() == SubType.Key_Shared) {
                         KeySharedMeta dispatcherKsm = dispatcher.getConsumers().get(0).getKeySharedMeta();
                         KeySharedMeta consumerKsm = consumer.getKeySharedMeta();
                         if (dispatcherKsm.getKeySharedMode() != consumerKsm.getKeySharedMode()) {
-                            return FutureUtil.failedFuture(
-                                    new SubscriptionBusyException("Subscription is of different key_shared mode"));
+                            return FutureUtil.failedFuture(new SubscriptionBusyException(
+                                    String.format("Subscription is of different type. Active subscription key_shared "
+                                                    + "mode of '%s' is different than the connecting consumer's "
+                                                    + "key_shared mode '%s'.",
+                                            dispatcherKsm.getKeySharedMode(), consumerKsm.getKeySharedMode())));
                         }
                         if (dispatcherKsm.isAllowOutOfOrderDelivery() != consumerKsm.isAllowOutOfOrderDelivery()) {
-                            return FutureUtil.failedFuture(
-                                    new SubscriptionBusyException(dispatcherKsm.isAllowOutOfOrderDelivery()
-                                            ? "Subscription allows out of order delivery" :
-                                            "Subscription does not allow out of order delivery"));
+                            return FutureUtil.failedFuture(new SubscriptionBusyException(
+                                    String.format("Subscription is of different type. %s",
+                                            dispatcherKsm.isAllowOutOfOrderDelivery()
+                                                    ? "Active subscription allows out of order delivery while the "
+                                                    + "connecting consumer does not allow it." :
+                                                    "Active subscription does not allow out of order delivery while "
+                                                            + "the connecting consumer allows it.")));
                         }
                     }
                 }

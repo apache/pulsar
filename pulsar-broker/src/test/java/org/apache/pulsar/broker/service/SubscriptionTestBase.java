@@ -44,26 +44,32 @@ public abstract class SubscriptionTestBase {
         KeySharedMeta ksmAutoSplitAllowOutOfOrder = new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT)
                 .setAllowOutOfOrderDelivery(true);
 
-        String errorMessageDifferentMode = "Subscription is of different key_shared mode";
-        String errorMessageOutOfOrderNotAllowed = "Subscription does not allow out of order delivery";
-        String errorMessageOutOfOrderAllowed = "Subscription allows out of order delivery";
+        String errorMessagePrefix = "Subscription is of different type. ";
+        String errorMessageSubscriptionModeSticky = errorMessagePrefix + "Active subscription key_shared mode of "
+                + "'STICKY' is different than the connecting consumer's key_shared mode 'AUTO_SPLIT'.";
+        String errorMessageSubscriptionModeAutoSplit = errorMessagePrefix + "Active subscription key_shared mode of "
+                + "'AUTO_SPLIT' is different than the connecting consumer's key_shared mode 'STICKY'.";
+        String errorMessageOutOfOrderNotAllowed = errorMessagePrefix + "Active subscription does not allow out of "
+                + "order delivery while the connecting consumer allows it.";
+        String errorMessageOutOfOrderAllowed = errorMessagePrefix + "Active subscription allows out of order delivery "
+                + "while the connecting consumer does not allow it.";
 
         return new Object[][] {
-                { ksmAutoSplit, ksmSticky, errorMessageDifferentMode },
-                { ksmAutoSplit, ksmStickyAllowOutOfOrder, errorMessageDifferentMode },
+                { ksmAutoSplit, ksmSticky, errorMessageSubscriptionModeAutoSplit },
+                { ksmAutoSplit, ksmStickyAllowOutOfOrder, errorMessageSubscriptionModeAutoSplit },
                 { ksmAutoSplit, ksmAutoSplitAllowOutOfOrder, errorMessageOutOfOrderNotAllowed },
 
-                { ksmAutoSplitAllowOutOfOrder, ksmSticky, errorMessageDifferentMode },
-                { ksmAutoSplitAllowOutOfOrder, ksmStickyAllowOutOfOrder, errorMessageDifferentMode },
+                { ksmAutoSplitAllowOutOfOrder, ksmSticky, errorMessageSubscriptionModeAutoSplit },
+                { ksmAutoSplitAllowOutOfOrder, ksmStickyAllowOutOfOrder, errorMessageSubscriptionModeAutoSplit },
                 { ksmAutoSplitAllowOutOfOrder, ksmAutoSplit, errorMessageOutOfOrderAllowed },
 
                 { ksmSticky, ksmStickyAllowOutOfOrder, errorMessageOutOfOrderNotAllowed },
-                { ksmSticky, ksmAutoSplit, errorMessageDifferentMode },
-                { ksmSticky, ksmAutoSplitAllowOutOfOrder, errorMessageDifferentMode },
+                { ksmSticky, ksmAutoSplit, errorMessageSubscriptionModeSticky },
+                { ksmSticky, ksmAutoSplitAllowOutOfOrder, errorMessageSubscriptionModeSticky },
 
                 { ksmStickyAllowOutOfOrder, ksmSticky, errorMessageOutOfOrderAllowed },
-                { ksmStickyAllowOutOfOrder, ksmAutoSplit, errorMessageDifferentMode },
-                { ksmStickyAllowOutOfOrder, ksmAutoSplitAllowOutOfOrder, errorMessageDifferentMode }
+                { ksmStickyAllowOutOfOrder, ksmAutoSplit, errorMessageSubscriptionModeSticky },
+                { ksmStickyAllowOutOfOrder, ksmAutoSplitAllowOutOfOrder, errorMessageSubscriptionModeSticky }
         };
     }
 
