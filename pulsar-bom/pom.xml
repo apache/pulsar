@@ -217,21 +217,6 @@
       </dependency>
       <dependency>
         <groupId>org.apache.pulsar</groupId>
-        <artifactId>pulsar-client-1x-base</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.pulsar</groupId>
-        <artifactId>pulsar-client-1x</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.pulsar</groupId>
-        <artifactId>pulsar-client-2x-shaded</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.pulsar</groupId>
         <artifactId>pulsar-client-admin-api</artifactId>
         <version>${project.version}</version>
       </dependency>
