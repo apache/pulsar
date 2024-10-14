@@ -26,7 +26,9 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -50,6 +52,7 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -1308,7 +1311,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         topic.checkInactiveSubscriptions();
 
         // Compaction subscription should not call delete method.
-        Mockito.verify(spySubscription, Mockito.never()).delete();
+        verify(spySubscription, never()).delete();
 
         // check if the subscription exist.
         assertNotNull(topic.getSubscription(Compactor.COMPACTION_SUBSCRIPTION));
@@ -1915,6 +1918,35 @@ public class BrokerServiceTest extends BrokerTestBase {
                 Assert.assertEquals(managedLedgerConfig2.getLedgerOffloader(), NullLedgerOffloader.INSTANCE);
             }
         }
+    }
+
+    @Test(dataProvider = "TopicDomain")
+    public void testLoadOrCreatePersistentTopicWithServiceUnitNotReadyException(String topicDomain) throws Exception {
+        final String topicName = topicDomain + "://prop/ns-abc/topic-not-ready";
+        BrokerService service = pulsar.getBrokerService();
+
+        // Mock the checkTopicNsOwnership to throw ServiceUnitNotReadyException
+        BrokerService spyService = spy(service);
+        doReturn(CompletableFuture.failedFuture(
+                new BrokerServiceException.ServiceUnitNotReadyException("Test exception")))
+            .when(spyService).checkTopicNsOwnership(topicName);
+
+        pulsar.setBrokerService(spyService);
+        when(spyService.getPulsarStats()).thenReturn(mock(PulsarStats.class));
+
+        // Call the method under test
+        CompletableFuture<Optional<Topic>> future = spyService.loadOrCreatePersistentTopic(topicName, true,
+                Collections.emptyMap(), null);
+
+        try {
+            future.get();
+            fail("Should have thrown an exception");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof BrokerServiceException.ServiceUnitNotReadyException);
+        }
+
+        // Verify that recordTopicLoadFailed was not called
+        verify(spyService.getPulsarStats(), never()).recordTopicLoadFailed();
     }
 }
 

@@ -808,14 +808,6 @@ public class NamespaceServiceTest extends BrokerTestBase {
         assertFalse(getResult.isPresent());
     }
 
-    @DataProvider(name = "topicDomain")
-    public Object[] topicDomain() {
-        return new Object[]{
-                TopicDomain.persistent.value(),
-                TopicDomain.non_persistent.value()
-        };
-    }
-
     @Test(dataProvider = "topicDomain")
     public void testCheckTopicExists(String topicDomain) throws Exception {
         String topic = topicDomain + "://prop/ns-abc/" + UUID.randomUUID();

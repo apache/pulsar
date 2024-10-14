@@ -1318,7 +1318,11 @@ public class BrokerService implements Closeable {
     private CompletableFuture<Optional<Topic>> createNonPersistentTopic(String topic) {
         CompletableFuture<Optional<Topic>> topicFuture = new CompletableFuture<>();
         topicFuture.exceptionally(t -> {
-            pulsarStats.recordTopicLoadFailed();
+            // If the broker is not the owner of the topic, the client will redirect to another broker.
+            // In this case, we should not record as a topic load failure.
+            if (!(FutureUtil.unwrapCompletionException(t) instanceof ServiceUnitNotReadyException)) {
+                getPulsarStats().recordTopicLoadFailed();
+            }
             pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
             return null;
         });
@@ -1612,8 +1616,12 @@ public class BrokerService implements Closeable {
                 () -> FAILED_TO_LOAD_TOPIC_TIMEOUT_EXCEPTION);
 
         topicFuture.exceptionally(t -> {
-            pulsarStats.recordTopicLoadFailed();
-            return null;
+            // If the broker is not the owner of the topic, the client will redirect to another broker.
+            // In this case, we should not record as a topic load failure.
+            if (!(FutureUtil.unwrapCompletionException(t) instanceof ServiceUnitNotReadyException)) {
+                getPulsarStats().recordTopicLoadFailed();
+            }
+            return Optional.empty();
         });
 
         checkTopicNsOwnership(topic)

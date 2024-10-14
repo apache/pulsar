@@ -714,6 +714,14 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         };
     }
 
+    @DataProvider(name = "TopicDomain")
+    public Object[][] topicDomain() {
+        return new Object[][] {
+                {"persistent"},
+                {"non-persistent"}
+        };
+    }
+
     protected ServiceProducer getServiceProducer(ProducerImpl clientProducer, String topicName) {
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();

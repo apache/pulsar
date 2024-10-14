@@ -2159,4 +2159,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return (TopicPoliciesService) Reflections.createInstance(className,
                 Thread.currentThread().getContextClassLoader());
     }
+
+    @VisibleForTesting
+    public void setBrokerService(BrokerService brokerService) {
+        this.brokerService = brokerService;
+    }
 }

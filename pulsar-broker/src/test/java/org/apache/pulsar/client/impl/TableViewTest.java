@@ -98,11 +98,6 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @DataProvider(name = "topicDomain")
-    public static Object[] topicDomain() {
-       return new Object[]{ TopicDomain.persistent.value(), TopicDomain.non_persistent.value()};
-    }
-
     private Set<String> publishMessages(String topic, int count, boolean enableBatch) throws Exception {
         return publishMessages(topic, 0, count, enableBatch, false);
     }

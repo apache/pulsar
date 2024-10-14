@@ -128,11 +128,6 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @DataProvider(name = "topicDomain")
-    public static Object[] topicDomain() {
-        return new Object[] { "persistent://", "non-persistent://" };
-    }
-
     @Test
     public void testGetSchemaWhenCreateAutoProduceBytesProducer() throws Exception{
         final String tenant = PUBLIC_TENANT;

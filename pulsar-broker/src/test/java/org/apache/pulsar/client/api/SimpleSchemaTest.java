@@ -104,11 +104,6 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         };
     }
 
-    @DataProvider(name = "topicDomain")
-    public static Object[] topicDomain() {
-        return new Object[] { "persistent://", "non-persistent://" };
-    }
-
     private final boolean schemaValidationEnforced;
 
     @Factory(dataProvider = "schemaValidationModes")
