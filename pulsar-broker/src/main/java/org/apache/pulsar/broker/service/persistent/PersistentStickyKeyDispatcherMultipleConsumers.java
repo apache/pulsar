@@ -157,6 +157,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                         drainingHashesTracker.endBatch();
                     }
                 });
+                consumer.setDrainingHashesConsumerStatsUpdater(drainingHashesTracker::updateConsumerStats);
                 registerDrainingHashes(consumer, impactedConsumers.orElseThrow());
             }
         }).exceptionally(ex -> {
@@ -193,6 +194,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             // consumer to another. This will handle the case where a hash gets switched from an existing
             // consumer to another existing consumer during removal.
             registerDrainingHashes(consumer, impactedConsumers.orElseThrow());
+            drainingHashesTracker.consumerRemoved(consumer);
         }
     }
 
@@ -349,8 +351,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             return false;
         }
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Adding {}:{} to pending acks for consumer {} with sticky key hash {}",
-                    getName(), ledgerId, entryId, consumer, stickyKeyHash);
+            log.debug("[{}] Adding {}:{} to pending acks for consumer id:{} name:{} with sticky key hash {}",
+                    getName(), ledgerId, entryId, consumer.consumerId(), consumer.consumerName(), stickyKeyHash);
         }
         // allow adding the message to pending acks and sending the message to the consumer
         return true;

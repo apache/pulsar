@@ -16,4 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.hdfs2.sink.seq;
+package org.apache.pulsar.client.admin;
+
+import lombok.Builder;
+import lombok.Data;
+
+@Data
+@Builder
+public class RevokeTopicPermissionOptions {
+
+    private final String topic;
+
+    private final String role;
+
+}

@@ -16,4 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.hdfs2;
+package org.apache.pulsar.broker.delayed.bucket;
+
+import org.apache.pulsar.broker.service.BrokerServiceException;
+
+public class BucketNotExistException extends BrokerServiceException.PersistenceException {
+
+        public BucketNotExistException(Throwable t) {
+            super(t);
+        }
+
+        public BucketNotExistException(String msg) {
+            super(msg);
+        }
+}

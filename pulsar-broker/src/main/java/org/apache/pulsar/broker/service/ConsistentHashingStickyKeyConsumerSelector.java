@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -27,19 +28,80 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Range;
 
 /**
  * This is a consumer selector using consistent hashing to evenly split
  * the number of keys assigned to each consumer.
  */
+@Slf4j
 public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyConsumerSelector {
     // use NUL character as field separator for hash key calculation
     private static final String KEY_SEPARATOR = "\0";
     private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
 
+    /**
+     * Represents a hash ring point entry.
+     */
+    @ToString
+    private static class HashRingPointEntry {
+        Consumer selectedConsumer;
+        private List<Consumer> collidingConsumers;
+
+        /**
+         * Create a hash ring entry with a selected consumer.
+         * @param selectedConsumer the selected consumer
+         */
+        HashRingPointEntry(Consumer selectedConsumer) {
+            this.selectedConsumer = selectedConsumer;
+            this.collidingConsumers = null;
+        }
+
+        /**
+         * Add a colliding consumer to the hash ring entry. Colliding consumers are consumers that have the same hash
+         * ring point. A colliding consumer is selected when the selected consumer is removed from the hash ring.
+         * @param consumer the consumer to add
+         */
+        void addCollidingConsumer(Consumer consumer) {
+            if (collidingConsumers == null) {
+                collidingConsumers = new LinkedList<>();
+            }
+            collidingConsumers.add(consumer);
+        }
+
+        /**
+         * Remove a consumer from the hash ring entry. When the selected consumer is removed, the first colliding
+         * consumer is selected as the new selected consumer and removed from the colliding consumers list.
+         * @param consumer the consumer to remove
+         * @return true if the entry is empty and should be removed from the hash ring
+         */
+        boolean removeConsumer(Consumer consumer) {
+            if (selectedConsumer == consumer) {
+                if (collidingConsumers != null) {
+                    selectedConsumer = collidingConsumers.remove(0);
+                    if (collidingConsumers.isEmpty()) {
+                        collidingConsumers = null;
+                    }
+                } else {
+                    selectedConsumer = null;
+                }
+            } else if (collidingConsumers != null) {
+                // remove using identity comparison
+                collidingConsumers.removeIf(c -> c == consumer);
+                if (collidingConsumers.isEmpty()) {
+                    // remove the list instance when there are no more colliding consumers
+                    collidingConsumers = null;
+                }
+            }
+            // return true when the entry is empty and should be removed from the hash ring
+            return selectedConsumer == null;
+        }
+    }
+
     // Consistent-Hash ring
-    private final NavigableMap<Integer, ConsumerIdentityWrapper> hashRing;
+    private final NavigableMap<Integer, HashRingPointEntry> hashRing;
     // Tracks the used consumer name indexes for each consumer name
     private final ConsumerNameIndexTracker consumerNameIndexTracker = new ConsumerNameIndexTracker();
 
@@ -76,17 +138,36 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             ConsumerIdentityWrapper consumerIdentityWrapper = new ConsumerIdentityWrapper(consumer);
             // Insert multiple points on the hash ring for every consumer
             // The points are deterministically added based on the hash of the consumer name
+            int hashPointsAdded = 0;
+            int hashPointCollisions = 0;
             for (int i = 0; i < numberOfPoints; i++) {
                 int consumerNameIndex =
                         consumerNameIndexTracker.increaseConsumerRefCountAndReturnIndex(consumerIdentityWrapper);
                 int hash = calculateHashForConsumerAndIndex(consumer, consumerNameIndex, i);
-                // When there's a collision, the new consumer will replace the old one.
-                // This is a rare case, and it is acceptable to replace the old consumer since there
-                // are multiple points for each consumer. This won't affect the overall distribution significantly.
-                ConsumerIdentityWrapper removed = hashRing.put(hash, consumerIdentityWrapper);
-                if (removed != null) {
-                    consumerNameIndexTracker.decreaseConsumerRefCount(removed);
+                // When there's a collision, the entry won't be selected in the hash ring.
+                // This isn't a problem with the consumerNameIndexTracker solution since the collisions won't align
+                // for all hash ring points when using the same consumer name. This won't affect the overall
+                // distribution significantly when the number of hash ring points is sufficiently large (>100).
+                HashRingPointEntry existing = hashRing.putIfAbsent(hash, new HashRingPointEntry(consumer));
+                if (existing != null) {
+                    hashPointCollisions++;
+                    // Add the consumer to the colliding consumers list. The first colliding consumer is selected
+                    // when the selected consumer is removed from the hash ring.
+                    existing.addCollidingConsumer(consumer);
+                } else {
+                    hashPointsAdded++;
                 }
+            }
+            if (hashPointsAdded == 0) {
+                log.error("Failed to add consumer '{}' to the hash ring. There were {} collisions. Consider increasing "
+                                + "the number of points ({}) per consumer by setting "
+                                + "subscriptionKeySharedConsistentHashingReplicaPoints={}",
+                        consumer, hashPointCollisions, numberOfPoints,
+                        Math.max((int) (numberOfPoints * 1.5d), numberOfPoints + 1));
+            }
+            if (log.isDebugEnabled()) {
+                log.debug("Added consumer '{}' with {} points, {} collisions", consumer, hashPointsAdded,
+                        hashPointCollisions);
             }
             if (!addOrRemoveReturnsImpactedConsumersResult) {
                 return CompletableFuture.completedFuture(Optional.empty());
@@ -127,9 +208,15 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
                 // Remove all the points that were added for this consumer
                 for (int i = 0; i < numberOfPoints; i++) {
                     int hash = calculateHashForConsumerAndIndex(consumer, consumerNameIndex, i);
-                    if (hashRing.remove(hash, consumerIdentityWrapper)) {
-                        consumerNameIndexTracker.decreaseConsumerRefCount(consumerIdentityWrapper);
-                    }
+                    hashRing.compute(hash, (k, hashRingPointEntry) -> {
+                        assert hashRingPointEntry != null : "hash ring entry wasn't found for hash " + hash;
+                        if (hashRingPointEntry.removeConsumer(consumer)) {
+                            // Remove the entry from the hash ring when there are no more consumers
+                            return null;
+                        }
+                        return hashRingPointEntry;
+                    });
+                    consumerNameIndexTracker.decreaseConsumerRefCount(consumerIdentityWrapper);
                 }
             }
             if (!addOrRemoveReturnsImpactedConsumersResult) {
@@ -152,12 +239,12 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             if (hashRing.isEmpty()) {
                 return null;
             }
-            Map.Entry<Integer, ConsumerIdentityWrapper> ceilingEntry = hashRing.ceilingEntry(hash);
+            Map.Entry<Integer, HashRingPointEntry> ceilingEntry = hashRing.ceilingEntry(hash);
             if (ceilingEntry != null) {
-                return ceilingEntry.getValue().consumer;
+                return ceilingEntry.getValue().selectedConsumer;
             } else {
                 // Handle wrap-around in the hash ring, return the first consumer
-                return hashRing.firstEntry().getValue().consumer;
+                return hashRing.firstEntry().getValue().selectedConsumer;
             }
         } finally {
             rwLock.readLock().unlock();
@@ -189,8 +276,8 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
         int lastKey = -1;
         Consumer previousConsumer = null;
         Range previousRange = null;
-        for (Map.Entry<Integer, ConsumerIdentityWrapper> entry: hashRing.entrySet()) {
-            Consumer consumer = entry.getValue().consumer;
+        for (Map.Entry<Integer, HashRingPointEntry> entry: hashRing.entrySet()) {
+            Consumer consumer = entry.getValue().selectedConsumer;
             Range range;
             if (consumer == previousConsumer) {
                 // join ranges
@@ -206,7 +293,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
             previousRange = range;
         }
         // Handle wrap-around
-        Consumer firstConsumer = hashRing.firstEntry().getValue().consumer;
+        Consumer firstConsumer = hashRing.firstEntry().getValue().selectedConsumer;
         if (lastKey != getKeyHashRange().getEnd()) {
             Range range;
             if (firstConsumer == previousConsumer && previousRange.getEnd() == lastKey) {

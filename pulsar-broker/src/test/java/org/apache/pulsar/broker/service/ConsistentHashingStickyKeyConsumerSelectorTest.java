@@ -31,6 +31,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -506,6 +507,65 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         int allowedremovedRanges = (int) (hashRangeSize * (allowedremovedRangesPercentage / 100.0d));
         assertThat(removedRangesSize).describedAs("Allow up to %d%% of total hash range size to be impacted",
                 allowedremovedRangesPercentage).isLessThan(allowedremovedRanges);
+    }
+
+    @Test
+    public void testShouldNotSwapExistingConsumers() {
+        final ConsistentHashingStickyKeyConsumerSelector selector =
+                new ConsistentHashingStickyKeyConsumerSelector(200, true);
+        final String consumerName = "consumer";
+        final int consumerCount = 100;
+        List<Consumer> consumers = new ArrayList<>();
+        for (int i = 0; i < consumerCount; i++) {
+            final Consumer consumer = createMockConsumer(consumerName + i, "index " + i, i);
+            consumers.add(consumer);
+            selector.addConsumer(consumer);
+        }
+        ConsumerHashAssignmentsSnapshot assignmentsBefore = selector.getConsumerHashAssignmentsSnapshot();
+        for (int i = 0; i < consumerCount; i++) {
+            Consumer consumer = consumers.get(i);
+
+            // remove consumer
+            selector.removeConsumer(consumer);
+
+            ConsumerHashAssignmentsSnapshot assignmentsAfter = selector.getConsumerHashAssignmentsSnapshot();
+            assertThat(assignmentsBefore.resolveImpactedConsumers(assignmentsAfter).getRemovedHashRanges())
+                    .describedAs(
+                            "when a consumer is removed, the removed hash ranges should only be from "
+                                    + "the removed consumer")
+                    .containsOnlyKeys(consumer);
+            assignmentsBefore = assignmentsAfter;
+
+            // add consumer back
+            selector.addConsumer(consumer);
+
+            assignmentsAfter = selector.getConsumerHashAssignmentsSnapshot();
+            List<Range> addedConsumerRanges = assignmentsAfter.getRangesByConsumer().get(consumer);
+
+            Map<Consumer, RemovedHashRanges> removedHashRanges =
+                    assignmentsBefore.resolveImpactedConsumers(assignmentsAfter).getRemovedHashRanges();
+            ConsumerHashAssignmentsSnapshot finalAssignmentsBefore = assignmentsBefore;
+            assertThat(removedHashRanges).allSatisfy((c, removedHashRange) -> {
+                assertThat(removedHashRange
+                        .isFullyContainedInRanges(finalAssignmentsBefore.getRangesByConsumer().get(c)))
+                        .isTrue();
+                assertThat(removedHashRange
+                        .isFullyContainedInRanges(addedConsumerRanges))
+                        .isTrue();
+            }).describedAs("when a consumer is added back, all removed hash ranges should be ones "
+                    + "that are moved from existing consumers to the new consumer.");
+
+            List<Range> allRemovedRanges =
+                    ConsumerHashAssignmentsSnapshot.mergeOverlappingRanges(
+                            removedHashRanges.entrySet().stream().map(Map.Entry::getValue)
+                                    .map(RemovedHashRanges::asRanges)
+                                    .flatMap(List::stream).collect(Collectors.toCollection(TreeSet::new)));
+            assertThat(allRemovedRanges)
+                    .describedAs("all removed ranges should be the same as the ranges of the added consumer")
+                    .containsExactlyElementsOf(addedConsumerRanges);
+
+            assignmentsBefore = assignmentsAfter;
+        }
     }
 
     @Test

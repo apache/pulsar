@@ -186,7 +186,7 @@ public class ClientGetSchemaTest extends ProducerConsumerBase {
         final String topicOne = "test-deleted-schema-ledger";
         final String fqtnOne = TopicName.get(TopicDomain.persistent.value(), tenant, namespace, topicOne).toString();
 
-        //pulsar.getConfig().setManagedLedgerForceRecovery(true);
+        pulsar.getConfig().setSchemaLedgerForceRecovery(true);
         admin.namespaces().createNamespace(tenant + "/" + namespace, Sets.newHashSet("test"));
 
         // (1) create topic with schema

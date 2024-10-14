@@ -38,7 +38,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "flaky")
+@Test(groups = "broker")
 public class ExtensibleLoadManagerCloseTest {
 
     private static final String clusterName = "test";
@@ -88,14 +88,18 @@ public class ExtensibleLoadManagerCloseTest {
         config.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
         config.setLoadBalancerDebugModeEnabled(true);
         config.setBrokerShutdownTimeoutMs(100);
+
+        // Reduce these timeout configs to avoid failed tests being blocked too long
+        config.setMetadataStoreOperationTimeoutSeconds(5);
+        config.setNamespaceBundleUnloadingTimeoutMs(5000);
         return config;
     }
 
 
-    @Test
+    @Test(invocationCount = 10)
     public void testCloseAfterLoadingBundles() throws Exception {
         setupBrokers(3);
-        final var topic = "test";
+        final var topic = "test-" + System.currentTimeMillis();
         final var admin = brokers.get(0).getAdminClient();
         admin.topics().createPartitionedTopic(topic, 20);
         admin.lookups().lookupPartitionedTopic(topic);

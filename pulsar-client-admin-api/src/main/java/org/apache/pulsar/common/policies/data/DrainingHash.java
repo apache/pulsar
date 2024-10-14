@@ -16,11 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.hdfs2;
+package org.apache.pulsar.common.policies.data;
 
 /**
- * An enumeration of compression codecs available for HDFS.
+ * Contains information about a draining hash in a Key_Shared subscription.
+ * @see ConsumerStats
  */
-public enum Compression {
-    BZIP2, DEFLATE, GZIP, LZ4, SNAPPY, ZSTANDARD
+public interface DrainingHash {
+    /**
+     * Get the sticky key hash value of the draining hash.
+     * @return the sticky hash value
+     */
+    int getHash();
+    /**
+     * Get number of unacknowledged messages for the draining hash.
+     * @return number of unacknowledged messages
+     */
+    int getUnackMsgs();
+    /**
+     * Get the number of times the hash has blocked an attempted delivery of a message.
+     * @return number of times the hash has blocked an attempted delivery of a message
+     */
+    int getBlockedAttempts();
 }

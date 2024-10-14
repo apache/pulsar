@@ -88,6 +88,38 @@ public class RangeTest {
     }
 
     @Test
+    public void testContainsRange() {
+        Range range = Range.of(5, 10);
+
+        // Test ranges that are fully contained
+        Assert.assertTrue(range.contains(Range.of(6, 8)));
+
+        Assert.assertTrue(range.contains(Range.of(5, 10)));
+
+        Assert.assertTrue(range.contains(Range.of(5, 5)));
+
+        Assert.assertTrue(range.contains(Range.of(5, 8)));
+
+        Assert.assertTrue(range.contains(Range.of(10, 10)));
+
+        Assert.assertTrue(range.contains(Range.of(8, 10)));
+
+        // Test ranges that are not fully contained
+        Assert.assertFalse(range.contains(Range.of(1, 5)));
+
+        Assert.assertFalse(range.contains(Range.of(1, 4)));
+
+        Assert.assertFalse(range.contains(Range.of(1, 10)));
+
+        Assert.assertFalse(range.contains(Range.of(1, 11)));
+
+        Assert.assertFalse(range.contains(Range.of(10, 12)));
+
+        Assert.assertFalse(range.contains(Range.of(11, 20)));
+    }
+
+
+    @Test
     public void testSize() {
         Range range = Range.of(0, 0);
         Assert.assertEquals(1, range.size());

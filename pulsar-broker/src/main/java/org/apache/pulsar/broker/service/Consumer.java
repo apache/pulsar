@@ -174,6 +174,10 @@ public class Consumer {
     @Setter
     private volatile PendingAcksMap.PendingAcksRemoveHandler pendingAcksRemoveHandler;
 
+    @Getter
+    @Setter
+    private volatile java.util.function.BiConsumer<Consumer, ConsumerStatsImpl> drainingHashesConsumerStatsUpdater;
+
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
                     boolean isDurable, TransportCnx cnx, String appId,
@@ -975,6 +979,9 @@ public class Consumer {
         stats.avgMessagesPerEntry = getAvgMessagesPerEntry();
         if (readPositionWhenJoining != null) {
             stats.readPositionWhenJoining = readPositionWhenJoining.toString();
+        }
+        if (drainingHashesConsumerStatsUpdater != null) {
+            drainingHashesConsumerStatsUpdater.accept(this, stats);
         }
         return stats;
     }
