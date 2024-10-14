@@ -279,9 +279,10 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     }
 
     private synchronized void internalRedeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
-        // redeliver epoch is bigger than current consumer epoch, so don't need to handle this redeliver request
+        // broker side epoch is smaller than consumer epoch, so don't need to handle this redeliver request
         if (consumerEpoch < consumer.getConsumerEpoch()) {
-            log.warn("[{}-{}] Update epoch, old epoch [{}] bigger than new epoch [{}]",
+            log.warn("[{}-{}] Ignoring redeliverUnacknowledgedMessages since broker epoch [{}] is smaller than "
+                            + "consumer epoch [{}]",
                     name, consumer, consumer.getConsumerEpoch(), consumerEpoch);
             return;
         }
