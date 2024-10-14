@@ -183,6 +183,15 @@ public class PulsarClientImpl implements PulsarClient {
         this(conf, eventLoopGroup, cnxPool, timer, null, null, null, null);
     }
 
+    public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool connectionPool,
+                            Timer timer, ExecutorProvider externalExecutorProvider,
+                            ExecutorProvider internalExecutorProvider,
+                            ScheduledExecutorProvider scheduledExecutorProvider)
+            throws PulsarClientException {
+        this(conf, eventLoopGroup, connectionPool, timer, externalExecutorProvider, internalExecutorProvider,
+                scheduledExecutorProvider, null);
+    }
+
     @Builder(builderClassName = "PulsarClientImplBuilder")
     private PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool connectionPool,
                              Timer timer, ExecutorProvider externalExecutorProvider,

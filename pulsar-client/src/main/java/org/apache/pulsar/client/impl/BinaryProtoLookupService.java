@@ -129,11 +129,11 @@ public class BinaryProtoLookupService implements LookupService {
         histoListTopics = histo.withAttributes(Attributes.builder().put("pulsar.lookup.type", "list-topics").build());
 
         if (lookupPinnedExecutor == null) {
-            this.createdLookupPinnedExecutor = false;
+            this.createdLookupPinnedExecutor = true;
             this.lookupPinnedExecutor =
                     Executors.newSingleThreadExecutor(new DefaultThreadFactory("pulsar-client-binary-proto-lookup"));
         } else {
-            this.createdLookupPinnedExecutor = true;
+            this.createdLookupPinnedExecutor = false;
             this.lookupPinnedExecutor = lookupPinnedExecutor;
         }
     }
@@ -461,7 +461,7 @@ public class BinaryProtoLookupService implements LookupService {
 
     @Override
     public void close() throws Exception {
-        if (!createdLookupPinnedExecutor && lookupPinnedExecutor != null && !lookupPinnedExecutor.isShutdown()) {
+        if (createdLookupPinnedExecutor && lookupPinnedExecutor != null && !lookupPinnedExecutor.isShutdown()) {
             lookupPinnedExecutor.shutdown();
         }
     }
