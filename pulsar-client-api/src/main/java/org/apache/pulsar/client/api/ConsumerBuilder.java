@@ -201,12 +201,13 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * Enables or disables the acknowledgment receipt feature.
      *
      * <p>When this feature is enabled, the consumer ensures that acknowledgments are processed by the broker by
-     * waiting for a receipt from the broker. It is recommended to use the asynchronous
-     * {@link Consumer#acknowledgeAsync(Message)} method for acknowledgment when this feature is enabled. This is
-     * because using the synchronous {@link Consumer#acknowledge(Message)} method with acknowledgment receipt can cause
-     * performance issues due to the round trip to the server, which prevents pipelining (having multiple
-     * messages in-flight). With the asynchronous method, the consumer can continue consuming other messages while
-     * waiting for the acknowledgment receipts.
+     * waiting for a receipt from the broker. Even when the broker returns a receipt, it doesn't guarantee that the
+     * message won't be redelivered later due to certain implementation details.
+     * It is recommended to use the asynchronous {@link Consumer#acknowledgeAsync(Message)} method for acknowledgment
+     * when this feature is enabled. This is because using the synchronous {@link Consumer#acknowledge(Message)} method
+     * with acknowledgment receipt can cause performance issues due to the round trip to the server, which prevents
+     * pipelining (having multiple messages in-flight). With the asynchronous method, the consumer can continue
+     * consuming other messages while waiting for the acknowledgment receipts.
      *
      * @param isAckReceiptEnabled {@code true} to enable acknowledgment receipt, {@code false} to disable it
      * @return the consumer builder instance
