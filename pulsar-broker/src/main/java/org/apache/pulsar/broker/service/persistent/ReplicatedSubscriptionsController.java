@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import io.netty.buffer.ByteBuf;
+import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import java.io.IOException;
 import java.time.Clock;
@@ -79,6 +80,14 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
             .build("pulsar_replicated_subscriptions_pending_snapshots",
                     "Counter of currently pending snapshots")
             .register();
+
+    // timeouts use SnapshotOperationResult.TIMEOUT.attributes on the same metric
+    @PulsarDeprecatedMetric(
+            newMetricName = OpenTelemetryReplicatedSubscriptionStats.SNAPSHOT_OPERATION_COUNT_METRIC_NAME)
+    @Deprecated
+    private static final Counter timedoutSnapshotsMetric = Counter
+            .build().name("pulsar_replicated_subscriptions_timedout_snapshots")
+            .help("Counter of timed out snapshots").register();
 
     private final OpenTelemetryReplicatedSubscriptionStats stats;
 
@@ -263,6 +272,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                 }
 
                 pendingSnapshotsMetric.dec();
+                timedoutSnapshotsMetric.inc();
                 var latencyMillis = entry.getValue().getDurationMillis();
                 stats.recordSnapshotTimedOut(latencyMillis);
                 it.remove();

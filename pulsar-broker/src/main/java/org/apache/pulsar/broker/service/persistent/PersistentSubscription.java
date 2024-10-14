@@ -1253,11 +1253,23 @@ public class PersistentSubscription extends AbstractSubscription {
                 subStats.lastConsumedTimestamp =
                         Math.max(subStats.lastConsumedTimestamp, consumerStats.lastConsumedTimestamp);
                 subStats.lastAckedTimestamp = Math.max(subStats.lastAckedTimestamp, consumerStats.lastAckedTimestamp);
-                if (consumerKeyHashRanges != null && consumerKeyHashRanges.containsKey(consumer)) {
-                    consumerStats.keyHashRanges = consumerKeyHashRanges.get(consumer).stream()
-                            .map(Range::toString)
-                            .collect(Collectors.toList());
+                List<Range> keyRanges = consumerKeyHashRanges != null ? consumerKeyHashRanges.get(consumer) : null;
+                if (keyRanges != null) {
+                    if (((StickyKeyDispatcher) dispatcher).isClassic()) {
+                        // Use string representation for classic mode
+                        consumerStats.keyHashRanges = keyRanges.stream()
+                                .map(Range::toString)
+                                .collect(Collectors.toList());
+                    } else {
+                        // Use array representation for PIP-379 stats
+                        consumerStats.keyHashRangeArrays = keyRanges.stream()
+                                .map(range -> new int[]{range.getStart(), range.getEnd()})
+                                .collect(Collectors.toList());
+                    }
                 }
+                subStats.drainingHashesCount += consumerStats.drainingHashesCount;
+                subStats.drainingHashesClearedTotal += consumerStats.drainingHashesClearedTotal;
+                subStats.drainingHashesUnackedMessages += consumerStats.drainingHashesUnackedMessages;
             });
 
             subStats.filterProcessedMsgCount = dispatcher.getFilterProcessedMsgCount();

@@ -475,11 +475,11 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
     }
 
     @Test
-    public void testShouldContainMinimalMappingChangesWhenConsumerLeavesAndRejoins() {
+    public void testShouldNotContainMappingChangesWhenConsumersLeaveAndRejoinInSameOrder() {
         final ConsistentHashingStickyKeyConsumerSelector selector =
-                new ConsistentHashingStickyKeyConsumerSelector(100, true);
+                new ConsistentHashingStickyKeyConsumerSelector(200, true);
         final String consumerName = "consumer";
-        final int numOfInitialConsumers = 10;
+        final int numOfInitialConsumers = 200;
         List<Consumer> consumers = new ArrayList<>();
         for (int i = 0; i < numOfInitialConsumers; i++) {
             final Consumer consumer = createMockConsumer(consumerName, "index " + i, i);
@@ -498,14 +498,8 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         selector.addConsumer(consumers.get(numOfInitialConsumers / 2));
 
         ConsumerHashAssignmentsSnapshot assignmentsAfter = selector.getConsumerHashAssignmentsSnapshot();
-        int removedRangesSize = assignmentsBefore.diffRanges(assignmentsAfter).keySet().stream()
-                .mapToInt(Range::size)
-                .sum();
-        double allowedremovedRangesPercentage = 1; // 1%
-        int hashRangeSize = selector.getKeyHashRange().size();
-        int allowedremovedRanges = (int) (hashRangeSize * (allowedremovedRangesPercentage / 100.0d));
-        assertThat(removedRangesSize).describedAs("Allow up to %d%% of total hash range size to be impacted",
-                allowedremovedRangesPercentage).isLessThan(allowedremovedRanges);
+
+        assertThat(assignmentsBefore.resolveImpactedConsumers(assignmentsAfter).getRemovedHashRanges()).isEmpty();
     }
 
     @Test

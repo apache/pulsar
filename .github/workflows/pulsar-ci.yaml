@@ -894,7 +894,7 @@ jobs:
 
       - name: Run Trivy container scan
         id: trivy_scan
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.26.0
         if: ${{ github.repository == 'apache/pulsar' && github.event_name != 'pull_request' }}
         continue-on-error: true
         with:
@@ -1498,7 +1498,7 @@ jobs:
       - name: trigger dependency check
         run: |
           mvn -B -ntp verify -PskipDocker,skip-all,owasp-dependency-check -Dcheckstyle.skip=true -DskipTests \
-            -pl '!distribution/server,!distribution/io,!distribution/offloaders,!tiered-storage/file-system,!pulsar-io/flume,!pulsar-io/hbase,!pulsar-io/hdfs2,!pulsar-io/hdfs3,!pulsar-io/docs,!pulsar-io/jdbc/openmldb'
+            -pl '!distribution/server,!distribution/io,!distribution/offloaders,!tiered-storage/file-system,!pulsar-io/flume,!pulsar-io/hbase,!pulsar-io/hdfs3,!pulsar-io/docs,!pulsar-io/jdbc/openmldb'
 
       - name: Upload report
         uses: actions/upload-artifact@v4
