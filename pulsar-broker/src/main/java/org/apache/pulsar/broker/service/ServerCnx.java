@@ -2399,8 +2399,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     filterTopics = true;
                                     filteredTopics = TopicList.filterTopics(filteredTopics, topicsPattern.get());
                                 } else {
-                                    log.info("[{}] Subscription pattern provided was longer than maximum {}.",
-                                            remoteAddress, maxSubscriptionPatternLength);
+                                    log.info("[{}] Subscription pattern provided [{}] was longer than maximum {}.",
+                                            remoteAddress, topicsPattern.get(), maxSubscriptionPatternLength);
                                 }
                             }
                             String hash = TopicList.calculateHash(filteredTopics);
