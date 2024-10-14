@@ -936,10 +936,11 @@ public class Commands {
     }
 
     public static ByteBuf newLookup(String topic, boolean authoritative, long requestId) {
-        return newLookup(topic, null, authoritative, requestId);
+        return newLookup(topic, null, authoritative, requestId, null);
     }
 
-    public static ByteBuf newLookup(String topic, String listenerName, boolean authoritative, long requestId) {
+    public static ByteBuf newLookup(String topic, String listenerName, boolean authoritative, long requestId,
+                                    Map<String, String> properties) {
         BaseCommand cmd = localCmd(Type.LOOKUP);
         CommandLookupTopic lookup = cmd.setLookupTopic()
                 .setTopic(topic)
@@ -947,6 +948,9 @@ public class Commands {
                 .setAuthoritative(authoritative);
         if (StringUtils.isNotBlank(listenerName)) {
             lookup.setAdvertisedListenerName(listenerName);
+        }
+        if (properties != null) {
+            properties.forEach((key, value) -> lookup.addProperty().setKey(key).setValue(value));
         }
         return serializeWithSize(cmd);
     }
@@ -1966,24 +1970,37 @@ public class Commands {
         return metadata;
     }
 
-    private static final byte[] NONE_KEY = "NONE_KEY".getBytes(StandardCharsets.UTF_8);
+    public static final byte[] NONE_KEY = "NONE_KEY".getBytes(StandardCharsets.UTF_8);
+
     public static byte[] peekStickyKey(ByteBuf metadataAndPayload, String topic, String subscription) {
         try {
             int readerIdx = metadataAndPayload.readerIndex();
-            MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
+            MessageMetadata metadata = parseMessageMetadata(metadataAndPayload);
             metadataAndPayload.readerIndex(readerIdx);
-            if (metadata.hasOrderingKey()) {
-                return metadata.getOrderingKey();
-            } else if (metadata.hasPartitionKey()) {
-                if (metadata.isPartitionKeyB64Encoded()) {
-                    return Base64.getDecoder().decode(metadata.getPartitionKey());
-                }
-                return metadata.getPartitionKey().getBytes(StandardCharsets.UTF_8);
-            }
+            return resolveStickyKey(metadata);
         } catch (Throwable t) {
             log.error("[{}] [{}] Failed to peek sticky key from the message metadata", topic, subscription, t);
+            return NONE_KEY;
         }
-        return Commands.NONE_KEY;
+    }
+
+    public static byte[] resolveStickyKey(MessageMetadata metadata) {
+        byte[] stickyKey;
+        if (metadata.hasOrderingKey()) {
+            stickyKey = metadata.getOrderingKey();
+        } else if (metadata.hasPartitionKey()) {
+            if (metadata.isPartitionKeyB64Encoded()) {
+                stickyKey = Base64.getDecoder().decode(metadata.getPartitionKey());
+            } else {
+                stickyKey = metadata.getPartitionKey().getBytes(StandardCharsets.UTF_8);
+            }
+        } else if (metadata.hasProducerName() && metadata.hasSequenceId()) {
+            String fallbackKey = metadata.getProducerName() + "-" + metadata.getSequenceId();
+            stickyKey = fallbackKey.getBytes(StandardCharsets.UTF_8);
+        } else {
+            stickyKey = NONE_KEY;
+        }
+        return stickyKey;
     }
 
     public static int getCurrentProtocolVersion() {

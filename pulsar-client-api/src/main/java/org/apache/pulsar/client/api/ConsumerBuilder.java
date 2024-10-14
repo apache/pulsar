@@ -198,17 +198,21 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> ackTimeout(long ackTimeout, TimeUnit timeUnit);
 
     /**
-     * Acknowledgement returns receipt, but the message is not re-sent after getting receipt.
+     * Enables or disables the acknowledgment receipt feature.
      *
-     * Configure the acknowledgement timeout mechanism to redeliver the message if it is not acknowledged after
-     * ackTimeout, or to execute a timer task to check the acknowledgement timeout messages during every
-     * ackTimeoutTickTime period.
+     * <p>When this feature is enabled, the consumer ensures that acknowledgments are processed by the broker by
+     * waiting for a receipt from the broker. Even when the broker returns a receipt, it doesn't guarantee that the
+     * message won't be redelivered later due to certain implementation details.
+     * It is recommended to use the asynchronous {@link Consumer#acknowledgeAsync(Message)} method for acknowledgment
+     * when this feature is enabled. This is because using the synchronous {@link Consumer#acknowledge(Message)} method
+     * with acknowledgment receipt can cause performance issues due to the round trip to the server, which prevents
+     * pipelining (having multiple messages in-flight). With the asynchronous method, the consumer can continue
+     * consuming other messages while waiting for the acknowledgment receipts.
      *
-     * @param isAckReceiptEnabled {@link Boolean} enables acknowledgement for receipt
+     * @param isAckReceiptEnabled {@code true} to enable acknowledgment receipt, {@code false} to disable it
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> isAckReceiptEnabled(boolean isAckReceiptEnabled);
-
     /**
      * Define the granularity of the ack-timeout redelivery.
      *
@@ -282,6 +286,21 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> messageListener(MessageListener<T> messageListener);
+
+    /**
+     * Set the {@link MessageListenerExecutor} to be used for message listeners of <b>current consumer</b>.
+     * <i>(default: use executor from PulsarClient,
+     * {@link org.apache.pulsar.client.impl.PulsarClientImpl#externalExecutorProvider})</i>.
+     *
+     * <p>The listener thread pool is exclusively owned by current consumer
+     * that are using a "listener" model to get messages. For a given internal consumer,
+     * the listener will always be invoked from the same thread, to ensure ordering.
+     *
+     * <p> The caller need to shut down the thread pool after closing the consumer to avoid leaks.
+     * @param messageListenerExecutor the executor of the consumer message listener
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> messageListenerExecutor(MessageListenerExecutor messageListenerExecutor);
 
     /**
      * Sets a {@link CryptoKeyReader}.

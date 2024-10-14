@@ -21,6 +21,7 @@ package org.apache.pulsar.opentelemetry;
 import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.exporter.prometheus.PrometheusHttpServer;
 import io.opentelemetry.instrumentation.runtimemetrics.java17.RuntimeMetrics;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
@@ -96,6 +97,20 @@ public class OpenTelemetryService implements Closeable {
                     }
                     return resource.merge(resourceBuilder.build());
                 });
+
+        sdkBuilder.addMetricReaderCustomizer((metricReader, configProperties) -> {
+            if (metricReader instanceof PrometheusHttpServer prometheusHttpServer) {
+                // At this point, the server is already started. We need to close it and create a new one with the
+                // correct resource attributes filter.
+                prometheusHttpServer.close();
+
+                // Allow all resource attributes to be exposed.
+                return prometheusHttpServer.toBuilder()
+                        .setAllowedResourceAttributesFilter(s -> true)
+                        .build();
+            }
+            return metricReader;
+        });
 
         if (builderCustomizer != null) {
             builderCustomizer.accept(sdkBuilder);

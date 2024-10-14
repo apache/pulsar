@@ -79,7 +79,7 @@ public class EntryCacheDisabled implements EntryCache {
     @Override
     public void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, boolean isSlowestReader,
                                final AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
-        lh.readAsync(firstEntry, lastEntry).thenAcceptAsync(
+        ReadEntryUtils.readAsync(ml, lh, firstEntry, lastEntry).thenAcceptAsync(
                 ledgerEntries -> {
                     List<Entry> entries = new ArrayList<>();
                     long totalSize = 0;
@@ -107,7 +107,7 @@ public class EntryCacheDisabled implements EntryCache {
     @Override
     public void asyncReadEntry(ReadHandle lh, Position position, AsyncCallbacks.ReadEntryCallback callback,
                                Object ctx) {
-        lh.readAsync(position.getEntryId(), position.getEntryId()).whenCompleteAsync(
+        ReadEntryUtils.readAsync(ml, lh, position.getEntryId(), position.getEntryId()).whenCompleteAsync(
                 (ledgerEntries, exception) -> {
                     if (exception != null) {
                         ml.invalidateLedgerHandle(lh);

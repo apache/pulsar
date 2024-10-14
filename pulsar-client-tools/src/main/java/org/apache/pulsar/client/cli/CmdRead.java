@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -101,6 +102,12 @@ public class CmdRead extends AbstractCmdConsume {
     @Option(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = "1")
     private boolean poolMessages = true;
 
+    @Option(names = { "-ca", "--crypto-failure-action" }, description = "Crypto Failure Action")
+    private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
+
+    @Option(names = { "-mp", "--print-metadata" }, description = "Message metadata")
+    private boolean printMetadata = false;
+
     public CmdRead() {
         // Do nothing
         super();
@@ -153,6 +160,7 @@ public class CmdRead extends AbstractCmdConsume {
             }
 
             builder.autoAckOldestChunkedMessageOnQueueFull(this.autoAckOldestChunkedMessageOnQueueFull);
+            builder.cryptoFailureAction(cryptoFailureAction);
 
             if (isNotBlank(this.encKeyValue)) {
                 builder.defaultCryptoKeyReader(this.encKeyValue);
@@ -173,7 +181,7 @@ public class CmdRead extends AbstractCmdConsume {
                             numMessagesRead += 1;
                             if (!hideContent) {
                                 System.out.println(MESSAGE_BOUNDARY);
-                                String output = this.interpretMessage(msg, displayHex);
+                                String output = this.interpretMessage(msg, displayHex, printMetadata);
                                 System.out.println(output);
                             } else if (numMessagesRead % 1000 == 0) {
                                 System.out.println("Received " + numMessagesRead + " messages");

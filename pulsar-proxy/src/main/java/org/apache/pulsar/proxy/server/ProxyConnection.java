@@ -169,6 +169,10 @@ public class ProxyConnection extends PulsarHandler {
         ProxyService.ACTIVE_CONNECTIONS.inc();
         SocketAddress rmAddress = ctx.channel().remoteAddress();
         ConnectionController.State state = connectionController.increaseConnection(rmAddress);
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Active connection count={} for cnx {} with state {}", ProxyService.ACTIVE_CONNECTIONS.get(),
+                    rmAddress, state);
+        }
         if (!state.equals(ConnectionController.State.OK)) {
             ctx.writeAndFlush(Commands.newError(-1, ServerError.NotAllowedError,
                     state.equals(ConnectionController.State.REACH_MAX_CONNECTION)
@@ -184,6 +188,9 @@ public class ProxyConnection extends PulsarHandler {
         super.channelUnregistered(ctx);
         connectionController.decreaseConnection(ctx.channel().remoteAddress());
         ProxyService.ACTIVE_CONNECTIONS.dec();
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Decreasing active connection count={} ", ProxyService.ACTIVE_CONNECTIONS.get());
+        }
     }
 
     @Override
@@ -391,7 +398,7 @@ public class ProxyConnection extends PulsarHandler {
             if (this.connectionPool == null) {
                 this.connectionPool = new ConnectionPool(InstrumentProvider.NOOP, clientConf, service.getWorkerGroup(),
                         clientCnxSupplier,
-                        Optional.of(dnsAddressResolverGroup.getResolver(service.getWorkerGroup().next())));
+                        Optional.of(dnsAddressResolverGroup.getResolver(service.getWorkerGroup().next())), null);
             } else {
                 LOG.error("BUG! Connection Pool has already been created for proxy connection to {} state {} role {}",
                         remoteAddress, state, clientAuthRole);

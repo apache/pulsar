@@ -41,7 +41,6 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.OpAddEntry;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
@@ -391,16 +390,15 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         }
 
         @Override
-        public OpAddEntry beforeAddEntry(OpAddEntry op, int numberOfMessages) {
+        public void beforeAddEntry(AddEntryOperation op, int numberOfMessages) {
             if (op == null || numberOfMessages <= 0) {
-                return op;
+                return;
             }
             op.setData(Commands.addBrokerEntryMetadata(op.getData(), brokerEntryMetadataInterceptors,
                     numberOfMessages));
             if (op != null) {
                 throw new RuntimeException("throw exception before add entry for test");
             }
-            return op;
         }
     }
 

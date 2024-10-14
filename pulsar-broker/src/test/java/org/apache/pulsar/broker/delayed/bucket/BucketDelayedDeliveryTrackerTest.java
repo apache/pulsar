@@ -51,7 +51,7 @@ import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.pulsar.broker.delayed.AbstractDeliveryTrackerTest;
 import org.apache.pulsar.broker.delayed.MockBucketSnapshotStorage;
 import org.apache.pulsar.broker.delayed.MockManagedCursor;
-import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.awaitility.Awaitility;
 import org.roaringbitmap.RoaringBitmap;
 import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
@@ -74,7 +74,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
     @DataProvider(name = "delayedTracker")
     public Object[][] provider(Method method) throws Exception {
-        dispatcher = mock(PersistentDispatcherMultipleConsumers.class);
+        dispatcher = mock(AbstractPersistentDispatcherMultipleConsumers.class);
         clock = mock(Clock.class);
         clockTime = new AtomicLong();
         when(clock.millis()).then(x -> clockTime.get());
@@ -183,7 +183,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
     }
 
     @Test(dataProvider = "delayedTracker", invocationCount = 10)
-    public void testRecoverSnapshot(BucketDelayedDeliveryTracker tracker) {
+    public void testRecoverSnapshot(BucketDelayedDeliveryTracker tracker) throws Exception {
         for (int i = 1; i <= 100; i++) {
             tracker.addMessage(i, i, i * 10);
         }
@@ -266,7 +266,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
     }
 
     @Test(dataProvider = "delayedTracker")
-    public void testMergeSnapshot(final BucketDelayedDeliveryTracker tracker) {
+    public void testMergeSnapshot(final BucketDelayedDeliveryTracker tracker) throws Exception {
         for (int i = 1; i <= 110; i++) {
             tracker.addMessage(i, i, i * 10);
             Awaitility.await().untilAsserted(() -> {
@@ -319,7 +319,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
     }
 
     @Test(dataProvider = "delayedTracker")
-    public void testWithBkException(final BucketDelayedDeliveryTracker tracker) {
+    public void testWithBkException(final BucketDelayedDeliveryTracker tracker) throws Exception {
         MockBucketSnapshotStorage mockBucketSnapshotStorage = (MockBucketSnapshotStorage) bucketSnapshotStorage;
         mockBucketSnapshotStorage.injectCreateException(
                 new BucketSnapshotPersistenceException("Bookie operation timeout, op: Create entry"));

@@ -55,6 +55,8 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.stats.metrics.ManagedCursorMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
+import org.apache.pulsar.broker.storage.BookkeeperManagedLedgerStorageClass;
+import org.apache.pulsar.broker.storage.ManagedLedgerStorageClass;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
@@ -485,12 +487,14 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
     }
 
     private static void generateManagedLedgerBookieClientMetrics(PulsarService pulsar, SimpleTextOutputStream stream) {
-        StatsProvider statsProvider = pulsar.getManagedLedgerClientFactory().getStatsProvider();
-        if (statsProvider instanceof NullStatsProvider) {
-            return;
-        }
+        ManagedLedgerStorageClass defaultStorageClass = pulsar.getManagedLedgerStorage().getDefaultStorageClass();
+        if (defaultStorageClass instanceof BookkeeperManagedLedgerStorageClass bkStorageClass) {
+            StatsProvider statsProvider = bkStorageClass.getStatsProvider();
+            if (statsProvider instanceof NullStatsProvider) {
+                return;
+            }
 
-        try (Writer writer = new OutputStreamWriter(new BufferedOutputStream(new OutputStream() {
+            try (Writer writer = new OutputStreamWriter(new BufferedOutputStream(new OutputStream() {
                 @Override
                 public void write(int b) throws IOException {
                     stream.writeByte(b);
@@ -501,9 +505,10 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
                     stream.write(b, off, len);
                 }
             }), StandardCharsets.UTF_8)) {
-            statsProvider.writeAllMetrics(writer);
-        } catch (IOException e) {
-            log.error("Failed to write managed ledger bookie client metrics", e);
+                statsProvider.writeAllMetrics(writer);
+            } catch (IOException e) {
+                log.error("Failed to write managed ledger bookie client metrics", e);
+            }
         }
     }
 

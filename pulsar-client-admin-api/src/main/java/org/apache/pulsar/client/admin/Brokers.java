@@ -20,6 +20,7 @@ package org.apache.pulsar.client.admin;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
@@ -321,9 +322,18 @@ public interface Brokers {
     void healthcheck(TopicVersion topicVersion) throws PulsarAdminException;
 
     /**
+     * Run a healthcheck on the target broker or on the broker.
+     * @param brokerId target broker id to check the health. If empty, it checks the health on the connected broker.
+     *
+     * @throws PulsarAdminException if the healthcheck fails.
+     */
+    void healthcheck(TopicVersion topicVersion, Optional<String> brokerId) throws PulsarAdminException;
+
+    /**
      * Run a healthcheck on the broker asynchronously.
      */
-    CompletableFuture<Void> healthcheckAsync(TopicVersion topicVersion);
+    CompletableFuture<Void> healthcheckAsync(TopicVersion topicVersion, Optional<String> brokerId);
+
 
     /**
      * Trigger the current broker to graceful-shutdown asynchronously.

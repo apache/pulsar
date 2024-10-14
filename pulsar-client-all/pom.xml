@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>3.4.0-SNAPSHOT</version>
+    <version>4.0.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-client-all</artifactId>
@@ -167,6 +167,7 @@
                   <include>com.google.j2objc:*</include>
                   <include>com.google.code.gson:gson</include>
                   <include>com.google.re2j:re2j</include>
+                  <include>com.spotify:completable-futures</include>
                   <include>com.fasterxml.jackson.*:*</include>
                   <include>io.netty:netty</include>
                   <include>io.netty:netty-all</include>
@@ -242,6 +243,10 @@
                   <excludes>
                     <exclude>com.google.protobuf.*</exclude>
                   </excludes>
+                </relocation>
+                <relocation>
+                  <pattern>com.spotify.futures</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.spotify.futures</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.fasterxml.jackson</pattern>

@@ -32,7 +32,7 @@
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar</artifactId>
 
-  <version>3.4.0-SNAPSHOT</version>
+  <version>4.0.0-SNAPSHOT</version>
 
   <name>Pulsar</name>
   <description>Pulsar is a distributed pub-sub messaging platform with a very
@@ -82,11 +82,9 @@ flexible messaging model and an intuitive client API.</description>
     <pulsar.broker.compiler.release>${maven.compiler.target}</pulsar.broker.compiler.release>
     <pulsar.client.compiler.release>8</pulsar.client.compiler.release>
 
-    <pulsar.client.python.version>3.4.0</pulsar.client.python.version>
+    <pulsar.client.python.version>3.5.0</pulsar.client.python.version>
 
-    <UBUNTU_MIRROR>http://archive.ubuntu.com/ubuntu/</UBUNTU_MIRROR>
-    <UBUNTU_SECURITY_MIRROR>http://security.ubuntu.com/ubuntu/</UBUNTU_SECURITY_MIRROR>
-    <IMAGE_JDK_MAJOR_VERSION>17</IMAGE_JDK_MAJOR_VERSION>
+    <IMAGE_JDK_MAJOR_VERSION>21</IMAGE_JDK_MAJOR_VERSION>
 
     <!--config keys to configure test selection -->
     <include>**/Test*.java,**/*Test.java,**/*Tests.java,**/*TestCase.java</include>
@@ -96,7 +94,7 @@ flexible messaging model and an intuitive client API.</description>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <project.build.outputTimestamp>2024-05-13T09:56:12Z</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2024-08-09T08:42:01Z</project.build.outputTimestamp>
     <redirectTestOutputToFile>true</redirectTestOutputToFile>
 
     <!-- By default build for local Docker platform.
@@ -148,14 +146,14 @@ flexible messaging model and an intuitive client API.</description>
     <snappy.version>1.1.10.5</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.1.0</curator.version>
-    <netty.version>4.1.111.Final</netty.version>
+    <netty.version>4.1.113.Final</netty.version>
     <netty-iouring.version>0.0.24.Final</netty-iouring.version>
-    <jetty.version>9.4.54.v20240208</jetty.version>
+    <jetty.version>9.4.56.v20240826</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
-    <jersey.version>2.41</jersey.version>
+    <jersey.version>2.42</jersey.version>
     <athenz.version>1.10.50</athenz.version>
     <prometheus.version>0.16.0</prometheus.version>
-    <vertx.version>4.5.8</vertx.version>
+    <vertx.version>4.5.10</vertx.version>
     <rocksdb.version>7.9.2</rocksdb.version>
     <slf4j.version>2.0.13</slf4j.version>
     <commons.collections4.version>4.4</commons.collections4.version>
@@ -163,18 +161,19 @@ flexible messaging model and an intuitive client API.</description>
     <bouncycastle.version>1.78.1</bouncycastle.version>
     <bouncycastle.bcpkix-fips.version>1.0.7</bouncycastle.bcpkix-fips.version>
     <bouncycastle.bc-fips.version>1.0.2.5</bouncycastle.bc-fips.version>
-    <jackson.version>2.14.2</jackson.version>
+    <jackson.version>2.17.2</jackson.version>
+    <fastutil.version>8.5.14</fastutil.version>
     <reflections.version>0.10.2</reflections.version>
     <swagger.version>1.6.2</swagger.version>
     <puppycrawl.checkstyle.version>10.14.2</puppycrawl.checkstyle.version>
-    <docker-maven.version>0.43.3</docker-maven.version>
+    <docker-maven.version>0.45.0</docker-maven.version>
     <docker.verbose>true</docker.verbose>
     <typetools.version>0.5.0</typetools.version>
     <byte-buddy.version>1.14.12</byte-buddy.version>
     <zt-zip.version>1.17</zt-zip.version>
-    <protobuf3.version>3.22.3</protobuf3.version>
+    <protobuf3.version>3.25.5</protobuf3.version>
     <protoc3.version>${protobuf3.version}</protoc3.version>
-    <grpc.version>1.56.0</grpc.version>
+    <grpc.version>1.56.1</grpc.version>
     <google-http-client.version>1.41.0</google-http-client.version>
     <perfmark.version>0.26.0</perfmark.version>
     <protoc-gen-grpc-java.version>${grpc.version}</protoc-gen-grpc-java.version>
@@ -187,7 +186,7 @@ flexible messaging model and an intuitive client API.</description>
     <kafka-client.version>3.4.0</kafka-client.version>
     <rabbitmq-client.version>5.18.0</rabbitmq-client.version>
     <aws-sdk.version>1.12.638</aws-sdk.version>
-    <avro.version>1.11.3</avro.version>
+    <avro.version>1.11.4</avro.version>
     <joda.version>2.10.10</joda.version>
     <jclouds.version>2.6.0</jclouds.version>
     <guice.version>5.1.0</guice.version>
@@ -197,9 +196,8 @@ flexible messaging model and an intuitive client API.</description>
     <clickhouse-jdbc.version>0.4.6</clickhouse-jdbc.version>
     <mariadb-jdbc.version>2.7.5</mariadb-jdbc.version>
     <openmldb-jdbc.version>0.4.4-hotfix1</openmldb-jdbc.version>
-    <hdfs-offload-version3>3.3.5</hdfs-offload-version3>
     <json-smart.version>2.4.10</json-smart.version>
-    <opensearch.version>1.2.4</opensearch.version>
+    <opensearch.version>2.16.0</opensearch.version>
     <elasticsearch-java.version>8.12.1</elasticsearch-java.version>
     <debezium.version>1.9.7.Final</debezium.version>
     <debezium.postgresql.version>42.5.5</debezium.postgresql.version>
@@ -208,9 +206,10 @@ flexible messaging model and an intuitive client API.</description>
     <wildfly-elytron.version>1.15.16.Final</wildfly-elytron.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.28.0</opencensus.version>
-    <hadoop2.version>2.10.2</hadoop2.version>
-    <hadoop3.version>3.3.5</hadoop3.version>
-    <hbase.version>2.4.16</hbase.version>
+    <hadoop3.version>3.4.0</hadoop3.version>
+    <dnsjava3.version>3.6.2</dnsjava3.version>
+    <hdfs-offload-version3>${hadoop3.version}</hdfs-offload-version3>
+    <hbase.version>2.6.0-hadoop3</hbase.version>
     <guava.version>32.1.2-jre</guava.version>
     <jcip.version>1.0</jcip.version>
     <prometheus-jmx.version>0.16.1</prometheus-jmx.version>
@@ -219,7 +218,7 @@ flexible messaging model and an intuitive client API.</description>
     <asynchttpclient.version>2.12.1</asynchttpclient.version>
     <commons-lang3.version>3.11</commons-lang3.version>
     <commons-configuration.version>1.10</commons-configuration.version>
-    <commons-io.version>2.8.0</commons-io.version>
+    <commons-io.version>2.14.0</commons-io.version>
     <commons-codec.version>1.15</commons-codec.version>
     <javax.ws.rs-api.version>2.1</javax.ws.rs-api.version>
     <hdrHistogram.version>2.1.9</hdrHistogram.version>
@@ -252,7 +251,7 @@ flexible messaging model and an intuitive client API.</description>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <apache-httpcomponents.version>4.4.15</apache-httpcomponents.version>
     <jetcd.version>0.7.7</jetcd.version>
-    <oxia.version>0.3.0</oxia.version>
+    <oxia.version>0.4.5</oxia.version>
     <snakeyaml.version>2.0</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
     <seancfoley.ipaddress.version>5.5.0</seancfoley.ipaddress.version>
@@ -266,6 +265,7 @@ flexible messaging model and an intuitive client API.</description>
     <opentelemetry.semconv.version>1.25.0-alpha</opentelemetry.semconv.version>
     <picocli.version>4.7.5</picocli.version>
     <re2j.version>1.7</re2j.version>
+    <completable-futures.version>0.3.6</completable-futures.version>
     <failsafe.version>3.3.2</failsafe.version>
 
     <!-- test dependencies -->
@@ -300,7 +300,7 @@ flexible messaging model and an intuitive client API.</description>
     <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
     <maven-dependency-plugin.version>3.5.0</maven-dependency-plugin.version>
     <maven-modernizer-plugin.version>2.3.0</maven-modernizer-plugin.version>
-    <maven-shade-plugin>3.4.1</maven-shade-plugin>
+    <maven-shade-plugin>3.6.0</maven-shade-plugin>
     <maven-antrun-plugin.version>3.1.0</maven-antrun-plugin.version>
     <build-helper-maven-plugin.version>3.6.0</build-helper-maven-plugin.version>
     <properties-maven-plugin.version>1.1.0</properties-maven-plugin.version>
@@ -316,8 +316,9 @@ flexible messaging model and an intuitive client API.</description>
     <errorprone-slf4j.version>0.1.21</errorprone-slf4j.version>
     <j2objc-annotations.version>1.3</j2objc-annotations.version>
     <lightproto-maven-plugin.version>0.4</lightproto-maven-plugin.version>
-    <dependency-check-maven.version>9.1.0</dependency-check-maven.version>
-    <roaringbitmap.version>1.0.6</roaringbitmap.version>
+    <build-helper-maven-plugin.version>3.6.0</build-helper-maven-plugin.version>
+    <dependency-check-maven.version>10.0.2</dependency-check-maven.version>
+    <roaringbitmap.version>1.2.0</roaringbitmap.version>
     <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
     <oshi.version>6.4.0</oshi.version>
     <checkerframework.version>3.33.0</checkerframework.version>
@@ -666,6 +667,12 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>com.spotify</groupId>
+        <artifactId>completable-futures</artifactId>
+        <version>${completable-futures.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.rocksdb</groupId>
         <artifactId>rocksdbjni</artifactId>
         <version>${rocksdb.version}</version>
@@ -904,6 +911,12 @@ flexible messaging model and an intuitive client API.</description>
         <version>${jackson.version}</version>
         <type>pom</type>
         <scope>import</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>it.unimi.dsi</groupId>
+        <artifactId>fastutil</artifactId>
+        <version>${fastutil.version}</version>
       </dependency>
 
       <dependency>
@@ -1301,6 +1314,58 @@ flexible messaging model and an intuitive client API.</description>
         <version>${commons.collections4.version}</version>
       </dependency>
 
+      <!-- support only hadoop 3 since hadoop 2 is EOL -->
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-common</artifactId>
+        <version>${hadoop3.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>dnsjava</groupId>
+            <artifactId>dnsjava</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-auth</artifactId>
+        <version>${hadoop3.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>dnsjava</groupId>
+            <artifactId>dnsjava</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-client</artifactId>
+        <version>${hadoop3.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>dnsjava</groupId>
+            <artifactId>dnsjava</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hbase</groupId>
+        <artifactId>hbase-client</artifactId>
+        <version>${hbase.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>dnsjava</groupId>
+            <artifactId>dnsjava</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <!-- dnsjava is pulled in by hadoop-common -->
+      <dependency>
+        <groupId>dnsjava</groupId>
+        <artifactId>dnsjava</artifactId>
+        <version>${dnsjava3.version}</version>
+      </dependency>
+
       <!-- test dependencies -->
       <dependency>
         <groupId>com.lmax</groupId>
@@ -1627,6 +1692,12 @@ flexible messaging model and an intuitive client API.</description>
     </dependency>
 
     <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-sdk-testing</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
       <scope>provided</scope>
@@ -1857,6 +1928,7 @@ flexible messaging model and an intuitive client API.</description>
                 <exclude>generated-site/**</exclude>
                 <exclude>**/*.md</exclude>
                 <exclude>**/.idea/**</exclude>
+                <exclude>**/.vscode/**</exclude>
                 <exclude>**/.mvn/**</exclude>
                 <exclude>**/generated/**</exclude>
                 <exclude>**/zk-3.5-test-data/*</exclude>
@@ -2002,6 +2074,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/SecurityAuth.audit*</exclude>
             <exclude>**/site2/**</exclude>
             <exclude>**/.idea/**</exclude>
+            <exclude>**/.vscode/**</exclude>
             <exclude>**/.mvn/**</exclude>
             <exclude>**/*.a</exclude>
             <exclude>**/*.so</exclude>
@@ -2191,6 +2264,59 @@ flexible messaging model and an intuitive client API.</description>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>build-helper-maven-plugin</artifactId>
           <version>${build-helper-maven-plugin.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>org.owasp</groupId>
+          <artifactId>dependency-check-maven</artifactId>
+          <version>${dependency-check-maven.version}</version>
+          <configuration>
+            <nvdApiKeyEnvironmentVariable>NIST_NVD_API_KEY</nvdApiKeyEnvironmentVariable>
+            <!-- Uncomment the following to use the NVD data feed provided by the Dependency-Check project -->
+            <!-- <nvdDatafeedUrl>https://jeremylong.github.io/DependencyCheck/hb_nvd/</nvdDatafeedUrl> -->
+          </configuration>
+        </plugin>
+        <!-- 
+          vscode-java and Eclipse Maven integration workaround:
+          - Addresses maven-dependency-plugin exception (MDEP-187) issue by ignoring the plugin execution
+          - Uses org.eclipse.m2e:lifecycle-mapping:1.0.0 as configuration placeholder in pluginManagement section
+          For details: https://eclipse.dev/m2e/documentation/m2e-execution-not-covered.html#ignore-plugin-goal
+        -->
+        <plugin>
+          <groupId>org.eclipse.m2e</groupId>
+          <artifactId>lifecycle-mapping</artifactId>
+          <version>1.0.0</version>
+          <configuration>
+            <lifecycleMappingMetadata>
+              <pluginExecutions>
+                <pluginExecution>
+                  <pluginExecutionFilter>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <versionRange>[1.0.0,)</versionRange>
+                    <goals>
+                      <goal>copy</goal>
+                    </goals>
+                  </pluginExecutionFilter>
+                  <action>
+                    <ignore />
+                  </action>
+                </pluginExecution>
+                <pluginExecution>
+                  <pluginExecutionFilter>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <versionRange>[1.0.0,)</versionRange>
+                    <goals>
+                      <goal>unpack</goal>
+                    </goals>
+                  </pluginExecutionFilter>
+                  <action>
+                    <ignore />
+                  </action>
+                </pluginExecution>
+              </pluginExecutions>
+            </lifecycleMappingMetadata>
+          </configuration>
         </plugin>
       </plugins>
     </pluginManagement>
@@ -2395,7 +2521,6 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-client-api</module>
         <module>pulsar-client</module>
         <module>pulsar-client-shaded</module>
-        <module>pulsar-client-1x-base</module>
         <module>pulsar-client-admin-api</module>
         <module>pulsar-client-admin</module>
         <module>pulsar-client-admin-shaded</module>
@@ -2639,7 +2764,6 @@ flexible messaging model and an intuitive client API.</description>
           <plugin>
             <groupId>org.owasp</groupId>
             <artifactId>dependency-check-maven</artifactId>
-            <version>${dependency-check-maven.version}</version>
             <configuration>
               <suppressionFiles>
                 <suppressionFile>${pulsar.basedir}/src/owasp-dependency-check-false-positives.xml</suppressionFile>
@@ -2674,7 +2798,6 @@ flexible messaging model and an intuitive client API.</description>
           <plugin>
             <groupId>org.owasp</groupId>
             <artifactId>dependency-check-maven</artifactId>
-            <version>${dependency-check-maven.version}</version>
             <reportSets>
               <reportSet>
                 <reports>
@@ -2728,30 +2851,6 @@ flexible messaging model and an intuitive client API.</description>
     </profile>
 
     <profile>
-      <id>ubuntu-mirror-set</id>
-      <activation>
-        <property>
-          <name>env.UBUNTU_MIRROR</name>
-        </property>
-      </activation>
-      <properties>
-        <!-- Override the default value with the environment variable -->
-        <UBUNTU_MIRROR>${env.UBUNTU_MIRROR}</UBUNTU_MIRROR>
-      </properties>
-    </profile>
-    <profile>
-      <id>ubuntu-security-mirror-set</id>
-      <activation>
-        <property>
-          <name>env.UBUNTU_SECURITY_MIRROR</name>
-        </property>
-      </activation>
-      <properties>
-        <!-- Override the default value with the environment variable -->
-        <UBUNTU_SECURITY_MIRROR>${env.UBUNTU_SECURITY_MIRROR}</UBUNTU_SECURITY_MIRROR>
-      </properties>
-    </profile>
-    <profile>
       <id>jdk-major-version-set</id>
       <activation>
         <property>
@@ -2786,14 +2885,6 @@ flexible messaging model and an intuitive client API.</description>
       <id>maven.restlet.org</id>
       <name>maven.restlet.org</name>
       <url>https://maven.restlet.talend.com</url>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-    </repository>
-    <!-- For the BDB JE dependency -->
-    <repository>
-      <id>oracle.releases</id>
-      <url>https://download.oracle.com/maven</url>
       <snapshots>
         <enabled>false</enabled>
       </snapshots>

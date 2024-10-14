@@ -60,6 +60,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.OpSendMsgStats;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.SendCallback;
@@ -115,6 +116,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
     protected final ReplicatorStatsImpl stats = new ReplicatorStatsImpl();
 
     protected volatile boolean fetchSchemaInProgress = false;
+    private volatile boolean waitForCursorRewinding = false;
 
     public PersistentReplicator(String localCluster, PersistentTopic localTopic, ManagedCursor cursor,
                                    String remoteCluster, String remoteTopic,
@@ -142,9 +144,15 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
     @Override
     protected void setProducerAndTriggerReadEntries(Producer<byte[]> producer) {
-        // Rewind the cursor to be sure to read again all non-acked messages sent while restarting.
-        cursor.rewind();
-        cursor.cancelPendingReadRequest();
+        waitForCursorRewinding = true;
+
+        // Repeat until there are no read operations in progress
+        if (STATE_UPDATER.get(this) == State.Starting && HAVE_PENDING_READ_UPDATER.get(this) == TRUE
+                && !cursor.cancelPendingReadRequest()) {
+            brokerService.getPulsar().getExecutor()
+                    .schedule(() -> setProducerAndTriggerReadEntries(producer), 10, TimeUnit.MILLISECONDS);
+            return;
+        }
 
         /**
          * 1. Try change state to {@link Started}.
@@ -154,6 +162,13 @@ public abstract class PersistentReplicator extends AbstractReplicator
         Pair<Boolean, State> changeStateRes;
         changeStateRes = compareSetAndGetState(Starting, Started);
         if (changeStateRes.getLeft()) {
+            if (!(producer instanceof ProducerImpl)) {
+                log.error("[{}] The partitions count between two clusters is not the same, the replicator can not be"
+                        + " created successfully: {}", replicatorId, state);
+                waitForCursorRewinding = false;
+                doCloseProducerAsync(producer, () -> {});
+                throw new ClassCastException(producer.getClass().getName() + " can not be cast to ProducerImpl");
+            }
             this.producer = (ProducerImpl) producer;
             HAVE_PENDING_READ_UPDATER.set(this, FALSE);
             // Trigger a new read.
@@ -161,6 +176,11 @@ public abstract class PersistentReplicator extends AbstractReplicator
             backOff.reset();
             // activate cursor: so, entries can be cached.
             this.cursor.setActive();
+
+            // Rewind the cursor to be sure to read again all non-acked messages sent while restarting
+            cursor.rewind();
+            waitForCursorRewinding = false;
+
             // read entries
             readMoreEntries();
         } else {
@@ -176,6 +196,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 log.error("[{}] Replicator state is not expected, so close the producer. Replicator state: {}",
                         replicatorId, changeStateRes.getRight());
             }
+            waitForCursorRewinding = false;
             // Close the producer if change the state fail.
             doCloseProducerAsync(producer, () -> {});
         }
@@ -289,6 +310,11 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
             // Schedule read
             if (HAVE_PENDING_READ_UPDATER.compareAndSet(this, FALSE, TRUE)) {
+                if (waitForCursorRewinding) {
+                    log.info("[{}] Skip the reading because repl producer is starting", replicatorId);
+                    HAVE_PENDING_READ_UPDATER.set(this, FALSE);
+                    return;
+                }
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule read of {} messages or {} bytes", replicatorId, messagesToRead,
                             bytesToRead);
@@ -371,7 +397,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
         private MessageImpl msg;
 
         @Override
-        public void sendComplete(Exception exception) {
+        public void sendComplete(Throwable exception, OpSendMsgStats opSendMsgStats) {
             if (exception != null && !(exception instanceof PulsarClientException.InvalidMessageException)) {
                 log.error("[{}] Error producing on remote broker", replicator.replicatorId, exception);
                 // cursor should be rewinded since it was incremented when readMoreEntries

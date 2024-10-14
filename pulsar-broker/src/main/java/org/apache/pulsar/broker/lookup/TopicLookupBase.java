@@ -24,6 +24,8 @@ import io.netty.buffer.ByteBuf;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.Encoded;
@@ -180,7 +182,7 @@ public class TopicLookupBase extends PulsarWebResource {
     public static CompletableFuture<ByteBuf> lookupTopicAsync(PulsarService pulsarService, TopicName topicName,
             boolean authoritative, String clientAppId, AuthenticationDataSource authenticationData, long requestId) {
         return lookupTopicAsync(pulsarService, topicName, authoritative, clientAppId,
-                authenticationData, requestId, null);
+                authenticationData, requestId, null, Collections.emptyMap());
     }
 
     /**
@@ -208,7 +210,8 @@ public class TopicLookupBase extends PulsarWebResource {
     public static CompletableFuture<ByteBuf> lookupTopicAsync(PulsarService pulsarService, TopicName topicName,
                                                               boolean authoritative, String clientAppId,
                                                               AuthenticationDataSource authenticationData,
-                                                              long requestId, final String advertisedListenerName) {
+                                                              long requestId, final String advertisedListenerName,
+                                                              Map<String, String> properties) {
 
         final CompletableFuture<ByteBuf> validationFuture = new CompletableFuture<>();
         final CompletableFuture<ByteBuf> lookupfuture = new CompletableFuture<>();
@@ -299,6 +302,7 @@ public class TopicLookupBase extends PulsarWebResource {
                         .authoritative(authoritative)
                         .advertisedListenerName(advertisedListenerName)
                         .loadTopicsInBundle(true)
+                        .properties(properties)
                         .build();
                 pulsarService.getNamespaceService().getBrokerServiceUrlAsync(topicName, options)
                         .thenAccept(lookupResult -> {

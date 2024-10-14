@@ -21,9 +21,11 @@ package org.apache.pulsar.broker;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
@@ -49,6 +51,7 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
+import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
@@ -562,9 +565,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "Configuration file path for local metadata store. It's supported by RocksdbMetadataStore for now."
+            doc = "Configuration file path for local metadata store."
     )
     private String metadataStoreConfigPath = null;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Configuration file path for configuration metadata store."
+    )
+    private String configurationStoreConfigPath = null;
 
     @FieldContext(
             dynamic = true,
@@ -593,6 +602,21 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Enable backlog quota check. Enforces actions on topic when the quota is reached"
     )
     private boolean backlogQuotaCheckEnabled = true;
+
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_POLICIES,
+        doc = "Max capacity of the topic name cache. -1 means unlimited cache; 0 means broker will clear all cache"
+                + " per maxSecondsToClearTopicNameCache, it does not mean broker will not cache TopicName."
+    )
+    private int topicNameCacheMaxCapacity = 100_000;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "A Specifies the minimum number of seconds that the topic name stays in memory, to avoid clear cache"
+                + " frequently when there are too many topics are in use."
+    )
+    private int maxSecondsToClearTopicNameCache = 3600 * 2;
 
     @FieldContext(
             category = CATEGORY_POLICIES,
@@ -794,6 +818,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int subscriptionKeySharedConsistentHashingReplicaPoints = 100;
 
     @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "For persistent Key_Shared subscriptions, enables the use of the classic implementation of the "
+                    + "Key_Shared subscription that was used before Pulsar 4.0.0 and PIP-379.",
+            dynamic = true
+    )
+    private boolean subscriptionKeySharedUseClassicPersistentImplementation = false;
+
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "For persistent Shared subscriptions, enables the use of the classic implementation of the Shared "
+                    + "subscription that was used before Pulsar 4.0.0.",
+            dynamic = true
+    )
+    private boolean subscriptionSharedUseClassicPersistentImplementation = false;
+
+    @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Set the default behavior for message deduplication in the broker.\n\n"
             + "This can be overridden per-namespace. If enabled, broker will reject"
@@ -925,6 +965,46 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " back and unack count reaches to `limit/2`. Using a value of 0, is disabling unackedMessage-limit"
             + " check and broker doesn't block dispatchers")
     private int maxUnackedMessagesPerBroker = 0;
+
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "For Key_Shared subscriptions, if messages cannot be dispatched to consumers due to a slow consumer"
+                    + " or a blocked key hash (because of ordering constraints), the broker will continue reading more"
+                    + " messages from the backlog and attempt to dispatch them to consumers until the number of replay"
+                    + " messages reaches the calculated threshold.\n"
+                    + "Formula: threshold = min(keySharedLookAheadMsgInReplayThresholdPerConsumer *"
+                    + " connected consumer count, keySharedLookAheadMsgInReplayThresholdPerSubscription)"
+                    + ".\n"
+                    + "Setting this value to 0 will disable the limit calculated per consumer.",
+            dynamic = true
+    )
+    private int keySharedLookAheadMsgInReplayThresholdPerConsumer = 2000;
+
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "For Key_Shared subscriptions, if messages cannot be dispatched to consumers due to a slow consumer"
+                    + " or a blocked key hash (because of ordering constraints), the broker will continue reading more"
+                    + " messages from the backlog and attempt to dispatch them to consumers until the number of replay"
+                    + " messages reaches the calculated threshold.\n"
+                    + "Formula: threshold = min(keySharedLookAheadMsgInReplayThresholdPerConsumer *"
+                    + " connected consumer count, keySharedLookAheadMsgInReplayThresholdPerSubscription)"
+                    + ".\n"
+                    + "This value should be set to a value less than 2 * managedLedgerMaxUnackedRangesToPersist.\n"
+                    + "Setting this value to 0 will disable the limit calculated per subscription.\n",
+            dynamic = true
+    )
+    private int keySharedLookAheadMsgInReplayThresholdPerSubscription = 20000;
+
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "For Key_Shared subscriptions, when a blocked key hash gets unblocked,"
+                    + " a redelivery will be attempted after a delay. This setting controls the delay."
+                    + " The reason to have the delay is to batch multiple unblocking events instead of triggering"
+                    + " redelivery for each unblocking event.",
+            dynamic = true
+    )
+    private long keySharedUnblockingIntervalMs = 10L;
+
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Once broker reaches maxUnackedMessagesPerBroker limit, it blocks subscriptions which has higher "
@@ -1171,6 +1251,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "The read failure backoff mandatory stop time in milliseconds. By default it is 0s."
     )
     private int dispatcherReadFailureBackoffMandatoryStopTimeInMs = 0;
+
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "On Shared and KeyShared subscriptions, if all available messages in the subscription are filtered "
+                    + "out and not dispatched to any consumer, message dispatching will be rescheduled with a backoff "
+                    + "delay. This parameter sets the initial backoff delay in milliseconds.")
+    private int dispatcherRetryBackoffInitialTimeInMs = 1;
+
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "On Shared and KeyShared subscriptions, if all available messages in the subscription are filtered "
+                    + "out and not dispatched to any consumer, message dispatching will be rescheduled with a backoff "
+                    + "delay. This parameter sets the maximum backoff delay in milliseconds.")
+    private int dispatcherRetryBackoffMaxTimeInMs = 10;
 
     @FieldContext(
             dynamic = true,
@@ -1488,6 +1582,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
+            doc = "The class name of the topic policies service. The default config only takes affect when the "
+                    + "systemTopicEnable config is true"
+    )
+    private String topicPoliciesServiceClassName =
+            "org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService";
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
             doc = "List of interceptors for entry metadata.")
     private Set<String> brokerEntryMetadataInterceptors = new HashSet<>();
 
@@ -1560,6 +1662,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Specify whether Client certificates are required for TLS Reject.\n"
             + "the Connection if the Client Certificate is not trusted")
     private boolean tlsRequireTrustedClientCertOnConnect = false;
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "SSL Factory Plugin class to provide SSLEngine and SSLContext objects. The default "
+                    + " class used is DefaultSslFactory.")
+    private String sslFactoryPlugin = DefaultPulsarSslFactory.class.getName();
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "SSL Factory plugin configuration parameters.")
+    private String sslFactoryPluginParams = "";
 
     /***** --- Authentication. --- ****/
     @FieldContext(
@@ -2165,6 +2276,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean autoSkipNonRecoverableData = false;
     @FieldContext(
+        dynamic = true,
+        category = CATEGORY_STORAGE_ML,
+        doc = "Skip managed ledger failure to forcefully recover managed ledger."
+    )
+    private boolean managedLedgerForceRecovery = false;
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_STORAGE_ML,
+        doc = "Skip schema ledger failure to forcefully recover topic successfully."
+    )
+    private boolean schemaLedgerForceRecovery = false;
+    @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "operation timeout while updating managed-ledger metadata."
     )
@@ -2395,21 +2518,51 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = "In the UniformLoadShedder strategy, the minimum message that triggers unload."
+            doc = "The low threshold for the difference between the highest and lowest loaded brokers."
+    )
+    private int loadBalancerAvgShedderLowThreshold = 15;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "The high threshold for the difference between the highest and lowest loaded brokers."
+    )
+    private int loadBalancerAvgShedderHighThreshold = 40;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "The number of times the low threshold is triggered before the bundle is unloaded."
+    )
+    private int loadBalancerAvgShedderHitCountLowThreshold = 8;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "The number of times the high threshold is triggered before the bundle is unloaded."
+    )
+    private int loadBalancerAvgShedderHitCountHighThreshold = 2;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "In the UniformLoadShedder and AvgShedder strategy, the minimum message that triggers unload."
     )
     private int minUnloadMessage = 1000;
 
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = "In the UniformLoadShedder strategy, the minimum throughput that triggers unload."
+            doc = "In the UniformLoadShedder and AvgShedder strategy, the minimum throughput that triggers unload."
     )
     private int minUnloadMessageThroughput = 1 * 1024 * 1024;
 
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = "In the UniformLoadShedder strategy, the maximum unload ratio."
+            doc = "In the UniformLoadShedder and AvgShedder strategy, the maximum unload ratio."
+                    + "For AvgShedder, recommend to set to 0.5, so that it will distribute the load "
+                    + "evenly between the highest and lowest brokers."
     )
     private double maxUnloadPercentage = 0.2;
 
@@ -2797,6 +2950,25 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean loadBalancerMultiPhaseBundleUnload = true;
 
+    @FieldContext(
+            dynamic = false,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Name of ServiceUnitStateTableView implementation class to use"
+    )
+    private String loadManagerServiceUnitStateTableViewClassName =
+            "org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl";
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Specify ServiceUnitTableViewSyncer to sync service unit(bundle) states between metadata store and "
+                    + "system topic table views during migration from one to the other. One could enable this"
+                    + " syncer before migration and disable it after the migration finishes. "
+                    + "It accepts `MetadataStoreToSystemTopicSyncer` or `SystemTopicToMetadataStoreSyncer` to "
+                    + "enable it. It accepts `None` to disable it."
+    )
+    private ServiceUnitTableViewSyncerType loadBalancerServiceUnitTableViewSyncer = ServiceUnitTableViewSyncerType.None;
+
     /**** --- Replication. --- ****/
     @FieldContext(
         category = CATEGORY_REPLICATION,
@@ -2828,6 +3000,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "inconsistency due to missing ZooKeeper watch (disable with value 0)"
         )
     private int replicationPolicyCheckDurationSeconds = 600;
+    @FieldContext(
+            category = CATEGORY_REPLICATION,
+            doc = "Whether the internal replicator will trigger topic auto-creation on the remote cluster."
+        )
+    private boolean createTopicToRemoteClusterForReplication = true;
     @Deprecated
     @FieldContext(
         category = CATEGORY_REPLICATION,
@@ -2879,6 +3056,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @ToString.Exclude
     @com.fasterxml.jackson.annotation.JsonIgnore
     private Properties properties = new Properties();
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "The properties whose name starts with this prefix will be uploaded to the metadata store for "
+                    + " the topic lookup"
+    )
+    private String lookupPropertyPrefix = "lookup.";
 
     @FieldContext(
         dynamic = true,
@@ -3122,6 +3306,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Stats update initial delay in seconds"
     )
     private int statsUpdateInitialDelayInSecs = 60;
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            minValue = -1,
+            doc = "HealthCheck update frequency in seconds. Disable health check with value -1 (Default value -1)"
+    )
+    private int healthCheckMetricsUpdateTimeInSeconds = -1;
     @FieldContext(
         category = CATEGORY_METRICS,
         doc = "If true, aggregate publisher stats of PartitionedTopicStats by producerName"
@@ -3495,6 +3685,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
                   + " used by the internal client to authenticate with Pulsar brokers"
     )
     private Set<String> brokerClientTlsProtocols = new TreeSet<>();
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "SSL Factory Plugin class used by internal client to provide SSLEngine and SSLContext objects. "
+                    + "The default class used is DefaultSslFactory.")
+    private String brokerClientSslFactoryPlugin = DefaultPulsarSslFactory.class.getName();
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "SSL Factory plugin configuration parameters used by internal client.")
+    private String brokerClientSslFactoryPluginParams = "";
 
     /* packages management service configurations (begin) */
 
@@ -3665,7 +3864,23 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 ? numWorkerThreadsForNonPersistentTopic : topicOrderedExecutorThreadNum;
     }
 
-    public boolean isSystemTopicAndTopicLevelPoliciesEnabled() {
-        return topicLevelPoliciesEnabled && systemTopicEnabled;
+    public Map<String, String> lookupProperties() {
+        final var map = new HashMap<String, String>();
+        properties.forEach((key, value) -> {
+            if (key instanceof String && value instanceof String && ((String) key).startsWith(lookupPropertyPrefix)) {
+                map.put((String) key, (String) value);
+            }
+        });
+        return map;
+    }
+
+    public boolean isLoadBalancerServiceUnitTableViewSyncerEnabled() {
+        return loadBalancerServiceUnitTableViewSyncer != ServiceUnitTableViewSyncerType.None;
+    }
+
+    public enum ServiceUnitTableViewSyncerType {
+        None,
+        MetadataStoreToSystemTopicSyncer,
+        SystemTopicToMetadataStoreSyncer;
     }
 }

@@ -54,6 +54,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -86,7 +87,6 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.Notification;
@@ -198,6 +198,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
         ManagedLedger ledger = mock(ManagedLedger.class);
         when(ledger.getCursors()).thenReturn(new ArrayList<>());
+        when(ledger.getConfig()).thenReturn(new ManagedLedgerConfig());
 
         doReturn(CompletableFuture.completedFuture(null)).when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
@@ -298,8 +299,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         final String topicName = "persistent://my-property/use/my-ns/my-topic1";
         pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name").subscribe();
 
-        ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics = pulsar.getBrokerService()
-                .getTopics();
+        final var topics = pulsar.getBrokerService().getTopics();
         Topic spyTopic = spy(topics.get(topicName).get().get());
         topics.clear();
         CompletableFuture<Optional<Topic>> topicFuture = CompletableFuture.completedFuture(Optional.of(spyTopic));
@@ -329,7 +329,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         final String topicName = "persistent://my-property/use/my-ns/my-topic1";
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
                 .subscribe();
-        ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics = pulsar.getBrokerService().getTopics();
+        final var topics = pulsar.getBrokerService().getTopics();
         Topic spyTopic = spy(topics.get(topicName).get().get());
         topics.clear();
         CompletableFuture<Optional<Topic>> topicFuture = CompletableFuture.completedFuture(Optional.of(spyTopic));

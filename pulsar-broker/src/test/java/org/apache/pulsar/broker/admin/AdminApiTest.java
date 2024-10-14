@@ -65,7 +65,6 @@ import lombok.SneakyThrows;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
-import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -122,7 +121,6 @@ import org.apache.pulsar.common.policies.data.BrokerAssignment;
 import org.apache.pulsar.common.policies.data.BrokerInfo;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
@@ -579,24 +577,24 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // wait config to be updated
         Awaitility.await().until(() -> {
-            return pulsar.getManagedLedgerFactory().getEntryCacheManager().getMaxSize() == 1 * 1024L * 1024L
-                    && pulsar.getManagedLedgerFactory().getEntryCacheManager().getCacheEvictionWatermark() == 0.8
-                    && pulsar.getManagedLedgerFactory().getCacheEvictionTimeThreshold() == TimeUnit.MILLISECONDS
+            return pulsar.getDefaultManagedLedgerFactory().getEntryCacheManager().getMaxSize() == 1 * 1024L * 1024L
+                    && pulsar.getDefaultManagedLedgerFactory().getEntryCacheManager().getCacheEvictionWatermark() == 0.8
+                    && pulsar.getDefaultManagedLedgerFactory().getCacheEvictionTimeThreshold() == TimeUnit.MILLISECONDS
                     .toNanos(2000);
         });
 
         // verify value is updated
-        assertEquals(pulsar.getManagedLedgerFactory().getEntryCacheManager().getMaxSize(), 1 * 1024L * 1024L);
-        assertEquals(pulsar.getManagedLedgerFactory().getEntryCacheManager().getCacheEvictionWatermark(), 0.8);
-        assertEquals(pulsar.getManagedLedgerFactory().getCacheEvictionTimeThreshold(), TimeUnit.MILLISECONDS
+        assertEquals(pulsar.getDefaultManagedLedgerFactory().getEntryCacheManager().getMaxSize(), 1 * 1024L * 1024L);
+        assertEquals(pulsar.getDefaultManagedLedgerFactory().getEntryCacheManager().getCacheEvictionWatermark(), 0.8);
+        assertEquals(pulsar.getDefaultManagedLedgerFactory().getCacheEvictionTimeThreshold(), TimeUnit.MILLISECONDS
                 .toNanos(2000));
 
         restartBroker();
 
         // verify value again
-        assertEquals(pulsar.getManagedLedgerFactory().getEntryCacheManager().getMaxSize(), 1 * 1024L * 1024L);
-        assertEquals(pulsar.getManagedLedgerFactory().getEntryCacheManager().getCacheEvictionWatermark(), 0.8);
-        assertEquals(pulsar.getManagedLedgerFactory().getCacheEvictionTimeThreshold(), TimeUnit.MILLISECONDS
+        assertEquals(pulsar.getDefaultManagedLedgerFactory().getEntryCacheManager().getMaxSize(), 1 * 1024L * 1024L);
+        assertEquals(pulsar.getDefaultManagedLedgerFactory().getEntryCacheManager().getCacheEvictionWatermark(), 0.8);
+        assertEquals(pulsar.getDefaultManagedLedgerFactory().getCacheEvictionTimeThreshold(), TimeUnit.MILLISECONDS
                 .toNanos(2000));
     }
 
@@ -2306,8 +2304,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         admin.namespaces().unsubscribeNamespace("prop-xyz/ns1-bundles", "my-sub");
 
-        assertEquals(admin.topics().getSubscriptions("persistent://prop-xyz/ns1-bundles/ds2"),
-                List.of("my-sub-1", "my-sub-2"));
+        assertEquals(admin.topics().getSubscriptions("persistent://prop-xyz/ns1-bundles/ds2").stream().sorted()
+                .toList(), List.of("my-sub-1", "my-sub-2"));
         assertEquals(admin.topics().getSubscriptions("persistent://prop-xyz/ns1-bundles/ds1"),
                 List.of("my-sub-1"));
 
@@ -3446,46 +3444,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         setupConfigAndStart(conf -> conf.setTtlDurationDefaultInSeconds(3600));
         Integer seconds = admin.namespaces().getPolicies("prop-xyz/ns1").message_ttl_in_seconds;
         assertNull(seconds);
-    }
-
-    @Test
-    public void testGetReadPositionWhenJoining() throws Exception {
-        final String topic = "persistent://prop-xyz/ns1/testGetReadPositionWhenJoining-" + UUID.randomUUID().toString();
-        final String subName = "my-sub";
-        @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .enableBatching(false)
-                .create();
-
-        final int messages = 10;
-        MessageIdImpl messageId = null;
-        for (int i = 0; i < messages; i++) {
-            messageId = (MessageIdImpl) producer.send(("Hello Pulsar - " + i).getBytes());
-        }
-
-        List<Consumer<byte[]>> consumers = new ArrayList<>();
-        for (int i = 0; i < 2; i++) {
-            Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                    .topic(topic)
-                    .subscriptionType(SubscriptionType.Key_Shared)
-                    .subscriptionName(subName)
-                    .subscribe();
-            consumers.add(consumer);
-        }
-
-        TopicStats stats = admin.topics().getStats(topic);
-        Assert.assertEquals(stats.getSubscriptions().size(), 1);
-        SubscriptionStats subStats = stats.getSubscriptions().get(subName);
-        Assert.assertNotNull(subStats);
-        Assert.assertEquals(subStats.getConsumers().size(), 2);
-        ConsumerStats consumerStats = subStats.getConsumers().get(0);
-        Assert.assertEquals(consumerStats.getReadPositionWhenJoining(),
-                PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId() + 1).toString());
-
-        for (Consumer<byte[]> consumer : consumers) {
-            consumer.close();
-        }
     }
 
     @Test

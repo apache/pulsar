@@ -37,6 +37,7 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicName;
@@ -158,6 +159,10 @@ public abstract class AbstractReplicator implements Replicator {
         return remoteCluster;
     }
 
+    protected CompletableFuture<Void> prepareCreateProducer() {
+        return CompletableFuture.completedFuture(null);
+    }
+
     public void startProducer() {
         // Guarantee only one task call "producerBuilder.createAsync()".
         Pair<Boolean, State> setStartingRes = compareSetAndGetState(State.Disconnected, State.Starting);
@@ -184,8 +189,15 @@ public abstract class AbstractReplicator implements Replicator {
         }
 
         log.info("[{}] Starting replicator", replicatorId);
-        producerBuilder.createAsync().thenAccept(producer -> {
-            setProducerAndTriggerReadEntries(producer);
+
+        // Force only replicate messages to a non-partitioned topic, to avoid auto-create a partitioned topic on
+        // the remote cluster.
+        prepareCreateProducer().thenCompose(ignore -> {
+            ProducerBuilderImpl builderImpl = (ProducerBuilderImpl) producerBuilder;
+            builderImpl.getConf().setNonPartitionedTopicExpected(true);
+            return producerBuilder.createAsync().thenAccept(producer -> {
+                setProducerAndTriggerReadEntries(producer);
+            });
         }).exceptionally(ex -> {
             Pair<Boolean, State> setDisconnectedRes = compareSetAndGetState(State.Starting, State.Disconnected);
             if (setDisconnectedRes.getLeft()) {
@@ -210,6 +222,7 @@ public abstract class AbstractReplicator implements Replicator {
             }
             return null;
         });
+
     }
 
     /***
