@@ -241,7 +241,7 @@ public class GetPartitionMetadataTest extends TestRetrySupport {
         String pulsarUrl = pulsar1.getBrokerServiceUrl();
         PulsarClientImpl[] clients = getClientsToTest(false);
         for (PulsarClientImpl client : clients) {
-            client.getLookup(pulsarUrl).getBroker(TopicName.get(DEFAULT_NS + "/tp1"));
+            client.getLookup(pulsarUrl).getBroker(TopicName.get(DEFAULT_NS + "/tp1")).join();
         }
         // Inject a not support flag into the connections initialized.
         Field field = ClientCnx.class.getDeclaredField("supportsGetPartitionedMetadataWithoutAutoCreation");
