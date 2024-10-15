@@ -50,6 +50,8 @@ public interface LedgerOffloaderStats extends AutoCloseable {
 
     void recordDeleteOffloadOps(String topic, boolean succeed);
 
+    void recordOffloadDataLatency(String topic, long latency, TimeUnit unit);
+
 
     static LedgerOffloaderStats create(boolean exposeManagedLedgerStats, boolean exposeTopicLevelMetrics,
                                        ScheduledExecutorService scheduler, int interval) {
