@@ -1933,7 +1933,6 @@ public class BrokerServiceTest extends BrokerTestBase {
                         + "Please redo the lookup. Request is denied: namespace=pfs/ons")))
             .when(spyService).checkTopicNsOwnership(topicName);
 
-        pulsar.setBrokerService(spyService);
         when(spyService.getPulsarStats()).thenReturn(mock(PulsarStats.class));
 
         // Call the method under test
