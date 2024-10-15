@@ -996,6 +996,10 @@ public class Commands {
         return serializeWithSize(newLookupErrorResponseCommand(error, errorMsg, requestId));
     }
 
+    /**
+     * @deprecated use {@link #newMultiMessageAck(long, List, long)} instead
+     */
+    @Deprecated
     public static ByteBuf newMultiTransactionMessageAck(long consumerId, TxnID txnID,
             List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries) {
         BaseCommand cmd = newMultiMessageAckCommon(entries);
@@ -1007,6 +1011,10 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
+    /**
+     * @deprecated use {@link #newMultiMessageAck(long, List, long)} instead
+     */
+    @Deprecated
     private static BaseCommand newMultiMessageAckCommon(List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries) {
         BaseCommand cmd = localCmd(Type.ACK);
         CommandAck ack = cmd.setAck();
@@ -1043,12 +1051,20 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
+    /**
+     * @deprecated use {@link #newMultiMessageAck(long, List, long)} instead
+     */
+    @Deprecated
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
                                  ValidationError validationError, Map<String, Long> properties, long requestId) {
         return newAck(consumerId, ledgerId, entryId, ackSet, ackType, validationError,
                 properties, -1L, -1L, requestId, -1);
     }
 
+    /**
+     * @deprecated use {@link #newMultiMessageAck(long, List, long)} instead
+     */
+    @Deprecated
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
                                  ValidationError validationError, Map<String, Long> properties, long txnIdLeastBits,
                                  long txnIdMostBits, long requestId, int batchSize) {
@@ -1073,6 +1089,10 @@ public class Commands {
         return newAck(validationError, properties, txnIdLeastBits, txnIdMostBits, requestId, ack, cmd);
     }
 
+    /**
+     * @deprecated use {@link #newMultiMessageAck(long, List, long)} instead
+     */
+    @Deprecated
     public static ByteBuf newAck(long consumerId, List<MessageIdData> messageIds, AckType ackType,
                                  ValidationError validationError, Map<String, Long> properties, long txnIdLeastBits,
                                  long txnIdMostBits, long requestId) {
@@ -1085,6 +1105,10 @@ public class Commands {
         return newAck(validationError, properties, txnIdLeastBits, txnIdMostBits, requestId, ack, cmd);
     }
 
+    /**
+     * @deprecated use {@link #newMultiMessageAck(long, List, long)} instead
+     */
+    @Deprecated
     private static ByteBuf newAck(ValidationError validationError, Map<String, Long> properties, long txnIdLeastBits,
                                   long txnIdMostBits, long requestId, CommandAck ack, BaseCommand cmd) {
         if (validationError != null) {
@@ -1108,7 +1132,10 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
-
+    /**
+     * @deprecated use {@link #newMultiMessageAck(long, List, long)} instead
+     */
+    @Deprecated
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
                                  ValidationError validationError, Map<String, Long> properties, long txnIdLeastBits,
                                  long txnIdMostBits, long requestId) {
@@ -1116,6 +1143,10 @@ public class Commands {
                 properties, txnIdLeastBits, txnIdMostBits, requestId, -1);
     }
 
+    /**
+     * @deprecated use {@link #newMultiMessageAck(long, List, long)} instead
+     */
+    @Deprecated
     public static ByteBuf newAckResponse(long requestId, ServerError error, String errorMsg, long consumerId) {
         BaseCommand cmd = localCmd(Type.ACK_RESPONSE);
         CommandAckResponse  response = cmd.setAckResponse()
