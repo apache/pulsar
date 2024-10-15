@@ -42,6 +42,14 @@ public class MultiplierRedeliveryBackoff implements RedeliveryBackoff {
         return new MultiplierRedeliveryBackoff.MultiplierRedeliveryBackoffBuilder();
     }
 
+    public long getMinDelayMs() {
+        return this.minDelayMs;
+    }
+
+    public long getMaxDelayMs() {
+        return this.maxDelayMs;
+    }
+
     @Override
     public long next(int redeliveryCount) {
         if (redeliveryCount <= 0 || minDelayMs <= 0) {
@@ -57,8 +65,8 @@ public class MultiplierRedeliveryBackoff implements RedeliveryBackoff {
      * Builder of MultiplierRedeliveryBackoff.
      */
     public static class MultiplierRedeliveryBackoffBuilder {
-        private long minDelayMs = 1000 * 10;
-        private long maxDelayMs = 1000 * 60 * 10;
+        private long minDelayMs = 10_000;
+        private long maxDelayMs = 600_000;
         private double multiplier = 2.0;
 
         public MultiplierRedeliveryBackoffBuilder minDelayMs(long minDelayMs) {
