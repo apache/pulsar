@@ -699,6 +699,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             brokerClientSharedExternalExecutorProvider.shutdownNow();
             brokerClientSharedInternalExecutorProvider.shutdownNow();
             brokerClientSharedScheduledExecutorProvider.shutdownNow();
+            brokerClientSharedLookupExecutorProvider.shutdownNow();
             brokerClientSharedTimer.stop();
             monotonicSnapshotClock.close();
 
