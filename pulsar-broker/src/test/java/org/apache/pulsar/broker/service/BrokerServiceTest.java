@@ -28,6 +28,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -1920,9 +1921,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         }
     }
 
-    @Test(dataProvider = "TopicDomain")
-    public void testLoadOrCreatePersistentTopicWithServiceUnitNotReadyException(String topicDomain) throws Exception {
-        final String topicName = topicDomain + "://prop/ns-abc/topic-not-ready";
+    public void testLoadOrCreatePersistentTopicWithServiceUnitNotReadyException() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/topic-not-ready";
         BrokerService service = pulsar.getBrokerService();
 
         // Mock the checkTopicNsOwnership to throw ServiceUnitNotReadyException
@@ -1937,8 +1937,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         when(spyService.getPulsarStats()).thenReturn(mock(PulsarStats.class));
 
         // Call the method under test
-        CompletableFuture<Optional<Topic>> future = spyService.loadOrCreatePersistentTopic(topicName, true,
-                Collections.emptyMap(), null);
+        CompletableFuture<Optional<Topic>> future = spyService.getTopic(topicName, true);
 
         try {
             future.get();
@@ -1949,6 +1948,40 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         // Verify that recordTopicLoadFailed was not called
         verify(spyService.getPulsarStats(), never()).recordTopicLoadFailed();
+
+        doReturn(CompletableFuture.failedFuture(
+                new BrokerServiceException.ServerMetadataException("Server metadata error")))
+                .when(spyService).checkTopicNsOwnership(topicName);
+
+        // Call the method under test
+        future = spyService.getTopic(topicName, true);
+
+        try {
+            future.get();
+            fail("Should have thrown an exception");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof BrokerServiceException.ServerMetadataException);
+        }
+
+        // Verify that recordTopicLoadFailed was not called
+        verify(spyService.getPulsarStats(), times(1)).recordTopicLoadFailed();
+
+        doReturn(CompletableFuture.failedFuture(
+                new BrokerServiceException.ServiceUnitNotReadyException("Other exception")))
+                .when(spyService).checkTopicNsOwnership(topicName);
+
+        // Call the method under test
+        future = spyService.getTopic(topicName, true);
+
+        try {
+            future.get();
+            fail("Should have thrown an exception");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof BrokerServiceException.ServiceUnitNotReadyException);
+        }
+
+        // Verify that recordTopicLoadFailed was not called
+        verify(spyService.getPulsarStats(), times(2)).recordTopicLoadFailed();
     }
 }
 
