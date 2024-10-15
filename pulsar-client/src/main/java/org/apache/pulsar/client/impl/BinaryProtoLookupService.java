@@ -21,12 +21,14 @@ package org.apache.pulsar.client.impl;
 import static java.lang.String.format;
 import static org.apache.pulsar.client.api.PulsarClientException.FailedFeatureCheck.SupportsGetPartitionedMetadataWithoutAutoCreation;
 import io.netty.buffer.ByteBuf;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -55,9 +57,11 @@ public class BinaryProtoLookupService implements LookupService {
     private final PulsarClientImpl client;
     private final ServiceNameResolver serviceNameResolver;
     private final boolean useTls;
-    private final ExecutorService executor;
+    private final ExecutorService scheduleExecutor;
     private final String listenerName;
     private final int maxLookupRedirects;
+    private final ExecutorService lookupPinnedExecutor;
+    private final boolean createdLookupPinnedExecutor;
 
     private final ConcurrentHashMap<TopicName, CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>>>
             lookupInProgress = new ConcurrentHashMap<>();
@@ -65,27 +69,56 @@ public class BinaryProtoLookupService implements LookupService {
     private final ConcurrentHashMap<TopicName, CompletableFuture<PartitionedTopicMetadata>>
             partitionedMetadataInProgress = new ConcurrentHashMap<>();
 
+    /**
+     * @deprecated use {@link
+     * #BinaryProtoLookupService(PulsarClientImpl, String, String, boolean, ExecutorService, ExecutorService)} instead.
+     */
+    @Deprecated
     public BinaryProtoLookupService(PulsarClientImpl client,
                                     String serviceUrl,
                                     boolean useTls,
-                                    ExecutorService executor)
+                                    ExecutorService scheduleExecutor)
             throws PulsarClientException {
-        this(client, serviceUrl, null, useTls, executor);
+        this(client, serviceUrl, null, useTls, scheduleExecutor);
+    }
+
+    /**
+     * @deprecated use {@link
+     * #BinaryProtoLookupService(PulsarClientImpl, String, String, boolean, ExecutorService, ExecutorService)} instead.
+     */
+    @Deprecated
+    public BinaryProtoLookupService(PulsarClientImpl client,
+                                    String serviceUrl,
+                                    String listenerName,
+                                    boolean useTls,
+                                    ExecutorService scheduleExecutor)
+            throws PulsarClientException {
+        this(client, serviceUrl, listenerName, useTls, scheduleExecutor, null);
     }
 
     public BinaryProtoLookupService(PulsarClientImpl client,
                                     String serviceUrl,
                                     String listenerName,
                                     boolean useTls,
-                                    ExecutorService executor)
+                                    ExecutorService scheduleExecutor,
+                                    ExecutorService lookupPinnedExecutor)
             throws PulsarClientException {
         this.client = client;
         this.useTls = useTls;
-        this.executor = executor;
+        this.scheduleExecutor = scheduleExecutor;
         this.maxLookupRedirects = client.getConfiguration().getMaxLookupRedirects();
         this.serviceNameResolver = new PulsarServiceNameResolver();
         this.listenerName = listenerName;
         updateServiceUrl(serviceUrl);
+
+        if (lookupPinnedExecutor == null) {
+            this.createdLookupPinnedExecutor = true;
+            this.lookupPinnedExecutor =
+                    Executors.newSingleThreadExecutor(new DefaultThreadFactory("pulsar-client-binary-proto-lookup"));
+        } else {
+            this.createdLookupPinnedExecutor = false;
+            this.lookupPinnedExecutor = lookupPinnedExecutor;
+        }
     }
 
     @Override
@@ -153,7 +186,7 @@ public class BinaryProtoLookupService implements LookupService {
             return addressFuture;
         }
 
-        client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
+        client.getCnxPool().getConnection(socketAddress).thenAcceptAsync(clientCnx -> {
             long requestId = client.newRequestId();
             ByteBuf request = Commands.newLookup(topicName.toString(), listenerName, authoritative, requestId);
             clientCnx.newLookup(request, requestId).whenComplete((r, t) -> {
@@ -218,7 +251,7 @@ public class BinaryProtoLookupService implements LookupService {
                 }
                 client.getCnxPool().releaseConnection(clientCnx);
             });
-        }).exceptionally(connectionException -> {
+        }, lookupPinnedExecutor).exceptionally(connectionException -> {
             addressFuture.completeExceptionally(FutureUtil.unwrapCompletionException(connectionException));
             return null;
         });
@@ -230,7 +263,7 @@ public class BinaryProtoLookupService implements LookupService {
 
         CompletableFuture<PartitionedTopicMetadata> partitionFuture = new CompletableFuture<>();
 
-        client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
+        client.getCnxPool().getConnection(socketAddress).thenAcceptAsync(clientCnx -> {
             boolean finalAutoCreationEnabled = metadataAutoCreationEnabled;
             if (!metadataAutoCreationEnabled && !clientCnx.isSupportsGetPartitionedMetadataWithoutAutoCreation()) {
                 if (useFallbackForNonPIP344Brokers) {
@@ -269,7 +302,7 @@ public class BinaryProtoLookupService implements LookupService {
                 }
                 client.getCnxPool().releaseConnection(clientCnx);
             });
-        }).exceptionally(connectionException -> {
+        }, lookupPinnedExecutor).exceptionally(connectionException -> {
             partitionFuture.completeExceptionally(FutureUtil.unwrapCompletionException(connectionException));
             return null;
         });
@@ -291,7 +324,7 @@ public class BinaryProtoLookupService implements LookupService {
             return schemaFuture;
         }
         InetSocketAddress socketAddress = serviceNameResolver.resolveHost();
-        client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
+        client.getCnxPool().getConnection(socketAddress).thenAcceptAsync(clientCnx -> {
             long requestId = client.newRequestId();
             ByteBuf request = Commands.newGetSchema(requestId, topicName.toString(),
                 Optional.ofNullable(BytesSchemaVersion.of(version)));
@@ -305,7 +338,7 @@ public class BinaryProtoLookupService implements LookupService {
                 }
                 client.getCnxPool().releaseConnection(clientCnx);
             });
-        }).exceptionally(ex -> {
+        }, lookupPinnedExecutor).exceptionally(ex -> {
             schemaFuture.completeExceptionally(FutureUtil.unwrapCompletionException(ex));
             return null;
         });
@@ -348,7 +381,7 @@ public class BinaryProtoLookupService implements LookupService {
                                          Mode mode,
                                          String topicsPattern,
                                          String topicsHash) {
-        client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
+        client.getCnxPool().getConnection(socketAddress).thenAcceptAsync(clientCnx -> {
             long requestId = client.newRequestId();
             ByteBuf request = Commands.newGetTopicsOfNamespaceRequest(
                 namespace.toString(), requestId, mode, topicsPattern, topicsHash);
@@ -365,7 +398,7 @@ public class BinaryProtoLookupService implements LookupService {
                 }
                 client.getCnxPool().releaseConnection(clientCnx);
             });
-        }).exceptionally((e) -> {
+        }, lookupPinnedExecutor).exceptionally((e) -> {
             long nextDelay = Math.min(backoff.next(), remainingTime.get());
             if (nextDelay <= 0) {
                 getTopicsResultFuture.completeExceptionally(
@@ -375,7 +408,7 @@ public class BinaryProtoLookupService implements LookupService {
                 return null;
             }
 
-            ((ScheduledExecutorService) executor).schedule(() -> {
+            ((ScheduledExecutorService) scheduleExecutor).schedule(() -> {
                 log.warn("[namespace: {}] Could not get connection while getTopicsUnderNamespace -- Will try again in"
                                 + " {} ms", namespace, nextDelay);
                 remainingTime.addAndGet(-nextDelay);
@@ -389,7 +422,9 @@ public class BinaryProtoLookupService implements LookupService {
 
     @Override
     public void close() throws Exception {
-        // no-op
+        if (createdLookupPinnedExecutor && lookupPinnedExecutor != null && !lookupPinnedExecutor.isShutdown()) {
+            lookupPinnedExecutor.shutdown();
+        }
     }
 
     public static class LookupDataResult {
