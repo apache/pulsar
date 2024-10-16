@@ -71,7 +71,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
 
     private volatile State state = null;
 
-    private long lastAccessTimestamp = System.currentTimeMillis();
+    private volatile long lastAccessTimestamp = System.currentTimeMillis();
 
     private BlobStoreBackedReadHandleImpl(long ledgerId, OffloadIndexBlock index,
                                           BackedInputStream inputStream, ExecutorService executor,
