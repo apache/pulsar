@@ -109,6 +109,7 @@ public class PulsarClientImpl implements PulsarClient {
     private final boolean createdExecutorProviders;
 
     private final boolean createdScheduledProviders;
+    private final boolean createdLookupProviders;
     private LookupService lookup;
     private Map<String, LookupService> urlLookupMap = new ConcurrentHashMap<>();
     private final ConnectionPool cnxPool;
@@ -117,6 +118,7 @@ public class PulsarClientImpl implements PulsarClient {
     private boolean needStopTimer;
     private final ExecutorProvider externalExecutorProvider;
     private final ExecutorProvider internalExecutorProvider;
+    private final ExecutorProvider lookupExecutorProvider;
 
     private final ScheduledExecutorProvider scheduledExecutorProvider;
     private final boolean createdEventLoopGroup;
@@ -157,29 +159,40 @@ public class PulsarClientImpl implements PulsarClient {
     private TransactionCoordinatorClientImpl tcClient;
 
     public PulsarClientImpl(ClientConfigurationData conf) throws PulsarClientException {
-        this(conf, null, null, null, null, null, null);
+        this(conf, null, null, null, null, null, null, null);
     }
 
     public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) throws PulsarClientException {
-        this(conf, eventLoopGroup, null, null, null, null, null);
+        this(conf, eventLoopGroup, null, null, null, null, null, null);
     }
 
     public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool cnxPool)
             throws PulsarClientException {
-        this(conf, eventLoopGroup, cnxPool, null, null, null, null);
+        this(conf, eventLoopGroup, cnxPool, null, null, null, null, null);
     }
 
     public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool cnxPool,
                             Timer timer)
             throws PulsarClientException {
-        this(conf, eventLoopGroup, cnxPool, timer, null, null, null);
+        this(conf, eventLoopGroup, cnxPool, timer, null, null, null, null);
+    }
+
+    public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool connectionPool,
+                            Timer timer, ExecutorProvider externalExecutorProvider,
+                            ExecutorProvider internalExecutorProvider,
+                            ScheduledExecutorProvider scheduledExecutorProvider)
+            throws PulsarClientException {
+        this(conf, eventLoopGroup, connectionPool, timer, externalExecutorProvider, internalExecutorProvider,
+                scheduledExecutorProvider, null);
     }
 
     @Builder(builderClassName = "PulsarClientImplBuilder")
     private PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool connectionPool,
                              Timer timer, ExecutorProvider externalExecutorProvider,
                              ExecutorProvider internalExecutorProvider,
-                             ScheduledExecutorProvider scheduledExecutorProvider) throws PulsarClientException {
+                             ScheduledExecutorProvider scheduledExecutorProvider,
+                             ExecutorProvider lookupExecutorProvider) throws PulsarClientException {
+
         EventLoopGroup eventLoopGroupReference = null;
         ConnectionPool connectionPoolReference = null;
         try {
@@ -191,6 +204,7 @@ public class PulsarClientImpl implements PulsarClient {
             }
             this.createdExecutorProviders = externalExecutorProvider == null;
             this.createdScheduledProviders = scheduledExecutorProvider == null;
+            this.createdLookupProviders = lookupExecutorProvider == null;
             eventLoopGroupReference = eventLoopGroup != null ? eventLoopGroup : getEventLoopGroup(conf);
             this.eventLoopGroup = eventLoopGroupReference;
             if (conf == null || isBlank(conf.getServiceUrl())) {
@@ -206,13 +220,16 @@ public class PulsarClientImpl implements PulsarClient {
                     new ExecutorProvider(conf.getNumListenerThreads(), "pulsar-external-listener");
             this.internalExecutorProvider = internalExecutorProvider != null ? internalExecutorProvider :
                     new ExecutorProvider(conf.getNumIoThreads(), "pulsar-client-internal");
+            this.lookupExecutorProvider = lookupExecutorProvider != null ? lookupExecutorProvider :
+                    new ExecutorProvider(1, "pulsar-client-lookup");
             this.scheduledExecutorProvider = scheduledExecutorProvider != null ? scheduledExecutorProvider :
                     new ScheduledExecutorProvider(conf.getNumIoThreads(), "pulsar-client-scheduled");
             if (conf.getServiceUrl().startsWith("http")) {
                 lookup = new HttpLookupService(conf, this.eventLoopGroup);
             } else {
                 lookup = new BinaryProtoLookupService(this, conf.getServiceUrl(), conf.getListenerName(),
-                        conf.isUseTls(), this.scheduledExecutorProvider.getExecutor());
+                        conf.isUseTls(), this.scheduledExecutorProvider.getExecutor(),
+                        this.lookupExecutorProvider.getExecutor());
             }
             if (timer == null) {
                 this.timer = new HashedWheelTimer(getThreadFactory("pulsar-timer"), 1, TimeUnit.MILLISECONDS);
@@ -965,6 +982,16 @@ public class PulsarClientImpl implements PulsarClient {
                 pulsarClientException = PulsarClientException.unwrap(t);
             }
         }
+
+        if (createdLookupProviders && lookupExecutorProvider != null && !lookupExecutorProvider.isShutdown()) {
+            try {
+                lookupExecutorProvider.shutdownNow();
+            } catch (Throwable t) {
+                log.warn("Failed to shutdown lookupExecutorProvider", t);
+                pulsarClientException = PulsarClientException.unwrap(t);
+            }
+        }
+
         if (pulsarClientException != null) {
             throw pulsarClientException;
         }
