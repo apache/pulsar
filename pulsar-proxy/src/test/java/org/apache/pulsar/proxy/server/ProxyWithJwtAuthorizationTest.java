@@ -194,7 +194,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         } catch (Exception ex) {
             // excepted
             admin.namespaces().grantPermissionOnNamespace(namespaceName, CLIENT_ROLE,
-                    Sets.newHashSet(AuthAction.consume));
+                    Sets.newHashSet(AuthAction.consume, AuthAction.create_topic));
             log.info("-- Admin permissions {} ---", admin.namespaces().getPermissions(namespaceName));
             consumer = proxyClient.newConsumer()
                     .topic("persistent://my-property/proxy-authorization/my-ns/my-topic1")
@@ -382,7 +382,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));
         admin.namespaces().createNamespace(namespaceName);
         admin.namespaces().grantPermissionOnNamespace(namespaceName, CLIENT_ROLE,
-                Sets.newHashSet(AuthAction.produce, AuthAction.consume));
+                Sets.newHashSet(AuthAction.produce, AuthAction.consume, AuthAction.create_topic));
         admin.namespaces().setSubscriptionAuthMode(namespaceName, SubscriptionAuthMode.Prefix);
 
         Consumer<byte[]> consumer;
