@@ -30,6 +30,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
@@ -46,7 +47,7 @@ public class OffloadEvictUnusedLedgersTest extends MockedBookKeeperTestCase {
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(10, TimeUnit.MINUTES);
         config.setRetentionSizeInMB(10);
-        int inactiveOffloadedLedgerEvictionTimeMs = 10000;
+        int inactiveOffloadedLedgerEvictionTimeMs = 1000;
         config.setInactiveOffloadedLedgerEvictionTime(inactiveOffloadedLedgerEvictionTimeMs, TimeUnit.MILLISECONDS);
         config.setLedgerOffloader(offloader);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger_evict", config);
@@ -94,10 +95,11 @@ public class OffloadEvictUnusedLedgersTest extends MockedBookKeeperTestCase {
         });
         assertNotEquals(first.get(), -1L);
 
-        List<Long> evicted = ledger.internalEvictOffloadedLedgers();
-        assertEquals(evicted.size(), 1);
-        assertEquals(first.get(), evicted.get(0).longValue());
-
+        Awaitility.await().untilAsserted(() -> {
+            List<Long> evicted = ledger.internalEvictOffloadedLedgers();
+            assertEquals(evicted.size(), 1);
+            assertEquals(first.get(), evicted.get(0).longValue());
+        });
     }
 
 }
