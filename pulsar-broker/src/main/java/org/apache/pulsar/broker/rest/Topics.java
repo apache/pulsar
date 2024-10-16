@@ -49,6 +49,7 @@ public class Topics extends TopicsBase {
     @Path("/persistent/{tenant}/{namespace}/{topic}")
     @ApiOperation(value = "Produce message to a persistent topic.", response = String.class, responseContainer = "List")
     @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
             @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
             @ApiResponse(code = 412, message = "Namespace name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error") })
@@ -76,6 +77,7 @@ public class Topics extends TopicsBase {
     @ApiOperation(value = "Produce message to a partition of a persistent topic.",
             response = String.class, responseContainer = "List")
     @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
             @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
             @ApiResponse(code = 412, message = "Namespace name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error") })
@@ -104,6 +106,7 @@ public class Topics extends TopicsBase {
     @Path("/non-persistent/{tenant}/{namespace}/{topic}")
     @ApiOperation(value = "Produce message to a persistent topic.", response = String.class, responseContainer = "List")
     @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
             @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
             @ApiResponse(code = 412, message = "Namespace name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error") })
@@ -132,6 +135,7 @@ public class Topics extends TopicsBase {
     @ApiOperation(value = "Produce message to a partition of a persistent topic.",
             response = String.class, responseContainer = "List")
     @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
             @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
             @ApiResponse(code = 412, message = "Namespace name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error") })

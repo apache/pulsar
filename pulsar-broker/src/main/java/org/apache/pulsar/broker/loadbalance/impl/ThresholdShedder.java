@@ -41,7 +41,7 @@ import org.slf4j.LoggerFactory;
  * configured threshold. As a consequence, this strategy tends to distribute load among all brokers. It does this by
  * first computing the average resource usage per broker for the whole cluster. The resource usage for each broker is
  * calculated using the following method:
- * {@link LocalBrokerData#getMaxResourceUsageWithWeight(double, double, double, double, double)}. The weights
+ * {@link LocalBrokerData#getMaxResourceUsageWithWeight(double, double, double, double)}. The weights
  * for each resource are configurable. Historical observations are included in the running average based on the broker's
  * setting for loadBalancerHistoryResourcePercentage. Once the average resource usage is calculated, a broker's
  * current/historical usage is compared to the average broker usage. If a broker's usage is greater than the average
@@ -79,7 +79,8 @@ public class ThresholdShedder implements LoadSheddingStrategy {
             final double currentUsage = brokerAvgResourceUsage.getOrDefault(broker, 0.0);
             if (currentUsage < avgUsage + threshold) {
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] broker is not overloaded, ignoring at this point", broker);
+                    log.debug("[{}] broker is not overloaded, ignoring at this point ({})", broker,
+                            localData.printResourceUsage());
                 }
                 return;
             }
@@ -92,17 +93,19 @@ public class ThresholdShedder implements LoadSheddingStrategy {
             if (minimumThroughputToOffload < minThroughputThreshold) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] broker is planning to shed throughput {} MByte/s less than "
-                                    + "minimumThroughputThreshold {} MByte/s, skipping bundle unload.",
-                            broker, minimumThroughputToOffload / MB, minThroughputThreshold / MB);
+                                    + "minimumThroughputThreshold {} MByte/s, skipping bundle unload ({})",
+                            broker, minimumThroughputToOffload / MB, minThroughputThreshold / MB,
+                            localData.printResourceUsage());
                 }
                 return;
             }
 
             log.info(
-                    "Attempting to shed load on {}, which has max resource usage above avgUsage  and threshold {}%"
-                            + " > {}% + {}% -- Offloading at least {} MByte/s of traffic, left throughput {} MByte/s",
+                    "Attempting to shed load on {}, which has max resource usage above avgUsage and threshold {}%"
+                            + " > {}% + {}% -- Offloading at least {} MByte/s of traffic,"
+                                    + " left throughput {} MByte/s ({})",
                     broker, 100 * currentUsage, 100 * avgUsage, 100 * threshold, minimumThroughputToOffload / MB,
-                    (brokerCurrentThroughput - minimumThroughputToOffload) / MB);
+                    (brokerCurrentThroughput - minimumThroughputToOffload) / MB, localData.printResourceUsage());
 
             if (localData.getBundles().size() > 1) {
                 filterAndSelectBundle(loadData, recentlyUnloadedBundles, broker, localData, minimumThroughputToOffload);
@@ -170,8 +173,8 @@ public class ThresholdShedder implements LoadSheddingStrategy {
         double resourceUsage = localBrokerData.getMaxResourceUsageWithWeight(
                 conf.getLoadBalancerCPUResourceWeight(),
                 conf.getLoadBalancerDirectMemoryResourceWeight(),
-                conf.getLoadBalancerBandwithInResourceWeight(),
-                conf.getLoadBalancerBandwithOutResourceWeight());
+                conf.getLoadBalancerBandwidthInResourceWeight(),
+                conf.getLoadBalancerBandwidthOutResourceWeight());
         historyUsage = historyUsage == null
                 ? resourceUsage : historyUsage * historyPercentage + (1 - historyPercentage) * resourceUsage;
 

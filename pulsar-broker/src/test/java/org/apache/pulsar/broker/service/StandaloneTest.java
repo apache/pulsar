@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import org.apache.pulsar.PulsarStandaloneStarter;
-import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.testng.annotations.Test;
 
 import static org.testng.AssertJUnit.assertEquals;
@@ -27,34 +26,45 @@ import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertNull;
 
 @Test(groups = "broker")
-public class StandaloneTest extends MockedPulsarServiceBaseTest {
+public class StandaloneTest {
 
-    @Override
-    protected void setup() throws Exception {
+    static class TestPulsarStandaloneStarter extends PulsarStandaloneStarter {
+        public TestPulsarStandaloneStarter(String[] args) throws Exception {
+            super(args);
+        }
 
-    }
+        @Override
+        protected void registerShutdownHook() {
+            // ignore to prevent memory leaks
+        }
 
-    @Override
-    protected void cleanup() throws Exception {
-
+        @Override
+        protected void exit(int status) {
+            // don't ever call System.exit in tests
+            throw new RuntimeException("Exited with status " + status);
+        }
     }
 
     @Test
     public void testWithoutMetadataStoreUrlInConfFile() throws Exception {
         String[] args = new String[]{"--config",
                 "../conf/standalone.conf"};
-        PulsarStandaloneStarter standalone = new PulsarStandaloneStarter(args);
+        PulsarStandaloneStarter standalone = new TestPulsarStandaloneStarter(args);
         assertNotNull(standalone.getConfig().getProperties().getProperty("metadataStoreUrl"));
         assertNotNull(standalone.getConfig().getProperties().getProperty("configurationMetadataStoreUrl"));
     }
 
     @Test
-    public void testAdvertised() throws Exception {
+    public void testInitialize() throws Exception {
         String[] args = new String[]{"--config",
                 "./src/test/resources/configurations/pulsar_broker_test_standalone.conf"};
-        PulsarStandaloneStarter standalone = new PulsarStandaloneStarter(args);
+        PulsarStandaloneStarter standalone = new TestPulsarStandaloneStarter(args);
         assertNull(standalone.getConfig().getAdvertisedAddress());
         assertEquals(standalone.getConfig().getAdvertisedListeners(),
                 "internal:pulsar://192.168.1.11:6660,internal:pulsar+ssl://192.168.1.11:6651");
+        assertEquals(standalone.getConfig().isDispatcherPauseOnAckStatePersistentEnabled(), true);
+        assertEquals(standalone.getConfig().getMaxSecondsToClearTopicNameCache(), 1);
+        assertEquals(standalone.getConfig().getTopicNameCacheMaxCapacity(), 200);
+        assertEquals(standalone.getConfig().isCreateTopicToRemoteClusterForReplication(), true);
     }
 }

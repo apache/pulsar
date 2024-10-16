@@ -65,13 +65,13 @@ public class BrokerInterceptorUtilsTest {
             BrokerInterceptorWithClassLoader returnedPhWithCL = BrokerInterceptorUtils.load(metadata, "");
             BrokerInterceptor returnedPh = returnedPhWithCL.getInterceptor();
 
-            assertSame(mockLoader, returnedPhWithCL.getClassLoader());
+            assertSame(mockLoader, returnedPhWithCL.getNarClassLoader());
             assertTrue(returnedPh instanceof MockBrokerInterceptor);
         }
     }
 
     @Test(expectedExceptions = IOException.class)
-    public void testLoadBrokerEventListenerWithBlankListerClass() throws Exception {
+    public void testLoadBrokerEventListenerWithBlankListenerClass() throws Exception {
         BrokerInterceptorDefinition def = new BrokerInterceptorDefinition();
         def.setDescription("test-broker-listener");
 
@@ -98,7 +98,7 @@ public class BrokerInterceptorUtilsTest {
     }
 
     @Test(expectedExceptions = IOException.class)
-    public void testLoadBrokerEventListenerWithWrongListerClass() throws Exception {
+    public void testLoadBrokerEventListenerWithWrongListenerClass() throws Exception {
         BrokerInterceptorDefinition def = new BrokerInterceptorDefinition();
         def.setInterceptorClass(Runnable.class.getName());
         def.setDescription("test-broker-listener");

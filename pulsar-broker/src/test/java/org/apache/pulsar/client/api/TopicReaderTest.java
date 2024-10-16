@@ -996,7 +996,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         }
 
         // cause broker to drop topic. Will be loaded next time we access it
-        pulsar.getBrokerService().getTopics().keys().forEach(topicName -> {
+        pulsar.getBrokerService().getTopics().keySet().forEach(topicName -> {
             try {
                 pulsar.getBrokerService().getTopicReference(topicName).get().close(false).get();
             } catch (Exception e) {
@@ -1096,6 +1096,12 @@ public class TopicReaderTest extends ProducerConsumerBase {
         assertFalse(lastMsgId instanceof BatchMessageIdImpl);
         assertEquals(lastMsgId.getLedgerId(), messageId.getLedgerId());
         assertEquals(lastMsgId.getEntryId(), messageId.getEntryId());
+        List<TopicMessageId> lastMsgIds = reader.getConsumer().getLastMessageIds();
+        assertEquals(lastMsgIds.size(), 1);
+        assertEquals(lastMsgIds.get(0).getOwnerTopic(), topicName);
+        MessageIdAdv lastMsgIdAdv = (MessageIdAdv) lastMsgIds.get(0);
+        assertEquals(lastMsgIdAdv.getLedgerId(), messageId.getLedgerId());
+        assertEquals(lastMsgIdAdv.getEntryId(), messageId.getEntryId());
         reader.close();
 
         CountDownLatch latch = new CountDownLatch(numOfMessage);

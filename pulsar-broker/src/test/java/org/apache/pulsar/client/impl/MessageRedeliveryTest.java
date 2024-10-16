@@ -18,11 +18,16 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import com.google.common.collect.Sets;
+import io.netty.util.concurrent.DefaultThreadFactory;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -37,6 +42,8 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
@@ -49,8 +56,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-import com.google.common.collect.Sets;
-import io.netty.util.concurrent.DefaultThreadFactory;
 
 @Test(groups = "broker-impl")
 public class MessageRedeliveryTest extends ProducerConsumerBase {
@@ -478,7 +483,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         assertNull(message);
     }
 
-    @Test(dataProvider = "enableBatch", invocationCount = 10)
+    @Test(dataProvider = "enableBatch")
     public void testMultiConsumerBatchRedeliveryAddEpoch(boolean enableBatch) throws Exception{
 
         final String topic = "testMultiConsumerBatchRedeliveryAddEpoch";
@@ -538,5 +543,58 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
 
         // can't receive message again
         assertEquals(consumer.batchReceive().size(), 0);
+    }
+
+    /**
+     * This test validates that client lib correctly increases permits of individual consumer to retrieve data in case
+     * of incorrect epoch for partition-topic multi-consumer.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testRedeliveryWithMultiConsumerAndListenerAddEpoch() throws Exception {
+        final String topic = "testRedeliveryWithMultiConsumerAndListenerAddEpoch";
+        final String subName = "my-sub";
+        int totalMessages = 100;
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        Map<MessageId, String> ids = new ConcurrentHashMap<>();
+        CountDownLatch latch = new CountDownLatch(totalMessages);
+        MessageListener<String> msgListener = (Consumer<String> consumer, Message<String> msg) -> {
+            String id = msg.getMessageId().toString();
+            consumer.acknowledgeCumulativeAsync(msg);
+            if (ids.put(msg.getMessageId(), id) == null) {
+                latch.countDown();
+            }
+        };
+        @Cleanup
+        Consumer<String> newConsumer = pulsarClient.newConsumer(Schema.STRING).topic(topic).subscriptionName(subName)
+                .messageListener(msgListener).subscriptionType(SubscriptionType.Failover)
+                .receiverQueueSize(totalMessages / 10).subscribe();
+
+        MultiTopicsConsumerImpl<String> consumer = (MultiTopicsConsumerImpl<String>) newConsumer;
+        long epoch = consumer.getConsumerEpoch() + 1;
+        consumer.setConsumerEpoch(epoch);
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).enableBatching(false)
+                .create();
+
+        for (int i = 0; i < totalMessages; i++) {
+            producer.sendAsync("test" + i);
+        }
+        producer.flush();
+
+        // make sure listener has not received any messages until
+        // we call redelivery with correct epoch
+        for (int i = 0; i < 2; i++) {
+            assertTrue(ids.isEmpty());
+            Thread.sleep(1000);
+        }
+        // make epoch valid to consume redelivery message again
+        consumer.setConsumerEpoch(epoch - 1);
+        consumer.redeliverUnacknowledgedMessages();
+
+        latch.await(10, TimeUnit.SECONDS);
+        assertEquals(ids.size(), totalMessages);
     }
 }

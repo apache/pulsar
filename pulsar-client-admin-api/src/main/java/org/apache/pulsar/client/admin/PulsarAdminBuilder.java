@@ -291,6 +291,20 @@ public interface PulsarAdminBuilder {
     PulsarAdminBuilder tlsProtocols(Set<String> tlsProtocols);
 
     /**
+     * SSL Factory Plugin used to generate the SSL Context and SSLEngine.
+     * @param sslFactoryPlugin Name of the SSL Factory Class to be used.
+     * @return PulsarAdminBuilder
+     */
+    PulsarAdminBuilder sslFactoryPlugin(String sslFactoryPlugin);
+
+    /**
+     * Parameters used by the SSL Factory Plugin class.
+     * @param sslFactoryPluginParams String parameters to be used by the SSL Factory Class.
+     * @return
+     */
+    PulsarAdminBuilder sslFactoryPluginParams(String sslFactoryPluginParams);
+
+    /**
      * This sets the connection time out for the pulsar admin client.
      *
      * @param connectionTimeout
@@ -327,4 +341,39 @@ public interface PulsarAdminBuilder {
      */
     PulsarAdminBuilder setContextClassLoader(ClassLoader clientBuilderClassLoader);
 
+    /**
+     * Determines whether to include the "Accept-Encoding: gzip" header in HTTP requests.
+     * By default, the "Accept-Encoding: gzip" header is included in HTTP requests.
+     * If this is set to false, the "Accept-Encoding: gzip" header will not be included in the requests.
+     *
+     * @param acceptGzipCompression A flag that indicates whether to include the "Accept-Encoding: gzip" header in HTTP
+     *                              requests
+     */
+    PulsarAdminBuilder acceptGzipCompression(boolean acceptGzipCompression);
+
+    /**
+     * Configures the maximum number of connections that the client library will establish with a single host.
+     * <p>
+     * By default, the connection pool maintains up to 16 connections to a single host. This method allows you to
+     * modify this default behavior and limit the number of connections.
+     * <p>
+     * This setting can be useful in scenarios where you want to limit the resources used by the client library,
+     * or control the level of parallelism for operations so that a single client does not overwhelm
+     * the Pulsar cluster with too many concurrent connections.
+     *
+     * @param maxConnectionsPerHost the maximum number of connections to establish per host. Set to <= 0 to disable
+     *                             the limit.
+     * @return the PulsarAdminBuilder instance, allowing for method chaining
+     */
+    PulsarAdminBuilder maxConnectionsPerHost(int maxConnectionsPerHost);
+
+    /**
+     * Sets the maximum idle time for a pooled connection. If a connection is idle for more than the specified
+     * amount of seconds, it will be released back to the connection pool.
+     * Defaults to 25 seconds.
+     *
+     * @param connectionMaxIdleSeconds the maximum idle time, in seconds, for a pooled connection
+     * @return the PulsarAdminBuilder instance
+     */
+    PulsarAdminBuilder connectionMaxIdleSeconds(int connectionMaxIdleSeconds);
 }

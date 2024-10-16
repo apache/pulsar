@@ -35,6 +35,7 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Security;
+import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.InvalidKeySpecException;
 import java.util.HashMap;
 import java.util.List;
@@ -52,6 +53,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.ShortBufferException;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
@@ -73,6 +75,7 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.jce.spec.ECParameterSpec;
 import org.bouncycastle.jce.spec.ECPrivateKeySpec;
 import org.bouncycastle.jce.spec.ECPublicKeySpec;
+import org.bouncycastle.jce.spec.IESParameterSpec;
 import org.bouncycastle.openssl.PEMException;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
@@ -81,14 +84,15 @@ import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 @Slf4j
 public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMetadata> {
 
-    private static final String ECDSA = "ECDSA";
-    private static final String RSA = "RSA";
-    private static final String ECIES = "ECIES";
+    public static final String ECDSA = "ECDSA";
+    public static final String RSA = "RSA";
+    public static final String ECIES = "ECIES";
 
     // Ideally the transformation should also be part of the message property. This will prevent client
     // from assuming hardcoded value. However, it will increase the size of the message even further.
-    private static final String RSA_TRANS = "RSA/NONE/OAEPWithSHA1AndMGF1Padding";
-    private static final String AESGCM = "AES/GCM/NoPadding";
+    public static final String RSA_TRANS = "RSA/NONE/OAEPWithSHA1AndMGF1Padding";
+    public static final String AESGCM = "AES/GCM/NoPadding";
+    private static final String AESGCM_PROVIDER_NAME;
 
     private static KeyGenerator keyGenerator;
     private static final int tagLen = 16 * 8;
@@ -98,6 +102,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
     private String logCtx;
 
     // Data key which is used to encrypt message
+    @Getter
     private SecretKey dataKey;
     private LoadingCache<ByteBuffer, SecretKey> dataKeyCache;
 
@@ -118,6 +123,15 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
 
         // Initial seed
         secureRandom.nextBytes(new byte[IV_LEN]);
+
+        // Prefer SunJCE provider for AES-GCM for performance reason.
+        // For cases where SunJCE is not available (e.g. non-hotspot JVM), use BouncyCastle as fallback.
+        String sunJceProviderName = "SunJCE";
+        if (Security.getProvider(sunJceProviderName) != null) {
+            AESGCM_PROVIDER_NAME = sunJceProviderName;
+        } else {
+            AESGCM_PROVIDER_NAME = BouncyCastleProvider.PROVIDER_NAME;
+        }
 
         // Add provider only if it's not in the JVM
         if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
@@ -141,10 +155,10 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
 
         try {
 
-            cipher = Cipher.getInstance(AESGCM, BouncyCastleProvider.PROVIDER_NAME);
+            cipher = Cipher.getInstance(AESGCM, AESGCM_PROVIDER_NAME);
             // If keygen is not needed(e.g: consumer), data key will be decrypted from the message
             if (!keyGenNeeded) {
-
+                // codeql[java/weak-cryptographic-algorithm] - md5 is sufficient for this use case
                 digest = MessageDigest.getInstance("MD5");
 
                 dataKey = null;
@@ -172,9 +186,10 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         dataKey = keyGenerator.generateKey();
 
         iv = new byte[IV_LEN];
+
     }
 
-    private PublicKey loadPublicKey(byte[] keyBytes) throws Exception {
+    public static PublicKey loadPublicKey(byte[] keyBytes) throws Exception {
 
         Reader keyReader = new StringReader(new String(keyBytes));
         PublicKey publicKey = null;
@@ -322,27 +337,39 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         byte[] encryptedKey;
 
         try {
-
+            AlgorithmParameterSpec params = null;
             // Encrypt data key using public key
             if (RSA.equals(pubKey.getAlgorithm())) {
                 dataKeyCipher = Cipher.getInstance(RSA_TRANS, BouncyCastleProvider.PROVIDER_NAME);
             } else if (ECDSA.equals(pubKey.getAlgorithm())) {
                 dataKeyCipher = Cipher.getInstance(ECIES, BouncyCastleProvider.PROVIDER_NAME);
+                params = createIESParameterSpec();
             } else {
                 String msg = logCtx + "Unsupported key type " + pubKey.getAlgorithm() + " for key " + keyName;
                 log.error(msg);
                 throw new PulsarClientException.CryptoException(msg);
             }
-            dataKeyCipher.init(Cipher.ENCRYPT_MODE, pubKey);
+            if (params != null) {
+                dataKeyCipher.init(Cipher.ENCRYPT_MODE, pubKey, params);
+            } else {
+                dataKeyCipher.init(Cipher.ENCRYPT_MODE, pubKey);
+            }
             encryptedKey = dataKeyCipher.doFinal(dataKey.getEncoded());
 
         } catch (IllegalBlockSizeException | BadPaddingException | NoSuchAlgorithmException | NoSuchProviderException
-                | NoSuchPaddingException | InvalidKeyException e) {
+                 | NoSuchPaddingException | InvalidKeyException | InvalidAlgorithmParameterException e) {
             log.error("{} Failed to encrypt data key {}. {}", logCtx, keyName, e.getMessage());
             throw new PulsarClientException.CryptoException(e.getMessage());
         }
         EncryptionKeyInfo eki = new EncryptionKeyInfo(encryptedKey, keyInfo.getMetadata());
         encryptedDataKeyMap.put(keyName, eki);
+    }
+
+    // required since Bouncycastle 1.72 when using ECIES, it is required to pass in an IESParameterSpec
+    public static IESParameterSpec createIESParameterSpec() {
+        // the IESParameterSpec to use was discovered by debugging BouncyCastle 1.69 and running the
+        // test org.apache.pulsar.client.api.SimpleProducerConsumerTest#testCryptoWithChunking
+        return new IESParameterSpec(null, null, 128);
     }
 
     /*
@@ -474,23 +501,27 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         byte[] keyDigest = null;
 
         try {
-
+            AlgorithmParameterSpec params = null;
             // Decrypt data key using private key
             if (RSA.equals(privateKey.getAlgorithm())) {
                 dataKeyCipher = Cipher.getInstance(RSA_TRANS, BouncyCastleProvider.PROVIDER_NAME);
             } else if (ECDSA.equals(privateKey.getAlgorithm())) {
                 dataKeyCipher = Cipher.getInstance(ECIES, BouncyCastleProvider.PROVIDER_NAME);
+                params = createIESParameterSpec();
             } else {
                 log.error("Unsupported key type {} for key {}.", privateKey.getAlgorithm(), keyName);
                 return false;
             }
-            dataKeyCipher.init(Cipher.DECRYPT_MODE, privateKey);
+            if (params != null) {
+                dataKeyCipher.init(Cipher.DECRYPT_MODE, privateKey, params);
+            } else {
+                dataKeyCipher.init(Cipher.DECRYPT_MODE, privateKey);
+            }
             dataKeyValue = dataKeyCipher.doFinal(encryptedDataKey);
 
             keyDigest = digest.digest(encryptedDataKey);
 
-        } catch (IllegalBlockSizeException | BadPaddingException | NoSuchAlgorithmException | NoSuchProviderException
-                | NoSuchPaddingException | InvalidKeyException e) {
+        } catch (Exception e) {
             log.error("{} Failed to decrypt data key {} to decrypt messages {}", logCtx, keyName, e.getMessage());
             return false;
         }
@@ -518,8 +549,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             targetBuffer.limit(decryptedSize);
             return true;
 
-        } catch (InvalidKeyException | InvalidAlgorithmParameterException | IllegalBlockSizeException
-                | BadPaddingException | ShortBufferException e) {
+        } catch (Exception e) {
             log.error("{} Failed to decrypt message {}", logCtx, e.getMessage());
             return false;
         }
@@ -542,7 +572,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             if (storedSecretKey != null) {
 
                 // Taking a small performance hit here if the hash collides. When it
-                // retruns a different key, decryption fails. At this point, we would
+                // returns a different key, decryption fails. At this point, we would
                 // call decryptDataKey to refresh the cache and come here again to decrypt.
                 if (decryptData(storedSecretKey, msgMetadata, payload, targetBuffer)) {
                     // If decryption succeeded, we can already return

@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.authentication;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedDataAttributeName;
 import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedRoleAttributeName;
-import com.google.common.annotations.VisibleForTesting;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwt;
@@ -31,8 +30,6 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.RequiredTypeException;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.SignatureException;
-import io.prometheus.client.Counter;
-import io.prometheus.client.Histogram;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.security.Key;
@@ -44,7 +41,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetricsToken;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
 
@@ -73,19 +70,11 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     // The token audience stands for this broker. The field `tokenAudienceClaim` of a valid token, need contains this.
     static final String CONF_TOKEN_AUDIENCE = "tokenAudience";
+    // The amount of time in seconds that a token is allowed to be out of sync with the server's time when performing
+    // token validation.
+    static final String CONF_TOKEN_ALLOWED_CLOCK_SKEW_SECONDS = "tokenAllowedClockSkewSeconds";
 
     static final String TOKEN = "token";
-
-    private static final Counter expiredTokenMetrics = Counter.build()
-            .name("pulsar_expired_token_total")
-            .help("Pulsar expired token")
-            .register();
-
-    private static final Histogram expiringTokenMinutesMetrics = Histogram.build()
-            .name("pulsar_expiring_token_minutes")
-            .help("The remaining time of expiring token in minutes")
-            .buckets(5, 10, 60, 240)
-            .register();
 
     private Key validationKey;
     private String roleClaim;
@@ -101,20 +90,32 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     private String confTokenPublicAlgSettingName;
     private String confTokenAudienceClaimSettingName;
     private String confTokenAudienceSettingName;
+    private String confTokenAllowedClockSkewSecondsSettingName;
+
+    private AuthenticationMetricsToken authenticationMetricsToken;
+
+    public enum ErrorCode {
+        INVALID_AUTH_DATA,
+        INVALID_TOKEN,
+        INVALID_AUDIENCES,
+    }
 
     @Override
     public void close() throws IOException {
         // noop
     }
 
-    @VisibleForTesting
-    public static void resetMetrics() {
-        expiredTokenMetrics.clear();
-        expiringTokenMinutesMetrics.clear();
+    @Override
+    public void initialize(ServiceConfiguration config) throws IOException {
+        initialize(Context.builder().config(config).build());
     }
 
     @Override
-    public void initialize(ServiceConfiguration config) throws IOException, IllegalArgumentException {
+    public void initialize(Context context) throws IOException {
+        authenticationMetricsToken = new AuthenticationMetricsToken(context.getOpenTelemetry(),
+                getClass().getSimpleName(), getAuthMethodName());
+
+        var config = context.getConfig();
         String prefix = (String) config.getProperty(CONF_TOKEN_SETTING_PREFIX);
         if (null == prefix) {
             prefix = "";
@@ -125,6 +126,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         this.confTokenPublicAlgSettingName = prefix + CONF_TOKEN_PUBLIC_ALG;
         this.confTokenAudienceClaimSettingName = prefix + CONF_TOKEN_AUDIENCE_CLAIM;
         this.confTokenAudienceSettingName = prefix + CONF_TOKEN_AUDIENCE;
+        this.confTokenAllowedClockSkewSecondsSettingName = prefix + CONF_TOKEN_ALLOWED_CLOCK_SKEW_SECONDS;
 
         // we need to fetch the algorithm before we fetch the key
         this.publicKeyAlg = getPublicKeyAlgType(config);
@@ -133,7 +135,12 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         this.audienceClaim = getTokenAudienceClaim(config);
         this.audience = getTokenAudience(config);
 
-        this.parser = Jwts.parserBuilder().setSigningKey(this.validationKey).build();
+        long allowedSkew = getConfTokenAllowedClockSkewSeconds(config);
+
+        this.parser = Jwts.parserBuilder()
+                .setAllowedClockSkewSeconds(allowedSkew)
+                .setSigningKey(this.validationKey)
+                .build();
 
         if (audienceClaim != null && audience == null) {
             throw new IllegalArgumentException("Token Audience Claim [" + audienceClaim
@@ -147,20 +154,24 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     }
 
     @Override
+    public void incrementFailureMetric(Enum<?> errorCode) {
+        authenticationMetricsToken.recordFailure(errorCode);
+    }
+
+    @Override
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
+        String token;
         try {
             // Get Token
-            String token;
             token = getToken(authData);
-            // Parse Token by validating
-            String role = getPrincipal(authenticateToken(token));
-            AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
-            return role;
         } catch (AuthenticationException exception) {
-            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(),
-                    exception.getMessage());
+            incrementFailureMetric(ErrorCode.INVALID_AUTH_DATA);
             throw exception;
         }
+        // Parse Token by validating
+        String role = getPrincipal(authenticateToken(token));
+        authenticationMetricsToken.recordSuccess();
+        return role;
     }
 
     @Override
@@ -231,29 +242,32 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                     List<String> audiences = (List<String>) object;
                     // audience not contains this broker, throw exception.
                     if (audiences.stream().noneMatch(audienceInToken -> audienceInToken.equals(audience))) {
-                        throw new AuthenticationException("Audiences in token: [" + String.join(", ", audiences)
-                                                          + "] not contains this broker: " + audience);
+                        incrementFailureMetric(ErrorCode.INVALID_AUDIENCES);
+                        throw new AuthenticationException("Audiences in token: ["
+                                + String.join(", ", audiences) + "] not contains this broker: " + audience);
                     }
                 } else if (object instanceof String) {
                     if (!object.equals(audience)) {
-                        throw new AuthenticationException("Audiences in token: [" + object
-                                                          + "] not contains this broker: " + audience);
+                        incrementFailureMetric(ErrorCode.INVALID_AUDIENCES);
+                        throw new AuthenticationException(
+                                "Audiences in token: [" + object + "] not contains this broker: " + audience);
                     }
                 } else {
                     // should not reach here.
+                    incrementFailureMetric(ErrorCode.INVALID_AUDIENCES);
                     throw new AuthenticationException("Audiences in token is not in expected format: " + object);
                 }
             }
 
-            if (jwt.getBody().getExpiration() != null) {
-                expiringTokenMinutesMetrics.observe(
-                        (double) (jwt.getBody().getExpiration().getTime() - new Date().getTime()) / (60 * 1000));
-            }
+            var expiration = jwt.getBody().getExpiration();
+            var tokenRemainingDurationMs = expiration != null ? expiration.getTime() - new Date().getTime() : null;
+            authenticationMetricsToken.recordTokenDuration(tokenRemainingDurationMs);
             return jwt;
         } catch (JwtException e) {
             if (e instanceof ExpiredJwtException) {
-                expiredTokenMetrics.inc();
+                authenticationMetricsToken.recordTokenExpired();
             }
+            incrementFailureMetric(ErrorCode.INVALID_TOKEN);
             throw new AuthenticationException("Failed to authentication token: " + e.getMessage());
         }
     }
@@ -326,6 +340,16 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             return tokenAudience;
         } else {
             return null;
+        }
+    }
+
+    // get Token's allowed clock skew in seconds. If not configured, defaults to 0.
+    private long getConfTokenAllowedClockSkewSeconds(ServiceConfiguration conf) throws IllegalArgumentException {
+        String allowedSkewStr = (String) conf.getProperty(confTokenAllowedClockSkewSecondsSettingName);
+        if (StringUtils.isNotBlank(allowedSkewStr)) {
+            return Long.parseLong(allowedSkewStr);
+        } else {
+            return 0;
         }
     }
 

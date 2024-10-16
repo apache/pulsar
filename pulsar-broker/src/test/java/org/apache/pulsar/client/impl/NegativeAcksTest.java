@@ -21,7 +21,6 @@ package org.apache.pulsar.client.impl;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
@@ -39,7 +38,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TopicMessageId;
 import org.awaitility.Awaitility;
-import org.testcontainers.shaded.org.awaitility.reflect.WhiteboxImpl;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -135,7 +134,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         Set<String> sentMessages = new HashSet<>();
 
         final int N = 10;
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < N * 2; i++) {
             String value = "test-" + i;
             producer.sendAsync(value);
             sentMessages.add(value);
@@ -147,10 +146,18 @@ public class NegativeAcksTest extends ProducerConsumerBase {
             consumer.negativeAcknowledge(msg);
         }
 
+        for (int i = 0; i < N; i++) {
+            Message<String> msg = consumer.receive();
+            consumer.negativeAcknowledge(msg.getMessageId());
+        }
+
+        assertTrue(consumer instanceof ConsumerBase<String>);
+        assertEquals(((ConsumerBase<String>) consumer).getUnAckedMessageTracker().size(), 0);
+
         Set<String> receivedMessages = new HashSet<>();
 
         // All the messages should be received again
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < N * 2; i++) {
             Message<String> msg = consumer.receive();
             receivedMessages.add(msg.getValue());
             consumer.acknowledge(msg);
@@ -308,9 +315,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         assertEquals(unAckedMessageTracker.size(), 0);
         negativeAcksTracker.close();
         // negative batch message id
-        unAckedMessageTracker.add(batchMessageId);
-        unAckedMessageTracker.add(batchMessageId2);
-        unAckedMessageTracker.add(batchMessageId3);
+        unAckedMessageTracker.add(messageId);
         consumer.negativeAcknowledge(batchMessageId);
         consumer.negativeAcknowledge(batchMessageId2);
         consumer.negativeAcknowledge(batchMessageId3);
@@ -319,7 +324,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         negativeAcksTracker.close();
     }
 
-    @Test(timeOut = 10000)
+    @Test
     public void testNegativeAcksWithBatchAckEnabled() throws Exception {
         cleanup();
         conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);

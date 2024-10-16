@@ -25,25 +25,47 @@ import java.util.Optional;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
+import org.apache.pulsar.broker.stats.prometheus.metrics.PrometheusLabels;
+import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
+import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.apache.pulsar.compaction.CompactionRecord;
 import org.apache.pulsar.compaction.CompactorMXBean;
+import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 
 class TopicStats {
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.SUBSCRIPTION_COUNTER)
     int subscriptionsCount;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.PRODUCER_COUNTER)
     int producersCount;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.CONSUMER_COUNTER)
     int consumersCount;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.MESSAGE_IN_COUNTER)
     double rateIn;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.MESSAGE_OUT_COUNTER)
     double rateOut;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.BYTES_IN_COUNTER)
     double throughputIn;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.BYTES_OUT_COUNTER)
     double throughputOut;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.MESSAGE_IN_COUNTER)
     long msgInCounter;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.BYTES_IN_COUNTER)
     long bytesInCounter;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.MESSAGE_OUT_COUNTER)
     long msgOutCounter;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.BYTES_OUT_COUNTER)
     long bytesOutCounter;
+    long systemTopicBytesInCounter;
+    long bytesOutInternalCounter;
+    @PulsarDeprecatedMetric // Can be derived from MESSAGE_IN_COUNTER and BYTES_IN_COUNTER
     double averageMsgSize;
 
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.TRANSACTION_COUNTER)
     long ongoingTxnCount;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.TRANSACTION_COUNTER)
     long abortedTxnCount;
+    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.TRANSACTION_COUNTER)
     long committedTxnCount;
 
     public long msgBacklog;
@@ -51,6 +73,7 @@ class TopicStats {
 
     long backlogQuotaLimit;
     long backlogQuotaLimitTime;
+    long backlogAgeSeconds;
 
     ManagedLedgerStats managedLedgerStats = new ManagedLedgerStats();
 
@@ -70,6 +93,13 @@ class TopicStats {
     StatsBuckets compactionLatencyBuckets = new StatsBuckets(CompactionRecord.WRITE_LATENCY_BUCKETS_USEC);
     public long delayedMessageIndexSizeInBytes;
 
+    Map<String, TopicMetricBean> bucketDelayedIndexStats = new HashMap<>();
+
+    public long sizeBasedBacklogQuotaExceededEvictionCount;
+    public long timeBasedBacklogQuotaExceededEvictionCount;
+
+
+    @SuppressWarnings("DuplicatedCode")
     public void reset() {
         subscriptionsCount = 0;
         producersCount = 0;
@@ -107,8 +137,14 @@ class TopicStats {
         compactionCompactedEntriesSize = 0;
         compactionLatencyBuckets.reset();
         delayedMessageIndexSizeInBytes = 0;
+        bucketDelayedIndexStats.clear();
+
+        timeBasedBacklogQuotaExceededEvictionCount = 0;
+        sizeBasedBacklogQuotaExceededEvictionCount = 0;
+        backlogAgeSeconds = -1;
     }
 
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public static void printTopicStats(PrometheusMetricStreams stream, TopicStats stats,
                                        Optional<CompactorMXBean> compactorMXBean, String cluster, String namespace,
                                        String topic, boolean splitTopicAndPartitionIndexLabel) {
@@ -148,6 +184,9 @@ class TopicStats {
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
         writeMetric(stream, "pulsar_storage_read_rate", stats.managedLedgerStats.storageReadRate,
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_read_cache_misses_rate",
+                stats.managedLedgerStats.storageReadCacheMissesRate,
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
         writeMetric(stream, "pulsar_storage_backlog_size", stats.managedLedgerStats.backlogSize,
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
         writeMetric(stream, "pulsar_publish_rate_limit_times", stats.publishRateLimitedTimes,
@@ -158,9 +197,22 @@ class TopicStats {
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
         writeMetric(stream, "pulsar_storage_backlog_quota_limit_time", stats.backlogQuotaLimitTime,
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_backlog_age_seconds", stats.backlogAgeSeconds,
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeBacklogQuotaMetric(stream, "pulsar_storage_backlog_quota_exceeded_evictions_total",
+                stats.sizeBasedBacklogQuotaExceededEvictionCount, cluster, namespace, topic,
+                splitTopicAndPartitionIndexLabel, BacklogQuotaType.destination_storage);
+        writeBacklogQuotaMetric(stream, "pulsar_storage_backlog_quota_exceeded_evictions_total",
+                stats.timeBasedBacklogQuotaExceededEvictionCount, cluster, namespace, topic,
+                splitTopicAndPartitionIndexLabel, BacklogQuotaType.message_age);
 
         writeMetric(stream, "pulsar_delayed_message_index_size_bytes", stats.delayedMessageIndexSizeInBytes,
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+
+        for (TopicMetricBean topicMetricBean : stats.bucketDelayedIndexStats.values()) {
+            writeTopicMetric(stream, topicMetricBean.name, topicMetricBean.value, cluster, namespace,
+                    topic, splitTopicAndPartitionIndexLabel, topicMetricBean.labelsAndValues);
+        }
 
         long[] latencyBuckets = stats.managedLedgerStats.storageWriteLatencyBuckets.getBuckets();
         writeMetric(stream, "pulsar_storage_write_latency_le_0_5",
@@ -258,6 +310,8 @@ class TopicStats {
                     subsStats.msgBacklogNoDelayed, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
             writeSubscriptionMetric(stream, "pulsar_subscription_delayed",
                     subsStats.msgDelayed, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
+            writeSubscriptionMetric(stream, "pulsar_subscription_in_replay",
+                    subsStats.msgInReplay, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
             writeSubscriptionMetric(stream, "pulsar_subscription_msg_rate_redeliver",
                     subsStats.msgRateRedeliver, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
             writeSubscriptionMetric(stream, "pulsar_subscription_unacked_messages",
@@ -310,6 +364,13 @@ class TopicStats {
                     subsStats.delayedMessageIndexSizeInBytes, cluster, namespace, topic, sub,
                     splitTopicAndPartitionIndexLabel);
 
+            final String[] subscriptionLabel = {"subscription", sub};
+            for (TopicMetricBean topicMetricBean : subsStats.bucketDelayedIndexStats.values()) {
+                String[] labelsAndValues = ArrayUtils.addAll(subscriptionLabel, topicMetricBean.labelsAndValues);
+                writeTopicMetric(stream, topicMetricBean.name, topicMetricBean.value, cluster, namespace,
+                        topic, splitTopicAndPartitionIndexLabel, labelsAndValues);
+            }
+
             subsStats.consumerStat.forEach((c, consumerStats) -> {
                 writeConsumerMetric(stream, "pulsar_consumer_msg_rate_redeliver", consumerStats.msgRateRedeliver,
                         cluster, namespace, topic, sub, c, splitTopicAndPartitionIndexLabel);
@@ -348,6 +409,8 @@ class TopicStats {
                 writeMetric(stream, "pulsar_replication_backlog", replStats.replicationBacklog,
                         cluster, namespace, topic, remoteCluster, splitTopicAndPartitionIndexLabel);
                 writeMetric(stream, "pulsar_replication_connected_count", replStats.connectedCount,
+                        cluster, namespace, topic, remoteCluster, splitTopicAndPartitionIndexLabel);
+                writeMetric(stream, "pulsar_replication_disconnected_count", replStats.disconnectedCount,
                         cluster, namespace, topic, remoteCluster, splitTopicAndPartitionIndexLabel);
                 writeMetric(stream, "pulsar_replication_rate_expired", replStats.msgRateExpired,
                         cluster, namespace, topic, remoteCluster, splitTopicAndPartitionIndexLabel);
@@ -409,12 +472,29 @@ class TopicStats {
             writeMetric(stream, "pulsar_compaction_latency_count",
                     stats.compactionLatencyBuckets.getCount(), cluster, namespace, topic,
                     splitTopicAndPartitionIndexLabel);
+
+            for (TopicMetricBean topicMetricBean : stats.bucketDelayedIndexStats.values()) {
+                String[] labelsAndValues = topicMetricBean.labelsAndValues;
+                writeTopicMetric(stream, topicMetricBean.name, topicMetricBean.value, cluster, namespace,
+                        topic, splitTopicAndPartitionIndexLabel, labelsAndValues);
+            }
         }
     }
 
     private static void writeMetric(PrometheusMetricStreams stream, String metricName, Number value, String cluster,
                                     String namespace, String topic, boolean splitTopicAndPartitionIndexLabel) {
         writeTopicMetric(stream, metricName, value, cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    private static void writeBacklogQuotaMetric(PrometheusMetricStreams stream, String metricName, Number value,
+                                                String cluster, String namespace, String topic,
+                                                boolean splitTopicAndPartitionIndexLabel,
+                                                BacklogQuotaType backlogQuotaType) {
+
+        String quotaTypeLabelValue = PrometheusLabels.backlogQuotaTypeLabel(backlogQuotaType);
+        writeTopicMetric(stream, metricName, value, cluster, namespace, topic, splitTopicAndPartitionIndexLabel,
+                "quota_type", quotaTypeLabelValue);
     }
 
     private static void writeMetric(PrometheusMetricStreams stream, String metricName, Number value, String cluster,
@@ -450,7 +530,9 @@ class TopicStats {
     static void writeTopicMetric(PrometheusMetricStreams stream, String metricName, Number value, String cluster,
                                  String namespace, String topic, boolean splitTopicAndPartitionIndexLabel,
                                  String... extraLabelsAndValues) {
-        String[] labelsAndValues = new String[splitTopicAndPartitionIndexLabel ? 8 : 6];
+        int baseLabelCount = splitTopicAndPartitionIndexLabel ? 8 : 6;
+        String[] labelsAndValues =
+                new String[baseLabelCount + (extraLabelsAndValues != null ? extraLabelsAndValues.length : 0)];
         labelsAndValues[0] = "cluster";
         labelsAndValues[1] = cluster;
         labelsAndValues[2] = "namespace";
@@ -470,7 +552,11 @@ class TopicStats {
         } else {
             labelsAndValues[5] = topic;
         }
-        String[] labels = ArrayUtils.addAll(labelsAndValues, extraLabelsAndValues);
-        stream.writeSample(metricName, value, labels);
+        if (extraLabelsAndValues != null) {
+            for (int i = 0; i < extraLabelsAndValues.length; i++) {
+                labelsAndValues[baseLabelCount + i] = extraLabelsAndValues[i];
+            }
+        }
+        stream.writeSample(metricName, value, labelsAndValues);
     }
 }

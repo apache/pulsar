@@ -45,7 +45,7 @@ public class Summary extends SimpleCollector<Summary.Child> implements Collector
         }
     }
 
-    static class Child {
+    public static class Child {
         private final DataSketchesSummaryLogger logger;
         private final List<Double> quantiles;
 

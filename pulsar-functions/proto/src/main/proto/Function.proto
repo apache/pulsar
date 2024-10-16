@@ -41,6 +41,14 @@ enum SubscriptionPosition {
     EARLIEST = 1;
 }
 
+enum CompressionType {
+    LZ4 = 0;
+    NONE = 1;
+    ZLIB = 2;
+    ZSTD = 3;
+    SNAPPY = 4;
+}
+
 message Resources {
     double cpu = 1;
     int64 ram = 2;
@@ -112,6 +120,7 @@ message ProducerSpec {
     bool useThreadLocalProducers = 3;
     CryptoSpec cryptoSpec = 4;
     string batchBuilder = 5;
+    CompressionType compressionType = 6;
 }
 
 message CryptoSpec {

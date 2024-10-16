@@ -390,6 +390,17 @@ public interface ProducerBuilder<T> extends Cloneable {
     ProducerBuilder<T> defaultCryptoKeyReader(Map<String, String> publicKeys);
 
     /**
+     * Sets a {@link MessageCrypto}.
+     *
+     * <p>Contains methods to encrypt/decrypt messages for end-to-end encryption.
+     *
+     * @param messageCrypto
+     *            MessageCrypto object
+     * @return the producer builder instance
+     */
+    ProducerBuilder<T> messageCrypto(MessageCrypto messageCrypto);
+
+    /**
      * Add public encryption key, used by producer to encrypt the data key.
      *
      * <p>At the time of producer creation, the Pulsar client checks if there are keys added to encryptionKeys. If keys

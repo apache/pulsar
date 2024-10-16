@@ -18,7 +18,6 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
@@ -52,7 +51,7 @@ import org.testng.annotations.Test;
 public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorConcurrencyTest.class);
-    
+
     @DataProvider(name = "useOpenRangeSet")
     public static Object[][] useOpenRangeSet() {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
@@ -326,7 +325,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < N; i++) {
             ledger.addEntry(("entry" + i).getBytes());
         }
-        long currentLedger = ((PositionImpl) cursors.get(0).getMarkDeletedPosition()).getLedgerId();
+        long currentLedger = cursors.get(0).getMarkDeletedPosition().getLedgerId();
 
         // empty the cache
         ((ManagedLedgerImpl) ledger).entryCache.invalidateAllEntries(currentLedger);
@@ -383,7 +382,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
         final AtomicInteger iteration = new AtomicInteger(0);
 
         for (int i = 0; i < deleteEntries; i++) {
-            executor.submit(safeRun(() -> {
+            executor.submit(() -> {
                 try {
                     cursor.asyncDelete(addedEntries.get(iteration.getAndIncrement()), new DeleteCallback() {
                         @Override
@@ -403,7 +402,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
                 } finally {
                     counter.countDown();
                 }
-            }));
+            });
         }
 
         counter.await();

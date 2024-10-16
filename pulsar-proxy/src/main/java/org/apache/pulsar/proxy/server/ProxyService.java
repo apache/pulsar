@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.proxy.server;
 
 import static java.util.Objects.requireNonNull;
@@ -33,6 +34,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.resolver.dns.DnsAddressResolverGroup;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.netty.util.concurrent.Future;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import java.io.Closeable;
@@ -62,8 +64,6 @@ import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.AuthenticationFactory;
-import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.netty.DnsResolverUtil;
@@ -71,6 +71,7 @@ import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.proxy.extensions.ProxyExtensions;
+import org.apache.pulsar.proxy.stats.PulsarProxyOpenTelemetry;
 import org.apache.pulsar.proxy.stats.TopicStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -118,6 +119,7 @@ public class ProxyService implements Closeable {
     protected boolean proxyZeroCopyModeEnabled;
 
     private final ScheduledExecutorService statsExecutor;
+    private ScheduledExecutorService sslContextRefresher;
 
     static final Gauge ACTIVE_CONNECTIONS = Gauge
             .build("pulsar_proxy_active_connections", "Number of connections currently active in the proxy").create()
@@ -146,12 +148,17 @@ public class ProxyService implements Closeable {
 
     private PrometheusMetricsServlet metricsServlet;
     private List<PrometheusRawMetricsProvider> pendingMetricsProviders;
+    @Getter
+    private PulsarProxyOpenTelemetry openTelemetry;
 
     @Getter
     private final ConnectionController connectionController;
 
+    private boolean gracefulShutdown = true;
+
     public ProxyService(ProxyConfiguration proxyConfig,
-                        AuthenticationService authenticationService) throws Exception {
+                        AuthenticationService authenticationService,
+                        Authentication proxyClientAuthentication) throws Exception {
         requireNonNull(proxyConfig);
         this.proxyConfig = proxyConfig;
         this.clientCnxs = Sets.newConcurrentHashSet();
@@ -188,7 +195,7 @@ public class ProxyService implements Closeable {
 
         statsExecutor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("proxy-stats-executor"));
-        statsExecutor.schedule(()->{
+        statsExecutor.schedule(() -> {
             this.clientCnxs.forEach(cnx -> {
                 if (cnx.getDirectProxyHandler() != null
                         && cnx.getDirectProxyHandler().getInboundChannelRequestsRate() != null) {
@@ -200,12 +207,7 @@ public class ProxyService implements Closeable {
             });
         }, 60, TimeUnit.SECONDS);
         this.proxyAdditionalServlets = AdditionalServlets.load(proxyConfig);
-        if (proxyConfig.getBrokerClientAuthenticationPlugin() != null) {
-            proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
-                    proxyConfig.getBrokerClientAuthenticationParameters());
-        } else {
-            proxyClientAuthentication = AuthenticationDisabled.INSTANCE;
-        }
+        this.proxyClientAuthentication = proxyClientAuthentication;
         this.connectionController = new ConnectionController.DefaultConnectionController(
                 proxyConfig.getMaxConcurrentInboundConnections(),
                 proxyConfig.getMaxConcurrentInboundConnectionsPerIp());
@@ -223,7 +225,7 @@ public class ProxyService implements Closeable {
             pulsarResources = new PulsarResources(localMetadataStore, configMetadataStore);
             discoveryProvider = new BrokerDiscoveryProvider(this.proxyConfig, pulsarResources);
             authorizationService = new AuthorizationService(PulsarConfigurationLoader.convertFrom(proxyConfig),
-                                                            pulsarResources);
+                    pulsarResources);
         }
 
         ServerBootstrap bootstrap = new ServerBootstrap();
@@ -244,7 +246,7 @@ public class ProxyService implements Closeable {
             proxyZeroCopyModeEnabled = true;
         }
 
-        bootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, false));
+        bootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, false, null));
         // Bind and start to accept incoming connections.
         if (proxyConfig.getServicePort().isPresent()) {
             try {
@@ -257,15 +259,19 @@ public class ProxyService implements Closeable {
         }
 
         if (proxyConfig.getServicePortTls().isPresent()) {
+            this.sslContextRefresher = Executors
+                    .newSingleThreadScheduledExecutor(
+                            new DefaultThreadFactory("proxy-ssl-context-refresher"));
             ServerBootstrap tlsBootstrap = bootstrap.clone();
-            tlsBootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, true));
+            tlsBootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, true,
+                    sslContextRefresher));
             listenChannelTls = tlsBootstrap.bind(proxyConfig.getBindAddress(),
                     proxyConfig.getServicePortTls().get()).sync().channel();
             LOG.info("Started Pulsar TLS Proxy on {}", listenChannelTls.localAddress());
         }
 
         final String hostname =
-            ServiceConfigurationUtils.getDefaultOrConfiguredAddress(proxyConfig.getAdvertisedAddress());
+                ServiceConfigurationUtils.getDefaultOrConfiguredAddress(proxyConfig.getAdvertisedAddress());
 
         if (proxyConfig.getServicePort().isPresent()) {
             this.serviceUrl = String.format("pulsar://%s:%d/", hostname, getListenPort().get());
@@ -280,6 +286,7 @@ public class ProxyService implements Closeable {
         }
 
         createMetricsServlet();
+        openTelemetry = new PulsarProxyOpenTelemetry(proxyConfig);
 
         // Initialize the message protocol handlers.
         // start the protocol handlers only after the broker is ready,
@@ -291,7 +298,8 @@ public class ProxyService implements Closeable {
     }
 
     private synchronized void createMetricsServlet() {
-        this.metricsServlet = new PrometheusMetricsServlet(-1L, proxyConfig.getClusterName());
+        this.metricsServlet =
+                new PrometheusMetricsServlet(proxyConfig.getMetricsServletTimeoutMs(), proxyConfig.getClusterName());
         if (pendingMetricsProviders != null) {
             pendingMetricsProviders.forEach(provider -> metricsServlet.addRawMetricsProvider(provider));
             this.pendingMetricsProviders = null;
@@ -352,22 +360,46 @@ public class ProxyService implements Closeable {
     }
 
     public void close() throws IOException {
+        if (listenChannel != null) {
+            try {
+                listenChannel.close().sync();
+            } catch (InterruptedException e) {
+                LOG.info("Shutdown of listenChannel interrupted");
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        if (listenChannelTls != null) {
+            try {
+                listenChannelTls.close().sync();
+            } catch (InterruptedException e) {
+                LOG.info("Shutdown of listenChannelTls interrupted");
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        // Don't accept any new connections
+        try {
+            shutdownEventLoop(acceptorGroup).sync();
+        } catch (InterruptedException e) {
+            LOG.info("Shutdown of acceptorGroup interrupted");
+            Thread.currentThread().interrupt();
+        }
+
+        closeAllConnections();
+
         dnsAddressResolverGroup.close();
 
         if (discoveryProvider != null) {
             discoveryProvider.close();
         }
 
-        if (listenChannel != null) {
-            listenChannel.close();
-        }
-
-        if (listenChannelTls != null) {
-            listenChannelTls.close();
+        if (this.sslContextRefresher != null) {
+            this.sslContextRefresher.shutdownNow();
         }
 
         if (statsExecutor != null) {
-            statsExecutor.shutdown();
+            statsExecutor.shutdownNow();
         }
 
         if (proxyAdditionalServlets != null) {
@@ -375,6 +407,9 @@ public class ProxyService implements Closeable {
             proxyAdditionalServlets = null;
         }
 
+        if (openTelemetry != null) {
+            openTelemetry.close();
+        }
         resetMetricsServlet();
 
         if (localMetadataStore != null) {
@@ -391,10 +426,39 @@ public class ProxyService implements Closeable {
                 throw new IOException(e);
             }
         }
-        acceptorGroup.shutdownGracefully();
-        workerGroup.shutdownGracefully();
+        try {
+            shutdownEventLoop(workerGroup).sync();
+        } catch (InterruptedException e) {
+            LOG.info("Shutdown of workerGroup interrupted");
+            Thread.currentThread().interrupt();
+        }
         for (EventLoopGroup group : extensionsWorkerGroups) {
-            group.shutdownGracefully();
+            try {
+                shutdownEventLoop(group).sync();
+            } catch (InterruptedException e) {
+                LOG.info("Shutdown of {} interrupted", group);
+                Thread.currentThread().interrupt();
+            }
+        }
+        LOG.info("ProxyService closed.");
+    }
+
+    private void closeAllConnections() {
+        try {
+            workerGroup.submit(() -> {
+                // Close all the connections
+                if (!clientCnxs.isEmpty()) {
+                    LOG.info("Closing {} proxy connections, including connections to brokers", clientCnxs.size());
+                    for (ProxyConnection clientCnx : clientCnxs) {
+                        clientCnx.ctx().close();
+                    }
+                } else {
+                    LOG.info("No proxy connections to close");
+                }
+            }).sync();
+        } catch (InterruptedException e) {
+            LOG.info("Closing of connections interrupted");
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -478,4 +542,28 @@ public class ProxyService implements Closeable {
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(ProxyService.class);
+
+    protected LookupProxyHandler newLookupProxyHandler(ProxyConnection proxyConnection) {
+        return new LookupProxyHandler(this, proxyConnection);
+    }
+
+    // Shutdown the event loop.
+    // If graceful is true, will wait for the current requests to be completed, up to 15 seconds.
+    // Graceful shutdown can be disabled by setting the gracefulShutdown flag to false. This is used in tests
+    // to speed up the shutdown process.
+    private Future<?> shutdownEventLoop(EventLoopGroup eventLoop) {
+        if (gracefulShutdown) {
+            return eventLoop.shutdownGracefully();
+        } else {
+            return eventLoop.shutdownGracefully(0, 0, TimeUnit.SECONDS);
+        }
+    }
+
+    public boolean isGracefulShutdown() {
+        return gracefulShutdown;
+    }
+
+    public void setGracefulShutdown(boolean gracefulShutdown) {
+        this.gracefulShutdown = gracefulShutdown;
+    }
 }

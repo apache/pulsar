@@ -270,6 +270,7 @@ public class AuthorizationWithAuthDataTest extends MockedPulsarServiceBaseTest {
         admin.topics().createNonPartitionedTopic(nonPartitionedTopic);
         admin.lookups().lookupPartitionedTopic(partitionedTopic);
         admin.lookups().lookupTopic(nonPartitionedTopic);
+        admin.topics().delete(nonPartitionedTopic);
     }
 
     @Test

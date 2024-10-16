@@ -20,11 +20,14 @@
 package pf
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/apache/pulsar/pulsar-function-go/conf"
+	log "github.com/apache/pulsar/pulsar-function-go/logutil"
 	pb "github.com/apache/pulsar/pulsar-function-go/pb"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // This is the config passed to the Golang Instance. Contains all the information
@@ -38,12 +41,37 @@ type instanceConf struct {
 	port                        int
 	clusterName                 string
 	pulsarServiceURL            string
+	stateServiceURL             string
+	pulsarWebServiceURL         string
 	killAfterIdle               time.Duration
 	expectedHealthCheckInterval int32
 	metricsPort                 int
+	authPlugin                  string
+	authParams                  string
+	tlsTrustCertsPath           string
+	tlsAllowInsecure            bool
+	tlsHostnameVerification     bool
 }
 
 func newInstanceConfWithConf(cfg *conf.Conf) *instanceConf {
+	inputSpecs := make(map[string]*pb.ConsumerSpec)
+	// for backward compatibility
+	if cfg.SourceSpecTopic != "" {
+		inputSpecs[cfg.SourceSpecTopic] = &pb.ConsumerSpec{
+			SchemaType:     cfg.SourceSchemaType,
+			IsRegexPattern: cfg.IsRegexPatternSubscription,
+			ReceiverQueueSize: &pb.ConsumerSpec_ReceiverQueueSize{
+				Value: cfg.ReceiverQueueSize,
+			},
+		}
+	}
+	for topic, value := range cfg.SourceInputSpecs {
+		spec := &pb.ConsumerSpec{}
+		if err := json.Unmarshal([]byte(value), spec); err != nil {
+			panic(fmt.Sprintf("Failed to unmarshal consume specs: %v", err))
+		}
+		inputSpecs[topic] = spec
+	}
 	instanceConf := &instanceConf{
 		instanceID:                  cfg.InstanceID,
 		funcID:                      cfg.FuncID,
@@ -52,6 +80,8 @@ func newInstanceConfWithConf(cfg *conf.Conf) *instanceConf {
 		port:                        cfg.Port,
 		clusterName:                 cfg.ClusterName,
 		pulsarServiceURL:            cfg.PulsarServiceURL,
+		stateServiceURL:             cfg.StateStorageServiceURL,
+		pulsarWebServiceURL:         cfg.PulsarWebServiceURL,
 		killAfterIdle:               cfg.KillAfterIdleMs,
 		expectedHealthCheckInterval: cfg.ExpectedHealthCheckInterval,
 		metricsPort:                 cfg.MetricsPort,
@@ -66,16 +96,8 @@ func newInstanceConfWithConf(cfg *conf.Conf) *instanceConf {
 			AutoAck:              cfg.AutoACK,
 			Parallelism:          cfg.Parallelism,
 			Source: &pb.SourceSpec{
-				SubscriptionType: pb.SubscriptionType(cfg.SubscriptionType),
-				InputSpecs: map[string]*pb.ConsumerSpec{
-					cfg.SourceSpecTopic: {
-						SchemaType:     cfg.SourceSchemaType,
-						IsRegexPattern: cfg.IsRegexPatternSubscription,
-						ReceiverQueueSize: &pb.ConsumerSpec_ReceiverQueueSize{
-							Value: cfg.ReceiverQueueSize,
-						},
-					},
-				},
+				SubscriptionType:     pb.SubscriptionType(cfg.SubscriptionType),
+				InputSpecs:           inputSpecs,
 				TimeoutMs:            cfg.TimeoutMs,
 				SubscriptionName:     cfg.SubscriptionName,
 				CleanupSubscription:  cfg.CleanupSubscription,
@@ -96,6 +118,20 @@ func newInstanceConfWithConf(cfg *conf.Conf) *instanceConf {
 			},
 			UserConfig: cfg.UserConfig,
 		},
+		authPlugin:              cfg.ClientAuthenticationPlugin,
+		authParams:              cfg.ClientAuthenticationParameters,
+		tlsTrustCertsPath:       cfg.TLSTrustCertsFilePath,
+		tlsAllowInsecure:        cfg.TLSAllowInsecureConnection,
+		tlsHostnameVerification: cfg.TLSHostnameVerificationEnable,
+	}
+	// parse the raw function details and ignore the unmarshal error(fallback to original way)
+	if cfg.FunctionDetails != "" {
+		functionDetails := pb.FunctionDetails{}
+		if err := protojson.Unmarshal([]byte(cfg.FunctionDetails), &functionDetails); err != nil {
+			log.Errorf("Failed to unmarshal function details: %v", err)
+		} else {
+			instanceConf.funcDetails = functionDetails
+		}
 	}
 
 	if instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_EFFECTIVELY_ONCE {

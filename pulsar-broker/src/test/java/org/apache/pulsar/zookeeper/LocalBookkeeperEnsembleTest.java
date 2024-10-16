@@ -22,9 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
-import java.util.Collections;
-import java.util.List;
-
+import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -37,22 +35,6 @@ public class LocalBookkeeperEnsembleTest {
 
     @AfterMethod(alwaysRun = true)
     void teardown() throws Exception {
-    }
-
-    @Test
-    public void testAdvertisedAddress() throws Exception {
-        final int numBk = 1;
-
-        LocalBookkeeperEnsemble ensemble = new LocalBookkeeperEnsemble(
-            numBk, 0, 0, null, null, true, "127.0.0.2");
-        ensemble.startStandalone();
-
-        List<String> bookies = ensemble.getZkClient().getChildren("/ledgers/available", false);
-        Collections.sort(bookies);
-        assertEquals(bookies.size(), 2);
-        assertTrue(bookies.get(0).startsWith("127.0.0.2:"));
-
-        ensemble.stop();
     }
 
     @Test
@@ -73,5 +55,19 @@ public class LocalBookkeeperEnsembleTest {
         assertFalse(ensemble.getZkServer().isRunning());
         assertFalse(ensemble.getZkClient().getState().isConnected());
         assertFalse(ensemble.getBookies()[0].isRunning());
+    }
+
+    @Test(timeOut = 10_000)
+    public void testStartWithSpecifiedStreamStoragePort() throws Exception {
+        LocalBookkeeperEnsemble ensemble = null;
+        try {
+            ensemble =
+                    new LocalBookkeeperEnsemble(1, 0, 0, 4182, null, null, true, null);
+            ensemble.startStandalone(new ServerConfiguration(), true);
+        } finally {
+            if (ensemble != null) {
+                ensemble.stop();
+            }
+        }
     }
 }

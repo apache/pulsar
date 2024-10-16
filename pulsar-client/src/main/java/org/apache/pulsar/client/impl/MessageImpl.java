@@ -40,6 +40,7 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.impl.schema.AbstractSchema;
@@ -302,6 +303,13 @@ public class MessageImpl<T> implements Message<T> {
         msg.cnx = null;
         msg.brokerEntryMetadata = brokerEntryMetadata;
         msg.consumerEpoch = DEFAULT_CONSUMER_EPOCH;
+        return msg;
+    }
+
+    public static MessageImpl<byte[]> deserializeMetadataWithEmptyPayload(
+            ByteBuf headersAndPayloadWithBrokerEntryMetadata) throws IOException {
+        MessageImpl<byte[]> msg = deserializeSkipBrokerEntryMetaData(headersAndPayloadWithBrokerEntryMetadata);
+        msg.payload = Unpooled.EMPTY_BUFFER;
         return msg;
     }
 
@@ -714,9 +722,10 @@ public class MessageImpl<T> implements Message<T> {
     @Override
     public Optional<Long> getIndex() {
         if (brokerEntryMetadata != null && brokerEntryMetadata.hasIndex()) {
-            if (msgMetadata.hasNumMessagesInBatch() && messageId instanceof BatchMessageIdImpl) {
-                int batchSize = ((BatchMessageIdImpl) messageId).getBatchSize();
-                int batchIndex = ((BatchMessageIdImpl) messageId).getBatchIndex();
+            MessageIdAdv messageIdAdv = (MessageIdAdv) messageId;
+            if (msgMetadata.hasNumMessagesInBatch() && MessageIdAdvUtils.isBatch(messageIdAdv)) {
+                int batchSize = messageIdAdv.getBatchSize();
+                int batchIndex = messageIdAdv.getBatchIndex();
                 return Optional.of(brokerEntryMetadata.getIndex() - batchSize + batchIndex + 1);
             }
             return Optional.of(brokerEntryMetadata.getIndex());

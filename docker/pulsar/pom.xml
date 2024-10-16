@@ -23,7 +23,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>docker-images</artifactId>
-    <version>3.0.0-SNAPSHOT</version>
+    <version>4.1.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <artifactId>pulsar-docker-image</artifactId>
@@ -49,13 +49,18 @@
 
   <profiles>
     <profile>
-      <id>docker</id>
+      <id>git-commit-id-no-git</id>
+      <activation>
+        <file>
+          <missing>${basedir}/../../.git</missing>
+        </file>
+      </activation>
       <properties>
-        <docker.buildArg.PULSAR_TARBALL>target/pulsar-server-distribution-${project.version}-bin.tar.gz</docker.buildArg.PULSAR_TARBALL>
-        <docker.buildArg.PULSAR_CLIENT_PYTHON_VERSION>${pulsar.client.python.version}</docker.buildArg.PULSAR_CLIENT_PYTHON_VERSION>
-        <docker.buildArg.UBUNTU_MIRROR>${env.UBUNTU_MIRROR}</docker.buildArg.UBUNTU_MIRROR>
-        <docker.buildArg.UBUNTU_SECURITY_MIRROR>${env.UBUNTU_SECURITY_MIRROR}</docker.buildArg.UBUNTU_SECURITY_MIRROR>
+        <git.commit.id.abbrev>no-git</git.commit.id.abbrev>
       </properties>
+    </profile>
+    <profile>
+      <id>docker</id>
       <build>
         <plugins>
           <plugin>
@@ -67,22 +72,32 @@
                 <phase>package</phase>
                 <goals>
                   <goal>build</goal>
-                  <goal>tag</goal>
+                  <goal>push</goal>
                 </goals>
                 <configuration>
                   <images>
                     <image>
-                      <name>pulsar</name>
+                      <name>${docker.organization}/${docker.image}</name>
                       <build>
+                        <args>
+                          <PULSAR_TARBALL>target/pulsar-server-distribution-${project.version}-bin.tar.gz</PULSAR_TARBALL>
+                          <PULSAR_CLIENT_PYTHON_VERSION>${pulsar.client.python.version}</PULSAR_CLIENT_PYTHON_VERSION>
+                          <SNAPPY_VERSION>${snappy.version}</SNAPPY_VERSION>
+                          <IMAGE_JDK_MAJOR_VERSION>${IMAGE_JDK_MAJOR_VERSION}</IMAGE_JDK_MAJOR_VERSION>
+                        </args>
                         <contextDir>${project.basedir}</contextDir>
                         <tags>
-                          <tag>latest</tag>
+                          <tag>${docker.tag}</tag>
+                          <tag>${project.version}-${git.commit.id.abbrev}</tag>
                         </tags>
+                        <buildx>
+                          <platforms>
+                            <platform>${docker.platforms}</platform>
+                          </platforms>
+                        </buildx>
                       </build>
                     </image>
                   </images>
-                  <tagName>latest</tagName>
-                  <repo>${docker.organization}</repo>
                 </configuration>
               </execution>
             </executions>
@@ -107,6 +122,13 @@
           </plugin>
         </plugins>
       </build>
+    </profile>
+    <profile>
+      <id>docker-push</id>
+      <properties>
+        <docker.skip.push>false</docker.skip.push>
+        <docker.platforms>linux/amd64,linux/arm64</docker.platforms>
+      </properties>
     </profile>
   </profiles>
 </project>

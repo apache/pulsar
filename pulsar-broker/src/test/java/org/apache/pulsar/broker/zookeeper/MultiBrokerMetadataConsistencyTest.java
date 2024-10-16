@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.zookeeper;
 
 import static org.testng.Assert.assertTrue;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
@@ -43,6 +44,9 @@ public class MultiBrokerMetadataConsistencyTest extends MultiBrokerBaseTest {
 
     TestZKServer testZKServer;
 
+    private final List<MetadataStoreExtended> needCloseStore =
+            new ArrayList<>();
+
     @Override
     protected void doInitConf() throws Exception {
         super.doInitConf();
@@ -59,20 +63,41 @@ public class MultiBrokerMetadataConsistencyTest extends MultiBrokerBaseTest {
                 log.error("Error in stopping ZK server", e);
             }
         }
+
+        needCloseStore.forEach((storeExtended) -> {
+            try {
+                storeExtended.close();
+            } catch (Exception e) {
+                log.error("error when close storeExtended", e);
+            }
+        });
+
+        needCloseStore.clear();
     }
 
     @Override
     protected PulsarTestContext.Builder createPulsarTestContextBuilder(ServiceConfiguration conf) {
+        MetadataStoreExtended metadataStore = createMetadataStore(
+                MultiBrokerMetadataConsistencyTest.class.getName()
+                        + "metadata_store");
+
+        MetadataStoreExtended configurationStore = createMetadataStore(
+                MultiBrokerMetadataConsistencyTest.class.getName()
+                        + "configuration_store");
+
+        needCloseStore.add(metadataStore);
+        needCloseStore.add(configurationStore);
+
         return super.createPulsarTestContextBuilder(conf)
-                .localMetadataStore(createMetadataStore())
-                .configurationMetadataStore(createMetadataStore());
+                .localMetadataStore(metadataStore)
+                .configurationMetadataStore(configurationStore);
     }
 
     @NotNull
-    protected MetadataStoreExtended createMetadataStore()  {
+    protected MetadataStoreExtended createMetadataStore(String name) {
         try {
             return MetadataStoreExtended.create(testZKServer.getConnectionString(),
-                    MetadataStoreConfig.builder().build());
+                    MetadataStoreConfig.builder().metadataStoreName(name).build());
         } catch (MetadataStoreException e) {
             throw new RuntimeException(e);
         }

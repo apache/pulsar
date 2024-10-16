@@ -24,15 +24,17 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -40,8 +42,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import io.swagger.util.Json;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -62,10 +62,12 @@ import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
 import org.apache.pulsar.common.functions.ConsumerConfig;
+import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.FunctionStatusUtil;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
@@ -74,8 +76,8 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
 import org.apache.pulsar.functions.api.examples.AvroSchemaTestFunction;
-import org.apache.pulsar.functions.api.examples.MergeTopicFunction;
 import org.apache.pulsar.functions.api.examples.InitializableFunction;
+import org.apache.pulsar.functions.api.examples.MergeTopicFunction;
 import org.apache.pulsar.functions.api.examples.RecordFunction;
 import org.apache.pulsar.functions.api.examples.pojo.AvroTestObject;
 import org.apache.pulsar.functions.api.examples.pojo.Users;
@@ -126,13 +128,14 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         return kvs;
     }
 
-    protected void testFunctionLocalRun(Runtime runtime) throws  Exception {
+    protected void testFunctionLocalRun(Runtime runtime) throws Exception {
         if (functionRuntimeType == FunctionRuntimeType.THREAD) {
             return;
         }
 
 
-        String inputTopicName = "persistent://public/default/test-function-local-run-" + runtime + "-input-" + randomName(8);
+        String inputTopicName =
+                "persistent://public/default/test-function-local-run-" + runtime + "-input-" + randomName(8);
         String outputTopicName = "test-function-local-run-" + runtime + "-output-" + randomName(8);
 
         final int numMessages = 10;
@@ -377,10 +380,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         if (runtime == Runtime.PYTHON) {
             submitFunction(
-                    runtime, inputTopicName, outputTopicName, functionName, EXCEPTION_FUNCTION_PYTHON_FILE, EXCEPTION_PYTHON_CLASS, schema);
+                    runtime, inputTopicName, outputTopicName, functionName, EXCEPTION_FUNCTION_PYTHON_FILE,
+                    EXCEPTION_PYTHON_CLASS, schema, null);
         } else {
             submitFunction(
-                    runtime, inputTopicName, outputTopicName, functionName, null, EXCEPTION_JAVA_CLASS, schema);
+                    runtime, inputTopicName, outputTopicName, functionName, null, EXCEPTION_JAVA_CLASS, schema, null);
         }
 
         // get function info
@@ -550,7 +554,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         final int numMessages = 10;
 
         // submit the exclamation function
-        switch (runtime){
+        switch (runtime) {
             case JAVA:
                 submitFunction(
                         runtime,
@@ -561,7 +565,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                         PUBLISH_JAVA_CLASS,
                         schema,
                         Collections.singletonMap("publish-topic", outputTopicName),
-                        null, null, null, null, null);
+                        null, null, null, null, null, null);
                 break;
             case PYTHON:
                 ConsumerConfig consumerConfig = new ConsumerConfig();
@@ -578,7 +582,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                         PUBLISH_PYTHON_CLASS,
                         schema,
                         Collections.singletonMap("publish-topic", outputTopicName),
-                        objectMapper.writeValueAsString(inputSpecs), "string", null, null, null);
+                        objectMapper.writeValueAsString(inputSpecs), "string", null, null, null, null);
                 break;
             case GO:
                 submitFunction(
@@ -590,7 +594,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                         null,
                         schema,
                         Collections.singletonMap("publish-topic", outputTopicName),
-                        null, null, null, null, null);
+                        null, null, null, null, null, null);
         }
 
         // get function info
@@ -622,7 +626,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     .create();
 
             for (int i = 0; i < numMessages; i++) {
-                producer.newMessage().key(String.valueOf(i)).property("count", String.valueOf(i)).value(("message-" + i).getBytes(UTF_8)).send();
+                producer.newMessage().key(String.valueOf(i)).property("count", String.valueOf(i))
+                        .value(("message-" + i).getBytes(UTF_8)).send();
             }
 
             Set<String> expectedMessages = new HashSet<>();
@@ -662,9 +667,19 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     protected void testExclamationFunction(Runtime runtime,
                                            boolean isTopicPattern,
                                            boolean pyZip,
+                                           boolean multipleInput,
                                            boolean withExtraDeps) throws Exception {
-        if (functionRuntimeType == FunctionRuntimeType.THREAD && runtime == Runtime.PYTHON) {
-            // python can only run on process mode
+        testExclamationFunction(runtime, isTopicPattern, pyZip, multipleInput, withExtraDeps, null);
+    }
+
+    protected void testExclamationFunction(Runtime runtime,
+                                           boolean isTopicPattern,
+                                           boolean pyZip,
+                                           boolean multipleInput,
+                                           boolean withExtraDeps,
+                                           java.util.function.Consumer<CommandGenerator> commandGeneratorConsumer) throws Exception {
+        if (functionRuntimeType == FunctionRuntimeType.THREAD && (runtime == Runtime.PYTHON || runtime == Runtime.GO)) {
+            // python&go can only run on process mode
             return;
         }
 
@@ -683,32 +698,19 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             admin.topics().createNonPartitionedTopic(outputTopicName);
         }
         if (isTopicPattern) {
-            @Cleanup PulsarClient client = PulsarClient.builder()
-                    .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
-                    .build();
-
-            @Cleanup Consumer<?> consumer1 = client.newConsumer(schema)
-                    .topic(inputTopicName + "1")
-                    .subscriptionType(SubscriptionType.Exclusive)
-                    .subscriptionName("test-sub")
-                    .subscribe();
-
-            @Cleanup Consumer<?> consumer2 = client.newConsumer(schema)
-                    .topic(inputTopicName + "2")
-                    .subscriptionType(SubscriptionType.Exclusive)
-                    .subscriptionName("test-sub")
-                    .subscribe();
             inputTopicName = inputTopicName + ".*";
+        } else if (multipleInput) {
+            inputTopicName = inputTopicName + "1," + inputTopicName + "2";
         }
         String functionName = "test-exclamation-fn-" + randomName(8);
         final int numMessages = 10;
 
         // submit the exclamation function
         submitExclamationFunction(
-                runtime, inputTopicName, outputTopicName, functionName, pyZip, withExtraDeps, schema);
+                runtime, inputTopicName, outputTopicName, functionName, pyZip, withExtraDeps, schema, commandGeneratorConsumer);
 
         // get function info
-        getFunctionInfoSuccess(functionName);
+        final String info = getFunctionInfoSuccess(functionName);
 
         // get function stats
         getFunctionStatsEmpty(functionName);
@@ -725,14 +727,33 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // get function status
         getFunctionStatus(functionName, numMessages, true);
 
-        // get function stats
-        getFunctionStats(functionName, numMessages);
+        if (Runtime.GO != runtime) {
+            // TODO: Go runtime doesn't collect `process_latency_ms_1min` metric
+            // get function stats
+            getFunctionStats(functionName, numMessages);
+        }
 
         // update parallelism
         updateFunctionParallelism(functionName, 2);
 
         //get function status
         getFunctionStatus(functionName, 0, true, 2);
+
+        // update code file
+        switch (runtime) {
+            case JAVA:
+                updateFunctionCodeFile(functionName, Runtime.JAVA, "test");
+                break;
+            case PYTHON:
+                updateFunctionCodeFile(functionName, Runtime.PYTHON, EXCLAMATION_PYTHON_FILE);
+                break;
+            case GO:
+                updateFunctionCodeFile(functionName, Runtime.GO, EXCLAMATION_GO_FILE);
+                break;
+        }
+
+        checkSubscriptionType(inputTopicName,
+                ObjectMapperFactory.getMapper().getObjectMapper().readValue(info, FunctionConfig.class));
 
         // delete function
         deleteFunction(functionName);
@@ -745,6 +766,41 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     }
 
+    private void checkSubscriptionType(String topic, FunctionConfig config) {
+        List<String> topics = new ArrayList<>();
+        if (topic.endsWith(".*")) {
+            topics.add(topic.substring(0, topic.length() - 2) + "1");
+            topics.add(topic.substring(0, topic.length() - 2) + "2");
+        } else if (topic.contains(",")) {
+            topics.addAll(Arrays.asList(topic.split(",")));
+        } else {
+            topics.add(topic);
+        }
+        topics.stream().forEach(t -> {
+            try {
+                ContainerExecResult result = pulsarCluster.getAnyBroker().execCmd(
+                        PulsarCluster.ADMIN_SCRIPT,
+                        "topics",
+                        "stats",
+                        t);
+                TopicStats topicStats = ObjectMapperFactory.getMapper().reader()
+                        .readValue(result.getStdout(), TopicStats.class);
+                assertEquals(topicStats.getSubscriptions().size(), 1);
+                final SubscriptionStats sub = topicStats.getSubscriptions().values().iterator()
+                        .next();
+                if (config.getRetainOrdering()) {
+                    assertEquals(sub.getType(), "Failover");
+                } else if (config.getRetainKeyOrdering()) {
+                    assertEquals(sub.getType(), "Key_Shared");
+                } else {
+                    assertEquals(sub.getType(), "Shared");
+                }
+            } catch (Exception e) {
+                fail("Command should have exited with non-zero");
+            }
+        });
+    }
+
     private void submitExclamationFunction(Runtime runtime,
                                            String inputTopicName,
                                            String outputTopicName,
@@ -752,6 +808,18 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                            boolean pyZip,
                                            boolean withExtraDeps,
                                            Schema<?> schema) throws Exception {
+        submitExclamationFunction(runtime, inputTopicName, outputTopicName, functionName, pyZip,
+                withExtraDeps, schema, null);
+    }
+
+    private void submitExclamationFunction(Runtime runtime,
+                                           String inputTopicName,
+                                           String outputTopicName,
+                                           String functionName,
+                                           boolean pyZip,
+                                           boolean withExtraDeps,
+                                           Schema<?> schema,
+                                           java.util.function.Consumer<CommandGenerator> commandGeneratorConsumer) throws Exception {
         submitFunction(
                 runtime,
                 inputTopicName,
@@ -761,7 +829,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 withExtraDeps,
                 false,
                 getExclamationClass(runtime, pyZip, withExtraDeps),
-                schema);
+                schema,
+                commandGeneratorConsumer);
     }
 
     private <T> void submitFunction(Runtime runtime,
@@ -772,7 +841,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                     boolean withExtraDeps,
                                     boolean isPublishFunction,
                                     String functionClass,
-                                    Schema<T> inputTopicSchema) throws Exception {
+                                    Schema<T> inputTopicSchema,
+                                    java.util.function.Consumer<CommandGenerator> commandGeneratorConsumer) throws Exception {
 
         String file = null;
         if (Runtime.JAVA == runtime) {
@@ -787,9 +857,16 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             } else {
                 file = EXCLAMATION_PYTHON_FILE;
             }
+        } else if (Runtime.GO == runtime) {
+            if (isPublishFunction) {
+                file = PUBLISH_FUNCTION_GO_FILE;
+            } else {
+                file = EXCLAMATION_GO_FILE;
+            }
         }
 
-        submitFunction(runtime, inputTopicName, outputTopicName, functionName, file, functionClass, inputTopicSchema);
+        submitFunction(runtime, inputTopicName, outputTopicName, functionName, file, functionClass, inputTopicSchema,
+                commandGeneratorConsumer);
     }
 
     private <T> void submitFunction(Runtime runtime,
@@ -798,9 +875,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                     String functionName,
                                     String functionFile,
                                     String functionClass,
-                                    Schema<T> inputTopicSchema) throws Exception {
+                                    Schema<T> inputTopicSchema,
+                                    java.util.function.Consumer<CommandGenerator> commandGeneratorConsumer) throws Exception {
         submitFunction(runtime, inputTopicName, outputTopicName, functionName, functionFile, functionClass,
-                inputTopicSchema, null, null, null, null, null, null);
+                inputTopicSchema, null, null, null, null, null, null,
+                commandGeneratorConsumer);
     }
 
     private <T> void submitFunction(Runtime runtime,
@@ -815,11 +894,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                     String outputSchemaType,
                                     SubscriptionInitialPosition subscriptionInitialPosition,
                                     String inputTypeClassName,
-                                    String outputTypeClassName) throws Exception {
+                                    String outputTypeClassName,
+                                    java.util.function.Consumer<CommandGenerator> commandGeneratorConsumer) throws Exception {
 
         if (StringUtils.isNotEmpty(inputTopicName)) {
             ensureSubscriptionCreated(
-                inputTopicName, String.format("public/default/%s", functionName), inputTopicSchema);
+                    inputTopicName, String.format("public/default/%s", functionName), inputTopicSchema);
         }
 
         CommandGenerator generator;
@@ -851,9 +931,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         if (outputTypeClassName != null) {
             generator.setOutputTypeClassName(outputTypeClassName);
         }
+        if (commandGeneratorConsumer != null) {
+            commandGeneratorConsumer.accept(generator);
+        }
         String command = "";
 
-        switch (runtime){
+        switch (runtime) {
             case JAVA:
                 command = generator.generateCreateFunctionCommand();
                 break;
@@ -893,12 +976,29 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertTrue(result.getStdout().contains("Updated successfully"));
     }
 
+    private void updateFunctionCodeFile(String functionName, Runtime runtime, String codeFile) throws Exception {
+
+        CommandGenerator generator = new CommandGenerator();
+        generator.setFunctionName(functionName);
+        generator.setRuntime(runtime);
+        String command = generator.generateUpdateFunctionCommand(codeFile);
+
+        log.info("---------- Function command: {}", command);
+        String[] commands = {
+                "sh", "-c", command
+        };
+        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
+                commands);
+        assertTrue(result.getStdout().contains("Updated successfully"));
+    }
+
     protected <T> void submitFunction(Runtime runtime,
                                       String inputTopicName,
                                       String outputTopicName,
                                       String functionName,
                                       String functionFile,
                                       String functionClass,
+                                      Map<String, String> inputSerdeClassNames,
                                       String outputSerdeClassName,
                                       Map<String, String> userConfigs) throws Exception {
 
@@ -913,6 +1013,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
         generator.setSinkTopic(outputTopicName);
         generator.setFunctionName(functionName);
+        generator.setCustomSerDeSourceTopics(inputSerdeClassNames);
         generator.setOutputSerDe(outputSerdeClassName);
         if (userConfigs != null) {
             generator.setUserConfig(userConfigs);
@@ -945,8 +1046,17 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         try (PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
                 .build()) {
+            List<String> topics = new ArrayList<>();
+            if (inputTopicName.endsWith(".*")) {
+                topics.add(inputTopicName.substring(0, inputTopicName.length() - 2) + "1");
+                topics.add(inputTopicName.substring(0, inputTopicName.length() - 2) + "2");
+            } else if (inputTopicName.contains(",")) {
+                topics.addAll(Arrays.asList(inputTopicName.split(",")));
+            } else {
+                topics.add(inputTopicName);
+            }
             try (Consumer<T> ignored = client.newConsumer(inputTopicSchema)
-                    .topic(inputTopicName)
+                    .topic(topics.toArray(new String[0]))
                     .subscriptionType(SubscriptionType.Shared)
                     .subscriptionName(subscriptionName)
                     .subscribe()) {
@@ -954,7 +1064,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
     }
 
-    protected void getFunctionInfoSuccess(String functionName) throws Exception {
+    protected String getFunctionInfoSuccess(String functionName) throws Exception {
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
                 PulsarCluster.ADMIN_SCRIPT,
                 "functions",
@@ -966,7 +1076,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         log.info("FUNCTION STATE: {}", result.getStdout());
         assertTrue(result.getStdout().contains("\"name\": \"" + functionName + "\""));
+        return result.getStdout();
     }
+
 
     protected void getFunctionStatsEmpty(String functionName) throws Exception {
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
@@ -1042,7 +1154,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertEquals(functionStats.instances.get(0).getMetrics().getUserExceptionsTotal(), 0);
         assertTrue(functionStats.instances.get(0).getMetrics().getAvgProcessLatency() > 0);
         assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getReceivedTotal(), numMessages);
-        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getProcessedSuccessfullyTotal(), numMessages);
+        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getProcessedSuccessfullyTotal(),
+                numMessages);
         assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getSystemExceptionsTotal(), 0);
         assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getUserExceptionsTotal(), 0);
         assertTrue(functionStats.instances.get(0).getMetrics().getOneMin().getAvgProcessLatency() > 0);
@@ -1071,19 +1184,29 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
     private void checkSubscriptionsCleanup(String topic) throws Exception {
-        try {
-            ContainerExecResult result = pulsarCluster.getAnyBroker().execCmd(
-                    PulsarCluster.ADMIN_SCRIPT,
-                    "topics",
-                    "stats",
-                    topic);
-            TopicStats topicStats = ObjectMapperFactory.getMapper().reader()
-                    .readValue(result.getStdout(), TopicStats.class);
-            assertEquals(topicStats.getSubscriptions().size(), 0);
-
-        } catch (ContainerExecException e) {
-            fail("Command should have exited with non-zero");
+        List<String> topics = new ArrayList<>();
+        if (topic.endsWith(".*")) {
+            topics.add(topic.substring(0, topic.length() - 2) + "1");
+            topics.add(topic.substring(0, topic.length() - 2) + "2");
+        } else if (topic.contains(",")) {
+            topics.addAll(Arrays.asList(topic.split(",")));
+        } else {
+            topics.add(topic);
         }
+        topics.stream().forEach(t -> {
+            try {
+                ContainerExecResult result = pulsarCluster.getAnyBroker().execCmd(
+                        PulsarCluster.ADMIN_SCRIPT,
+                        "topics",
+                        "stats",
+                        t);
+                TopicStats topicStats = ObjectMapperFactory.getMapper().reader()
+                        .readValue(result.getStdout(), TopicStats.class);
+                assertEquals(topicStats.getSubscriptions().size(), 0);
+            } catch (Exception e) {
+                fail("Command should have exited with non-zero");
+            }
+        });
     }
 
     private void checkPublisherCleanup(String topic) throws Exception {
@@ -1145,7 +1268,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             lastInvocationTimeGreaterThanZero = lastInvocationTimeGreaterThanZero
                     || functionStatus.getInstances().get(i).getStatus().getLastInvocationTime() > 0;
             totalMessagesProcessed += functionStatus.getInstances().get(i).getStatus().getNumReceived();
-            totalMessagesSuccessfullyProcessed += functionStatus.getInstances().get(i).getStatus().getNumSuccessfullyProcessed();
+            totalMessagesSuccessfullyProcessed +=
+                    functionStatus.getInstances().get(i).getStatus().getNumSuccessfullyProcessed();
             if (checkRestarts) {
                 assertEquals(functionStatus.getInstances().get(i).getStatus().getNumRestarts(), 0);
             }
@@ -1205,7 +1329,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
 
         for (int i = 0; i < numMessages; i++) {
-            Message<String> msg = consumer.receive(30, TimeUnit.SECONDS);
+            log.info("Trying to receive message.. {}/{}", i, numMessages);
+            Message<String> msg = consumer.receive(30, TimeUnit.MINUTES);
             log.info("Received: {}", msg.getValue());
             assertTrue(expectedMessages.contains(msg.getValue()));
             expectedMessages.remove(msg.getValue());
@@ -1232,6 +1357,23 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
             @Cleanup Producer<byte[]> producer2 = client.newProducer(Schema.BYTES)
                     .topic(inputTopic.substring(0, inputTopic.length() - 2) + "2")
+                    .create();
+
+            for (int i = 0; i < numMessages / 2; i++) {
+                producer1.send(("message-" + i).getBytes(UTF_8));
+            }
+
+            for (int i = numMessages / 2; i < numMessages; i++) {
+                producer2.send(("message-" + i).getBytes(UTF_8));
+            }
+        } else if (inputTopic.contains(",")) {
+            String[] topics = inputTopic.split(",");
+            @Cleanup Producer<byte[]> producer1 = client.newProducer(Schema.BYTES)
+                    .topic(topics[0])
+                    .create();
+
+            @Cleanup Producer<byte[]> producer2 = client.newProducer(Schema.BYTES)
+                    .topic(topics[1])
                     .create();
 
             for (int i = 0; i < numMessages / 2; i++) {
@@ -1295,7 +1437,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 false,
                 false,
                 AutoSchemaFunction.class.getName(),
-                Schema.AVRO(CustomObject.class));
+                Schema.AVRO(CustomObject.class),
+                null);
 
         // get function info
         getFunctionInfoSuccess(functionName);
@@ -1405,7 +1548,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     functionName,
                     null,
                     AvroSchemaTestFunction.class.getName(),
-                    Schema.AVRO(AvroTestObject.class));
+                    Schema.AVRO(AvroTestObject.class),
+                    null);
         } else if (runtime == Runtime.PYTHON) {
             ConsumerConfig consumerConfig = new ConsumerConfig();
             consumerConfig.setSchemaType("avro");
@@ -1420,7 +1564,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     AVRO_SCHEMA_FUNCTION_PYTHON_FILE,
                     AVRO_SCHEMA_PYTHON_CLASS,
                     Schema.AVRO(AvroTestObject.class),
-                    null, objectMapper.writeValueAsString(inputSpecs), "avro", null, "avro_schema_test_function.AvroTestObject", "avro_schema_test_function.AvroTestObject");
+                    null, objectMapper.writeValueAsString(inputSpecs), "avro", null,
+                    "avro_schema_test_function.AvroTestObject", "avro_schema_test_function.AvroTestObject",
+                    null);
         }
         log.info("pulsar submitFunction");
 
@@ -1430,7 +1576,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         Set<Object> expectedSet = new HashSet<>();
 
         log.info("test-avro-schema producer connected: " + producer.isConnected());
-        for (int i = 0 ; i < numMessages ; i++) {
+        for (int i = 0; i < numMessages; i++) {
             AvroTestObject inputObject = new AvroTestObject();
             inputObject.setBaseValue(i);
             MessageId messageId = producer.send(inputObject);
@@ -1457,7 +1603,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         });
 
         log.info("test-avro-schema consumer connected: " + consumer.isConnected());
-        for (int i = 0 ; i < numMessages ; i++) {
+        for (int i = 0; i < numMessages; i++) {
             log.info("test-avro-schema consumer receive [{}] start", i);
             Message<AvroTestObject> message = consumer.receive();
             log.info("test-avro-schema consumer receive [{}] over", i);
@@ -1495,8 +1641,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         final int numMessages = 10;
 
         // submit the exclamation function
-        submitFunction(runtime, inputTopicName, outputTopicName, functionName, null, InitializableFunction.class.getName(), schema,
-                Collections.singletonMap("publish-topic", outputTopicName), null, null, null, null, null);
+        submitFunction(runtime, inputTopicName, outputTopicName, functionName, null,
+                InitializableFunction.class.getName(), schema,
+                Collections.singletonMap("publish-topic", outputTopicName), null, null, null, null, null, null);
 
         // publish and consume result
         publishAndConsumeMessages(inputTopicName, outputTopicName, numMessages);
@@ -1629,13 +1776,17 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             Message<byte[]> msg = consumer.receive(30, TimeUnit.SECONDS);
             if (msg == null) {
                 log.info("Input topic stats: {}",
-                        Json.pretty(pulsarAdmin.topics().getStats(inputTopic, true)));
+                        objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(
+                                pulsarAdmin.topics().getStats(inputTopic, true)));
                 log.info("Output topic stats: {}",
-                        Json.pretty(pulsarAdmin.topics().getStats(outputTopic, true)));
+                        objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(
+                                pulsarAdmin.topics().getStats(outputTopic, true)));
                 log.info("Input topic internal-stats: {}",
-                        Json.pretty(pulsarAdmin.topics().getInternalStats(inputTopic, true)));
+                        objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(
+                                pulsarAdmin.topics().getInternalStats(inputTopic, true)));
                 log.info("Output topic internal-stats: {}",
-                        Json.pretty(pulsarAdmin.topics().getInternalStats(outputTopic, true)));
+                        objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(
+                                pulsarAdmin.topics().getInternalStats(outputTopic, true)));
             } else {
                 String logMsg = new String(msg.getValue(), UTF_8);
                 log.info("Received message: '{}'", logMsg);
@@ -1650,7 +1801,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
 
-    protected void testGenericObjectFunction(String function, boolean removeAgeField, boolean keyValue) throws Exception {
+    protected void testGenericObjectFunction(String function, boolean removeAgeField, boolean keyValue)
+            throws Exception {
         log.info("start {} function test ...", function);
 
         String ns = "public/ns-genericobject-" + randomName(8);
@@ -1684,7 +1836,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 null,
                 null,
                 SchemaType.NONE.name(),
-                SubscriptionInitialPosition.Earliest, null, null);
+                SubscriptionInitialPosition.Earliest, null, null, null);
         try {
             if (keyValue) {
                 @Cleanup
@@ -1721,13 +1873,14 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     GenericRecord genericRecord = message.getValue();
                     if (keyValue) {
                         @SuppressWarnings("unchecked")
-                        KeyValue<GenericRecord, GenericRecord> keyValueObject = (KeyValue<GenericRecord, GenericRecord>) genericRecord.getNativeObject();
+                        KeyValue<GenericRecord, GenericRecord> keyValueObject =
+                                (KeyValue<GenericRecord, GenericRecord>) genericRecord.getNativeObject();
                         GenericRecord key = keyValueObject.getKey();
                         GenericRecord value = keyValueObject.getValue();
-                        key.getFields().forEach(f-> {
+                        key.getFields().forEach(f -> {
                             log.info("key field {} value {}", f.getName(), key.getField(f.getName()));
                         });
-                        value.getFields().forEach(f-> {
+                        value.getFields().forEach(f -> {
                             log.info("value field {} value {}", f.getName(), value.getField(f.getName()));
                         });
                         assertEquals(i, key.getField("age"));
@@ -1743,7 +1896,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     } else {
                         GenericRecord value = genericRecord;
                         log.info("received value {}", value);
-                        value.getFields().forEach(f-> {
+                        value.getFields().forEach(f -> {
                             log.info("value field {} value {}", f.getName(), value.getField(f.getName()));
                         });
 
@@ -1799,7 +1952,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 functionName,
                 null,
                 RecordFunction.class.getName(),
-                Schema.AUTO_CONSUME());
+                Schema.AUTO_CONSUME(),
+                null);
         try {
             @Cleanup
             Producer<String> producer = pulsarClient
@@ -1869,7 +2023,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 null,
                 inputSpecNode.toString(),
                 SchemaType.AUTO_PUBLISH.name().toUpperCase(),
-                SubscriptionInitialPosition.Earliest, null, null);
+                SubscriptionInitialPosition.Earliest, null, null, null);
 
         getFunctionInfoSuccess(functionName);
 
@@ -1939,13 +2093,14 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
     private <T> void generateDataByDifferentSchema(String ns,
-                                               String baseTopic,
-                                               PulsarClient pulsarClient,
-                                               Schema<T> schema,
-                                               T data,
-                                               int messageCnt,
-                                               ObjectNode inputSpecNode,
-                                               Map<String, AtomicInteger> topicMsgCntMap) throws PulsarClientException {
+                                                   String baseTopic,
+                                                   PulsarClient pulsarClient,
+                                                   Schema<T> schema,
+                                                   T data,
+                                                   int messageCnt,
+                                                   ObjectNode inputSpecNode,
+                                                   Map<String, AtomicInteger> topicMsgCntMap)
+            throws PulsarClientException {
         String topic = ns + "/" + baseTopic;
         Producer<T> producer = pulsarClient.newProducer(schema)
                 .topic(topic)

@@ -86,7 +86,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
 
         ManagedLedgerConfig managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
-        managedLedgerConfig.setRetentionSizeInMB(1);
+        managedLedgerConfig.setRetentionSizeInMB(1L);
         managedLedgerConfig.setRetentionTime(1, TimeUnit.SECONDS);
         managedLedgerConfig.setMaxEntriesPerLedger(2);
         managedLedgerConfig.setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
@@ -97,11 +97,13 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         }
 
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
-        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), msgNum / 2);
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(managedLedger.getLedgersInfoAsList().size() - 1, msgNum / 2);
+        });
 
         //no traffic, unconsumed ledger will be retained
         Thread.sleep(1200);
-        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), msgNum / 2);
+        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size() - 1, msgNum / 2);
 
         for (int i = 0; i < msgNum; i++) {
             Message<byte[]> msg = consumer.receive(2, TimeUnit.SECONDS);

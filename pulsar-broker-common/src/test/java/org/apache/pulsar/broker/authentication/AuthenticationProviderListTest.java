@@ -29,7 +29,6 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
@@ -90,7 +89,7 @@ public class AuthenticationProviderListTest {
         );
         ServiceConfiguration confA = new ServiceConfiguration();
         confA.setProperties(propertiesA);
-        providerA.initialize(confA);
+        providerA.initialize(AuthenticationProvider.Context.builder().config(confA).build());
 
         Properties propertiesB = new Properties();
         propertiesB.setProperty(AuthenticationProviderToken.CONF_TOKEN_SETTING_PREFIX, "b");
@@ -103,7 +102,7 @@ public class AuthenticationProviderListTest {
         );
         ServiceConfiguration confB = new ServiceConfiguration();
         confB.setProperties(propertiesB);
-        providerB.initialize(confB);
+        providerB.initialize(AuthenticationProvider.Context.builder().config(confB).build());
 
         this.authProvider = new AuthenticationProviderList(Lists.newArrayList(
             providerA, providerB
@@ -160,6 +159,30 @@ public class AuthenticationProviderListTest {
         testAuthenticate(tokenBA, SUBJECT_A);
         testAuthenticate(tokenBB, SUBJECT_B);
     }
+
+    private void testAuthenticateAsync(String token, String expectedSubject) throws Exception {
+        String actualSubject = authProvider.authenticateAsync(new AuthenticationDataSource() {
+            @Override
+            public boolean hasDataFromCommand() {
+                return true;
+            }
+
+            @Override
+            public String getCommandData() {
+                return token;
+            }
+        }).get();
+        assertEquals(actualSubject, expectedSubject);
+    }
+
+    @Test
+    public void testAuthenticateAsync() throws Exception {
+        testAuthenticateAsync(tokenAA, SUBJECT_A);
+        testAuthenticateAsync(tokenAB, SUBJECT_B);
+        testAuthenticateAsync(tokenBA, SUBJECT_A);
+        testAuthenticateAsync(tokenBB, SUBJECT_B);
+    }
+
 
     private AuthenticationState newAuthState(String token, String expectedSubject) throws Exception {
         // Must pass the token to the newAuthState for legacy reasons.

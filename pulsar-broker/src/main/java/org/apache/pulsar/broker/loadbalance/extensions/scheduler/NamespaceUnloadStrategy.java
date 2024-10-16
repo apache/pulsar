@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.loadbalance.extensions.scheduler;
 
 import java.util.Map;
+import java.util.Set;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
 
@@ -38,8 +40,15 @@ public interface NamespaceUnloadStrategy {
      * @param recentlyUnloadedBrokers The recently unloaded brokers.
      * @return unloadDecision containing a list of the bundles that should be unloaded.
      */
-    UnloadDecision findBundlesForUnloading(LoadManagerContext context,
-                                           Map<String, Long> recentlyUnloadedBundles,
-                                           Map<String, Long> recentlyUnloadedBrokers);
+    Set<UnloadDecision> findBundlesForUnloading(LoadManagerContext context,
+                                                Map<String, Long> recentlyUnloadedBundles,
+                                                Map<String, Long> recentlyUnloadedBrokers);
+
+    /**
+     * Initializes the internals.
+     *
+     * @param pulsar The pulsar service instance.
+     */
+    void initialize(PulsarService pulsar);
 
 }

@@ -43,8 +43,8 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
     @Override
     public boolean add(MessageImpl<?> msg, SendCallback callback) {
         if (log.isDebugEnabled()) {
-            log.debug("[{}] [{}] add message to batch, num messages in batch so far is {}", topicName, producerName,
-                    numMessagesInBatch);
+            log.debug("[{}] [{}] add message to batch, num messages in batch so far is {}", topicName,
+                    producer.getProducerName(), numMessagesInBatch);
         }
         String key = getKey(msg);
         final BatchMessageContainerImpl batchMessageContainer = batches.computeIfAbsent(key,
@@ -57,11 +57,13 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
             numMessagesInBatch++;
             currentBatchSizeBytes += msg.getDataBuffer().readableBytes();
         }
+        tryUpdateTimestamp();
         return isBatchFull();
     }
 
     @Override
     public void clear() {
+        clearTimestamp();
         numMessagesInBatch = 0;
         currentBatchSizeBytes = 0;
         batches.clear();

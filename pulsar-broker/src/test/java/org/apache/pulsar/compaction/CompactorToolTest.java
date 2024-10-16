@@ -22,7 +22,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertTrue;
-import com.beust.jcommander.Parameter;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.lang.reflect.Constructor;
@@ -35,8 +34,9 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.util.CmdGenerateDocs;
+import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import org.testng.annotations.Test;
+import picocli.CommandLine.Option;
 
 /**
  * CompactorTool Tests.
@@ -69,9 +69,9 @@ public class CompactorToolTest {
 
             Field[] fields = argumentsClass.getDeclaredFields();
             for (Field field : fields) {
-                boolean fieldHasAnno = field.isAnnotationPresent(Parameter.class);
+                boolean fieldHasAnno = field.isAnnotationPresent(Option.class);
                 if (fieldHasAnno) {
-                    Parameter fieldAnno = field.getAnnotation(Parameter.class);
+                    Option fieldAnno = field.getAnnotation(Option.class);
                     String[] names = fieldAnno.names();
                     String nameStr = Arrays.asList(names).toString();
                     nameStr = nameStr.substring(1, nameStr.length() - 1);
@@ -98,6 +98,7 @@ public class CompactorToolTest {
         verify(serviceConfiguration, times(1)).getBrokerClientKeyFilePath();
         verify(serviceConfiguration, times(1)).getBrokerClientTrustCertsFilePath();
         verify(serviceConfiguration, times(1)).getBrokerClientCertificateFilePath();
+        serviceConfiguration.setBrokerClientTlsTrustStorePassword(MockedPulsarServiceBaseTest.BROKER_KEYSTORE_PW);
     }
 
     @Test

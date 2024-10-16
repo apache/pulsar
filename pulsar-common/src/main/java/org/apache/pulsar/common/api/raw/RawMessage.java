@@ -102,7 +102,7 @@ public interface RawMessage {
     Optional<String> getKey();
 
     /**
-     * Get the schema verison of the message.
+     * Get the schema version of the message.
      *
      * @return the schema version of the message
      */

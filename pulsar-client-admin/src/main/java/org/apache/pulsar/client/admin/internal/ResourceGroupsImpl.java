@@ -32,8 +32,8 @@ import org.apache.pulsar.common.policies.data.ResourceGroup;
 public class ResourceGroupsImpl extends BaseResource implements ResourceGroups {
     private final WebTarget adminResourceGroups;
 
-    public ResourceGroupsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public ResourceGroupsImpl(WebTarget web, Authentication auth, long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         adminResourceGroups = web.path("/admin/v2/resourcegroups");
     }
 

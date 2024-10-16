@@ -19,7 +19,11 @@
 package org.apache.pulsar.functions.source;
 
 import io.netty.buffer.ByteBuf;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.ByteBuffer;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -44,13 +48,16 @@ import org.apache.pulsar.functions.instance.InstanceUtils;
 @Slf4j
 public class TopicSchema {
 
-    public static final String JSR_310_CONVERSION_ENABLED = "jsr310ConversionEnabled";
-    public static final String ALWAYS_ALLOW_NULL = "alwaysAllowNull";
     private final Map<String, Schema<?>> cachedSchemas = new HashMap<>();
     private final PulsarClient client;
 
-    public TopicSchema(PulsarClient client) {
+    private final ClassLoader functionsClassloader;
+
+    public TopicSchema(PulsarClient client, ClassLoader functionsClassloader) {
         this.client = client;
+        this.functionsClassloader = AccessController.doPrivileged(
+                (PrivilegedAction<URLClassLoader>) () -> new URLClassLoader(new URL[0], functionsClassloader)
+        );
     }
 
     /**
@@ -244,11 +251,11 @@ public class TopicSchema {
     @SuppressWarnings("unchecked")
     private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, String schemaTypeOrClassName, boolean input) {
         return newSchemaInstance(topic, clazz, new ConsumerConfig(schemaTypeOrClassName), input,
-                Thread.currentThread().getContextClassLoader());
+                functionsClassloader);
     }
 
     @SuppressWarnings("unchecked")
     private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, ConsumerConfig conf, boolean input) {
-        return newSchemaInstance(topic, clazz, conf, input, Thread.currentThread().getContextClassLoader());
+        return newSchemaInstance(topic, clazz, conf, input, functionsClassloader);
     }
 }

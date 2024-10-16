@@ -24,6 +24,7 @@ import io.netty.channel.socket.SocketChannel;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -51,6 +52,9 @@ public class ProtocolHandlers implements AutoCloseable {
      * @return the collection of protocol handlers
      */
     public static ProtocolHandlers load(ServiceConfiguration conf) throws IOException {
+        if (conf.getMessagingProtocols().isEmpty()) {
+            return new ProtocolHandlers(Collections.emptyMap());
+        }
         ProtocolHandlerDefinitions definitions =
                 ProtocolHandlerUtils.searchForHandlers(
                         conf.getProtocolHandlerDirectory(), conf.getNarExtractionDirectory());

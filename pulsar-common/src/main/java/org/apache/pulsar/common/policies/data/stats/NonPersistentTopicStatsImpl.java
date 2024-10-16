@@ -155,8 +155,9 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
         Objects.requireNonNull(stats);
         super.add(stats);
         this.msgDropRate += stats.msgDropRate;
-        for (int index = 0; index < stats.getNonPersistentPublishers().size(); index++) {
-            NonPersistentPublisherStats s = stats.getNonPersistentPublishers().get(index);
+        List<NonPersistentPublisherStats> publisherStats = stats.getNonPersistentPublishers();
+        for (int index = 0; index < publisherStats.size(); index++) {
+            NonPersistentPublisherStats s = publisherStats.get(index);
             if (s.isSupportsPartialProducer() && s.getProducerName() != null) {
                 ((NonPersistentPublisherStatsImpl) this.nonPersistentPublishersMap
                         .computeIfAbsent(s.getProducerName(), key -> {
@@ -181,46 +182,24 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
             }
         }
 
-        if (this.getNonPersistentSubscriptions().size() != stats.getNonPersistentSubscriptions().size()) {
-            for (String subscription : stats.getNonPersistentSubscriptions().keySet()) {
-                NonPersistentSubscriptionStatsImpl subscriptionStats = new NonPersistentSubscriptionStatsImpl();
-                this.getNonPersistentSubscriptions().put(subscription, subscriptionStats
-                        .add((NonPersistentSubscriptionStatsImpl)
-                                stats.getNonPersistentSubscriptions().get(subscription)));
-            }
-        } else {
-            for (String subscription : stats.getNonPersistentSubscriptions().keySet()) {
-                if (this.getNonPersistentSubscriptions().get(subscription) != null) {
-                    ((NonPersistentSubscriptionStatsImpl) this.getNonPersistentSubscriptions().get(subscription))
-                          .add((NonPersistentSubscriptionStatsImpl)
-                                  stats.getNonPersistentSubscriptions().get(subscription));
-                } else {
-                    NonPersistentSubscriptionStatsImpl subscriptionStats = new NonPersistentSubscriptionStatsImpl();
-                    this.getNonPersistentSubscriptions().put(subscription, subscriptionStats
-                         .add((NonPersistentSubscriptionStatsImpl)
-                                 stats.getNonPersistentSubscriptions().get(subscription)));
-                }
-            }
+        for (Map.Entry<String, NonPersistentSubscriptionStats> entry : stats.getNonPersistentSubscriptions()
+                .entrySet()) {
+            NonPersistentSubscriptionStatsImpl subscriptionStats =
+                    (NonPersistentSubscriptionStatsImpl) this.getNonPersistentSubscriptions()
+                            .computeIfAbsent(entry.getKey(), k -> new NonPersistentSubscriptionStatsImpl());
+            subscriptionStats.add(
+                    (NonPersistentSubscriptionStatsImpl) entry.getValue());
         }
 
-        if (this.getNonPersistentReplicators().size() != stats.getNonPersistentReplicators().size()) {
-            for (String repl : stats.getNonPersistentReplicators().keySet()) {
-                NonPersistentReplicatorStatsImpl replStats = new NonPersistentReplicatorStatsImpl();
-                this.getNonPersistentReplicators().put(repl, replStats
-                        .add((NonPersistentReplicatorStatsImpl) stats.getNonPersistentReplicators().get(repl)));
-            }
-        } else {
-            for (String repl : stats.getNonPersistentReplicators().keySet()) {
-                if (this.getNonPersistentReplicators().get(repl) != null) {
-                    ((NonPersistentReplicatorStatsImpl) this.getNonPersistentReplicators().get(repl))
-                            .add((NonPersistentReplicatorStatsImpl) stats.getNonPersistentReplicators().get(repl));
-                } else {
-                    NonPersistentReplicatorStatsImpl replStats = new NonPersistentReplicatorStatsImpl();
-                    this.getNonPersistentReplicators().put(repl, replStats
-                            .add((NonPersistentReplicatorStatsImpl) stats.getNonPersistentReplicators().get(repl)));
-                }
-            }
+        for (Map.Entry<String, NonPersistentReplicatorStats> entry : stats.getNonPersistentReplicators().entrySet()) {
+            NonPersistentReplicatorStatsImpl replStats = (NonPersistentReplicatorStatsImpl)
+                    this.getNonPersistentReplicators().computeIfAbsent(entry.getKey(), k -> {
+                        NonPersistentReplicatorStatsImpl r = new NonPersistentReplicatorStatsImpl();
+                        return r;
+                    });
+            replStats.add((NonPersistentReplicatorStatsImpl) entry.getValue());
         }
+
         return this;
     }
 

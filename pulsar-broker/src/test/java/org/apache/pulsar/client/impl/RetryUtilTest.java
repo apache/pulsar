@@ -18,7 +18,10 @@
  */
 package org.apache.pulsar.client.impl;
 
+import lombok.Cleanup;
 import org.apache.pulsar.client.util.RetryUtil;
+import org.apache.pulsar.common.util.Backoff;
+import org.apache.pulsar.common.util.BackoffBuilder;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.annotations.Test;
 
@@ -37,6 +40,7 @@ public class RetryUtilTest {
 
     @Test
     public void testFailAndRetry() throws Exception {
+        @Cleanup("shutdownNow")
         ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
         CompletableFuture<Boolean> callback = new CompletableFuture<>();
         AtomicInteger atomicInteger = new AtomicInteger(0);
@@ -57,11 +61,11 @@ public class RetryUtilTest {
         }, backoff, executor, callback);
         assertTrue(callback.get());
         assertEquals(atomicInteger.get(), 5);
-        executor.shutdownNow();
     }
 
     @Test
     public void testFail() throws Exception {
+        @Cleanup("shutdownNow")
         ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
         CompletableFuture<Boolean> callback = new CompletableFuture<>();
         Backoff backoff = new BackoffBuilder()
@@ -79,6 +83,5 @@ public class RetryUtilTest {
         }
         long time = System.currentTimeMillis() - start;
         assertTrue(time >= 5000 - 2000, "Duration:" + time);
-        executor.shutdownNow();
     }
 }

@@ -19,8 +19,10 @@
 package org.apache.pulsar.client.impl;
 
 
-import static org.apache.pulsar.common.api.proto.CompressionType.LZ4;
 import static org.apache.pulsar.common.api.proto.CompressionType.NONE;
+import static org.apache.pulsar.common.api.proto.CompressionType.ZSTD;
+import static org.testng.AssertJUnit.assertFalse;
+import static org.testng.AssertJUnit.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.io.IOException;
@@ -55,7 +57,7 @@ public class RawBatchMessageContainerImplTest {
 
     public void setEncryptionAndCompression(boolean encrypt, boolean compress) {
         if (compress) {
-            compressionType = LZ4;
+            compressionType = ZSTD;
         } else {
             compressionType = NONE;
         }
@@ -100,14 +102,24 @@ public class RawBatchMessageContainerImplTest {
 
     @BeforeMethod
     public void setup() throws Exception {
-        setEncryptionAndCompression(false, false);
+        setEncryptionAndCompression(false, true);
     }
-    @Test
-    public void testToByteBuf() throws IOException {
-        RawBatchMessageContainerImpl container = new RawBatchMessageContainerImpl(2);
+    @Test(timeOut = 20000)
+    public void testToByteBufWithBatchLimit()throws IOException {
+        RawBatchMessageContainerImpl container = new RawBatchMessageContainerImpl();
+
         String topic = "my-topic";
-        container.add(createMessage(topic, "hi-1", 0), null);
-        container.add(createMessage(topic, "hi-2", 1), null);
+        MessageImpl message1 = createMessage(topic, "hi-1", 0);
+        boolean hasEnoughSpase1 = container.haveEnoughSpace(message1);
+        var full1 = container.add(message1, null);
+        assertFalse(full1);
+        assertTrue(hasEnoughSpase1);
+        MessageImpl message2 = createMessage(topic, "hi-2", 1);
+        boolean hasEnoughSpase2 = container.haveEnoughSpace(message2);
+        assertFalse(hasEnoughSpase2);
+        var full2 = container.add(message2, null);
+        assertFalse(full2);
+
         ByteBuf buf = container.toByteBuf();
 
 
@@ -126,18 +138,23 @@ public class RawBatchMessageContainerImplTest {
         MessageMetadata metadata = singleMessageMetadataAndPayload.getMessageBuilder();
         Assert.assertEquals(metadata.getNumMessagesInBatch(), 2);
         Assert.assertEquals(metadata.getHighestSequenceId(), 1);
-        Assert.assertEquals(metadata.getCompression(), NONE);
+        Assert.assertEquals(metadata.getCompression(), ZSTD);
+
+        CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
+        ByteBuf payload = codec.decode(metadataAndPayload, metadata.getUncompressedSize());
 
         SingleMessageMetadata messageMetadata = new SingleMessageMetadata();
+        messageMetadata.setCompactedOut(true);
         ByteBuf payload1 = Commands.deSerializeSingleMessageInBatch(
-                singleMessageMetadataAndPayload.getPayload(), messageMetadata, 0, 2);
+                payload, messageMetadata, 0, 2);
         ByteBuf payload2 = Commands.deSerializeSingleMessageInBatch(
-                singleMessageMetadataAndPayload.getPayload(), messageMetadata, 1, 2);
+                payload, messageMetadata, 1, 2);
 
         Assert.assertEquals(payload1.toString(Charset.defaultCharset()), "hi-1");
         Assert.assertEquals(payload2.toString(Charset.defaultCharset()), "hi-2");
         payload1.release();
         payload2.release();
+        payload.release();
         singleMessageMetadataAndPayload.release();
         metadataAndPayload.release();
         buf.release();
@@ -147,7 +164,7 @@ public class RawBatchMessageContainerImplTest {
     public void testToByteBufWithCompressionAndEncryption() throws IOException {
         setEncryptionAndCompression(true, true);
 
-        RawBatchMessageContainerImpl container = new RawBatchMessageContainerImpl(2);
+        RawBatchMessageContainerImpl container = new RawBatchMessageContainerImpl();
         container.setCryptoKeyReader(cryptoKeyReader);
         String topic = "my-topic";
         container.add(createMessage(topic, "hi-1", 0), null);
@@ -169,7 +186,7 @@ public class RawBatchMessageContainerImplTest {
         MessageMetadata metadata = singleMessageMetadataAndPayload.getMessageBuilder();
         Assert.assertEquals(metadata.getNumMessagesInBatch(), 2);
         Assert.assertEquals(metadata.getHighestSequenceId(), 1);
-        Assert.assertEquals(metadata.getCompression(), compressionType);
+        Assert.assertEquals(metadata.getCompression(), ZSTD);
 
         ByteBuf payload = singleMessageMetadataAndPayload.getPayload();
         int maxDecryptedSize = msgCrypto.getMaxOutputSize(payload.readableBytes());
@@ -197,7 +214,7 @@ public class RawBatchMessageContainerImplTest {
 
     @Test
     public void testToByteBufWithSingleMessage() throws IOException {
-        RawBatchMessageContainerImpl container = new RawBatchMessageContainerImpl(2);
+        RawBatchMessageContainerImpl container = new RawBatchMessageContainerImpl();
         String topic = "my-topic";
         container.add(createMessage(topic, "hi-1", 0), null);
         ByteBuf buf = container.toByteBuf();
@@ -218,34 +235,43 @@ public class RawBatchMessageContainerImplTest {
         MessageMetadata metadata = singleMessageMetadataAndPayload.getMessageBuilder();
         Assert.assertEquals(metadata.getNumMessagesInBatch(), 1);
         Assert.assertEquals(metadata.getHighestSequenceId(), 0);
-        Assert.assertEquals(metadata.getCompression(), NONE);
+        Assert.assertEquals(metadata.getCompression(), ZSTD);
 
-        Assert.assertEquals(singleMessageMetadataAndPayload.getPayload().toString(Charset.defaultCharset()), "hi-1");
+        CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
+        ByteBuf payload = codec.decode(metadataAndPayload, metadata.getUncompressedSize());
+
+        Assert.assertEquals(payload.toString(Charset.defaultCharset()), "hi-1");
         singleMessageMetadataAndPayload.release();
         metadataAndPayload.release();
         buf.release();
     }
 
     @Test
-    public void testMaxNumMessagesInBatch() {
-        RawBatchMessageContainerImpl container = new RawBatchMessageContainerImpl(1);
+    public void testAddDifferentBatchMessage() {
+        RawBatchMessageContainerImpl container = new RawBatchMessageContainerImpl();
         String topic = "my-topic";
 
         boolean isFull = container.add(createMessage(topic, "hi", 0), null);
-        Assert.assertTrue(isFull);
-        Assert.assertTrue(container.isBatchFull());
+        Assert.assertFalse(isFull);
+        Assert.assertFalse(container.isBatchFull());
+        MessageImpl message = createMessage(topic, "hi-1", 0);
+        Assert.assertTrue(container.haveEnoughSpace(message));
+        isFull = container.add(message, null);
+        Assert.assertFalse(isFull);
+        message = createMessage(topic, "hi-2", 1);
+        Assert.assertFalse(container.haveEnoughSpace(message));
     }
 
     @Test(expectedExceptions = UnsupportedOperationException.class)
     public void testCreateOpSendMsg() {
-        RawBatchMessageContainerImpl container = new RawBatchMessageContainerImpl(1);
+        RawBatchMessageContainerImpl container = new RawBatchMessageContainerImpl();
         container.createOpSendMsg();
     }
 
     @Test
     public void testToByteBufWithEncryptionWithoutCryptoKeyReader() {
         setEncryptionAndCompression(true, false);
-        RawBatchMessageContainerImpl container = new RawBatchMessageContainerImpl(1);
+        RawBatchMessageContainerImpl container = new RawBatchMessageContainerImpl();
         String topic = "my-topic";
         container.add(createMessage(topic, "hi-1", 0), null);
         Assert.assertEquals(container.getNumMessagesInBatch(), 1);
@@ -263,7 +289,7 @@ public class RawBatchMessageContainerImplTest {
     @Test
     public void testToByteBufWithEncryptionWithInvalidEncryptKeys() {
         setEncryptionAndCompression(true, false);
-        RawBatchMessageContainerImpl container = new RawBatchMessageContainerImpl(1);
+        RawBatchMessageContainerImpl container = new RawBatchMessageContainerImpl();
         container.setCryptoKeyReader(cryptoKeyReader);
         encryptKeys = new HashMap<>();
         encryptKeys.put(null, null);

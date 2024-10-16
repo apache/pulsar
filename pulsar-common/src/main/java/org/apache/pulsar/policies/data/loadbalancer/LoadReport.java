@@ -50,11 +50,13 @@ public class LoadReport implements LoadManagerReport {
     private long timestamp;
     private double msgRateIn;
     private double msgRateOut;
-    private int numTopics;
+    private long numTopics;
     private int numConsumers;
     private int numProducers;
     private int numBundles;
     private Map<String, String> protocols;
+    private String loadManagerClassName;
+    private long startTimestamp;
     // This place-holder requires to identify correct LoadManagerReport type while deserializing
     @SuppressWarnings("checkstyle:ConstantName")
     public static final String loadReportType = LoadReport.class.getSimpleName();
@@ -203,7 +205,7 @@ public class LoadReport implements LoadManagerReport {
     }
 
     @Override
-    public int getNumTopics() {
+    public long getNumTopics() {
         numTopics = 0;
         if (this.bundleStats != null) {
             this.bundleStats.forEach((bundle, stats) -> {
@@ -473,5 +475,23 @@ public class LoadReport implements LoadManagerReport {
     @Override
     public Optional<String> getProtocol(String protocol) {
         return Optional.ofNullable(protocols.get(protocol));
+    }
+
+    @Override
+    public String getLoadManagerClassName() {
+        return this.loadManagerClassName;
+    }
+
+    public void setLoadManagerClassName(String loadManagerClassName) {
+        this.loadManagerClassName = loadManagerClassName;
+    }
+
+    @Override
+    public long getStartTimestamp() {
+        return this.startTimestamp;
+    }
+
+    public void setStartTimestamp(long startTimestamp) {
+        this.startTimestamp = startTimestamp;
     }
 }

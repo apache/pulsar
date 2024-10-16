@@ -47,8 +47,11 @@ public class ShutdownUtil {
      * @see Runtime#halt(int)
      */
     public static void triggerImmediateForcefulShutdown(int status) {
+        triggerImmediateForcefulShutdown(status, true);
+    }
+    public static void triggerImmediateForcefulShutdown(int status, boolean logging) {
         try {
-            if (status != 0) {
+            if (status != 0 && logging) {
                 log.warn("Triggering immediate shutdown of current process with status {}", status,
                         new Exception("Stacktrace for immediate shutdown"));
             }

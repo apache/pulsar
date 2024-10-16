@@ -44,9 +44,6 @@
 # Extra options to be passed to the jvm
 PULSAR_MEM=${PULSAR_MEM:-"-Xms2g -Xmx2g -XX:MaxDirectMemorySize=4g"}
 
-# Garbage collection options
-PULSAR_GC=${PULSAR_GC:-"-XX:+UseZGC -XX:+PerfDisableSharedMem -XX:+AlwaysPreTouch"}
-
 if [ -z "$JAVA_HOME" ]; then
   JAVA_BIN=java
 else
@@ -66,6 +63,16 @@ for token in $("$JAVA_BIN" -version 2>&1 | grep 'version "'); do
         break
     fi
 done
+
+# Garbage collection options
+if [ -z "$PULSAR_GC" ]; then
+  PULSAR_GC="-XX:+PerfDisableSharedMem -XX:+AlwaysPreTouch"
+  if [[ $JAVA_MAJOR_VERSION -ge 21 ]]; then
+    PULSAR_GC="-XX:+UseZGC -XX:+ZGenerational ${PULSAR_GC}"
+  else
+    PULSAR_GC="-XX:+UseZGC ${PULSAR_GC}"
+  fi
+fi
 
 PULSAR_GC_LOG_DIR=${PULSAR_GC_LOG_DIR:-"${PULSAR_LOG_DIR}"}
 
@@ -94,3 +101,7 @@ PULSAR_EXTRA_OPTS="${PULSAR_EXTRA_OPTS:-" -Dpulsar.allocator.exit_on_oom=true -D
 #Wait time before forcefully kill the pulsar server instance, if the stop is not successful
 #PULSAR_STOP_TIMEOUT=
 
+# Enable semantically stable telemetry for JVM metrics, unless otherwise overridden by the user.
+if [ -z "$OTEL_SEMCONV_STABILITY_OPT_IN" ]; then
+  export OTEL_SEMCONV_STABILITY_OPT_IN=jvm
+fi

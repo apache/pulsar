@@ -24,8 +24,13 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigning;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Releasing;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Splitting;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.StorageType.SystemTopic;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.isValidTransition;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData.state;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl.MSG_COMPRESSION_TYPE;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
@@ -48,14 +53,16 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import lombok.Cleanup;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.commons.lang.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
-import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateCompactionStrategy;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateDataConflictResolver;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -68,6 +75,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.impl.ReaderImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -85,7 +93,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
     private ScheduledExecutorService compactionScheduler;
     private BookKeeper bk;
     private Schema<ServiceUnitStateData> schema;
-    private ServiceUnitStateCompactionStrategy strategy;
+    private ServiceUnitStateDataConflictResolver strategy;
 
     private ServiceUnitState testState = Init;
 
@@ -111,7 +119,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
     private ServiceUnitState nextValidState(ServiceUnitState from) {
         List<ServiceUnitState> candidates = Arrays.stream(ServiceUnitState.values())
-                .filter(to -> isValidTransition(from, to))
+                .filter(to -> isValidTransition(from, to, SystemTopic))
                 .collect(Collectors.toList());
         var state=  candidates.get(RANDOM.nextInt(candidates.size()));
         return state;
@@ -120,7 +128,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
     private ServiceUnitState nextValidStateNonSplit(ServiceUnitState from) {
         List<ServiceUnitState> candidates = Arrays.stream(ServiceUnitState.values())
                 .filter(to -> to != Init && to != Splitting && to != Deleted
-                        && isValidTransition(from, to))
+                        && isValidTransition(from, to, SystemTopic))
                 .collect(Collectors.toList());
         var state=  candidates.get(RANDOM.nextInt(candidates.size()));
         return state;
@@ -128,7 +136,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
     private ServiceUnitState nextInvalidState(ServiceUnitState from) {
         List<ServiceUnitState> candidates = Arrays.stream(ServiceUnitState.values())
-                .filter(to -> !isValidTransition(from, to))
+                .filter(to -> !isValidTransition(from, to, SystemTopic))
                 .collect(Collectors.toList());
         if (candidates.size() == 0) {
             return Init;
@@ -148,9 +156,9 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
         compactionScheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
-        bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, null, Optional.empty(), null);
+        bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, null, Optional.empty(), null).get();
         schema = Schema.JSON(ServiceUnitStateData.class);
-        strategy = new ServiceUnitStateCompactionStrategy();
+        strategy = new ServiceUnitStateDataConflictResolver();
         strategy.checkBrokers(false);
 
         testState = Init;
@@ -162,7 +170,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
-
+        bk.close();
         if (compactionScheduler != null) {
             compactionScheduler.shutdownNow();
         }
@@ -185,6 +193,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
         Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema)
                 .topic(topic)
+                .compressionType(MSG_COMPRESSION_TYPE)
                 .enableBatching(true)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
@@ -321,10 +330,10 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                 .topic("persistent://my-property/use/my-ns/my-topic1")
                 .loadConf(Map.of(
                         "topicCompactionStrategyClassName",
-                        ServiceUnitStateCompactionStrategy.class.getName()))
+                        ServiceUnitStateDataConflictResolver.class.getName()))
                 .create();
 
-        ((ServiceUnitStateCompactionStrategy)
+        ((ServiceUnitStateDataConflictResolver)
                 FieldUtils.readDeclaredField(tv, "compactionStrategy", true))
                 .checkBrokers(false);
         TestData testData = generateTestData();
@@ -352,12 +361,13 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         compactor.compact(topic, strategy).get();
 
         // consumer with readCompacted enabled only get compacted entries
-        var tableview = pulsar.getClient().newTableViewBuilder(schema)
+        var tableview = pulsar.getClient().newTableView(schema)
                 .topic(topic)
                 .loadConf(Map.of(
                         "topicCompactionStrategyClassName",
-                        ServiceUnitStateCompactionStrategy.class.getName()))
+                        ServiceUnitStateDataConflictResolver.class.getName()))
                 .create();
+
         for(var etr : tableview.entrySet()){
             Assert.assertEquals(expected.remove(etr.getKey()), etr.getValue());
             if (expected.isEmpty()) {
@@ -376,6 +386,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
         Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema)
                 .topic(topic)
+                .compressionType(MSG_COMPRESSION_TYPE)
                 .enableBatching(true)
                 .create();
 
@@ -420,6 +431,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
         Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema)
                 .topic(topic)
+                .compressionType(MSG_COMPRESSION_TYPE)
                 .enableBatching(true)
                 .create();
 
@@ -460,6 +472,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
         Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema)
                 .topic(topic)
+                .compressionType(MSG_COMPRESSION_TYPE)
                 .enableBatching(true)
                 .create();
 
@@ -519,10 +532,11 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                 .subscriptionName("fastTV")
                 .loadConf(Map.of(
                         strategyClassName,
-                        ServiceUnitStateCompactionStrategy.class.getName()))
+                        ServiceUnitStateDataConflictResolver.class.getName()))
                 .create();
 
         var defaultConf = getDefaultConf();
+        @Cleanup
         var additionalPulsarTestContext = createAdditionalPulsarTestContext(defaultConf);
         var pulsar2 = additionalPulsarTestContext.getPulsarService();
 
@@ -531,7 +545,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                 .subscriptionName("slowTV")
                 .loadConf(Map.of(
                         strategyClassName,
-                        ServiceUnitStateCompactionStrategy.class.getName()))
+                        ServiceUnitStateDataConflictResolver.class.getName()))
                 .create();
 
         var semaphore = new Semaphore(0);
@@ -557,6 +571,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
         Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema)
                 .topic(topic)
+                .compressionType(MSG_COMPRESSION_TYPE)
                 .enableBatching(true)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
@@ -602,7 +617,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                     .topic(topic)
                     .loadConf(Map.of(
                             strategyClassName,
-                            ServiceUnitStateCompactionStrategy.class.getName()))
+                            ServiceUnitStateDataConflictResolver.class.getName()))
                     .create();
             Awaitility.await()
                     .pollInterval(200, TimeUnit.MILLISECONDS)
@@ -622,11 +637,86 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
     }
 
     @Test
+    public void testSlowReceiveTableviewAfterCompaction() throws Exception {
+        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String strategyClassName = "topicCompactionStrategyClassName";
+
+        pulsarClient.newConsumer(schema)
+                .topic(topic)
+                .subscriptionName("sub1")
+                .readCompacted(true)
+                .subscribe().close();
+
+        var tv = pulsar.getClient().newTableViewBuilder(schema)
+                .topic(topic)
+                .subscriptionName("slowTV")
+                .loadConf(Map.of(
+                        strategyClassName,
+                        ServiceUnitStateDataConflictResolver.class.getName()))
+                .create();
+
+        // Configure retention to ensue data is retained for reader
+        admin.namespaces().setRetention("my-property/use/my-ns",
+                new RetentionPolicies(-1, -1));
+
+        Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema)
+                .topic(topic)
+                .compressionType(MSG_COMPRESSION_TYPE)
+                .enableBatching(true)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+
+        StrategicTwoPhaseCompactor compactor
+                = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+
+        var reader = ((CompletableFuture<ReaderImpl<ServiceUnitStateData>>) FieldUtils
+                .readDeclaredField(tv, "reader", true)).get();
+        var consumer = spy(reader.getConsumer());
+        FieldUtils.writeDeclaredField(reader, "consumer", consumer, true);
+        String bundle = "bundle1";
+        final AtomicInteger versionId = new AtomicInteger(0);
+        final AtomicInteger cnt = new AtomicInteger(1);
+        int msgAddCount = 1000; // has to be big enough to cover compacted cursor fast-forward.
+        doAnswer(invocationOnMock -> {
+            if (cnt.decrementAndGet() == 0) {
+                var msg = consumer.receiveAsync();
+                for (int i = 0; i < msgAddCount; i++) {
+                    producer.newMessage().key(bundle).value(
+                            new ServiceUnitStateData(Owned, "broker" + versionId.incrementAndGet(), true,
+                                    versionId.get())).send();
+                }
+                compactor.compact(topic, strategy).join();
+                return msg;
+            }
+            // Call the real method
+            reset(consumer);
+            return consumer.receiveAsync();
+        }).when(consumer).receiveAsync();
+        producer.newMessage().key(bundle).value(
+                new ServiceUnitStateData(Owned, "broker", true,
+                        versionId.incrementAndGet())).send();
+        producer.newMessage().key(bundle).value(
+                new ServiceUnitStateData(Owned, "broker" + versionId.incrementAndGet(), true,
+                        versionId.get())).send();
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(
+                () -> {
+                    var val = tv.get(bundle);
+                    assertNotNull(val);
+                    assertEquals(val.dstBroker(), "broker" + versionId.get());
+                }
+        );
+
+        producer.close();
+        tv.close();
+    }
+
+    @Test
     public void testBrokerRestartAfterCompaction() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
         Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema)
                 .topic(topic)
+                .compressionType(MSG_COMPRESSION_TYPE)
                 .enableBatching(true)
                 .create();
         String key = "key0";
@@ -672,6 +762,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
         Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema)
                 .topic(topic)
+                .compressionType(MSG_COMPRESSION_TYPE)
                 .enableBatching(true)
                 .create();
 
@@ -733,7 +824,9 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
     public void testCompactionWithLastDeletedKey() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
-        Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema).topic(topic).enableBatching(true)
+        Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema).topic(topic)
+                .compressionType(MSG_COMPRESSION_TYPE)
+                .enableBatching(true)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition).create();
 
         pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1").readCompacted(true).subscribe().close();
@@ -761,7 +854,9 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
     public void testEmptyCompactionLedger() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
-        Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema).topic(topic).enableBatching(true)
+        Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema).topic(topic)
+                .compressionType(MSG_COMPRESSION_TYPE)
+                .enableBatching(true)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition).create();
 
         pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1").readCompacted(true).subscribe().close();
@@ -791,7 +886,8 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         final int messages = 10;
 
         // 1.create producer and publish message to the topic.
-        ProducerBuilder<ServiceUnitStateData> builder = pulsarClient.newProducer(schema).topic(topic);
+        ProducerBuilder<ServiceUnitStateData> builder = pulsarClient.newProducer(schema)
+                .compressionType(MSG_COMPRESSION_TYPE).topic(topic);
         builder.batchingMaxMessages(messages / 5);
 
         Producer<ServiceUnitStateData> producer = builder.create();
@@ -828,6 +924,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
         // 1.create producer and publish message to the topic.
         ProducerBuilder<ServiceUnitStateData> builder = pulsarClient.newProducer(schema).topic(topic);
+        builder.compressionType(MSG_COMPRESSION_TYPE);
         builder.enableBatching(true);
 
 
@@ -876,6 +973,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
         // 1.create producer and publish message to the topic.
         ProducerBuilder<ServiceUnitStateData> builder = pulsarClient.newProducer(schema).topic(topic);
+        builder.compressionType(MSG_COMPRESSION_TYPE);
         builder.batchingMaxMessages(messages / 5);
 
         Producer<ServiceUnitStateData> producer = builder.create();

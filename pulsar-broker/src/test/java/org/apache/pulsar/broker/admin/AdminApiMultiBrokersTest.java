@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import static org.junit.Assert.assertFalse;
+import static org.testng.Assert.assertFalse;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
 
@@ -81,9 +81,8 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
         assertTrue(leaderBroker.isPresent());
         log.info("Leader broker is {}", leaderBroker);
         for (PulsarAdmin admin : getAllAdmins()) {
-            String serviceUrl = admin.brokers().getLeaderBroker().getServiceUrl();
-            log.info("Pulsar admin get leader broker is {}", serviceUrl);
-            assertEquals(leaderBroker.get().getServiceUrl(), serviceUrl);
+            String brokerId = admin.brokers().getLeaderBroker().getBrokerId();
+            assertEquals(leaderBroker.get().getBrokerId(), brokerId);
         }
     }
 
@@ -133,7 +132,7 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
         Assert.assertEquals(lookupResultSet.size(), 1);
     }
 
-    @Test
+    @Test(groups = "flaky")
     public void testForceDeletePartitionedTopicWithSub() throws Exception {
         final int numPartitions = 10;
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));

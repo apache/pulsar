@@ -70,7 +70,7 @@ public class SinksApiV3Resource extends FunctionApiResource {
                              final @FormDataParam("sinkConfig") SinkConfig sinkConfig) {
 
         sinks().registerSink(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
-                functionPkgUrl, sinkConfig, clientAppId(), clientAuthData());
+                functionPkgUrl, sinkConfig, authParams());
     }
 
     @PUT
@@ -86,7 +86,7 @@ public class SinksApiV3Resource extends FunctionApiResource {
                            final @FormDataParam("updateOptions") UpdateOptionsImpl updateOptions) {
 
         sinks().updateSink(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
-                functionPkgUrl, sinkConfig, clientAppId(), clientAuthData(), updateOptions);
+                functionPkgUrl, sinkConfig, authParams(), updateOptions);
     }
 
     @DELETE
@@ -94,7 +94,7 @@ public class SinksApiV3Resource extends FunctionApiResource {
     public void deregisterSink(final @PathParam("tenant") String tenant,
                                final @PathParam("namespace") String namespace,
                                final @PathParam("sinkName") String sinkName) {
-        sinks().deregisterFunction(tenant, namespace, sinkName, clientAppId(), clientAuthData());
+        sinks().deregisterFunction(tenant, namespace, sinkName, authParams());
     }
 
     @GET
@@ -103,7 +103,7 @@ public class SinksApiV3Resource extends FunctionApiResource {
                                   final @PathParam("namespace") String namespace,
                                   final @PathParam("sinkName") String sinkName)
             throws IOException {
-        return sinks().getSinkInfo(tenant, namespace, sinkName);
+        return sinks().getSinkInfo(tenant, namespace, sinkName, authParams());
     }
 
     @GET
@@ -124,9 +124,8 @@ public class SinksApiV3Resource extends FunctionApiResource {
             final @PathParam("namespace") String namespace,
             final @PathParam("sinkName") String sinkName,
             final @PathParam("instanceId") String instanceId) throws IOException {
-        return sinks()
-                .getSinkInstanceStatus(tenant, namespace, sinkName, instanceId, uri.getRequestUri(), clientAppId(),
-                        clientAuthData());
+        return sinks().getSinkInstanceStatus(tenant, namespace, sinkName, instanceId, uri.getRequestUri(),
+                authParams());
     }
 
     @GET
@@ -145,14 +144,14 @@ public class SinksApiV3Resource extends FunctionApiResource {
     public SinkStatus getSinkStatus(final @PathParam("tenant") String tenant,
                                     final @PathParam("namespace") String namespace,
                                     final @PathParam("sinkName") String sinkName) throws IOException {
-        return sinks().getSinkStatus(tenant, namespace, sinkName, uri.getRequestUri(), clientAppId(), clientAuthData());
+        return sinks().getSinkStatus(tenant, namespace, sinkName, uri.getRequestUri(), authParams());
     }
 
     @GET
     @Path("/{tenant}/{namespace}")
     public List<String> listSink(final @PathParam("tenant") String tenant,
                                  final @PathParam("namespace") String namespace) {
-        return sinks().listFunctions(tenant, namespace, clientAppId(), clientAuthData());
+        return sinks().listFunctions(tenant, namespace, authParams());
     }
 
     @POST
@@ -169,7 +168,7 @@ public class SinksApiV3Resource extends FunctionApiResource {
                             final @PathParam("sinkName") String sinkName,
                             final @PathParam("instanceId") String instanceId) {
         sinks().restartFunctionInstance(tenant, namespace, sinkName, instanceId, this.uri.getRequestUri(),
-                clientAppId(), clientAuthData());
+                authParams());
     }
 
     @POST
@@ -182,7 +181,7 @@ public class SinksApiV3Resource extends FunctionApiResource {
     public void restartSink(final @PathParam("tenant") String tenant,
                             final @PathParam("namespace") String namespace,
                             final @PathParam("sinkName") String sinkName) {
-        sinks().restartFunctionInstances(tenant, namespace, sinkName, clientAppId(), clientAuthData());
+        sinks().restartFunctionInstances(tenant, namespace, sinkName, authParams());
     }
 
     @POST
@@ -196,8 +195,8 @@ public class SinksApiV3Resource extends FunctionApiResource {
                          final @PathParam("namespace") String namespace,
                          final @PathParam("sinkName") String sinkName,
                          final @PathParam("instanceId") String instanceId) {
-        sinks().stopFunctionInstance(tenant, namespace, sinkName, instanceId, this.uri.getRequestUri(), clientAppId(),
-                clientAuthData());
+        sinks().stopFunctionInstance(tenant, namespace, sinkName, instanceId, this.uri.getRequestUri(),
+                authParams());
     }
 
     @POST
@@ -210,7 +209,7 @@ public class SinksApiV3Resource extends FunctionApiResource {
     public void stopSink(final @PathParam("tenant") String tenant,
                          final @PathParam("namespace") String namespace,
                          final @PathParam("sinkName") String sinkName) {
-        sinks().stopFunctionInstances(tenant, namespace, sinkName, clientAppId(), clientAuthData());
+        sinks().stopFunctionInstances(tenant, namespace, sinkName, authParams());
     }
 
     @POST
@@ -224,8 +223,8 @@ public class SinksApiV3Resource extends FunctionApiResource {
                           final @PathParam("namespace") String namespace,
                           final @PathParam("sinkName") String sinkName,
                           final @PathParam("instanceId") String instanceId) {
-        sinks().startFunctionInstance(tenant, namespace, sinkName, instanceId, this.uri.getRequestUri(), clientAppId(),
-                clientAuthData());
+        sinks().startFunctionInstance(tenant, namespace, sinkName, instanceId, this.uri.getRequestUri(),
+                authParams());
     }
 
     @POST
@@ -238,7 +237,7 @@ public class SinksApiV3Resource extends FunctionApiResource {
     public void startSink(final @PathParam("tenant") String tenant,
                           final @PathParam("namespace") String namespace,
                           final @PathParam("sinkName") String sinkName) {
-        sinks().startFunctionInstances(tenant, namespace, sinkName, clientAppId(), clientAuthData());
+        sinks().startFunctionInstances(tenant, namespace, sinkName, authParams());
     }
 
     @GET
@@ -278,6 +277,6 @@ public class SinksApiV3Resource extends FunctionApiResource {
     })
     @Path("/reloadBuiltInSinks")
     public void reloadSinks() {
-        sinks().reloadConnectors(clientAppId(), clientAuthData());
+        sinks().reloadConnectors(authParams());
     }
 }

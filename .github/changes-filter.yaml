@@ -3,14 +3,17 @@
 all:
   - '**'
 docs:
-  - 'site2/**'
-  - 'deployment/**'
-  - '.asf.yaml'
   - '*.md'
   - '**/*.md'
+  - '.asf.yaml'
   - '.github/changes-filter.yaml'
   - '.github/ISSUE_TEMPLATE/**'
+  - '.idea/**'
+  - 'deployment/**'
   - 'wiki/**'
+  - 'pip/**'
+java_non_tests:
+  - '**/src/main/java/**/*.java'
 tests:
   - added|modified: '**/src/test/java/**/*.java'
 need_owasp:

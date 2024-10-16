@@ -20,7 +20,6 @@ package org.apache.pulsar.functions.instance.state;
 
 import java.util.Map;
 import lombok.SneakyThrows;
-import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
@@ -38,7 +37,7 @@ public class PulsarMetadataStateStoreProviderImpl implements StateStoreProvider 
     private boolean shouldCloseStore;
 
     @Override
-    public void init(Map<String, Object> config, Function.FunctionDetails functionDetails) throws Exception {
+    public void init(Map<String, Object> config) throws Exception {
 
         prefix = (String) config.getOrDefault(METADATA_PREFIX, METADATA_DEFAULT_PREFIX);
 
@@ -56,6 +55,13 @@ public class PulsarMetadataStateStoreProviderImpl implements StateStoreProvider 
     @Override
     public DefaultStateStore getStateStore(String tenant, String namespace, String name) throws Exception {
         return new PulsarMetadataStateStoreImpl(store, prefix, tenant, namespace, name);
+    }
+
+    @Override
+    public void cleanUp(String tenant, String namespace, String name) throws Exception {
+        String fqsn = tenant + '/' + namespace + '/' + name;
+        String prefixPath = prefix + '/' + fqsn + '/';
+        store.deleteRecursive(prefixPath);
     }
 
     @SneakyThrows

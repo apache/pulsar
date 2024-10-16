@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.transaction.pendingack.impl;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -44,12 +44,12 @@ public class InMemoryPendingAckStore implements PendingAckStore {
 
     @Override
     public CompletableFuture<Void> appendIndividualAck(TxnID txnID,
-                                                       List<MutablePair<PositionImpl, Integer>> positions) {
+                                                       List<MutablePair<Position, Integer>> positions) {
         return CompletableFuture.completedFuture(null);
     }
 
     @Override
-    public CompletableFuture<Void> appendCumulativeAck(TxnID txnID, PositionImpl position) {
+    public CompletableFuture<Void> appendCumulativeAck(TxnID txnID, Position position) {
         return CompletableFuture.completedFuture(null);
     }
 

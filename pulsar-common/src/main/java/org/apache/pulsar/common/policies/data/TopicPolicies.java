@@ -20,6 +20,7 @@ package org.apache.pulsar.common.policies.data;
 
 import com.google.common.collect.Sets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +62,8 @@ public class TopicPolicies {
     private Integer maxUnackedMessagesOnSubscription;
     private Long delayedDeliveryTickTimeMillis;
     private Boolean delayedDeliveryEnabled;
+    private Long delayedDeliveryMaxDelayInMillis;
+    private Boolean dispatcherPauseOnAckStatePersistentEnabled;
     private OffloadPoliciesImpl offloadPolicies;
     private InactiveTopicPolicies inactiveTopicPolicies;
     private DispatchRateImpl dispatchRate;
@@ -187,5 +190,9 @@ public class TopicPolicies {
 
     public Set<String> getReplicationClustersSet() {
         return replicationClusters != null ? Sets.newTreeSet(this.replicationClusters) : null;
+    }
+
+    public Map<String, SubscriptionPolicies> getSubscriptionPolicies() {
+        return subscriptionPolicies == null ? Collections.emptyMap() : subscriptionPolicies;
     }
 }

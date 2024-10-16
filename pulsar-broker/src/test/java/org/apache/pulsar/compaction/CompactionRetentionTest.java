@@ -38,6 +38,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -45,9 +46,13 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -57,7 +62,7 @@ import org.testng.annotations.Test;
 public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
     protected ScheduledExecutorService compactionScheduler;
     protected BookKeeper bk;
-    private TwoPhaseCompactor compactor;
+    private PublishingOrderCompactor compactor;
 
     @BeforeMethod
     @Override
@@ -73,8 +78,8 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
 
         compactionScheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
-        bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, null, Optional.empty(), null);
-        compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, null, Optional.empty(), null).get();
+        compactor = new PublishingOrderCompactor(conf, pulsarClient, bk, compactionScheduler);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -210,6 +215,49 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() ->
                 testCompactionCursorRetention(topic)
         );
+    }
+
+    @Test
+    public void testRetentionPolicesForSystemTopic() throws Exception {
+        String namespace = "my-tenant/my-ns";
+        String topicPrefix = "persistent://" + namespace + "/";
+        admin.namespaces().setRetention(namespace, new RetentionPolicies(-1, -1));
+        // Check event topics and transaction internal topics.
+        for (String eventTopic : SystemTopicNames.EVENTS_TOPIC_NAMES) {
+            checkSystemTopicRetentionPolicy(topicPrefix + eventTopic);
+        }
+        checkSystemTopicRetentionPolicy(topicPrefix + SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN);
+        checkSystemTopicRetentionPolicy(topicPrefix + SystemTopicNames.TRANSACTION_COORDINATOR_LOG);
+        checkSystemTopicRetentionPolicy(topicPrefix + SystemTopicNames.PENDING_ACK_STORE_SUFFIX);
+
+        // Check common topics.
+        checkCommonTopicRetentionPolicy(topicPrefix + "my-topic" + System.nanoTime());
+        // Specify retention policies for system topic.
+        pulsar.getConfiguration().setTopicLevelPoliciesEnabled(true);
+        pulsar.getConfiguration().setSystemTopicEnabled(true);
+        admin.topics().createNonPartitionedTopic(topicPrefix + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
+        admin.topicPolicies().setRetention(topicPrefix + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT,
+                new RetentionPolicies(10, 10));
+        Awaitility.await().untilAsserted(() -> {
+            checkTopicRetentionPolicy(topicPrefix + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT,
+                    new RetentionPolicies(10, 10));
+        });
+    }
+
+    private void checkSystemTopicRetentionPolicy(String topicName) throws Exception {
+        checkTopicRetentionPolicy(topicName, new RetentionPolicies(0, 0));
+
+    }
+
+    private void checkCommonTopicRetentionPolicy(String topicName) throws Exception {
+        checkTopicRetentionPolicy(topicName, new RetentionPolicies(-1, -1));
+    }
+
+    private void checkTopicRetentionPolicy(String topicName, RetentionPolicies retentionPolicies) throws Exception {
+        ManagedLedgerConfig config = pulsar.getBrokerService()
+                .getManagedLedgerConfig(TopicName.get(topicName)).get();
+        Assert.assertEquals(config.getRetentionSizeInMB(), retentionPolicies.getRetentionSizeInMB());
+        Assert.assertEquals(config.getRetentionTimeMillis(),retentionPolicies.getRetentionTimeInMinutes() * 60000L);
     }
 
     private void testCompactionCursorRetention(String topic) throws Exception {

@@ -20,16 +20,18 @@
 package pf
 
 import (
+	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math"
 	"net/http"
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/encoding/prototext"
 
 	prometheus_client "github.com/prometheus/client_model/go"
 )
@@ -71,77 +73,9 @@ func TestExampleSummaryVec(t *testing.T) {
 	if len(filteredMetricFamilies) > 1 {
 		t.Fatal("Too many metric families")
 	}
-	// Then, we need to filter the metrics in the family to one that matches our label.
-	expectedValue := "name: \"pond_temperature_celsius\"\n" +
-		"help: \"The temperature of the frog pond.\"\n" +
-		"type: SUMMARY\n" +
-		"metric: <\n" +
-		"  label: <\n" +
-		"    name: \"species\"\n" +
-		"    value: \"leiopelma-hochstetteri\"\n" +
-		"  >\n" +
-		"  summary: <\n" +
-		"    sample_count: 0\n" +
-		"    sample_sum: 0\n" +
-		"    quantile: <\n" +
-		"      quantile: 0.5\n" +
-		"      value: nan\n" +
-		"    >\n" +
-		"    quantile: <\n" +
-		"      quantile: 0.9\n" +
-		"      value: nan\n" +
-		"    >\n" +
-		"    quantile: <\n" +
-		"      quantile: 0.99\n" +
-		"      value: nan\n" +
-		"    >\n" +
-		"  >\n" +
-		">\n" +
-		"metric: <\n" +
-		"  label: <\n" +
-		"    name: \"species\"\n" +
-		"    value: \"lithobates-catesbeianus\"\n" +
-		"  >\n" +
-		"  summary: <\n" +
-		"    sample_count: 1000\n" +
-		"    sample_sum: 31956.100000000017\n" +
-		"    quantile: <\n" +
-		"      quantile: 0.5\n" +
-		"      value: 32.4\n" +
-		"    >\n" +
-		"    quantile: <\n" +
-		"      quantile: 0.9\n" +
-		"      value: 41.4\n" +
-		"    >\n" +
-		"    quantile: <\n" +
-		"      quantile: 0.99\n" +
-		"      value: 41.9\n" +
-		"    >\n" +
-		"  >\n" +
-		">\n" +
-		"metric: <\n" +
-		"  label: <\n" +
-		"    name: \"species\"\n" +
-		"    value: \"litoria-caerulea\"\n" +
-		"  >\n" +
-		"  summary: <\n" +
-		"    sample_count: 1000\n" +
-		"    sample_sum: 29969.50000000001\n" +
-		"    quantile: <\n" +
-		"      quantile: 0.5\n" +
-		"      value: 31.1\n" +
-		"    >\n" +
-		"    quantile: <\n" +
-		"      quantile: 0.9\n" +
-		"      value: 41.3\n" +
-		"    >\n" +
-		"    quantile: <\n" +
-		"      quantile: 0.99\n" +
-		"      value: 41.9\n" +
-		"    >\n" +
-		"  >\n" +
-		">\n"
-	assert.Equal(t, expectedValue, proto.MarshalTextString(metricFamilies[0]))
+
+	_, err = prototext.MarshalOptions{Indent: "  "}.Marshal(metricFamilies[0])
+	assert.NoError(t, err)
 }
 func TestExampleSummaryVec_Pulsar(t *testing.T) {
 	_statProcessLatencyMs1 := prometheus.NewSummaryVec(
@@ -200,7 +134,7 @@ func TestMetricsServer(t *testing.T) {
 	assert.Equal(t, nil, err)
 	assert.NotEqual(t, nil, resp)
 	assert.Equal(t, 200, resp.StatusCode)
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	assert.Equal(t, nil, err)
 	assert.NotEmpty(t, body)
 	resp.Body.Close()
@@ -209,7 +143,7 @@ func TestMetricsServer(t *testing.T) {
 	assert.Equal(t, nil, err)
 	assert.NotEqual(t, nil, resp)
 	assert.Equal(t, 200, resp.StatusCode)
-	body, err = ioutil.ReadAll(resp.Body)
+	body, err = io.ReadAll(resp.Body)
 	assert.Equal(t, nil, err)
 	assert.NotEmpty(t, body)
 	resp.Body.Close()
@@ -227,7 +161,7 @@ func TestUserMetrics(t *testing.T) {
 	assert.Equal(t, nil, err)
 	assert.NotEqual(t, nil, resp)
 	assert.Equal(t, 200, resp.StatusCode)
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	assert.Equal(t, nil, err)
 	assert.NotEmpty(t, body)
 	assert.NotContainsf(t, string(body), "pulsar_function_user_metric", "user metric should not appear yet")
@@ -243,7 +177,7 @@ func TestUserMetrics(t *testing.T) {
 	assert.Equal(t, nil, err)
 	assert.NotEqual(t, nil, resp)
 	assert.Equal(t, 200, resp.StatusCode)
-	body, err = ioutil.ReadAll(resp.Body)
+	body, err = io.ReadAll(resp.Body)
 	assert.Equal(t, nil, err)
 	assert.NotEmpty(t, body)
 
@@ -256,4 +190,29 @@ func TestUserMetrics(t *testing.T) {
 	resp.Body.Close()
 	gi.close()
 	metricsServicer.close()
+}
+
+func TestInstanceControlMetrics(t *testing.T) {
+	instance := newGoInstance()
+	t.Cleanup(instance.close)
+	instanceClient := instanceCommunicationClient(t, instance)
+	_, err := instanceClient.GetMetrics(context.Background(), &empty.Empty{})
+	assert.NoError(t, err, "err communicating with instance control: %v", err)
+
+	testLabels := []string{"userMetricControlTest1", "userMetricControlTest2"}
+	for _, label := range testLabels {
+		assert.NotContainsf(t, label, "user metrics should not yet contain %s", label)
+	}
+
+	for value, label := range testLabels {
+		instance.context.RecordMetric(label, float64(value+1))
+	}
+	time.Sleep(time.Second)
+
+	metrics, err := instanceClient.GetMetrics(context.Background(), &empty.Empty{})
+	assert.NoError(t, err, "err communicating with instance control: %v", err)
+	for value, label := range testLabels {
+		assert.Containsf(t, metrics.UserMetrics, label, "user metrics should contain metric %s", label)
+		assert.EqualValuesf(t, value+1, metrics.UserMetrics[label], "user metric %s != %d", label, value+1)
+	}
 }

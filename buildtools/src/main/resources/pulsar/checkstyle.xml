@@ -137,7 +137,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
 
         <module name="IllegalImport">
             <property name="illegalPkgs"
-                      value="autovalue.shaded, avro.shaded, bk-shade, com.google.api.client.repackaged, com.google.appengine.repackaged, org.apache.curator.shaded, org.testcontainers.shaded" />
+                      value="autovalue.shaded, avro.shaded, bk-shade, com.google.api.client.repackaged, com.google.appengine.repackaged, org.apache.curator.shaded, org.testcontainers.shaded, org.junit" />
         </module>
 
         <module name="RedundantModifier">
@@ -179,7 +179,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
         <!-- Checks for Javadoc comments.                     -->
         <!-- See http://checkstyle.sf.net/config_javadoc.html -->
         <module name="JavadocMethod">
-            <property name="scope" value="protected"/>
+            <property name="accessModifiers" value="protected"/>
             <property name="severity" value="error"/>
             <property name="allowMissingParamTags" value="true"/>
             <property name="allowMissingReturnTag" value="true"/>

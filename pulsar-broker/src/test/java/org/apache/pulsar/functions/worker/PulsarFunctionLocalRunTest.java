@@ -89,6 +89,7 @@ import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
+import org.apache.pulsar.utils.ResourceUtils;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -121,11 +122,16 @@ public class PulsarFunctionLocalRunTest {
 
     private static final String CLUSTER = "local";
 
-    private final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/authentication/tls/broker-cert.pem";
-    private final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/broker-key.pem";
-    private final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
-    private final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
-    private final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
+    private final String TLS_SERVER_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
+    private final String TLS_SERVER_KEY_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
+    private final String TLS_CLIENT_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.cert.pem");
+    private final String TLS_CLIENT_KEY_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.key-pk8.pem");
+    private final String TLS_TRUST_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
 
     private static final String SYSTEM_PROPERTY_NAME_NAR_FILE_PATH = "pulsar-io-data-generator.nar.path";
     private PulsarFunctionTestTemporaryDirectory tempDirectory;
@@ -532,15 +538,15 @@ public class PulsarFunctionLocalRunTest {
                 totalMsgs);
 
         // validate prometheus metrics
-        String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(metricsPort);
+        String prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(metricsPort);
         log.info("prometheus metrics: {}", prometheusMetrics);
 
-        Map<String, PulsarFunctionTestUtils.Metric> metricsMap = new HashMap<>();
+        Map<String, TestPulsarFunctionUtils.Metric> metricsMap = new HashMap<>();
         Arrays.asList(prometheusMetrics.split("\n")).forEach(line -> {
             if (line.startsWith("pulsar_function_processed_successfully_total")) {
-                Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(line);
+                Map<String, TestPulsarFunctionUtils.Metric> metrics = TestPulsarFunctionUtils.parseMetrics(line);
                 assertFalse(metrics.isEmpty());
-                PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_function_processed_successfully_total");
+                TestPulsarFunctionUtils.Metric m = metrics.get("pulsar_function_processed_successfully_total");
                 if (m != null) {
                     metricsMap.put(m.tags.get("instance_id"), m);
                 }
@@ -550,7 +556,7 @@ public class PulsarFunctionLocalRunTest {
 
         double totalMsgRecv = 0.0;
         for (int i = 0; i < parallelism; i++) {
-            PulsarFunctionTestUtils.Metric m = metricsMap.get(String.valueOf(i));
+            TestPulsarFunctionUtils.Metric m = metricsMap.get(String.valueOf(i));
             Assert.assertNotNull(m);
             assertEquals(m.tags.get("cluster"), config.getClusterName());
             assertEquals(m.tags.get("instance_id"), String.valueOf(i));
@@ -837,15 +843,15 @@ public class PulsarFunctionLocalRunTest {
         assertEquals(admin.topics().getStats(sinkTopic).getPublishers().size(), parallelism);
 
         // validate prometheus metrics
-        String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(metricsPort);
+        String prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(metricsPort);
         log.info("prometheus metrics: {}", prometheusMetrics);
 
-        Map<String, PulsarFunctionTestUtils.Metric> metricsMap = new HashMap<>();
+        Map<String, TestPulsarFunctionUtils.Metric> metricsMap = new HashMap<>();
         Arrays.asList(prometheusMetrics.split("\n")).forEach(line -> {
             if (line.startsWith("pulsar_source_written_total")) {
-                Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(line);
+                Map<String, TestPulsarFunctionUtils.Metric> metrics = TestPulsarFunctionUtils.parseMetrics(line);
                 assertFalse(metrics.isEmpty());
-                PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_source_written_total");
+                TestPulsarFunctionUtils.Metric m = metrics.get("pulsar_source_written_total");
                 if (m != null) {
                     metricsMap.put(m.tags.get("instance_id"), m);
                 }
@@ -854,7 +860,7 @@ public class PulsarFunctionLocalRunTest {
         Assert.assertEquals(metricsMap.size(), parallelism);
 
         for (int i = 0; i < parallelism; i++) {
-            PulsarFunctionTestUtils.Metric m = metricsMap.get(String.valueOf(i));
+            TestPulsarFunctionUtils.Metric m = metricsMap.get(String.valueOf(i));
             Assert.assertNotNull(m);
             assertEquals(m.tags.get("cluster"), config.getClusterName());
             assertEquals(m.tags.get("instance_id"), String.valueOf(i));
@@ -996,22 +1002,22 @@ public class PulsarFunctionLocalRunTest {
         }, 5, 200));
 
         // validate prometheus metrics
-        String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(metricsPort);
+        String prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(metricsPort);
         log.info("prometheus metrics: {}", prometheusMetrics);
 
-        Map<String, PulsarFunctionTestUtils.Metric> metricsMap = new HashMap<>();
+        Map<String, TestPulsarFunctionUtils.Metric> metricsMap = new HashMap<>();
         Arrays.asList(prometheusMetrics.split("\n")).forEach(line -> {
             if (line.startsWith("pulsar_sink_written_total")) {
-                Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(line);
+                Map<String, TestPulsarFunctionUtils.Metric> metrics = TestPulsarFunctionUtils.parseMetrics(line);
                 assertFalse(metrics.isEmpty());
-                PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_sink_written_total");
+                TestPulsarFunctionUtils.Metric m = metrics.get("pulsar_sink_written_total");
                 if (m != null) {
                     metricsMap.put(m.tags.get("instance_id"), m);
                 }
             } else if (line.startsWith("pulsar_sink_sink_exceptions_total")) {
-                Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(line);
+                Map<String, TestPulsarFunctionUtils.Metric> metrics = TestPulsarFunctionUtils.parseMetrics(line);
                 assertFalse(metrics.isEmpty());
-                PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_sink_sink_exceptions_total");
+                TestPulsarFunctionUtils.Metric m = metrics.get("pulsar_sink_sink_exceptions_total");
                 if (m == null) {
                     m = metrics.get("pulsar_sink_sink_exceptions_1min_total");
                 }
@@ -1022,7 +1028,7 @@ public class PulsarFunctionLocalRunTest {
 
         double totalNumRecvMsg = 0;
         for (int i = 0; i < parallelism; i++) {
-            PulsarFunctionTestUtils.Metric m = metricsMap.get(String.valueOf(i));
+            TestPulsarFunctionUtils.Metric m = metricsMap.get(String.valueOf(i));
             Assert.assertNotNull(m);
             assertEquals(m.tags.get("cluster"), config.getClusterName());
             assertEquals(m.tags.get("instance_id"), String.valueOf(i));

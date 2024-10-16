@@ -48,7 +48,9 @@ public final class LedgerMetadataUtils {
     private static final String METADATA_PROPERTY_COMPACTEDTO = "pulsar/compactedTo";
     private static final String METADATA_PROPERTY_SCHEMAID = "pulsar/schemaId";
 
-    private static final String METADATA_PROPERTY_DELAYED_INDEX_BUCKETID = "pulsar/delayedIndexBucketId";
+    private static final String METADATA_PROPERTY_DELAYED_INDEX_BUCKET_KEY = "pulsar/delayedIndexBucketKey";
+    private static final String METADATA_PROPERTY_DELAYED_INDEX_TOPIC = "pulsar/delayedIndexTopic";
+    private static final String METADATA_PROPERTY_DELAYED_INDEX_CURSOR = "pulsar/delayedIndexCursor";
 
     /**
      * Build base metadata for every ManagedLedger.
@@ -108,14 +110,19 @@ public final class LedgerMetadataUtils {
     /**
      * Build additional metadata for a delayed message index bucket.
      *
-     * @param bucketKey key of the delayed message bucket
+     * @param bucketKey  key of the delayed message bucket
+     * @param topicName  name of the topic
+     * @param cursorName name of the cursor
      * @return an immutable map which describes the schema
      */
-    public static Map<String, byte[]> buildMetadataForDelayedIndexBucket(String bucketKey) {
+    public static Map<String, byte[]> buildMetadataForDelayedIndexBucket(String bucketKey,
+                                                                         String topicName, String cursorName) {
         return Map.of(
                 METADATA_PROPERTY_APPLICATION, METADATA_PROPERTY_APPLICATION_PULSAR,
                 METADATA_PROPERTY_COMPONENT, METADATA_PROPERTY_COMPONENT_DELAYED_INDEX_BUCKET,
-                METADATA_PROPERTY_DELAYED_INDEX_BUCKETID, bucketKey.getBytes(StandardCharsets.UTF_8)
+                METADATA_PROPERTY_DELAYED_INDEX_BUCKET_KEY, bucketKey.getBytes(StandardCharsets.UTF_8),
+                METADATA_PROPERTY_DELAYED_INDEX_TOPIC, topicName.getBytes(StandardCharsets.UTF_8),
+                METADATA_PROPERTY_DELAYED_INDEX_CURSOR, cursorName.getBytes(StandardCharsets.UTF_8)
         );
     }
 

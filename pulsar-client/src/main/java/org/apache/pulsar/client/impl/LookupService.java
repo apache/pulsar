@@ -21,7 +21,6 @@ package org.apache.pulsar.client.impl;
 import java.net.InetSocketAddress;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.lookup.GetTopicsResult;
@@ -54,17 +53,50 @@ public interface LookupService extends AutoCloseable {
      *
      * @param topicName
      *            topic-name
-     * @return a pair of addresses, representing the logical and physical address of the broker that serves given topic
+     * @return a {@link LookupTopicResult} representing the logical and physical address of the broker that serves the
+     *         given topic, as well as proxying information.
      */
-    CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> getBroker(TopicName topicName);
+    CompletableFuture<LookupTopicResult> getBroker(TopicName topicName);
 
     /**
      * Returns {@link PartitionedTopicMetadata} for a given topic.
-     *
-     * @param topicName topic-name
-     * @return
+     * Note: this method will try to create the topic partitioned metadata if it does not exist.
+     * @deprecated Please call {{@link #getPartitionedTopicMetadata(TopicName, boolean, boolean)}}.
      */
-    CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName);
+    @Deprecated
+    default CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName) {
+        return getPartitionedTopicMetadata(topicName, true, true);
+    }
+
+    /**
+     * See the doc {@link #getPartitionedTopicMetadata(TopicName, boolean, boolean)}.
+     */
+    default CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName,
+                                                                                boolean metadataAutoCreationEnabled) {
+        return getPartitionedTopicMetadata(topicName, metadataAutoCreationEnabled, false);
+    }
+
+    /**
+     * 1.Get the partitions if the topic exists. Return "{partition: n}" if a partitioned topic exists;
+     *  return "{partition: 0}" if a non-partitioned topic exists.
+     * 2. When {@param metadataAutoCreationEnabled} is "false," neither partitioned topic nor non-partitioned topic
+     *   does not exist. You will get a {@link PulsarClientException.NotFoundException} or
+     *   a {@link PulsarClientException.TopicDoesNotExistException}.
+     *  2-1. You will get a {@link PulsarClientException.NotSupportedException} with metadataAutoCreationEnabled=false
+     *       on an old broker version which does not support getting partitions without partitioned metadata
+     *       auto-creation.
+     * 3.When {@param metadataAutoCreationEnabled} is "true," it will trigger an auto-creation for this topic(using
+     *  the default topic auto-creation strategy you set for the broker), and the corresponding result is returned.
+     *  For the result, see case 1.
+     * @param useFallbackForNonPIP344Brokers <p>If true, fallback to the prior behavior of the method
+     *   {@link #getPartitionedTopicMetadata(TopicName)} if the broker does not support the PIP-344 feature
+     *   'supports_get_partitioned_metadata_without_auto_creation'. This parameter only affects the behavior when
+     *   {@param metadataAutoCreationEnabled} is false.</p>
+     * @version 3.3.0.
+     */
+    CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName,
+                                                                        boolean metadataAutoCreationEnabled,
+                                                                        boolean useFallbackForNonPIP344Brokers);
 
     /**
      * Returns current SchemaInfo {@link SchemaInfo} for a given topic.
@@ -98,12 +130,18 @@ public interface LookupService extends AutoCloseable {
     InetSocketAddress resolveHost();
 
     /**
-     * Returns all the topics name for a given namespace.
+     * Returns all the topics that matches {@param topicPattern} for a given namespace.
+     *
+     * Note: {@param topicPattern} it relate to the topic name(without the partition suffix). For example:
+     *  - There is a partitioned topic "tp-a" with two partitions.
+     *    - tp-a-partition-0
+     *    - tp-a-partition-1
+     *  - If {@param topicPattern} is "tp-a", the consumer will subscribe to the two partitions.
+     *  - if {@param topicPattern} is "tp-a-partition-0", the consumer will subscribe nothing.
      *
      * @param namespace : namespace-name
      * @return
      */
     CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace, Mode mode,
                                                                String topicPattern, String topicsHash);
-
 }

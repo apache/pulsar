@@ -21,7 +21,8 @@ package org.apache.pulsar.metadata;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import io.etcd.jetcd.launcher.EtcdCluster;
-import io.etcd.jetcd.launcher.EtcdClusterFactory;
+import io.etcd.jetcd.test.EtcdClusterExtension;
+import io.streamnative.oxia.testcontainers.OxiaContainer;
 import java.io.File;
 import java.net.URI;
 import java.util.UUID;
@@ -38,6 +39,8 @@ import org.testng.annotations.DataProvider;
 public abstract class BaseMetadataStoreTest extends TestRetrySupport {
     protected TestZKServer zks;
     protected EtcdCluster etcdCluster;
+
+    protected OxiaContainer oxiaServer;
 
     @BeforeClass(alwaysRun = true)
     @Override
@@ -59,6 +62,11 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
             etcdCluster.close();
             etcdCluster = null;
         }
+
+        if (oxiaServer != null) {
+            oxiaServer.close();
+            oxiaServer = null;
+        }
     }
 
     private static String createTempFolder() {
@@ -79,15 +87,34 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
                 {"Memory", stringSupplier(() -> "memory:" + UUID.randomUUID())},
                 {"RocksDB", stringSupplier(() -> "rocksdb:" + createTempFolder())},
                 {"Etcd", stringSupplier(() -> "etcd:" + getEtcdClusterConnectString())},
+                {"Oxia", stringSupplier(() -> "oxia://" + getOxiaServerConnectString())},
         };
+    }
+
+    @DataProvider(name = "distributedImpl")
+    public Object[][] distributedImplementations() {
+        return new Object[][]{
+                {"ZooKeeper", stringSupplier(() -> zks.getConnectionString())},
+                {"Etcd", stringSupplier(() -> "etcd:" + getEtcdClusterConnectString())},
+                {"Oxia", stringSupplier(() -> "oxia://" + getOxiaServerConnectString())},
+        };
+    }
+
+    protected synchronized String getOxiaServerConnectString() {
+        if (oxiaServer == null) {
+            oxiaServer = new OxiaContainer(OxiaContainer.DEFAULT_IMAGE_NAME);
+            oxiaServer.start();
+        }
+        return oxiaServer.getServiceAddress();
     }
 
     private synchronized String getEtcdClusterConnectString() {
         if (etcdCluster == null) {
-            etcdCluster = EtcdClusterFactory.buildCluster("test", 1, false);
+            etcdCluster = EtcdClusterExtension.builder().withClusterName("test").withNodes(1).withSsl(false).build()
+                    .cluster();
             etcdCluster.start();
         }
-        return etcdCluster.getClientEndpoints().stream().map(URI::toString).collect(Collectors.joining(","));
+        return etcdCluster.clientEndpoints().stream().map(URI::toString).collect(Collectors.joining(","));
     }
 
     public static Supplier<String> stringSupplier(Supplier<String> supplier) {
@@ -118,10 +145,11 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
                                             int retryCount,
                                             long intSleepTimeInMillis) throws Exception {
         assertTrue(retryStrategically((__) -> {
-            if (actual.get().equals(expectedAndRetry)) {
+            Object actualObject = actual.get();
+            if (actualObject.equals(expectedAndRetry)) {
                 return false;
             }
-            assertEquals(actual.get(), expected);
+            assertEquals(actualObject, expected);
             return true;
         }, retryCount, intSleepTimeInMillis));
     }

@@ -20,3 +20,4 @@
 name: jdbc-openmldb
 description: JDBC sink for OpenMLDB
 sinkClass: org.apache.pulsar.io.jdbc.OpenMLDBJdbcAutoSchemaSink
+sinkConfigClass: org.apache.pulsar.io.jdbc.JdbcSinkConfig

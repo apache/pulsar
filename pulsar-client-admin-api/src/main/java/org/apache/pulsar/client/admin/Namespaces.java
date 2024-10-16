@@ -704,6 +704,34 @@ public interface Namespaces {
     CompletableFuture<Void> grantPermissionOnNamespaceAsync(String namespace, String role, Set<AuthAction> actions);
 
     /**
+     * Grant permissions on topics asynchronously.
+     * @param options
+     * @return
+     */
+    CompletableFuture<Void> grantPermissionOnTopicsAsync(List<GrantTopicPermissionOptions> options);
+
+    /**
+     * Grant permissions on topics.
+     * @param options
+     * @throws PulsarAdminException
+     */
+    void grantPermissionOnTopics(List<GrantTopicPermissionOptions> options) throws PulsarAdminException;
+
+    /**
+     * Revoke permissions on topics asynchronously.
+     * @param options
+     * @return
+     */
+    CompletableFuture<Void> revokePermissionOnTopicsAsync(List<RevokeTopicPermissionOptions> options);
+
+    /**
+     * Revoke permissions on topics.
+     * @param options
+     * @throws PulsarAdminException
+     */
+    void revokePermissionOnTopics(List<RevokeTopicPermissionOptions> options) throws PulsarAdminException;
+
+    /**
      * Revoke permissions on a namespace.
      * <p/>
      * Revoke all permissions to a client role on a namespace.
@@ -1234,7 +1262,7 @@ public interface Namespaces {
      * @param namespace
      *            Namespace name
      * @param enableDeduplication
-     *            wether to enable or disable deduplication feature
+     *            whether to enable or disable deduplication feature
      */
     CompletableFuture<Void> setDeduplicationStatusAsync(String namespace, boolean enableDeduplication);
 
@@ -4623,4 +4651,144 @@ public interface Namespaces {
      * @return
      */
     CompletableFuture<Void> removeNamespaceEntryFiltersAsync(String namespace);
+
+    /**
+     * Enable migration for all topics within a namespace.
+     * <p/>
+     * Migrate all topics of a namespace to new broker.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>true</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param migrated
+     *            Flag to determine namespace is migrated or not
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void updateMigrationState(String namespace, boolean migrated) throws PulsarAdminException;
+
+    /**
+     * Set DispatcherPauseOnAckStatePersistent for a namespace asynchronously.
+     */
+    CompletableFuture<Void> setDispatcherPauseOnAckStatePersistentAsync(String namespace);
+
+    /**
+     * Remove entry filters of a namespace.
+     * @param namespace    Namespace name
+     * @throws PulsarAdminException
+     */
+    void setDispatcherPauseOnAckStatePersistent(String namespace) throws PulsarAdminException;
+
+    /**
+     * Removes the dispatcherPauseOnAckStatePersistentEnabled policy for a given namespace asynchronously.
+     */
+    CompletableFuture<Void> removeDispatcherPauseOnAckStatePersistentAsync(String namespace);
+
+    /**
+     * Removes the dispatcherPauseOnAckStatePersistentEnabled policy for a given namespace.
+     */
+    void removeDispatcherPauseOnAckStatePersistent(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the dispatcherPauseOnAckStatePersistentEnabled policy for a given namespace asynchronously.
+     */
+    CompletableFuture<Boolean> getDispatcherPauseOnAckStatePersistentAsync(String namespace);
+
+    /**
+     * Get the dispatcherPauseOnAckStatePersistentEnabled policy for a given namespace.
+     */
+    boolean getDispatcherPauseOnAckStatePersistent(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the allowed clusters for a namespace.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>["use", "usw", "usc"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PreconditionFailedException
+     *             Namespace is not global
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    List<String> getNamespaceAllowedClusters(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the allowed clusters for a namespace asynchronously.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>["use", "usw", "usc"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<List<String>> getNamespaceAllowedClustersAsync(String namespace);
+
+    /**
+     * Set the allowed clusters for a namespace.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>["us-west", "us-east", "us-cent"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param clusterIds
+     *            Pulsar Cluster Ids
+     *
+     * @throws ConflictException
+     *             Peer-cluster cannot be part of an allowed-cluster
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PreconditionFailedException
+     *             Namespace is not global
+     * @throws PreconditionFailedException
+     *             Invalid cluster ids
+     * @throws PulsarAdminException
+     *             The list of allowed clusters should include all replication clusters.
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setNamespaceAllowedClusters(String namespace, Set<String> clusterIds) throws PulsarAdminException;
+
+    /**
+     * Set the allowed clusters for a namespace asynchronously.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>["us-west", "us-east", "us-cent"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param clusterIds
+     *            Pulsar Cluster Ids
+     */
+    CompletableFuture<Void> setNamespaceAllowedClustersAsync(String namespace, Set<String> clusterIds);
+
 }

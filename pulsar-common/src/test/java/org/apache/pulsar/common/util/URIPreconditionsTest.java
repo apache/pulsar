@@ -30,6 +30,7 @@ public class URIPreconditionsTest {
         // normal
         checkURI("http://pulsar.apache.org", uri -> true);
         checkURI("http://pulsar.apache.org", uri -> Objects.equals(uri.getScheme(), "http"));
+        checkURI("", uri -> true);
         // illegal
         try {
             checkURI("pulsar.apache.org", uri -> Objects.equals(uri.getScheme(), "http"));
@@ -48,6 +49,7 @@ public class URIPreconditionsTest {
     @Test
     public void testCheckURIIfPresent() {
         checkURIIfPresent(null, uri -> false);
+        checkURIIfPresent("", uri -> false);
         checkURIIfPresent("http://pulsar.apache.org", uri -> true);
         try {
             checkURIIfPresent("http/pulsar.apache.org", uri -> uri.getScheme() != null, "Error");

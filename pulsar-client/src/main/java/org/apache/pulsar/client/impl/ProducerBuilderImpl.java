@@ -34,6 +34,7 @@ import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.HashingScheme;
+import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
@@ -219,6 +220,12 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     public ProducerBuilder<T> defaultCryptoKeyReader(@NonNull Map<String, String> publicKeys) {
         checkArgument(!publicKeys.isEmpty(), "publicKeys cannot be empty");
         return cryptoKeyReader(DefaultCryptoKeyReader.builder().publicKeys(publicKeys).build());
+    }
+
+    @Override
+    public ProducerBuilder<T> messageCrypto(MessageCrypto messageCrypto) {
+        conf.setMessageCrypto(messageCrypto);
+        return this;
     }
 
     @Override

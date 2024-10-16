@@ -63,7 +63,6 @@
     <file><source>${basedir}/../../pulsar-io/kafka-connect-adaptor-nar/target/pulsar-io-kafka-connect-adaptor-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/hbase/target/pulsar-io-hbase-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/kinesis/target/pulsar-io-kinesis-${project.version}.nar</source></file>
-    <file><source>${basedir}/../../pulsar-io/hdfs2/target/pulsar-io-hdfs2-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/hdfs3/target/pulsar-io-hdfs3-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/file/target/pulsar-io-file-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/data-generator/target/pulsar-io-data-generator-${project.version}.nar</source></file>
@@ -81,5 +80,6 @@
     <file><source>${basedir}/../../pulsar-io/solr/target/pulsar-io-solr-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/dynamodb/target/pulsar-io-dynamodb-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/alluxio/target/pulsar-io-alluxio-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/azure-data-explorer/target/pulsar-io-azuredataexplorer-${project.version}.nar</source></file>
   </files>
 </assembly>

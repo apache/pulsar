@@ -18,7 +18,6 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import java.util.ArrayList;
@@ -31,26 +30,27 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class OpReadEntry implements ReadEntriesCallback {
 
     ManagedCursorImpl cursor;
-    PositionImpl readPosition;
+    Position readPosition;
     private int count;
     private ReadEntriesCallback callback;
     Object ctx;
 
     // Results
     private List<Entry> entries;
-    private PositionImpl nextReadPosition;
-    PositionImpl maxPosition;
+    private Position nextReadPosition;
+    Position maxPosition;
 
-    Predicate<PositionImpl> skipCondition;
+    Predicate<Position> skipCondition;
 
-    public static OpReadEntry create(ManagedCursorImpl cursor, PositionImpl readPositionRef, int count,
-            ReadEntriesCallback callback, Object ctx, PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
+    public static OpReadEntry create(ManagedCursorImpl cursor, Position readPositionRef, int count,
+            ReadEntriesCallback callback, Object ctx, Position maxPosition, Predicate<Position> skipCondition) {
         OpReadEntry op = RECYCLER.get();
         op.readPosition = cursor.ledger.startReadOperationOnLedger(readPositionRef);
         op.cursor = cursor;
@@ -58,16 +58,16 @@ class OpReadEntry implements ReadEntriesCallback {
         op.callback = callback;
         op.entries = new ArrayList<>();
         if (maxPosition == null) {
-            maxPosition = PositionImpl.LATEST;
+            maxPosition = PositionFactory.LATEST;
         }
         op.maxPosition = maxPosition;
         op.skipCondition = skipCondition;
         op.ctx = ctx;
-        op.nextReadPosition = PositionImpl.get(op.readPosition);
+        op.nextReadPosition = PositionFactory.create(op.readPosition);
         return op;
     }
 
-    void internalReadEntriesComplete(List<Entry> returnedEntries, Object ctx, PositionImpl lastPosition) {
+    void internalReadEntriesComplete(List<Entry> returnedEntries, Object ctx, Position lastPosition) {
         // Filter the returned entries for individual deleted messages
         int entriesCount = returnedEntries.size();
         long entriesSize = 0;
@@ -77,7 +77,7 @@ class OpReadEntry implements ReadEntriesCallback {
         cursor.updateReadStats(entriesCount, entriesSize);
 
         if (entriesCount != 0) {
-            lastPosition = (PositionImpl) returnedEntries.get(entriesCount - 1).getPosition();
+            lastPosition = returnedEntries.get(entriesCount - 1).getPosition();
         }
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Read entries succeeded batch_size={} cumulative_size={} requested_count={}",
@@ -108,18 +108,21 @@ class OpReadEntry implements ReadEntriesCallback {
 
         if (!entries.isEmpty()) {
             // There were already some entries that were read before, we can return them
-            cursor.ledger.getExecutor().execute(safeRun(() -> {
+            cursor.ledger.getExecutor().execute(() -> {
                 callback.readEntriesComplete(entries, ctx);
                 recycle();
-            }));
-        } else if (cursor.config.isAutoSkipNonRecoverableData() && exception instanceof NonRecoverableLedgerException) {
+            });
+        } else if (cursor.getConfig().isAutoSkipNonRecoverableData()
+                && exception instanceof NonRecoverableLedgerException) {
             log.warn("[{}][{}] read failed from ledger at position:{} : {}", cursor.ledger.getName(), cursor.getName(),
                     readPosition, exception.getMessage());
             final ManagedLedgerImpl ledger = (ManagedLedgerImpl) cursor.getManagedLedger();
             Position nexReadPosition;
+            Long lostLedger = null;
             if (exception instanceof ManagedLedgerException.LedgerNotExistException) {
                 // try to find and move to next valid ledger
                 nexReadPosition = cursor.getNextLedgerPosition(readPosition.getLedgerId());
+                lostLedger = readPosition.getLedgerId();
             } else {
                 // Skip this read operation
                 nexReadPosition = ledger.getValidPositionAfterSkippedEntries(readPosition, count);
@@ -132,6 +135,9 @@ class OpReadEntry implements ReadEntriesCallback {
                 return;
             }
             updateReadPosition(nexReadPosition);
+            if (lostLedger != null) {
+                cursor.getManagedLedger().skipNonRecoverableLedger(lostLedger);
+            }
             checkReadCompletion();
         } else {
             if (!(exception instanceof TooManyRequestsException)) {
@@ -151,7 +157,7 @@ class OpReadEntry implements ReadEntriesCallback {
     }
 
     void updateReadPosition(Position newReadPosition) {
-        nextReadPosition = (PositionImpl) newReadPosition;
+        nextReadPosition = newReadPosition;
         cursor.setReadPosition(nextReadPosition);
     }
 
@@ -161,20 +167,20 @@ class OpReadEntry implements ReadEntriesCallback {
                 && maxPosition.compareTo(readPosition) > 0) {
 
             // We still have more entries to read from the next ledger, schedule a new async operation
-            cursor.ledger.getExecutor().execute(safeRun(() -> {
+            cursor.ledger.getExecutor().execute(() -> {
                 readPosition = cursor.ledger.startReadOperationOnLedger(nextReadPosition);
                 cursor.ledger.asyncReadEntries(OpReadEntry.this);
-            }));
+            });
         } else {
             // The reading was already completed, release resources and trigger callback
             try {
                 cursor.readOperationCompleted();
 
             } finally {
-                cursor.ledger.getExecutor().execute(safeRun(() -> {
+                cursor.ledger.getExecutor().execute(() -> {
                     callback.readEntriesComplete(entries, ctx);
                     recycle();
-                }));
+                });
             }
         }
     }
@@ -189,7 +195,7 @@ class OpReadEntry implements ReadEntriesCallback {
         this.recyclerHandle = recyclerHandle;
     }
 
-    private static final Recycler<OpReadEntry> RECYCLER = new Recycler<OpReadEntry>() {
+    private static final Recycler<OpReadEntry> RECYCLER = new Recycler<>() {
         @Override
         protected OpReadEntry newObject(Recycler.Handle<OpReadEntry> recyclerHandle) {
             return new OpReadEntry(recyclerHandle);
@@ -205,8 +211,8 @@ class OpReadEntry implements ReadEntriesCallback {
         entries = null;
         nextReadPosition = null;
         maxPosition = null;
-        recyclerHandle.recycle(this);
         skipCondition = null;
+        recyclerHandle.recycle(this);
     }
 
     private static final Logger log = LoggerFactory.getLogger(OpReadEntry.class);

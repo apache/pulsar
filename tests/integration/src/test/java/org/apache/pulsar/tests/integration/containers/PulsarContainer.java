@@ -26,6 +26,7 @@ import java.io.UncheckedIOException;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.UUID;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
@@ -50,8 +51,13 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     public static final int BROKER_HTTP_PORT = 8080;
     public static final int BROKER_HTTPS_PORT = 8081;
 
+    public static final String ALPINE_IMAGE_NAME = "alpine:3.20";
     public static final String DEFAULT_IMAGE_NAME = System.getenv().getOrDefault("PULSAR_TEST_IMAGE_NAME",
             "apachepulsar/pulsar-test-latest-version:latest");
+    public static final String UPGRADE_TEST_IMAGE_NAME = System.getenv().getOrDefault("PULSAR_UPGRADE_TEST_IMAGE_NAME",
+            DEFAULT_IMAGE_NAME);
+    public static final String LAST_RELEASE_IMAGE_NAME = System.getenv().getOrDefault("PULSAR_LAST_RELEASE_IMAGE_NAME",
+            "apachepulsar/pulsar:3.0.7");
     public static final String DEFAULT_HTTP_PATH = "/metrics";
     public static final String PULSAR_2_5_IMAGE_NAME = "apachepulsar/pulsar:2.5.0";
     public static final String PULSAR_2_4_IMAGE_NAME = "apachepulsar/pulsar:2.4.0";
@@ -70,7 +76,8 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     public static final boolean PULSAR_CONTAINERS_LEAVE_RUNNING =
             Boolean.parseBoolean(System.getenv("PULSAR_CONTAINERS_LEAVE_RUNNING"));
 
-    private final String hostname;
+    @Getter
+    protected final String hostname;
     private final String serviceName;
     private final String serviceEntryPoint;
     private final int servicePort;

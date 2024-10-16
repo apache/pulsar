@@ -23,9 +23,12 @@ import com.google.common.annotations.Beta;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Metadata store client interface.
@@ -35,6 +38,8 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
  */
 @Beta
 public interface MetadataStore extends AutoCloseable {
+
+    Logger LOGGER = LoggerFactory.getLogger(MetadataStore.class);
 
     /**
      * Read the value of one key, identified by the path
@@ -120,6 +125,23 @@ public interface MetadataStore extends AutoCloseable {
      * @return a future to track the async request
      */
     CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion);
+
+    default CompletableFuture<Void> deleteIfExists(String path, Optional<Long> expectedVersion) {
+        return delete(path, expectedVersion)
+                .exceptionally(e -> {
+                    if (e.getCause() instanceof NotFoundException) {
+                        LOGGER.info("Path {} not found while deleting (this is not a problem)", path);
+                        return null;
+                    } else {
+                        if (expectedVersion.isEmpty()) {
+                            LOGGER.info("Failed to delete path {}", path, e);
+                        } else {
+                            LOGGER.info("Failed to delete path {} with expected version {}", path, expectedVersion, e);
+                        }
+                        throw new CompletionException(e);
+                    }
+                });
+    }
 
     /**
      * Delete a key-value pair and all the children nodes.

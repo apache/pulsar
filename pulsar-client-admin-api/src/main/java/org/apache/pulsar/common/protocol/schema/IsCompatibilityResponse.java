@@ -33,5 +33,4 @@ import lombok.NoArgsConstructor;
 public class IsCompatibilityResponse {
     boolean isCompatibility;
     String schemaCompatibilityStrategy;
-
 }

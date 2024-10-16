@@ -23,7 +23,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
-import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 
 /**
  * Null implementation that throws an error on any invokation.
@@ -62,12 +62,17 @@ public class NullLedgerOffloader implements LedgerOffloader {
     }
 
     @Override
-    public OffloadPoliciesImpl getOffloadPolicies() {
+    public OffloadPolicies getOffloadPolicies() {
         return null;
     }
 
     @Override
     public void close() {
 
+    }
+
+    @Override
+    public boolean isAppendable() {
+        return false;
     }
 }

@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.models;
 
-import static org.apache.pulsar.broker.loadbalance.extensions.models.AssignCounter.Label.Empty;
+import static org.apache.pulsar.broker.loadbalance.extensions.models.AssignCounter.Label.Failure;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.AssignCounter.Label.Skip;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.AssignCounter.Label.Success;
 import java.util.ArrayList;
@@ -35,7 +35,7 @@ public class AssignCounter {
 
     enum Label {
         Success,
-        Empty,
+        Failure,
         Skip,
     }
 
@@ -44,7 +44,7 @@ public class AssignCounter {
     public AssignCounter() {
         breakdownCounters = Map.of(
                 Success, new AtomicLong(),
-                Empty, new AtomicLong(),
+                Failure, new AtomicLong(),
                 Skip, new AtomicLong()
         );
     }
@@ -54,8 +54,8 @@ public class AssignCounter {
         breakdownCounters.get(Success).incrementAndGet();
     }
 
-    public void incrementEmpty() {
-        breakdownCounters.get(Empty).incrementAndGet();
+    public void incrementFailure() {
+        breakdownCounters.get(Failure).incrementAndGet();
     }
 
     public void incrementSkip() {

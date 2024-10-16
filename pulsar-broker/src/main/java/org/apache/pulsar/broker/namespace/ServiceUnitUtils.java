@@ -36,7 +36,7 @@ public final class ServiceUnitUtils {
      */
     private static final String OWNER_INFO_ROOT = "/namespace";
 
-    static String path(NamespaceBundle suname) {
+    public static String path(NamespaceBundle suname) {
         // The ephemeral node path for new namespaces should always have bundle name appended
         return OWNER_INFO_ROOT + "/" + suname.toString();
     }

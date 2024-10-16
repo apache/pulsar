@@ -26,8 +26,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>3.0.0-SNAPSHOT</version>
-    <relativePath>..</relativePath>
+    <version>4.1.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-client-admin</artifactId>
@@ -123,6 +122,8 @@
                   <include>com.google.protobuf:protobuf-java</include>
                   <include>com.google.guava:guava</include>
                   <include>com.google.code.gson:gson</include>
+                  <include>com.google.re2j:re2j</include>
+                  <include>com.spotify:completable-futures</include>
                   <include>com.fasterxml.jackson.*:*</include>
                   <include>io.netty:*</include>
                   <include>io.netty.incubator:*</include>
@@ -131,6 +132,7 @@
                   <include>com.yahoo.datasketches:sketches-core</include>
                   <include>org.glassfish.jersey*:*</include>
                   <include>javax.ws.rs:*</include>
+                  <include>javax.xml.bind:jaxb-api</include>
                   <include>jakarta.annotation:*</include>
                   <include>org.glassfish.hk2*:*</include>
                   <include>io.grpc:*</include>
@@ -192,6 +194,10 @@
                   </excludes>
                 </relocation>
                 <relocation>
+                  <pattern>com.spotify.futures</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.spotify.futures</shadedPattern>
+                </relocation>
+                <relocation>
                   <pattern>com.fasterxml.jackson</pattern>
                   <shadedPattern>org.apache.pulsar.shade.com.fasterxml.jackson</shadedPattern>
                   <excludes>
@@ -229,6 +235,10 @@
                 <relocation>
                   <pattern>javax.annotation</pattern>
                   <shadedPattern>org.apache.pulsar.shade.javax.annotation</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>javax.xml.bind</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.javax.xml.bind</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>jersey</pattern>
@@ -289,6 +299,12 @@
                   <relocation>
                     <pattern>org.apache.bookkeeper</pattern>
                     <shadedPattern>org.apache.pulsar.shade.org.apache.bookkeeper</shadedPattern>
+                  </relocation>
+                  <!-- Rename Netty native libraries to include the shaded prefix -->
+                  <relocation>
+                    <pattern>(META-INF/native/(lib)?)(netty.+\.(so|jnilib|dll))$</pattern>
+                    <shadedPattern>$1org_apache_pulsar_shade_$3</shadedPattern>
+                    <rawString>true</rawString>
                   </relocation>
               </relocations>
               <transformers>

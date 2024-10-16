@@ -20,16 +20,13 @@ package org.apache.pulsar.client.cli;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
-import com.beust.jcommander.JCommander;
+import java.util.Map;
+import java.util.Properties;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.Map;
-import java.util.Properties;
-
+import picocli.CommandLine;
 
 public class DocumentTest extends BrokerTestBase {
 
@@ -59,11 +56,12 @@ public class DocumentTest extends BrokerTestBase {
     @Test
     public void testGenerator() {
         PulsarClientTool pulsarClientTool = new PulsarClientTool(new Properties());
-        JCommander commander = pulsarClientTool.jcommander;
+        CommandLine commander = pulsarClientTool.getCommander();
         CmdGenerateDocumentation document = new CmdGenerateDocumentation();
-        for (Map.Entry<String, JCommander> cmd : commander.getCommands().entrySet()) {
-            String res = document.generateDocument(cmd.getKey(), commander);
-            assertTrue(res.contains("pulsar-client " + cmd.getKey() + " [options]"));
-        }
+        Map<String, CommandLine> subcommands = commander.getSubcommands();
+        subcommands.forEach((subcommandName, subCommander) -> {
+            String res = document.generateDocument(subcommandName, subCommander);
+            assertTrue(res.contains("pulsar-client " + subcommandName + " [options]"));
+        });
     }
 }

@@ -20,10 +20,6 @@ package org.apache.pulsar.proxy.socket.client;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-import com.beust.jcommander.Parameters;
 import com.google.common.util.concurrent.RateLimiter;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.FileInputStream;
@@ -53,179 +49,171 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.testclient.CmdBase;
 import org.apache.pulsar.testclient.IMessageFormatter;
 import org.apache.pulsar.testclient.PerfClientUtils;
-import org.apache.pulsar.testclient.PositiveNumberParameterValidator;
+import org.apache.pulsar.testclient.PositiveNumberParameterConvert;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Model.CommandSpec;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
+import picocli.CommandLine.Spec;
 
-public class PerformanceClient {
+@Command(name = "websocket-producer", description = "Test pulsar websocket producer performance.")
+public class PerformanceClient extends CmdBase {
 
     private static final LongAdder messagesSent = new LongAdder();
     private static final LongAdder bytesSent = new LongAdder();
     private static final LongAdder totalMessagesSent = new LongAdder();
     private static final LongAdder totalBytesSent = new LongAdder();
     private static IMessageFormatter messageFormatter = null;
-    private JCommander jc;
 
-    @Parameters(commandDescription = "Test pulsar websocket producer performance.")
-    static class Arguments {
+    @Option(names = { "-cf", "--conf-file" }, description = "Configuration file")
+    public String confFile;
 
-        @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
-        boolean help;
+    @Option(names = { "-u", "--proxy-url" }, description = "Pulsar Proxy URL, e.g., \"ws://localhost:8080/\"")
+    public String proxyURL;
 
-        @Parameter(names = { "-cf", "--conf-file" }, description = "Configuration file")
-        public String confFile;
+    @Parameters(description = "persistent://tenant/ns/my-topic", arity = "1")
+    public List<String> topics;
 
-        @Parameter(names = { "-u", "--proxy-url" }, description = "Pulsar Proxy URL, e.g., \"ws://localhost:8080/\"")
-        public String proxyURL;
+    @Option(names = { "-r", "--rate" }, description = "Publish rate msg/s across topics")
+    public int msgRate = 100;
 
-        @Parameter(description = "persistent://tenant/ns/my-topic", required = true)
-        public List<String> topics;
+    @Option(names = { "-s", "--size" }, description = "Message size in byte")
+    public int msgSize = 1024;
 
-        @Parameter(names = { "-r", "--rate" }, description = "Publish rate msg/s across topics")
-        public int msgRate = 100;
+    @Option(names = { "-t", "--num-topic" }, description = "Number of topics",
+            converter = PositiveNumberParameterConvert.class
+    )
+    public int numTopics = 1;
 
-        @Parameter(names = { "-s", "--size" }, description = "Message size in byte")
-        public int msgSize = 1024;
+    @Option(names = { "--auth_plugin" }, description = "Authentication plugin class name", hidden = true)
+    public String deprecatedAuthPluginClassName;
 
-        @Parameter(names = { "-t", "--num-topic" }, description = "Number of topics",
-                validateWith = PositiveNumberParameterValidator.class)
-        public int numTopics = 1;
+    @Option(names = { "--auth-plugin" }, description = "Authentication plugin class name")
+    public String authPluginClassName;
 
-        @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name", hidden = true)
-        public String deprecatedAuthPluginClassName;
+    @Option(
+        names = { "--auth-params" },
+        description = "Authentication parameters, whose format is determined by the implementation "
+                + "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" "
+                + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}\".")
+    public String authParams;
 
-        @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name")
-        public String authPluginClassName;
+    @Option(names = { "-m",
+            "--num-messages" }, description = "Number of messages to publish in total. If <= 0, it will keep"
+            + " publishing")
+    public long numMessages = 0;
 
-        @Parameter(
-            names = { "--auth-params" },
-            description = "Authentication parameters, whose format is determined by the implementation "
-                    + "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" "
-                    + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}\".")
-        public String authParams;
+    @Option(names = { "-f", "--payload-file" }, description = "Use payload from a file instead of empty buffer")
+    public String payloadFilename = null;
 
-        @Parameter(names = { "-m",
-                "--num-messages" }, description = "Number of messages to publish in total. If <= 0, it will keep"
-                + " publishing")
-        public long numMessages = 0;
+    @Option(names = { "-e", "--payload-delimiter" },
+            description = "The delimiter used to split lines when using payload from a file")
+    // here escaping \n since default value will be printed with the help text
+    public String payloadDelimiter = "\\n";
 
-        @Parameter(names = { "-f", "--payload-file" }, description = "Use payload from a file instead of empty buffer")
-        public String payloadFilename = null;
+    @Option(names = { "-fp", "--format-payload" },
+            description = "Format %%i as a message index in the stream from producer and/or %%t as the timestamp"
+                    + " nanoseconds")
+    public boolean formatPayload = false;
 
-        @Parameter(names = { "-e", "--payload-delimiter" },
-                description = "The delimiter used to split lines when using payload from a file")
-        // here escaping \n since default value will be printed with the help text
-        public String payloadDelimiter = "\\n";
+    @Option(names = {"-fc", "--format-class"}, description = "Custom Formatter class name")
+    public String formatterClass = "org.apache.pulsar.testclient.DefaultMessageFormatter";
 
-        @Parameter(names = { "-fp", "--format-payload" },
-                description = "Format %i as a message index in the stream from producer and/or %t as the timestamp"
-                        + " nanoseconds")
-        public boolean formatPayload = false;
+    @Option(names = { "-time",
+            "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep publishing")
+    public long testTime = 0;
 
-        @Parameter(names = {"-fc", "--format-class"}, description = "Custom Formatter class name")
-        public String formatterClass = "org.apache.pulsar.testclient.DefaultMessageFormatter";
-
-        @Parameter(names = { "-time",
-                "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep publishing")
-        public long testTime = 0;
+    public PerformanceClient() {
+        super("websocket-producer");
     }
 
-    public Arguments loadArguments(String[] args) {
-        Arguments arguments = new Arguments();
-        jc = new JCommander(arguments);
-        jc.setProgramName("pulsar-perf websocket-producer");
 
-        try {
-            jc.parse(args);
-        } catch (ParameterException e) {
-            System.out.println(e.getMessage());
-            jc.usage();
-            PerfClientUtils.exit(1);
+    @Spec
+    CommandSpec spec;
+
+    public void loadArguments() {
+        CommandLine commander = spec.commandLine();
+
+        if (isBlank(this.authPluginClassName) && !isBlank(this.deprecatedAuthPluginClassName)) {
+            this.authPluginClassName = this.deprecatedAuthPluginClassName;
         }
 
-        if (arguments.help) {
-            jc.usage();
-            PerfClientUtils.exit(1);
-        }
-
-        if (isBlank(arguments.authPluginClassName) && !isBlank(arguments.deprecatedAuthPluginClassName)) {
-            arguments.authPluginClassName = arguments.deprecatedAuthPluginClassName;
-        }
-
-        if (arguments.topics.size() != 1) {
+        if (this.topics.size() != 1) {
             System.err.println("Only one topic name is allowed");
-            jc.usage();
+            commander.usage(commander.getOut());
             PerfClientUtils.exit(1);
         }
 
-        if (arguments.confFile != null) {
+        if (this.confFile != null) {
             Properties prop = new Properties(System.getProperties());
 
             try {
-                prop.load(new FileInputStream(arguments.confFile));
+                prop.load(new FileInputStream(this.confFile));
             } catch (IOException e) {
                 log.error("Error in loading config file");
-                jc.usage();
+                commander.usage(commander.getOut());
                 PerfClientUtils.exit(1);
             }
 
-            if (isBlank(arguments.proxyURL)) {
+            if (isBlank(this.proxyURL)) {
                 String webSocketServiceUrl = prop.getProperty("webSocketServiceUrl");
                 if (isNotBlank(webSocketServiceUrl)) {
-                    arguments.proxyURL = webSocketServiceUrl;
+                    this.proxyURL = webSocketServiceUrl;
                 } else {
                     String webServiceUrl = isNotBlank(prop.getProperty("webServiceUrl"))
                             ? prop.getProperty("webServiceUrl")
                             : prop.getProperty("serviceUrl");
                     if (isNotBlank(webServiceUrl)) {
                         if (webServiceUrl.startsWith("ws://") || webServiceUrl.startsWith("wss://")) {
-                            arguments.proxyURL = webServiceUrl;
+                            this.proxyURL = webServiceUrl;
                         } else if (webServiceUrl.startsWith("http://") || webServiceUrl.startsWith("https://")) {
-                            arguments.proxyURL = webServiceUrl.replaceFirst("^http", "ws");
+                            this.proxyURL = webServiceUrl.replaceFirst("^http", "ws");
                         }
                     }
                 }
             }
 
-            if (arguments.authPluginClassName == null) {
-                arguments.authPluginClassName = prop.getProperty("authPlugin", null);
+            if (this.authPluginClassName == null) {
+                this.authPluginClassName = prop.getProperty("authPlugin", null);
             }
 
-            if (arguments.authParams == null) {
-                arguments.authParams = prop.getProperty("authParams", null);
+            if (this.authParams == null) {
+                this.authParams = prop.getProperty("authParams", null);
             }
         }
 
-        if (isBlank(arguments.proxyURL)) {
-            arguments.proxyURL = "ws://localhost:8080/";
+        if (isBlank(this.proxyURL)) {
+            this.proxyURL = "ws://localhost:8080/";
         }
 
-        if (!arguments.proxyURL.endsWith("/")) {
-            arguments.proxyURL += "/";
+        if (!this.proxyURL.endsWith("/")) {
+            this.proxyURL += "/";
         }
-
-        return arguments;
 
     }
 
-    public void runPerformanceTest(Arguments arguments) throws InterruptedException, IOException {
+    public void runPerformanceTest() throws InterruptedException, IOException {
         // Read payload data from file if needed
-        final byte[] payloadBytes = new byte[arguments.msgSize];
+        final byte[] payloadBytes = new byte[this.msgSize];
         Random random = new Random(0);
         List<byte[]> payloadByteList = new ArrayList<>();
-        if (arguments.payloadFilename != null) {
-            Path payloadFilePath = Paths.get(arguments.payloadFilename);
+        if (this.payloadFilename != null) {
+            Path payloadFilePath = Paths.get(this.payloadFilename);
             if (Files.notExists(payloadFilePath) || Files.size(payloadFilePath) == 0)  {
                 throw new IllegalArgumentException("Payload file doesn't exist or it is empty.");
             }
             // here escaping the default payload delimiter to correct value
-            String delimiter = arguments.payloadDelimiter.equals("\\n") ? "\n" : arguments.payloadDelimiter;
+            String delimiter = this.payloadDelimiter.equals("\\n") ? "\n" : this.payloadDelimiter;
             String[] payloadList = new String(Files.readAllBytes(payloadFilePath), StandardCharsets.UTF_8)
                     .split(delimiter);
             log.info("Reading payloads from {} and {} records read", payloadFilePath.toAbsolutePath(),
@@ -234,8 +222,8 @@ public class PerformanceClient {
                 payloadByteList.add(payload.getBytes(StandardCharsets.UTF_8));
             }
 
-            if (arguments.formatPayload) {
-                messageFormatter = getMessageFormatter(arguments.formatterClass);
+            if (this.formatPayload) {
+                messageFormatter = getMessageFormatter(this.formatterClass);
             }
         } else {
             for (int i = 0; i < payloadBytes.length; ++i) {
@@ -247,21 +235,21 @@ public class PerformanceClient {
         ExecutorService executor = Executors.newCachedThreadPool(
                 new DefaultThreadFactory("pulsar-perf-producer-exec"));
         HashMap<String, Tuple> producersMap = new HashMap<>();
-        String topicName = arguments.topics.get(0);
+        String topicName = this.topics.get(0);
         String restPath = TopicName.get(topicName).getRestPath();
         String produceBaseEndPoint = TopicName.get(topicName).isV2()
-                ? arguments.proxyURL + "ws/v2/producer/" + restPath : arguments.proxyURL + "ws/producer/" + restPath;
-        for (int i = 0; i < arguments.numTopics; i++) {
-            String topic = arguments.numTopics > 1 ? produceBaseEndPoint + i : produceBaseEndPoint;
+                ? this.proxyURL + "ws/v2/producer/" + restPath : this.proxyURL + "ws/producer/" + restPath;
+        for (int i = 0; i < this.numTopics; i++) {
+            String topic = this.numTopics > 1 ? produceBaseEndPoint + i : produceBaseEndPoint;
             URI produceUri = URI.create(topic);
 
             WebSocketClient produceClient = new WebSocketClient(new SslContextFactory(true));
             ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
 
-            if (StringUtils.isNotBlank(arguments.authPluginClassName) && StringUtils.isNotBlank(arguments.authParams)) {
+            if (StringUtils.isNotBlank(this.authPluginClassName) && StringUtils.isNotBlank(this.authParams)) {
                 try {
-                    Authentication auth = AuthenticationFactory.create(arguments.authPluginClassName,
-                            arguments.authParams);
+                    Authentication auth = AuthenticationFactory.create(this.authPluginClassName,
+                            this.authParams);
                     auth.start();
                     AuthenticationDataProvider authData = auth.getAuthData();
                     if (authData.hasDataForHttp()) {
@@ -295,23 +283,23 @@ public class PerformanceClient {
 
         executor.submit(() -> {
             try {
-                RateLimiter rateLimiter = RateLimiter.create(arguments.msgRate);
+                RateLimiter rateLimiter = RateLimiter.create(this.msgRate);
                 long startTime = System.nanoTime();
-                long testEndTime = startTime + (long) (arguments.testTime * 1e9);
+                long testEndTime = startTime + (long) (this.testTime * 1e9);
                 // Send messages on all topics/producers
                 long totalSent = 0;
                 while (true) {
                     for (String topic : producersMap.keySet()) {
-                        if (arguments.testTime > 0 && System.nanoTime() > testEndTime) {
+                        if (this.testTime > 0 && System.nanoTime() > testEndTime) {
                             log.info("------------- DONE (reached the maximum duration: [{} seconds] of production) "
-                                    + "--------------", arguments.testTime);
+                                    + "--------------", this.testTime);
                             PerfClientUtils.exit(0);
                         }
 
-                        if (arguments.numMessages > 0) {
-                            if (totalSent >= arguments.numMessages) {
+                        if (this.numMessages > 0) {
+                            if (totalSent >= this.numMessages) {
                                 log.trace("------------- DONE (reached the maximum number: [{}] of production) "
-                                        + "--------------", arguments.numMessages);
+                                        + "--------------", this.numMessages);
                                 Thread.sleep(10000);
                                 PerfClientUtils.exit(0);
                             }
@@ -325,7 +313,7 @@ public class PerformanceClient {
                         }
 
                         byte[] payloadData;
-                        if (arguments.payloadFilename != null) {
+                        if (this.payloadFilename != null) {
                             if (messageFormatter != null) {
                                 payloadData = messageFormatter.formatMessage("", totalSent,
                                         payloadByteList.get(random.nextInt(payloadByteList.size())));
@@ -415,16 +403,16 @@ public class PerformanceClient {
         }
     }
 
-    public static void main(String[] args) throws Exception {
-        PerformanceClient test = new PerformanceClient();
-        Arguments arguments = test.loadArguments(args);
+    @Override
+    public void run() throws Exception {
+        loadArguments();
         PerfClientUtils.printJVMInformation(log);
         long start = System.nanoTime();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             printAggregatedThroughput(start);
             printAggregatedStats();
         }));
-        test.runPerformanceTest(arguments);
+        runPerformanceTest();
     }
 
     private class Tuple {

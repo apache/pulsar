@@ -176,10 +176,10 @@ public class ConsumerAckTest extends ProducerConsumerBase {
             messageIds.add(message.getMessageId());
         }
         MessageId firstEntryMessageId = messageIds.get(0);
-        MessageId secondEntryMessageId = ((BatchMessageIdImpl) messageIds.get(1)).toMessageIdImpl();
+        MessageId secondEntryMessageId = MessageIdAdvUtils.discardBatch(messageIds.get(1));
         // Verify messages 2 to N must be in the same entry
         for (int i = 2; i < messageIds.size(); i++) {
-            assertEquals(((BatchMessageIdImpl) messageIds.get(i)).toMessageIdImpl(), secondEntryMessageId);
+            assertEquals(MessageIdAdvUtils.discardBatch(messageIds.get(i)), secondEntryMessageId);
         }
 
         assertTrue(interceptor.individualAckedMessageIdList.isEmpty());

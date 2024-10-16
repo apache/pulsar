@@ -21,18 +21,18 @@ package org.apache.bookkeeper.mledger.impl;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
-
-import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
-import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.testng.annotations.Test;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testng.annotations.Test;
 
 public class OffloadEvictUnusedLedgersTest extends MockedBookKeeperTestCase {
     private static final Logger log = LoggerFactory.getLogger(OffloadEvictUnusedLedgersTest.class);
@@ -75,7 +75,7 @@ public class OffloadEvictUnusedLedgersTest extends MockedBookKeeperTestCase {
         // no evict when no offloaded ledgers are marked as inactive
         assertTrue(ledger.internalEvictOffloadedLedgers().isEmpty());
 
-        ManagedCursor cursor = ledger.newNonDurableCursor(PositionImpl.EARLIEST);
+        ManagedCursor cursor = ledger.newNonDurableCursor(PositionFactory.EARLIEST);
         int j = 0;
         for (Entry e : cursor.readEntries(25)) {
             assertEquals(new String(e.getData()), "entry-" + j++);

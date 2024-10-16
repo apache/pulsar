@@ -24,6 +24,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -36,6 +37,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
+import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStoreException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicName;
@@ -194,8 +196,8 @@ public class LeastResourceUsageWithWeightTest {
         conf.setLoadBalancerCPUResourceWeight(1.0);
         conf.setLoadBalancerMemoryResourceWeight(0.1);
         conf.setLoadBalancerDirectMemoryResourceWeight(0.1);
-        conf.setLoadBalancerBandwithInResourceWeight(1.0);
-        conf.setLoadBalancerBandwithOutResourceWeight(1.0);
+        conf.setLoadBalancerBandwidthInResourceWeight(1.0);
+        conf.setLoadBalancerBandwidthOutResourceWeight(1.0);
         conf.setLoadBalancerHistoryResourcePercentage(0.5);
         conf.setLoadBalancerAverageResourceUsageDifferenceThresholdPercentage(5);
         var brokerLoadDataStore = new LoadDataStore<BrokerLoadData>() {
@@ -243,6 +245,31 @@ public class LeastResourceUsageWithWeightTest {
             @Override
             public int size() {
                 return map.size();
+            }
+
+            @Override
+            public void closeTableView() throws IOException {
+
+            }
+
+            @Override
+            public void start() throws LoadDataStoreException {
+
+            }
+
+            @Override
+            public void init() throws IOException {
+
+            }
+
+            @Override
+            public void startTableView() throws LoadDataStoreException {
+
+            }
+
+            @Override
+            public void startProducer() throws LoadDataStoreException {
+
             }
         };
 

@@ -111,4 +111,43 @@ public class ConsumerAckListTest extends ProducerConsumerBase {
         latch.await();
     }
 
+    @Test(timeOut = 30000)
+    public void testAckMessageInAnotherTopic() throws Exception {
+        final String[] topics = {
+                "persistent://my-property/my-ns/test-ack-message-in-other-topic1" + UUID.randomUUID(),
+                "persistent://my-property/my-ns/test-ack-message-in-other-topic2" + UUID.randomUUID(),
+                "persistent://my-property/my-ns/test-ack-message-in-other-topic3" + UUID.randomUUID()
+        };
+        @Cleanup final Consumer<String> allTopicsConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topics)
+                .subscriptionName("sub1")
+                .subscribe();
+        Consumer<String> partialTopicsConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topics[0], topics[1])
+                .subscriptionName("sub2")
+                .subscribe();
+        for (int i = 0; i < topics.length; i++) {
+            final Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                    .topic(topics[i])
+                    .create();
+            producer.send("msg-" + i);
+            producer.close();
+        }
+        final List<MessageId> messageIdList = new ArrayList<>();
+        for (int i = 0; i < topics.length; i++) {
+            messageIdList.add(allTopicsConsumer.receive().getMessageId());
+        }
+        try {
+            partialTopicsConsumer.acknowledge(messageIdList);
+            Assert.fail();
+        } catch (PulsarClientException.NotConnectedException ignored) {
+        }
+        partialTopicsConsumer.close();
+        partialTopicsConsumer = pulsarClient.newConsumer(Schema.STRING).topic(topics[0])
+                .subscriptionName("sub2").subscribe();
+        pulsarClient.newProducer(Schema.STRING).topic(topics[0]).create().send("done");
+        final Message<String> msg = partialTopicsConsumer.receive();
+        Assert.assertEquals(msg.getValue(), "msg-0");
+        partialTopicsConsumer.close();
+    }
 }

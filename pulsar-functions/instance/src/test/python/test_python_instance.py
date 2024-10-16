@@ -25,7 +25,7 @@ import sys
 sys.modules['prometheus_client'] = Mock()
 
 from contextimpl import ContextImpl
-from python_instance import InstanceConfig
+from python_instance import PythonInstance, InstanceConfig
 from pulsar import Message
 
 import Function_pb2
@@ -49,14 +49,14 @@ class TestContextImpl(unittest.TestCase):
     function_id = 'test_function_id'
     function_version = 'test_function_version'
     function_details = Function_pb2.FunctionDetails()
-    max_buffered_tuples = 100;
+    max_buffered_tuples = 100
     instance_config = InstanceConfig(instance_id, function_id, function_version, function_details, max_buffered_tuples)
     logger = log.Log
     pulsar_client = Mock()
     producer = Mock()
     producer.send_async = Mock(return_value=None)
     pulsar_client.create_producer = Mock(return_value=producer)
-    user_code=__file__
+    user_code = __file__
     consumers = None
     context_impl = ContextImpl(instance_config, logger, pulsar_client, user_code, consumers, None, None, None, None)
 
@@ -77,11 +77,11 @@ class TestContextImpl(unittest.TestCase):
     function_id = 'test_function_id'
     function_version = 'test_function_version'
     function_details = Function_pb2.FunctionDetails()
-    max_buffered_tuples = 100;
+    max_buffered_tuples = 100
     instance_config = InstanceConfig(instance_id, function_id, function_version, function_details, max_buffered_tuples)
     logger = log.Log
     pulsar_client = Mock()
-    user_code=__file__
+    user_code = __file__
     consumer = Mock()
     consumer.acknowledge = Mock(return_value=None)
     consumers = {"mytopic" : consumer}

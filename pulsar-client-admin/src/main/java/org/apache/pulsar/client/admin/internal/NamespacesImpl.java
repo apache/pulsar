@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -29,9 +28,11 @@ import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.admin.GrantTopicPermissionOptions;
 import org.apache.pulsar.client.admin.ListNamespaceTopicsOptions;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.RevokeTopicPermissionOptions;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -65,8 +66,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     private final WebTarget adminNamespaces;
     private final WebTarget adminV2Namespaces;
 
-    public NamespacesImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public NamespacesImpl(WebTarget web, Authentication auth, long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         adminNamespaces = web.path("/admin/namespaces");
         adminV2Namespaces = web.path("/admin/v2/namespaces");
     }
@@ -182,9 +183,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public CompletableFuture<Void> createNamespaceAsync(String namespace, Policies policies) {
         NamespaceName ns = NamespaceName.get(namespace);
-        checkArgument(ns.isV2(), "Create namespace with policies is only supported on newer namespaces");
-        WebTarget path = namespacePath(ns);
-        // For V2 API we pass full Policy class instance
+        WebTarget path = ns.isV2() ? namespacePath(ns) : namespacePath(ns, "policy");
         return asyncPutRequest(path, Entity.entity(policies, MediaType.APPLICATION_JSON));
     }
 
@@ -289,6 +288,30 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "permissions", role);
         return asyncPostRequest(path, Entity.entity(actions, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public CompletableFuture<Void> grantPermissionOnTopicsAsync(List<GrantTopicPermissionOptions> options) {
+        final WebTarget base = adminV2Namespaces;
+        WebTarget path = base.path("/grantPermissionsOnTopics");
+        return asyncPostRequest(path, Entity.entity(options, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void grantPermissionOnTopics(List<GrantTopicPermissionOptions> options) throws PulsarAdminException {
+        sync(() -> grantPermissionOnTopicsAsync(options));
+    }
+
+    @Override
+    public CompletableFuture<Void> revokePermissionOnTopicsAsync(List<RevokeTopicPermissionOptions> options) {
+        final WebTarget base = adminV2Namespaces;
+        WebTarget path = base.path("/revokePermissionsOnTopics");
+        return asyncPostRequest(path, Entity.entity(options, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void revokePermissionOnTopics(List<RevokeTopicPermissionOptions> options) throws PulsarAdminException {
+        sync(() -> revokePermissionOnTopicsAsync(options));
     }
 
     @Override
@@ -1883,7 +1906,6 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public CompletableFuture<Void> clearPropertiesAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
-        final CompletableFuture<String> future = new CompletableFuture<>();
         WebTarget path = namespacePath(ns, "properties");
         return asyncDeleteRequest(path);
     }
@@ -1898,6 +1920,17 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "resourcegroup");
         return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public void updateMigrationState(String namespace, boolean migrated) throws PulsarAdminException {
+        sync(() -> updateMigrationStateAsync(namespace, migrated));
+    }
+
+    public CompletableFuture<Void> updateMigrationStateAsync(String namespace, boolean migrated) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "migration");
+        return asyncPostRequest(path, Entity.entity(migrated, MediaType.APPLICATION_JSON));
     }
 
     private WebTarget namespacePath(NamespaceName namespace, String... parts) {
@@ -1950,4 +1983,64 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         WebTarget path = namespacePath(ns, "entryFilters");
         return asyncDeleteRequest(path);
     }
+
+    @Override
+    public CompletableFuture<Void> setDispatcherPauseOnAckStatePersistentAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "dispatcherPauseOnAckStatePersistent");
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void setDispatcherPauseOnAckStatePersistent(String namespace) throws PulsarAdminException {
+        sync(() -> setDispatcherPauseOnAckStatePersistentAsync(namespace));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeDispatcherPauseOnAckStatePersistentAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "dispatcherPauseOnAckStatePersistent");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public void removeDispatcherPauseOnAckStatePersistent(String namespace) throws PulsarAdminException {
+        sync(() -> removeDispatcherPauseOnAckStatePersistentAsync(namespace));
+    }
+
+    @Override
+    public CompletableFuture<Boolean> getDispatcherPauseOnAckStatePersistentAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "dispatcherPauseOnAckStatePersistent");
+        return asyncGetRequest(path, new FutureCallback<Boolean>(){});
+    }
+
+    @Override
+    public boolean getDispatcherPauseOnAckStatePersistent(String namespace) throws PulsarAdminException {
+        return sync(() -> getDispatcherPauseOnAckStatePersistentAsync(namespace));
+    }
+
+    @Override
+    public List<String> getNamespaceAllowedClusters(String namespace) throws PulsarAdminException {
+        return sync(() -> getNamespaceAllowedClustersAsync(namespace));
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getNamespaceAllowedClustersAsync(String namespace) {
+        return asyncGetNamespaceParts(new FutureCallback<List<String>>(){}, namespace, "allowedClusters");
+    }
+
+    @Override
+    public void setNamespaceAllowedClusters(String namespace, Set<String> clusterIds) throws PulsarAdminException {
+        sync(() -> setNamespaceAllowedClustersAsync(namespace, clusterIds));
+    }
+
+    @Override
+    public CompletableFuture<Void> setNamespaceAllowedClustersAsync(String namespace, Set<String> clusterIds) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "allowedClusters");
+        return asyncPostRequest(path, Entity.entity(clusterIds, MediaType.APPLICATION_JSON));
+    }
+
+
 }

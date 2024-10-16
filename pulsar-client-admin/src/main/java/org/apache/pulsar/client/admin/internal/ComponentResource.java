@@ -37,8 +37,8 @@ import org.asynchttpclient.RequestBuilder;
  */
 public class ComponentResource extends BaseResource {
 
-    protected ComponentResource(Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    protected ComponentResource(Authentication auth, long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
     }
 
     public RequestBuilder addAuthHeaders(WebTarget target, RequestBuilder requestBuilder) throws PulsarAdminException {

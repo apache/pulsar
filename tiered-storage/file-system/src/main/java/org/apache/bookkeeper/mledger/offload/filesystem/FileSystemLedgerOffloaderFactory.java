@@ -23,6 +23,7 @@ import java.util.Map;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
+import org.apache.bookkeeper.mledger.LedgerOffloaderStatsDisable;
 import org.apache.bookkeeper.mledger.offload.filesystem.impl.FileSystemManagedLedgerOffloader;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 
@@ -30,6 +31,13 @@ public class FileSystemLedgerOffloaderFactory implements LedgerOffloaderFactory<
     @Override
     public boolean isDriverSupported(String driverName) {
         return FileSystemManagedLedgerOffloader.driverSupported(driverName);
+    }
+
+    @Override
+    public FileSystemManagedLedgerOffloader create(OffloadPoliciesImpl offloadPolicies,
+                                                   Map<String, String> userMetadata, OrderedScheduler scheduler)
+            throws IOException {
+        return create(offloadPolicies, userMetadata, scheduler, LedgerOffloaderStatsDisable.INSTANCE);
     }
 
     @Override

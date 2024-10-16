@@ -22,6 +22,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -30,10 +31,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
+import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 
 public class BrokerFilterTestBase {
@@ -82,6 +85,31 @@ public class BrokerFilterTestBase {
             public int size() {
                 return map.size();
             }
+
+            @Override
+            public void closeTableView() throws IOException {
+
+            }
+
+            @Override
+            public void start() throws LoadDataStoreException {
+
+            }
+
+            @Override
+            public void init() throws IOException {
+
+            }
+
+            @Override
+            public void startTableView() throws LoadDataStoreException {
+
+            }
+
+            @Override
+            public void startProducer() throws LoadDataStoreException {
+
+            }
         };
         configuration.setPreferLaterVersions(true);
         doReturn(configuration).when(mockContext).brokerConfiguration();
@@ -94,6 +122,10 @@ public class BrokerFilterTestBase {
     }
 
     public BrokerLookupData getLookupData(String version) {
+        return getLookupData(version, ExtensibleLoadManagerImpl.class.getName());
+    }
+
+    public BrokerLookupData getLookupData(String version, String loadManagerClassName) {
         String webServiceUrl = "http://localhost:8080";
         String webServiceUrlTls = "https://localhoss:8081";
         String pulsarServiceUrl = "pulsar://localhost:6650";
@@ -104,6 +136,7 @@ public class BrokerFilterTestBase {
         }};
         return new BrokerLookupData(
                 webServiceUrl, webServiceUrlTls, pulsarServiceUrl,
-                pulsarServiceUrlTls, advertisedListeners, protocols, true, true, version);
+                pulsarServiceUrlTls, advertisedListeners, protocols, true, true,
+                loadManagerClassName, -1, version, Collections.emptyMap());
     }
 }

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
@@ -35,9 +34,11 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.MessagePayloadFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
@@ -386,5 +387,20 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
     public SchemaInfo newSchemaInfoImpl(String name, byte[] schema, SchemaType type, long timestamp,
                                         Map<String, String> propertiesValue) {
         return new SchemaInfoImpl(name, schema, type, timestamp, propertiesValue);
+    }
+
+    @Override
+    public TopicMessageId newTopicMessageId(String topic, MessageId messageId) {
+        final MessageIdAdv messageIdAdv;
+        if (messageId instanceof MessageIdAdv) {
+            messageIdAdv = (MessageIdAdv) messageId;
+        } else {
+            try {
+                messageIdAdv = (MessageIdAdv) MessageId.fromByteArray(messageId.toByteArray());
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return new TopicMessageIdImpl(topic, messageIdAdv);
     }
 }

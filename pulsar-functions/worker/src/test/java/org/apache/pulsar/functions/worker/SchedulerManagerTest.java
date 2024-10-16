@@ -148,6 +148,7 @@ public class SchedulerManagerTest {
 
     @AfterMethod(alwaysRun = true)
     public void stop() {
+        schedulerManager.close();
         this.executor.shutdownNow();
     }
 

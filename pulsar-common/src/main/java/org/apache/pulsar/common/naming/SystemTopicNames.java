@@ -52,6 +52,11 @@ public class SystemTopicNames {
     public static final String PENDING_ACK_STORE_CURSOR_NAME = "__pending_ack_state";
 
     /**
+     * Prefix for the system reader for all the system topics.
+     */
+    public static final String SYSTEM_READER_PREFIX = "__system_reader";
+
+    /**
      * The set of all local topic names declared above.
      */
     public static final Set<String> EVENTS_TOPIC_NAMES =
@@ -81,7 +86,7 @@ public class SystemTopicNames {
         if (topic == null) {
             return false;
         }
-        return TopicName.get(topic).getLocalName().equals(NAMESPACE_EVENTS_LOCAL_NAME);
+        return TopicName.getPartitionedTopicName(topic).getLocalName().equals(NAMESPACE_EVENTS_LOCAL_NAME);
     }
 
     public static boolean isTransactionInternalName(TopicName topicName) {
@@ -92,7 +97,7 @@ public class SystemTopicNames {
     }
 
     public static boolean isSystemTopic(TopicName topicName) {
-        TopicName nonePartitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
-        return isEventSystemTopic(nonePartitionedTopicName) || isTransactionInternalName(nonePartitionedTopicName);
+        TopicName nonPartitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
+        return isEventSystemTopic(nonPartitionedTopicName) || isTransactionInternalName(nonPartitionedTopicName);
     }
 }

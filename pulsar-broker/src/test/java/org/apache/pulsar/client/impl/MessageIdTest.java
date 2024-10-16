@@ -118,9 +118,6 @@ public class MessageIdTest extends BrokerTestBase {
             Message<byte[]> message = consumer.receive();
             assertEquals(new String(message.getData()), messagePrefix + i);
             MessageId messageId = message.getMessageId();
-            if (topicType == TopicType.PARTITIONED) {
-                messageId = MessageIdImpl.convertToMessageIdImpl(messageId);
-            }
             assertTrue(messageIds.remove(messageId), "Failed to receive message");
         }
         log.info("Remaining message IDs = {}", messageIds);

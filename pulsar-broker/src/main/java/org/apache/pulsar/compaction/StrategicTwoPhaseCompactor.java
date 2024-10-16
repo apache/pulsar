@@ -59,7 +59,7 @@ import org.slf4j.LoggerFactory;
  * <p>As the first pass caches the entire message(not just offset) for each key into a map,
  * this compaction could be memory intensive if the message payload is large.
  */
-public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
+public class StrategicTwoPhaseCompactor extends PublishingOrderCompactor {
     private static final Logger log = LoggerFactory.getLogger(StrategicTwoPhaseCompactor.class);
     private static final int MAX_OUTSTANDING = 500;
     private static final int MAX_READER_RECONNECT_WAITING_TIME_IN_MILLIS = 20 * 1000;
@@ -69,18 +69,10 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
     public StrategicTwoPhaseCompactor(ServiceConfiguration conf,
                                       PulsarClient pulsar,
                                       BookKeeper bk,
-                                      ScheduledExecutorService scheduler,
-                                      int maxNumMessagesInBatch) {
-        super(conf, pulsar, bk, scheduler);
-        batchMessageContainer = new RawBatchMessageContainerImpl(maxNumMessagesInBatch);
-        phaseOneLoopReadTimeout = Duration.ofSeconds(conf.getBrokerServiceCompactionPhaseOneLoopTimeInSeconds());
-    }
-
-    public StrategicTwoPhaseCompactor(ServiceConfiguration conf,
-                                      PulsarClient pulsar,
-                                      BookKeeper bk,
                                       ScheduledExecutorService scheduler) {
-        this(conf, pulsar, bk, scheduler, -1);
+        super(conf, pulsar, bk, scheduler);
+        batchMessageContainer = new RawBatchMessageContainerImpl();
+        phaseOneLoopReadTimeout = Duration.ofSeconds(conf.getBrokerServiceCompactionPhaseOneLoopTimeInSeconds());
     }
 
     public CompletableFuture<Long> compact(String topic) {
@@ -366,7 +358,7 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
                             });
                 })
                 .thenCompose(v -> {
-                    log.info("Acking ledger id {}", phaseOneResult.firstId);
+                    log.info("Acking ledger id {}", phaseOneResult.lastId);
                     return ((CompactionReaderImpl<T>) reader)
                             .acknowledgeCumulativeAsync(
                                     phaseOneResult.lastId, Map.of(COMPACTED_TOPIC_LEDGER_PROPERTY,
@@ -405,7 +397,6 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
                                 .whenComplete((res, exception2) -> {
                                     if (exception2 != null) {
                                         promise.completeExceptionally(exception2);
-                                        return;
                                     }
                                 });
                         phaseTwoLoop(topic, reader, lh, outstanding, promise);
@@ -430,35 +421,45 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
 
     <T> CompletableFuture<Boolean> addToCompactedLedger(
             LedgerHandle lh, Message<T> m, String topic, Semaphore outstanding) {
-        CompletableFuture<Boolean> bkf = new CompletableFuture<>();
-        if (m == null || batchMessageContainer.add((MessageImpl<?>) m, null)) {
-            if (batchMessageContainer.getNumMessagesInBatch() > 0) {
-                try {
-                    ByteBuf serialized = batchMessageContainer.toByteBuf();
-                    outstanding.acquire();
-                    mxBean.addCompactionWriteOp(topic, serialized.readableBytes());
-                    long start = System.nanoTime();
-                    lh.asyncAddEntry(serialized,
-                            (rc, ledger, eid, ctx) -> {
-                                outstanding.release();
-                                mxBean.addCompactionLatencyOp(topic, System.nanoTime() - start, TimeUnit.NANOSECONDS);
-                                if (rc != BKException.Code.OK) {
-                                    bkf.completeExceptionally(BKException.create(rc));
-                                } else {
-                                    bkf.complete(true);
-                                }
-                            }, null);
+        if (m == null) {
+            return flushBatchMessage(lh, topic, outstanding);
+        }
+        if (batchMessageContainer.haveEnoughSpace((MessageImpl<?>) m)) {
+            batchMessageContainer.add((MessageImpl<?>) m, null);
+            return CompletableFuture.completedFuture(false);
+        }
+        CompletableFuture<Boolean> f = flushBatchMessage(lh, topic, outstanding);
+        batchMessageContainer.add((MessageImpl<?>) m, null);
+        return f;
+    }
 
-                } catch (Throwable t) {
-                    log.error("Failed to add entry", t);
-                    batchMessageContainer.discard((Exception) t);
-                    return FutureUtil.failedFuture(t);
-                }
-            } else {
-                bkf.complete(false);
-            }
-        } else {
-            bkf.complete(false);
+    private CompletableFuture<Boolean> flushBatchMessage(LedgerHandle lh, String topic,
+                                                         Semaphore outstanding) {
+        if (batchMessageContainer.getNumMessagesInBatch() <= 0) {
+            return CompletableFuture.completedFuture(false);
+        }
+        CompletableFuture<Boolean> bkf = new CompletableFuture<>();
+        try {
+            ByteBuf serialized = batchMessageContainer.toByteBuf();
+            outstanding.acquire();
+            mxBean.addCompactionWriteOp(topic, serialized.readableBytes());
+            long start = System.nanoTime();
+            lh.asyncAddEntry(serialized,
+                    (rc, ledger, eid, ctx) -> {
+                        outstanding.release();
+                        mxBean.addCompactionLatencyOp(topic, System.nanoTime() - start, TimeUnit.NANOSECONDS);
+                        if (rc != BKException.Code.OK) {
+                            bkf.completeExceptionally(BKException.create(rc));
+                        } else {
+                            bkf.complete(true);
+                        }
+                    }, null);
+
+        } catch (Throwable t) {
+            log.error("Failed to add entry", t);
+            batchMessageContainer.discard((Exception) t);
+            bkf.completeExceptionally(t);
+            return bkf;
         }
         return bkf;
     }

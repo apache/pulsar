@@ -24,12 +24,18 @@ import java.util.Optional;
 /**
  * Defines the information required to unload or transfer a service unit(e.g. bundle).
  */
-public record Unload(String sourceBroker, String serviceUnit, Optional<String> destBroker) {
+public record Unload(String sourceBroker, String serviceUnit, Optional<String> destBroker, boolean force) {
     public Unload {
         Objects.requireNonNull(sourceBroker);
         Objects.requireNonNull(serviceUnit);
     }
+
+
     public Unload(String sourceBroker, String serviceUnit) {
-        this(sourceBroker, serviceUnit, Optional.empty());
+        this(sourceBroker, serviceUnit, Optional.empty(), false);
+    }
+
+    public Unload(String sourceBroker, String serviceUnit, Optional<String> destBroker) {
+        this(sourceBroker, serviceUnit, destBroker, false);
     }
 }

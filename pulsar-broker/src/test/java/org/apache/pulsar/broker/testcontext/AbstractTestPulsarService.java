@@ -19,13 +19,20 @@
 
 package org.apache.pulsar.broker.testcontext;
 
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
+import java.io.IOException;
+import java.util.Optional;
+import java.util.function.Consumer;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer;
-import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.compaction.CompactionServiceFactory;
+import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -35,68 +42,61 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
  * {@link PulsarService} implementations for a PulsarService instance used in tests.
  * Please see {@link PulsarTestContext} for more details.
  */
+
+@Slf4j
 abstract class AbstractTestPulsarService extends PulsarService {
     protected final SpyConfig spyConfig;
-    protected final MetadataStoreExtended localMetadataStore;
-    protected final MetadataStoreExtended configurationMetadataStore;
-    protected final Compactor compactor;
-    protected final BrokerInterceptor brokerInterceptor;
-    protected final BookKeeperClientFactory bookKeeperClientFactory;
 
     public AbstractTestPulsarService(SpyConfig spyConfig, ServiceConfiguration config,
                                      MetadataStoreExtended localMetadataStore,
-                                     MetadataStoreExtended configurationMetadataStore, Compactor compactor,
+                                     MetadataStoreExtended configurationMetadataStore,
+                                     CompactionServiceFactory compactionServiceFactory,
                                      BrokerInterceptor brokerInterceptor,
-                                     BookKeeperClientFactory bookKeeperClientFactory) {
-        super(config);
+                                     BookKeeperClientFactory bookKeeperClientFactory,
+                                     Consumer<AutoConfiguredOpenTelemetrySdkBuilder> openTelemetrySdkBuilderCustomizer) {
+        super(config, new WorkerConfig(), Optional.empty(),
+                exitCode -> log.info("Pulsar process termination requested with code {}.", exitCode),
+                openTelemetrySdkBuilderCustomizer);
+
         this.spyConfig = spyConfig;
-        this.localMetadataStore =
-                NonClosingProxyHandler.createNonClosingProxy(localMetadataStore, MetadataStoreExtended.class);
-        this.configurationMetadataStore =
-                NonClosingProxyHandler.createNonClosingProxy(configurationMetadataStore, MetadataStoreExtended.class);
-        this.compactor = compactor;
-        this.brokerInterceptor = brokerInterceptor;
-        this.bookKeeperClientFactory = bookKeeperClientFactory;
+        setLocalMetadataStore(
+                NonClosingProxyHandler.createNonClosingProxy(localMetadataStore, MetadataStoreExtended.class));
+        setConfigurationMetadataStore(
+                NonClosingProxyHandler.createNonClosingProxy(configurationMetadataStore, MetadataStoreExtended.class));
+        super.setCompactionServiceFactory(compactionServiceFactory);
+        setBrokerInterceptor(brokerInterceptor);
+        setBkClientFactory(bookKeeperClientFactory);
     }
 
     @Override
-    public MetadataStore createConfigurationMetadataStore(PulsarMetadataEventSynchronizer synchronizer)
+    public MetadataStore createConfigurationMetadataStore(PulsarMetadataEventSynchronizer synchronizer,
+                                                          OpenTelemetry openTelemetry)
             throws MetadataStoreException {
         if (synchronizer != null) {
-            synchronizer.registerSyncListener(configurationMetadataStore::handleMetadataEvent);
+            synchronizer.registerSyncListener(
+                    ((MetadataStoreExtended) getConfigurationMetadataStore())::handleMetadataEvent);
         }
-        return configurationMetadataStore;
+        return getConfigurationMetadataStore();
     }
 
     @Override
-    public MetadataStoreExtended createLocalMetadataStore(PulsarMetadataEventSynchronizer synchronizer)
+    public MetadataStoreExtended createLocalMetadataStore(PulsarMetadataEventSynchronizer synchronizer,
+                                                          OpenTelemetry openTelemetry)
             throws MetadataStoreException, PulsarServerException {
         if (synchronizer != null) {
-            synchronizer.registerSyncListener(localMetadataStore::handleMetadataEvent);
+            synchronizer.registerSyncListener(
+                    getLocalMetadataStore()::handleMetadataEvent);
         }
-        return localMetadataStore;
-    }
-
-    @Override
-    public Compactor newCompactor() throws PulsarServerException {
-        if (compactor != null) {
-            return compactor;
-        } else {
-            return spyConfig.getCompactor().spy(super.newCompactor());
-        }
-    }
-
-    @Override
-    public BrokerInterceptor getBrokerInterceptor() {
-        if (brokerInterceptor != null) {
-            return brokerInterceptor;
-        } else {
-            return super.getBrokerInterceptor();
-        }
+        return getLocalMetadataStore();
     }
 
     @Override
     public BookKeeperClientFactory newBookKeeperClientFactory() {
-        return bookKeeperClientFactory;
+        return getBkClientFactory();
+    }
+
+    @Override
+    protected BrokerInterceptor newBrokerInterceptor() throws IOException {
+        return getBrokerInterceptor() != null ? getBrokerInterceptor() : super.newBrokerInterceptor();
     }
 }

@@ -53,7 +53,7 @@ public class HealthCheckTest extends TestRetrySupport {
         .clusterName("HealthCheckTest-" + UUID.randomUUID().toString().substring(0, 8))
         .numProxies(0)
         .numFunctionWorkers(0)
-        .enablePrestoWorker(false).build();
+        .build();
 
     private PulsarCluster pulsarCluster = null;
 
@@ -95,7 +95,7 @@ public class HealthCheckTest extends TestRetrySupport {
 
     @Test
     public void testZooKeeperDown() throws Exception {
-        pulsarCluster.getZooKeeper().execCmd("pkill", "-STOP", "-f", "QuorumPeerMain");
+        pulsarCluster.getZooKeeper().execCmd("pkill", "-STOP", "java");
         assertHealthcheckFailure();
     }
 
@@ -103,7 +103,7 @@ public class HealthCheckTest extends TestRetrySupport {
     // @Test
     // public void testBrokerDown() throws Exception {
     //     for (BrokerContainer b : pulsarCluster.getBrokers()) {
-    //         b.execCmd("pkill", "-STOP", "-f", "PulsarBrokerStarter");
+    //         b.execCmd("pkill", "-STOP", "java");
     //     }
     //     assertHealthcheckFailure();
     // }
@@ -111,7 +111,7 @@ public class HealthCheckTest extends TestRetrySupport {
     @Test
     public void testBookKeeperDown() throws Exception {
         for (BKContainer b : pulsarCluster.getBookies()) {
-            b.execCmd("pkill", "-STOP", "-f", "Main");
+            b.execCmd("pkill", "-STOP", "java");
         }
         assertHealthcheckFailure();
     }

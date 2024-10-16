@@ -43,6 +43,7 @@ import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageListener;
+import org.apache.pulsar.client.api.MessageListenerExecutor;
 import org.apache.pulsar.client.api.MessagePayloadProcessor;
 import org.apache.pulsar.client.api.RedeliveryBackoff;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
@@ -65,7 +66,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "topicsPattern",
-            value = "Topic pattern"
+            value = "The regexp for the topic name(not contains partition suffix)."
     )
     private Pattern topicsPattern;
 
@@ -91,6 +92,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private SubscriptionMode subscriptionMode = SubscriptionMode.Durable;
 
     @JsonIgnore
+    private transient MessageListenerExecutor messageListenerExecutor;
+    @JsonIgnore
     private MessageListener<T> messageListener;
 
     @JsonIgnore
@@ -99,7 +102,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     @ApiModelProperty(
             name = "negativeAckRedeliveryBackoff",
             value = "Interface for custom message is negativeAcked policy. You can specify `RedeliveryBackoff` for a"
-                    + "consumer."
+                    + " consumer."
     )
     @JsonIgnore
     private RedeliveryBackoff negativeAckRedeliveryBackoff;
@@ -235,7 +238,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "autoAckOldestChunkedMessageOnQueueFull",
-            value = "Whether to automatically acknowledge pending chunked messages when the threashold of"
+            value = "Whether to automatically acknowledge pending chunked messages when the threshold of"
                     + " `maxPendingChunkedMessage` is reached. If set to `false`, these messages will be redelivered"
                     + " by their broker."
     )
@@ -310,7 +313,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
             name = "patternAutoDiscoveryPeriod",
             value = "Topic auto discovery period when using a pattern for topic's consumer.\n"
                     + "\n"
-                    + "The default and minimum value is 1 minute."
+                    + "The default value is 1 minute, with a minimum of 1 second."
     )
     private int patternAutoDiscoveryPeriod = 60;
 

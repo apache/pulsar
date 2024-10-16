@@ -43,10 +43,10 @@ import io.etcd.jetcd.watch.WatchEvent;
 import io.etcd.jetcd.watch.WatchResponse;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.grpc.netty.GrpcSslContexts;
+import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
+import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
+import io.grpc.netty.shaded.io.netty.handler.ssl.SslProvider;
 import io.grpc.stub.StreamObserver;
-import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslProvider;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -109,9 +109,9 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
         try {
             this.client = newEtcdClient(metadataURL, conf);
             this.kv = client.getKVClient();
-            this.client.getWatchClient().watch(ByteSequence.from("\0", StandardCharsets.UTF_8),
+            this.client.getWatchClient().watch(ByteSequence.from("/", StandardCharsets.UTF_8),
                     WatchOption.newBuilder()
-                            .withPrefix(ByteSequence.from("/", StandardCharsets.UTF_8))
+                            .isPrefix(true)
                             .build(), this::handleWatchResponse);
             if (enableSessionWatcher) {
                 this.sessionWatcher =
@@ -285,7 +285,7 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
                                 .withKeysOnly(true)
                                 .withSortField(GetOption.SortTarget.KEY)
                                 .withSortOrder(GetOption.SortOrder.ASCEND)
-                                .withPrefix(prefix)
+                                .isPrefix(true)
                                 .build()));
                         break;
                     }

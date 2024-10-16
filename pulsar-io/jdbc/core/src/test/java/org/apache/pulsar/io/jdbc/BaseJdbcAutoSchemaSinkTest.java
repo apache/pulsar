@@ -18,10 +18,24 @@
  */
 package org.apache.pulsar.io.jdbc;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import java.lang.reflect.Field;
+import java.sql.PreparedStatement;
+import java.util.Arrays;
+import java.util.List;
 import java.util.function.Function;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.util.Utf8;
+import org.apache.pulsar.client.api.schema.GenericObject;
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
+import org.apache.pulsar.client.impl.schema.generic.GenericJsonSchema;
+import org.apache.pulsar.functions.api.Record;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -141,6 +155,85 @@ public class BaseJdbcAutoSchemaSinkTest {
         final SchemaBuilder.FieldAssembler<Schema> record = SchemaBuilder.record("record")
                 .fields();
         return consumer.apply(record).endRecord().getFields().get(0).schema();
+    }
+
+    @Test(expectedExceptions = UnsupportedOperationException.class,
+            expectedExceptionsMessageRegExp = "Primitive schema is not supported.*")
+    @SuppressWarnings("unchecked")
+    public void testNotSupportPrimitiveSchema() {
+        BaseJdbcAutoSchemaSink baseJdbcAutoSchemaSink = new BaseJdbcAutoSchemaSink() {};
+        AutoConsumeSchema autoConsumeSchema = new AutoConsumeSchema();
+        autoConsumeSchema.setSchema(org.apache.pulsar.client.api.Schema.STRING);
+        Record<? extends GenericObject> record = new Record<GenericRecord>() {
+            @Override
+            public org.apache.pulsar.client.api.Schema<GenericRecord> getSchema() {
+                return autoConsumeSchema;
+            }
+
+            @Override
+            public GenericRecord getValue() {
+                return null;
+            }
+        };
+        baseJdbcAutoSchemaSink.createMutation((Record<GenericObject>) record);
+    }
+
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testSubFieldJsonArray() throws Exception {
+        BaseJdbcAutoSchemaSink baseJdbcAutoSchemaSink = new BaseJdbcAutoSchemaSink() {};
+
+        Field field = JdbcAbstractSink.class.getDeclaredField("jdbcSinkConfig");
+        field.setAccessible(true);
+        JdbcSinkConfig jdbcSinkConfig = new JdbcSinkConfig();
+        jdbcSinkConfig.setNullValueAction(JdbcSinkConfig.NullValueAction.FAIL);
+        field.set(baseJdbcAutoSchemaSink, jdbcSinkConfig);
+
+        TStates tStates = new TStates("tstats", Arrays.asList(
+                new PC("brand1", "model1"),
+                new PC("brand2", "model2")
+        ));
+        org.apache.pulsar.client.api.Schema<TStates> jsonSchema = org.apache.pulsar.client.api.Schema.JSON(TStates.class);
+        GenericJsonSchema genericJsonSchema = new GenericJsonSchema(jsonSchema.getSchemaInfo());
+        byte[] encode = jsonSchema.encode(tStates);
+        GenericRecord genericRecord = genericJsonSchema.decode(encode);
+
+        AutoConsumeSchema autoConsumeSchema = new AutoConsumeSchema();
+        autoConsumeSchema.setSchema(org.apache.pulsar.client.api.Schema.JSON(TStates.class));
+        Record<? extends GenericObject> record = new Record<GenericRecord>() {
+            @Override
+            public org.apache.pulsar.client.api.Schema<GenericRecord> getSchema() {
+                return genericJsonSchema;
+            }
+
+            @Override
+            public GenericRecord getValue() {
+                return genericRecord;
+            }
+        };
+        JdbcAbstractSink.Mutation mutation = baseJdbcAutoSchemaSink.createMutation((Record<GenericObject>) record);
+        PreparedStatement mockPreparedStatement = mock(PreparedStatement.class);
+        baseJdbcAutoSchemaSink.setColumnValue(mockPreparedStatement, 0, mutation.getValues().apply("state"));
+        baseJdbcAutoSchemaSink.setColumnValue(mockPreparedStatement, 1, mutation.getValues().apply("pcList"));
+        verify(mockPreparedStatement).setString(0, "tstats");
+        verify(mockPreparedStatement).setString(1, "[{\"brand\":\"brand1\",\"model\":\"model1\"},{\"brand\":\"brand2\",\"model\":\"model2\"}]");
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    private static class TStates {
+        public String state;
+        public List<PC> pcList;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    private static class PC {
+        public String brand;
+        public String model;
     }
 
 

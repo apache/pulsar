@@ -28,6 +28,8 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenReadOnlyCursorCallback;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 
 /**
  * A factory to open/create managed ledgers and delete them.
@@ -90,7 +92,7 @@ public interface ManagedLedgerFactory {
      *            opaque context
      */
     void asyncOpen(String name, ManagedLedgerConfig config, OpenLedgerCallback callback,
-            Supplier<Boolean> mlOwnershipChecker, Object ctx);
+            Supplier<CompletableFuture<Boolean>> mlOwnershipChecker, Object ctx);
 
     /**
      * Open a {@link ReadOnlyCursor} positioned to the earliest entry for the specified managed ledger.
@@ -233,4 +235,14 @@ public interface ManagedLedgerFactory {
      * @return properties of this managedLedger.
      */
     CompletableFuture<Map<String, String>> getManagedLedgerPropertiesAsync(String name);
+
+    Map<String, ManagedLedger> getManagedLedgers();
+
+    ManagedLedgerFactoryMXBean getCacheStats();
+
+
+    void estimateUnloadedTopicBacklog(PersistentOfflineTopicStats offlineTopicStats, TopicName topicName,
+                                      boolean accurate, Object ctx) throws Exception;
+
+    ManagedLedgerFactoryConfig getConfig();
 }

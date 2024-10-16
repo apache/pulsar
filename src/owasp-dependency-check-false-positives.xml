@@ -183,6 +183,16 @@
   </suppress>
 
   <suppress>
+    <notes>It treat pulsar-io-kafka-connect-adaptor as a lib of Kafka, CVE-2021-25194 is a false positive.</notes>
+    <cve>CVE-2023-25194</cve>
+  </suppress>
+
+  <suppress>
+    <notes>It treat pulsar-io-kafka-connect-adaptor as a lib of Kafka, CVE-2021-34917 is a false positive.</notes>
+    <cve>CVE-2022-34917</cve>
+  </suppress>
+
+  <suppress>
     <notes>yaml_project is not used at all. Any CVEs reported for yaml_project are false positives.</notes>
     <cpe>cpe:/a:yaml_project:yaml</cpe>
   </suppress>
@@ -190,5 +200,13 @@
   <suppress>
     <notes>flat_project is not used at all.</notes>
     <cpe>cpe:/a:flat_project:flat</cpe>
+  </suppress>
+
+  <suppress>
+    <notes><![CDATA[
+   CVE-2023-36479 has been addressed in jetty-servlets-9.4.53.v20231009.jar and newer
+   ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.eclipse\.jetty/jetty\-servlets@.*$</packageUrl>
+    <cve>CVE-2023-36479</cve>
   </suppress>
 </suppressions>
