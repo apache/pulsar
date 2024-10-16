@@ -99,7 +99,7 @@ public class OverloadShedder implements LoadSheddingStrategy {
                     localData.printResourceUsage());
 
             MutableDouble trafficMarkedToOffload = new MutableDouble(0);
-            MutableBoolean atLeastOneBundleSelected = new MutableBoolean(false);
+            MutableBoolean atLeastOneBundleSelected = new MutableBoolean(conf.isAtLeastOneBundleSelected());
 
             if (localData.getBundles().size() > 1) {
                 // Sort bundles by throughput, then pick the biggest N which combined
@@ -124,10 +124,10 @@ public class OverloadShedder implements LoadSheddingStrategy {
                     return Double.compare(e2.getRight(), e1.getRight());
                 }).forEach(e -> {
                     if (trafficMarkedToOffload.doubleValue() < minimumThroughputToOffload
-                            || atLeastOneBundleSelected.isFalse()) {
+                            || atLeastOneBundleSelected.isTrue()) {
                        selectedBundlesCache.put(broker, e.getLeft());
                        trafficMarkedToOffload.add(e.getRight());
-                       atLeastOneBundleSelected.setTrue();
+                       atLeastOneBundleSelected.setFalse();
                    }
                 });
             } else if (localData.getBundles().size() == 1) {
