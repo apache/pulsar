@@ -89,8 +89,10 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
             // Some part of entries in active Ledger may have reached TTL, so we need to continue searching.
             cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchActiveEntries, entry -> {
                 try {
-                    long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
-                    return MessageImpl.isEntryExpired(messageTTLInSeconds, entryTimestamp);
+                    // When the time of the delayed message is greater than the time specified by TTL, we should
+                    // give up checking the TTL of the current delayed message, because the time of the delayed
+                    // message has not yet arrived, we cannot delete these messages.
+                    return MessageImpl.isEntryExpired(messageTTLInSeconds, entry.getDataBuffer());
                 } catch (Exception e) {
                     log.error("[{}][{}] Error deserializing message for expiry check", topicName, subName, e);
                 } finally {
