@@ -342,6 +342,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @VisibleForTesting
     Map<String, byte[]> createdLedgerCustomMetadata;
 
+    private long lastEvictOffloadedLedgers;
+    private boolean evictOffloadedLedgersInProgress;
+    private static final int MINIMUM_EVICTION_INTERVAL_DIVIDER = 10;
+
     public ManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
             ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
             final String name) {
@@ -2624,38 +2628,56 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @VisibleForTesting
-    List<Long> internalEvictOffloadedLedgers() {
+    synchronized List<Long> internalEvictOffloadedLedgers() {
         int inactiveOffloadedLedgerEvictionTimeMs = config.getInactiveOffloadedLedgerEvictionTimeMs();
         if (inactiveOffloadedLedgerEvictionTimeMs <= 0) {
             return Collections.emptyList();
         }
-        List<Long> ledgersToRelease = new ArrayList<>();
+
+        // allow only one eviction run at a time
+        if (evictOffloadedLedgersInProgress) {
+            return Collections.emptyList();
+        }
 
         long now = clock.millis();
-
-        ledgerCache.forEach((ledgerId, ledger) -> {
-            if (ledger.isDone() && !ledger.isCompletedExceptionally()) {
-                ReadHandle readHandle = ledger.join();
-                if (readHandle instanceof OffloadedLedgerHandle) {
-                   long lastAccessTimestamp = ((OffloadedLedgerHandle) readHandle).lastAccessTimestamp();
-                   if (lastAccessTimestamp >= 0) {
-                       long delta = now - lastAccessTimestamp;
-                       if (delta >= inactiveOffloadedLedgerEvictionTimeMs) {
-                           log.info("[{}] Offloaded ledger {} can be released ({} ms elapsed since last access)",
-                                       name, ledgerId, delta);
-                           ledgersToRelease.add(ledgerId);
-                       } else if (log.isDebugEnabled()) {
-                           log.debug("[{}] Offloaded ledger {} cannot be released ({} ms elapsed since last access)",
-                                   name, ledgerId, delta);
-                       }
-                   }
-                }
-            }
-        });
-        for (Long ledgerId : ledgersToRelease) {
-           invalidateReadHandle(ledgerId);
+        int minimumEvictionIntervalMs = inactiveOffloadedLedgerEvictionTimeMs / MINIMUM_EVICTION_INTERVAL_DIVIDER;
+        if (now - lastEvictOffloadedLedgers < minimumEvictionIntervalMs) {
+            // skip eviction if we have done it recently
+            return Collections.emptyList();
         }
-        return ledgersToRelease;
+
+        try {
+            evictOffloadedLedgersInProgress = true;
+            List<Long> ledgersToRelease = new ArrayList<>();
+
+            ledgerCache.forEach((ledgerId, ledger) -> {
+                if (ledger.isDone() && !ledger.isCompletedExceptionally()) {
+                    ReadHandle readHandle = ledger.join();
+                    if (readHandle instanceof OffloadedLedgerHandle) {
+                        long lastAccessTimestamp = ((OffloadedLedgerHandle) readHandle).lastAccessTimestamp();
+                        if (lastAccessTimestamp >= 0) {
+                            long delta = now - lastAccessTimestamp;
+                            if (delta >= inactiveOffloadedLedgerEvictionTimeMs) {
+                                log.info("[{}] Offloaded ledger {} can be released ({} ms elapsed since last access)",
+                                        name, ledgerId, delta);
+                                ledgersToRelease.add(ledgerId);
+                            } else if (log.isDebugEnabled()) {
+                                log.debug(
+                                        "[{}] Offloaded ledger {} cannot be released ({} ms elapsed since last access)",
+                                        name, ledgerId, delta);
+                            }
+                        }
+                    }
+                }
+            });
+            for (Long ledgerId : ledgersToRelease) {
+                invalidateReadHandle(ledgerId);
+            }
+            return ledgersToRelease;
+        } finally {
+            lastEvictOffloadedLedgers = now;
+            evictOffloadedLedgersInProgress = false;
+        }
     }
 
     void internalTrimLedgers(boolean isTruncate, CompletableFuture<?> promise) {
