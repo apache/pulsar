@@ -244,6 +244,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private final ExecutorProvider brokerClientSharedExternalExecutorProvider;
     private final ScheduledExecutorProvider brokerClientSharedScheduledExecutorProvider;
     private final Timer brokerClientSharedTimer;
+    private final ExecutorProvider brokerClientSharedLookupExecutorProvider;
 
     private MetricsGenerator metricsGenerator;
 
@@ -353,6 +354,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 new ScheduledExecutorProvider(1, "broker-client-shared-scheduled-executor");
         this.brokerClientSharedTimer =
                 new HashedWheelTimer(new DefaultThreadFactory("broker-client-shared-timer"), 1, TimeUnit.MILLISECONDS);
+        this.brokerClientSharedLookupExecutorProvider =
+                new ScheduledExecutorProvider(1, "broker-client-shared-lookup-executor");
 
         // here in the constructor we don't have the offloader scheduler yet
         this.offloaderStats = LedgerOffloaderStats.create(false, false, null, 0);
@@ -593,6 +596,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             brokerClientSharedExternalExecutorProvider.shutdownNow();
             brokerClientSharedInternalExecutorProvider.shutdownNow();
             brokerClientSharedScheduledExecutorProvider.shutdownNow();
+            brokerClientSharedLookupExecutorProvider.shutdownNow();
             brokerClientSharedTimer.stop();
 
             asyncCloseFutures.add(EventLoopUtil.shutdownGracefully(ioEventLoopGroup));
@@ -1587,6 +1591,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 .internalExecutorProvider(brokerClientSharedInternalExecutorProvider)
                 .externalExecutorProvider(brokerClientSharedExternalExecutorProvider)
                 .scheduledExecutorProvider(brokerClientSharedScheduledExecutorProvider)
+                .lookupExecutorProvider(brokerClientSharedLookupExecutorProvider)
                 .build();
     }
 
