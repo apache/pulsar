@@ -713,8 +713,8 @@ public class ManagedLedgerConfig {
         return inactiveOffloadedLedgerEvictionTimeMs;
     }
 
-    public void setInactiveOffloadedLedgerEvictionTimeMs(int inactiveOffloadedLedgerEvictionTimeMs, TimeUnit unit) {
-        this.inactiveOffloadedLedgerEvictionTimeMs = (int) unit.toMillis(inactiveOffloadedLedgerEvictionTimeMs);
+    public void setInactiveOffloadedLedgerEvictionTime(int inactiveOffloadedLedgerEvictionTime, TimeUnit unit) {
+        this.inactiveOffloadedLedgerEvictionTimeMs = (int) unit.toMillis(inactiveOffloadedLedgerEvictionTime);
     }
 
     /**
