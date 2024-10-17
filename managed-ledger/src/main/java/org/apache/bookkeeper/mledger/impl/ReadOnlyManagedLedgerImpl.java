@@ -30,6 +30,8 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetadataNotFoundException;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
@@ -41,12 +43,12 @@ import org.apache.pulsar.metadata.api.Stat;
 public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
 
     public ReadOnlyManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
-            ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
-            String name) {
+                                     ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
+                                     String name) {
         super(factory, bookKeeper, store, config, scheduledExecutor, name);
     }
 
-    CompletableFuture<Void> initialize() {
+    public CompletableFuture<Void> initialize() {
         CompletableFuture<Void> future = new CompletableFuture<>();
 
         // Fetch the list of existing ledgers in the managed ledger
@@ -126,20 +128,21 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
         return future;
     }
 
-    ReadOnlyCursor createReadOnlyCursor(PositionImpl startPosition) {
+    public ReadOnlyCursor createReadOnlyCursor(Position startPosition) {
         if (ledgers.isEmpty()) {
-            lastConfirmedEntry = PositionImpl.EARLIEST;
+            lastConfirmedEntry = PositionFactory.EARLIEST;
         } else if (ledgers.lastEntry().getValue().getEntries() > 0) {
             // Last ledger has some of the entries
-            lastConfirmedEntry = new PositionImpl(ledgers.lastKey(), ledgers.lastEntry().getValue().getEntries() - 1);
+            lastConfirmedEntry =
+                    PositionFactory.create(ledgers.lastKey(), ledgers.lastEntry().getValue().getEntries() - 1);
         } else {
             // Last ledger is empty. If there is a previous ledger, position on the last entry of that ledger
             if (ledgers.size() > 1) {
                 long lastLedgerId = ledgers.lastKey();
                 LedgerInfo li = ledgers.headMap(lastLedgerId, false).lastEntry().getValue();
-                lastConfirmedEntry = new PositionImpl(li.getLedgerId(), li.getEntries() - 1);
+                lastConfirmedEntry = PositionFactory.create(li.getLedgerId(), li.getEntries() - 1);
             } else {
-                lastConfirmedEntry = PositionImpl.EARLIEST;
+                lastConfirmedEntry = PositionFactory.EARLIEST;
             }
         }
 
@@ -147,7 +150,7 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
     }
 
     @Override
-    public void asyncReadEntry(PositionImpl position, AsyncCallbacks.ReadEntryCallback callback, Object ctx) {
+    public void asyncReadEntry(Position position, AsyncCallbacks.ReadEntryCallback callback, Object ctx) {
             this.getLedgerHandle(position.getLedgerId())
                     .thenAccept((ledger) -> asyncReadEntry(ledger, position, callback, ctx))
                     .exceptionally((ex) -> {
@@ -160,7 +163,7 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
 
     @Override
     public long getNumberOfEntries() {
-        return getNumberOfEntries(Range.openClosed(PositionImpl.EARLIEST, getLastPosition()));
+        return getNumberOfEntries(Range.openClosed(PositionFactory.EARLIEST, getLastPosition()));
     }
 
     @Override

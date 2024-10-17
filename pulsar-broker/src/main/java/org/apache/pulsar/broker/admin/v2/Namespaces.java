@@ -50,6 +50,8 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.pulsar.broker.admin.impl.NamespacesBase;
 import org.apache.pulsar.broker.admin.impl.OffloaderObjectsScannerUtils;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.GrantTopicPermissionOptions;
+import org.apache.pulsar.client.admin.RevokeTopicPermissionOptions;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -309,6 +311,48 @@ public class Namespaces extends NamespacesBase {
                 .exceptionally(ex -> {
                     log.error("[{}] Failed to set permissions for namespace {}: {}",
                             clientAppId(), namespaceName, ex.getCause().getMessage(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @POST
+    @Path("/grantPermissionsOnTopics")
+    @ApiOperation(value = "Grant new permissions to a role on multi-topics.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
+            @ApiResponse(code = 500, message = "Internal server error") })
+    public void grantPermissionsOnTopics(@Suspended final AsyncResponse asyncResponse,
+                                 List<GrantTopicPermissionOptions> options) {
+        internalGrantPermissionOnTopicsAsync(options)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to grant permissions {}",
+                            clientAppId(), options, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @POST
+    @Path("/revokePermissionsOnTopics")
+    @ApiOperation(value = "Revoke new permissions to a role on multi-topics.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
+            @ApiResponse(code = 500, message = "Internal server error") })
+    public void revokePermissionsOnTopics(@Suspended final AsyncResponse asyncResponse,
+                                         List<RevokeTopicPermissionOptions> options) {
+        internalRevokePermissionOnTopicsAsync(options)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to revoke permissions {}",
+                            clientAppId(), options, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -3037,6 +3081,53 @@ public class Namespaces extends NamespacesBase {
                 .thenApply(asyncResponse::resume)
                 .exceptionally(ex -> {
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+
+    @POST
+    @Path("/{tenant}/{namespace}/allowedClusters")
+    @ApiOperation(value = "Set the allowed clusters for a namespace.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "The list of allowed clusters should include all replication clusters."),
+            @ApiResponse(code = 403, message = "The requester does not have admin permissions."),
+            @ApiResponse(code = 404, message = "The specified tenant, cluster, or namespace does not exist."),
+            @ApiResponse(code = 409, message = "A peer-cluster cannot be part of an allowed-cluster."),
+            @ApiResponse(code = 412, message = "The namespace is not global or the provided cluster IDs are invalid.")})
+    public void setNamespaceAllowedClusters(@Suspended AsyncResponse asyncResponse,
+                                                @PathParam("tenant") String tenant,
+                                                @PathParam("namespace") String namespace,
+                                                @ApiParam(value = "List of allowed clusters", required = true)
+                                                List<String> clusterIds) {
+        validateNamespaceName(tenant, namespace);
+        internalSetNamespaceAllowedClusters(clusterIds)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(e -> {
+                    log.error("[{}] Failed to set namespace allowed clusters on namespace {}",
+                            clientAppId(), namespace, e);
+                    resumeAsyncResponseExceptionally(asyncResponse, e);
+                    return null;
+                });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/allowedClusters")
+    @ApiOperation(value = "Get the allowed clusters for a namespace.",
+            response = String.class, responseContainer = "List")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 412, message = "Namespace is not global")})
+    public void getNamespaceAllowedClusters(@Suspended AsyncResponse asyncResponse,
+                                                @PathParam("tenant") String tenant,
+                                                @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalGetNamespaceAllowedClustersAsync()
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(e -> {
+                    log.error("[{}] Failed to get namespace allowed clusters on namespace {}", clientAppId(),
+                            namespace, e);
+                    resumeAsyncResponseExceptionally(asyncResponse, e);
                     return null;
                 });
     }

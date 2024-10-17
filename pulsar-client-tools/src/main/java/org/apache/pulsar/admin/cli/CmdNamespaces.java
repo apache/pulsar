@@ -1379,6 +1379,11 @@ public class CmdNamespaces extends CmdBase {
                 description = "Throttling rate of mark-delete operation (0 means no throttle)")
         private double managedLedgerMaxMarkDeleteRate = 0;
 
+        @Option(names = { "-c",
+                "--ml-storage-class" },
+                description = "Managed ledger storage class name")
+        private String managedLedgerStorageClassName;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(namespaceName);
@@ -1390,7 +1395,8 @@ public class CmdNamespaces extends CmdBase {
                 throw new ParameterException("[--ml-mark-delete-max-rate] cannot less than 0.");
             }
             getAdmin().namespaces().setPersistence(namespace, new PersistencePolicies(bookkeeperEnsemble,
-                    bookkeeperWriteQuorum, bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate));
+                    bookkeeperWriteQuorum, bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate,
+                    managedLedgerStorageClassName));
         }
     }
 
@@ -2630,6 +2636,35 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Command(description = "Set allowed clusters for a namespace")
+    private class SetAllowedClusters extends CliCommand {
+        @Parameters(description = "tenant/namespace", arity = "1")
+        private String namespaceName;
+
+        @Option(names = { "--clusters",
+                "-c" }, description = "Replication Cluster Ids list (comma separated values)", required = true)
+        private String clusterIds;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(namespaceName);
+            List<String> clusters = Lists.newArrayList(clusterIds.split(","));
+            getAdmin().namespaces().setNamespaceAllowedClusters(namespace, Sets.newHashSet(clusters));
+        }
+    }
+
+    @Command(description = "Get allowed clusters for a namespace")
+    private class GetAllowedClusters extends CliCommand {
+        @Parameters(description = "tenant/namespace", arity = "1")
+        private String namespaceName;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(namespaceName);
+            print(getAdmin().namespaces().getNamespaceAllowedClusters(namespace));
+        }
+    }
+
     public CmdNamespaces(Supplier<PulsarAdmin> admin) {
         super("namespaces", admin);
         addCommand("list", new GetNamespacesPerProperty());
@@ -2656,6 +2691,9 @@ public class CmdNamespaces extends CmdBase {
         addCommand("set-subscription-types-enabled", new SetSubscriptionTypesEnabled());
         addCommand("get-subscription-types-enabled", new GetSubscriptionTypesEnabled());
         addCommand("remove-subscription-types-enabled", new RemoveSubscriptionTypesEnabled());
+
+        addCommand("set-allowed-clusters", new SetAllowedClusters());
+        addCommand("get-allowed-clusters", new GetAllowedClusters());
 
         addCommand("get-backlog-quotas", new GetBacklogQuotaMap());
         addCommand("set-backlog-quota", new SetBacklogQuota());

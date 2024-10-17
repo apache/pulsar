@@ -44,7 +44,6 @@ public class ElasticSearchConfigTests {
         assertNotNull(config);
         assertEquals(config.getElasticSearchUrl(), "http://localhost:90902");
         assertEquals(config.getIndexName(), "myIndex");
-        assertEquals(config.getTypeName(), "doc");
         assertEquals(config.getUsername(), "scooby");
         assertEquals(config.getPassword(), "doobie");
         assertEquals(config.getPrimaryFields(), "id,a");
@@ -64,7 +63,6 @@ public class ElasticSearchConfigTests {
         assertNotNull(config);
         assertEquals(config.getElasticSearchUrl(), "http://localhost:90902");
         assertEquals(config.getIndexName(), "myIndex");
-        assertEquals(config.getTypeName(), "doc");
         assertEquals(config.getUsername(), "racerX");
         assertEquals(config.getPassword(), "go-speedie-go");
         assertEquals(config.getPrimaryFields(), "x");
@@ -75,7 +73,6 @@ public class ElasticSearchConfigTests {
         Map<String, Object> requiredConfig = Map.of("elasticSearchUrl", "http://localhost:90902");
         ElasticSearchConfig config = ElasticSearchConfig.load(requiredConfig, mockContext);
         assertNull(config.getIndexName());
-        assertEquals(config.getTypeName(), "_doc");
         assertNull(config.getUsername());
         assertNull(config.getPassword());
         assertNull(config.getToken());
@@ -336,7 +333,6 @@ public class ElasticSearchConfigTests {
         assertNotNull(config);
         assertEquals(config.getElasticSearchUrl(), "http://localhost:90902");
         assertEquals(config.getIndexName(), "myIndex");
-        assertEquals(config.getTypeName(), "doc");
         assertEquals(config.getPrimaryFields(), "x");
         assertEquals(config.getUsername(), "secretUser");
         assertEquals(config.getPassword(), "$ecret123");

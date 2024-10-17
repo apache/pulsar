@@ -38,6 +38,8 @@ import org.apache.avro.reflect.Nullable;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -74,6 +76,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
 
     protected ProxyService proxyService;
     protected ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    protected Authentication proxyClientAuthentication;
 
     @Data
     @ToString
@@ -94,7 +97,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         initializeProxyConfig();
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
-                                                            PulsarConfigurationLoader.convertFrom(proxyConfig))));
+                                                            PulsarConfigurationLoader.convertFrom(proxyConfig)), proxyClientAuthentication));
         doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper))).when(proxyService).createLocalMetadataStore();
         doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(proxyService)
                 .createConfigurationMetadataStore();
@@ -102,12 +105,16 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         proxyService.start();
     }
 
-    protected void initializeProxyConfig() {
+    protected void initializeProxyConfig() throws Exception {
         proxyConfig.setServicePort(Optional.ofNullable(0));
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         proxyConfig.setClusterName(configClusterName);
+
+        proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
     }
 
     @Override
@@ -116,6 +123,9 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         internalCleanup();
 
         proxyService.close();
+        if (proxyClientAuthentication != null) {
+            proxyClientAuthentication.close();
+        }
     }
 
     @Test
@@ -382,7 +392,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
                     throw new UnsupportedOperationException();
                 }
             };
-        });
+        }, null);
         registerCloseable(cnxPool);
 
         return new PulsarClientImpl(conf, eventLoopGroup, cnxPool);

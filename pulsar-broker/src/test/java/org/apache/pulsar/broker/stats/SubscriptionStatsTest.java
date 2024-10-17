@@ -38,12 +38,10 @@ import org.apache.pulsar.broker.service.EntryFilterSupport;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.service.plugin.EntryFilterTest;
 import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
@@ -81,48 +79,6 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-    }
-
-    @Test
-    public void testConsumersAfterMarkDelete() throws PulsarClientException, PulsarAdminException {
-        final String topicName = "persistent://my-property/my-ns/testConsumersAfterMarkDelete-"
-                + UUID.randomUUID();
-        final String subName = "my-sub";
-
-        Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
-                .topic(topicName)
-                .receiverQueueSize(10)
-                .subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Key_Shared)
-                .subscribe();
-
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topicName)
-                .create();
-
-        final int messages = 100;
-        for (int i = 0; i < messages; i++) {
-            producer.send(String.valueOf(i).getBytes());
-        }
-
-        // Receive by do not ack the message, so that the next consumer can added to the recentJoinedConsumer of the dispatcher.
-        consumer1.receive();
-
-        Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
-                .topic(topicName)
-                .receiverQueueSize(10)
-                .subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Key_Shared)
-                .subscribe();
-
-        TopicStats stats = admin.topics().getStats(topicName);
-        Assert.assertEquals(stats.getSubscriptions().size(), 1);
-        Assert.assertEquals(stats.getSubscriptions().entrySet().iterator().next().getValue()
-                .getConsumersAfterMarkDeletePosition().size(), 1);
-
-        consumer1.close();
-        consumer2.close();
-        producer.close();
     }
 
     @Test
@@ -208,7 +164,7 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
             NarClassLoader narClassLoader = mock(NarClassLoader.class);
             EntryFilter filter1 = new EntryFilterTest();
             EntryFilterWithClassLoader loader1 =
-                    spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader);
+                    spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader, false);
             field.set(dispatcher, List.of(loader1));
             hasFilterField.set(dispatcher, true);
         }

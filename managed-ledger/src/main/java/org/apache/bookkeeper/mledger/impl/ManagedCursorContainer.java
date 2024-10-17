@@ -54,7 +54,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
     @Value
     public static class CursorInfo {
         ManagedCursor cursor;
-        PositionImpl position;
+        Position position;
 
         /**
          * Cursor info's version.
@@ -67,10 +67,10 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
 
     private static class Item {
         final ManagedCursor cursor;
-        PositionImpl position;
+        Position position;
         int idx;
 
-        Item(ManagedCursor cursor, PositionImpl position, int idx) {
+        Item(ManagedCursor cursor, Position position, int idx) {
             this.cursor = cursor;
             this.position = position;
             this.idx = idx;
@@ -160,7 +160,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
     public void add(ManagedCursor cursor, Position position) {
         long stamp = rwLock.writeLock();
         try {
-            Item item = new Item(cursor, (PositionImpl) position, position != null ? heap.size() : -1);
+            Item item = new Item(cursor, position, position != null ? heap.size() : -1);
             cursors.put(cursor.getName(), item);
             if (position != null) {
                 heap.add(item);
@@ -229,7 +229,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
      * @return a pair of positions, representing the previous slowest reader and the new slowest reader (after the
      *         update).
      */
-    public Pair<PositionImpl, PositionImpl> cursorUpdated(ManagedCursor cursor, Position newPosition) {
+    public Pair<Position, Position> cursorUpdated(ManagedCursor cursor, Position newPosition) {
         requireNonNull(cursor);
 
         long stamp = rwLock.writeLock();
@@ -239,8 +239,8 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
                 return null;
             }
 
-            PositionImpl previousSlowestConsumer = heap.get(0).position;
-            item.position = (PositionImpl) newPosition;
+            Position previousSlowestConsumer = heap.get(0).position;
+            item.position = newPosition;
             version = DataVersion.getNextVersion(version);
 
             if (heap.size() == 1) {
@@ -254,7 +254,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
             } else {
                 siftUp(item);
             }
-            PositionImpl newSlowestConsumer = heap.get(0).position;
+            Position newSlowestConsumer = heap.get(0).position;
             return Pair.of(previousSlowestConsumer, newSlowestConsumer);
         } finally {
             rwLock.unlockWrite(stamp);
@@ -266,7 +266,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
      *
      * @return the slowest reader position
      */
-    public PositionImpl getSlowestReaderPosition() {
+    public Position getSlowestReaderPosition() {
         long stamp = rwLock.readLock();
         try {
             return heap.isEmpty() ? null : heap.get(0).position;

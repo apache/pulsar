@@ -29,8 +29,8 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ScanCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionBound;
 import org.apache.bookkeeper.mledger.ScanOutcome;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
 
 @Slf4j
 class OpScan implements ReadEntriesCallback {
@@ -44,11 +44,11 @@ class OpScan implements ReadEntriesCallback {
     private final long startTime = System.currentTimeMillis();
     private final int batchSize;
 
-    PositionImpl searchPosition;
+    Position searchPosition;
     Position lastSeenPosition = null;
 
     public OpScan(ManagedCursorImpl cursor, int batchSize,
-                  PositionImpl startPosition, Predicate<Entry> condition,
+                  Position startPosition, Predicate<Entry> condition,
                   ScanCallback callback, Object ctx, long maxEntries, long timeOutMs) {
         this.batchSize = batchSize;
         if (batchSize <= 0) {
@@ -88,13 +88,13 @@ class OpScan implements ReadEntriesCallback {
                     }
                 }
             }
-            searchPosition = ledger.getPositionAfterN((PositionImpl) lastPositionForBatch, 1,
+            searchPosition = ledger.getPositionAfterN(lastPositionForBatch, 1,
                     PositionBound.startExcluded);
             if (log.isDebugEnabled()) {
                 log.debug("readEntryComplete {} at {} next is {}", lastPositionForBatch, searchPosition);
             }
 
-            if (searchPosition.compareTo((PositionImpl) lastPositionForBatch) == 0) {
+            if (searchPosition.compareTo(lastPositionForBatch) == 0) {
                 // we have reached the end of the ledger, as we are not doing progress
                 callback.scanComplete(lastSeenPosition, ScanOutcome.COMPLETED, OpScan.this.ctx);
                 return;

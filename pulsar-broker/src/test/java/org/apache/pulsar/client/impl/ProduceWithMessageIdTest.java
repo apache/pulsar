@@ -18,14 +18,18 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.apache.pulsar.client.impl.AbstractBatchMessageContainer.INITIAL_BATCH_BUFFER_SIZE;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MockBrokerService;
+import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -38,13 +42,20 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
 @Slf4j
-public class ProduceWithMessageIdTest {
+public class ProduceWithMessageIdTest extends ProducerConsumerBase {
     MockBrokerService mockBrokerService;
 
     @BeforeClass(alwaysRun = true)
-    public void setup() {
+    public void setup() throws Exception {
         mockBrokerService = new MockBrokerService();
         mockBrokerService.start();
+        super.internalSetup();
+        super.producerBaseSetup();
+    }
+
+    @Override
+    protected void cleanup() throws Exception {
+        super.internalCleanup();
     }
 
     @AfterClass(alwaysRun = true)
@@ -86,7 +97,7 @@ public class ProduceWithMessageIdTest {
         AtomicBoolean result = new AtomicBoolean(false);
         producer.sendAsync(msg, new SendCallback() {
             @Override
-            public void sendComplete(Exception e) {
+            public void sendComplete(Throwable e, OpSendMsgStats opSendMsgStats) {
                 log.info("sendComplete", e);
                 result.set(e == null);
             }
@@ -114,5 +125,73 @@ public class ProduceWithMessageIdTest {
 
         // the result is true only if broker received right message id.
         Awaitility.await().untilTrue(result);
+    }
+
+    @Test
+    public void sendWithCallBack() throws Exception {
+
+        int batchSize = 10;
+
+        String topic = "persistent://public/default/testSendWithCallBack";
+        ProducerImpl<byte[]> producer =
+                (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topic)
+                        .enableBatching(true)
+                        .batchingMaxMessages(batchSize)
+                        .create();
+
+        CountDownLatch cdl = new CountDownLatch(1);
+        AtomicReference<OpSendMsgStats> sendMsgStats = new AtomicReference<>();
+        SendCallback sendComplete = new SendCallback() {
+            @Override
+            public void sendComplete(Throwable e, OpSendMsgStats opSendMsgStats) {
+                log.info("sendComplete", e);
+                if (e == null){
+                    cdl.countDown();
+                    sendMsgStats.set(opSendMsgStats);
+                }
+            }
+
+            @Override
+            public void addCallback(MessageImpl<?> msg, SendCallback scb) {
+
+            }
+
+            @Override
+            public SendCallback getNextSendCallback() {
+                return null;
+            }
+
+            @Override
+            public MessageImpl<?> getNextMessage() {
+                return null;
+            }
+
+            @Override
+            public CompletableFuture<MessageId> getFuture() {
+                return null;
+            }
+        };
+        int totalReadabled = 0;
+        int totalUncompressedSize = 0;
+        for (int i = 0; i < batchSize; i++) {
+            MessageMetadata metadata = new MessageMetadata();
+            ByteBuffer buffer = ByteBuffer.wrap("data".getBytes(StandardCharsets.UTF_8));
+            MessageImpl<byte[]> msg = MessageImpl.create(metadata, buffer, Schema.BYTES, topic);
+            msg.getDataBuffer().retain();
+            totalReadabled += msg.getDataBuffer().readableBytes();
+            totalUncompressedSize += msg.getUncompressedSize();
+            producer.sendAsync(msg, sendComplete);
+        }
+
+        cdl.await();
+        OpSendMsgStats opSendMsgStats = sendMsgStats.get();
+        Assert.assertEquals(opSendMsgStats.getUncompressedSize(), totalUncompressedSize + INITIAL_BATCH_BUFFER_SIZE);
+        Assert.assertEquals(opSendMsgStats.getSequenceId(), 0);
+        Assert.assertEquals(opSendMsgStats.getRetryCount(), 1);
+        Assert.assertEquals(opSendMsgStats.getBatchSizeByte(), totalReadabled);
+        Assert.assertEquals(opSendMsgStats.getNumMessagesInBatch(), batchSize);
+        Assert.assertEquals(opSendMsgStats.getHighestSequenceId(), batchSize-1);
+        Assert.assertEquals(opSendMsgStats.getTotalChunks(), 0);
+        Assert.assertEquals(opSendMsgStats.getChunkId(), -1);
     }
 }

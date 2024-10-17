@@ -18,6 +18,14 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertNotNull;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -25,32 +33,25 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertNotNull;
-
 /**
- * Unit tests of {@link TablewViewBuilderImpl}.
+ * Unit tests of {@link TableViewBuilderImpl}.
  */
 public class TableViewBuilderImplTest {
 
     private static final String TOPIC_NAME = "testTopicName";
     private PulsarClientImpl client;
     private TableViewBuilderImpl tableViewBuilderImpl;
+    private CompletableFuture readNextFuture;
 
     @BeforeClass(alwaysRun = true)
     public void setup() {
         Reader reader = mock(Reader.class);
-        when(reader.readNextAsync()).thenReturn(CompletableFuture.allOf());
+        readNextFuture = new CompletableFuture();
+        when(reader.readNextAsync()).thenReturn(readNextFuture);
         client = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         when(client.getCnxPool()).thenReturn(connectionPool);
@@ -59,6 +60,14 @@ public class TableViewBuilderImplTest {
         when(client.createReaderAsync(any(ReaderConfigurationData.class), any(Schema.class)))
             .thenReturn(CompletableFuture.completedFuture(reader));
         tableViewBuilderImpl = new TableViewBuilderImpl(client, Schema.BYTES);
+    }
+
+    @AfterClass(alwaysRun = true)
+    public void cleanup() {
+        if (readNextFuture != null) {
+            readNextFuture.completeExceptionally(new PulsarClientException.AlreadyClosedException("Closing test case"));
+            readNextFuture = null;
+        }
     }
 
     @Test

@@ -251,7 +251,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         response = mock(AsyncResponse.class);
         persistentTopics.getSubscriptions(response, testTenant, testNamespace, testLocalTopicName + "-partition-0",
                 true);
-        verify(response, timeout(5000).times(1)).resume(List.of("test"));
+        verify(response, timeout(5000).times(1)).resume(Set.of("test"));
 
         // 6) Delete the subscription
         response = mock(AsyncResponse.class);
@@ -265,7 +265,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         response = mock(AsyncResponse.class);
         persistentTopics.getSubscriptions(response, testTenant, testNamespace, testLocalTopicName + "-partition-0",
                 true);
-        verify(response, timeout(5000).times(1)).resume(new ArrayList<>());
+        verify(response, timeout(5000).times(1)).resume(Set.of());
 
         // 8) Create a sub of partitioned-topic
         response = mock(AsyncResponse.class);
@@ -279,16 +279,16 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         response = mock(AsyncResponse.class);
         persistentTopics.getSubscriptions(response, testTenant, testNamespace, testLocalTopicName + "-partition-1",
                 true);
-        verify(response, timeout(5000).times(1)).resume(List.of("test"));
+        verify(response, timeout(5000).times(1)).resume(Set.of("test"));
         //
         response = mock(AsyncResponse.class);
         persistentTopics.getSubscriptions(response, testTenant, testNamespace, testLocalTopicName + "-partition-0",
                 true);
-        verify(response, timeout(5000).times(1)).resume(new ArrayList<>());
+        verify(response, timeout(5000).times(1)).resume(Set.of());
         //
         response = mock(AsyncResponse.class);
         persistentTopics.getSubscriptions(response, testTenant, testNamespace, testLocalTopicName, true);
-        verify(response, timeout(5000).times(1)).resume(List.of("test"));
+        verify(response, timeout(5000).times(1)).resume(Set.of("test"));
 
         // 9) Delete the partitioned topic
         response = mock(AsyncResponse.class);
@@ -708,7 +708,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         // partitioned topic to more than 10.
         final String nonPartitionTopicName2 = "special-topic-partition-10";
         final String partitionedTopicName = "special-topic";
-        pulsar.getBrokerService().getManagedLedgerFactory()
+        pulsar.getDefaultManagedLedgerFactory()
                 .open(TopicName.get(nonPartitionTopicName2).getPersistenceNamingEncoding());
         doAnswer(invocation -> {
             persistentTopics.namespaceName = NamespaceName.get("tenant", "namespace");

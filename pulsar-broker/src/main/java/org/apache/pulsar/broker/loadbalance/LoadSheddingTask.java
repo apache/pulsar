@@ -22,6 +22,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,17 +42,25 @@ public class LoadSheddingTask implements Runnable {
 
     private volatile ScheduledFuture<?> future;
 
+    private final ManagedLedgerFactory factory;
+
     public LoadSheddingTask(AtomicReference<LoadManager> loadManager,
                             ScheduledExecutorService loadManagerExecutor,
-                            ServiceConfiguration config) {
+                            ServiceConfiguration config,
+                            ManagedLedgerFactory factory) {
         this.loadManager = loadManager;
         this.loadManagerExecutor = loadManagerExecutor;
         this.config = config;
+        this.factory = factory;
     }
 
     @Override
     public void run() {
         if (isCancel) {
+            return;
+        }
+        if (factory instanceof ManagedLedgerFactoryImpl
+                && !((ManagedLedgerFactoryImpl) factory).isMetadataServiceAvailable()) {
             return;
         }
         try {

@@ -32,7 +32,7 @@ import org.apache.bookkeeper.mledger.ManagedCursorMXBean;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 
 public class MockManagedCursor implements ManagedCursor {
 
@@ -103,13 +103,13 @@ public class MockManagedCursor implements ManagedCursor {
 
     @Override
     public void asyncReadEntries(int numberOfEntriesToRead, AsyncCallbacks.ReadEntriesCallback callback, Object ctx,
-                                 PositionImpl maxPosition) {
+                                 Position maxPosition) {
 
     }
 
     @Override
     public void asyncReadEntries(int numberOfEntriesToRead, long maxSizeBytes,
-                                 AsyncCallbacks.ReadEntriesCallback callback, Object ctx, PositionImpl maxPosition) {
+                                 AsyncCallbacks.ReadEntriesCallback callback, Object ctx, Position maxPosition) {
 
     }
 
@@ -139,13 +139,13 @@ public class MockManagedCursor implements ManagedCursor {
 
     @Override
     public void asyncReadEntriesOrWait(int numberOfEntriesToRead, AsyncCallbacks.ReadEntriesCallback callback,
-                                       Object ctx, PositionImpl maxPosition) {
+                                       Object ctx, Position maxPosition) {
 
     }
 
     @Override
     public void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, AsyncCallbacks.ReadEntriesCallback callback,
-                                       Object ctx, PositionImpl maxPosition) {
+                                       Object ctx, Position maxPosition) {
 
     }
 
@@ -395,7 +395,7 @@ public class MockManagedCursor implements ManagedCursor {
     }
 
     @Override
-    public Range<PositionImpl> getLastIndividualDeletedRange() {
+    public Range<Position> getLastIndividualDeletedRange() {
         return null;
     }
 
@@ -405,7 +405,7 @@ public class MockManagedCursor implements ManagedCursor {
     }
 
     @Override
-    public long[] getDeletedBatchIndexesAsLongArray(PositionImpl position) {
+    public long[] getDeletedBatchIndexesAsLongArray(Position position) {
         return new long[0];
     }
 
@@ -422,5 +422,35 @@ public class MockManagedCursor implements ManagedCursor {
     @Override
     public boolean isClosed() {
         return false;
+    }
+
+    @Override
+    public ManagedLedgerInternalStats.CursorStats getCursorStats() {
+        return null;
+    }
+
+    @Override
+    public boolean isMessageDeleted(Position position) {
+        return false;
+    }
+
+    @Override
+    public ManagedCursor duplicateNonDurableCursor(String nonDurableCursorName) throws ManagedLedgerException {
+        return null;
+    }
+
+    @Override
+    public long[] getBatchPositionAckSet(Position position) {
+        return new long[0];
+    }
+
+    @Override
+    public int applyMaxSizeCap(int maxEntries, long maxSizeBytes) {
+        return 0;
+    }
+
+    @Override
+    public void updateReadStats(int readEntriesCount, long readEntriesSize) {
+
     }
 }

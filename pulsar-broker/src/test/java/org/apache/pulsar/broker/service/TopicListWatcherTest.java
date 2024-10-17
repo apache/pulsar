@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import com.google.re2j.Pattern;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.metadata.api.NotificationType;
 import static org.mockito.Mockito.mock;
@@ -29,7 +30,6 @@ import org.testng.annotations.Test;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.regex.Pattern;
 
 public class TopicListWatcherTest {
 

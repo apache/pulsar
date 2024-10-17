@@ -19,6 +19,7 @@
 package org.apache.pulsar.testclient;
 
 import com.google.common.util.concurrent.RateLimiter;
+import com.google.re2j.Pattern;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -269,11 +270,14 @@ public class LoadSimulationClient extends CmdBase{
             tradeConf.size = inputStream.readInt();
             tradeConf.rate = inputStream.readDouble();
             // See if a topic belongs to this tenant and group using this regex.
-            final String groupRegex = ".*://" + tradeConf.tenant + "/.*/" + tradeConf.group + "-.*/.*";
+            final Pattern groupRegex =
+                    Pattern.compile(".*://" + tradeConf.tenant + "/.*/" + tradeConf.group + "-.*/.*");
+
             for (Map.Entry<String, TradeUnit> entry : topicsToTradeUnits.entrySet()) {
                 final String topic = entry.getKey();
                 final TradeUnit unit = entry.getValue();
-                if (topic.matches(groupRegex)) {
+
+                if (groupRegex.matcher(topic).matches()) {
                     unit.change(tradeConf);
                 }
             }
@@ -282,11 +286,11 @@ public class LoadSimulationClient extends CmdBase{
             // Stop all topics belonging to a group.
             decodeGroupOptions(tradeConf, inputStream);
             // See if a topic belongs to this tenant and group using this regex.
-            final String regex = ".*://" + tradeConf.tenant + "/.*/" + tradeConf.group + "-.*/.*";
+            final Pattern regex = Pattern.compile(".*://" + tradeConf.tenant + "/.*/" + tradeConf.group + "-.*/.*");
             for (Map.Entry<String, TradeUnit> entry : topicsToTradeUnits.entrySet()) {
                 final String topic = entry.getKey();
                 final TradeUnit unit = entry.getValue();
-                if (topic.matches(regex)) {
+                if (regex.matcher(topic).matches()) {
                     unit.stop.set(true);
                 }
             }

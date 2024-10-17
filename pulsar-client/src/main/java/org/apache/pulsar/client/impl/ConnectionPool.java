@@ -47,6 +47,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -67,7 +68,7 @@ import org.slf4j.LoggerFactory;
 
 public class ConnectionPool implements AutoCloseable {
 
-    public static final int IDLE_DETECTION_INTERVAL_SECONDS_MIN = 60;
+    public static final int IDLE_DETECTION_INTERVAL_SECONDS_MIN = 15;
 
     protected final ConcurrentMap<Key, CompletableFuture<ClientCnx>> pool;
 
@@ -103,20 +104,25 @@ public class ConnectionPool implements AutoCloseable {
     }
 
     public ConnectionPool(InstrumentProvider instrumentProvider,
-                          ClientConfigurationData conf, EventLoopGroup eventLoopGroup) throws PulsarClientException {
-        this(instrumentProvider, conf, eventLoopGroup, () -> new ClientCnx(instrumentProvider, conf, eventLoopGroup));
-    }
-
-    public ConnectionPool(InstrumentProvider instrumentProvider,
                           ClientConfigurationData conf, EventLoopGroup eventLoopGroup,
-                          Supplier<ClientCnx> clientCnxSupplier) throws PulsarClientException {
-        this(instrumentProvider, conf, eventLoopGroup, clientCnxSupplier, Optional.empty());
+                          ScheduledExecutorService scheduledExecutorService) throws PulsarClientException {
+        this(instrumentProvider, conf, eventLoopGroup, () -> new ClientCnx(instrumentProvider, conf, eventLoopGroup),
+                scheduledExecutorService);
     }
 
     public ConnectionPool(InstrumentProvider instrumentProvider,
                           ClientConfigurationData conf, EventLoopGroup eventLoopGroup,
                           Supplier<ClientCnx> clientCnxSupplier,
-                          Optional<AddressResolver<InetSocketAddress>> addressResolver)
+                          ScheduledExecutorService scheduledExecutorService) throws PulsarClientException {
+        this(instrumentProvider, conf, eventLoopGroup, clientCnxSupplier, Optional.empty(),
+                scheduledExecutorService);
+    }
+
+    public ConnectionPool(InstrumentProvider instrumentProvider,
+                          ClientConfigurationData conf, EventLoopGroup eventLoopGroup,
+                          Supplier<ClientCnx> clientCnxSupplier,
+                          Optional<AddressResolver<InetSocketAddress>> addressResolver,
+                          ScheduledExecutorService scheduledExecutorService)
             throws PulsarClientException {
         this.eventLoopGroup = eventLoopGroup;
         this.clientConfig = conf;
@@ -134,7 +140,8 @@ public class ConnectionPool implements AutoCloseable {
         bootstrap.option(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
 
         try {
-            channelInitializerHandler = new PulsarChannelInitializer(conf, clientCnxSupplier);
+            channelInitializerHandler = new PulsarChannelInitializer(conf, clientCnxSupplier,
+                    scheduledExecutorService);
             bootstrap.handler(channelInitializerHandler);
         } catch (Exception e) {
             log.error("Failed to create channel initializer");
