@@ -42,6 +42,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@Test(groups = "flaky")
 public class SameAuthParamsLookupAutoClusterFailoverTest extends OneWayReplicatorTestBase {
 
     public void setup() throws Exception {
