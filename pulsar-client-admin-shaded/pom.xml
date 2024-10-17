@@ -120,7 +120,6 @@
                   <include>org.reactivestreams:reactive-streams</include>
                   <include>com.typesafe.netty:netty-reactive-streams</include>
                   <include>org.javassist:javassist</include>
-                  <include>com.google.protobuf:protobuf-java</include>
                   <include>com.google.guava:guava</include>
                   <include>com.google.code.gson:gson</include>
                   <include>com.spotify:completable-futures</include>
@@ -153,6 +152,7 @@
                 </includes>
                 <excludes>
                   <exclude>com.fasterxml.jackson.core:jackson-annotations</exclude>
+                  <exclude>com.google.protobuf:protobuf-java</exclude>
                 </excludes>
               </artifactSet>
               <filters>
