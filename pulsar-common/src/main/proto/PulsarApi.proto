@@ -401,6 +401,8 @@ message CommandSubscribe {
 
     // The consumer epoch, when exclusive and failover consumer redeliver unack message will increase the epoch
     optional uint64 consumer_epoch = 19;
+
+    optional bool reset_include_head = 20 [default = false];
 }
 
 message CommandPartitionedTopicMetadata {
