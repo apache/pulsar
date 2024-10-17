@@ -1162,9 +1162,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 if (ledgerId >= 0 && entryId >= 0
                         && msgId instanceof BatchMessageIdImpl
                         && (msgId.getBatchIndex() >= 0 || resetIncludeHead)) {
+                    // When resetIncludeHead is true, we need to take one step back on the previous message,
+                    // to ensure the read position starts with startMessageId
+
                     // When the start message is relative to a batch, we need to take one step back on the previous
-                    // message,
-                    // because the "batch" might not have been consumed in its entirety.
+                    // message, because the "batch" might not have been consumed in its entirety.
                     // The client will then be able to discard the first messages if needed.
                     entryId = msgId.getEntryId() - 1;
                 }
