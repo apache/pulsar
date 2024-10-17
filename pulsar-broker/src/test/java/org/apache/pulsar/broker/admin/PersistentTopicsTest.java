@@ -1961,9 +1961,6 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
                 .value("batch-message-2")
                 .send();
 
-        // Wait for the batch to be completed
-        Thread.sleep(2000);
-
         List<Message<byte[]>> peekedMessages = admin.topics().peekMessages(topicName, "sub-peek", 2);
         assertEquals(peekedMessages.size(), 2);
 
