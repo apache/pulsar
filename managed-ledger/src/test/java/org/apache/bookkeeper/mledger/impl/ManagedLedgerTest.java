@@ -4506,7 +4506,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                 failed.set(true);
                 latch.countDown();
             }
-        }, null, PositionImpl.LATEST, position -> position.getEntryId() % 2 == 0);
+        }, null, PositionFactory.LATEST, position -> position.getEntryId() % 2 == 0);
 
         latch.await();
         assertFalse(failed.get());
@@ -4554,7 +4554,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                 failed.set(true);
                 latch.countDown();
             }
-        }, null, PositionImpl.LATEST, position -> position.getEntryId() % 2 == 0);
+        }, null, PositionFactory.LATEST, position -> position.getEntryId() % 2 == 0);
 
         latch.await();
         assertEquals(counter.get(), 1);

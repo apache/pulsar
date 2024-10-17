@@ -2110,7 +2110,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         long lastEntry = min(firstEntry + opReadEntry.getNumberOfEntriesToRead() - 1, lastEntryInLedger);
 
-        Predicate<PositionImpl> skipCondition = opReadEntry.skipCondition;
+        Predicate<Position> skipCondition = opReadEntry.skipCondition;
         if (skipCondition == null) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Reading entries from ledger {} - first={} last={}", name, ledger.getId(), firstEntry,
@@ -2123,14 +2123,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         // Skip entries that don't match the predicate
         SortedSet<Long> entryIds = new TreeSet<>();
         for (long entryId = firstEntry; entryId <= lastEntry; entryId++) {
-            PositionImpl position = new PositionImpl(ledger.getId(), entryId);
+            Position position = PositionFactory.create(ledger.getId(), entryId);
             if (skipCondition.test(position)) {
                 continue;
             }
             entryIds.add(entryId);
         }
 
-        PositionImpl lastReadPosition = PositionImpl.get(ledger.getId(), lastEntry);
+        Position lastReadPosition = PositionFactory.create(ledger.getId(), lastEntry);
         if (entryIds.isEmpty()) {
             // Move `readPosition` of `cursor`.
             opReadEntry.internalReadEntriesComplete(Collections.emptyList(), opReadEntry.ctx, lastReadPosition);
@@ -2170,11 +2170,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         private final List<Entry> entries;
         private final OpReadEntry callback;
         private volatile boolean completed = false;
-        private final PositionImpl lastReadPosition;
+        private final Position lastReadPosition;
 
         @VisibleForTesting
         public BatchReadEntriesCallback(SortedSet<Long> entryIdSet, OpReadEntry callback,
-                                        PositionImpl lastReadPosition) {
+                                        Position lastReadPosition) {
             this.entryIds = entryIdSet;
             this.entries = new ArrayList<>(entryIdSet.size());
             this.callback = callback;
@@ -2210,8 +2210,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 // Move the read position of the cursor to the next position of the last read entry,
                 // or we will deliver the same entry to the consumer more than once.
                 Entry entry = entries.get(entries.size() - 1);
-                PositionImpl position = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
-                PositionImpl nextReadPosition = callback.cursor.getNextAvailablePosition(position);
+                Position position = PositionFactory.create(entry.getLedgerId(), entry.getEntryId());
+                Position nextReadPosition = callback.cursor.getNextAvailablePosition(position);
                 callback.updateReadPosition(nextReadPosition);
             }
             callback.internalReadEntriesFailed(entries, exception, ctx);
