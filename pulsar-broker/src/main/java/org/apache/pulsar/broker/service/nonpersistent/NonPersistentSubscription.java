@@ -34,7 +34,6 @@ import org.apache.pulsar.broker.service.AbstractSubscription;
 import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
-import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFencedException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
@@ -159,8 +158,10 @@ public class NonPersistentSubscription extends AbstractSubscription {
                 });
             }
         } else {
-            if (consumer.subType() != dispatcher.getType()) {
-                return FutureUtil.failedFuture(new SubscriptionBusyException("Subscription is of different type"));
+            Optional<CompletableFuture<Void>> compatibilityError =
+                    checkForConsumerCompatibilityErrorWithDispatcher(dispatcher, consumer);
+            if (compatibilityError.isPresent()) {
+                return compatibilityError.get();
             }
         }
 

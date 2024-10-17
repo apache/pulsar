@@ -26,7 +26,6 @@ import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import io.netty.channel.EventLoopGroup;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -35,7 +34,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import org.apache.bookkeeper.common.util.OrderedExecutor;
+import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -46,7 +45,9 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.SubscriptionTestBase;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
@@ -56,18 +57,17 @@ import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleStat
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class PersistentSubscriptionTest {
+public class PersistentSubscriptionTest extends SubscriptionTestBase {
 
     private PulsarTestContext pulsarTestContext;
     private ManagedLedger ledgerMock;
@@ -77,16 +77,8 @@ public class PersistentSubscriptionTest {
     private Consumer consumerMock;
     private ManagedLedgerConfig managedLedgerConfigMock;
 
-    final String successTopicName = "persistent://prop/use/ns-abc/successTopic";
-    final String subName = "subscriptionName";
-
     final TxnID txnID1 = new TxnID(1,1);
     final TxnID txnID2 = new TxnID(1,2);
-
-    private static final Logger log = LoggerFactory.getLogger(PersistentTopicTest.class);
-
-    private OrderedExecutor executor;
-    private EventLoopGroup eventLoopGroup;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -233,6 +225,34 @@ public class PersistentSubscriptionTest {
 
         // `acknowledgeMessage` should update cursor last active
         assertTrue(persistentSubscription.cursor.getLastActive() > beforeAcknowledgeTimestamp);
+    }
+
+    @Test(dataProvider = "incompatibleKeySharedPolicies")
+    public void testIncompatibleKeySharedPoliciesNotAllowed(KeySharedMeta consumer1Ksm, KeySharedMeta consumer2Ksm,
+                                                            String expectedErrorMessage) throws Exception {
+        PulsarTestContext context = PulsarTestContext.builderForNonStartableContext().build();
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, context.getBrokerService());
+        PersistentSubscription sub = new PersistentSubscription(topic, subName, cursorMock, false);
+
+        // two consumers with incompatible key_shared policies
+        Consumer keySharedConsumerMock1 = createKeySharedMockConsumer("consumer-1", consumer1Ksm);
+        Consumer keySharedConsumerMock2 = createKeySharedMockConsumer("consumer-2", consumer2Ksm);
+
+        // first consumer defines key_shared mode of subscription and whether out of order delivery is allowed
+        sub.addConsumer(keySharedConsumerMock1).get(5, TimeUnit.SECONDS);
+
+        try {
+            // add second consumer with incompatible key_shared policy
+            sub.addConsumer(keySharedConsumerMock2).get(5, TimeUnit.SECONDS);
+            fail(SubscriptionBusyException.class.getSimpleName() + " not thrown");
+        } catch (Exception e) {
+            // subscription throws exception when consumer with incompatible key_shared policy is added
+            Throwable cause = e.getCause();
+            assertTrue(cause instanceof SubscriptionBusyException);
+            assertEquals(cause.getMessage(), expectedErrorMessage);
+        }
+
+        context.close();
     }
 
     public static class CustomTransactionPendingAckStoreProvider implements TransactionPendingAckStoreProvider {
