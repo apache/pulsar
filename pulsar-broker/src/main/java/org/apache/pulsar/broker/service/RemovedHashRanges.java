@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.Arrays;
 import java.util.List;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -70,5 +71,21 @@ public class RemovedHashRanges {
             }
         }
         return false;
+    }
+
+    /**
+     * Checks if all removed ranges are fully contained in the provided list of ranges.
+     */
+    public boolean isFullyContainedInRanges(List<Range> otherRanges) {
+        return Arrays.stream(sortedRanges).allMatch(range ->
+                otherRanges.stream().anyMatch(otherRange -> otherRange.contains(range))
+        );
+    }
+
+    /**
+     * Returns the removed hash ranges as a list of ranges.
+     */
+    public List<Range> asRanges() {
+        return Arrays.asList(sortedRanges);
     }
 }
