@@ -54,15 +54,17 @@ public class DebeziumMsSqlSourceTester extends SourceTester<DebeziumMsSqlContain
 
         pulsarServiceUrl = "pulsar://pulsar-proxy:" + PulsarContainer.BROKER_PORT;
 
+        sourceConfig.put("connector.class", "io.debezium.connector.sqlserver.SqlServerConnector");
         sourceConfig.put("database.hostname", DebeziumMsSqlContainer.NAME);
         sourceConfig.put("database.port", "1433");
         sourceConfig.put("database.user", "sa");
         sourceConfig.put("database.password", DebeziumMsSqlContainer.SA_PASSWORD);
-        sourceConfig.put("database.server.name", "mssql");
-        sourceConfig.put("database.dbname", "TestDB");
-        sourceConfig.put("snapshot.mode", "schema_only");
-        sourceConfig.put("database.history.pulsar.service.url", pulsarServiceUrl);
+        sourceConfig.put("database.names", "TestDB");
+        sourceConfig.put("schema.history.internal.pulsar.service.url", pulsarServiceUrl);
         sourceConfig.put("topic.namespace", "debezium/mssql");
+        sourceConfig.put("topic.prefix", "mssql");
+        sourceConfig.put("database.encrypt", "false");
+        sourceConfig.put("task.id", "1");
     }
 
     @Override
@@ -145,12 +147,12 @@ public class DebeziumMsSqlSourceTester extends SourceTester<DebeziumMsSqlContain
 
     @Override
     public String keyContains() {
-        return "mssql.dbo.customers.Key";
+        return "mssql.TestDB.dbo.customers.Key";
     }
 
     @Override
     public String valueContains() {
-        return "mssql.dbo.customers.Value";
+        return "mssql.TestDB.dbo.customers.Value";
     }
 
     @Override
