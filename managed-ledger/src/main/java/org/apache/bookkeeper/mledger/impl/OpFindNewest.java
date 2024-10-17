@@ -26,13 +26,13 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
+import org.apache.bookkeeper.mledger.PositionBound;
 
 @Slf4j
 class OpFindNewest implements ReadEntryCallback {
     private final ManagedCursorImpl cursor;
     private final ManagedLedgerImpl ledger;
-    private final PositionImpl startPosition;
+    private final Position startPosition;
     private final FindEntryCallback callback;
     private final Predicate<Entry> condition;
     private final Object ctx;
@@ -41,13 +41,13 @@ class OpFindNewest implements ReadEntryCallback {
         checkFirst, checkLast, searching
     }
 
-    PositionImpl searchPosition;
+    Position searchPosition;
     long min;
     long max;
     Position lastMatchedPosition = null;
     State state;
 
-    public OpFindNewest(ManagedCursorImpl cursor, PositionImpl startPosition, Predicate<Entry> condition,
+    public OpFindNewest(ManagedCursorImpl cursor, Position startPosition, Predicate<Entry> condition,
             long numberOfEntries, FindEntryCallback callback, Object ctx) {
         this.cursor = cursor;
         this.ledger = cursor.ledger;
@@ -63,7 +63,7 @@ class OpFindNewest implements ReadEntryCallback {
         this.state = State.checkFirst;
     }
 
-    public OpFindNewest(ManagedLedgerImpl ledger, PositionImpl startPosition, Predicate<Entry> condition,
+    public OpFindNewest(ManagedLedgerImpl ledger, Position startPosition, Predicate<Entry> condition,
                         long numberOfEntries, FindEntryCallback callback, Object ctx) {
         this.cursor = null;
         this.ledger = ledger;
@@ -94,8 +94,10 @@ class OpFindNewest implements ReadEntryCallback {
                 lastMatchedPosition = position;
                 // check last entry
                 state = State.checkLast;
-                PositionImpl lastPosition = ledger.getLastPosition();
                 searchPosition = ledger.getPositionAfterN(searchPosition, max, PositionBound.startExcluded);
+                Position lastPosition = ledger.getLastPosition();
+                searchPosition =
+                        ledger.getPositionAfterN(searchPosition, max, PositionBound.startExcluded);
                 if (lastPosition.compareTo(searchPosition) < 0) {
                     if (log.isDebugEnabled()) {
                         log.debug("first position {} matches, last should be {}, but moving to lastPos {}", position,

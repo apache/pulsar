@@ -135,7 +135,7 @@ public class BrokerInterceptorWithClassLoaderTest {
                 new BrokerInterceptorWithClassLoader(interceptor, narLoader);
         ClassLoader curClassLoader = Thread.currentThread().getContextClassLoader();
         // test class loader
-        assertEquals(brokerInterceptorWithClassLoader.getClassLoader(), narLoader);
+        assertEquals(brokerInterceptorWithClassLoader.getNarClassLoader(), narLoader);
         // test initialize
         brokerInterceptorWithClassLoader.initialize(mock(PulsarService.class));
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);

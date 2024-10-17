@@ -198,17 +198,21 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> ackTimeout(long ackTimeout, TimeUnit timeUnit);
 
     /**
-     * Acknowledgement returns receipt, but the message is not re-sent after getting receipt.
+     * Enables or disables the acknowledgment receipt feature.
      *
-     * Configure the acknowledgement timeout mechanism to redeliver the message if it is not acknowledged after
-     * ackTimeout, or to execute a timer task to check the acknowledgement timeout messages during every
-     * ackTimeoutTickTime period.
+     * <p>When this feature is enabled, the consumer ensures that acknowledgments are processed by the broker by
+     * waiting for a receipt from the broker. Even when the broker returns a receipt, it doesn't guarantee that the
+     * message won't be redelivered later due to certain implementation details.
+     * It is recommended to use the asynchronous {@link Consumer#acknowledgeAsync(Message)} method for acknowledgment
+     * when this feature is enabled. This is because using the synchronous {@link Consumer#acknowledge(Message)} method
+     * with acknowledgment receipt can cause performance issues due to the round trip to the server, which prevents
+     * pipelining (having multiple messages in-flight). With the asynchronous method, the consumer can continue
+     * consuming other messages while waiting for the acknowledgment receipts.
      *
-     * @param isAckReceiptEnabled {@link Boolean} enables acknowledgement for receipt
+     * @param isAckReceiptEnabled {@code true} to enable acknowledgment receipt, {@code false} to disable it
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> isAckReceiptEnabled(boolean isAckReceiptEnabled);
-
     /**
      * Define the granularity of the ack-timeout redelivery.
      *
@@ -282,6 +286,21 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> messageListener(MessageListener<T> messageListener);
+
+    /**
+     * Set the {@link MessageListenerExecutor} to be used for message listeners of <b>current consumer</b>.
+     * <i>(default: use executor from PulsarClient,
+     * {@link org.apache.pulsar.client.impl.PulsarClientImpl#externalExecutorProvider})</i>.
+     *
+     * <p>The listener thread pool is exclusively owned by current consumer
+     * that are using a "listener" model to get messages. For a given internal consumer,
+     * the listener will always be invoked from the same thread, to ensure ordering.
+     *
+     * <p> The caller need to shut down the thread pool after closing the consumer to avoid leaks.
+     * @param messageListenerExecutor the executor of the consumer message listener
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> messageListenerExecutor(MessageListenerExecutor messageListenerExecutor);
 
     /**
      * Sets a {@link CryptoKeyReader}.
@@ -791,31 +810,66 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> messagePayloadProcessor(MessagePayloadProcessor payloadProcessor);
 
     /**
-     * negativeAckRedeliveryBackoff doesn't work with `consumer.negativeAcknowledge(MessageId messageId)`
-     * because we are unable to get the redelivery count from the message ID.
+     * negativeAckRedeliveryBackoff sets the redelivery backoff policy for messages that are negatively acknowledged
+     * using
+     * `consumer.negativeAcknowledge(Message<?> message)` but not with `consumer.negativeAcknowledge(MessageId
+     * messageId)`.
+     * This setting allows specifying a backoff policy for messages that are negatively acknowledged,
+     * enabling more flexible control over the delay before such messages are redelivered.
      *
-     * <p>Example:
-     * <pre>
-     * client.newConsumer().negativeAckRedeliveryBackoff(ExponentialRedeliveryBackoff.builder()
-     *              .minNackTimeMs(1000)
-     *              .maxNackTimeMs(60 * 1000)
-     *              .build()).subscribe();
-     * </pre>
+     * <p>This configuration accepts a {@link RedeliveryBackoff} object that defines the backoff policy.
+     * The policy can be either a fixed delay or an exponential backoff. An exponential backoff policy
+     * is beneficial in scenarios where increasing the delay between consecutive redeliveries can help
+     * mitigate issues like temporary resource constraints or processing bottlenecks.
+     *
+     * <p>Note: This backoff policy does not apply when using `consumer.negativeAcknowledge(MessageId messageId)`
+     * because the redelivery count cannot be determined from just the message ID. It is recommended to use
+     * `consumer.negativeAcknowledge(Message<?> message)` if you want to leverage the redelivery backoff policy.
+     *
+     * <p>Example usage:
+     * <pre>{@code
+     * client.newConsumer()
+     *       .negativeAckRedeliveryBackoff(ExponentialRedeliveryBackoff.builder()
+     *           .minDelayMs(1000)   // Set minimum delay to 1 second
+     *           .maxDelayMs(60000)  // Set maximum delay to 60 seconds
+     *           .build())
+     *       .subscribe();
+     * }</pre>
+     *
+     * @param negativeAckRedeliveryBackoff the backoff policy to use for negatively acknowledged messages
+     * @return the consumer builder instance
      */
     ConsumerBuilder<T> negativeAckRedeliveryBackoff(RedeliveryBackoff negativeAckRedeliveryBackoff);
 
+
     /**
-     * redeliveryBackoff doesn't work with `consumer.negativeAcknowledge(MessageId messageId)`
-     * because we are unable to get the redelivery count from the message ID.
+     * Sets the redelivery backoff policy for messages that are redelivered due to acknowledgement timeout.
+     * This setting allows you to specify a backoff policy for messages that are not acknowledged within
+     * the specified ack timeout. By using a backoff policy, you can control the delay before a message
+     * is redelivered, potentially improving consumer performance by avoiding immediate redelivery of
+     * messages that might still be processing.
      *
-     * <p>Example:
-     * <pre>
-     * client.newConsumer().ackTimeout(10, TimeUnit.SECOND)
-     *              .ackTimeoutRedeliveryBackoff(ExponentialRedeliveryBackoff.builder()
-     *              .minNackTimeMs(1000)
-     *              .maxNackTimeMs(60 * 1000)
-     *              .build()).subscribe();
-     * </pre>
+     * <p>This method accepts a {@link RedeliveryBackoff} object that defines the backoff policy to be used.
+     * You can use either a fixed backoff policy or an exponential backoff policy. The exponential backoff
+     * policy is particularly useful for scenarios where it may be beneficial to progressively increase the
+     * delay between redeliveries, reducing the load on the consumer and giving more time to process messages.
+     *
+     * <p>Example usage:
+     * <pre>{@code
+     * client.newConsumer()
+     *       .ackTimeout(10, TimeUnit.SECONDS)
+     *       .ackTimeoutRedeliveryBackoff(ExponentialRedeliveryBackoff.builder()
+     *           .minDelayMs(1000)   // Set minimum delay to 1 second
+     *           .maxDelayMs(60000)  // Set maximum delay to 60 seconds
+     *           .build())
+     *       .subscribe();
+     * }</pre>
+     *
+     * <p>Note: This configuration is effective only if the ack timeout is triggered. It does not apply to
+     * messages negatively acknowledged using the negative acknowledgment API.
+     *
+     * @param ackTimeoutRedeliveryBackoff the backoff policy to use for messages that exceed their ack timeout
+     * @return the consumer builder instance
      */
     ConsumerBuilder<T> ackTimeoutRedeliveryBackoff(RedeliveryBackoff ackTimeoutRedeliveryBackoff);
 

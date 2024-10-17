@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl.TOPIC;
 import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN;
 import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORDINATOR_LOG;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -74,13 +76,13 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.NonAppendableLedgerOffloader;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -747,7 +749,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
             fail("should fail");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("General OpenSslEngine problem"));
+            assertTrue(e.getMessage().contains("unable to find valid certification path to requested target"));
         } finally {
             pulsarClient.close();
         }
@@ -1033,16 +1035,16 @@ public class BrokerServiceTest extends BrokerTestBase {
                 }
                 super.handlePartitionResponse(lookupResult);
             }
-        })) {
+        }, null)) {
             // for PMR
             // 2 lookup will succeed
             long reqId1 = reqId++;
-            ByteBuf request1 = Commands.newPartitionMetadataRequest(topicName, reqId1);
+            ByteBuf request1 = Commands.newPartitionMetadataRequest(topicName, reqId1, true);
             CompletableFuture<?> f1 = pool.getConnection(resolver.resolveHost())
                 .thenCompose(clientCnx -> clientCnx.newLookup(request1, reqId1));
 
             long reqId2 = reqId++;
-            ByteBuf request2 = Commands.newPartitionMetadataRequest(topicName, reqId2);
+            ByteBuf request2 = Commands.newPartitionMetadataRequest(topicName, reqId2, true);
             CompletableFuture<?> f2 = pool.getConnection(resolver.resolveHost())
                 .thenCompose(clientCnx -> {
                     CompletableFuture<?> future = clientCnx.newLookup(request2, reqId2);
@@ -1057,17 +1059,17 @@ public class BrokerServiceTest extends BrokerTestBase {
             // 3 lookup will fail
             latchRef.set(new CountDownLatch(1));
             long reqId3 = reqId++;
-            ByteBuf request3 = Commands.newPartitionMetadataRequest(topicName, reqId3);
+            ByteBuf request3 = Commands.newPartitionMetadataRequest(topicName, reqId3, true);
             f1 = pool.getConnection(resolver.resolveHost())
                 .thenCompose(clientCnx -> clientCnx.newLookup(request3, reqId3));
 
             long reqId4 = reqId++;
-            ByteBuf request4 = Commands.newPartitionMetadataRequest(topicName, reqId4);
+            ByteBuf request4 = Commands.newPartitionMetadataRequest(topicName, reqId4, true);
             f2 = pool.getConnection(resolver.resolveHost())
                 .thenCompose(clientCnx -> clientCnx.newLookup(request4, reqId4));
 
             long reqId5 = reqId++;
-            ByteBuf request5 = Commands.newPartitionMetadataRequest(topicName, reqId5);
+            ByteBuf request5 = Commands.newPartitionMetadataRequest(topicName, reqId5, true);
             CompletableFuture<?> f3 = pool.getConnection(resolver.resolveHost())
                 .thenCompose(clientCnx -> {
                     CompletableFuture<?> future = clientCnx.newLookup(request5, reqId5);
@@ -1313,6 +1315,67 @@ public class BrokerServiceTest extends BrokerTestBase {
 
     }
 
+    @Test
+    public void testCheckInactiveSubscriptionWhenNoMessageToAck() throws Exception {
+        String namespace = "prop/testInactiveSubscriptionWhenNoMessageToAck";
+
+        try {
+            admin.namespaces().createNamespace(namespace);
+        } catch (PulsarAdminException.ConflictException e) {
+            // Ok.. (if test fails intermittently and namespace is already created)
+        }
+
+        String topic = "persistent://" + namespace + "/my-topic";
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+        producer.send("test".getBytes());
+        producer.close();
+
+        // create consumer to consume all messages
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe();
+        consumer.acknowledge(consumer.receive());
+
+        Optional<Topic> topicOptional = pulsar.getBrokerService().getTopic(topic, true).get();
+        assertTrue(topicOptional.isPresent());
+        PersistentTopic persistentTopic = (PersistentTopic) topicOptional.get();
+
+        // wait for 1s, but consumer is still connected all the time.
+        // so subscription should not be deleted.
+        Thread.sleep(1000);
+        persistentTopic.checkInactiveSubscriptions(1000);
+        PersistentTopic finalPersistentTopic = persistentTopic;
+        Awaitility.await().pollDelay(3, TimeUnit.SECONDS).until(() ->
+                finalPersistentTopic.getSubscriptions().containsKey("sub1"));
+        PersistentSubscription sub = persistentTopic.getSubscription("sub1");
+
+        // shutdown pulsar ungracefully
+        // disable the updateLastActive method to simulate the ungraceful shutdown
+        ManagedCursorImpl cursor = (ManagedCursorImpl) sub.getCursor();
+        ManagedCursorImpl spyCursor = Mockito.spy(cursor);
+        doNothing().when(spyCursor).updateLastActive();
+        Field cursorField = PersistentSubscription.class.getDeclaredField("cursor");
+        cursorField.setAccessible(true);
+        cursorField.set(sub, spyCursor);
+
+        // restart pulsar
+        consumer.close();
+        restartBroker();
+
+        admin.lookups().lookupTopic(topic);
+        topicOptional = pulsar.getBrokerService().getTopic(topic, true).get();
+        assertTrue(topicOptional.isPresent());
+        persistentTopic = (PersistentTopic) topicOptional.get();
+        persistentTopic.checkInactiveSubscriptions(1000);
+
+        // check if subscription is still present
+        PersistentTopic finalPersistentTopic1 = persistentTopic;
+        Awaitility.await().pollDelay(3, TimeUnit.SECONDS).until(() ->
+                finalPersistentTopic1.getSubscriptions().containsKey("sub1"));
+        sub = persistentTopic.getSubscription("sub1");
+        assertNotNull(sub);
+    }
+
+
     /**
      * Verifies brokerService should not have deadlock and successfully remove topic from topicMap on topic-failure and
      * it should not introduce deadlock while performing it.
@@ -1388,7 +1451,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         ledgerField.setAccessible(true);
         @SuppressWarnings("unchecked")
         ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers = (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>) ledgerField
-                .get(pulsar.getManagedLedgerFactory());
+                .get(pulsar.getDefaultManagedLedgerFactory());
         CompletableFuture<ManagedLedgerImpl> future = new CompletableFuture<>();
         future.completeExceptionally(new ManagedLedgerException("ledger opening failed"));
         ledgers.put(namespace + "/persistent/deadLockTestTopic", future);
@@ -1454,8 +1517,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
-        ManagedLedgerFactoryImpl mlFactory = (ManagedLedgerFactoryImpl) pulsar.getManagedLedgerClientFactory()
-                .getManagedLedgerFactory();
+        ManagedLedgerFactoryImpl mlFactory = (ManagedLedgerFactoryImpl) pulsar.getDefaultManagedLedgerFactory();
         Field ledgersField = ManagedLedgerFactoryImpl.class.getDeclaredField("ledgers");
         ledgersField.setAccessible(true);
         ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers = (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>) ledgersField
@@ -1567,7 +1629,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         producer1.close();
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName.toString(), false).get().get();
         persistentTopic.close().join();
-        List<String> topics = new ArrayList<>(pulsar.getBrokerService().getTopics().keys());
+        List<String> topics = new ArrayList<>(pulsar.getBrokerService().getTopics().keySet());
         topics.removeIf(item -> item.contains(SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME));
         Assert.assertEquals(topics.size(), 0);
         @Cleanup
@@ -1696,7 +1758,7 @@ public class BrokerServiceTest extends BrokerTestBase {
     public void testIsSystemTopicAllowAutoTopicCreationAsync() throws Exception {
         BrokerService brokerService = pulsar.getBrokerService();
         assertFalse(brokerService.isAllowAutoTopicCreationAsync(
-                ServiceUnitStateChannelImpl.TOPIC).get());
+                TOPIC).get());
         assertTrue(brokerService.isAllowAutoTopicCreationAsync(
                 "persistent://pulsar/system/my-system-topic").get());
     }
@@ -1821,6 +1883,10 @@ public class BrokerServiceTest extends BrokerTestBase {
         final String namespace = "prop/" + UUID.randomUUID();
         admin.namespaces().createNamespace(namespace);
         admin.namespaces().setOffloadPolicies(namespace, offloadPolicies);
+        Awaitility.await().untilAsserted(() -> {
+            OffloadPolicies policiesGot = admin.namespaces().getOffloadPolicies(namespace);
+            assertNotNull(policiesGot);
+        });
 
         // Inject the cache to avoid real load off-loader jar
         final Map<NamespaceName, LedgerOffloader> ledgerOffloaderMap = pulsar.getLedgerOffloaderMap();
@@ -1834,8 +1900,20 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         // (2) test system topic
         for (String eventTopicName : SystemTopicNames.EVENTS_TOPIC_NAMES) {
-            managedLedgerConfig = brokerService.getManagedLedgerConfig(TopicName.get(eventTopicName)).join();
-            Assert.assertEquals(managedLedgerConfig.getLedgerOffloader(), NullLedgerOffloader.INSTANCE);
+            boolean offloadPoliciesExists = false;
+            try {
+                OffloadPolicies policiesGot =
+                        admin.namespaces().getOffloadPolicies(TopicName.get(eventTopicName).getNamespace());
+                offloadPoliciesExists = policiesGot != null;
+            } catch (PulsarAdminException.NotFoundException notFoundException) {
+                offloadPoliciesExists = false;
+            }
+            var managedLedgerConfig2 = brokerService.getManagedLedgerConfig(TopicName.get(eventTopicName)).join();
+            if (offloadPoliciesExists) {
+                Assert.assertTrue(managedLedgerConfig2.getLedgerOffloader() instanceof NonAppendableLedgerOffloader);
+            } else {
+                Assert.assertEquals(managedLedgerConfig2.getLedgerOffloader(), NullLedgerOffloader.INSTANCE);
+            }
         }
     }
 }

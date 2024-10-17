@@ -35,9 +35,12 @@ import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
+import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.functions.ConsumerConfig;
+import org.apache.pulsar.common.functions.CryptoConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
@@ -666,5 +669,37 @@ public class FunctionConfigUtilsTest {
 
         convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
         assertTrue(convertedConfig.getInputSpecs().get("test-input").isPoolMessages());
+    }
+
+    @Test
+    public void testConvertProducerSpecToProducerConfigAndBackToProducerSpec() {
+        // given
+        Function.ProducerSpec producerSpec = Function.ProducerSpec.newBuilder()
+                .setBatchBuilder("KEY_BASED")
+                .setCompressionType(Function.CompressionType.ZSTD)
+                .setCryptoSpec(Function.CryptoSpec.newBuilder()
+                        .addProducerEncryptionKeyName("key1")
+                        .addProducerEncryptionKeyName("key2")
+                        .setConsumerCryptoFailureAction(Function.CryptoSpec.FailureAction.DISCARD)
+                        .setProducerCryptoFailureAction(Function.CryptoSpec.FailureAction.SEND)
+                        .setCryptoKeyReaderClassName("ReaderClassName")
+                        .setCryptoKeyReaderConfig("{\"key\":\"value\"}")
+                        .build())
+                .build();
+        // when
+        ProducerConfig producerConfig = FunctionConfigUtils.convertProducerSpecToProducerConfig(producerSpec);
+        // then
+        assertEquals(producerConfig.getBatchBuilder(), "KEY_BASED");
+        assertEquals(producerConfig.getCompressionType(), CompressionType.ZSTD);
+        CryptoConfig cryptoConfig = producerConfig.getCryptoConfig();
+        assertEquals(cryptoConfig.getProducerCryptoFailureAction(), ProducerCryptoFailureAction.SEND);
+        assertEquals(cryptoConfig.getConsumerCryptoFailureAction(), ConsumerCryptoFailureAction.DISCARD);
+        assertEquals(cryptoConfig.getEncryptionKeys(), new String[]{"key1", "key2"});
+        assertEquals(cryptoConfig.getCryptoKeyReaderClassName(), "ReaderClassName");
+        // and when
+        // converted back to producer spec
+        Function.ProducerSpec producerSpec2 = FunctionConfigUtils.convertProducerConfigToProducerSpec(producerConfig);
+        // then
+        assertEquals(producerSpec2, producerSpec);
     }
 }

@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.authentication;
 
 import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedDataAttributeName;
 import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedRoleAttributeName;
+import io.opentelemetry.api.OpenTelemetry;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -51,6 +52,11 @@ public class AuthenticationService implements Closeable {
     private final Map<String, AuthenticationProvider> providers = new HashMap<>();
 
     public AuthenticationService(ServiceConfiguration conf) throws PulsarServerException {
+        this(conf, OpenTelemetry.noop());
+    }
+
+    public AuthenticationService(ServiceConfiguration conf, OpenTelemetry openTelemetry)
+            throws PulsarServerException {
         anonymousUserRole = conf.getAnonymousUserRole();
         if (conf.isAuthenticationEnabled()) {
             try {
@@ -70,6 +76,10 @@ public class AuthenticationService implements Closeable {
                     providerList.add(provider);
                 }
 
+                var authenticationProviderContext = AuthenticationProvider.Context.builder()
+                        .config(conf)
+                        .openTelemetry(openTelemetry)
+                        .build();
                 for (Map.Entry<String, List<AuthenticationProvider>> entry : providerMap.entrySet()) {
                     AuthenticationProvider provider;
                     if (entry.getValue().size() == 1) {
@@ -77,7 +87,7 @@ public class AuthenticationService implements Closeable {
                     } else {
                         provider = new AuthenticationProviderList(entry.getValue());
                     }
-                    provider.initialize(conf);
+                    provider.initialize(authenticationProviderContext);
                     providers.put(provider.getAuthMethodName(), provider);
                     LOG.info("[{}] has been loaded.",
                         entry.getValue().stream().map(

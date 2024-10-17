@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.auth;
 
-import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -322,7 +321,6 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
                         : brokerUrlTls.toString())
                 .authentication(new MockAuthentication("pass.pass2"))
                 .build();
-        when(pulsar.getAdminClient()).thenReturn(admin2);
         Assert.assertEquals(admin2.topics().getList(namespaceV1, TopicDomain.non_persistent).size(), 0);
         Assert.assertEquals(admin2.topics().getList(namespaceV2, TopicDomain.non_persistent).size(), 0);
     }

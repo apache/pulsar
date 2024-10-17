@@ -156,7 +156,7 @@ public class ConnectorUtils {
     public static TreeMap<String, Connector> searchForConnectors(String connectorsDirectory,
                                                                  String narExtractionDirectory,
                                                                  boolean enableClassloading) throws IOException {
-        Path path = Paths.get(connectorsDirectory).toAbsolutePath();
+        Path path = Paths.get(connectorsDirectory).toAbsolutePath().normalize();
         log.info("Searching for connectors in {}", path);
 
         TreeMap<String, Connector> connectors = new TreeMap<>();

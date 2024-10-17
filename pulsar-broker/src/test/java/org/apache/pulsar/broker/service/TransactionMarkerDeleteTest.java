@@ -33,7 +33,7 @@ import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -70,7 +70,7 @@ public class TransactionMarkerDeleteTest extends TransactionTestBase {
     @Test
     public void testMarkerDeleteTimes() throws Exception {
         ManagedLedgerImpl managedLedger =
-                spy((ManagedLedgerImpl) getPulsarServiceList().get(0).getManagedLedgerFactory().open("test"));
+                spy((ManagedLedgerImpl) getPulsarServiceList().get(0).getDefaultManagedLedgerFactory().open("test"));
         PersistentTopic topic = mock(PersistentTopic.class);
         BrokerService brokerService = mock(BrokerService.class);
         PulsarService pulsarService = mock(PulsarService.class);
@@ -124,7 +124,7 @@ public class TransactionMarkerDeleteTest extends TransactionTestBase {
 
         // maxReadPosition move to msgId1, msgId2 have not be committed
         assertEquals(admin.topics().getInternalStats(topicName).cursors.get(subName).markDeletePosition,
-                PositionImpl.get(msgId1.getLedgerId(), msgId1.getEntryId()).toString());
+                PositionFactory.create(msgId1.getLedgerId(), msgId1.getEntryId()).toString());
 
         MessageIdImpl msgId3 = (MessageIdImpl) producer.newMessage(txn3).send();
         txn2.commit().get();
@@ -135,7 +135,7 @@ public class TransactionMarkerDeleteTest extends TransactionTestBase {
         // maxReadPosition move to txn1 marker, so entryId is msgId2.getEntryId() + 1,
         // because send msgId2 before commit txn1
         assertEquals(admin.topics().getInternalStats(topicName).cursors.get(subName).markDeletePosition,
-                PositionImpl.get(msgId2.getLedgerId(), msgId2.getEntryId() + 1).toString());
+                PositionFactory.create(msgId2.getLedgerId(), msgId2.getEntryId() + 1).toString());
 
         MessageIdImpl msgId4 = (MessageIdImpl) producer.newMessage(txn4).send();
         txn3.commit().get();
@@ -145,13 +145,13 @@ public class TransactionMarkerDeleteTest extends TransactionTestBase {
 
         // maxReadPosition move to txn2 marker, because msgId4 have not be committed
         assertEquals(admin.topics().getInternalStats(topicName).cursors.get(subName).markDeletePosition,
-                PositionImpl.get(msgId3.getLedgerId(), msgId3.getEntryId() + 1).toString());
+                PositionFactory.create(msgId3.getLedgerId(), msgId3.getEntryId() + 1).toString());
 
         txn4.abort().get();
 
         // maxReadPosition move to txn4 abort marker, so entryId is msgId4.getEntryId() + 2
         Awaitility.await().untilAsserted(() -> assertEquals(admin.topics().getInternalStats(topicName)
-                .cursors.get(subName).markDeletePosition, PositionImpl.get(msgId4.getLedgerId(),
+                .cursors.get(subName).markDeletePosition, PositionFactory.create(msgId4.getLedgerId(),
                 msgId4.getEntryId() + 2).toString()));
     }
 

@@ -46,8 +46,8 @@ import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 public class TransactionsImpl extends BaseResource implements Transactions {
     private final WebTarget adminV3Transactions;
 
-    public TransactionsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public TransactionsImpl(WebTarget web, Authentication auth, long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         adminV3Transactions = web.path("/admin/v3/transactions");
     }
 

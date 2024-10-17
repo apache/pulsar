@@ -56,6 +56,15 @@ public class SimpleTextOutputStream {
         return this;
     }
 
+    public SimpleTextOutputStream write(String s) {
+        if (s == null) {
+            return this;
+        }
+
+        buffer.writeCharSequence(s, CharsetUtil.UTF_8);
+        return this;
+    }
+
     public SimpleTextOutputStream write(CharSequence s) {
         if (s == null) {
             return this;

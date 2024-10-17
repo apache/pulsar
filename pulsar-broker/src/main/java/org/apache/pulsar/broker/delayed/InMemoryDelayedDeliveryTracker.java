@@ -26,8 +26,9 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 
 @Slf4j
@@ -51,17 +52,18 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     // Track whether we have seen all messages with fixed delay so far.
     private boolean messagesHaveFixedDelay = true;
 
-    InMemoryDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher, Timer timer, long tickTimeMillis,
+    InMemoryDelayedDeliveryTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher, Timer timer,
+                                   long tickTimeMillis,
                                    boolean isDelayedDeliveryDeliverAtTimeStrict,
                                    long fixedDelayDetectionLookahead) {
         this(dispatcher, timer, tickTimeMillis, Clock.systemUTC(), isDelayedDeliveryDeliverAtTimeStrict,
                 fixedDelayDetectionLookahead);
     }
 
-    public InMemoryDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher, Timer timer,
-                                   long tickTimeMillis, Clock clock,
-                                   boolean isDelayedDeliveryDeliverAtTimeStrict,
-                                   long fixedDelayDetectionLookahead) {
+    public InMemoryDelayedDeliveryTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher, Timer timer,
+                                          long tickTimeMillis, Clock clock,
+                                          boolean isDelayedDeliveryDeliverAtTimeStrict,
+                                          long fixedDelayDetectionLookahead) {
         super(dispatcher, timer, tickTimeMillis, clock, isDelayedDeliveryDeliverAtTimeStrict);
         this.fixedDelayDetectionLookahead = fixedDelayDetectionLookahead;
     }
@@ -114,9 +116,9 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
      * Get a set of position of messages that have already reached.
      */
     @Override
-    public NavigableSet<PositionImpl> getScheduledMessages(int maxMessages) {
+    public NavigableSet<Position> getScheduledMessages(int maxMessages) {
         int n = maxMessages;
-        NavigableSet<PositionImpl> positions = new TreeSet<>();
+        NavigableSet<Position> positions = new TreeSet<>();
         long cutoffTime = getCutoffTime();
 
         while (n > 0 && !priorityQueue.isEmpty()) {
@@ -127,7 +129,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
 
             long ledgerId = priorityQueue.peekN2();
             long entryId = priorityQueue.peekN3();
-            positions.add(new PositionImpl(ledgerId, entryId));
+            positions.add(PositionFactory.create(ledgerId, entryId));
 
             priorityQueue.pop();
             --n;

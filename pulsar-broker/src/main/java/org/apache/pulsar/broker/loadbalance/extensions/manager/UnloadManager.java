@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.manager;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigning;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Label.Failure;
@@ -175,7 +176,7 @@ public class UnloadManager implements StateChangeListener {
     public void handleEvent(String serviceUnit, ServiceUnitStateData data, Throwable t) {
         ServiceUnitState state = ServiceUnitStateData.state(data);
 
-        if (StringUtils.isBlank(data.sourceBroker()) && (state == Owned || state == Assigning)) {
+        if ((state == Owned || state == Assigning) && StringUtils.isBlank(data.sourceBroker())) {
             if (log.isDebugEnabled()) {
                 log.debug("Skipping {} for service unit {} from the assignment command.", data, serviceUnit);
             }
@@ -195,7 +196,16 @@ public class UnloadManager implements StateChangeListener {
         }
 
         switch (state) {
-            case Free, Owned -> complete(serviceUnit, t);
+            case Free -> {
+                if (!data.force()) {
+                    complete(serviceUnit, t);
+                }
+            }
+            case Init -> {
+                checkArgument(data == null, "Init state must be associated with null data");
+                complete(serviceUnit, t);
+            }
+            case Owned -> complete(serviceUnit, t);
             case Releasing -> LatencyMetric.RELEASE.endMeasurement(serviceUnit);
             case Assigning -> LatencyMetric.ASSIGN.endMeasurement(serviceUnit);
         }

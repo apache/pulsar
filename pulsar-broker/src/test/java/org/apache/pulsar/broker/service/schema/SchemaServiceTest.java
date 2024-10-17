@@ -18,20 +18,23 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
-import static org.testng.Assert.assertThrows;
+import static org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy.BACKWARD;
+import static org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertEquals;
-import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertNull;
-import static org.testng.AssertJUnit.assertTrue;
 import com.google.common.collect.Multimap;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
+import io.opentelemetry.api.common.Attributes;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -39,16 +42,17 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
-import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
@@ -60,6 +64,9 @@ import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
+import org.assertj.core.api.InstanceOfAssertFactories;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -68,7 +75,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
-    private static final Clock MockClock = Clock.fixed(Instant.EPOCH, ZoneId.systemDefault());
+    private static final Clock MockClock = Clock.fixed(Instant.now(), ZoneId.systemDefault());
 
     private final String schemaId1 = "1/2/3/4";
     private static final String userId = "user";
@@ -101,8 +108,21 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         storage.start();
         Map<SchemaType, SchemaCompatibilityCheck> checkMap = new HashMap<>();
         checkMap.put(SchemaType.AVRO, new AvroSchemaCompatibilityCheck());
-        schemaRegistryService = new SchemaRegistryServiceImpl(storage, checkMap, MockClock, null);
+        schemaRegistryService = new SchemaRegistryServiceImpl(storage, checkMap, MockClock, pulsar);
+
+        var schemaRegistryStats =
+                Mockito.spy((SchemaRegistryStats) FieldUtils.readField(schemaRegistryService, "stats", true));
+        // Disable periodic cleanup of Prometheus entries.
+        Mockito.doNothing().when(schemaRegistryStats).run();
+        FieldUtils.writeField(schemaRegistryService, "stats", schemaRegistryStats, true);
+
         setupDefaultTenantAndNamespace();
+    }
+
+    @Override
+    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
+        super.customizeMainPulsarTestContextBuilder(pulsarTestContextBuilder);
+        pulsarTestContextBuilder.enableOpenTelemetry(true);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -119,6 +139,32 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         putSchema(schemaId, schemaData1, version(0));
         getSchema(schemaId, version(0));
         deleteSchema(schemaId, version(1));
+
+        var otelMetrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        assertThat(otelMetrics).anySatisfy(metric -> assertThat(metric)
+                .hasName(SchemaRegistryStats.SCHEMA_REGISTRY_REQUEST_DURATION_METRIC_NAME)
+                .hasHistogramSatisfying(histogram -> histogram.hasPointsSatisfying(
+                        point -> point
+                                .hasAttributes(Attributes.of(OpenTelemetryAttributes.PULSAR_NAMESPACE, "tenant/ns",
+                                        SchemaRegistryStats.REQUEST_TYPE_KEY, "delete",
+                                        SchemaRegistryStats.RESPONSE_TYPE_KEY, "success"))
+                                .hasCount(1),
+                        point -> point
+                                .hasAttributes(Attributes.of(OpenTelemetryAttributes.PULSAR_NAMESPACE, "tenant/ns",
+                                        SchemaRegistryStats.REQUEST_TYPE_KEY, "put",
+                                        SchemaRegistryStats.RESPONSE_TYPE_KEY, "success"))
+                                .hasCount(1),
+                        point -> point
+                                .hasAttributes(Attributes.of(OpenTelemetryAttributes.PULSAR_NAMESPACE, "tenant/ns",
+                                        SchemaRegistryStats.REQUEST_TYPE_KEY, "list",
+                                        SchemaRegistryStats.RESPONSE_TYPE_KEY, "success"))
+                                .hasCount(1),
+                        point -> point
+                                .hasAttributes(Attributes.of(OpenTelemetryAttributes.PULSAR_NAMESPACE, "tenant/ns",
+                                        SchemaRegistryStats.REQUEST_TYPE_KEY, "get",
+                                        SchemaRegistryStats.RESPONSE_TYPE_KEY, "success"))
+                                .hasCount(1)
+                )));
 
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         PrometheusMetricsTestUtil.generate(pulsar, false, false, false, output);
@@ -311,16 +357,39 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         putSchema(schemaId1, schemaData2, version(1));
     }
 
-    @Test(expectedExceptions = ExecutionException.class)
+    @Test
     public void checkIsCompatible() throws Exception {
-        putSchema(schemaId1, schemaData1, version(0), SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
-        putSchema(schemaId1, schemaData2, version(1), SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
+        var schemaId = BrokerTestUtil.newUniqueName("tenant/ns/topic");
+        putSchema(schemaId, schemaData1, version(0), BACKWARD_TRANSITIVE);
+        putSchema(schemaId, schemaData2, version(1), BACKWARD_TRANSITIVE);
 
-        assertTrue(schemaRegistryService.isCompatible(schemaId1, schemaData3,
-                SchemaCompatibilityStrategy.BACKWARD).get());
-        assertFalse(schemaRegistryService.isCompatible(schemaId1, schemaData3,
-                SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE).get());
-        putSchema(schemaId1, schemaData3, version(2), SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
+        var timeout = Duration.ofSeconds(1);
+        assertThat(schemaRegistryService.isCompatible(schemaId, schemaData3, BACKWARD))
+                .succeedsWithin(timeout, InstanceOfAssertFactories.BOOLEAN)
+                .isTrue();
+        assertThat(schemaRegistryService.isCompatible(schemaId, schemaData3, BACKWARD_TRANSITIVE))
+                .failsWithin(timeout)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(IncompatibleSchemaException.class);
+        assertThatThrownBy(() -> putSchema(schemaId, schemaData3, version(2), BACKWARD_TRANSITIVE))
+                .isInstanceOf(ExecutionException.class)
+                .hasCauseInstanceOf(IncompatibleSchemaException.class);
+
+        assertThat(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics())
+                .anySatisfy(metric -> assertThat(metric)
+                        .hasName(SchemaRegistryStats.COMPATIBLE_COUNTER_METRIC_NAME)
+                        .hasLongSumSatisfying(
+                                sum -> sum.hasPointsSatisfying(
+                                    point -> point
+                                            .hasAttributes(Attributes.of(
+                                                    OpenTelemetryAttributes.PULSAR_NAMESPACE, "tenant/ns",
+                                                    SchemaRegistryStats.COMPATIBILITY_CHECK_RESPONSE_KEY, "compatible"))
+                                            .hasValue(2),
+                                    point -> point
+                                            .hasAttributes(Attributes.of(
+                                                    OpenTelemetryAttributes.PULSAR_NAMESPACE, "tenant/ns",
+                                                    SchemaRegistryStats.COMPATIBILITY_CHECK_RESPONSE_KEY, "incompatible"))
+                                            .hasValue(2))));
     }
 
     @Test
@@ -376,20 +445,13 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         assertEquals(expectedVersion, version);
     }
 
-    private SchemaData randomSchema() {
-        UUID randomString = UUID.randomUUID();
-        return SchemaData.builder()
-            .user(userId)
-            .type(SchemaType.JSON)
-            .timestamp(MockClock.millis())
-            .isDeleted(false)
-            .data(randomString.toString().getBytes())
-            .props(new TreeMap<>())
-            .build();
-    }
-
     private static SchemaData getSchemaData(String schemaJson) {
-        return SchemaData.builder().data(schemaJson.getBytes()).type(SchemaType.AVRO).user(userId).build();
+        return SchemaData.builder()
+                .data(schemaJson.getBytes())
+                .type(SchemaType.AVRO)
+                .user(userId)
+                .timestamp(MockClock.millis())
+                .build();
     }
 
     private SchemaVersion version(long version) {
@@ -407,7 +469,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
                         .build(),
                 SchemaInfo.builder().type(SchemaType.BOOLEAN).schema(new byte[0])
                         .build(), KeyValueEncodingType.SEPARATED);
-        assertThrows(PulsarAdminException.ServerSideErrorException.class, () -> admin.schemas().testCompatibility(topicName, schemaInfo));
+        Assert.assertTrue(admin.schemas().testCompatibility(topicName, schemaInfo).isCompatibility());
         admin.schemas().createSchema(topicName, schemaInfo);
 
         final IsCompatibilityResponse isCompatibilityResponse = admin.schemas().testCompatibility(topicName, schemaInfo);

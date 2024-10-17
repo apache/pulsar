@@ -43,6 +43,7 @@ import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageListener;
+import org.apache.pulsar.client.api.MessageListenerExecutor;
 import org.apache.pulsar.client.api.MessagePayloadProcessor;
 import org.apache.pulsar.client.api.RedeliveryBackoff;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
@@ -90,6 +91,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private SubscriptionMode subscriptionMode = SubscriptionMode.Durable;
 
+    @JsonIgnore
+    private transient MessageListenerExecutor messageListenerExecutor;
     @JsonIgnore
     private MessageListener<T> messageListener;
 

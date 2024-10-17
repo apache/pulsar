@@ -22,7 +22,8 @@ import io.netty.util.Recycler;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.service.Topic;
 
 /**
@@ -33,7 +34,7 @@ public class RestMessagePublishContext implements Topic.PublishContext {
 
     private Topic topic;
     private long startTimeNs;
-    private CompletableFuture<PositionImpl> positionFuture;
+    private CompletableFuture<Position> positionFuture;
 
     /**
      * Executed from managed ledger thread when the message is persisted.
@@ -54,13 +55,13 @@ public class RestMessagePublishContext implements Topic.PublishContext {
                         topic.getName(), ledgerId, entryId);
             }
             topic.recordAddLatency(System.nanoTime() - startTimeNs, TimeUnit.NANOSECONDS);
-            positionFuture.complete(PositionImpl.get(ledgerId, entryId));
+            positionFuture.complete(PositionFactory.create(ledgerId, entryId));
         }
         recycle();
     }
 
     // recycler
-    public static RestMessagePublishContext get(CompletableFuture<PositionImpl> positionFuture, Topic topic,
+    public static RestMessagePublishContext get(CompletableFuture<Position> positionFuture, Topic topic,
                                                      long startTimeNs) {
         RestMessagePublishContext callback = RECYCLER.get();
         callback.positionFuture = positionFuture;
