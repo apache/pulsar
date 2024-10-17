@@ -4843,8 +4843,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         Predicate<Entry> condition = entry -> {
             try {
-                PositionImpl p = (PositionImpl) entry.getPosition();
-                return p.compareTo((PositionImpl) position1) <= 0;
+                Position p = entry.getPosition();
+                return p.compareTo(position1) <= 0;
             } finally {
                 entry.release();
             }
@@ -4945,8 +4945,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         AtomicReference<Position> positionRef4 = new AtomicReference<>();
         managedCursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, entry -> {
             try {
-                PositionImpl p = (PositionImpl) entry.getPosition();
-                return p.compareTo((PositionImpl) position3) <= 0;
+                Position p = entry.getPosition();
+                return p.compareTo(position3) <= 0;
             } finally {
                 entry.release();
             }
@@ -4990,8 +4990,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         Predicate<Entry> condition = entry -> {
             try {
-                PositionImpl p = (PositionImpl) entry.getPosition();
-                return p.compareTo((PositionImpl) position3) <= 0;
+                Position p = entry.getPosition();
+                return p.compareTo(position3) <= 0;
             } finally {
                 entry.release();
             }
@@ -5093,8 +5093,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         AtomicReference<Position> positionRef4 = new AtomicReference<>();
         managedCursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchActiveEntries, entry -> {
             try {
-                PositionImpl p = (PositionImpl) entry.getPosition();
-                return p.compareTo((PositionImpl) position4) <= 0;
+                Position p = entry.getPosition();
+                return p.compareTo(position4) <= 0;
             } finally {
                 entry.release();
             }

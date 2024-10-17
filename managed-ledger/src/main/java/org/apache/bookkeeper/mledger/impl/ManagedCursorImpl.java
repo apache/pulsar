@@ -1281,15 +1281,15 @@ public class ManagedCursorImpl implements ManagedCursor {
     public void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
                                         Position start, Position end, FindEntryCallback callback,
                                         Object ctx, boolean isFindFromLedger) {
-        PositionImpl startPosition;
+        Position startPosition;
         switch (constraint) {
             case SearchAllAvailableEntries ->
-                    startPosition = start == null ? (PositionImpl) getFirstPosition() : (PositionImpl) start;
+                    startPosition = start == null ?  getFirstPosition() : start;
             case SearchActiveEntries -> {
                 if (start == null) {
                     startPosition = ledger.getNextValidPosition(markDeletePosition);
                 } else {
-                    startPosition = (PositionImpl) start;
+                    startPosition = start;
                     startPosition = startPosition.compareTo(markDeletePosition) <= 0
                             ? ledger.getNextValidPosition(startPosition) : startPosition;
                 }
@@ -1307,7 +1307,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             return;
         }
         // Calculate the end position
-        PositionImpl endPosition = end == null ? ledger.lastConfirmedEntry : (PositionImpl) end;
+        Position endPosition = end == null ? ledger.lastConfirmedEntry : end;
         endPosition = endPosition.compareTo(ledger.lastConfirmedEntry) > 0 ? ledger.lastConfirmedEntry : endPosition;
         // Calculate the number of entries between the startPosition and endPosition
         long max = 0;

@@ -25,8 +25,8 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -88,8 +88,8 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
     }
 
     private Pair<Position, Position> getFindPositionRange(ManagedLedgerImpl ledger) {
-        PositionImpl start = null;
-        PositionImpl end = null;
+        Position start = null;
+        Position end = null;
 
         for (MLDataFormats.ManagedLedgerInfo.LedgerInfo info : ledger.getLedgersInfo().values()) {
             if (!info.hasTimestamp()) {
@@ -100,10 +100,10 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
                 return Pair.of(start, null);
             }
             if (closeTimestamp <= timestamp) {
-                start = PositionImpl.get(info.getLedgerId(), 0);
+                start = PositionFactory.create(info.getLedgerId(), 0);
             } else {
                 // If the close timestamp is greater than the timestamp
-                end = PositionImpl.get(info.getLedgerId(), info.getEntries() - 1);
+                end = PositionFactory.create(info.getLedgerId(), info.getEntries() - 1);
                 break;
             }
         }
