@@ -160,7 +160,6 @@
                   <include>org.reactivestreams:reactive-streams</include>
                   <include>com.typesafe.netty:netty-reactive-streams</include>
                   <include>org.javassist:javassist</include>
-                  <include>com.google.protobuf:protobuf-java</include>
                   <include>com.google.guava:*</include>
                   <include>org.checkerframework:*</include>
                   <include>com.google.code.findbugs:*</include>
@@ -210,6 +209,7 @@
                 </includes>
                 <excludes>
                   <exclude>com.fasterxml.jackson.core:jackson-annotations</exclude>
+                  <exclude>com.google.protobuf:protobuf-java</exclude>
                 </excludes>
               </artifactSet>
               <filters>
