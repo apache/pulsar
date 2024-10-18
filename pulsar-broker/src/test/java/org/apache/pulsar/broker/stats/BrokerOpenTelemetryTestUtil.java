@@ -35,6 +35,7 @@ public class BrokerOpenTelemetryTestUtil {
         return sdkBuilder -> {
             sdkBuilder.addMeterProviderCustomizer(
                     (meterProviderBuilder, __) -> meterProviderBuilder.registerMetricReader(reader));
+            sdkBuilder.disableShutdownHook();
             sdkBuilder.addPropertiesSupplier(
                     () -> Map.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false",
                             "otel.java.enabled.resource.providers", "none"));
