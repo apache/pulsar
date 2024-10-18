@@ -4585,7 +4585,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                     return inv.callRealMethod();
                 })
                 .when(ledger)
-                .asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(), Mockito.anyLong(), Mockito.any(), Mockito.any());
+                .asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(), Mockito.anyLong(),
+                        Mockito.anyBoolean(),Mockito.any(), Mockito.any());
         @Cleanup
         ManagedCursor cursor = ledger.openCursor("c");
 
@@ -4690,7 +4691,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                     return inv.callRealMethod();
                 })
                 .when(ledger)
-                .asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(), Mockito.anyLong(), Mockito.any(), Mockito.any());
+                .asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(), Mockito.anyLong(),
+                        Mockito.anyBoolean(), Mockito.any(), Mockito.any());
         @Cleanup
         ManagedCursor cursor = ledger.openCursor("c");
 
