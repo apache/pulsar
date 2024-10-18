@@ -206,6 +206,7 @@ public class InflightReadsLimiterTest {
     private Pair<OpenTelemetrySdk, InMemoryMetricReader> buildOpenTelemetryAndReader() {
         var metricReader = InMemoryMetricReader.create();
         var openTelemetry = AutoConfiguredOpenTelemetrySdk.builder()
+                .disableShutdownHook()
                 .addMeterProviderCustomizer((builder, __) -> builder.registerMetricReader(metricReader))
                 .build()
                 .getOpenTelemetrySdk();
