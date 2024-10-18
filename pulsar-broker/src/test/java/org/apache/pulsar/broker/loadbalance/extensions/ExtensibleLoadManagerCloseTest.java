@@ -79,6 +79,7 @@ public class ExtensibleLoadManagerCloseTest {
         config.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
         config.setLoadBalancerDebugModeEnabled(true);
         config.setBrokerShutdownTimeoutMs(100);
+        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         return config;
     }
 

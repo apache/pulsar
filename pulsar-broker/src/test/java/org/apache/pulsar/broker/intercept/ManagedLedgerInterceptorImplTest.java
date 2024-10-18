@@ -59,8 +59,8 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 
 @Test(groups = "broker")
-public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
-    private static final Logger log = LoggerFactory.getLogger(MangedLedgerInterceptorImplTest.class);
+public class ManagedLedgerInterceptorImplTest extends MockedBookKeeperTestCase {
+    private static final Logger log = LoggerFactory.getLogger(ManagedLedgerInterceptorImplTest.class);
 
     public static class TestPayloadProcessor implements ManagedLedgerPayloadProcessor {
         @Override

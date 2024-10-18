@@ -148,6 +148,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         conf.setNumExecutorThreadPoolSize(5);
+        conf.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
 
         super.internalSetup();
 

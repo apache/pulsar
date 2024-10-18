@@ -50,6 +50,7 @@ public class LoadManagerFailFastTest {
         config.setBrokerServicePort(Optional.of(0));
         config.setWebServicePort(Optional.of(0));
         config.setMetadataStoreUrl("zk:localhost:" + zkPort);
+        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
     }
 
     @AfterClass
