@@ -91,13 +91,10 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorageClass;
-import org.apache.pulsar.broker.testcontext.PulsarTestContext;
-import org.apache.pulsar.broker.testcontext.SpyConfig;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
@@ -153,14 +150,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
-    }
-
-    @Override
-    protected PulsarTestContext.Builder createPulsarTestContextBuilder(ServiceConfiguration conf) {
-        return super.createPulsarTestContextBuilder(conf)
-                .spyConfig(SpyConfig.builder()
-                        .managedLedgerStorage(SpyConfig.SpyType.SPY_ALSO_INVOCATIONS)
-                        .build());
     }
 
     @AfterMethod(alwaysRun = true)
