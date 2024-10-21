@@ -51,6 +51,7 @@ public class SubscriptionOption {
     private Optional<Map<String, String>> subscriptionProperties;
     private long consumerEpoch;
     private SchemaType schemaType;
+    private boolean resetIncludeHead;
 
     public static Optional<Map<String, String>> getPropertiesMap(List<KeyValue> list) {
         if (list == null) {
