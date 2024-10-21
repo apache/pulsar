@@ -76,4 +76,9 @@ public class ReadOnlyCursorImpl extends ManagedCursorImpl implements ReadOnlyCur
     public boolean isMessageDeleted(Position position) {
         return false;
     }
+
+    @Override
+    public boolean isMessageIndividualDeleted(Position position) {
+        return false;
+    }
 }
