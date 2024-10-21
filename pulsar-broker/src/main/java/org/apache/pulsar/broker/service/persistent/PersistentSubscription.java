@@ -307,9 +307,10 @@ public class PersistentSubscription extends AbstractSubscription {
                         });
                     }
                 } else {
-                    if (consumer.subType() != dispatcher.getType()) {
-                        return FutureUtil.failedFuture(
-                                new SubscriptionBusyException("Subscription is of different type"));
+                    Optional<CompletableFuture<Void>> compatibilityError =
+                            checkForConsumerCompatibilityErrorWithDispatcher(dispatcher, consumer);
+                    if (compatibilityError.isPresent()) {
+                        return compatibilityError.get();
                     }
                 }
 
