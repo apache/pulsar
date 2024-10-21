@@ -49,6 +49,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Value;
@@ -275,7 +276,8 @@ public class ConnectionPool implements AutoCloseable {
             }
             // Try use exists connection.
             if (clientCnx.getIdleState().tryMarkUsingAndClearIdleTime()) {
-                return CompletableFuture.completedFuture(clientCnx);
+                return CompletableFuture.completedFuture(clientCnx).thenApplyAsync(Function.identity(),
+                        clientCnx.ctx().executor());
             } else {
                 // If connection already release, create a new one.
                 pool.remove(key, completableFuture);
