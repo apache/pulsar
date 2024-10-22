@@ -276,8 +276,7 @@ public class ConnectionPool implements AutoCloseable {
             }
             // Try use exists connection.
             if (clientCnx.getIdleState().tryMarkUsingAndClearIdleTime()) {
-                return CompletableFuture.completedFuture(clientCnx).supplyAsync(
-                        () -> clientCnx, clientCnx.ctx().executor());
+                return CompletableFuture.supplyAsync(() -> clientCnx, clientCnx.ctx().executor());
             } else {
                 // If connection already release, create a new one.
                 pool.remove(key, completableFuture);
