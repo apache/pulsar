@@ -25,4 +25,11 @@ public enum TenantOperation {
     CREATE_NAMESPACE,
     DELETE_NAMESPACE,
     LIST_NAMESPACES,
+
+    // tenants level operations
+    LIST_TENANTS,
+    GET_TENANT,
+    CREATE_TENANT,
+    UPDATE_TENANT,
+    DELETE_TENANT,
 }

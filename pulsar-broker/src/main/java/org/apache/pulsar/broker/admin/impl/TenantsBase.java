@@ -48,6 +48,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,7 +63,7 @@ public class TenantsBase extends PulsarWebResource {
             @ApiResponse(code = 404, message = "Tenant doesn't exist")})
     public void getTenants(@Suspended final AsyncResponse asyncResponse) {
         final String clientAppId = clientAppId();
-        validateSuperUserAccessAsync()
+        validateTenantOperationAsync(null, TenantOperation.LIST_TENANTS)
                 .thenCompose(__ -> tenantResources().listTenantsAsync())
                 .thenAccept(tenants -> {
                     // deep copy the tenants to avoid concurrent sort exception
@@ -84,7 +85,7 @@ public class TenantsBase extends PulsarWebResource {
     public void getTenantAdmin(@Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "The tenant name") @PathParam("tenant") String tenant) {
         final String clientAppId = clientAppId();
-        validateSuperUserAccessAsync()
+        validateTenantOperationAsync(tenant, TenantOperation.GET_TENANT)
                 .thenCompose(__ -> tenantResources().getTenantAsync(tenant))
                 .thenApply(tenantInfo -> {
                     if (!tenantInfo.isPresent()) {
@@ -121,7 +122,7 @@ public class TenantsBase extends PulsarWebResource {
             asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED, "Tenant name is not valid"));
             return;
         }
-        validateSuperUserAccessAsync()
+        validateTenantOperationAsync(tenant, TenantOperation.CREATE_TENANT)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> validateClustersAsync(tenantInfo))
                 .thenCompose(__ -> validateAdminRoleAsync(tenantInfo))
@@ -169,7 +170,7 @@ public class TenantsBase extends PulsarWebResource {
             @ApiParam(value = "The tenant name") @PathParam("tenant") String tenant,
             @ApiParam(value = "TenantInfo") TenantInfoImpl newTenantAdmin) {
         final String clientAppId = clientAppId();
-        validateSuperUserAccessAsync()
+        validateTenantOperationAsync(tenant, TenantOperation.UPDATE_TENANT)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> validateClustersAsync(newTenantAdmin))
                 .thenCompose(__ -> validateAdminRoleAsync(newTenantAdmin))
@@ -206,7 +207,7 @@ public class TenantsBase extends PulsarWebResource {
             @PathParam("tenant") @ApiParam(value = "The tenant name") String tenant,
             @QueryParam("force") @DefaultValue("false") boolean force) {
         final String clientAppId = clientAppId();
-        validateSuperUserAccessAsync()
+        validateTenantOperationAsync(tenant, TenantOperation.DELETE_TENANT)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> internalDeleteTenant(tenant, force))
                 .thenAccept(__ -> {
