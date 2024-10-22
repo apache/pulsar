@@ -18,21 +18,30 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
@@ -41,7 +50,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
-public class NetworkIssueClientTest  extends ProducerConsumerBase {
+public class SimpleProduceConsumeIoTest extends ProducerConsumerBase {
 
     private PulsarClientImpl singleConnectionPerBrokerClient;
 
@@ -71,6 +80,7 @@ public class NetworkIssueClientTest  extends ProducerConsumerBase {
     @Test
     public void testUnstableNetWorkWhenCreatingProducer() throws Exception {
         final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        admin.topics().createNonPartitionedTopic(topic);
         // Trigger a pooled connection creation.
         ProducerImpl p = (ProducerImpl) singleConnectionPerBrokerClient.newProducer().topic(topic).create();
         ClientCnx cnx = p.getClientCnx();
@@ -132,12 +142,15 @@ public class NetworkIssueClientTest  extends ProducerConsumerBase {
         admin.topics().delete(topic);
     }
 
-    @Test
-    public void test1() throws Exception {
+    @Test(timeOut = 10000)
+    public void testSendAfterCreateProducerAsync() throws Exception {
         final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        admin.topics().createNonPartitionedTopic(topic);
+        AtomicReference<Producer<byte[]>> producerWrap = new AtomicReference<>();
         CompletableFuture<Void> sendFuture = new CompletableFuture<>();
         singleConnectionPerBrokerClient.newProducer().topic(topic).createAsync().thenAccept(p -> {
             try {
+                producerWrap.set(p);
                 p.send(new byte[]{1, 2, 3});
                 sendFuture.complete(null);
             } catch (PulsarClientException e) {
@@ -145,5 +158,109 @@ public class NetworkIssueClientTest  extends ProducerConsumerBase {
             }
         });
         sendFuture.get();
+
+        // cleanup.
+        producerWrap.get().close();
+        admin.topics().delete(topic);
+    }
+
+    @Test(timeOut = 20000)
+    public void testConsumeAfterCreateConsumerAsync() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final String subscription = "s1";
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().createSubscription(topic, subscription, MessageId.earliest);
+        Producer<byte[]> producer = singleConnectionPerBrokerClient.newProducer().topic(topic).create();
+        producer.send("1".getBytes(StandardCharsets.UTF_8));
+
+        AtomicReference<Consumer<byte[]>> consumerWrap = new AtomicReference<>();
+        CompletableFuture<Void> consumeTask = new CompletableFuture<>();
+        singleConnectionPerBrokerClient.newConsumer().subscriptionName(subscription).topic(topic)
+            .isAckReceiptEnabled(true).subscribeAsync().thenAccept(c -> {
+                try {
+                    consumerWrap.set(c);
+                    Message<byte[]> msg = c.receive(10, TimeUnit.SECONDS);
+                    assertEquals("1".getBytes(), msg.getData());
+                    c.acknowledge(msg);
+                    consumeTask.complete(null);
+                } catch (Exception ex) {
+                    consumeTask.completeExceptionally(ex);
+                }
+            });
+        consumeTask.get();
+
+        // cleanup.
+        producer.close();
+        consumerWrap.get().close();
+        admin.topics().delete(topic);
+    }
+
+    @Test(timeOut = 10000)
+    public void testSendAfterCreatePartitionedProducerAsync() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        admin.topics().createPartitionedTopic(topic, 2);
+        AtomicReference<Producer<byte[]>> producerWrap = new AtomicReference<>();
+        CompletableFuture<Void> sendFuture = new CompletableFuture<>();
+        singleConnectionPerBrokerClient.newProducer().messageRouter(new RoundRobinMessageRouter()).topic(topic)
+                .createAsync().thenAccept(p -> {
+            try {
+                producerWrap.set(p);
+                p.send(new byte[]{1});
+                p.send(new byte[]{1});
+                sendFuture.complete(null);
+            } catch (PulsarClientException e) {
+                sendFuture.completeExceptionally(e);
+            }
+        });
+        sendFuture.get();
+
+        // cleanup.
+        producerWrap.get().close();
+        admin.topics().deletePartitionedTopic(topic);
+    }
+
+    @Test(timeOut = 10000)
+    public void testConsumeAfterPartitionedCreateConsumerAsync() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final String subscription = "s1";
+        admin.topics().createPartitionedTopic(topic, 2);
+        admin.topics().createSubscription(topic, subscription, MessageId.earliest);
+        Producer<byte[]> producer = singleConnectionPerBrokerClient.newProducer()
+                .messageRouter(new RoundRobinMessageRouter()).topic(topic)
+                .create();
+        producer.send("1".getBytes(StandardCharsets.UTF_8));
+        producer.send("1".getBytes(StandardCharsets.UTF_8));
+
+        AtomicReference<Consumer<byte[]>> consumerWrap = new AtomicReference<>();
+        CompletableFuture<Void> consumeTask = new CompletableFuture<>();
+        singleConnectionPerBrokerClient.newConsumer().subscriptionName(subscription).topic(topic)
+                .isAckReceiptEnabled(true).subscribeAsync().thenAccept(c -> {
+                    try {
+                        consumerWrap.set(c);
+                        Message<byte[]> msg1 = c.receive(10, TimeUnit.SECONDS);
+                        assertEquals("1".getBytes(), msg1.getData());
+                        c.acknowledge(msg1);
+                        Message<byte[]> msg2 = c.receive(10, TimeUnit.SECONDS);
+                        assertEquals("1".getBytes(), msg2.getData());
+                        c.acknowledge(msg2);
+                        consumeTask.complete(null);
+                    } catch (Exception ex) {
+                        consumeTask.completeExceptionally(ex);
+                    }
+                });
+        consumeTask.get();
+
+        // cleanup.
+        producer.close();
+        consumerWrap.get().close();
+        admin.topics().deletePartitionedTopic(topic);
+    }
+
+    private static class RoundRobinMessageRouter implements MessageRouter {
+        private AtomicInteger router = new AtomicInteger();
+        @Override
+        public int choosePartition(Message<?> msg, TopicMetadata metadata) {
+            return router.incrementAndGet() % metadata.numPartitions();
+        }
     }
 }
