@@ -75,6 +75,7 @@ public class OpenTelemetryServiceTest {
                 autoConfigurationCustomizer.addMeterProviderCustomizer(
                         (sdkMeterProviderBuilder, __) -> sdkMeterProviderBuilder.registerMetricReader(extraReader));
             }
+            autoConfigurationCustomizer.disableShutdownHook();
             autoConfigurationCustomizer.addPropertiesSupplier(() -> extraProperties);
         };
     }

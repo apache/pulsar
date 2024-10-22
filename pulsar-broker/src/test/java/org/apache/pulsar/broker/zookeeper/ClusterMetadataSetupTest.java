@@ -506,11 +506,9 @@ public class ClusterMetadataSetupTest {
         private ZooKeeperServer zks;
         private NIOServerCnxnFactory serverFactory;
         private final int zkPort;
-        private final String hostPort;
 
         public ZookeeperServerTest(int zkPort) throws IOException {
             this.zkPort = zkPort;
-            this.hostPort = "127.0.0.1:" + zkPort;
             this.zkTmpDir = File.createTempFile("zookeeper", "test");
             log.info("**** Start GZK on {} ****", zkTmpDir);
             if (!zkTmpDir.delete() || !zkTmpDir.mkdir()) {
@@ -520,15 +518,17 @@ public class ClusterMetadataSetupTest {
 
         public void start() throws IOException {
             try {
+                System.setProperty("zookeeper.4lw.commands.whitelist", "*");
                 zks = new ZooKeeperServer(zkTmpDir, zkTmpDir, ZooKeeperServer.DEFAULT_TICK_TIME);
                 zks.setMaxSessionTimeout(20000);
                 serverFactory = new NIOServerCnxnFactory();
-                serverFactory.configure(new InetSocketAddress(zkPort), 1000);
+                serverFactory.configure(new InetSocketAddress("127.0.0.1", zkPort), 1000);
                 serverFactory.startup(zks);
             } catch (Exception e) {
                 log.error("Exception while instantiating ZooKeeper", e);
             }
 
+            String hostPort = "127.0.0.1:" + serverFactory.getLocalPort();
             LocalBookkeeperEnsemble.waitForServerUp(hostPort, 30000);
             log.info("ZooKeeper started at {}", hostPort);
         }
