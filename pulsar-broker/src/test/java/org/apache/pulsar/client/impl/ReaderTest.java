@@ -906,6 +906,49 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @Test(dataProvider = "initializeLastMessageIdInBroker")
+    public void testHasMessageAvailableAfterSeekTimestampWithMessageIdInclusive(boolean initializeLastMessageIdInBroker)
+            throws Exception {
+        final String topic = "persistent://my-property/my-ns/" +
+                "testHasMessageAvailableAfterSeekTimestampWithMessageInclusive";
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        final long timestampBeforeSend = System.currentTimeMillis();
+        final MessageId sentMsgId = producer.send("msg");
+
+        final List<MessageId> messageIds = new ArrayList<>();
+        messageIds.add(MessageId.earliest);
+        messageIds.add(sentMsgId);
+        messageIds.add(MessageId.latest);
+
+        for (MessageId messageId : messageIds) {
+            @Cleanup
+            Reader<String> reader = pulsarClient.newReader(Schema.STRING).topic(topic).receiverQueueSize(1)
+                    .startMessageIdInclusive()
+                    .startMessageId(messageId).create();
+            if (initializeLastMessageIdInBroker) {
+                assertTrue(reader.hasMessageAvailable());
+            }
+            reader.seek(System.currentTimeMillis());
+            assertFalse(reader.hasMessageAvailable());
+            Message<String> message = reader.readNext(10, TimeUnit.SECONDS);
+            assertNull(message);
+        }
+
+        for (MessageId messageId : messageIds) {
+            @Cleanup
+            Reader<String> reader = pulsarClient.newReader(Schema.STRING).topic(topic).receiverQueueSize(1)
+                    .startMessageIdInclusive()
+                    .startMessageId(messageId).create();
+            if (initializeLastMessageIdInBroker) {
+                assertTrue(reader.hasMessageAvailable());
+            }
+            reader.seek(timestampBeforeSend);
+            assertTrue(reader.hasMessageAvailable());
+        }
+    }
+
     @Test
     public void testReaderBuilderStateOnRetryFailure() throws Exception {
         String ns = "my-property/my-ns";
