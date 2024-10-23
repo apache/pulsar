@@ -2001,14 +2001,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         log.debug("[{}] [{}] No pending messages to resend {}", topic, producerName, messagesToResend);
                     }
                     if (changeToReadyState()) {
-                        // Switch to user thread to avoid a deadlock as follows:
-                        // - create producer async.
-                        // - use IO thread to call a sync method.
-                        // - the thread was stuck, and will never respond for brokers.
-                        client.externalExecutorProvider().getExecutor(ProducerImpl.this).submit(() -> {
-                            producerCreatedFuture.complete(ProducerImpl.this);
-                            scheduleBatchFlushTask(0);
-                        });
+                        producerCreatedFuture.complete(ProducerImpl.this);
+                        scheduleBatchFlushTask(0);
                         return;
                     } else {
                         // Producer was closed while reconnecting, close the connection to make sure the broker

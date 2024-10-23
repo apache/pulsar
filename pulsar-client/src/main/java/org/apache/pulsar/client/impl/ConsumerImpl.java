@@ -915,24 +915,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
                 resetBackoff();
 
-                // Switch to user thread to avoid a deadlock as follows:
-                // - create consumer async.
-                // - use IO thread to call a sync method.
-                // - the thread was stuck, and will never respond for brokers.
-                client.externalExecutorProvider().getExecutor(ConsumerImpl.this).execute(() -> {
-                    // Since the same consumer will use the same extra thread, so the "compare and switch" for
-                    // "subscribeFuture" is safety.
-                    boolean firstTimeConnect = !subscribeFuture.isDone();
-                    // if the consumer is not partitioned or is re-connected and is partitioned, we send the flow
-                    // command to receive messages.
-                    cnx.ctx().executor().execute(() -> {
-                        if (!(firstTimeConnect && hasParentConsumer) && getCurrentReceiverQueueSize() != 0) {
-                            increaseAvailablePermits(cnx, getCurrentReceiverQueueSize());
-                        }
-                        future.complete(null);
-                    });
-                    subscribeFuture.complete(this);
-                });
+                boolean firstTimeConnect = subscribeFuture.complete(this);
+                // if the consumer is not partitioned or is re-connected and is partitioned, we send the flow
+                // command to receive messages.
+                if (!(firstTimeConnect && hasParentConsumer) && getCurrentReceiverQueueSize() != 0) {
+                    increaseAvailablePermits(cnx, getCurrentReceiverQueueSize());
+                }
+                future.complete(null);
             }).exceptionally((e) -> {
                 deregisterFromClientCnx();
                 if (getState() == State.Closing || getState() == State.Closed) {
