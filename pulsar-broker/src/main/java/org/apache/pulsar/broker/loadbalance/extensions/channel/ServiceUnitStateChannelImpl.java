@@ -32,6 +32,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.isInFlightState;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.ChannelState.Closed;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.ChannelState.Constructed;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.ChannelState.Disabled;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.ChannelState.LeaderElectionServiceStarted;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.ChannelState.Started;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.EventType.Assign;
@@ -181,7 +182,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         Closed(0),
         Constructed(1),
         LeaderElectionServiceStarted(2),
-        Started(3);
+        Started(3),
+        Disabled(4);
 
         ChannelState(int id) {
             this.id = id;
@@ -260,9 +262,17 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
+
+
     @Override
     public void cleanOwnerships() {
+        disable();
         doCleanup(brokerId);
+    }
+
+    @Override
+    public synchronized boolean started() {
+        return validateChannelState(Started, true);
     }
 
     public synchronized void start() throws PulsarServerException {
@@ -442,9 +452,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             if (owner.isPresent()) {
                 return isTargetBroker(owner.get());
             } else {
-                String msg = "There is no channel owner now.";
-                log.error(msg);
-                throw new IllegalStateException(msg);
+                throw new IllegalStateException("There is no channel owner now.");
             }
         });
     }
@@ -618,7 +626,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     public CompletableFuture<String> publishAssignEventAsync(String serviceUnit, String broker) {
-        if (!validateChannelState(Started, true)) {
+        if (!validateChannelState(Started, true) || channelState == Disabled) {
             return CompletableFuture.failedFuture(
                     new IllegalStateException("Invalid channel state:" + channelState.name()));
         }
@@ -699,6 +707,14 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
 
         ServiceUnitState state = state(data);
+        if (channelState == Disabled && (data == null || !data.force())) {
+            final var request = getOwnerRequests.remove(serviceUnit);
+            if (request != null) {
+                request.completeExceptionally(new BrokerServiceException.ServiceUnitNotReadyException(
+                        "cancel the lookup request for " + serviceUnit + " when receiving " + state));
+            }
+            return;
+        }
         try {
             switch (state) {
                 case Owned -> handleOwnEvent(serviceUnit, data);
@@ -866,7 +882,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
-    private void handleFreeEvent(String serviceUnit, ServiceUnitStateData data) {
+    private CompletableFuture<Void> handleFreeEvent(String serviceUnit, ServiceUnitStateData data) {
         var getOwnerRequest = getOwnerRequests.remove(serviceUnit);
         if (getOwnerRequest != null) {
             getOwnerRequest.complete(null);
@@ -880,8 +896,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                             : CompletableFuture.completedFuture(0)).thenApply(__ -> null);
             stateChangeListeners.notifyOnCompletion(future, serviceUnit, data)
                     .whenComplete((__, e) -> log(e, serviceUnit, data, null));
+            return future;
         } else {
             stateChangeListeners.notify(serviceUnit, data, null);
+            return CompletableFuture.completedFuture(null);
         }
     }
 
@@ -1258,8 +1276,17 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     private void handleBrokerDeletionEvent(String broker) {
-        if (!isChannelOwner()) {
-            log.warn("This broker is not the leader now. Ignoring BrokerDeletionEvent for broker {}.", broker);
+        try {
+            if (!isChannelOwner()) {
+                log.warn("This broker is not the leader now. Ignoring BrokerDeletionEvent for broker {}.", broker);
+                return;
+            }
+        } catch (Exception e) {
+            if (e instanceof ExecutionException && e.getCause() instanceof IllegalStateException) {
+                log.warn("Failed to handle broker deletion event due to {}", e.getMessage());
+            } else {
+                log.error("Failed to handle broker deletion event.", e);
+            }
             return;
         }
         MetadataState state = getMetadataState();
@@ -1279,6 +1306,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private void scheduleCleanup(String broker, long delayInSecs) {
         var scheduled = new MutableObject<CompletableFuture<Void>>();
         try {
+            final var channelState = this.channelState;
+            if (channelState == Disabled || channelState == Closed) {
+                log.warn("[{}] Skip scheduleCleanup because the state is {} now", brokerId, channelState);
+                return;
+            }
             cleanupJobs.computeIfAbsent(broker, k -> {
                 Executor delayed = CompletableFuture
                         .delayedExecutor(delayInSecs, TimeUnit.SECONDS, pulsar.getLoadManagerExecutor());
@@ -1371,6 +1403,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
                 if (data.state() == Owned && broker.equals(data.dstBroker())) {
                     cleaned = false;
+                    log.info("[{}] bundle {} is still owned by this, data: {}", broker, serviceUnit, data);
                     break;
                 }
             }
@@ -1784,4 +1817,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     public static ServiceUnitStateChannel get(PulsarService pulsar) {
         return ExtensibleLoadManagerImpl.get(pulsar.getLoadManager().get()).getServiceUnitStateChannel();
     }
+
+        @VisibleForTesting
+        protected void disable() {
+            channelState = Disabled;
+        }
 }

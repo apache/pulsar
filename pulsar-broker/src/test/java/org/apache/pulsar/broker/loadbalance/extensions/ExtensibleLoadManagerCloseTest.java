@@ -22,13 +22,15 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -36,26 +38,33 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker")
 public class ExtensibleLoadManagerCloseTest {
 
     private static final String clusterName = "test";
-    private final LocalBookkeeperEnsemble bk = new LocalBookkeeperEnsemble(1, 0, () -> 0);
     private final List<PulsarService> brokers = new ArrayList<>();
-    private PulsarAdmin admin;
+    private LocalBookkeeperEnsemble bk;
 
     @BeforeClass(alwaysRun = true)
     public void setup() throws Exception {
+        bk = new LocalBookkeeperEnsemble(1, 0, () -> 0);
         bk.start();
-        for (int i = 0; i < 3; i++) {
+    }
+
+    private void setupBrokers(int numBrokers) throws Exception {
+        brokers.clear();
+        for (int i = 0; i < numBrokers; i++) {
             final var broker = new PulsarService(brokerConfig());
             broker.start();
             brokers.add(broker);
         }
-        admin = brokers.get(0).getAdminClient();
-        admin.clusters().createCluster(clusterName, ClusterData.builder().build());
-        admin.tenants().createTenant("public", TenantInfo.builder()
-                .allowedClusters(Collections.singleton(clusterName)).build());
-        admin.namespaces().createNamespace("public/default");
+        final var admin = brokers.get(0).getAdminClient();
+        if (!admin.clusters().getClusters().contains(clusterName)) {
+            admin.clusters().createCluster(clusterName, ClusterData.builder().build());
+            admin.tenants().createTenant("public", TenantInfo.builder()
+                    .allowedClusters(Collections.singleton(clusterName)).build());
+            admin.namespaces().createNamespace("public/default");
+        }
     }
 
 
@@ -85,7 +94,9 @@ public class ExtensibleLoadManagerCloseTest {
 
     @Test
     public void testCloseAfterLoadingBundles() throws Exception {
+        setupBrokers(3);
         final var topic = "test";
+        final var admin = brokers.get(0).getAdminClient();
         admin.topics().createPartitionedTopic(topic, 20);
         admin.lookups().lookupPartitionedTopic(topic);
         final var client = PulsarClient.builder().serviceUrl(brokers.get(0).getBrokerServiceUrl()).build();
@@ -103,5 +114,26 @@ public class ExtensibleLoadManagerCloseTest {
         for (var closeTimeMs : closeTimeMsList) {
             Assert.assertTrue(closeTimeMs < 5000L);
         }
+    }
+
+    @Test
+    public void testLookup() throws Exception {
+        setupBrokers(1);
+        final var topic = "test-lookup";
+        final var numPartitions = 16;
+        final var admin = brokers.get(0).getAdminClient();
+        admin.topics().createPartitionedTopic(topic, numPartitions);
+
+        final var futures = new ArrayList<CompletableFuture<String>>();
+        for (int i = 0; i < numPartitions; i++) {
+            futures.add(admin.lookups().lookupTopicAsync(topic + TopicName.PARTITIONED_TOPIC_SUFFIX + i));
+        }
+        FutureUtil.waitForAll(futures).get();
+
+        final var start = System.currentTimeMillis();
+        brokers.get(0).close();
+        final var closeTimeMs = System.currentTimeMillis() - start;
+        log.info("Broker close time: {}", closeTimeMs);
+        Assert.assertTrue(closeTimeMs < 5000L);
     }
 }
