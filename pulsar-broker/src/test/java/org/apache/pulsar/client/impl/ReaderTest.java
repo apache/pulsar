@@ -906,9 +906,8 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(dataProvider = "initializeLastMessageIdInBroker")
-    public void testHasMessageAvailableAfterSeekTimestampWithMessageIdInclusive(boolean initializeLastMessageIdInBroker)
-            throws Exception {
+    @Test
+    public void testHasMessageAvailableAfterSeekTimestampWithMessageIdInclusive() throws Exception {
         final String topic = "persistent://my-property/my-ns/" +
                 "testHasMessageAvailableAfterSeekTimestampWithMessageInclusive";
 
@@ -927,9 +926,8 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
             Reader<String> reader = pulsarClient.newReader(Schema.STRING).topic(topic).receiverQueueSize(1)
                     .startMessageIdInclusive()
                     .startMessageId(messageId).create();
-            if (initializeLastMessageIdInBroker) {
-                assertTrue(reader.hasMessageAvailable());
-            }
+            assertTrue(reader.hasMessageAvailable());
+
             reader.seek(System.currentTimeMillis());
             assertFalse(reader.hasMessageAvailable());
             Message<String> message = reader.readNext(10, TimeUnit.SECONDS);
@@ -941,9 +939,8 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
             Reader<String> reader = pulsarClient.newReader(Schema.STRING).topic(topic).receiverQueueSize(1)
                     .startMessageIdInclusive()
                     .startMessageId(messageId).create();
-            if (initializeLastMessageIdInBroker) {
-                assertTrue(reader.hasMessageAvailable());
-            }
+            assertTrue(reader.hasMessageAvailable());
+
             reader.seek(timestampBeforeSend);
             assertTrue(reader.hasMessageAvailable());
         }
