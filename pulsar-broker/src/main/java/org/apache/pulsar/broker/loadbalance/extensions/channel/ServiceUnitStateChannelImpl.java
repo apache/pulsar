@@ -626,7 +626,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     public CompletableFuture<String> publishAssignEventAsync(String serviceUnit, String broker) {
-        if (!validateChannelState(Started, true)) {
+        if (!validateChannelState(Started, true) || channelState == Disabled) {
             return CompletableFuture.failedFuture(
                     new IllegalStateException("Invalid channel state:" + channelState.name()));
         }
