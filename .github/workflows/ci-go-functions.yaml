@@ -22,7 +22,7 @@ on:
   pull_request:
     branches:
       - master
-      - branch-3.0
+      - branch-as-3.0
     paths:
       - '.github/workflows/**'
       - 'pulsar-function-go/**'
