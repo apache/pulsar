@@ -2426,6 +2426,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                 .result();
                         if (lastMessageId.getEntryId() < 0) {
                             completehasMessageAvailableWithValue(booleanFuture, false);
+                        } else if (hasSoughtByTimestamp) {
+                            completehasMessageAvailableWithValue(booleanFuture, result < 0);
                         } else {
                             completehasMessageAvailableWithValue(booleanFuture,
                                     resetIncludeHead ? result <= 0 : result < 0);
