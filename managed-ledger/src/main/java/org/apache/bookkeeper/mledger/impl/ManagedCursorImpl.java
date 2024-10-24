@@ -3574,6 +3574,9 @@ public class ManagedCursorImpl implements ManagedCursor {
      */
     public Position getNextAvailablePosition(Position position) {
         lock.readLock().lock();
+        if (individualDeletedMessages.isEmpty()) {
+            return ledger.getNextValidPosition(position);
+        }
         try {
             Range<Position> range = individualDeletedMessages.rangeContaining(position.getLedgerId(),
                     position.getEntryId());
@@ -3582,7 +3585,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 return (nextPosition != null && nextPosition.compareTo(position) > 0)
                         ? nextPosition : position.getNext();
             }
-            return position.getNext();
+            return ledger.getNextValidPosition(position);
         } finally {
             lock.readLock().unlock();
         }
