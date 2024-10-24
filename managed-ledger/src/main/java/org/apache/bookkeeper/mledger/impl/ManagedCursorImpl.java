@@ -3550,6 +3550,16 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
+    @Override
+    public boolean isMessageIndividualDeleted(Position position) {
+        lock.readLock().lock();
+        try {
+            return individualDeletedMessages.contains(position.getLedgerId(), position.getEntryId());
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
     //this method will return a copy of the position's ack set
     @Override
     public long[] getBatchPositionAckSet(Position position) {

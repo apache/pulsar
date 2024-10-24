@@ -2364,4 +2364,77 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         Assert.assertEquals(results, expected);
     }
+
+    @Test
+    public void testIndividualAcknowledgeWithReconnection() throws Exception {
+        final String topicName = "persistent://my-property/use/my-ns/testIndividualAcknowledge" + UUID.randomUUID();
+        final String subName = "sub1";
+        final int numMessages = 10;
+
+        pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                .receiverQueueSize(1).readCompacted(true).subscribe().close();
+
+        Map<String, String> expected = new HashMap<>();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+
+        for (int i = 0; i < numMessages; i++) {
+            String key = "key" + new Random().nextInt(4);
+            String value = ("my-message-" + i);
+            producer.newMessage().key(key).value(value).send();
+            expected.put(key, value);
+        }
+        producer.flush();
+
+        // compact the topic
+        compact(topicName);
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionName(subName).receiverQueueSize(1).readCompacted(true).subscribe();
+
+        Map<String, String> results = new HashMap<>();
+        while (true) {
+            Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            results.put(message.getKey(), message.getValue());
+            consumer.acknowledge(message);
+        }
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.topics().getStats(topicName, true).getSubscriptions().get(subName).getMsgBacklog(),
+                        numMessages - expected.size()));
+
+        // unload the topic
+        admin.topics().unload(topicName);
+
+        // wait the consumer reconnect
+        Awaitility.await().until(() -> admin.topics().getStats(topicName).getSubscriptions() != null);
+
+        // should not receive message
+        int count = 0;
+        while (true) {
+            Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            count++;
+            results.put(message.getKey(), message.getValue());
+            consumer.acknowledge(message);
+        }
+        assertEquals(count, 0);
+
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.topics().getStats(topicName, true).getSubscriptions().get(subName).getMsgBacklog(),
+                        numMessages - expected.size()));
+
+        assertEquals(results, expected);
+    }
 }

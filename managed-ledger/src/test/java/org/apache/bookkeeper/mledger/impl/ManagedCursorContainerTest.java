@@ -423,6 +423,11 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
+        public boolean isMessageIndividualDeleted(Position position) {
+            return false;
+        }
+
+        @Override
         public ManagedCursor duplicateNonDurableCursor(String nonDurableCursorName) throws ManagedLedgerException {
             return null;
         }

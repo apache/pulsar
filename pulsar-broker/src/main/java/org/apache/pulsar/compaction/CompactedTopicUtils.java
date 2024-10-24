@@ -21,7 +21,9 @@ package org.apache.pulsar.compaction;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.google.common.annotations.Beta;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nullable;
@@ -37,6 +39,8 @@ import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleAct
 import org.apache.pulsar.common.util.FutureUtil;
 
 public class CompactedTopicUtils {
+
+    private static final String COMPACTION_CURSOR_NAME = "__compaction";
 
     @Beta
     public static void asyncReadCompactedEntries(TopicCompactionService topicCompactionService,
@@ -88,15 +92,27 @@ public class CompactedTopicUtils {
                             return;
                         }
 
+                        List<Entry> unAckedEntries = new ArrayList<>();
                         long entriesSize = 0;
-                        for (Entry entry : entries) {
-                            entriesSize += entry.getLength();
+                        if (COMPACTION_CURSOR_NAME.equals(cursor.getName())) {
+                            for (Entry entry : entries) {
+                                entriesSize += entry.getLength();
+                            }
+                            unAckedEntries = entries;
+                        } else {
+                            for (Entry entry : entries) {
+                                Position position = entry.getPosition();
+                                if (!cursor.isMessageIndividualDeleted(position)) {
+                                    unAckedEntries.add(entry);
+                                    entriesSize += entry.getLength();
+                                }
+                            }
                         }
-                        cursor.updateReadStats(entries.size(), entriesSize);
+                        cursor.updateReadStats(unAckedEntries.size(), entriesSize);
 
                         Entry lastEntry = entries.get(entries.size() - 1);
                         cursor.seek(lastEntry.getPosition().getNext(), true);
-                        callback.readEntriesComplete(entries, readEntriesCtx);
+                        callback.readEntriesComplete(unAckedEntries, readEntriesCtx);
                     });
         }).exceptionally((exception) -> {
             exception = FutureUtil.unwrapCompletionException(exception);
