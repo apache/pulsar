@@ -150,7 +150,7 @@ public interface ReaderBuilder<T> extends Cloneable {
     /**
      * Set the reader to include the given position of {@link ReaderBuilder#startMessageId(MessageId)}
      *
-     * <p>This configuration option also applies for any cursor reset operation like {@link Reader#seek(MessageId)}.
+     * <p>This configuration option also applies for cursor reset operation {@link Reader#seek(MessageId)}.
      *
      * @return the reader builder instance
      */

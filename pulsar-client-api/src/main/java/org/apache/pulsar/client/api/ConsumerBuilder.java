@@ -683,8 +683,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> keySharedPolicy(KeySharedPolicy keySharedPolicy);
 
     /**
-     * Sets the consumer to include the given position of any reset operation like {@link Consumer#seek(long)} or
-     * {@link Consumer#seek(MessageId)}}.
+     * Sets the consumer to include the given position of reset operation {@link Consumer#seek(MessageId)}}.
      *
      * @return the consumer builder instance
      */
