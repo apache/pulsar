@@ -132,6 +132,7 @@ import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
@@ -457,14 +458,17 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
             assertEquals(unloadCount.get(), 0);
         });
 
-        ServiceUnitStateChannelImpl channel = new ServiceUnitStateChannelImpl(pulsar1);
-        channel.start();
+        @Cleanup
+        ServiceUnitStateChannelImpl channel3 = new ServiceUnitStateChannelImpl(pulsar1);
+        channel3.start();
+        @Cleanup
+        ServiceUnitStateChannelImpl channel4 = new ServiceUnitStateChannelImpl(pulsar2);
+        channel4.start();
         Awaitility.await().untilAsserted(() -> {
             assertEquals(onloadCount.get(), 2);
             assertEquals(unloadCount.get(), 0);
         });
 
-        channel.close();
     }
 
     @DataProvider(name = "isPersistentTopicSubscriptionTypeTest")
@@ -1893,6 +1897,20 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         pulsar1.getBrokerService()
                 .unloadServiceUnit(topicAndBundle.getRight(), true, true, 5,
                         TimeUnit.SECONDS).get(2, TimeUnit.SECONDS);
+    }
+
+    @Test(timeOut = 30 * 1000)
+    public void testMonitorBrokerRegistry() throws MetadataStoreException {
+        primaryLoadManager.getBrokerRegistry().unregister();
+        assertFalse(primaryLoadManager.getBrokerRegistry().isRegistered());
+        Awaitility.await()
+                .pollInterval(200, TimeUnit.MILLISECONDS)
+                .atMost(30, TimeUnit.SECONDS)
+                .ignoreExceptions()
+                .untilAsserted(() -> { // wait until true
+                    primaryLoadManager.monitor();
+                    assertTrue(primaryLoadManager.getBrokerRegistry().isRegistered());
+                });
     }
 
     private static abstract class MockBrokerFilter implements BrokerFilter {
