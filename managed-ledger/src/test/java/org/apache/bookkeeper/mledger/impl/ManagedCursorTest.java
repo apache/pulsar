@@ -4826,9 +4826,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getReadPosition(), markDeletedPosition.getNext());
     }
 
-    @Test
+    @Test(invocationCount = 5000)
     void testForceCursorRecovery() throws Exception {
-        ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
         TestPulsarMockBookKeeper bk = new TestPulsarMockBookKeeper(executor);
         factory = new ManagedLedgerFactoryImpl(metadataStore, bk);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
@@ -4841,17 +4840,24 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedCursorInfo info = ManagedCursorInfo.newBuilder().setCursorsLedgerId(invalidLedger).build();
         CountDownLatch latch = new CountDownLatch(1);
         MutableBoolean recovered = new MutableBoolean(false);
+        AtomicBoolean callbackInvoked = new AtomicBoolean(false);
         VoidCallback callback = new VoidCallback() {
             @Override
             public void operationComplete() {
-                recovered.setValue(true);
-                latch.countDown();
+                if (callbackInvoked.compareAndSet(false, true)) {
+                    log.info("Cursor recovery success");
+                    recovered.setValue(true);
+                    latch.countDown();
+                }
             }
 
             @Override
             public void operationFailed(ManagedLedgerException exception) {
-                recovered.setValue(false);
-                latch.countDown();
+                if (callbackInvoked.compareAndSet(false, true)) {
+                    log.error("Cursor recovery failed", exception);
+                    recovered.setValue(false);
+                    latch.countDown();
+                }
             }
         };
         c1.recoverFromLedger(info, callback);
