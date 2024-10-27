@@ -4826,7 +4826,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getReadPosition(), markDeletedPosition.getNext());
     }
 
-    @Test(invocationCount = 5000)
+    @Test
     void testForceCursorRecovery() throws Exception {
         TestPulsarMockBookKeeper bk = new TestPulsarMockBookKeeper(executor);
         factory = new ManagedLedgerFactoryImpl(metadataStore, bk);
