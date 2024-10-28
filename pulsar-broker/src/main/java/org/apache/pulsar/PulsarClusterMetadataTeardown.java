@@ -66,6 +66,11 @@ public class PulsarClusterMetadataTeardown {
         @Option(names = { "-cs", "--configuration-store" }, description = "Configuration Store connection string")
         private String configurationStore;
 
+        @Option(names = {"-cmscp",
+                "--configuration-metadata-store-config-path"}, description = "Configuration Metadata Store config path",
+                hidden = false)
+        private String configurationStoreConfigPath;
+
         @Option(names = { "--bookkeeper-metadata-service-uri" }, description = "Metadata service uri of BookKeeper")
         private String bkMetadataServiceUri;
 
@@ -127,6 +132,7 @@ public class PulsarClusterMetadataTeardown {
             @Cleanup
             MetadataStore configMetadataStore = MetadataStoreFactory.create(arguments.configurationStore,
                     MetadataStoreConfig.builder().sessionTimeoutMillis(arguments.zkSessionTimeoutMillis)
+                            .configFilePath(arguments.configurationStoreConfigPath)
                             .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE).build());
             deleteRecursively(configMetadataStore, "/admin/clusters/" + arguments.cluster).join();
         }
