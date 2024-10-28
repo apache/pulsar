@@ -362,6 +362,9 @@ public class RangeEntryCacheImpl implements EntryCache {
         }
         long estimatedReadSize = (1 + lastEntry - firstEntry)
                 * (estimatedEntrySize + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY);
+        if (estimatedReadSize > pendingReadsLimiter.getMaxReadsInFlightSize()) {
+            pendingReadsLimiter.setMaxReadsInFlightSize(estimatedReadSize);
+        }
         final AsyncCallbacks.ReadEntriesCallback callback;
         InflightReadsLimiter.Handle newHandle = pendingReadsLimiter.acquire(estimatedReadSize, handle);
         if (!newHandle.success) {

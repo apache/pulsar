@@ -23,6 +23,8 @@ import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.ObservableLongCounter;
 import io.prometheus.client.Gauge;
 import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.opentelemetry.Constants;
@@ -56,7 +58,9 @@ public class InflightReadsLimiter implements AutoCloseable {
             .help("Available space for inflight data read from storage or cache")
             .register();
 
-    private final long maxReadsInFlightSize;
+    @Setter
+    @Getter
+    private long maxReadsInFlightSize;
     private long remainingBytes;
 
     public InflightReadsLimiter(long maxReadsInFlightSize, OpenTelemetry openTelemetry) {
@@ -177,6 +181,5 @@ public class InflightReadsLimiter implements AutoCloseable {
     public boolean isDisabled() {
         return maxReadsInFlightSize <= 0;
     }
-
 
 }
