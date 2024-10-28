@@ -53,15 +53,15 @@ public class PulsarClusterMetadataTeardown {
     @Command(name = "delete-cluster-metadata", showDefaultValues = true, scope = ScopeType.INHERIT)
     private static class Arguments {
         @Option(names = { "-zk",
-                "--zookeeper"}, description = "Local ZooKeeper quorum connection string", required = true)
+                "--zookeeper"}, description = "Local ZooKeeper quorum connection string")
         private String zookeeper;
 
         @Option(names = {"-md",
-                "--metadata-store"}, description = "Metadata Store service url. eg: zk:my-zk:2181", required = false)
+                "--metadata-store"}, description = "Metadata Store service url. eg: zk:my-zk:2181")
         private String metadataStoreUrl;
 
         @Option(names = {"-mscp",
-                "--metadata-store-config-path"}, description = "Metadata Store config path", hidden = false)
+                "--metadata-store-config-path"}, description = "Metadata Store config path")
         private String metadataStoreConfigPath;
 
         @Option(names = {
@@ -116,7 +116,7 @@ public class PulsarClusterMetadataTeardown {
         if (arguments.metadataStoreUrl == null && arguments.zookeeper == null) {
             System.err.println("Metadata store address argument is required (--metadata-store)");
             commander.usage(commander.getOut());
-            System.exit(1);
+            throw new IllegalArgumentException("Metadata store address argument is required (--metadata-store)");
         }
 
         if (arguments.metadataStoreUrl == null) {
