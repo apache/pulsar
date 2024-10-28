@@ -1565,7 +1565,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 }).whenComplete((value, ex) -> {
                     if (ex != null) {
                         log.error("[{}] Error deleting topic", topic, ex);
-                        unfenceTopicToResume();
                     }
                 });
 
