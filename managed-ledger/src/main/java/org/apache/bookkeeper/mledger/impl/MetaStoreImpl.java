@@ -399,8 +399,8 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
 
     private static MetaStoreException getException(Throwable t) {
         Throwable actEx = FutureUtil.unwrapCompletionException(t);
-        if (actEx instanceof MetadataStoreException.BadVersionException) {
-            return new ManagedLedgerException.BadVersionException(actEx.getMessage());
+        if (actEx instanceof MetadataStoreException.BadVersionException badVersionException) {
+            return new ManagedLedgerException.BadVersionException(badVersionException);
         } else if (actEx instanceof MetaStoreException metaStoreException){
             return metaStoreException;
         } else {
