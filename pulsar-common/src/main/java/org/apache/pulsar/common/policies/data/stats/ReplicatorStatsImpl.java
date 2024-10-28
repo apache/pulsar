@@ -18,7 +18,10 @@
  */
 package org.apache.pulsar.common.policies.data.stats;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
+import java.util.concurrent.atomic.LongAdder;
 import lombok.Data;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 
@@ -31,14 +34,26 @@ public class ReplicatorStatsImpl implements ReplicatorStats {
     /** Total rate of messages received from the remote cluster (msg/s). */
     public double msgRateIn;
 
+    @JsonIgnore
+    private final LongAdder msgInCount = new LongAdder();
+
     /** Total throughput received from the remote cluster (bytes/s). */
     public double msgThroughputIn;
+
+    @JsonIgnore
+    private final LongAdder bytesInCount = new LongAdder();
 
     /** Total rate of messages delivered to the replication-subscriber (msg/s). */
     public double msgRateOut;
 
+    @JsonIgnore
+    private final LongAdder msgOutCount = new LongAdder();
+
     /** Total throughput delivered to the replication-subscriber (bytes/s). */
     public double msgThroughputOut;
+
+    @JsonIgnore
+    private final LongAdder bytesOutCount = new LongAdder();
 
     /** Total rate of messages expired (msg/s). */
     public double msgRateExpired;
@@ -72,10 +87,51 @@ public class ReplicatorStatsImpl implements ReplicatorStats {
         this.msgThroughputOut += stats.msgThroughputOut;
         this.msgRateExpired += stats.msgRateExpired;
         this.replicationBacklog += stats.replicationBacklog;
-        if (this.connected) {
-            this.connected &= stats.connected;
-        }
+        this.connected &= stats.connected;
         this.replicationDelayInSeconds = Math.max(this.replicationDelayInSeconds, stats.replicationDelayInSeconds);
         return this;
+    }
+
+    @Override
+    @JsonProperty
+    public long getMsgInCount() {
+        return msgInCount.sum();
+    }
+
+    @Override
+    @JsonProperty
+    public long getBytesInCount() {
+        return bytesInCount.sum();
+    }
+
+    public void incrementPublishCount(int numOfMessages, long msgSizeInBytes) {
+        msgInCount.add(numOfMessages);
+        bytesInCount.add(msgSizeInBytes);
+    }
+
+    @Override
+    @JsonProperty
+    public long getMsgOutCount() {
+        return msgOutCount.sum();
+    }
+
+    public void incrementMsgOutCounter() {
+        msgOutCount.increment();
+    }
+
+    @Override
+    @JsonProperty
+    public long getBytesOutCount() {
+        return bytesOutCount.sum();
+    }
+
+    public void incrementBytesOutCounter(long bytes) {
+        bytesOutCount.add(bytes);
+    }
+
+    @Override
+    @JsonProperty
+    public long getMsgExpiredCount() {
+        return 0;
     }
 }

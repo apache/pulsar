@@ -218,12 +218,6 @@ public class BrokerServiceException extends Exception {
         }
     }
 
-    public static class TopicPoliciesCacheNotInitException extends BrokerServiceException {
-        public TopicPoliciesCacheNotInitException() {
-            super("Topic policies cache have not init.");
-        }
-    }
-
     public static class TopicBacklogQuotaExceededException extends BrokerServiceException {
         @Getter
         private final BacklogQuota.RetentionPolicy retentionPolicy;

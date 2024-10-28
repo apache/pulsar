@@ -98,6 +98,7 @@ public class CompactorToolTest {
         verify(serviceConfiguration, times(1)).getBrokerClientKeyFilePath();
         verify(serviceConfiguration, times(1)).getBrokerClientTrustCertsFilePath();
         verify(serviceConfiguration, times(1)).getBrokerClientCertificateFilePath();
+        serviceConfiguration.setBrokerClientTlsTrustStorePassword(MockedPulsarServiceBaseTest.BROKER_KEYSTORE_PW);
     }
 
     @Test

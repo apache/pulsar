@@ -35,6 +35,7 @@ public class BrokerOpenTelemetryTestUtil {
         return sdkBuilder -> {
             sdkBuilder.addMeterProviderCustomizer(
                     (meterProviderBuilder, __) -> meterProviderBuilder.registerMetricReader(reader));
+            sdkBuilder.disableShutdownHook();
             sdkBuilder.addPropertiesSupplier(
                     () -> Map.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false",
                             "otel.java.enabled.resource.providers", "none"));
@@ -83,6 +84,24 @@ public class BrokerOpenTelemetryTestUtil {
                 .anySatisfy(metric -> assertThat(metric)
                         .hasName(metricName)
                         .hasLongGaugeSatisfying(gauge -> gauge.satisfies(
+                                pointData -> assertThat(pointData.getPoints()).anySatisfy(
+                                        point -> {
+                                            assertThat(point.getAttributes()).isEqualTo(attributes);
+                                            valueConsumer.accept(point.getValue());
+                                        }))));
+    }
+
+    public static void assertMetricDoubleGaugeValue(Collection<MetricData> metrics, String metricName,
+                                                    Attributes attributes, double expected) {
+        assertMetricDoubleGaugeValue(metrics, metricName, attributes, actual -> assertThat(actual).isEqualTo(expected));
+    }
+
+    public static void assertMetricDoubleGaugeValue(Collection<MetricData> metrics, String metricName,
+                                                  Attributes attributes, Consumer<Double> valueConsumer) {
+        assertThat(metrics)
+                .anySatisfy(metric -> assertThat(metric)
+                        .hasName(metricName)
+                        .hasDoubleGaugeSatisfying(gauge -> gauge.satisfies(
                                 pointData -> assertThat(pointData.getPoints()).anySatisfy(
                                         point -> {
                                             assertThat(point.getAttributes()).isEqualTo(attributes);

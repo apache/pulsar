@@ -99,7 +99,7 @@ public class TopKBundles {
         }
     }
 
-    static void partitionSort(List<Map.Entry<String, ? extends Comparable>> arr, int k) {
+    public static void partitionSort(List<Map.Entry<String, ? extends Comparable>> arr, int k) {
         int start = 0;
         int end = arr.size() - 1;
         int target = k - 1;

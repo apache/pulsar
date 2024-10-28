@@ -34,7 +34,7 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.MessageId;
@@ -108,7 +108,7 @@ public class MessageTTLTest extends BrokerTestBase {
         CursorStats statsBeforeExpire = internalStatsBeforeExpire.cursors.get(subscriptionName);
         log.info("markDeletePosition before expire {}", statsBeforeExpire.markDeletePosition);
         assertEquals(statsBeforeExpire.markDeletePosition,
-                PositionImpl.get(firstMessageId.getLedgerId(), -1).toString());
+                PositionFactory.create(firstMessageId.getLedgerId(), -1).toString());
 
         Awaitility.await().timeout(30, TimeUnit.SECONDS)
                 .pollDelay(3, TimeUnit.SECONDS).untilAsserted(() -> {
@@ -118,7 +118,7 @@ public class MessageTTLTest extends BrokerTestBase {
             PersistentTopicInternalStats internalStatsAfterExpire = admin.topics().getInternalStats(topicName);
             CursorStats statsAfterExpire = internalStatsAfterExpire.cursors.get(subscriptionName);
             log.info("markDeletePosition after expire {}", statsAfterExpire.markDeletePosition);
-            assertEquals(statsAfterExpire.markDeletePosition, PositionImpl.get(lastMessageId.getLedgerId(),
+            assertEquals(statsAfterExpire.markDeletePosition, PositionFactory.create(lastMessageId.getLedgerId(),
                     lastMessageId.getEntryId() ).toString());
         });
     }

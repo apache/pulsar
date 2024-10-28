@@ -52,7 +52,7 @@ public class AuthenticationProviderBasicTest {
         Properties properties = new Properties();
         properties.setProperty("basicAuthConf", basicAuthConf);
         serviceConfiguration.setProperties(properties);
-        provider.initialize(serviceConfiguration);
+        provider.initialize(AuthenticationProvider.Context.builder().config(serviceConfiguration).build());
         testAuthenticate(provider);
     }
 
@@ -64,7 +64,7 @@ public class AuthenticationProviderBasicTest {
         Properties properties = new Properties();
         properties.setProperty("basicAuthConf", basicAuthConfBase64);
         serviceConfiguration.setProperties(properties);
-        provider.initialize(serviceConfiguration);
+        provider.initialize(AuthenticationProvider.Context.builder().config(serviceConfiguration).build());
         testAuthenticate(provider);
     }
 
@@ -74,7 +74,7 @@ public class AuthenticationProviderBasicTest {
         AuthenticationProviderBasic provider = new AuthenticationProviderBasic();
         ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
         System.setProperty("pulsar.auth.basic.conf", basicAuthConf);
-        provider.initialize(serviceConfiguration);
+        provider.initialize(AuthenticationProvider.Context.builder().config(serviceConfiguration).build());
         testAuthenticate(provider);
     }
 
@@ -84,7 +84,7 @@ public class AuthenticationProviderBasicTest {
         AuthenticationProviderBasic provider = new AuthenticationProviderBasic();
         ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
         System.setProperty("pulsar.auth.basic.conf", basicAuthConfBase64);
-        provider.initialize(serviceConfiguration);
+        provider.initialize(AuthenticationProvider.Context.builder().config(serviceConfiguration).build());
         testAuthenticate(provider);
     }
 
