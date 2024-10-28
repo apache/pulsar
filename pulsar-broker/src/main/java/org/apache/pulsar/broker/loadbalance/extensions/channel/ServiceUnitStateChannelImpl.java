@@ -88,6 +88,7 @@ import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -1296,6 +1297,14 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                                         broker, cleanupJobs.size());
                             }
                         }
+                    })
+                    .exceptionally(e -> {
+                        if (FutureUtil.unwrapCompletionException(e) instanceof PulsarAdminException.NotFoundException) {
+                            log.warn("{} Failed to run health check: {}", broker, e.getMessage());
+                        } else {
+                            log.error("{} Failed to run health check", broker, e);
+                        }
+                        return null;
                     });
         }
     }
@@ -1328,12 +1337,19 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
+    private boolean channelDisabled() {
+        final var channelState = this.channelState;
+        if (channelState == Disabled || channelState == Closed) {
+            log.warn("[{}] Skip scheduleCleanup because the state is {} now", brokerId, channelState);
+            return true;
+        }
+        return false;
+    }
+
     private void scheduleCleanup(String broker, long delayInSecs) {
         var scheduled = new MutableObject<CompletableFuture<Void>>();
         try {
-            final var channelState = this.channelState;
-            if (channelState == Disabled || channelState == Closed) {
-                log.warn("[{}] Skip scheduleCleanup because the state is {} now", brokerId, channelState);
+            if (channelDisabled()) {
                 return;
             }
             cleanupJobs.computeIfAbsent(broker, k -> {
@@ -1454,6 +1470,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     private void doHealthCheckBrokerAsyncWithRetries(String brokerId, int retry, CompletableFuture<Void> future) {
+        if (channelDisabled()) {
+            future.complete(null);
+            return;
+        }
         try {
             var admin = getPulsarAdmin();
             admin.brokers().healthcheckAsync(TopicVersion.V2, Optional.of(brokerId))
@@ -1464,7 +1484,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                             return;
                         }
                         if (retry == MAX_BROKER_HEALTH_CHECK_RETRY) {
-                            log.error("Failed health-check broker :{}", brokerId, e);
                             future.completeExceptionally(FutureUtil.unwrapCompletionException(e));
                         } else {
                             pulsar.getExecutor()
@@ -1501,7 +1520,12 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 return;
             } catch (Exception e) {
                 if (debug()) {
-                    log.info("Failed to check broker:{} health", broker, e);
+                    if (e instanceof ExecutionException
+                            && e.getCause() instanceof PulsarAdminException.NotFoundException) {
+                        log.info("The broker {} is not healthy because it's not found", broker);
+                    } else {
+                        log.info("Failed to check broker:{} health", broker, e);
+                    }
                 }
                 log.info("Checked the broker:{} health. Continue the orphan bundle cleanup", broker);
             }
