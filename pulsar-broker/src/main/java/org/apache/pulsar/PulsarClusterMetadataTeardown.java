@@ -37,6 +37,7 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
@@ -54,6 +55,14 @@ public class PulsarClusterMetadataTeardown {
         @Option(names = { "-zk",
                 "--zookeeper"}, description = "Local ZooKeeper quorum connection string", required = true)
         private String zookeeper;
+
+        @Option(names = {"-md",
+                "--metadata-store"}, description = "Metadata Store service url. eg: zk:my-zk:2181", required = false)
+        private String metadataStoreUrl;
+
+        @Option(names = {"-mscp",
+                "--metadata-store-config-path"}, description = "Metadata Store config path", hidden = false)
+        private String metadataStoreConfigPath;
 
         @Option(names = {
                 "--zookeeper-session-timeout-ms"
@@ -104,11 +113,22 @@ public class PulsarClusterMetadataTeardown {
             throw e;
         }
 
+        if (arguments.metadataStoreUrl == null && arguments.zookeeper == null) {
+            System.err.println("Metadata store address argument is required (--metadata-store)");
+            commander.usage(commander.getOut());
+            System.exit(1);
+        }
+
+        if (arguments.metadataStoreUrl == null) {
+            arguments.metadataStoreUrl = ZKMetadataStore.ZK_SCHEME_IDENTIFIER + arguments.zookeeper;
+        }
+
         @Cleanup
-        MetadataStoreExtended metadataStore = MetadataStoreExtended.create(arguments.zookeeper,
+        MetadataStoreExtended metadataStore = MetadataStoreExtended.create(arguments.metadataStoreUrl,
                 MetadataStoreConfig.builder()
                         .sessionTimeoutMillis(arguments.zkSessionTimeoutMillis)
                         .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
+                        .configFilePath(arguments.metadataStoreConfigPath)
                         .build());
 
         if (arguments.bkMetadataServiceUri != null) {
