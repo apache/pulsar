@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.BROKER_CERT_FILE_PATH;
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.BROKER_KEY_FILE_PATH;
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.CA_CERT_FILE_PATH;
 import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -196,9 +199,16 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
     }
 
     protected void waitChangeEventsInit(String namespace) {
-        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService()
-                .getTopic(namespace + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME, false)
-                .join().get();
+        CompletableFuture<Optional<Topic>> future = pulsar1.getBrokerService()
+                .getTopic(namespace + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME, false);
+        if (future == null) {
+            return;
+        }
+        Optional<Topic> optional = future.join();
+        if (!optional.isPresent()) {
+            return;
+        }
+        PersistentTopic topic = (PersistentTopic) optional.get();
         Awaitility.await().atMost(Duration.ofSeconds(180)).untilAsserted(() -> {
             TopicStatsImpl topicStats = topic.getStats(true, false, false);
             topicStats.getSubscriptions().entrySet().forEach(entry -> {
@@ -259,22 +269,37 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         config.setEnableReplicatedSubscriptions(true);
         config.setReplicatedSubscriptionsSnapshotFrequencyMillis(1000);
         config.setLoadBalancerSheddingEnabled(false);
+        config.setForceDeleteNamespaceAllowed(true);
+        config.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        config.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
+        config.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+        config.setClusterName(clusterName);
+        config.setTlsRequireTrustedClientCertOnConnect(false);
+        Set<String> tlsProtocols = Sets.newConcurrentHashSet();
+        tlsProtocols.add("TLSv1.3");
+        tlsProtocols.add("TLSv1.2");
+        config.setTlsProtocols(tlsProtocols);
     }
 
-    @Override
-    protected void cleanup() throws Exception {
+    protected void cleanupPulsarResources() throws Exception {
         // delete namespaces.
         waitChangeEventsInit(replicatedNamespace);
         admin1.namespaces().setNamespaceReplicationClusters(replicatedNamespace, Sets.newHashSet(cluster1));
         if (!usingGlobalZK) {
             admin2.namespaces().setNamespaceReplicationClusters(replicatedNamespace, Sets.newHashSet(cluster2));
         }
-        admin1.namespaces().deleteNamespace(replicatedNamespace);
-        admin1.namespaces().deleteNamespace(nonReplicatedNamespace);
+        admin1.namespaces().deleteNamespace(replicatedNamespace, true);
+        admin1.namespaces().deleteNamespace(nonReplicatedNamespace, true);
         if (!usingGlobalZK) {
-            admin2.namespaces().deleteNamespace(replicatedNamespace);
-            admin2.namespaces().deleteNamespace(nonReplicatedNamespace);
+            admin2.namespaces().deleteNamespace(replicatedNamespace, true);
+            admin2.namespaces().deleteNamespace(nonReplicatedNamespace, true);
         }
+    }
+
+    @Override
+    protected void cleanup() throws Exception {
+        // cleanup pulsar resources.
+        cleanupPulsarResources();
 
         // shutdown.
         markCurrentSetupNumberCleaned();
@@ -343,6 +368,28 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
     }
 
     protected void verifyReplicationWorks(String topic) throws Exception {
+        // Wait for replicator starting.
+        Awaitility.await().until(() -> {
+            try {
+                PersistentTopic persistentTopic = (PersistentTopic) pulsar1.getBrokerService()
+                                .getTopic(topic, false).join().get();
+                if (persistentTopic.getReplicators().size() > 0) {
+                    return true;
+                }
+            } catch (Exception ex) {}
+
+            try {
+                String partition0 = TopicName.get(topic).getPartition(0).toString();
+                PersistentTopic persistentTopic = (PersistentTopic) pulsar1.getBrokerService()
+                        .getTopic(partition0, false).join().get();
+                if (persistentTopic.getReplicators().size() > 0) {
+                    return true;
+                }
+            } catch (Exception ex) {}
+
+            return false;
+        });
+        // Verify: pub & sub.
         final String subscription = "__subscribe_1";
         final String msgValue = "__msg1";
         Producer<String> producer1 = client1.newProducer(Schema.STRING).topic(topic).create();
@@ -362,7 +409,7 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         int partitions = ensurePartitionsAreSame(topic);
         admin.topics().setReplicationClusters(topic, clusters);
         Awaitility.await().untilAsserted(() -> {
-            TopicPolicies policies = pulsar.getTopicPoliciesService().getTopicPolicies(topicName);
+            TopicPolicies policies = TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(), topicName);
             assertEquals(new HashSet<>(policies.getReplicationClusters()), expected);
             if (partitions == 0) {
                 checkNonPartitionedTopicLevelClusters(topicName.toString(), clusters, admin, pulsar.getBrokerService());
@@ -387,7 +434,7 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         }
         PersistentTopic persistentTopic = (PersistentTopic) optional.get();
         Set<String> expected = new HashSet<>(clusters);
-        Set<String> act = new HashSet<>(persistentTopic.getTopicPolicies().get().getReplicationClusters());
+        Set<String> act = new HashSet<>(TopicPolicyTestUtils.getTopicPolicies(persistentTopic).getReplicationClusters());
         assertEquals(act, expected);
     }
 

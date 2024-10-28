@@ -73,7 +73,7 @@ public class WorkerServiceLoader {
      */
     static WorkerServiceWithClassLoader load(WorkerServiceMetadata metadata,
                                              String narExtractionDirectory) throws IOException {
-        final File narFile = metadata.getArchivePath().toAbsolutePath().toFile();
+        final File narFile = metadata.getArchivePath().toAbsolutePath().normalize().toFile();
         NarClassLoader ncl = NarClassLoaderBuilder.builder()
                 .narFile(narFile)
                 .parentClassLoader(WorkerService.class.getClassLoader())

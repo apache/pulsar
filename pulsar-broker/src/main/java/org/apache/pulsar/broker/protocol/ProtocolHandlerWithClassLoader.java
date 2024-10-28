@@ -26,7 +26,6 @@ import java.util.Map;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.ClassLoaderSwitcher;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -44,52 +43,79 @@ class ProtocolHandlerWithClassLoader implements ProtocolHandler {
 
     @Override
     public String protocolName() {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+        ClassLoader prevClassLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(classLoader);
             return handler.protocolName();
+        } finally {
+            Thread.currentThread().setContextClassLoader(prevClassLoader);
         }
     }
 
     @Override
     public boolean accept(String protocol) {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+        ClassLoader prevClassLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(classLoader);
             return handler.accept(protocol);
+        } finally {
+            Thread.currentThread().setContextClassLoader(prevClassLoader);
         }
     }
 
     @Override
     public void initialize(ServiceConfiguration conf) throws Exception {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+        ClassLoader prevClassLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(classLoader);
             handler.initialize(conf);
+        } finally {
+            Thread.currentThread().setContextClassLoader(prevClassLoader);
         }
     }
 
     @Override
     public String getProtocolDataToAdvertise() {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+        ClassLoader prevClassLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(classLoader);
             return handler.getProtocolDataToAdvertise();
+        } finally {
+            Thread.currentThread().setContextClassLoader(prevClassLoader);
         }
     }
 
     @Override
     public void start(BrokerService service) {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+        ClassLoader prevClassLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(classLoader);
             handler.start(service);
+        } finally {
+            Thread.currentThread().setContextClassLoader(prevClassLoader);
         }
     }
 
     @Override
     public Map<InetSocketAddress, ChannelInitializer<SocketChannel>> newChannelInitializers() {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+        ClassLoader prevClassLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(classLoader);
             return handler.newChannelInitializers();
+        } finally {
+            Thread.currentThread().setContextClassLoader(prevClassLoader);
         }
     }
 
     @Override
     public void close() {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+        ClassLoader prevClassLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(classLoader);
             handler.close();
+        } finally {
+            Thread.currentThread().setContextClassLoader(prevClassLoader);
         }
-
         try {
             classLoader.close();
         } catch (IOException e) {

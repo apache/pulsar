@@ -341,7 +341,8 @@ public class LookupProxyHandler {
                         Commands.newError(clientRequestId, getServerError(t), t.getMessage()));
                 } else {
                     writeAndFlush(
-                        Commands.newGetTopicsOfNamespaceResponse(r.getTopics(), r.getTopicsHash(), r.isFiltered(),
+                        Commands.newGetTopicsOfNamespaceResponse(r.getNonPartitionedOrPartitionTopics(),
+                                r.getTopicsHash(), r.isFiltered(),
                                 r.isChanged(), clientRequestId));
                 }
             });

@@ -37,7 +37,8 @@ public class HashRangeAutoSplitStickyKeyConsumerSelectorTest {
 
     @Test
     public void testGetConsumerKeyHashRanges() throws BrokerServiceException.ConsumerAssignException {
-        HashRangeAutoSplitStickyKeyConsumerSelector selector = new HashRangeAutoSplitStickyKeyConsumerSelector(2 << 5);
+        HashRangeAutoSplitStickyKeyConsumerSelector selector =
+                new HashRangeAutoSplitStickyKeyConsumerSelector(2 << 5, false);
         List<String> consumerName = Arrays.asList("consumer1", "consumer2", "consumer3", "consumer4");
         List<Consumer> consumers = new ArrayList<>();
         for (String s : consumerName) {
@@ -61,7 +62,8 @@ public class HashRangeAutoSplitStickyKeyConsumerSelectorTest {
 
     @Test
     public void testGetConsumerKeyHashRangesWithSameConsumerName() throws Exception {
-        HashRangeAutoSplitStickyKeyConsumerSelector selector = new HashRangeAutoSplitStickyKeyConsumerSelector(2 << 5);
+        HashRangeAutoSplitStickyKeyConsumerSelector selector =
+                new HashRangeAutoSplitStickyKeyConsumerSelector(2 << 5, false);
         final String consumerName = "My-consumer";
         List<Consumer> consumers = new ArrayList<>();
         for (int i = 0; i < 3; i++) {

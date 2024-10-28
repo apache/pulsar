@@ -18,18 +18,19 @@
  */
 package org.apache.bookkeeper.mledger.util;
 
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.common.util.collections.BitSetRecyclable;
-import org.testng.annotations.Test;
-
-import java.util.BitSet;
-
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.andAckSet;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.compareToWithAckSet;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetOverlap;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import java.util.BitSet;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.AckSetState;
+import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
+import org.apache.pulsar.common.util.collections.BitSetRecyclable;
+import org.testng.annotations.Test;
 
 public class PositionAckSetUtilTest {
 
@@ -50,16 +51,16 @@ public class PositionAckSetUtilTest {
 
     @Test
     public void compareToWithAckSetForCumulativeAckTest() {
-        PositionImpl positionOne = PositionImpl.get(1, 1);
-        PositionImpl positionTwo = PositionImpl.get(1, 2);
+        Position positionOne = PositionFactory.create(1, 1);
+        Position positionTwo = PositionFactory.create(1, 2);
         assertEquals(compareToWithAckSet(positionOne, positionTwo), -1);
-        positionTwo = PositionImpl.get(2, 1);
+        positionTwo = PositionFactory.create(2, 1);
         assertEquals(compareToWithAckSet(positionOne, positionTwo), -1);
-        positionTwo = PositionImpl.get(0, 1);
+        positionTwo = PositionFactory.create(0, 1);
         assertEquals(compareToWithAckSet(positionOne, positionTwo), 1);
-        positionTwo = PositionImpl.get(1, 0);
+        positionTwo = PositionFactory.create(1, 0);
         assertEquals(compareToWithAckSet(positionOne, positionTwo), 1);
-        positionTwo = PositionImpl.get(1, 1);
+        positionTwo = PositionFactory.create(1, 1);
         assertEquals(compareToWithAckSet(positionOne, positionTwo), 0);
 
         BitSet bitSetOne = new BitSet();
@@ -68,23 +69,24 @@ public class PositionAckSetUtilTest {
         bitSetTwo.set(0, 63);
         bitSetOne.clear(0, 10);
         bitSetTwo.clear(0, 10);
-        positionOne.setAckSet(bitSetOne.toLongArray());
-        positionTwo.setAckSet(bitSetTwo.toLongArray());
+        positionOne = AckSetStateUtil.createPositionWithAckSet(1, 1, bitSetOne.toLongArray());
+        positionTwo = AckSetStateUtil.createPositionWithAckSet(1, 1, bitSetTwo.toLongArray());
         assertEquals(compareToWithAckSet(positionOne, positionTwo), 0);
 
         bitSetOne.clear(10, 12);
-        positionOne.setAckSet(bitSetOne.toLongArray());
+        AckSetState positionOneAckSetState = AckSetStateUtil.getAckSetState(positionOne);
+        positionOneAckSetState.setAckSet(bitSetOne.toLongArray());
         assertEquals(compareToWithAckSet(positionOne, positionTwo), 2);
 
         bitSetOne.set(8, 12);
-        positionOne.setAckSet(bitSetOne.toLongArray());
+        positionOneAckSetState.setAckSet(bitSetOne.toLongArray());
         assertEquals(compareToWithAckSet(positionOne, positionTwo), -2);
     }
 
     @Test
     public void andAckSetTest() {
-        PositionImpl positionOne = PositionImpl.get(1, 1);
-        PositionImpl positionTwo = PositionImpl.get(1, 2);
+        Position positionOne = AckSetStateUtil.createPositionWithAckSet(1, 1, new long[0]);
+        Position positionTwo = AckSetStateUtil.createPositionWithAckSet(1, 2, new long[0]);
         BitSet bitSetOne = new BitSet();
         BitSet bitSetTwo = new BitSet();
         bitSetOne.set(0);
@@ -92,20 +94,22 @@ public class PositionAckSetUtilTest {
         bitSetOne.set(4);
         bitSetOne.set(6);
         bitSetOne.set(8);
-        positionOne.setAckSet(bitSetOne.toLongArray());
-        positionTwo.setAckSet(bitSetTwo.toLongArray());
+        AckSetState positionOneAckSetState = AckSetStateUtil.getAckSetState(positionOne);
+        positionOneAckSetState.setAckSet(bitSetOne.toLongArray());
+        AckSetState positionTwoAckSetState = AckSetStateUtil.getAckSetState(positionTwo);
+        positionTwoAckSetState.setAckSet(bitSetTwo.toLongArray());
         andAckSet(positionOne, positionTwo);
-        BitSetRecyclable bitSetRecyclable = BitSetRecyclable.valueOf(positionOne.getAckSet());
+        BitSetRecyclable bitSetRecyclable = BitSetRecyclable.valueOf(positionOneAckSetState.getAckSet());
         assertTrue(bitSetRecyclable.isEmpty());
 
         bitSetTwo.set(2);
         bitSetTwo.set(4);
 
-        positionOne.setAckSet(bitSetOne.toLongArray());
-        positionTwo.setAckSet(bitSetTwo.toLongArray());
+        positionOneAckSetState.setAckSet(bitSetOne.toLongArray());
+        positionTwoAckSetState.setAckSet(bitSetTwo.toLongArray());
         andAckSet(positionOne, positionTwo);
 
-        bitSetRecyclable = BitSetRecyclable.valueOf(positionOne.getAckSet());
+        bitSetRecyclable = BitSetRecyclable.valueOf(positionOneAckSetState.getAckSet());
         BitSetRecyclable bitSetRecyclableTwo = BitSetRecyclable.valueOf(bitSetTwo.toLongArray());
         assertEquals(bitSetRecyclable, bitSetRecyclableTwo);
 

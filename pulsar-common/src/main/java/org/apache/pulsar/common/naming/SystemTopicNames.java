@@ -52,6 +52,11 @@ public class SystemTopicNames {
     public static final String PENDING_ACK_STORE_CURSOR_NAME = "__pending_ack_state";
 
     /**
+     * Prefix for the system reader for all the system topics.
+     */
+    public static final String SYSTEM_READER_PREFIX = "__system_reader";
+
+    /**
      * The set of all local topic names declared above.
      */
     public static final Set<String> EVENTS_TOPIC_NAMES =

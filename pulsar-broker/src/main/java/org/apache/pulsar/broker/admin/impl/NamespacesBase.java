@@ -42,6 +42,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
@@ -65,8 +66,10 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.GrantTopicPermissionOptions;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.RevokeTopicPermissionOptions;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.NamedEntity;
@@ -613,6 +616,78 @@ public abstract class NamespacesBase extends AdminResource {
                 });
     }
 
+    protected CompletableFuture<Void> internalGrantPermissionOnTopicsAsync(List<GrantTopicPermissionOptions> options) {
+        return checkNamespace(options.stream().map(o -> TopicName.get(o.getTopic()).getNamespace()))
+                .thenCompose(__ -> validateAdminAccessForTenantAsync(
+                        TopicName.get(options.get(0).getTopic()).getTenant())
+                ).thenCompose(__ -> internalCheckTopicExists(options.stream().map(o -> TopicName.get(o.getTopic()))))
+                .thenCompose(__ -> getAuthorizationService().grantPermissionAsync(options))
+                .thenAccept(unused -> log.info("[{}] Successfully granted access for {}", clientAppId(), options))
+                .exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    //The IllegalArgumentException and the IllegalStateException were historically thrown by the
+                    // grantPermissionAsync method, so we catch them here to ensure backwards compatibility.
+                    if (realCause instanceof MetadataStoreException.NotFoundException
+                            || realCause instanceof IllegalArgumentException) {
+                        log.warn("[{}] Failed to grant permissions for namespace {}: does not exist", clientAppId(),
+                                namespaceName, ex);
+                        throw new RestException(Status.NOT_FOUND, "Topic's namespace does not exist");
+                    } else if (realCause instanceof MetadataStoreException.BadVersionException
+                            || realCause instanceof IllegalStateException) {
+                        log.warn("[{}] Failed to grant permissions for namespace {}: {}",
+                                clientAppId(), namespaceName, ex.getCause().getMessage(), ex);
+                        throw new RestException(Status.CONFLICT, "Concurrent modification");
+                    } else {
+                        log.error("[{}] Failed to grant permissions for namespace {}",
+                                clientAppId(), namespaceName, ex);
+                        throw new RestException(realCause);
+                    }
+                });
+    }
+
+    protected CompletableFuture<Void> internalRevokePermissionOnTopicsAsync(
+            List<RevokeTopicPermissionOptions> options) {
+        return checkNamespace(options.stream().map(o -> TopicName.get(o.getTopic()).getNamespace()))
+                .thenCompose(__ -> validateAdminAccessForTenantAsync(
+                        TopicName.get(options.get(0).getTopic()).getTenant()))
+                .thenCompose(__ -> internalCheckTopicExists(options.stream().map(o -> TopicName.get(o.getTopic()))))
+                .thenCompose(__ -> getAuthorizationService().revokePermissionAsync(options))
+                .thenAccept(unused -> log.info("[{}] Successfully revoke access for {}", clientAppId(), options))
+                .exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    //The IllegalArgumentException and the IllegalStateException were historically thrown by the
+                    // grantPermissionAsync method, so we catch them here to ensure backwards compatibility.
+                    if (realCause instanceof MetadataStoreException.NotFoundException
+                            || realCause instanceof IllegalArgumentException) {
+                        log.warn("[{}] Failed to revoke permissions for namespace {}: does not exist", clientAppId(),
+                                namespaceName, ex);
+                        throw new RestException(Status.NOT_FOUND, "Topic's namespace does not exist");
+                    } else if (realCause instanceof MetadataStoreException.BadVersionException
+                            || realCause instanceof IllegalStateException) {
+                        log.warn("[{}] Failed to revoke permissions for namespace {}: {}",
+                                clientAppId(), namespaceName, ex.getCause().getMessage(), ex);
+                        throw new RestException(Status.CONFLICT, "Concurrent modification");
+                    } else {
+                        log.error("[{}] Failed to revoke permissions for namespace {}",
+                                clientAppId(), namespaceName, ex);
+                        throw new RestException(realCause);
+                    }
+                });
+    }
+
+    private CompletableFuture<Void> checkNamespace(Stream<String> namespaces) {
+        boolean sameNamespace = namespaces.distinct().count() == 1;
+        if (!sameNamespace) {
+            throw new RestException(Status.BAD_REQUEST, "The namespace should be the same");
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
+    private CompletableFuture<Void> internalCheckTopicExists(Stream<TopicName> topicNameStream) {
+        List<TopicName> topicNames = topicNameStream.collect(Collectors.toList());
+        return CompletableFuture.allOf(topicNames.stream().map(topic -> internalCheckTopicExists(topic))
+                .toArray(CompletableFuture[]::new));
+    }
 
     protected CompletableFuture<Void> internalGrantPermissionOnSubscriptionAsync(String subscription,
                                                                                 Set<String> roles) {
@@ -703,9 +778,21 @@ public abstract class NamespacesBase extends AdminResource {
                                                     "Invalid cluster id: " + clusterId);
                                         }
                                         return validatePeerClusterConflictAsync(clusterId, replicationClusterSet)
-                                                .thenCompose(__ ->
-                                                        validateClusterForTenantAsync(
-                                                                namespaceName.getTenant(), clusterId));
+                                                .thenCompose(__ -> getNamespacePoliciesAsync(this.namespaceName)
+                                                        .thenCompose(nsPolicies -> {
+                                                            if (nsPolicies.allowed_clusters.isEmpty()) {
+                                                                return validateClusterForTenantAsync(
+                                                                        namespaceName.getTenant(), clusterId);
+                                                            }
+                                                            if (!nsPolicies.allowed_clusters.contains(clusterId)) {
+                                                                String msg = String.format("Cluster [%s] is not in the "
+                                                                        + "list of allowed clusters list for namespace "
+                                                                        + "[%s]", clusterId, namespaceName.toString());
+                                                                log.info(msg);
+                                                                throw new RestException(Status.FORBIDDEN, msg);
+                                                            }
+                                                            return CompletableFuture.completedFuture(null);
+                                                        }));
                                     }).collect(Collectors.toList());
                             return FutureUtil.waitForAll(futures).thenApply(__ -> replicationClusterSet);
                         }))
@@ -2528,7 +2615,7 @@ public abstract class NamespacesBase extends AdminResource {
         String localClusterName = pulsar().getConfiguration().getClusterName();
 
         OffloaderObjectsScannerUtils.scanOffloadedLedgers(managedLedgerOffloader,
-                localClusterName, pulsar().getManagedLedgerFactory(), sink);
+                localClusterName, pulsar().getDefaultManagedLedgerFactory(), sink);
 
     }
 
@@ -2711,7 +2798,7 @@ public abstract class NamespacesBase extends AdminResource {
                 }));
     }
 
-    protected CompletableFuture<Object> internalGetDispatcherPauseOnAckStatePersistentAsync() {
+    protected CompletableFuture<Boolean> internalGetDispatcherPauseOnAckStatePersistentAsync() {
         return validateNamespacePolicyOperationAsync(namespaceName,
                     PolicyName.DISPATCHER_PAUSE_ON_ACK_STATE_PERSISTENT, PolicyOperation.READ)
                 .thenCompose(__ -> namespaceResources().getPoliciesAsync(namespaceName))
@@ -2722,4 +2809,65 @@ public abstract class NamespacesBase extends AdminResource {
                     return policiesOpt.map(p -> p.dispatcherPauseOnAckStatePersistentEnabled).orElse(false);
                 });
     }
+
+    protected CompletableFuture<Void> internalSetNamespaceAllowedClusters(List<String> clusterIds) {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ALLOW_CLUSTERS, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                // Allowed clusters in the namespace policy should be included in the allowed clusters in the tenant
+                // policy.
+                .thenCompose(__ -> FutureUtil.waitForAll(clusterIds.stream().map(clusterId ->
+                        validateClusterForTenantAsync(namespaceName.getTenant(), clusterId))
+                        .collect(Collectors.toList())))
+                // Allowed clusters should include all the existed replication clusters and could not contain global
+                // cluster.
+                .thenCompose(__ -> {
+                    checkNotNull(clusterIds, "ClusterIds should not be null");
+                    if (clusterIds.contains("global")) {
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                "Cannot specify global in the list of allowed clusters");
+                    }
+                    return getNamespacePoliciesAsync(this.namespaceName).thenApply(namespacePolicies -> {
+                        namespacePolicies.replication_clusters.forEach(replicationCluster -> {
+                            if (!clusterIds.contains(replicationCluster)) {
+                                throw new RestException(Status.BAD_REQUEST,
+                                        String.format("Allowed clusters do not contain the replication cluster %s. "
+                                                + "Please remove the replication cluster if the cluster is not allowed "
+                                                + "for this namespace", replicationCluster));
+                            }
+                        });
+                        return Sets.newHashSet(clusterIds);
+                    });
+                })
+                // Verify the allowed clusters are valid and they do not contain the peer clusters.
+                .thenCompose(allowedClusters -> clustersAsync()
+                        .thenCompose(clusters -> {
+                            List<CompletableFuture<Void>> futures =
+                                    allowedClusters.stream().map(clusterId -> {
+                                        if (!clusters.contains(clusterId)) {
+                                            throw new RestException(Status.FORBIDDEN,
+                                                    "Invalid cluster id: " + clusterId);
+                                        }
+                                        return validatePeerClusterConflictAsync(clusterId, allowedClusters);
+                                    }).collect(Collectors.toList());
+                            return FutureUtil.waitForAll(futures).thenApply(__ -> allowedClusters);
+                        }))
+                // Update allowed clusters into policies.
+                .thenCompose(allowedClusterSet -> updatePoliciesAsync(namespaceName, policies -> {
+                    policies.allowed_clusters = allowedClusterSet;
+                    return policies;
+                }));
+    }
+
+    protected CompletableFuture<Set<String>> internalGetNamespaceAllowedClustersAsync() {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ALLOW_CLUSTERS, PolicyOperation.READ)
+                .thenAccept(__ -> {
+                    if (!namespaceName.isGlobal()) {
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                "Cannot get the allowed clusters for a non-global namespace");
+                    }
+                }).thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenApply(policies -> policies.allowed_clusters);
+    }
+
+
 }

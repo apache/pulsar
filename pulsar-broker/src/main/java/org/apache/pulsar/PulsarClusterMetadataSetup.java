@@ -97,6 +97,19 @@ public class PulsarClusterMetadataSetup {
                 description = "Broker-service URL for new cluster with TLS encryption", required = false)
         private String clusterBrokerServiceUrlTls;
 
+        @Option(names = {"-te",
+                "--tls-enable"},
+                description = "Enable TLS connection for new cluster")
+        private Boolean clusterBrokerClientTlsEnabled;
+
+        @Option(names = "--auth-plugin",
+                description = "The authentication plugin for new cluster")
+        protected String clusterAuthenticationPlugin;
+
+        @Option(names = "--auth-parameters",
+                description = "The authentication parameters for new cluster")
+        protected String clusterAuthenticationParameters;
+
         @Option(names = {"-zk",
                 "--zookeeper"}, description = "Local ZooKeeper quorum connection string",
                 required = false,
@@ -126,6 +139,15 @@ public class PulsarClusterMetadataSetup {
                 "--configuration-metadata-store"}, description = "Configuration Metadata Store connection string",
                 hidden = false)
         private String configurationMetadataStore;
+
+        @Option(names = {"-mscp",
+                "--metadata-store-config-path"}, description = "Metadata Store config path", hidden = false)
+        private String metadataStoreConfigPath;
+
+        @Option(names = {"-cmscp",
+                "--configuration-metadata-store-config-path"}, description = "Configuration Metadata Store config path",
+                hidden = false)
+        private String configurationStoreConfigPath;
 
         @Option(names = {
                 "--initial-num-stream-storage-containers"
@@ -270,9 +292,11 @@ public class PulsarClusterMetadataSetup {
         log.info("Setting up cluster {} with metadata-store={} configuration-metadata-store={}", arguments.cluster,
                 arguments.metadataStoreUrl, arguments.configurationMetadataStore);
 
-        MetadataStoreExtended localStore =
-                initLocalMetadataStore(arguments.metadataStoreUrl, arguments.zkSessionTimeoutMillis);
+        MetadataStoreExtended localStore = initLocalMetadataStore(arguments.metadataStoreUrl,
+                arguments.metadataStoreConfigPath,
+                arguments.zkSessionTimeoutMillis);
         MetadataStoreExtended configStore = initConfigMetadataStore(arguments.configurationMetadataStore,
+                arguments.configurationStoreConfigPath,
                 arguments.zkSessionTimeoutMillis);
 
         final String metadataStoreUrlNoIdentifer = MetadataStoreFactoryImpl
@@ -317,14 +341,36 @@ public class PulsarClusterMetadataSetup {
 
         PulsarResources resources = new PulsarResources(localStore, configStore);
 
-        ClusterData clusterData = ClusterData.builder()
-                .serviceUrl(arguments.clusterWebServiceUrl)
-                .serviceUrlTls(arguments.clusterWebServiceUrlTls)
-                .brokerServiceUrl(arguments.clusterBrokerServiceUrl)
-                .brokerServiceUrlTls(arguments.clusterBrokerServiceUrlTls)
-                .proxyServiceUrl(arguments.clusterProxyUrl)
-                .proxyProtocol(arguments.clusterProxyProtocol)
-                .build();
+        ClusterData.Builder clusterDataBuilder = ClusterData.builder();
+        if (arguments.clusterWebServiceUrl != null) {
+            clusterDataBuilder.serviceUrl(arguments.clusterWebServiceUrl);
+        }
+        if (arguments.clusterWebServiceUrlTls != null) {
+            clusterDataBuilder.serviceUrlTls(arguments.clusterWebServiceUrlTls);
+        }
+        if (arguments.clusterBrokerServiceUrl != null) {
+            clusterDataBuilder.brokerServiceUrl(arguments.clusterBrokerServiceUrl);
+        }
+        if (arguments.clusterBrokerServiceUrlTls != null) {
+            clusterDataBuilder.brokerServiceUrlTls(arguments.clusterBrokerServiceUrlTls);
+        }
+        if (arguments.clusterBrokerClientTlsEnabled != null) {
+            clusterDataBuilder.brokerClientTlsEnabled(arguments.clusterBrokerClientTlsEnabled);
+        }
+        if (arguments.clusterAuthenticationPlugin != null) {
+            clusterDataBuilder.authenticationPlugin(arguments.clusterAuthenticationPlugin);
+        }
+        if (arguments.clusterAuthenticationParameters != null) {
+            clusterDataBuilder.authenticationParameters(arguments.clusterAuthenticationParameters);
+        }
+        if (arguments.clusterProxyUrl != null) {
+            clusterDataBuilder.proxyServiceUrl(arguments.clusterProxyUrl);
+        }
+        if (arguments.clusterProxyProtocol != null) {
+            clusterDataBuilder.proxyProtocol(arguments.clusterProxyProtocol);
+        }
+
+        ClusterData clusterData = clusterDataBuilder.build();
         if (!resources.getClusterResources().clusterExists(arguments.cluster)) {
             resources.getClusterResources().createCluster(arguments.cluster, clusterData);
         }
@@ -375,8 +421,8 @@ public class PulsarClusterMetadataSetup {
         }
     }
 
-    static void createNamespaceIfAbsent(PulsarResources resources, NamespaceName namespaceName,
-            String cluster, int bundleNumber) throws IOException {
+    public static void createNamespaceIfAbsent(PulsarResources resources, NamespaceName namespaceName,
+                                               String cluster, int bundleNumber) throws IOException {
         NamespaceResources namespaceResources = resources.getNamespaceResources();
 
         if (!namespaceResources.namespaceExists(namespaceName)) {
@@ -429,9 +475,17 @@ public class PulsarClusterMetadataSetup {
         }
     }
 
-    public static MetadataStoreExtended initLocalMetadataStore(String connection, int sessionTimeout) throws Exception {
+    public static MetadataStoreExtended initLocalMetadataStore(String connection,
+                                                               int sessionTimeout) throws Exception {
+        return initLocalMetadataStore(connection, null, sessionTimeout);
+    }
+
+    public static MetadataStoreExtended initLocalMetadataStore(String connection,
+                                                               String configPath,
+                                                               int sessionTimeout) throws Exception {
         MetadataStoreExtended store = MetadataStoreExtended.create(connection, MetadataStoreConfig.builder()
                 .sessionTimeoutMillis(sessionTimeout)
+                .configFilePath(configPath)
                 .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
                 .build());
         if (store instanceof MetadataStoreLifecycle) {
@@ -440,10 +494,19 @@ public class PulsarClusterMetadataSetup {
         return store;
     }
 
-    public static MetadataStoreExtended initConfigMetadataStore(String connection, int sessionTimeout)
+    public static MetadataStoreExtended initConfigMetadataStore(String connection,
+                                                                int sessionTimeout)
+            throws Exception {
+        return initConfigMetadataStore(connection, null, sessionTimeout);
+    }
+
+    public static MetadataStoreExtended initConfigMetadataStore(String connection,
+                                                                String configPath,
+                                                                int sessionTimeout)
             throws Exception {
         MetadataStoreExtended store = MetadataStoreExtended.create(connection, MetadataStoreConfig.builder()
                 .sessionTimeoutMillis(sessionTimeout)
+                .configFilePath(configPath)
                 .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
                 .build());
         if (store instanceof MetadataStoreLifecycle) {

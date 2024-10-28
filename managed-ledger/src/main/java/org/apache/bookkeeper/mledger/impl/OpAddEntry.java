@@ -36,6 +36,7 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 
 
@@ -44,7 +45,7 @@ import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
  *
  */
 @Slf4j
-public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
+public class OpAddEntry implements AddCallback, CloseCallback, Runnable, ManagedLedgerInterceptor.AddEntryOperation {
     protected ManagedLedgerImpl ml;
     LedgerHandle ledger;
     long entryId;
@@ -138,8 +139,8 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
             lastInitTime = System.nanoTime();
             if (ml.getManagedLedgerInterceptor() != null) {
                 long originalDataLen = data.readableBytes();
-                payloadProcessorHandle = ml.getManagedLedgerInterceptor().processPayloadBeforeLedgerWrite(this,
-                        duplicateBuffer);
+                payloadProcessorHandle = ml.getManagedLedgerInterceptor()
+                        .processPayloadBeforeLedgerWrite(this.getCtx(), duplicateBuffer);
                 if (payloadProcessorHandle != null) {
                     duplicateBuffer = payloadProcessorHandle.getProcessedPayload();
                     // If data len of entry changes, correct "dataLength" and "currentLedgerSize".
@@ -238,7 +239,8 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
         ManagedLedgerImpl.TOTAL_SIZE_UPDATER.addAndGet(ml, dataLength);
 
         long ledgerId = ledger != null ? ledger.getId() : ((Position) ctx).getLedgerId();
-        if (ml.hasActiveCursors()) {
+        // Don't insert to the entry cache for the ShadowManagedLedger
+        if (!(ml instanceof ShadowManagedLedgerImpl) && ml.hasActiveCursors()) {
             // Avoid caching entries if no cursor has been created
             EntryImpl entry = EntryImpl.create(ledgerId, entryId, data);
             // EntryCache.insert: duplicates entry by allocating new entry and data. so, recycle entry after calling
@@ -247,7 +249,7 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
             entry.release();
         }
 
-        PositionImpl lastEntry = PositionImpl.get(ledgerId, entryId);
+        Position lastEntry = PositionFactory.create(ledgerId, entryId);
         ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.incrementAndGet(ml);
         ml.lastConfirmedEntry = lastEntry;
 
@@ -288,7 +290,7 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
 
         AddEntryCallback cb = callbackUpdater.getAndSet(this, null);
         if (cb != null) {
-            cb.addComplete(PositionImpl.get(lh.getId(), entryId), data.asReadOnly(), ctx);
+            cb.addComplete(PositionFactory.create(lh.getId(), entryId), data.asReadOnly(), ctx);
             ml.notifyCursors();
             ml.notifyWaitingEntryCallBacks();
             ReferenceCountUtil.release(data);

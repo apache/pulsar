@@ -100,6 +100,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                     .allowReadOnlyMode(metadataStoreConfig.isAllowReadOnlyOperations())
                     .sessionTimeoutMs(metadataStoreConfig.getSessionTimeoutMillis())
                     .watchers(Collections.singleton(this::processSessionWatcher))
+                    .configPath(metadataStoreConfig.getConfigFilePath())
                     .build();
             if (enableSessionWatcher) {
                 sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent);
@@ -577,6 +578,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                     .connectRetryPolicy(
                             new BoundExponentialBackoffRetryPolicy(metadataStoreConfig.getSessionTimeoutMillis(),
                                     metadataStoreConfig.getSessionTimeoutMillis(), 0))
+                    .configPath(metadataStoreConfig.getConfigFilePath())
                     .build()) {
                 if (chrootZk.exists(chrootPath, false) == null) {
                     createFullPathOptimistic(chrootZk, chrootPath, new byte[0], CreateMode.PERSISTENT);

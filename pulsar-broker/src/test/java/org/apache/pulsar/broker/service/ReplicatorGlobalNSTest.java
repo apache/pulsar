@@ -34,7 +34,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -169,9 +168,9 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
 
         Thread.sleep(1000L);
         // Make sure that the internal replicators map contains remote cluster info
-        ConcurrentOpenHashMap<String, PulsarClient> replicationClients1 = ns1.getReplicationClients();
-        ConcurrentOpenHashMap<String, PulsarClient> replicationClients2 = ns2.getReplicationClients();
-        ConcurrentOpenHashMap<String, PulsarClient> replicationClients3 = ns3.getReplicationClients();
+        final var replicationClients1 = ns1.getReplicationClients();
+        final var replicationClients2 = ns2.getReplicationClients();
+        final var replicationClients3 = ns3.getReplicationClients();
 
         Assert.assertNotNull(replicationClients1.get("r2"));
         Assert.assertNotNull(replicationClients1.get("r3"));

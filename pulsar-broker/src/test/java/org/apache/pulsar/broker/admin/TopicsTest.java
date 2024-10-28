@@ -56,6 +56,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.namespace.TopicExistsInfo;
 import org.apache.pulsar.broker.rest.Topics;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -325,6 +326,9 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePort(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
+        conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+        conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         @Cleanup
         PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf);
         PulsarService pulsar2 = pulsarTestContext2.getPulsarService();
@@ -357,9 +361,12 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         CompletableFuture future = new CompletableFuture();
         future.completeExceptionally(new BrokerServiceException("Fake Exception"));
         CompletableFuture existFuture = new CompletableFuture();
-        existFuture.complete(true);
+        existFuture.complete(TopicExistsInfo.newNonPartitionedTopicExists());
         doReturn(future).when(nameSpaceService).getBrokerServiceUrlAsync(any(), any());
         doReturn(existFuture).when(nameSpaceService).checkTopicExists(any());
+        CompletableFuture existBooleanFuture = new CompletableFuture();
+        existBooleanFuture.complete(false);
+        doReturn(existBooleanFuture).when(nameSpaceService).checkNonPartitionedTopicExists(any());
         doReturn(nameSpaceService).when(pulsar).getNamespaceService();
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         ProducerMessages producerMessages = new ProducerMessages();
@@ -370,7 +377,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         topics.produceOnPersistentTopic(asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
         ArgumentCaptor<RestException> responseCaptor = ArgumentCaptor.forClass(RestException.class);
         verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
-        Assert.assertEquals(responseCaptor.getValue().getMessage(), "Can't find owner of given topic.");
+        Assert.assertTrue(responseCaptor.getValue().getMessage().contains(topicName + " not found"));
     }
 
     @Test
@@ -378,8 +385,11 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
         NamespaceService nameSpaceService = mock(NamespaceService.class);
         CompletableFuture existFuture = new CompletableFuture();
-        existFuture.complete(false);
+        existFuture.complete(TopicExistsInfo.newTopicNotExists());
+        CompletableFuture existBooleanFuture = new CompletableFuture();
+        existBooleanFuture.complete(false);
         doReturn(existFuture).when(nameSpaceService).checkTopicExists(any());
+        doReturn(existBooleanFuture).when(nameSpaceService).checkNonPartitionedTopicExists(any());
         doReturn(nameSpaceService).when(pulsar).getNamespaceService();
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         ProducerMessages producerMessages = new ProducerMessages();

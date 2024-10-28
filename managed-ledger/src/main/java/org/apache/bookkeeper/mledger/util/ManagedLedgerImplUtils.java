@@ -25,7 +25,6 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
 @InterfaceStability.Evolving
@@ -36,7 +35,7 @@ public class ManagedLedgerImplUtils {
      */
     public static CompletableFuture<Position> asyncGetLastValidPosition(final ManagedLedgerImpl ledger,
                                                                         final Predicate<Entry> predicate,
-                                                                        final PositionImpl startPosition) {
+                                                                        final Position startPosition) {
         CompletableFuture<Position> future = new CompletableFuture<>();
         internalAsyncReverseFindPositionOneByOne(ledger, predicate, startPosition, future);
         return future;
@@ -44,7 +43,7 @@ public class ManagedLedgerImplUtils {
 
     private static void internalAsyncReverseFindPositionOneByOne(final ManagedLedgerImpl ledger,
                                                                  final Predicate<Entry> predicate,
-                                                                 final PositionImpl position,
+                                                                 final Position position,
                                                                  final CompletableFuture<Position> future) {
         if (!ledger.isValidPosition(position)) {
             future.complete(position);
@@ -59,7 +58,7 @@ public class ManagedLedgerImplUtils {
                         future.complete(position);
                         return;
                     }
-                    PositionImpl previousPosition = ledger.getPreviousPosition((PositionImpl) position);
+                    Position previousPosition = ledger.getPreviousPosition(position);
                     internalAsyncReverseFindPositionOneByOne(ledger, predicate, previousPosition, future);
                 } catch (Exception e) {
                     future.completeExceptionally(e);

@@ -29,6 +29,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -46,6 +47,7 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.CacheGetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.MetadataCacheConfig;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -55,6 +57,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.DataProvider;
@@ -596,5 +599,52 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         assertEquals(res.getValue().a, 1);
         assertEquals(res.getValue().b, 2);
         assertEquals(res.getValue().path, key1);
+    }
+
+    @Test(dataProvider = "distributedImpl")
+    public void testPut(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup final var store1 = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder()
+                .build());
+        final var cache1 = store1.getMetadataCache(Integer.class);
+        @Cleanup final var store2 = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder()
+                .build());
+        final var cache2 = store2.getMetadataCache(Integer.class);
+        final var key = "/testPut";
+
+        cache1.put(key, 1, EnumSet.of(CreateOption.Ephemeral)); // create
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(cache1.get(key).get().orElse(-1), 1);
+            assertEquals(cache2.get(key).get().orElse(-1), 1);
+        });
+
+        cache2.put(key, 2, EnumSet.of(CreateOption.Ephemeral)); // update
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(cache1.get(key).get().orElse(-1), 2);
+            assertEquals(cache2.get(key).get().orElse(-1), 2);
+        });
+    }
+
+    @Test(dataProvider = "impl")
+    public void testAsyncReloadConsumer(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+
+        List<MyClass> refreshed = new ArrayList<>();
+        MetadataCache<MyClass> objCache = store.getMetadataCache(MyClass.class,
+                MetadataCacheConfig.<MyClass>builder().refreshAfterWriteMillis(100)
+                        .asyncReloadConsumer((k, v) -> v.map(vv -> refreshed.add(vv.getValue()))).build());
+
+        String key1 = newKey();
+
+        MyClass value1 = new MyClass("a", 1);
+        objCache.create(key1, value1);
+
+        MyClass value2 = new MyClass("a", 2);
+        store.put(key1, ObjectMapperFactory.getMapper().writer().writeValueAsBytes(value2), Optional.empty())
+                .join();
+
+        Awaitility.await().untilAsserted(() -> {
+            refreshed.contains(value2);
+        });
     }
 }

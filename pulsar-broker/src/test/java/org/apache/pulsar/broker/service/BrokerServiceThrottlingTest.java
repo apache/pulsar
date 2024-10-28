@@ -190,7 +190,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(20, false,
                 new DefaultThreadFactory("test-pool", Thread.currentThread().isDaemon()));
         ExecutorService executor = Executors.newFixedThreadPool(10);
-        try (ConnectionPool pool = new ConnectionPool(InstrumentProvider.NOOP, conf, eventLoop)) {
+        try (ConnectionPool pool = new ConnectionPool(InstrumentProvider.NOOP, conf, eventLoop, null)) {
             final int totalConsumers = 20;
             List<Future<?>> futures = new ArrayList<>();
 

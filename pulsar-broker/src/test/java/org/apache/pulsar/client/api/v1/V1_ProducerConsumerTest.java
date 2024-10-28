@@ -624,7 +624,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
                 return manager;
             }).when(factory).getEntryCacheManager();
             return factory;
-        }).when(pulsar).getManagedLedgerFactory();
+        }).when(pulsar).getDefaultManagedLedgerFactory();
     }
 
     /**

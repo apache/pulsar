@@ -34,7 +34,7 @@ public record ServiceUnitStateData(
 
     public ServiceUnitStateData {
         Objects.requireNonNull(state);
-        if (StringUtils.isBlank(dstBroker) && StringUtils.isBlank(sourceBroker)) {
+        if (state != ServiceUnitState.Free && StringUtils.isBlank(dstBroker) && StringUtils.isBlank(sourceBroker)) {
             throw new IllegalArgumentException("Empty broker");
         }
     }
@@ -74,5 +74,20 @@ public record ServiceUnitStateData(
 
     public static ServiceUnitState state(ServiceUnitStateData data) {
         return data == null ? ServiceUnitState.Init : data.state();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        ServiceUnitStateData that = (ServiceUnitStateData) o;
+
+        return versionId == that.versionId;
     }
 }

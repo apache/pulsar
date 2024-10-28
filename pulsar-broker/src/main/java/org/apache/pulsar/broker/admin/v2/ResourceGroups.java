@@ -60,7 +60,9 @@ public class ResourceGroups extends ResourceGroupsBase {
     @PUT
     @Path("/{resourcegroup}")
     @ApiOperation(value = "Creates a new resourcegroup with the specified rate limiters")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "cluster doesn't exist")})
     public void createOrUpdateResourceGroup(@PathParam("resourcegroup") String name,
                                     @ApiParam(value = "Rate limiters for the resourcegroup")
@@ -72,6 +74,7 @@ public class ResourceGroups extends ResourceGroupsBase {
     @Path("/{resourcegroup}")
     @ApiOperation(value = "Delete a resourcegroup.")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "ResourceGroup doesn't exist"),
             @ApiResponse(code = 409, message = "ResourceGroup is in use")})
