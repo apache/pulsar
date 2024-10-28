@@ -114,7 +114,6 @@ public class PulsarClusterMetadataTeardown {
         }
 
         if (arguments.metadataStoreUrl == null && arguments.zookeeper == null) {
-            System.err.println("Metadata store address argument is required (--metadata-store)");
             commander.usage(commander.getOut());
             throw new IllegalArgumentException("Metadata store address argument is required (--metadata-store)");
         }
