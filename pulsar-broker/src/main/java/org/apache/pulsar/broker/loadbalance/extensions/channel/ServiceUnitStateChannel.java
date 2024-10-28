@@ -24,6 +24,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.loadbalance.extensions.manager.StateChangeListener;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
@@ -73,7 +75,7 @@ public interface ServiceUnitStateChannel extends Closeable {
      * Checks if the current broker is the owner broker of the system topic in this channel.
      * @return True if the current broker is the owner. Otherwise, false.
      */
-    boolean isChannelOwner();
+    boolean isChannelOwner() throws ExecutionException, InterruptedException, TimeoutException;
 
     /**
      * Handles the metadata session events to track
