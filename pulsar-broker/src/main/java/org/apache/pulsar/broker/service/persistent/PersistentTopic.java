@@ -1455,6 +1455,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             this.closeFutures =
                     new CloseFutures(new CompletableFuture(), new CompletableFuture(), new CompletableFuture());
 
+            AtomicBoolean alreadyUnFenced = new AtomicBoolean();
             CompletableFuture<Void> res = getBrokerService().getPulsar().getPulsarResources().getNamespaceResources()
                         .getPartitionedTopicResources().runWithMarkDeleteAsync(TopicName.get(topic), () -> {
                 CompletableFuture<Void> deleteFuture = new CompletableFuture<>();
@@ -1471,6 +1472,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     closeClientFuture.complete(null);
                 }, getOrderedExecutor()).exceptionally(ex -> {
                     log.error("[{}] Error closing clients", topic, ex);
+                    alreadyUnFenced.set(true);
                     unfenceTopicToResume();
                     closeClientFuture.completeExceptionally(ex);
                     return null;
@@ -1493,6 +1495,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                 .whenComplete((v, ex) -> {
                                     if (ex != null) {
                                         log.error("[{}] Error deleting topic", topic, ex);
+                                        alreadyUnFenced.set(true);
                                         unfenceTopicToResume();
                                         deleteFuture.completeExceptionally(ex);
                                     } else {
@@ -1502,6 +1505,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                     FutureUtil.waitForAll(subsDeleteFutures).whenComplete((f, e) -> {
                                         if (e != null) {
                                             log.error("[{}] Error deleting topic", topic, e);
+                                            alreadyUnFenced.set(true);
                                             unfenceTopicToResume();
                                             deleteFuture.completeExceptionally(e);
                                         } else {
@@ -1532,6 +1536,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                     } else {
                                                         log.error("[{}] Error deleting topic",
                                                                 topic, exception);
+                                                        alreadyUnFenced.set(true);
                                                         unfenceTopicToResume();
                                                         deleteFuture.completeExceptionally(
                                                                 new PersistenceException(exception));
@@ -1544,6 +1549,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                 }
                             });
                 }).exceptionally(ex->{
+                    alreadyUnFenced.set(true);
                     unfenceTopicToResume();
                     deleteFuture.completeExceptionally(
                             new TopicBusyException("Failed to close clients before deleting topic.",
@@ -1555,7 +1561,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 }).whenComplete((value, ex) -> {
                     if (ex != null) {
                         log.error("[{}] Error deleting topic", topic, ex);
-                        unfenceTopicToResume();
+                        if (!alreadyUnFenced.get()) {
+                            unfenceTopicToResume();
+                        }
                     }
                 });
 
