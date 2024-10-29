@@ -141,7 +141,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         return isBatchFull();
     }
 
-    protected ByteBuf getCompressedBatchMetadataAndPayload() {
+    protected ByteBuf getCompressedBatchMetadataAndPayload(boolean isBrokerTwoPhaseCompactor) {
         int batchWriteIndex = batchedMessageMetadataAndPayload.writerIndex();
         int batchReadIndex = batchedMessageMetadataAndPayload.readerIndex();
 
@@ -169,9 +169,20 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         }
 
         int uncompressedSize = batchedMessageMetadataAndPayload.readableBytes();
-        ByteBuf compressedPayload = compressor.encode(batchedMessageMetadataAndPayload);
-        batchedMessageMetadataAndPayload.release();
-        if (compressionType != CompressionType.NONE) {
+        ByteBuf compressedPayload;
+        boolean isCompressed = false;
+        if (!isBrokerTwoPhaseCompactor && producer != null){
+            if (uncompressedSize > producer.conf.getCompressMinMsgBodySize()) {
+                compressedPayload = producer.applyCompression(batchedMessageMetadataAndPayload);
+                isCompressed = true;
+            } else {
+                compressedPayload = batchedMessageMetadataAndPayload;
+            }
+        } else {
+            compressedPayload = compressor.encode(batchedMessageMetadataAndPayload);
+            batchedMessageMetadataAndPayload.release();
+        }
+        if (compressionType != CompressionType.NONE && isCompressed) {
             messageMetadata.setCompression(compressionType);
             messageMetadata.setUncompressedSize(uncompressedSize);
         }
@@ -252,7 +263,8 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         if (messages.size() == 1) {
             messageMetadata.clear();
             messageMetadata.copyFrom(messages.get(0).getMessageBuilder());
-            ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata, getCompressedBatchMetadataAndPayload());
+            ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata,
+                    getCompressedBatchMetadataAndPayload(false));
             updateAndReserveBatchAllocatedSize(encryptedPayload.capacity());
             ByteBufPair cmd = producer.sendMessage(producer.producerId, messageMetadata.getSequenceId(),
                 1, null, messageMetadata, encryptedPayload);
@@ -283,7 +295,8 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             lowestSequenceId = -1L;
             return op;
         }
-        ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata, getCompressedBatchMetadataAndPayload());
+        ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata,
+                getCompressedBatchMetadataAndPayload(false));
         updateAndReserveBatchAllocatedSize(encryptedPayload.capacity());
         if (encryptedPayload.readableBytes() > getMaxMessageSize()) {
             producer.semaphoreRelease(messages.size());
