@@ -44,7 +44,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "flaky")
+@Test(groups = "broker")
 public class DisabledCreateTopicToRemoteClusterForReplicationTest extends OneWayReplicatorTestBase {
 
     @Override
