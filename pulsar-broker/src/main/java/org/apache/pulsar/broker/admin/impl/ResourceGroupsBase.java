@@ -75,7 +75,12 @@ public abstract class ResourceGroupsBase extends AdminResource {
             if (rgConfig.getDispatchRateInBytes() != null) {
                 resourceGroup.setDispatchRateInBytes(rgConfig.getDispatchRateInBytes());
             }
-
+            if (rgConfig.getReplicationDispatchRateInBytes() != null) {
+                resourceGroup.setReplicationDispatchRateInBytes(rgConfig.getReplicationDispatchRateInBytes());
+            }
+            if (rgConfig.getReplicationDispatchRateInMsgs() != null) {
+                resourceGroup.setReplicationDispatchRateInMsgs(rgConfig.getReplicationDispatchRateInMsgs());
+            }
             // write back the new ResourceGroup config.
             resourceGroupResources().updateResourceGroup(rgName, r -> resourceGroup);
             log.info("[{}] Successfully updated the ResourceGroup {}", clientAppId(), rgName);
@@ -96,6 +101,10 @@ public abstract class ResourceGroupsBase extends AdminResource {
                 ? -1 : rgConfig.getDispatchRateInMsgs());
         rgConfig.setDispatchRateInBytes(rgConfig.getDispatchRateInBytes() == null
                 ? -1 : rgConfig.getDispatchRateInBytes());
+        rgConfig.setReplicationDispatchRateInBytes(rgConfig.getReplicationDispatchRateInBytes() == null
+                ? -1 : rgConfig.getReplicationDispatchRateInBytes());
+        rgConfig.setReplicationDispatchRateInMsgs(rgConfig.getReplicationDispatchRateInMsgs() == null
+                ? -1 : rgConfig.getReplicationDispatchRateInMsgs());
         try {
             resourceGroupResources().createResourceGroup(rgName, rgConfig);
             log.info("[{}] Created ResourceGroup {}", clientAppId(), rgName);

@@ -156,6 +156,10 @@ public class CmdTopicPolicies extends CmdBase {
         jcommander.addCommand("set-auto-subscription-creation", new SetAutoSubscriptionCreation());
         jcommander.addCommand("get-auto-subscription-creation", new GetAutoSubscriptionCreation());
         jcommander.addCommand("remove-auto-subscription-creation", new RemoveAutoSubscriptionCreation());
+
+        jcommander.addCommand("set-resource-group", new SetResourceGroup());
+        jcommander.addCommand("get-resource-group", new GetResourceGroup());
+        jcommander.addCommand("remove-resource-group", new RemoveResourceGroup());
     }
 
     @Parameters(commandDescription = "Get entry filters for a topic")
@@ -1928,6 +1932,61 @@ public class CmdTopicPolicies extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             getTopicPolicies(isGlobal).removeAutoSubscriptionCreation(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Get ResourceGroup for a topic")
+    private class GetResourceGroup extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--applied", "-a"}, description = "Get the applied policy of the topic")
+        private boolean applied = false;
+
+        @Parameter(names = {"--global", "-g"}, description = "Whether to get this policy globally. "
+                + "If set to true, broker returned global topic policies")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String topic = validateTopicName(params);
+            print(getTopicPolicies(isGlobal).getResourceGroup(topic, applied));
+        }
+    }
+
+    @Parameters(commandDescription = "Set ResourceGroup for a topic")
+    private class SetResourceGroup extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--global", "-g"}, description = "Whether to get this policy globally. "
+                + "If set to true, broker returned global topic policies")
+        private boolean isGlobal = false;
+
+        @Parameter(names = {"--resource-group-name", "-rgn"}, description = "ResourceGroup name", required = true)
+        private String rgName;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String topic = validateTopicName(params);
+            getTopicPolicies(isGlobal).setResourceGroup(topic, rgName);
+        }
+    }
+
+    @Parameters(commandDescription = "Remove ResourceGroup from a topic")
+    private class RemoveResourceGroup extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--global", "-g"}, description = "Whether to get this policy globally. "
+                + "If set to true, broker returned global topic policies")
+        private boolean isGlobal = false;
+
+
+        @Override
+        void run() throws PulsarAdminException {
+            String topic = validateTopicName(params);
+            getTopicPolicies(isGlobal).removeResourceGroup(topic);
         }
     }
 

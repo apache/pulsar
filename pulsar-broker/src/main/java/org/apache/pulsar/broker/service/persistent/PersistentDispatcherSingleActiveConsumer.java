@@ -40,6 +40,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadE
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.resourcegroup.ResourceGroupDispatchLimiter;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
@@ -458,6 +459,30 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 } else {
                     Pair<Integer, Long> calculateToRead =
                             updateMessagesToRead(dispatchRateLimiter.get(), messagesToRead, bytesToRead);
+                    messagesToRead = calculateToRead.getLeft();
+                    bytesToRead = calculateToRead.getRight();
+                }
+            }
+
+            if (topic.getResourceGroupDispatchRateLimiter().isPresent()) {
+                ResourceGroupDispatchLimiter resourceGroupDispatchLimiter = topic.getResourceGroupDispatchRateLimiter()
+                        .get();
+                long availableDispatchRateLimitOnMsg =
+                        resourceGroupDispatchLimiter.getAvailableDispatchRateLimitOnMsg();
+                long availableDispatchRateLimitOnByte =
+                        resourceGroupDispatchLimiter.getAvailableDispatchRateLimitOnByte();
+                if (availableDispatchRateLimitOnMsg == 0 || availableDispatchRateLimitOnByte == 0) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] message-read exceeded resourcegroup message-rate {}/{}, schedule after a {}",
+                                name, availableDispatchRateLimitOnMsg, availableDispatchRateLimitOnByte,
+                                MESSAGE_RATE_BACKOFF_MS);
+                    }
+                    reScheduleRead();
+                    return Pair.of(-1, -1L);
+                } else {
+                    Pair<Integer, Long> calculateToRead =
+                            computeReadLimits(messagesToRead, (int) availableDispatchRateLimitOnMsg, bytesToRead,
+                                    availableDispatchRateLimitOnByte);
                     messagesToRead = calculateToRead.getLeft();
                     bytesToRead = calculateToRead.getRight();
                 }

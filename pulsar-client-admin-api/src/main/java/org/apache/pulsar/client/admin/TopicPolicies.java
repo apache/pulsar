@@ -21,6 +21,8 @@ package org.apache.pulsar.client.admin;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
+import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -1913,4 +1915,61 @@ public interface TopicPolicies {
      *            Topic name
      */
     CompletableFuture<Void> removeAutoSubscriptionCreationAsync(String topic);
+
+    /**
+     * Get the ResourceGroup for a topic.
+     *
+     * @param topic Topic name
+     * @param applied True gets namespace level configuration if ResourceGroup does not exist on the topic.
+     *                False gets topic level configuration.
+     * @return ResourceGroup
+     * @throws NotAuthorizedException Don't have admin permission
+     * @throws NotFoundException Topic does not exist
+     * @throws PulsarAdminException Unexpected error
+     */
+    String getResourceGroup(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get the ResourceGroup for a topic asynchronously.
+     *
+     * @param topic Topic name
+     */
+    CompletableFuture<String> getResourceGroupAsync(String topic, boolean applied);
+
+    /**
+     * Set the ResourceGroup for a topic.
+     *
+     * @param topic Topic name
+     * @param resourceGroupName ResourceGroup name
+     * @throws NotAuthorizedException Don't have admin permission
+     * @throws NotFoundException Topic does not exist
+     * @throws PulsarAdminException Unexpected error
+     */
+    void setResourceGroup(String topic, String resourceGroupName) throws PulsarAdminException;
+
+    /**
+     * Set the ResourceGroup for a topic.
+     *
+     * @param topic Topic name
+     * @param resourceGroupName ResourceGroup name
+     */
+    CompletableFuture<Void> setResourceGroupAsync(String topic, String resourceGroupName);
+
+    /**
+     * Remove the ResourceGroup on a topic.
+     *
+     * @param topic Topic name
+     * @throws NotAuthorizedException Don't have admin permission
+     * @throws NotFoundException Topic does not exist
+     * @throws PulsarAdminException Unexpected error
+     */
+    void removeResourceGroup(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove the ResourceGroup on a topic asynchronously.
+     *
+     * @param topic Topic name
+     */
+    CompletableFuture<Void> removeResourceGroupAsync(String topic);
 }
+

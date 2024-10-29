@@ -52,6 +52,7 @@ import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.InMemoryDelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker;
+import org.apache.pulsar.broker.resourcegroup.ResourceGroupDispatchLimiter;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
@@ -477,6 +478,27 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 } else {
                     Pair<Integer, Long> calculateToRead =
                             updateMessagesToRead(dispatchRateLimiter.get(), messagesToRead, bytesToRead);
+                    messagesToRead = calculateToRead.getLeft();
+                    bytesToRead = calculateToRead.getRight();
+                }
+            }
+
+            if (topic.getResourceGroupDispatchRateLimiter().isPresent()) {
+                ResourceGroupDispatchLimiter limiter = topic.getResourceGroupDispatchRateLimiter().get();
+                long availableDispatchRateLimitOnMsg = limiter.getAvailableDispatchRateLimitOnMsg();
+                long availableDispatchRateLimitOnByte = limiter.getAvailableDispatchRateLimitOnByte();
+                if (availableDispatchRateLimitOnMsg == 0 || availableDispatchRateLimitOnByte == 0) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] message-read exceeded resourcegroup message-rate {}/{}, schedule after a {}",
+                                name, limiter.getDispatchRateOnMsg(), limiter.getDispatchRateOnByte(),
+                                MESSAGE_RATE_BACKOFF_MS);
+                    }
+                    reScheduleRead();
+                    return Pair.of(-1, -1L);
+                } else {
+                    Pair<Integer, Long> calculateToRead =
+                            computeReadLimits(messagesToRead, (int) availableDispatchRateLimitOnMsg, bytesToRead,
+                                    availableDispatchRateLimitOnByte);
                     messagesToRead = calculateToRead.getLeft();
                     bytesToRead = calculateToRead.getRight();
                 }

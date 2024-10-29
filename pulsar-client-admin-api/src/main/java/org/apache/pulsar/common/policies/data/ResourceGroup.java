@@ -26,4 +26,7 @@ public class ResourceGroup {
     private Long publishRateInBytes;
     private Integer dispatchRateInMsgs;
     private Long dispatchRateInBytes;
+
+    private Long replicationDispatchRateInMsgs;
+    private Long replicationDispatchRateInBytes;
 }

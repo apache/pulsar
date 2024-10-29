@@ -40,6 +40,16 @@ public class ReplicatorStatsImpl implements ReplicatorStats {
     /** Total throughput delivered to the replication-subscriber (bytes/s). */
     public double msgThroughputOut;
 
+    /**
+     * Total bytes delivered to the replication-subscriber (bytes).
+     */
+    public long bytesOutCounter;
+
+    /**
+     * Total messages delivered to the replication-subscriber (msg).
+     */
+    public long msgOutCounter;
+
     /** Total rate of messages expired (msg/s). */
     public double msgRateExpired;
 

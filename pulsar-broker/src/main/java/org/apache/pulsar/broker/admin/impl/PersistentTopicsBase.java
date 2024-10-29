@@ -5705,4 +5705,40 @@ public class PersistentTopicsBase extends AdminResource {
                             return null;
                         }));
     }
+
+    protected CompletableFuture<Void> internalSetResourceGroup(String resourceGroupName, boolean isGlobal) {
+        boolean isDelete = StringUtils.isEmpty(resourceGroupName);
+        return validateTopicPolicyOperationAsync(topicName, PolicyName.RESOURCEGROUP, PolicyOperation.WRITE)
+                .thenCompose(__ -> {
+                    if (isDelete) {
+                        return CompletableFuture.completedFuture(true);
+                    }
+                    return resourceGroupResources().resourceGroupExistsAsync(resourceGroupName);
+                })
+                .thenCompose(exists -> {
+                    if (!exists) {
+                        return FutureUtil.failedFuture(new RestException(Status.NOT_FOUND,
+                                "ResourceGroup does not exist"));
+                    }
+                    return getTopicPoliciesAsyncWithRetry(topicName, isGlobal).thenCompose(op -> {
+                        TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                        topicPolicies.setResourceGroupName(isDelete ? null : resourceGroupName);
+                        topicPolicies.setIsGlobal(isGlobal);
+                        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                    });
+                });
+    }
+
+    protected CompletableFuture<String> internalGetResourceGroup(boolean applied, boolean isGlobal) {
+        return validateTopicPolicyOperationAsync(topicName, PolicyName.RESOURCEGROUP, PolicyOperation.READ)
+                .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+                        .thenApply(op -> op.map(TopicPolicies::getResourceGroupName)
+                                .orElseGet(() -> {
+                                    if (applied) {
+                                        return getNamespacePolicies(namespaceName).resource_group_name;
+                                    }
+                                    return null;
+                                })
+                        ));
+    }
 }

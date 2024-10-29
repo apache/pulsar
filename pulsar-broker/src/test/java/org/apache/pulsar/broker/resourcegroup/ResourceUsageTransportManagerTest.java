@@ -80,7 +80,7 @@ public class ResourceUsageTransportManagerTest extends MockedPulsarServiceBaseTe
                 resourceUsage.setOwner(getID());
                 resourceUsage.setPublish().setMessagesPerPeriod(1000).setBytesPerPeriod(10001);
                 resourceUsage.setStorage().setTotalBytes(500003);
-
+                resourceUsage.setReplicationDispatch().setMessagesPerPeriod(2000).setBytesPerPeriod(4000);
             }
         };
 
@@ -99,6 +99,10 @@ public class ResourceUsageTransportManagerTest extends MockedPulsarServiceBaseTe
                 p.setBytesPerPeriod(resourceUsage.getPublish().getBytesPerPeriod());
                 p.setMessagesPerPeriod(resourceUsage.getPublish().getMessagesPerPeriod());
 
+                p = recvdUsage.setReplicationDispatch();
+                p.setBytesPerPeriod(resourceUsage.getReplicationDispatch().getBytesPerPeriod());
+                p.setMessagesPerPeriod(resourceUsage.getReplicationDispatch().getMessagesPerPeriod());
+
                 recvdUsage.setStorage().setTotalBytes(resourceUsage.getStorage().getTotalBytes());
             }
         };
@@ -113,6 +117,8 @@ public class ResourceUsageTransportManagerTest extends MockedPulsarServiceBaseTe
         assertNotNull(recvdUsage.getStorage());
         assertEquals(recvdUsage.getPublish().getBytesPerPeriod(), 10001);
         assertEquals(recvdUsage.getStorage().getTotalBytes(), 500003);
+        assertEquals(recvdUsage.getReplicationDispatch().getBytesPerPeriod(), 4000);
+        assertEquals(recvdUsage.getReplicationDispatch().getMessagesPerPeriod(), 2000);
     }
 
     private void prepareData() throws PulsarServerException, PulsarAdminException, PulsarClientException {

@@ -72,6 +72,14 @@ public class CmdResourceGroups extends CmdBase {
                 + "(default -1 will be overwrite if not passed)", required = false)
         private Long dispatchRateInBytes;
 
+        @Parameter(names = {"--replication-msg-dispatch-rate"}, description = "replication-msg-dispatch-rate "
+                + "(default -1 will be overwrite if not passed)", required = false)
+        private Long replicationDispatchRateInMsgs;
+
+        @Parameter(names = {"--replication-byte-dispatch-rate"}, description = "replication-byte-dispatch-rate "
+                + "(default -1 will be overwrite if not passed)", required = false)
+        private Long replicationDispatchRateInBytes;
+
         @Override
         void run() throws PulsarAdminException {
             String name = getOneArgument(params);
@@ -81,6 +89,8 @@ public class CmdResourceGroups extends CmdBase {
             resourcegroup.setDispatchRateInBytes(dispatchRateInBytes);
             resourcegroup.setPublishRateInMsgs(publishRateInMsgs);
             resourcegroup.setPublishRateInBytes(publishRateInBytes);
+            resourcegroup.setReplicationDispatchRateInMsgs(replicationDispatchRateInMsgs);
+            resourcegroup.setReplicationDispatchRateInBytes(replicationDispatchRateInBytes);
             getAdmin().resourcegroups().createResourceGroup(name, resourcegroup);
         }
     }
@@ -107,6 +117,14 @@ public class CmdResourceGroups extends CmdBase {
                 "-bd" }, description = "byte-dispatch-rate ", required = false)
         private Long dispatchRateInBytes;
 
+        @Parameter(names = {"--replication-msg-dispatch-rate"}, description = "replication-msg-dispatch-rate "
+                + "(default -1 will be overwrite if not passed)", required = false)
+        private Long replicationDispatchRateInMsgs;
+
+        @Parameter(names = {"--replication-byte-dispatch-rate"}, description = "replication-byte-dispatch-rate "
+                + "(default -1 will be overwrite if not passed)", required = false)
+        private Long replicationDispatchRateInBytes;
+
         @Override
         void run() throws PulsarAdminException {
             String name = getOneArgument(params);
@@ -116,6 +134,8 @@ public class CmdResourceGroups extends CmdBase {
             resourcegroup.setDispatchRateInBytes(dispatchRateInBytes);
             resourcegroup.setPublishRateInMsgs(publishRateInMsgs);
             resourcegroup.setPublishRateInBytes(publishRateInBytes);
+            resourcegroup.setReplicationDispatchRateInMsgs(replicationDispatchRateInMsgs);
+            resourcegroup.setReplicationDispatchRateInBytes(replicationDispatchRateInBytes);
 
             getAdmin().resourcegroups().updateResourceGroup(name, resourcegroup);
         }

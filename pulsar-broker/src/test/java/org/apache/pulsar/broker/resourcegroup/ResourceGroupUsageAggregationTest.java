@@ -191,8 +191,6 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
                 }
             }
         }
-        rgs.getTopicConsumeStats().clear();
-        rgs.getTopicProduceStats().clear();
 
         rgs.unRegisterTenant(activeRgName, tenantString);
         rgs.unRegisterNameSpace(activeRgName, NamespaceName.get(nsString));

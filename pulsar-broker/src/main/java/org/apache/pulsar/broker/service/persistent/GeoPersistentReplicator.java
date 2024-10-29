@@ -26,6 +26,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.resourcegroup.ResourceGroupDispatchLimiter;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -81,8 +82,8 @@ public class GeoPersistentReplicator extends PersistentReplicator {
     }
 
     @Override
-    protected boolean replicateEntries(List<Entry> entries) {
-        boolean atLeastOneMessageSentForReplication = false;
+    protected ReplicationStatus replicateEntries(List<Entry> entries) {
+        ReplicationStatus replicationStatus = ReplicationStatus.NO_ENTRIES_REPLICATED;
         boolean isEnableReplicatedSubscriptions =
                 brokerService.pulsar().getConfiguration().isEnableReplicatedSubscriptions();
 
@@ -165,7 +166,22 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     continue;
                 }
 
-                dispatchRateLimiter.ifPresent(rateLimiter -> rateLimiter.tryDispatchPermit(1, entry.getLength()));
+                int msgCount = msg.getMessageBuilder().hasNumMessagesInBatch()
+                        ? msg.getMessageBuilder().getNumMessagesInBatch() : 1;
+                dispatchRateLimiter.ifPresent(
+                        rateLimiter -> rateLimiter.tryDispatchPermit(msgCount, entry.getLength()));
+
+                ResourceGroupDispatchLimiter resourceGroupLimiter = resourceGroupDispatchRateLimiter.orElse(null);
+                if (resourceGroupLimiter != null) {
+                    if (!resourceGroupLimiter.tryAcquire(msgCount, entry.getLength())) {
+                        entry.release();
+                        msg.recycle();
+                        cursor.cancelPendingReadRequest();
+                        cursor.rewind();
+                        return ReplicationStatus.RATE_LIMITED;
+                    }
+                }
+
                 msg.setReplicatedFrom(localCluster);
 
                 headersAndPayload.retain();
@@ -196,15 +212,17 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     msg.getMessageBuilder().clearTxnidMostBits();
                     msg.getMessageBuilder().clearTxnidLeastBits();
                     msgOut.recordEvent(headersAndPayload.readableBytes());
+                    msgOutCounter.add(msgCount);
+                    bytesOutCounter.add(length);
                     // Increment pending messages for messages produced locally
                     PENDING_MESSAGES_UPDATER.incrementAndGet(this);
                     producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg));
-                    atLeastOneMessageSentForReplication = true;
+                    replicationStatus = ReplicationStatus.AT_LEAST_ONE_REPLICATED;
                 }
             }
         } catch (Exception e) {
             log.error("[{}] Unexpected exception in replication task: {}", replicatorId, e.getMessage(), e);
         }
-        return atLeastOneMessageSentForReplication;
+        return replicationStatus;
     }
 }

@@ -52,7 +52,9 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup;
+import org.apache.pulsar.broker.resourcegroup.ResourceGroupDispatchLimiter;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroupPublishLimiter;
+import org.apache.pulsar.broker.resourcegroup.ResourceGroupService;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ProducerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ProducerFencedException;
@@ -130,6 +132,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     private final Object topicPublishRateLimiterLock = new Object();
 
     protected volatile ResourceGroupPublishLimiter resourceGroupPublishLimiter;
+
+    @Getter
+    protected volatile Optional<ResourceGroupDispatchLimiter> resourceGroupDispatchRateLimiter = Optional.empty();
 
     protected boolean preciseTopicPublishRateLimitingEnable;
 
@@ -259,6 +264,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         topicPolicies.getSchemaValidationEnforced().updateTopicValue(data.getSchemaValidationEnforced());
         topicPolicies.getEntryFilters().updateTopicValue(data.getEntryFilters());
         this.subscriptionPolicies = data.getSubscriptionPolicies();
+        topicPolicies.getResourceGroupName().updateTopicValue(data.getResourceGroupName());
 
         updateEntryFilters();
     }
@@ -312,6 +318,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         updateSchemaCompatibilityStrategyNamespaceValue(namespacePolicies);
         topicPolicies.getSchemaValidationEnforced().updateNamespaceValue(namespacePolicies.schema_validation_enforced);
         topicPolicies.getEntryFilters().updateNamespaceValue(namespacePolicies.entryFilters);
+        topicPolicies.getResourceGroupName().updateNamespaceValue(namespacePolicies.resource_group_name);
 
         updateEntryFilters();
     }
@@ -1185,26 +1192,50 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     public void updateResourceGroupLimiter(@Nonnull Policies namespacePolicies) {
         requireNonNull(namespacePolicies);
-        // attach the resource-group level rate limiters, if set
-        String rgName = namespacePolicies.resource_group_name;
+        topicPolicies.getResourceGroupName().updateNamespaceValue(namespacePolicies.resource_group_name);
+        updateResourceGroupLimiter();
+    }
+
+    public void updateResourceGroupLimiter() {
+        String rgName = topicPolicies.getResourceGroupName().get();
         if (rgName != null) {
-            final ResourceGroup resourceGroup =
-                    brokerService.getPulsar().getResourceGroupServiceManager().resourceGroupGet(rgName);
+            ResourceGroupService resourceGroupService = brokerService.getPulsar().getResourceGroupServiceManager();
+            final ResourceGroup resourceGroup = resourceGroupService.resourceGroupGet(rgName);
             if (resourceGroup != null) {
+                TopicName topicName = TopicName.get(topic);
+                resourceGroupService.unRegisterTopic(topicName);
+                String topicRg = topicPolicies.getResourceGroupName().getTopicValue();
+                if (topicRg != null) {
+                    try {
+                        resourceGroupService.registerTopic(topicRg, topicName);
+                    } catch (Exception e) {
+                        log.error("Failed to register resource group {} for topic {}", rgName, topic);
+                        return;
+                    }
+                }
                 this.resourceGroupRateLimitingEnabled = true;
                 this.resourceGroupPublishLimiter = resourceGroup.getResourceGroupPublishLimiter();
                 this.resourceGroupPublishLimiter.registerRateLimitFunction(this.getName(), this::enableCnxAutoRead);
+                this.resourceGroupDispatchRateLimiter = Optional.of(resourceGroup.getResourceGroupDispatchLimiter());
                 log.info("Using resource group {} rate limiter for topic {}", rgName, topic);
-                return;
             }
         } else {
-            if (this.resourceGroupRateLimitingEnabled) {
-                this.resourceGroupPublishLimiter.unregisterRateLimitFunction(this.getName());
-                this.resourceGroupPublishLimiter = null;
-                this.resourceGroupRateLimitingEnabled = false;
-            }
+            closeResourceGroupLimiter();
+
             /* Namespace detached from resource group. Enable the producer read */
             enableProducerReadForPublishRateLimiting();
+        }
+    }
+
+    protected void closeResourceGroupLimiter() {
+        if (resourceGroupRateLimitingEnabled) {
+            this.resourceGroupPublishLimiter = null;
+            this.resourceGroupDispatchRateLimiter = Optional.empty();
+            this.resourceGroupRateLimitingEnabled = false;
+        }
+        ResourceGroupService resourceGroupServiceManager = brokerService.getPulsar().getResourceGroupServiceManager();
+        if (resourceGroupServiceManager != null) {
+            resourceGroupServiceManager.unRegisterTopic(TopicName.get(topic));
         }
     }
 

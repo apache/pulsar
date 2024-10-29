@@ -18,21 +18,26 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.assertFalse;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Method;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.resourcegroup.ResourceGroupDispatchLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.ResourceGroup;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -98,6 +103,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
 
         // rate limiter disable by default
         assertFalse(topic.getReplicators().values().get(0).getRateLimiter().isPresent());
+        assertFalse(topic.getReplicators().values().get(0).getResourceGroupDispatchRateLimiter().isPresent());
 
         //set topic-level policy, which should take effect
         DispatchRate topicRate = DispatchRate.builder()
@@ -119,6 +125,24 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
         assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnMsg(), -1);
         assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnByte(),
             -1L);
+
+        // ResourceGroupDispatchRateLimiter
+        String resourceGroupName = UUID.randomUUID().toString();
+        ResourceGroup resourceGroup = new ResourceGroup();
+        resourceGroup.setReplicationDispatchRateInBytes(10L);
+        resourceGroup.setReplicationDispatchRateInMsgs(20L);
+        admin1.resourcegroups().createResourceGroup(resourceGroupName, resourceGroup);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin1.resourcegroups()
+                .getResourceGroup(resourceGroupName)));
+        admin1.topicPolicies().setResourceGroup(topicName, resourceGroupName);
+
+        Replicator replicator = topic.getReplicators().values().get(0);
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(replicator.getResourceGroupDispatchRateLimiter().isPresent());
+            ResourceGroupDispatchLimiter resourceGroupDispatchLimiter = replicator.getResourceGroupDispatchRateLimiter().get();
+            assertEquals(resourceGroupDispatchLimiter.getDispatchRateOnByte(), resourceGroup.getReplicationDispatchRateInBytes().longValue());
+            assertEquals(resourceGroupDispatchLimiter.getDispatchRateOnMsg(), resourceGroup.getReplicationDispatchRateInMsgs().longValue());
+        });
     }
 
     @Test
@@ -142,6 +166,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
 
         // rate limiter disable by default
         assertFalse(topic.getReplicators().values().get(0).getRateLimiter().isPresent());
+        assertFalse(topic.getReplicators().values().get(0).getResourceGroupDispatchRateLimiter().isPresent());
 
         //set namespace-level policy, which should take effect
         DispatchRate topicRate = DispatchRate.builder()
@@ -163,6 +188,24 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
         assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnMsg(), -1);
         assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnByte(),
             -1L);
+
+        // ResourceGroupDispatchRateLimiter
+        String resourceGroupName = UUID.randomUUID().toString();
+        ResourceGroup resourceGroup = new ResourceGroup();
+        resourceGroup.setReplicationDispatchRateInBytes(10L);
+        resourceGroup.setReplicationDispatchRateInMsgs(20L);
+        admin1.resourcegroups().createResourceGroup(resourceGroupName, resourceGroup);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin1.resourcegroups()
+                .getResourceGroup(resourceGroupName)));
+        admin1.namespaces().setNamespaceResourceGroup(namespace, resourceGroupName);
+
+        Replicator replicator = topic.getReplicators().values().get(0);
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(replicator.getResourceGroupDispatchRateLimiter().isPresent());
+            ResourceGroupDispatchLimiter resourceGroupDispatchLimiter = replicator.getResourceGroupDispatchRateLimiter().get();
+            assertEquals(resourceGroupDispatchLimiter.getDispatchRateOnByte(), resourceGroup.getReplicationDispatchRateInBytes().longValue());
+            assertEquals(resourceGroupDispatchLimiter.getDispatchRateOnMsg(), resourceGroup.getReplicationDispatchRateInMsgs().longValue());
+        });
     }
 
     @Test
@@ -543,6 +586,115 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
 
         consumer.close();
         producer.close();
+    }
+
+    @Test
+    public void testResourceGroupReplicatorRateLimiter() throws Exception {
+        final String namespace = "pulsar/replicatormsg-" + System.currentTimeMillis();
+        final String topicName = "persistent://" + namespace + "/" + UUID.randomUUID();
+
+        admin1.namespaces().createNamespace(namespace);
+        // 0. set 2 clusters, there will be 1 replicator in each topic
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+
+        // ResourceGroupDispatchRateLimiter
+        int messageRate = 100;
+        String resourceGroupName = UUID.randomUUID().toString();
+        ResourceGroup resourceGroup = new ResourceGroup();
+        resourceGroup.setReplicationDispatchRateInMsgs((long) messageRate);
+        admin1.resourcegroups().createResourceGroup(resourceGroupName, resourceGroup);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin1.resourcegroups()
+                .getResourceGroup(resourceGroupName)));
+        admin1.namespaces().setNamespaceResourceGroup(namespace, resourceGroupName);
+
+        @Cleanup
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+
+        @Cleanup
+        Producer<byte[]> producer = client1.newProducer().topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+
+        @Cleanup
+        PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        final AtomicInteger totalReceived = new AtomicInteger(0);
+
+        @Cleanup
+        Consumer<byte[]> consumer = client2.newConsumer().topic(topicName).subscriptionName("sub2-in-cluster2").messageListener((c1, msg) -> {
+            Assert.assertNotNull(msg, "Message cannot be null");
+            String receivedMessage = new String(msg.getData());
+            log.debug("Received message [{}] in the listener", receivedMessage);
+            totalReceived.incrementAndGet();
+        }).subscribe();
+
+        int numMessages = 500;
+        for (int i = 0; i < numMessages; i++) {
+            producer.send(new byte[80]);
+        }
+
+        Assert.assertTrue(totalReceived.get() < messageRate * 2);
+    }
+
+    @Test
+    public void testReplicatorRateLimiterByBytes() throws Exception {
+        final String namespace = "pulsar/replicatormsg-" + System.currentTimeMillis();
+        final String topicName = "persistent://" + namespace + "/RateLimiterByBytes";
+
+        admin1.namespaces().createNamespace(namespace);
+        // 0. set 2 clusters, there will be 1 replicator in each topic
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+
+        final int byteRate = 400;
+        final int payloadSize = 100;
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(-1)
+                .dispatchThrottlingRateInByte(byteRate)
+                .ratePeriodInSecond(360)
+                .build();
+        admin1.namespaces().setReplicatorDispatchRate(namespace, dispatchRate);
+
+        @Cleanup
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).build();
+        @Cleanup
+        Producer<byte[]> producer = client1.newProducer().topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getOrCreateTopic(topicName).get();
+
+        Awaitility.await()
+                .untilAsserted(() -> assertTrue(topic.getReplicators().values().get(0).getRateLimiter().isPresent()));
+        assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnByte(), byteRate);
+
+        @Cleanup
+        PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString())
+                .build();
+        final AtomicInteger totalReceived = new AtomicInteger(0);
+
+        @Cleanup
+        Consumer<byte[]> ignored = client2.newConsumer().topic(topicName).subscriptionName("sub2-in-cluster2")
+                .messageListener((c1, msg) -> {
+                    Assert.assertNotNull(msg, "Message cannot be null");
+                    String receivedMessage = new String(msg.getData());
+                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    totalReceived.incrementAndGet();
+                }).subscribe();
+
+        // The total bytes is 5 times the rate limit value.
+        int numMessages = byteRate / payloadSize * 5;
+        for (int i = 0; i < numMessages * payloadSize; i++) {
+            producer.send(new byte[payloadSize]);
+        }
+
+        Awaitility.await().pollDelay(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    // The rate limit occurs in the next reading cycle, so a value fault tolerance needs to be added.
+                    assertThat(totalReceived.get()).isLessThan((byteRate / payloadSize) + 2);
+                });
     }
 
     private static final Logger log = LoggerFactory.getLogger(ReplicatorRateLimiterTest.class);

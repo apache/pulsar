@@ -35,6 +35,16 @@ public interface ReplicatorStats {
     /** Total throughput delivered to the replication-subscriber (bytes/s). */
     double getMsgThroughputOut();
 
+    /**
+     * Total bytes delivered to the replication-subscriber (bytes).
+     */
+    long getBytesOutCounter();
+
+    /**
+     * Total messages delivered to the replication-subscriber (msg).
+     */
+    long getMsgOutCounter();
+
     /** Total rate of messages expired (msg/s). */
     double getMsgRateExpired();
 

@@ -38,6 +38,7 @@ message ResourceUsage {
   optional NetworkUsage publish = 2;
   optional NetworkUsage dispatch = 3;
   optional StorageUsage storage = 4;
+  optional NetworkUsage replicationDispatch = 6;
 }
 
 message ResourceUsageInfo {

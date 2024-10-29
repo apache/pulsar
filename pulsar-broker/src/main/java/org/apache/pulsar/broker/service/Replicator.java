@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.broker.resourcegroup.ResourceGroupDispatchLimiter;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
 
@@ -45,6 +46,10 @@ public interface Replicator {
     }
 
     default Optional<DispatchRateLimiter> getRateLimiter() {
+        return Optional.empty();
+    }
+
+    default Optional<ResourceGroupDispatchLimiter> getResourceGroupDispatchRateLimiter() {
         return Optional.empty();
     }
 

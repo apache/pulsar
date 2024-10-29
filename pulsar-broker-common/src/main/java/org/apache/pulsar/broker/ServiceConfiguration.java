@@ -1116,6 +1116,33 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int subscriptionPatternMaxLength = 50;
 
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "The percentage difference that is considered \"within limits\" to suppress usage reporting"
+                    + "Setting this to 0 will also make us report in every round."
+    )
+    private int resourceUsageReportSuppressionTolerancePercentage = 5;
+
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "The maximum number of successive rounds that we can suppress reporting local usage, because there "
+                    + "was no substantial change from the prior round. This is to ensure the reporting does not "
+                    + "become too chatty. Set this value to one more than the cadence of sending reports; e.g., if "
+                    + "you want to send every 3rd report, set the value to 4."
+                    + "Setting this to 0 will make us report in every round."
+                    + "Don't set to negative values; behavior will be disabled"
+    )
+    private int resourceUsageMaxUsageReportSuppressRounds = 5;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "ResourceGroup rate limit will be triggered when the total traffic exceeds the product of the "
+                    + "rate-limit value and the threshold. Value range: [0,1]."
+    )
+    private double resourceGroupLocalQuotaThreshold = 0;
+
     // <-- dispatcher read settings -->
     @FieldContext(
         dynamic = true,

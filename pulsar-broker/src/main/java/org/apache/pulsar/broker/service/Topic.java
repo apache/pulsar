@@ -25,6 +25,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.broker.resourcegroup.ResourceGroupDispatchLimiter;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.SubscribeRateLimiter;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
@@ -336,6 +337,10 @@ public interface Topic {
     CompletableFuture<Void> deleteForcefully();
 
     default Optional<DispatchRateLimiter> getDispatchRateLimiter() {
+        return Optional.empty();
+    }
+
+    default Optional<ResourceGroupDispatchLimiter> getResourceGroupDispatchRateLimiter() {
         return Optional.empty();
     }
 

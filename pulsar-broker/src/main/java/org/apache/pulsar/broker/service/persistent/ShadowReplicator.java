@@ -25,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.resourcegroup.ResourceGroupDispatchLimiter;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -54,8 +55,8 @@ public class ShadowReplicator extends PersistentReplicator {
     }
 
     @Override
-    protected boolean replicateEntries(List<Entry> entries) {
-        boolean atLeastOneMessageSentForReplication = false;
+    protected ReplicationStatus replicateEntries(List<Entry> entries) {
+        ReplicationStatus replicationStatus = ReplicationStatus.NO_ENTRIES_REPLICATED;
 
         try {
             // This flag is set to true when we skip at least one local message,
@@ -89,9 +90,26 @@ public class ShadowReplicator extends PersistentReplicator {
                     continue;
                 }
 
-                dispatchRateLimiter.ifPresent(rateLimiter -> rateLimiter.tryDispatchPermit(1, entry.getLength()));
+
+                int msgCount = msg.getMessageBuilder().hasNumMessagesInBatch()
+                        ? msg.getMessageBuilder().getNumMessagesInBatch() : 1;
+                dispatchRateLimiter.ifPresent(
+                        rateLimiter -> rateLimiter.tryDispatchPermit(msgCount, entry.getLength()));
+
+                ResourceGroupDispatchLimiter resourceGroupLimiter = resourceGroupDispatchRateLimiter.orElse(null);
+                if (resourceGroupLimiter != null) {
+                    if (!resourceGroupLimiter.tryAcquire(msgCount, entry.getLength())) {
+                        entry.release();
+                        msg.recycle();
+                        cursor.cancelPendingReadRequest();
+                        cursor.rewind();
+                        return ReplicationStatus.RATE_LIMITED;
+                    }
+                }
 
                 msgOut.recordEvent(headersAndPayload.readableBytes());
+                msgOutCounter.add(msgCount);
+                bytesOutCounter.add(length);
 
                 msg.setReplicatedFrom(localCluster);
 
@@ -102,13 +120,13 @@ public class ShadowReplicator extends PersistentReplicator {
                 // Increment pending messages for messages produced locally
                 PENDING_MESSAGES_UPDATER.incrementAndGet(this);
                 producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg));
-                atLeastOneMessageSentForReplication = true;
+                replicationStatus = ReplicationStatus.AT_LEAST_ONE_REPLICATED;
             }
         } catch (Exception e) {
             log.error("[{}] Unexpected exception in replication task for shadow topic: {}",
                     replicatorId, e.getMessage(), e);
         }
-        return atLeastOneMessageSentForReplication;
+        return replicationStatus;
     }
 
     /**

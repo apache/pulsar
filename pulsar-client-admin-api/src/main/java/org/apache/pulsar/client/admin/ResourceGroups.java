@@ -75,6 +75,8 @@ public interface ResourceGroups {
          *     "PublishRateInBytes" : "value",
          *     "DispatchRateInMsgs" : "value",
          *     "DispatchRateInBytes" : "value"
+         *     "ReplicationDispatchRateInMsgs" : "value"
+         *     "ReplicationDispatchRateInBytes" : "value"
          * </code>
          * </pre>
          *
@@ -101,6 +103,8 @@ public interface ResourceGroups {
          *     "PublishRateInBytes" : "value",
          *     "DispatchRateInMsgs" : "value",
          *     "DspatchRateInBytes" : "value"
+         *     "ReplicationDispatchRateInMsgs" : "value"
+         *     "ReplicationDispatchRateInBytes" : "value"
          * </code>
          * </pre>
          *

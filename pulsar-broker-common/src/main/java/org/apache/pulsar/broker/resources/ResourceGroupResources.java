@@ -46,6 +46,10 @@ public class ResourceGroupResources extends BaseResources<ResourceGroup> {
         return exists(joinPath(BASE_PATH, resourceGroupName));
     }
 
+    public CompletableFuture<Boolean> resourceGroupExistsAsync(String resourceGroupName) {
+        return existsAsync(joinPath(BASE_PATH, resourceGroupName));
+    }
+
     public void createResourceGroup(String resourceGroupName, ResourceGroup rg) throws MetadataStoreException {
         create(joinPath(BASE_PATH, resourceGroupName), rg);
     }

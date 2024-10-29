@@ -32,7 +32,7 @@ public class ResourceQuotaCalculatorImplTest extends MockedPulsarServiceBaseTest
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
-        this.rqCalc = new ResourceQuotaCalculatorImpl();
+        this.rqCalc = new ResourceQuotaCalculatorImpl(pulsar);
     }
 
     @AfterClass(alwaysRun = true)
@@ -119,6 +119,17 @@ public class ResourceQuotaCalculatorImplTest extends MockedPulsarServiceBaseTest
         Assert.assertFalse(rqCalc.needToReportLocalUsage(950, 1000, 95, 100, System.currentTimeMillis()));
         Assert.assertTrue(rqCalc.needToReportLocalUsage(1060, 1000, 106, 100, System.currentTimeMillis()));
         Assert.assertTrue(rqCalc.needToReportLocalUsage(940, 1000, 94, 100, System.currentTimeMillis()));
+    }
+
+    @Test
+    public void testUsedUsageLessThanConfigUsage() throws PulsarAdminException {
+        final long config = 100;
+        final long usedUsage = 100 / pulsar.getConfiguration().getResourceUsageTransportPublishIntervalInSecs() / 3;
+        final long[] allUsage = {usedUsage, usedUsage};
+        for (long n : allUsage) {
+            long localQuota = rqCalc.computeLocalQuota(config, n, allUsage);
+            Assert.assertEquals(localQuota, config);
+        }
     }
 
     private ResourceQuotaCalculatorImpl rqCalc;
