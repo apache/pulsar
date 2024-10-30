@@ -35,6 +35,7 @@ import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
@@ -42,8 +43,9 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -56,31 +58,33 @@ import org.testng.annotations.Test;
 public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(TokenAuthenticatedProducerConsumerTest.class);
 
+    private final static String ADMIN_ROLE = "admin";
     private final String ADMIN_TOKEN;
     private final String TOKEN_PUBLIC_KEY;
+    private final KeyPair kp;
 
     TokenAuthenticatedProducerConsumerTest() throws NoSuchAlgorithmException {
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
-        KeyPair kp = kpg.generateKeyPair();
+        kp = kpg.generateKeyPair();
 
         byte[] encodedPublicKey = kp.getPublic().getEncoded();
         TOKEN_PUBLIC_KEY = "data:;base64," + Base64.getEncoder().encodeToString(encodedPublicKey);
-        ADMIN_TOKEN = generateToken(kp);
+        ADMIN_TOKEN = generateToken(ADMIN_ROLE);
     }
 
-    private String generateToken(KeyPair kp) {
+    private String generateToken(String subject) {
         PrivateKey pkey = kp.getPrivate();
         long expMillis = System.currentTimeMillis() + Duration.ofHours(1).toMillis();
         Date exp = new Date(expMillis);
 
         return Jwts.builder()
-            .setSubject("admin")
+            .setSubject(subject)
             .setExpiration(exp)
             .signWith(pkey, SignatureAlgorithm.forSigningKey(pkey))
             .compact();
     }
 
-    @BeforeMethod
+    @BeforeClass
     @Override
     protected void setup() throws Exception {
         conf.setAuthenticationEnabled(true);
@@ -118,7 +122,7 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
                 .authentication(AuthenticationFactory.token(ADMIN_TOKEN)));
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -172,4 +176,32 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         log.info("-- Exiting {} test --", methodName);
     }
 
+    @Test
+    public void testTopicNotFoundWithNoAuth() throws Exception {
+        final var token = generateToken("role");
+        final var operationTimeoutMs = 10000;
+        @Cleanup final var client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl())
+                .operationTimeout(operationTimeoutMs, TimeUnit.MILLISECONDS)
+                .authentication(AuthenticationFactory.token(token)).build();
+        final var topic = "my-property/not-exist/tp"; // the namespace does not exist
+        var start = System.currentTimeMillis();
+        try {
+            client.newProducer().topic(topic).create();
+            Assert.fail();
+        } catch (PulsarClientException e) {
+            final var elapsedMs = System.currentTimeMillis() - start;
+            log.info("Failed to create producer after {} ms: {} {}", elapsedMs, e.getClass().getName(), e.getMessage());
+            Assert.assertTrue(elapsedMs < operationTimeoutMs);
+            Assert.assertTrue(e instanceof PulsarClientException.TopicDoesNotExistException);
+        }
+        start = System.currentTimeMillis();
+        try {
+            client.newConsumer().topic(topic).subscriptionName("sub").subscribe();
+        } catch (PulsarClientException e) {
+            final var elapsedMs = System.currentTimeMillis() - start;
+            log.info("Failed to subscribe after {} ms: {} {}", elapsedMs, e.getClass().getName(), e.getMessage());
+            Assert.assertTrue(elapsedMs < operationTimeoutMs);
+            Assert.assertTrue(e instanceof PulsarClientException.TopicDoesNotExistException);
+        }
+    }
 }
