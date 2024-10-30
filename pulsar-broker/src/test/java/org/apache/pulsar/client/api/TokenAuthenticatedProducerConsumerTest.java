@@ -176,11 +176,20 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
-    public void testTopicNotFoundWithNoAuth() throws Exception {
+    @DataProvider
+    public static Object[][] useTcpServiceUrl() {
+        return new Object[][] {
+                { true },
+                { false }
+        };
+    }
+
+    @Test(dataProvider = "useTcpServiceUrl")
+    public void testTopicNotFoundWithWrongAuth(boolean useTcpServiceUrl) throws Exception {
         final var token = generateToken("role");
         final var operationTimeoutMs = 10000;
-        @Cleanup final var client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl())
+        final var url = useTcpServiceUrl ? pulsar.getBrokerServiceUrl() : pulsar.getWebServiceAddress();
+        @Cleanup final var client = PulsarClient.builder().serviceUrl(url)
                 .operationTimeout(operationTimeoutMs, TimeUnit.MILLISECONDS)
                 .authentication(AuthenticationFactory.token(token)).build();
         final var topic = "my-property/not-exist/tp"; // the namespace does not exist
@@ -192,7 +201,11 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
             final var elapsedMs = System.currentTimeMillis() - start;
             log.info("Failed to create producer after {} ms: {} {}", elapsedMs, e.getClass().getName(), e.getMessage());
             Assert.assertTrue(elapsedMs < operationTimeoutMs);
-            Assert.assertTrue(e instanceof PulsarClientException.TopicDoesNotExistException);
+            if (useTcpServiceUrl) {
+                Assert.assertTrue(e instanceof PulsarClientException.TopicDoesNotExistException);
+            } else {
+                Assert.assertTrue(e instanceof PulsarClientException.NotFoundException);
+            }
         }
         start = System.currentTimeMillis();
         try {
@@ -201,7 +214,11 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
             final var elapsedMs = System.currentTimeMillis() - start;
             log.info("Failed to subscribe after {} ms: {} {}", elapsedMs, e.getClass().getName(), e.getMessage());
             Assert.assertTrue(elapsedMs < operationTimeoutMs);
-            Assert.assertTrue(e instanceof PulsarClientException.TopicDoesNotExistException);
+            if (useTcpServiceUrl) {
+                Assert.assertTrue(e instanceof PulsarClientException.TopicDoesNotExistException);
+            } else {
+                Assert.assertTrue(e instanceof PulsarClientException.NotFoundException);
+            }
         }
     }
 }
