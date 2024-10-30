@@ -3557,7 +3557,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
 
         // 6. should not consume any messages
-        Awaitility.await().untilAsserted(() -> assertNull(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS)));
+        Message<byte[]> msg = consumer.receive(2, TimeUnit.SECONDS);
+        assertNull(msg, "Expected no messages to be consumed while consumer is paused.");
 
         // 7. resume multi-topic consumer
         consumer.resume();
