@@ -4840,24 +4840,17 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedCursorInfo info = ManagedCursorInfo.newBuilder().setCursorsLedgerId(invalidLedger).build();
         CountDownLatch latch = new CountDownLatch(1);
         MutableBoolean recovered = new MutableBoolean(false);
-        AtomicBoolean callbackInvoked = new AtomicBoolean(false);
         VoidCallback callback = new VoidCallback() {
             @Override
             public void operationComplete() {
-                if (callbackInvoked.compareAndSet(false, true)) {
-                    log.info("Cursor recovery success");
-                    recovered.setValue(true);
-                    latch.countDown();
-                }
+                recovered.setValue(true);
+                latch.countDown();
             }
 
             @Override
             public void operationFailed(ManagedLedgerException exception) {
-                if (callbackInvoked.compareAndSet(false, true)) {
-                    log.error("Cursor recovery failed", exception);
-                    recovered.setValue(false);
-                    latch.countDown();
-                }
+                recovered.setValue(false);
+                latch.countDown();
             }
         };
         c1.recoverFromLedger(info, callback);
@@ -4880,9 +4873,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 final OpenCallback cb, final Object ctx) {
             if (ledgerErrors.containsKey(lId)) {
                 cb.openComplete(ledgerErrors.get(lId), null, ctx);
-                return;
+            }else{
+                super.asyncOpenLedger(lId, digestType, passwd, cb, ctx);
             }
-            super.asyncOpenLedger(lId, digestType, passwd, cb, ctx);
         }
     }
 
