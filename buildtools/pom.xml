@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache</groupId>
     <artifactId>apache</artifactId>
-    <version>29</version>
+    <version>33</version>
     <relativePath />
   </parent>
 
@@ -37,8 +37,8 @@
 
   <properties>
     <project.build.outputTimestamp>2024-10-14T13:32:50Z</project.build.outputTimestamp>
-    <maven.compiler.source>1.8</maven.compiler.source>
-    <maven.compiler.target>1.8</maven.compiler.target>
+    <maven.compiler.source>8</maven.compiler.source>
+    <maven.compiler.target>8</maven.compiler.target>
     <surefire.version>3.1.0</surefire.version>
     <log4j2.version>2.23.1</log4j2.version>
     <slf4j.version>2.0.13</slf4j.version>
