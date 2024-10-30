@@ -60,6 +60,7 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
 
     private final static String ADMIN_ROLE = "admin";
     private final String ADMIN_TOKEN;
+    private final String USER_TOKEN;
     private final String TOKEN_PUBLIC_KEY;
     private final KeyPair kp;
 
@@ -70,6 +71,7 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         byte[] encodedPublicKey = kp.getPublic().getEncoded();
         TOKEN_PUBLIC_KEY = "data:;base64," + Base64.getEncoder().encodeToString(encodedPublicKey);
         ADMIN_TOKEN = generateToken(ADMIN_ROLE);
+        USER_TOKEN = generateToken("user");
     }
 
     private String generateToken(String subject) {
@@ -177,18 +179,22 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
     }
 
     @DataProvider
-    public static Object[][] useTcpServiceUrl() {
+    public static Object[][] provider() {
+        // The 1st element specifies whether to use TCP service URL
+        // The 2nd element specifies whether to use a token with correct permission
         return new Object[][] {
-                { true },
-                { false }
+                { true, true },
+                { true, false },
+                { false, true },
+                { false, false },
         };
     }
 
-    @Test(dataProvider = "useTcpServiceUrl")
-    public void testTopicNotFoundWithWrongAuth(boolean useTcpServiceUrl) throws Exception {
-        final var token = generateToken("role");
+    @Test(dataProvider = "provider")
+    public void testTopicNotFound(boolean useTcpServiceUrl, boolean useCorrectToken) throws Exception {
         final var operationTimeoutMs = 10000;
         final var url = useTcpServiceUrl ? pulsar.getBrokerServiceUrl() : pulsar.getWebServiceAddress();
+        final var token = useCorrectToken ? ADMIN_TOKEN : USER_TOKEN;
         @Cleanup final var client = PulsarClient.builder().serviceUrl(url)
                 .operationTimeout(operationTimeoutMs, TimeUnit.MILLISECONDS)
                 .authentication(AuthenticationFactory.token(token)).build();
