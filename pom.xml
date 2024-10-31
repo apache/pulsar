@@ -947,6 +947,12 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>org.bouncycastle</groupId>
+        <artifactId>bcprov-jdk18on</artifactId>
+        <version>${bouncycastle.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
         <artifactId>bcpkix-jdk18on</artifactId>
         <version>${bouncycastle.version}</version>
       </dependency>
@@ -1307,6 +1313,10 @@ flexible messaging model and an intuitive client API.</description>
             <groupId>dnsjava</groupId>
             <artifactId>dnsjava</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk15on</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
       <dependency>
@@ -1317,6 +1327,10 @@ flexible messaging model and an intuitive client API.</description>
           <exclusion>
             <groupId>dnsjava</groupId>
             <artifactId>dnsjava</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk15on</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -1329,6 +1343,10 @@ flexible messaging model and an intuitive client API.</description>
             <groupId>dnsjava</groupId>
             <artifactId>dnsjava</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk15on</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
       <dependency>
@@ -1339,6 +1357,10 @@ flexible messaging model and an intuitive client API.</description>
           <exclusion>
             <groupId>dnsjava</groupId>
             <artifactId>dnsjava</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk15on</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
