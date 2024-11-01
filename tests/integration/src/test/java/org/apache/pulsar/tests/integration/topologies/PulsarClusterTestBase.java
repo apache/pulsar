@@ -18,13 +18,17 @@
  */
 package org.apache.pulsar.tests.integration.topologies;
 
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.testng.annotations.DataProvider;
 
@@ -34,11 +38,48 @@ import static java.util.stream.Collectors.joining;
 
 @Slf4j
 public abstract class PulsarClusterTestBase extends PulsarTestBase {
+
+    public final static String CLIENT_CONFIG_FILE_PATH_PROPERTY_NAME = "client.config.file.path";
+
     protected final Map<String, String> brokerEnvs = new HashMap<>();
     protected final Map<String, String> bookkeeperEnvs = new HashMap<>();
     protected final Map<String, String> proxyEnvs = new HashMap<>();
     protected final List<Integer> brokerAdditionalPorts = new LinkedList<>();
     protected final List<Integer> bookieAdditionalPorts = new LinkedList<>();
+
+
+
+    private Map<String, Object> readClientConfigs(String clientConfFilePath) throws IOException {
+        Properties prop = new Properties(System.getProperties());
+        try (FileInputStream input = new FileInputStream(clientConfFilePath)) {
+            prop.load(input);
+        }
+        Map<String, Object> map = new HashMap<>();
+        for (String key : prop.stringPropertyNames()) {
+            map.put(key, prop.get(key));
+        }
+
+        return map;
+    }
+
+    protected PulsarClient getPulsarClient() throws IOException {
+        var clientConfFilePath = System.getProperty(CLIENT_CONFIG_FILE_PATH_PROPERTY_NAME);
+
+        if (clientConfFilePath == null) {
+            return PulsarClient.builder().serviceUrl(getPulsarCluster().getPlainTextServiceUrl()).build();
+        }
+
+        return PulsarClient.builder().loadConf(readClientConfigs(clientConfFilePath)).build();
+    }
+
+    protected PulsarAdmin getPulsarAdmin() throws IOException {
+        var clientConfFilePath = System.getProperty(CLIENT_CONFIG_FILE_PATH_PROPERTY_NAME);
+
+        if (clientConfFilePath == null) {
+            return PulsarAdmin.builder().serviceHttpUrl(getPulsarCluster().getHttpServiceUrl()).build();
+        }
+        return PulsarAdmin.builder().loadConf(readClientConfigs(clientConfFilePath)).build();
+    }
 
     @Override
     protected final void setup() throws Exception {
@@ -96,6 +137,18 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
                 },
                 {
                         stringSupplier(() -> getPulsarCluster().getPlainTextServiceUrl()),
+                        TopicDomain.non_persistent
+                },
+        };
+    }
+
+    @DataProvider(name = "topicDomain")
+    public Object[][] topicDomain() {
+        return new Object[][] {
+                {
+                        TopicDomain.persistent
+                },
+                {
                         TopicDomain.non_persistent
                 },
         };

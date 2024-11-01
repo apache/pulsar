@@ -46,7 +46,7 @@ public abstract class MessagingBase extends PulsarTestSuite {
     protected String methodName;
 
     @BeforeMethod(alwaysRun = true)
-    public void beforeMethod(Method m) throws Exception {
+    public void beforeMethod(Method m) {
         methodName = m.getName();
     }
 
@@ -54,7 +54,7 @@ public abstract class MessagingBase extends PulsarTestSuite {
         String nsName = generateNamespaceName();
         pulsarCluster.createNamespace(nsName);
 
-        return generateTopicName(nsName, topicPrefix, true);
+        return generateTopicName(nsName, topicPrefix, isPersistent);
     }
 
     protected String getPartitionedTopic(String topicPrefix, boolean isPersistent, int partitions) throws Exception {
@@ -62,7 +62,7 @@ public abstract class MessagingBase extends PulsarTestSuite {
         String nsName = generateNamespaceName();
         pulsarCluster.createNamespace(nsName);
 
-        String topicName = generateTopicName(nsName, topicPrefix, true);
+        String topicName = generateTopicName(nsName, topicPrefix, isPersistent);
         pulsarCluster.createPartitionedTopic(topicName, partitions);
         return topicName;
     }

@@ -18,20 +18,23 @@
  */
 package org.apache.pulsar.tests.integration.messaging;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.scheduler.TransferShedder;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.testng.ITest;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
-public class MessagingSmokeTest extends TopicMessagingBase implements ITest {
+public class MessagingSmokeTest extends MessagingBase implements ITest {
+
+    TopicMessagingTest test;
 
     @Factory
-    public static Object[] messagingTests() {
+    public static Object[] messagingTests() throws IOException {
         List<?> tests = List.of(
                 new MessagingSmokeTest("Extensible Load Manager",
                         Map.of("loadManagerClassName", ExtensibleLoadManagerImpl.class.getName(),
@@ -46,10 +49,16 @@ public class MessagingSmokeTest extends TopicMessagingBase implements ITest {
 
     private final String name;
 
-    public MessagingSmokeTest(String name, Map<String, String> brokerEnvs) {
+    public MessagingSmokeTest(String name, Map<String, String> brokerEnvs) throws IOException {
         super();
         this.brokerEnvs.putAll(brokerEnvs);
         this.name = name;
+
+    }
+
+    @BeforeClass(alwaysRun = true)
+    public void setupTest() throws Exception {
+        this.test = new TopicMessagingTest(getPulsarClient(), getPulsarAdmin());
     }
 
     @Override
@@ -57,51 +66,51 @@ public class MessagingSmokeTest extends TopicMessagingBase implements ITest {
         return name;
     }
 
-    @Test(dataProvider = "serviceUrlAndTopicDomain")
-    public void testNonPartitionedTopicMessagingWithExclusive(Supplier<String> serviceUrl, TopicDomain topicDomain)
+    @Test(dataProvider = "topicDomain")
+    public void testNonPartitionedTopicMessagingWithExclusive(TopicDomain topicDomain)
             throws Exception {
-        nonPartitionedTopicSendAndReceiveWithExclusive(serviceUrl.get(), TopicDomain.persistent.equals(topicDomain));
+        test.nonPartitionedTopicSendAndReceiveWithExclusive(TopicDomain.persistent.equals(topicDomain));
     }
 
-    @Test(dataProvider = "serviceUrlAndTopicDomain")
-    public void testPartitionedTopicMessagingWithExclusive(Supplier<String> serviceUrl, TopicDomain topicDomain)
+    @Test(dataProvider = "topicDomain")
+    public void testPartitionedTopicMessagingWithExclusive(TopicDomain topicDomain)
             throws Exception {
-        partitionedTopicSendAndReceiveWithExclusive(serviceUrl.get(), TopicDomain.persistent.equals(topicDomain));
+        test.partitionedTopicSendAndReceiveWithExclusive(TopicDomain.persistent.equals(topicDomain));
     }
 
-    @Test(dataProvider = "serviceUrlAndTopicDomain")
-    public void testNonPartitionedTopicMessagingWithFailover(Supplier<String> serviceUrl, TopicDomain topicDomain)
+    @Test(dataProvider = "topicDomain")
+    public void testNonPartitionedTopicMessagingWithFailover(TopicDomain topicDomain)
             throws Exception {
-        nonPartitionedTopicSendAndReceiveWithFailover(serviceUrl.get(), TopicDomain.persistent.equals(topicDomain));
+        test.nonPartitionedTopicSendAndReceiveWithFailover(TopicDomain.persistent.equals(topicDomain));
     }
 
-    @Test(dataProvider = "serviceUrlAndTopicDomain")
-    public void testPartitionedTopicMessagingWithFailover(Supplier<String> serviceUrl, TopicDomain topicDomain)
+    @Test(dataProvider = "topicDomain")
+    public void testPartitionedTopicMessagingWithFailover(TopicDomain topicDomain)
             throws Exception {
-        partitionedTopicSendAndReceiveWithFailover(serviceUrl.get(), TopicDomain.persistent.equals(topicDomain));
+        test.partitionedTopicSendAndReceiveWithFailover(TopicDomain.persistent.equals(topicDomain));
     }
 
-    @Test(dataProvider = "serviceUrlAndTopicDomain")
-    public void testNonPartitionedTopicMessagingWithShared(Supplier<String> serviceUrl, TopicDomain topicDomain)
+    @Test(dataProvider = "topicDomain")
+    public void testNonPartitionedTopicMessagingWithShared(TopicDomain topicDomain)
             throws Exception {
-        nonPartitionedTopicSendAndReceiveWithShared(serviceUrl.get(), TopicDomain.persistent.equals(topicDomain));
+        test.nonPartitionedTopicSendAndReceiveWithShared(TopicDomain.persistent.equals(topicDomain));
     }
 
-    @Test(dataProvider = "serviceUrlAndTopicDomain")
-    public void testPartitionedTopicMessagingWithShared(Supplier<String> serviceUrl, TopicDomain topicDomain)
+    @Test(dataProvider = "topicDomain")
+    public void testPartitionedTopicMessagingWithShared(TopicDomain topicDomain)
             throws Exception {
-        partitionedTopicSendAndReceiveWithShared(serviceUrl.get(), TopicDomain.persistent.equals(topicDomain));
+        test.partitionedTopicSendAndReceiveWithShared(TopicDomain.persistent.equals(topicDomain));
     }
 
-    @Test(dataProvider = "serviceUrlAndTopicDomain")
-    public void testNonPartitionedTopicMessagingWithKeyShared(Supplier<String> serviceUrl, TopicDomain topicDomain)
+    @Test(dataProvider = "topicDomain")
+    public void testNonPartitionedTopicMessagingWithKeyShared(TopicDomain topicDomain)
             throws Exception {
-        nonPartitionedTopicSendAndReceiveWithKeyShared(serviceUrl.get(), TopicDomain.persistent.equals(topicDomain));
+        test.nonPartitionedTopicSendAndReceiveWithKeyShared(TopicDomain.persistent.equals(topicDomain));
     }
 
-    @Test(dataProvider = "serviceUrlAndTopicDomain")
-    public void testPartitionedTopicMessagingWithKeyShared(Supplier<String> serviceUrl, TopicDomain topicDomain)
+    @Test(dataProvider = "topicDomain")
+    public void testPartitionedTopicMessagingWithKeyShared(TopicDomain topicDomain)
             throws Exception {
-        partitionedTopicSendAndReceiveWithKeyShared(serviceUrl.get(), TopicDomain.persistent.equals(topicDomain));
+        test.partitionedTopicSendAndReceiveWithKeyShared(TopicDomain.persistent.equals(topicDomain));
     }
 }

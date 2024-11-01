@@ -28,12 +28,12 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.tests.integration.messaging.TopicMessagingBase;
+import org.apache.pulsar.tests.integration.messaging.MessagingBase;
 import org.testng.annotations.Test;
 import java.util.Collections;
 import java.util.function.Supplier;
 
-public class TestEntryFilters extends TopicMessagingBase {
+public class TestEntryFilters extends MessagingBase {
 
     private static final String PREFIX = "PULSAR_PREFIX_";
 
