@@ -18,10 +18,11 @@
  */
 package org.apache.pulsar.tests.integration;
 
+import java.io.IOException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 
-public class IntegTest {
+public class IntegTest implements Cloneable {
     public PulsarClient client;
     public PulsarAdmin admin;
 
@@ -30,4 +31,8 @@ public class IntegTest {
         this.admin = admin;
     }
 
+    public void close() throws IOException {
+        client.close();
+        admin.close();
+    }
 }

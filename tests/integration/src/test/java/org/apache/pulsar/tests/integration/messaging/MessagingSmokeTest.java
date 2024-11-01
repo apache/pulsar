@@ -25,13 +25,14 @@ import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl
 import org.apache.pulsar.broker.loadbalance.extensions.scheduler.TransferShedder;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.testng.ITest;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 public class MessagingSmokeTest extends MessagingBase implements ITest {
 
-    TopicMessagingTest test;
+    TopicMessaging test;
 
     @Factory
     public static Object[] messagingTests() throws IOException {
@@ -58,7 +59,12 @@ public class MessagingSmokeTest extends MessagingBase implements ITest {
 
     @BeforeClass(alwaysRun = true)
     public void setupTest() throws Exception {
-        this.test = new TopicMessagingTest(getPulsarClient(), getPulsarAdmin());
+        this.test = new TopicMessaging(getPulsarClient(), getPulsarAdmin());
+    }
+
+    @AfterClass(alwaysRun = true)
+    public void closeTest() throws Exception {
+        this.test.close();
     }
 
     @Override

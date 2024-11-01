@@ -19,58 +19,62 @@
 package org.apache.pulsar.tests.integration.messaging;
 
 import lombok.extern.slf4j.Slf4j;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
-public class PersistentTopicMessagingTest extends MessagingBase {
+public class NonPersistentTopicMessaging extends MessagingBase {
 
-    TopicMessagingTest test;
-
+    TopicMessaging test;
 
     @BeforeClass(alwaysRun = true)
     public void setupTest() throws Exception {
-        this.test = new TopicMessagingTest(getPulsarClient(), getPulsarAdmin());
+        this.test = new TopicMessaging(getPulsarClient(), getPulsarAdmin());
+    }
+
+    @AfterClass(alwaysRun = true)
+    public void closeTest() throws Exception {
+        this.test.close();
     }
 
     @Test
     public void testNonPartitionedTopicMessagingWithExclusive() throws Exception {
-        test.nonPartitionedTopicSendAndReceiveWithExclusive(true);
+        test.nonPartitionedTopicSendAndReceiveWithExclusive(false);
     }
 
     @Test
     public void testPartitionedTopicMessagingWithExclusive() throws Exception {
-        test.partitionedTopicSendAndReceiveWithExclusive(true);
+        test.partitionedTopicSendAndReceiveWithExclusive(false);
     }
 
     @Test
     public void testNonPartitionedTopicMessagingWithFailover() throws Exception {
-        test.nonPartitionedTopicSendAndReceiveWithFailover(true);
+        test.nonPartitionedTopicSendAndReceiveWithFailover(false);
     }
 
     @Test
     public void testPartitionedTopicMessagingWithFailover() throws Exception {
-        test.partitionedTopicSendAndReceiveWithFailover(true);
+        test.partitionedTopicSendAndReceiveWithFailover(false);
     }
 
     @Test
     public void testNonPartitionedTopicMessagingWithShared() throws Exception {
-        test.nonPartitionedTopicSendAndReceiveWithShared(true);
+        test.nonPartitionedTopicSendAndReceiveWithShared(false);
     }
 
     @Test
     public void testPartitionedTopicMessagingWithShared() throws Exception {
-        test.partitionedTopicSendAndReceiveWithShared( true);
+        test.partitionedTopicSendAndReceiveWithShared(false);
     }
 
     @Test
     public void testNonPartitionedTopicMessagingWithKeyShared() throws Exception {
-        test.nonPartitionedTopicSendAndReceiveWithKeyShared( true);
+        test.nonPartitionedTopicSendAndReceiveWithKeyShared(false);
     }
 
     @Test
     public void testPartitionedTopicMessagingWithKeyShared() throws Exception {
-        test.partitionedTopicSendAndReceiveWithKeyShared( true);
+        test.partitionedTopicSendAndReceiveWithKeyShared(false);
     }
-
 }

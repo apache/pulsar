@@ -49,7 +49,7 @@ import org.apache.pulsar.tests.integration.containers.PulsarInitMetadataContaine
 import org.apache.pulsar.tests.integration.containers.WorkerContainer;
 import org.apache.pulsar.tests.integration.containers.ZKContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
-import org.apache.pulsar.tests.integration.oxia.OxiaContainer;
+import org.apache.pulsar.tests.integration.containers.OxiaContainer;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;

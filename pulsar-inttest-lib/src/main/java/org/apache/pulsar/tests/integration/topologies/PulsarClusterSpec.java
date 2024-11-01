@@ -21,14 +21,12 @@ package org.apache.pulsar.tests.integration.topologies;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-
 import lombok.Builder;
 import lombok.Builder.Default;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.Singular;
 import lombok.experimental.Accessors;
-
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.testcontainers.containers.GenericContainer;
@@ -121,13 +119,13 @@ public class PulsarClusterSpec {
     /**
      * Provide a map of paths (in the classpath) to mount as volumes inside the containers
      */
-    @Builder.Default
+    @Default
     Map<String, String> classPathVolumeMounts = new TreeMap<>();
 
     /**
      * Data container
      */
-    @Builder.Default
+    @Default
     GenericContainer<?> dataContainer = null;
 
     /**

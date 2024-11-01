@@ -24,7 +24,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 
 @Slf4j
 public class IntegTestUtils {
-    private static String randomName(int numChars) {
+    public static String randomName(int numChars) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < numChars; i++) {
             sb.append((char) (ThreadLocalRandom.current().nextInt(26) + 'a'));
@@ -32,15 +32,15 @@ public class IntegTestUtils {
         return sb.toString();
     }
 
-    protected static String generateNamespaceName() {
+    public static String generateNamespaceName() {
         return "ns-" + randomName(8);
     }
 
-    protected static String generateTopicName(String topicPrefix, boolean isPersistent) {
+    public static String generateTopicName(String topicPrefix, boolean isPersistent) {
         return generateTopicName("default", topicPrefix, isPersistent);
     }
 
-    protected static String generateTopicName(String namespace, String topicPrefix, boolean isPersistent) {
+    public static String generateTopicName(String namespace, String topicPrefix, boolean isPersistent) {
         String topicName = new StringBuilder(topicPrefix)
                 .append("-")
                 .append(randomName(8))

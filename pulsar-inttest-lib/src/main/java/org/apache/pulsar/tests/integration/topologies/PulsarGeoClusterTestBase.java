@@ -19,10 +19,12 @@
 package org.apache.pulsar.tests.integration.topologies;
 
 import static java.util.stream.Collectors.joining;
+import java.io.IOException;
 import java.util.stream.Stream;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.PulsarClient;
 
 @Slf4j
 public class PulsarGeoClusterTestBase extends PulsarTestBase {
@@ -88,5 +90,14 @@ public class PulsarGeoClusterTestBase extends PulsarTestBase {
         if (null != this.geoCluster) {
             this.geoCluster.stop();
         }
+    }
+
+
+    protected PulsarClient getPulsarClient(PulsarCluster cluster) throws IOException {
+        return PulsarClient.builder().serviceUrl(cluster.getPlainTextServiceUrl()).build();
+    }
+
+    protected PulsarAdmin getPulsarAdmin(PulsarCluster cluster) throws IOException {
+        return PulsarAdmin.builder().serviceHttpUrl(cluster.getHttpServiceUrl()).build();
     }
 }

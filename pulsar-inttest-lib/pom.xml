@@ -40,6 +40,11 @@
     </dependency>
     <dependency>
       <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-client-original</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-client-admin-api</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -52,6 +57,11 @@
       <groupId>org.apache.httpcomponents</groupId>
       <artifactId>httpcore</artifactId>
       <version>${apache-httpcomponents.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.testng</groupId>
+      <artifactId>testng</artifactId>
+      <version>${testng.version}</version>
     </dependency>
   </dependencies>
 

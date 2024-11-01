@@ -17,11 +17,9 @@
  * under the License.
  */
 
-package org.apache.pulsar.tests.integration.oxia;
+package org.apache.pulsar.tests.integration.containers;
 
 import java.time.Duration;
-import org.apache.pulsar.tests.integration.containers.ChaosContainer;
-import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 
 public class OxiaContainer extends ChaosContainer<OxiaContainer> {
