@@ -226,6 +226,18 @@ public class SinkConfigUtilsTest {
     }
 
     @Test
+    public void testUpdateSubscriptionPosition() {
+        SinkConfig sinkConfig = createSinkConfig();
+        SinkConfig newSinkConfig = createSinkConfig();
+        newSinkConfig.setSourceSubscriptionPosition(SubscriptionInitialPosition.Earliest);
+        SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
+        assertEquals(
+                new Gson().toJson(newSinkConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
+
+    @Test
     public void testMergeEqual() {
         SinkConfig sinkConfig = createSinkConfig();
         SinkConfig newSinkConfig = createSinkConfig();
@@ -566,7 +578,7 @@ public class SinkConfigUtilsTest {
         inputSpecs.put("test-input", ConsumerConfig.builder().isRegexPattern(true).serdeClassName("test-serde").build());
         sinkConfig.setInputSpecs(inputSpecs);
         sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
-        sinkConfig.setSourceSubscriptionPosition(SubscriptionInitialPosition.Earliest);
+        sinkConfig.setSourceSubscriptionPosition(SubscriptionInitialPosition.Latest);
         sinkConfig.setRetainOrdering(false);
         sinkConfig.setRetainKeyOrdering(false);
         sinkConfig.setConfigs(new HashMap<>());
