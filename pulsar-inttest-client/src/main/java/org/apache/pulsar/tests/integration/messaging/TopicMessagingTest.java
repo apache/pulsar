@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.tests.integration.messaging;
 
-import static org.apache.pulsar.tests.integration.IntegTestUtils.getNonPartitionedTopic;
-import static org.apache.pulsar.tests.integration.IntegTestUtils.getPartitionedTopic;
+import static org.apache.pulsar.tests.integration.utils.IntegTestUtils.getNonPartitionedTopic;
+import static org.apache.pulsar.tests.integration.utils.IntegTestUtils.getPartitionedTopic;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
@@ -51,7 +51,6 @@ import org.apache.pulsar.tests.integration.IntegTest;
 
 @Slf4j
 public class TopicMessagingTest extends IntegTest {
-
 
     public TopicMessagingTest(PulsarClient client, PulsarAdmin admin) {
         super(client, admin);

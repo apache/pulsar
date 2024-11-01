@@ -19,10 +19,9 @@
 package org.apache.pulsar.tests.integration.containers;
 
 
-import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
-
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
 
 public class DebeziumOracleDbContainer extends ChaosContainer<DebeziumOracleDbContainer> {
 

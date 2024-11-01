@@ -16,9 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration;
+package org.apache.pulsar.tests.integration.utils;
 
-import static org.testng.Assert.assertTrue;
 import java.util.concurrent.ThreadLocalRandom;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -64,7 +63,9 @@ public class IntegTestUtils {
 
     public static String getPartitionedTopic(PulsarAdmin admin, String topicPrefix, boolean isPersistent,
                                              int partitions) throws Exception {
-        assertTrue(partitions > 0, "partitions must greater than 1");
+        if (partitions <= 0) {
+            throw new IllegalArgumentException("partitions must greater than 1");
+        }
         String nsName = generateNamespaceName();
         admin.namespaces().createNamespace("public/" + nsName);
         String topicName = generateTopicName(nsName, topicPrefix, isPersistent);

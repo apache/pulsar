@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.tests.integration.docker;
 
-import static org.testng.Assert.assertTrue;
 import lombok.Data;
 
 /**
@@ -37,12 +36,14 @@ public class ContainerExecResult {
     }
 
     public void assertNoStdout() {
-        assertTrue(stdout.isEmpty(),
-                "stdout should be empty, but was '" + stdout + "'");
+        if (!stdout.isEmpty()) {
+            throw new IllegalArgumentException("stdout should be empty, but was '" + stdout + "'");
+        }
     }
 
     public void assertNoStderr() {
-        assertTrue(stderr.isEmpty(),
-                "stderr should be empty, but was '" + stderr + "'");
+        if (!stderr.isEmpty()) {
+            throw new IllegalArgumentException("stderr should be empty, but was '" + stderr + "'");
+        }
     }
 }

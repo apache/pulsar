@@ -2565,6 +2565,9 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-package-management</module>
         <!-- package management releated modules (end) -->
 
+        <module>pulsar-inttest-lib</module>
+        <module>pulsar-inttest-client</module>
+
         <!-- all these 3 modules should be put at the end in this exact sequence -->
         <module>distribution</module>
         <module>docker</module>
@@ -2620,6 +2623,9 @@ flexible messaging model and an intuitive client API.</description>
         <module>bouncy-castle</module>
 
         <module>pulsar-client-messagecrypto-bc</module>
+
+        <module>pulsar-inttest-lib</module>
+        <module>pulsar-inttest-client</module>
 
         <!-- all these modules should be put at the end in this exact sequence -->
         <module>distribution</module>

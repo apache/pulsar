@@ -19,11 +19,9 @@
 package org.apache.pulsar.tests.integration.containers;
 
 import com.github.dockerjava.api.DockerClient;
-
 import java.util.Base64;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.utils.DockerUtils;
@@ -98,7 +96,8 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
         return DockerUtils.runCommandAsUser(userId, client, dockerId, commands);
     }
 
-    public CompletableFuture<ContainerExecResult> execCmdAsyncAsUser(String userId, String... commands) throws Exception {
+    public CompletableFuture<ContainerExecResult> execCmdAsyncAsUser(String userId, String... commands)
+            throws Exception {
         DockerClient client = this.getDockerClient();
         String dockerId = this.getContainerId();
         return DockerUtils.runCommandAsyncAsUser(userId, client, dockerId, commands);

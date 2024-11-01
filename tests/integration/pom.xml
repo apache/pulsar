@@ -140,11 +140,7 @@
       <scope>test</scope>
     </dependency>
 
-    <dependency>
-      <groupId>com.github.docker-java</groupId>
-      <artifactId>docker-java-core</artifactId>
-      <scope>test</scope>
-    </dependency>
+
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcpkix-jdk18on</artifactId>
@@ -243,22 +239,11 @@
       <version>${mongo-reactivestreams.version}</version>
       <scope>test</scope>
     </dependency>
-
-
-    <dependency>
-      <groupId>org.testng</groupId>
-      <artifactId>testng</artifactId>
-      <version>${testng.version}</version>
-    </dependency>
     <dependency>
       <groupId>org.apache.pulsar</groupId>
-      <artifactId>pulsar-client-api</artifactId>
+      <artifactId>pulsar-inttest-client</artifactId>
       <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.pulsar</groupId>
-      <artifactId>pulsar-client-admin-api</artifactId>
-      <version>${project.version}</version>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 

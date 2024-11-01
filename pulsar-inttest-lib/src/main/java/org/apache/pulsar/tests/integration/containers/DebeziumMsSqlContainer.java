@@ -19,10 +19,9 @@
 package org.apache.pulsar.tests.integration.containers;
 
 
-import org.testcontainers.containers.wait.strategy.Wait;
-
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import org.testcontainers.containers.wait.strategy.Wait;
 
 public class DebeziumMsSqlContainer extends ChaosContainer<DebeziumMsSqlContainer> {
 
