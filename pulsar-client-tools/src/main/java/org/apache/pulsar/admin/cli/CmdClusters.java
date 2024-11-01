@@ -163,7 +163,7 @@ public class CmdClusters extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            getAdmin().clusters().getClusterMigration(cluster);
+            print(getAdmin().clusters().getClusterMigration(cluster));
         }
     }
 
