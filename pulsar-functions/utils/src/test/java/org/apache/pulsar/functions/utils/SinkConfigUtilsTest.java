@@ -38,6 +38,7 @@ import java.util.Map;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
@@ -565,6 +566,7 @@ public class SinkConfigUtilsTest {
         inputSpecs.put("test-input", ConsumerConfig.builder().isRegexPattern(true).serdeClassName("test-serde").build());
         sinkConfig.setInputSpecs(inputSpecs);
         sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+        sinkConfig.setSourceSubscriptionPosition(SubscriptionInitialPosition.Earliest);
         sinkConfig.setRetainOrdering(false);
         sinkConfig.setRetainKeyOrdering(false);
         sinkConfig.setConfigs(new HashMap<>());
