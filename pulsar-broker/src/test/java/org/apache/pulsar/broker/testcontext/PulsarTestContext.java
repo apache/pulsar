@@ -761,7 +761,8 @@ public class PulsarTestContext implements AutoCloseable {
                 var reader = InMemoryMetricReader.create();
                 openTelemetryMetricReader(reader);
                 registerCloseable(reader);
-                openTelemetrySdkBuilderCustomizer = BrokerOpenTelemetryTestUtil.getOpenTelemetrySdkBuilderConsumer(reader);
+                openTelemetrySdkBuilderCustomizer =
+                        BrokerOpenTelemetryTestUtil.getOpenTelemetrySdkBuilderConsumer(reader);
             } else {
                 openTelemetrySdkBuilderCustomizer = null;
             }
