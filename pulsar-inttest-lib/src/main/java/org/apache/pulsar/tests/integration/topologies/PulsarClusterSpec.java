@@ -80,7 +80,7 @@ public class PulsarClusterSpec {
     int numFunctionWorkers = 0;
 
     /**
-     * Allow to query the last message
+     * Allow to query the last message.
      */
     @Default
     boolean queryLastMessage = false;
@@ -94,8 +94,7 @@ public class PulsarClusterSpec {
     FunctionRuntimeType functionRuntimeType = FunctionRuntimeType.PROCESS;
 
     /**
-     * Returns the list of external services to start with
-     * this cluster.
+     * Returns the list of external services to start with this cluster.
      *
      * @return the list of external services to start with the cluster.
      */
@@ -117,19 +116,19 @@ public class PulsarClusterSpec {
     boolean enableContainerLog = false;
 
     /**
-     * Provide a map of paths (in the classpath) to mount as volumes inside the containers
+     * Provide a map of paths (in the classpath) to mount as volumes inside the containers.
      */
     @Default
     Map<String, String> classPathVolumeMounts = new TreeMap<>();
 
     /**
-     * Data container
+     * Data container.
      */
     @Default
     GenericContainer<?> dataContainer = null;
 
     /**
-     * Pulsar Test Image Name
+     * Pulsar Test Image Name.
      *
      * @return the version of the pulsar test image to use
      */

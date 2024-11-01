@@ -37,14 +37,13 @@ import org.testng.annotations.DataProvider;
 @Slf4j
 public abstract class PulsarClusterTestBase extends PulsarTestBase {
 
-    public final static String CLIENT_CONFIG_FILE_PATH_PROPERTY_NAME = "client.config.file.path";
+    public static final String CLIENT_CONFIG_FILE_PATH_PROPERTY_NAME = "client.config.file.path";
 
     protected final Map<String, String> brokerEnvs = new HashMap<>();
     protected final Map<String, String> bookkeeperEnvs = new HashMap<>();
     protected final Map<String, String> proxyEnvs = new HashMap<>();
     protected final List<Integer> brokerAdditionalPorts = new LinkedList<>();
     protected final List<Integer> bookieAdditionalPorts = new LinkedList<>();
-
 
 
     private Map<String, Object> readClientConfigs(String clientConfFilePath) throws IOException {
@@ -91,7 +90,7 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
 
     @DataProvider(name = "ServiceUrlAndTopics")
     public Object[][] serviceUrlAndTopics() {
-        return new Object[][] {
+        return new Object[][]{
                 // plain text, persistent topic
                 {
                         stringSupplier(() -> getPulsarCluster().getPlainTextServiceUrl()),
@@ -107,7 +106,7 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
 
     @DataProvider(name = "ServiceUrls")
     public Object[][] serviceUrls() {
-        return new Object[][] {
+        return new Object[][]{
                 // plain text
                 {
                         stringSupplier(() -> getPulsarCluster().getPlainTextServiceUrl())
@@ -117,7 +116,7 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
 
     @DataProvider(name = "ServiceAndAdminUrls")
     public Object[][] serviceAndAdminUrls() {
-        return new Object[][] {
+        return new Object[][]{
                 // plain text
                 {
                         stringSupplier(() -> getPulsarCluster().getPlainTextServiceUrl()),
@@ -128,7 +127,7 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
 
     @DataProvider
     public Object[][] serviceUrlAndTopicDomain() {
-        return new Object[][] {
+        return new Object[][]{
                 {
                         stringSupplier(() -> getPulsarCluster().getPlainTextServiceUrl()),
                         TopicDomain.persistent
@@ -142,7 +141,7 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
 
     @DataProvider(name = "topicDomain")
     public Object[][] topicDomain() {
-        return new Object[][] {
+        return new Object[][]{
                 {
                         TopicDomain.persistent
                 },

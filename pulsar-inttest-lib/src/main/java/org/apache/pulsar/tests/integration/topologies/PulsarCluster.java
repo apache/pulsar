@@ -25,8 +25,6 @@ import static org.apache.pulsar.tests.integration.containers.PulsarContainer.BRO
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.CS_PORT;
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.PULSAR_CONTAINERS_LEAVE_RUNNING;
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.ZK_PORT;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -34,6 +32,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 import java.util.function.Function;
 import lombok.Cleanup;
 import lombok.Getter;
@@ -43,13 +42,13 @@ import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.tests.integration.containers.BKContainer;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.CSContainer;
+import org.apache.pulsar.tests.integration.containers.OxiaContainer;
 import org.apache.pulsar.tests.integration.containers.ProxyContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarInitMetadataContainer;
 import org.apache.pulsar.tests.integration.containers.WorkerContainer;
 import org.apache.pulsar.tests.integration.containers.ZKContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
-import org.apache.pulsar.tests.integration.containers.OxiaContainer;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
@@ -66,7 +65,7 @@ public class PulsarCluster {
     public static final String CURL = "/usr/bin/curl";
 
     /**
-     * Pulsar Cluster Spec
+     * Pulsar Cluster Spec.
      *
      * @param spec pulsar cluster spec.
      * @return the built pulsar cluster
@@ -151,9 +150,9 @@ public class PulsarCluster {
 
         this.csContainer = csContainer;
 
-        this.bookieContainers = Maps.newTreeMap();
-        this.brokerContainers = Maps.newTreeMap();
-        this.workerContainers = Maps.newTreeMap();
+        this.bookieContainers = new TreeMap<>();
+        this.brokerContainers = new TreeMap<>();
+        this.workerContainers = new TreeMap<>();
 
         this.proxyContainer = new ProxyContainer(clusterName, appendClusterName(ProxyContainer.NAME), spec.enableTls)
                 .withNetwork(network)
@@ -440,7 +439,7 @@ public class PulsarCluster {
     private static <T extends PulsarContainer> Map<String, T> runNumContainers(String serviceName,
                                                                                int numContainers,
                                                                                Function<String, T> containerCreator) {
-        Map<String, T> containers = Maps.newTreeMap();
+        Map<String, T> containers = new TreeMap<>();
         for (int i = 0; i < numContainers; i++) {
             String name = "pulsar-" + serviceName + "-" + i;
             T container = containerCreator.apply(name);
@@ -632,7 +631,7 @@ public class PulsarCluster {
     }
 
     private <T> T getAnyContainer(Map<String, T> containers, String serviceName) {
-        List<T> containerList = Lists.newArrayList();
+        List<T> containerList = new ArrayList<>();
         containerList.addAll(containers.values());
         Collections.shuffle(containerList);
         checkArgument(!containerList.isEmpty(), "No " + serviceName + " is alive");
