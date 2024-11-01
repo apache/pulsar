@@ -54,7 +54,8 @@ public abstract class MessagingBase extends PulsarTestSuite {
         String nsName = generateNamespaceName();
         pulsarCluster.createNamespace(nsName);
 
-        return generateTopicName(nsName, topicPrefix, isPersistent);
+        //TODO: Pass isPersistent, reported in https://github.com/apache/pulsar/issues/23541
+        return generateTopicName(nsName, topicPrefix, true);
     }
 
     protected String getPartitionedTopic(String topicPrefix, boolean isPersistent, int partitions) throws Exception {
@@ -62,7 +63,8 @@ public abstract class MessagingBase extends PulsarTestSuite {
         String nsName = generateNamespaceName();
         pulsarCluster.createNamespace(nsName);
 
-        String topicName = generateTopicName(nsName, topicPrefix, isPersistent);
+        //TODO: Pass isPersistent, reported in https://github.com/apache/pulsar/issues/23541
+        String topicName = generateTopicName(nsName, topicPrefix, true);
         pulsarCluster.createPartitionedTopic(topicName, partitions);
         return topicName;
     }

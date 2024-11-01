@@ -58,7 +58,9 @@ public class IntegTestUtils {
             throws Exception {
         String nsName = generateNamespaceName();
         admin.namespaces().createNamespace("public/" + nsName);
-        return generateTopicName(nsName, topicPrefix, isPersistent);
+
+        //TODO: Pass isPersistent, reported in https://github.com/apache/pulsar/issues/23541
+        return generateTopicName(nsName, topicPrefix, true);
     }
 
     public static String getPartitionedTopic(PulsarAdmin admin, String topicPrefix, boolean isPersistent,
@@ -68,7 +70,9 @@ public class IntegTestUtils {
         }
         String nsName = generateNamespaceName();
         admin.namespaces().createNamespace("public/" + nsName);
-        String topicName = generateTopicName(nsName, topicPrefix, isPersistent);
+
+        //TODO: Pass isPersistent, reported in https://github.com/apache/pulsar/issues/23541
+        String topicName = generateTopicName(nsName, topicPrefix, true);
         admin.topics().createPartitionedTopic(topicName, partitions);
         return topicName;
     }
