@@ -22,15 +22,14 @@
 <suite name="Pulsar (Messaging) Integration Tests" verbose="2" annotations="JDK">
     <test name="messaging-test-suite" preserve-order="true">
         <classes>
-            <class name="org.apache.pulsar.tests.integration.messaging.PersistentTopicMessaging" />
-            <class name="org.apache.pulsar.tests.integration.messaging.NonPersistentTopicMessaging" />
-            <class name="org.apache.pulsar.tests.integration.messaging.GeoReplication" />
+            <class name="org.apache.pulsar.tests.integration.messaging.PersistentTopicMessagingTest" />
+            <class name="org.apache.pulsar.tests.integration.messaging.NonPersistentTopicMessagingTest" />
+            <class name="org.apache.pulsar.tests.integration.messaging.GeoReplicationTest" />
             <class name="org.apache.pulsar.tests.integration.messaging.DelayMessagingTest" />
-            <class name="org.apache.pulsar.tests.integration.messaging.ReaderMessaging" />
-            <class name="org.apache.pulsar.tests.integration.messaging.NonDurableConsumerMessaging" />
+            <class name="org.apache.pulsar.tests.integration.messaging.ReaderMessagingTest" />
+            <class name="org.apache.pulsar.tests.integration.messaging.NonDurableConsumerMessagingTest" />
             <class name="org.apache.pulsar.tests.integration.messaging.MessagingSmokeTest" />
             <class name="org.apache.pulsar.tests.integration.admin.AdminTest" />
-
             <class name="org.apache.pulsar.tests.integration.oxia.OxiaSmokeTest" />
         </classes>
     </test>

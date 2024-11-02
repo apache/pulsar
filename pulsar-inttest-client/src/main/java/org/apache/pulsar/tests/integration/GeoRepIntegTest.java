@@ -37,8 +37,8 @@ public class GeoRepIntegTest implements Cloneable {
 
     public void close() throws IOException {
         clientA.close();
+        clientB.close();
         adminA.close();
-        adminB.close();
         adminB.close();
     }
 }

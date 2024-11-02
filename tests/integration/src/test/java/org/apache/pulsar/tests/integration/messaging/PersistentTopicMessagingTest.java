@@ -24,7 +24,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
-public class PersistentTopicMessaging extends MessagingBase {
+public class PersistentTopicMessagingTest extends MessagingBase {
 
     TopicMessaging test;
 
