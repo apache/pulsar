@@ -71,7 +71,15 @@
           <groupId>org.apache.avro</groupId>
           <artifactId>avro</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>org.bouncycastle</groupId>
+          <artifactId>bcprov-jdk15on</artifactId>
+        </exclusion>
       </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcprov-jdk18on</artifactId>
     </dependency>
 
     <dependency>

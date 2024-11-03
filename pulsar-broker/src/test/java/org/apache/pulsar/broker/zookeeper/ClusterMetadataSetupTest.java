@@ -533,7 +533,7 @@ public class ClusterMetadataSetupTest {
             log.info("ZooKeeper started at {}", hostPort);
         }
 
-        private void clear() {
+        void clear() {
             zks.getZKDatabase().clear();
         }
 

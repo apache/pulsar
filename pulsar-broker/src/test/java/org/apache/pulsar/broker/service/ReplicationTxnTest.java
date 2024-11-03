@@ -59,7 +59,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "flaky")
+@Test(groups = "broker")
 public class ReplicationTxnTest extends OneWayReplicatorTestBase {
 
     private boolean transactionBufferSegmentedSnapshotEnabled = false;
