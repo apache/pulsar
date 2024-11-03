@@ -4873,7 +4873,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 final OpenCallback cb, final Object ctx) {
             if (ledgerErrors.containsKey(lId)) {
                 cb.openComplete(ledgerErrors.get(lId), null, ctx);
-            }else{
+            } else {
                 super.asyncOpenLedger(lId, digestType, passwd, cb, ctx);
             }
         }
