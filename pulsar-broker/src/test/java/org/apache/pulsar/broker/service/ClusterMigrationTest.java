@@ -297,7 +297,7 @@ public class ClusterMigrationTest {
         assertFalse(topic2.getProducers().isEmpty());
 
         ClusterUrl migratedUrl = new ClusterUrl(pulsar2.getWebServiceAddress(), pulsar2.getWebServiceAddressTls(),
-                pulsar2.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrlTls());
+                pulsar2.getBrokerServiceUrl(), null);
         admin1.clusters().updateClusterMigration("r1", true, migratedUrl);
         assertEquals(admin1.clusters().getClusterMigration("r1").getMigratedClusterUrl(), migratedUrl);
 
