@@ -19,10 +19,10 @@
 package org.apache.pulsar;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.BKException;
@@ -168,25 +168,31 @@ public class PulsarClusterMetadataTeardown {
             NamespaceResources namespaceResources = resources.getNamespaceResources();
             List<String> tenants = tenantResources.listTenants();
             for (String tenant : tenants) {
-                Optional<TenantInfo> tenantInfoOptional = tenantResources.getTenant(tenant);
-                if (tenantInfoOptional.isEmpty()) {
-                    continue;
-                }
-                tenantResources.updateTenantAsync(tenant, ti -> {
-                    ti.getAllowedClusters().remove(arguments.cluster);
-                    return ti;
-                }).get();
                 List<String> namespaces = namespaceResources.listNamespacesAsync(tenant).get();
                 for (String namespace : namespaces) {
-                    namespaceResources.setPolicies(NamespaceName.get(namespace), policies -> {
+                    namespaceResources.setPolicies(NamespaceName.get(tenant, namespace), policies -> {
                         policies.replication_clusters.remove(arguments.cluster);
                         return policies;
                     });
                 }
+                removeCurrentClusterFromAllowedClusters(tenantResources, tenant, arguments.cluster);
             }
         }
 
         log.info("Cluster metadata for '{}' teardown.", arguments.cluster);
+    }
+
+    private static void removeCurrentClusterFromAllowedClusters(
+            TenantResources tenantResources, String tenant, String curCluster)
+            throws MetadataStoreException, InterruptedException, ExecutionException {
+        Optional<TenantInfo> tenantInfoOptional = tenantResources.getTenant(tenant);
+        if (tenantInfoOptional.isEmpty()) {
+            return;
+        }
+        tenantResources.updateTenantAsync(tenant, ti -> {
+            ti.getAllowedClusters().remove(curCluster);
+            return ti;
+        }).get();
     }
 
     private static CompletableFuture<Void> deleteRecursively(MetadataStore metadataStore, String path) {
