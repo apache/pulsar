@@ -76,6 +76,11 @@ public class OpenTelemetryServiceTest {
                         (sdkMeterProviderBuilder, __) -> sdkMeterProviderBuilder.registerMetricReader(extraReader));
             }
             autoConfigurationCustomizer.disableShutdownHook();
+            // disable all autoconfigured exporters
+            autoConfigurationCustomizer.addPropertiesSupplier(() ->
+                    Map.of("otel.metrics.exporter", "none",
+                            "otel.traces.exporter", "none",
+                            "otel.logs.exporter", "none"));
             autoConfigurationCustomizer.addPropertiesSupplier(() -> extraProperties);
         };
     }
