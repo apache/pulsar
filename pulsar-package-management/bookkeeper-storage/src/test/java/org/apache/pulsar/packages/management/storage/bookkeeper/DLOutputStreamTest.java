@@ -99,7 +99,7 @@ public class DLOutputStreamTest {
 
     @Test
     public void writeLongBytesArrayData() throws ExecutionException, InterruptedException {
-        byte[] data = new byte[8192 * 3 + 4096];
+        byte[] data = new byte[1040364 * 3 + 4096];
         DLOutputStream.openWriterAsync(dlm)
                 .thenCompose(w -> w.writeAsync(new ByteArrayInputStream(data))
                         .thenCompose(DLOutputStream::closeAsync)).get();
