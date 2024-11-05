@@ -38,6 +38,7 @@ import java.util.Map;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
@@ -221,6 +222,18 @@ public class SinkConfigUtilsTest {
             SinkConfig result = SinkConfigUtils.convertFromDetails(functionDetails);
             assertEquals(result.getCleanupSubscription(), testcase == null ? Boolean.valueOf(true) : testcase);
         }
+    }
+
+    @Test
+    public void testUpdateSubscriptionPosition() {
+        SinkConfig sinkConfig = createSinkConfig();
+        SinkConfig newSinkConfig = createSinkConfig();
+        newSinkConfig.setSourceSubscriptionPosition(SubscriptionInitialPosition.Earliest);
+        SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
+        assertEquals(
+                new Gson().toJson(newSinkConfig),
+                new Gson().toJson(mergedConfig)
+        );
     }
 
     @Test
@@ -548,6 +561,7 @@ public class SinkConfigUtilsTest {
         inputSpecs.put("test-input", ConsumerConfig.builder().isRegexPattern(true).serdeClassName("test-serde").build());
         sinkConfig.setInputSpecs(inputSpecs);
         sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+        sinkConfig.setSourceSubscriptionPosition(SubscriptionInitialPosition.Latest);
         sinkConfig.setRetainOrdering(false);
         sinkConfig.setRetainKeyOrdering(false);
         sinkConfig.setConfigs(new HashMap<>());
