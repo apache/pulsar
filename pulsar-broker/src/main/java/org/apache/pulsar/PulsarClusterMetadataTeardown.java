@@ -19,6 +19,8 @@
 package org.apache.pulsar;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -29,12 +31,18 @@ import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
+import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.resources.TenantResources;
 import org.apache.pulsar.broker.service.schema.SchemaStorageFormat.SchemaLocator;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
@@ -153,7 +161,29 @@ public class PulsarClusterMetadataTeardown {
                     MetadataStoreConfig.builder().sessionTimeoutMillis(arguments.zkSessionTimeoutMillis)
                             .configFilePath(arguments.configurationStoreConfigPath)
                             .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE).build());
-            deleteRecursively(configMetadataStore, "/admin/clusters/" + arguments.cluster).join();
+            PulsarResources resources = new PulsarResources(metadataStore, configMetadataStore);
+            resources.getClusterResources().deleteCluster(arguments.cluster);
+            // Cleanup replication cluster from all tenants and namespaces
+            TenantResources tenantResources = resources.getTenantResources();
+            NamespaceResources namespaceResources = resources.getNamespaceResources();
+            List<String> tenants = tenantResources.listTenants();
+            for (String tenant : tenants) {
+                Optional<TenantInfo> tenantInfoOptional = tenantResources.getTenant(tenant);
+                if (tenantInfoOptional.isEmpty()) {
+                    continue;
+                }
+                tenantResources.updateTenantAsync(tenant, ti -> {
+                    ti.getAllowedClusters().remove(arguments.cluster);
+                    return ti;
+                }).get();
+                List<String> namespaces = namespaceResources.listNamespacesAsync(tenant).get();
+                for (String namespace : namespaces) {
+                    namespaceResources.setPolicies(NamespaceName.get(namespace), policies -> {
+                        policies.replication_clusters.remove(arguments.cluster);
+                        return policies;
+                    });
+                }
+            }
         }
 
         log.info("Cluster metadata for '{}' teardown.", arguments.cluster);
