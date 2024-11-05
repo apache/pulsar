@@ -719,7 +719,9 @@ public class SinkConfigUtils {
         if (newConfig.getTransformFunctionConfig() != null) {
             mergedConfig.setTransformFunctionConfig(newConfig.getTransformFunctionConfig());
         }
-
+        if (newConfig.getSourceSubscriptionPosition() != null) {
+            mergedConfig.setSourceSubscriptionPosition(newConfig.getSourceSubscriptionPosition());
+        }
         return mergedConfig;
     }
 
