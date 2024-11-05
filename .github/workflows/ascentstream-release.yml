@@ -1,0 +1,136 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: AscentStream Release
+on:
+  push:
+    tags:
+      - "v**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  MAVEN_OPTS: -Xss1500k -Xmx2048m -Daether.connector.http.reuseConnections=false -Daether.connector.requestTimeout=60000 -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3 -Dmaven.wagon.http.retryHandler.requestSentEnabled=true -Dmaven.wagon.http.serviceUnavailableRetryStrategy.class=standard -Dmaven.wagon.rto=60000
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Extract version from tag name
+        id: extract_version
+        run: |
+          TAG_NAME=${{ github.ref_name }}
+          VERSION=${TAG_NAME#v}
+          echo "Extracted version is $VERSION"
+          echo "RELEASE_VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 17
+          gpg-private-key: ${{ secrets.ASCENTSTREAM_GPG_KEY }}
+          gpg-passphrase: MAVEN_GPG_PASSPHRASE
+
+      - uses: s4u/maven-settings-action@v3.1.0
+        with:
+          override: true
+          servers: |
+            [
+              {
+                "id": "apache.snapshots.https",
+                "configuration": {
+                  "httpHeaders": {
+                    "property": {
+                      "name": "Authorization",
+                      "value": "Bearer ${env.MAVEN_PASSWORD}"
+                    }
+                  }
+                }
+              },
+              {
+                "id": "apache.releases.https",
+                "configuration": {
+                  "httpHeaders": {
+                    "property": {
+                      "name": "Authorization",
+                      "value": "Bearer ${env.MAVEN_PASSWORD}"
+                    }
+                  }
+                }
+              },
+              {
+                "id": "gpg.passphrase",
+                "passphrase": "${env.MAVEN_GPG_PASSPHRASE}",
+                "configuration": {}
+              }
+            ]
+
+      - name: Cat settings.xml
+        run: cat /home/runner/.m2/settings.xml
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.ASCENTSTREAM_DOCKER_USERNAME }}
+          password: ${{ secrets.ASCENTSTREAM_DOCKER_PASSWORD }}
+
+      - name: Deploy to GitHub Packages
+        run: |
+          MVN_MAIN='mvn -T 1C -B -ntp'
+          if [[ "$RUNNER_DEBUG" == '1' || "$CI_DEBUG" == '1' ]]; then
+            MVN_MAIN="$MVN_MAIN -X "
+          fi
+          $MVN_MAIN clean deploy -Papache-release -DskipTests -Dlicense.skip=true -Dspotbugs.skip=true -Drat.skip=true -Dcheckstyle.skip=true -T 1C -DdistMgmtReleasesUrl=https://maven.pkg.github.com/ascentstream/pulsar -DdistMgmtSnapshotsUrl=https://maven.pkg.github.com/ascentstream/pulsar
+        env:
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.ASCENTSTREAM_GPG_PASSWORD }}
+          MAVEN_PASSWORD: ${{ secrets.ASCENTSTREAM_GITHUB_TOKEN }}
+          MAVEN_USERNAME: 'ascentstream-bot'
+
+      - name: Build and publish image to DockerHub
+        run: |
+          MVN_MAIN='mvn -T 1C -B -ntp'
+          if [[ "$RUNNER_DEBUG" == '1' || "$CI_DEBUG" == '1' ]]; then
+           MVN_MAIN="$MVN_MAIN -X "
+          fi
+          $MVN_MAIN package -pl docker/pulsar -Pdocker,docker-push -Ddocker.platforms=linux/amd64,linux/arm64 -Ddocker.organization=ascentstream -Ddocker.image=as-pulsar:"$RELEASE_VERSION" -Ddocker.skip.tag=true
+
+      - name: Publish distribution to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            distribution/server/target/*.tar.gz
+            distribution/offloaders/target/*-bin.tar.gz
+            distribution/shell/target/*-bin.tar.gz
+            distribution/io/target/apache-pulsar-io-connectors-*-bin/*.nar
+          fail_on_unmatched_files: false
