@@ -310,7 +310,11 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                 if (response.hasResponseBody()) {
                     jerseyResponse.setEntityStream(response.getResponseBodyAsStream());
                 }
-                callback.response(jerseyResponse);
+                try {
+                    callback.response(jerseyResponse);
+                } catch (Exception ex) {
+                    log.error("failed to handle the http response {}", jerseyResponse, ex);
+                }
             }
         }));
         return responseFuture;
