@@ -362,7 +362,12 @@ public class RangeEntryCacheImpl implements EntryCache {
         }
         long estimatedReadSize = (1 + lastEntry - firstEntry)
                 * (estimatedEntrySize + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY);
-        if (estimatedReadSize > pendingReadsLimiter.getMaxReadsInFlightSize()) {
+        final long maxReadsInFlightSize = pendingReadsLimiter.getMaxReadsInFlightSize();
+        if (estimatedReadSize > maxReadsInFlightSize) {
+            String message = "Estimated read size " + estimatedReadSize
+                    + " is larger than managedLedgerMaxReadsInFlightSize " + maxReadsInFlightSize
+                    + " please check managedLedgerMaxReadsInFlightSizeInMB";
+            log.warn(message);
             pendingReadsLimiter.setMaxReadsInFlightSize(estimatedReadSize);
         }
         final AsyncCallbacks.ReadEntriesCallback callback;
