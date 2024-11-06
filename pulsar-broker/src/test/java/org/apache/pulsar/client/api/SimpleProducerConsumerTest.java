@@ -3520,7 +3520,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             producer3.send(message.getBytes(UTF_8));
         }
 
-        int receiverQueueSize = 1;
+        int receiverQueueSize = 6;
         Consumer<byte[]> consumer = pulsarClient
             .newConsumer()
             .topics(Lists.newArrayList(topicNameBase + "1", topicNameBase + "2"))
