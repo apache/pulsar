@@ -599,8 +599,7 @@ public class GetPartitionMetadataTest extends TestRetrySupport {
                 fail("Expected a not found ex");
             } catch (Exception ex) {
                 Throwable unwrapEx = FutureUtil.unwrapCompletionException(ex);
-                assertTrue(unwrapEx instanceof PulsarClientException.BrokerMetadataException ||
-                        unwrapEx instanceof PulsarClientException.TopicDoesNotExistException);
+                assertTrue(unwrapEx instanceof PulsarClientException.TopicDoesNotExistException);
             }
         }
         // Verify: lookup semaphore has been releases.

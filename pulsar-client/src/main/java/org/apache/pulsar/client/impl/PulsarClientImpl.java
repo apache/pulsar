@@ -409,9 +409,9 @@ public class PulsarClientImpl implements PulsarClient {
             }
         }).exceptionally(ex -> {
             Throwable actEx = FutureUtil.unwrapCompletionException(ex);
-            if (forceNoPartitioned && actEx instanceof PulsarClientException.NotFoundException
+            if (forceNoPartitioned && (actEx instanceof PulsarClientException.NotFoundException
                     || actEx instanceof PulsarClientException.TopicDoesNotExistException
-                    || actEx instanceof PulsarAdminException.NotFoundException) {
+                    || actEx instanceof PulsarAdminException.NotFoundException)) {
                 checkPartitions.complete(0);
             } else {
                 checkPartitions.completeExceptionally(ex);
