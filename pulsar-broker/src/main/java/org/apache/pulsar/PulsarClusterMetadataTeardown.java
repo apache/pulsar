@@ -162,7 +162,6 @@ public class PulsarClusterMetadataTeardown {
                             .configFilePath(arguments.configurationStoreConfigPath)
                             .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE).build());
             PulsarResources resources = new PulsarResources(metadataStore, configMetadataStore);
-            resources.getClusterResources().deleteCluster(arguments.cluster);
             // Cleanup replication cluster from all tenants and namespaces
             TenantResources tenantResources = resources.getTenantResources();
             NamespaceResources namespaceResources = resources.getNamespaceResources();
@@ -176,6 +175,12 @@ public class PulsarClusterMetadataTeardown {
                     });
                 }
                 removeCurrentClusterFromAllowedClusters(tenantResources, tenant, arguments.cluster);
+            }
+            try {
+                resources.getClusterResources().deleteCluster(arguments.cluster);
+            } catch (MetadataStoreException.NotFoundException ex) {
+                // Ignore if the cluster does not exist
+                log.info("Cluster metadata for '{}' does not exist.", arguments.cluster);
             }
         }
 
