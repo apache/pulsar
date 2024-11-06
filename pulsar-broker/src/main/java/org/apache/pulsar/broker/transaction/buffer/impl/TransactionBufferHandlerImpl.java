@@ -128,6 +128,9 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
             }
         } else {
             pendingRequests.add(op);
+            if (currentPermits != REQUEST_CREDITS_UPDATER.get(this)) {
+                checkPendingRequests();
+            }
             return false;
         }
     }
@@ -251,6 +254,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                             invalid.recycle();
                         }
                         endTxn(polled);
+                        break;
                     } else {
                         REQUEST_CREDITS_UPDATER.incrementAndGet(this);
                     }
