@@ -1010,7 +1010,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
                         .maxRedeliverCount(maxRedeliveryCount)
                         .initialSubscriptionName(dlqInitialSub)
                         .build())
-                .receiverQueueSize(100)
+                .receiverQueueSize(20)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
@@ -1023,7 +1023,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
                         .maxRedeliverCount(maxRedeliveryCount)
                         .initialSubscriptionName(dlqInitialSub)
                         .build())
-                .receiverQueueSize(100)
+                .receiverQueueSize(20)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
