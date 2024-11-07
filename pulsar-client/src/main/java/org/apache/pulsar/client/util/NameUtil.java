@@ -21,7 +21,7 @@ package org.apache.pulsar.client.util;
 import java.util.UUID;
 import org.apache.commons.codec.digest.DigestUtils;
 
-public class ConsumerName {
+public class NameUtil {
     public static String generateRandomName() {
         return DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 5);
     }

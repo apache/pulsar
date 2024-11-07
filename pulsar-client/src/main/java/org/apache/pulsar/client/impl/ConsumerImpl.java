@@ -98,6 +98,7 @@ import org.apache.pulsar.client.impl.metrics.UpDownCounter;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.client.util.NameUtil;
 import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.EncryptionContext;
@@ -2263,8 +2264,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             ((ProducerBuilderImpl<byte[]>) client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema)))
                                     .initialSubscriptionName(this.deadLetterPolicy.getInitialSubscriptionName())
                                     .topic(this.deadLetterPolicy.getDeadLetterTopic())
-                                    .producerName(String.format("%s-%s-%s-DLQ", this.topicName, this.subscription,
-                                            this.consumerName))
+                                    .producerName(String.format("%s-%s-%s-%s-DLQ", this.topicName, this.subscription,
+                                            this.consumerName, NameUtil.generateRandomName()))
                                     .blockIfQueueFull(false)
                                     .enableBatching(false)
                                     .enableChunking(true)
