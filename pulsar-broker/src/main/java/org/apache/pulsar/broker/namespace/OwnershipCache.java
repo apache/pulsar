@@ -172,7 +172,22 @@ public class OwnershipCache {
 
         // If we're not the owner, we need to check if anybody else is
         String path = ServiceUnitUtils.path(suName);
-        return lockManager.readLock(path);
+        return lockManager.readLock(path).thenCompose(owner -> {
+            // If the current broker is the owner, attempt to reacquire ownership to avoid cache loss.
+            if (owner.isPresent() && owner.get().equals(selfOwnerInfo)) {
+                log.warn("Detected ownership loss for broker [{}] on namespace bundle [{}]. "
+                                + "Attempting to reacquire ownership to maintain cache consistency.",
+                        selfOwnerInfo, suName);
+                try {
+                    return tryAcquiringOwnership(suName).thenApply(Optional::ofNullable);
+                } catch (Exception e) {
+                    log.error("Failed to reacquire ownership for namespace bundle [{}] on broker [{}]: {}",
+                            suName, selfOwnerInfo, e.getMessage(), e);
+                    return CompletableFuture.failedFuture(e);
+                }
+            }
+            return CompletableFuture.completedFuture(owner);
+        });
     }
 
     /**
