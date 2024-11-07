@@ -154,8 +154,7 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
                                 }
                                 String bundle = e.getLeft();
                                 double bundleMsgRate = e.getRight();
-                                if (bundleMsgRate <= (msgRateRequiredFromUnloadedBundles.getValue()
-                                        + 1000/* delta */)) {
+                                if (bundleMsgRate <= msgRateRequiredFromUnloadedBundles.getValue()) {
                                     log.info("Found bundle to unload with msgRate {}", bundleMsgRate);
                                     msgRateRequiredFromUnloadedBundles.add(-bundleMsgRate);
                                     selectedBundlesCache.put(msgRateOverloadedBroker.getValue(), bundle);
@@ -193,8 +192,7 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
                                 }
                                 String bundle = e.getLeft();
                                 double msgThroughput = e.getRight();
-                                if (msgThroughput <= (msgThroughputRequiredFromUnloadedBundles.getValue()
-                                        + 1000/* delta */)) {
+                                if (msgThroughput <= msgThroughputRequiredFromUnloadedBundles.getValue()) {
                                     log.info("Found bundle to unload with msgThroughput {}", msgThroughput);
                                     msgThroughputRequiredFromUnloadedBundles.add(-msgThroughput);
                                     selectedBundlesCache.put(msgThroughputOverloadedBroker.getValue(), bundle);
