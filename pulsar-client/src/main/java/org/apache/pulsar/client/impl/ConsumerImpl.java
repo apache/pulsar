@@ -545,7 +545,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return null;
             }
             messageProcessed(message);
-            return beforeConsume(message);
+            message = listener == null ? beforeConsume(message) : message;
+            return message;
         } catch (InterruptedException e) {
             ExceptionHandler.handleInterruptedException(e);
             State state = getState();

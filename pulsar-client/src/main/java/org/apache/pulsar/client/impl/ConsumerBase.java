@@ -1166,6 +1166,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 id = msg.getMessageId();
             }
             unAckedMessageTracker.add(id, msg.getRedeliveryCount());
+            beforeConsume(msg);
             listener.received(ConsumerBase.this, msg);
         } catch (Throwable t) {
             log.error("[{}][{}] Message listener error in processing message: {}", topic, subscription,
