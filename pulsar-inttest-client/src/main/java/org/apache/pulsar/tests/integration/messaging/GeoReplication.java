@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.tests.integration.messaging;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -30,7 +32,6 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.tests.integration.GeoRepIntegTest;
 import org.awaitility.Awaitility;
-import org.testng.Assert;
 
 /**
  * Geo replication test.
@@ -50,9 +51,9 @@ public class GeoReplication extends GeoRepIntegTest {
                 adminA.topics().createPartitionedTopic(topic, 10);
             } catch (Exception e) {
                 log.error("Failed to create partitioned topic {}.", topic, e);
-                Assert.fail("Failed to create partitioned topic " + topic);
+                fail("Failed to create partitioned topic " + topic);
             }
-            Assert.assertEquals(adminA.topics().getPartitionedTopicMetadata(topic).partitions, 10);
+            assertThat(adminA.topics().getPartitionedTopicMetadata(topic).partitions).isEqualTo(10);
         });
         log.info("Test geo-replication produce and consume for topic {}.", topic);
 
@@ -76,7 +77,7 @@ public class GeoReplication extends GeoRepIntegTest {
 
         for (int i = 0; i < 10; i++) {
             Message<byte[]> message = c.receive(10, TimeUnit.SECONDS);
-            Assert.assertNotNull(message);
+            assertThat(message).isNotNull();
         }
         log.info("Successfully consume message from cluster {} for topic {}.", "cluster2", topic);
     }

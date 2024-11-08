@@ -20,10 +20,8 @@ package org.apache.pulsar.tests.integration.messaging;
 
 import static org.apache.pulsar.tests.integration.utils.IntegTestUtils.getNonPartitionedTopic;
 import static org.apache.pulsar.tests.integration.utils.IntegTestUtils.getPartitionedTopic;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -82,7 +80,7 @@ public class TopicMessaging extends IntegTest {
                 .create();
         for (int i = 0; i < messagesToSend; i++) {
             MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();
-            assertNotNull(messageId);
+            assertThat(messageId).isNotNull();
         }
         log.info("public messages complete.");
         receiveMessagesCheckOrderAndDuplicate(Collections.singletonList(consumer), messagesToSend);
@@ -102,7 +100,7 @@ public class TopicMessaging extends IntegTest {
                     .subscribe();
             consumerList.add(consumer);
         }
-        assertEquals(partitions, consumerList.size());
+        assertThat(consumerList.size()).isEqualTo(partitions);
         try {
             client.newConsumer(Schema.STRING)
                     .topic(topicName + "-partition-" + 0)
@@ -122,7 +120,7 @@ public class TopicMessaging extends IntegTest {
                 .create();
         for (int i = 0; i < messagesToSend; i++) {
             MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();
-            assertNotNull(messageId);
+            assertThat(messageId).isNotNull();
         }
         log.info("public messages complete.");
         receiveMessagesCheckOrderAndDuplicate(consumerList, messagesToSend);
@@ -131,7 +129,7 @@ public class TopicMessaging extends IntegTest {
         crashedConsumer.close();
         for (int i = 0; i < messagesToSend; i++) {
             MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();
-            assertNotNull(messageId);
+            assertThat(messageId).isNotNull();
         }
         receiveMessagesCheckOrderAndDuplicate(consumerList, messagesToSend - 3);
         closeConsumers(consumerList);
@@ -153,8 +151,8 @@ public class TopicMessaging extends IntegTest {
                 .subscriptionName("test-sub")
                 .subscriptionType(SubscriptionType.Failover)
                 .subscribe();
-        assertNotNull(standbyConsumer);
-        assertTrue(standbyConsumer.isConnected());
+        assertThat(standbyConsumer).isNotNull();
+        assertThat(standbyConsumer.isConnected()).isTrue();
         consumerList.add(standbyConsumer);
         final int messagesToSend = 10;
         final String producerName = "producerForFailover";
@@ -165,7 +163,7 @@ public class TopicMessaging extends IntegTest {
                 .create();
         for (int i = 0; i < messagesToSend; i++) {
             MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();
-            assertNotNull(messageId);
+            assertThat(messageId).isNotNull();
         }
         log.info("public messages complete.");
         receiveMessagesCheckOrderAndDuplicate(consumerList, messagesToSend);
@@ -176,7 +174,7 @@ public class TopicMessaging extends IntegTest {
         crashedConsumer.close();
         for (int i = 0; i < messagesToSend; i++) {
             MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();
-            assertNotNull(messageId);
+            assertThat(messageId).isNotNull();
         }
         receiveMessagesCheckOrderAndDuplicate(consumerList, messagesToSend);
         closeConsumers(consumerList);
@@ -199,10 +197,10 @@ public class TopicMessaging extends IntegTest {
                 .subscriptionName("test-sub")
                 .subscriptionType(SubscriptionType.Failover)
                 .subscribe();
-        assertNotNull(standbyConsumer);
-        assertTrue(standbyConsumer.isConnected());
+        assertThat(standbyConsumer).isNotNull();
+        assertThat(standbyConsumer.isConnected()).isTrue();
         consumerList.add(standbyConsumer);
-        assertEquals(consumerList.size(), 2);
+        assertThat(consumerList.size()).isEqualTo(2);
         final int messagesToSend = 9;
         final String producerName = "producerForFailover";
         @Cleanup final Producer<String> producer = client.newProducer(Schema.STRING)
@@ -212,7 +210,7 @@ public class TopicMessaging extends IntegTest {
                 .create();
         for (int i = 0; i < messagesToSend; i++) {
             MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();
-            assertNotNull(messageId);
+            assertThat(messageId).isNotNull();
         }
         log.info("public messages complete.");
         receiveMessagesCheckOrderAndDuplicate(consumerList, messagesToSend);
@@ -223,7 +221,7 @@ public class TopicMessaging extends IntegTest {
         crashedConsumer.close();
         for (int i = 0; i < messagesToSend; i++) {
             MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();
-            assertNotNull(messageId);
+            assertThat(messageId).isNotNull();
         }
         receiveMessagesCheckOrderAndDuplicate(consumerList, messagesToSend);
         closeConsumers(consumerList);
@@ -245,8 +243,8 @@ public class TopicMessaging extends IntegTest {
                 .subscriptionName("test-sub")
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
-        assertNotNull(moreConsumer);
-        assertTrue(moreConsumer.isConnected());
+        assertThat(moreConsumer).isNotNull();
+        assertThat(moreConsumer.isConnected()).isTrue();
         consumerList.add(moreConsumer);
         final int messagesToSend = 10;
         final String producerName = "producerForShared";
@@ -257,7 +255,7 @@ public class TopicMessaging extends IntegTest {
                 .create();
         for (int i = 0; i < messagesToSend; i++) {
             MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();
-            assertNotNull(messageId);
+            assertThat(messageId).isNotNull();
         }
         log.info("public messages complete.");
         receiveMessagesCheckDuplicate(consumerList, messagesToSend);
@@ -266,7 +264,7 @@ public class TopicMessaging extends IntegTest {
         crashedConsumer.close();
         for (int i = 0; i < messagesToSend; i++) {
             MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();
-            assertNotNull(messageId);
+            assertThat(messageId).isNotNull();
         }
         receiveMessagesCheckDuplicate(consumerList, messagesToSend);
         closeConsumers(consumerList);
@@ -286,7 +284,7 @@ public class TopicMessaging extends IntegTest {
                     .subscribe();
             consumerList.add(consumer);
         }
-        assertEquals(partitions, consumerList.size());
+        assertThat(consumerList.size()).isEqualTo(partitions);
         final int messagesToSend = 10;
         final String producerName = "producerForFailover";
         @Cleanup final Producer<String> producer = client.newProducer(Schema.STRING)
@@ -296,7 +294,7 @@ public class TopicMessaging extends IntegTest {
                 .create();
         for (int i = 0; i < messagesToSend; i++) {
             MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();
-            assertNotNull(messageId);
+            assertThat(messageId).isNotNull();
         }
         log.info("public messages complete.");
         receiveMessagesCheckDuplicate(consumerList, messagesToSend);
@@ -305,7 +303,7 @@ public class TopicMessaging extends IntegTest {
         crashedConsumer.close();
         for (int i = 0; i < messagesToSend; i++) {
             MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();
-            assertNotNull(messageId);
+            assertThat(messageId).isNotNull();
         }
         receiveMessagesCheckDuplicate(consumerList, messagesToSend);
         closeConsumers(consumerList);
@@ -321,15 +319,15 @@ public class TopicMessaging extends IntegTest {
                 .subscriptionName("test-sub")
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .subscribe();
-        assertTrue(consumer.isConnected());
+        assertThat(consumer.isConnected()).isTrue();
         consumerList.add(consumer);
         Consumer<String> moreConsumer = client.newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName("test-sub")
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .subscribe();
-        assertNotNull(moreConsumer);
-        assertTrue(moreConsumer.isConnected());
+        assertThat(moreConsumer).isNotNull();
+        assertThat(moreConsumer.isConnected()).isTrue();
         consumerList.add(moreConsumer);
         final int messagesToSend = 10;
         final String producerName = "producerForKeyShared";
@@ -343,7 +341,7 @@ public class TopicMessaging extends IntegTest {
                     .key(UUID.randomUUID().toString())
                     .value(producer.getProducerName() + "-" + i)
                     .send();
-            assertNotNull(messageId);
+            assertThat(messageId).isNotNull();
         }
         log.info("publish messages complete.");
         receiveMessagesCheckStickyKeyAndDuplicate(consumerList, messagesToSend);
@@ -355,7 +353,7 @@ public class TopicMessaging extends IntegTest {
                     .key(UUID.randomUUID().toString())
                     .value(producer.getProducerName() + "-" + i)
                     .send();
-            assertNotNull(messageId);
+            assertThat(messageId).isNotNull();
         }
         receiveMessagesCheckStickyKeyAndDuplicate(consumerList, messagesToSend);
         closeConsumers(consumerList);
@@ -372,15 +370,15 @@ public class TopicMessaging extends IntegTest {
                 .subscriptionName("test-sub")
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .subscribe();
-        assertTrue(consumer.isConnected());
+        assertThat(consumer.isConnected()).isTrue();
         consumerList.add(consumer);
         Consumer<String> moreConsumer = client.newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName("test-sub")
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .subscribe();
-        assertNotNull(moreConsumer);
-        assertTrue(moreConsumer.isConnected());
+        assertThat(moreConsumer).isNotNull();
+        assertThat(moreConsumer.isConnected()).isTrue();
         consumerList.add(moreConsumer);
         final int messagesToSend = 10;
         final String producerName = "producerForKeyShared";
@@ -394,7 +392,7 @@ public class TopicMessaging extends IntegTest {
                     .key(UUID.randomUUID().toString())
                     .value(producer.getProducerName() + "-" + i)
                     .send();
-            assertNotNull(messageId);
+            assertThat(messageId).isNotNull();
         }
         log.info("publish messages complete.");
         receiveMessagesCheckStickyKeyAndDuplicate(consumerList, messagesToSend);
@@ -406,7 +404,7 @@ public class TopicMessaging extends IntegTest {
                     .key(UUID.randomUUID().toString())
                     .value(producer.getProducerName() + "-" + i)
                     .send();
-            assertNotNull(messageId);
+            assertThat(messageId).isNotNull();
         }
         receiveMessagesCheckStickyKeyAndDuplicate(consumerList, messagesToSend);
         closeConsumers(consumerList);
@@ -431,20 +429,22 @@ public class TopicMessaging extends IntegTest {
                 if (currentReceived != null) {
                     consumer.acknowledge(currentReceived);
                     if (lastReceivedMap.containsKey(currentReceived.getTopicName())) {
-                        assertTrue(currentReceived.getMessageId().compareTo(
-                                        lastReceivedMap.get(currentReceived.getTopicName()).getMessageId()) > 0,
-                                "Received messages are not in order.");
+                        assertThat(currentReceived.getMessageId().compareTo(
+                                lastReceivedMap.get(currentReceived.getTopicName()).getMessageId()) > 0)
+                                .as("Received messages are not in order.")
+                                .isTrue();
                     }
                 } else {
                     break;
                 }
                 lastReceivedMap.put(currentReceived.getTopicName(), currentReceived);
                 // Make sure that there are no duplicates
-                assertTrue(messagesReceived.add(currentReceived.getValue()),
-                        "Received duplicate message " + currentReceived.getValue());
+                assertThat(messagesReceived.add(currentReceived.getValue())).
+                        isTrue()
+                        .as("Received duplicate message " + currentReceived.getValue());
             }
         }
-        assertEquals(messagesToReceive, messagesReceived.size());
+        assertThat(messagesReceived.size()).isEqualTo(messagesToReceive);
     }
 
     protected static <T> void receiveMessagesCheckDuplicate
@@ -462,14 +462,15 @@ public class TopicMessaging extends IntegTest {
                 if (currentReceived != null) {
                     consumer.acknowledge(currentReceived);
                     // Make sure that there are no duplicates
-                    assertTrue(messagesReceived.add(currentReceived.getValue()),
-                            "Received duplicate message " + currentReceived.getValue());
+                    assertThat(messagesReceived.add(currentReceived.getValue()))
+                            .isTrue()
+                            .as("Received duplicate message " + currentReceived.getValue());
                 } else {
                     break;
                 }
             }
         }
-        assertEquals(messagesReceived.size(), messagesToReceive);
+        assertThat(messagesReceived.size()).isEqualTo(messagesToReceive);
     }
 
     protected static <T> void receiveMessagesCheckStickyKeyAndDuplicate
@@ -487,12 +488,13 @@ public class TopicMessaging extends IntegTest {
                 }
                 if (currentReceived != null) {
                     consumer.acknowledge(currentReceived);
-                    assertNotNull(currentReceived.getKey());
+                    assertThat(currentReceived.getKey()).isNotNull();
                     consumerKeys.putIfAbsent(consumer.getConsumerName(), new HashSet<>());
                     consumerKeys.get(consumer.getConsumerName()).add(currentReceived.getKey());
                     // Make sure that there are no duplicates
-                    assertTrue(messagesReceived.add(currentReceived.getValue()),
-                            "Received duplicate message " + currentReceived.getValue());
+                    assertThat(messagesReceived.add(currentReceived.getValue()))
+                            .isTrue()
+                            .as("Received duplicate message " + currentReceived.getValue());
                 } else {
                     break;
                 }
@@ -501,10 +503,11 @@ public class TopicMessaging extends IntegTest {
         // Make sure key will not be distributed to multiple consumers (except null key)
         Set<String> allKeys = new HashSet<>();
         consumerKeys.forEach((k, v) -> v.stream().filter(Objects::nonNull).forEach(key -> {
-            assertTrue(allKeys.add(key),
-                    "Key " + key + " is distributed to multiple consumers");
+            assertThat(allKeys.add(key))
+                    .isTrue()
+                    .as("Key " + key + " is distributed to multiple consumers");
         }));
-        assertEquals(messagesReceived.size(), messagesToReceive);
+        assertThat(messagesReceived.size()).isEqualTo(messagesToReceive);
     }
 
     protected static <T> void closeConsumers(List<Consumer<T>> consumerList) throws PulsarClientException {

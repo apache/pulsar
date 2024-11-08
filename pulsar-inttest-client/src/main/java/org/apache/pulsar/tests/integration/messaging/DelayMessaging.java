@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.integration.messaging;
 
 import static org.apache.pulsar.tests.integration.utils.IntegTestUtils.getPartitionedTopic;
+import static org.assertj.core.api.Assertions.assertThat;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +32,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.tests.integration.IntegTest;
-import org.testng.Assert;
 
 /**
  * Delay messaging test.
@@ -77,14 +77,16 @@ public class DelayMessaging extends IntegTest {
 
         // receive message at first time
         Message<byte[]> message = consumer.receive(delayTimeSeconds * 2, TimeUnit.SECONDS);
-        Assert.assertNotNull(message, "Can't receive message at the first time.");
+        assertThat(message).isNotNull().as("Can't receive message at the first time.");
         consumer.reconsumeLater(message, delayTimeSeconds, TimeUnit.SECONDS);
 
         // receive retry messages
         for (int i = 0; i < redeliverCnt; i++) {
             message = consumer.receive(delayTimeSeconds * 2, TimeUnit.SECONDS);
-            Assert.assertNotNull(message, "Consumer can't receive message in double delayTimeSeconds time "
-                    + delayTimeSeconds * 2 + "s");
+            assertThat(message)
+                    .isNotNull()
+                    .as("Consumer can't receive message in double delayTimeSeconds time "
+                            + delayTimeSeconds * 2 + "s");
             log.info("receive msg. reConsumeTimes: {}", message.getProperty("RECONSUMETIMES"));
             consumer.reconsumeLater(message, delayTimeSeconds, TimeUnit.SECONDS);
         }
@@ -97,7 +99,7 @@ public class DelayMessaging extends IntegTest {
                 .subscribe();
 
         message = dltConsumer.receive(10, TimeUnit.SECONDS);
-        Assert.assertNotNull(message, "Dead letter topic consumer can't receive message.");
+        assertThat(message).isNotNull().as("Dead letter topic consumer can't receive message.");
     }
 
 }

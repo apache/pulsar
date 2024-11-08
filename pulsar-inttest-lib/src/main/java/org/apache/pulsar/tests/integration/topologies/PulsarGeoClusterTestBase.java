@@ -20,6 +20,7 @@ package org.apache.pulsar.tests.integration.topologies;
 
 import static java.util.stream.Collectors.joining;
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -98,6 +99,8 @@ public class PulsarGeoClusterTestBase extends PulsarTestBase {
     }
 
     protected PulsarAdmin getPulsarAdmin(PulsarCluster cluster) throws IOException {
-        return PulsarAdmin.builder().serviceHttpUrl(cluster.getHttpServiceUrl()).build();
+        return PulsarAdmin.builder().serviceHttpUrl(cluster.getHttpServiceUrl())
+                .requestTimeout(30, TimeUnit.SECONDS)
+                .build();
     }
 }

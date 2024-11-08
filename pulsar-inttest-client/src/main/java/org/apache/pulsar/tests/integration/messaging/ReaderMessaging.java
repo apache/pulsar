@@ -19,8 +19,7 @@
 package org.apache.pulsar.tests.integration.messaging;
 
 import static org.apache.pulsar.tests.integration.utils.IntegTestUtils.getNonPartitionedTopic;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -58,24 +57,24 @@ public class ReaderMessaging extends IntegTest {
                 .create();
         for (int i = 0; i < messagesToSend; i++) {
             MessageId messageId = producer.newMessage().value("message-" + i).send();
-            assertNotNull(messageId);
+            assertThat(messageId).isNotNull();
         }
 
         for (int i = 0; i < messagesToSend; i++) {
             Message<String> msg = reader.readNext();
-            assertEquals(msg.getValue(), "message-" + i);
+            assertThat(msg.getValue()).isEqualTo("message-" + i);
         }
 
         admin.topics().unload(topicName);
 
         for (int i = 0; i < messagesToSend; i++) {
             MessageId messageId = producer.newMessage().value("message-" + i).send();
-            assertNotNull(messageId);
+            assertThat(messageId).isNotNull();
         }
 
         for (int i = 0; i < messagesToSend; i++) {
             Message<String> msg = reader.readNext();
-            assertEquals(msg.getValue(), "message-" + i);
+            assertThat(msg.getValue()).isEqualTo("message-" + i);
         }
 
         log.info("-- Exiting testReaderReconnectAndRead test --");
@@ -103,24 +102,24 @@ public class ReaderMessaging extends IntegTest {
 
         for (int i = 0; i < messagesToSend; i++) {
             MessageId messageId = producer.newMessage().value("message-" + i).send();
-            assertNotNull(messageId);
+            assertThat(messageId).isNotNull();
         }
 
         for (int i = 0; i < messagesToSend; i++) {
             Message<String> msg = reader.readNext();
-            assertEquals(msg.getValue(), "message-" + i);
+            assertThat(msg.getValue()).isEqualTo("message-" + i);
         }
 
         admin.topics().unload(topicName);
 
         for (int i = 0; i < messagesToSend; i++) {
             MessageId messageId = producer.newMessage().value("message-" + i).send();
-            assertNotNull(messageId);
+            assertThat(messageId).isNotNull();
         }
 
         for (int i = 0; i < messagesToSend; i++) {
             Message<String> msg = reader.readNext();
-            assertEquals(msg.getValue(), "message-" + i);
+            assertThat(msg.getValue()).isEqualTo("message-" + i);
         }
 
         log.info("-- Exiting testReaderReconnectAndReadBatchMessages test --");

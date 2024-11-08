@@ -20,7 +20,7 @@ package org.apache.pulsar.tests.integration.messaging;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.tests.integration.utils.IntegTestUtils.getNonPartitionedTopic;
-import static org.testng.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import java.util.stream.IntStream;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
@@ -62,7 +62,7 @@ public class NonDurableConsumerMessaging extends IntegTest {
 
                 for (int i = 0; i < numMessages; i++) {
                     Message<byte[]> msg = consumer.receive();
-                    assertEquals(new String(msg.getValue(), UTF_8), "message-" + i);
+                    assertThat(new String(msg.getValue(), UTF_8)).isEqualTo("message-" + i);
                 }
             }
         }
