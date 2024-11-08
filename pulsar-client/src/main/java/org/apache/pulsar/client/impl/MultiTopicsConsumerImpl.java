@@ -396,7 +396,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 decreaseIncomingMessageSize(message);
                 checkArgument(message instanceof TopicMessageImpl);
                 trackUnAckedMsgIfNoListener(message.getMessageId(), message.getRedeliveryCount());
-                message = beforeConsume(message);
+                message = listener == null ? beforeConsume(message) : message;
             }
             resumeReceivingFromPausedConsumersIfNeeded();
             return message;
