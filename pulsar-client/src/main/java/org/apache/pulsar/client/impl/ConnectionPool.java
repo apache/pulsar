@@ -127,8 +127,12 @@ public class ConnectionPool implements AutoCloseable {
         this.eventLoopGroup = eventLoopGroup;
         this.clientConfig = conf;
         this.maxConnectionsPerHosts = conf.getConnectionsPerBroker();
-        this.isSniProxy = clientConfig.isUseTls() && clientConfig.getProxyProtocol() != null
+        boolean sniProxyExpected = clientConfig.getProxyProtocol() != null
                 && StringUtils.isNotBlank(clientConfig.getProxyServiceUrl());
+        this.isSniProxy = clientConfig.isUseTls() && sniProxyExpected;
+        if (!this.isSniProxy && sniProxyExpected) {
+            log.warn("Disabling SNI proxy because tls is not enabled");
+        }
 
         pool = new ConcurrentHashMap<>();
         bootstrap = new Bootstrap();

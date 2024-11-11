@@ -1875,7 +1875,10 @@ public class BrokerService implements Closeable {
                     }, () -> isTopicNsOwnedByBrokerAsync(topicName), null);
 
         }).exceptionally((exception) -> {
-            log.warn("[{}] Failed to get topic configuration: {}", topic, exception.getMessage(), exception);
+            boolean migrationFailure = exception.getCause() instanceof TopicMigratedException;
+            String msg = migrationFailure ? "Topic is already migrated" :
+                "Failed to get topic configuration:";
+            log.warn("[{}] {} {}", topic, msg, exception.getMessage(), exception);
             // remove topic from topics-map in different thread to avoid possible deadlock if
             // createPersistentTopic-thread only tries to handle this future-result
             pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
