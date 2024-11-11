@@ -1093,6 +1093,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 } else if (ex.getCause() instanceof BrokerServiceException.SubscriptionFencedException
                         && isCompactionSubscription(subscriptionName)) {
                     log.warn("[{}] Failed to create compaction subscription: {}", topic, ex.getMessage());
+                } else if (ex.getCause() instanceof ManagedLedgerFencedException) {
+                    // If the topic has been fenced, we cannot continue using it. We need to close and reopen
+                    log.warn("[{}][{}] has been fenced. closing the topic {}", topic, subscriptionName,
+                            ex.getMessage());
+                    close();
                 } else {
                     log.error("[{}] Failed to create subscription: {}", topic, subscriptionName, ex);
                 }
