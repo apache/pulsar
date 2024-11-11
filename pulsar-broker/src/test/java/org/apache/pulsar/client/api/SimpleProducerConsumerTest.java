@@ -4875,4 +4875,31 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             return 0;
         }
     }
+
+    @Test
+    public void testFencedLedger() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        final String topic = "persistent://my-property/my-ns/fencedLedger";
+
+        @Cleanup
+        PulsarClient newPulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).build();
+
+        @Cleanup
+        Producer<byte[]> producer = newPulsarClient.newProducer().topic(topic).enableBatching(false).create();
+
+        final int numMessages = 5;
+        for (int i = 0; i < numMessages; i++) {
+            producer.newMessage().value(("value-" + i).getBytes(UTF_8)).eventTime((i + 1) * 100L).sendAsync();
+        }
+        producer.flush();
+
+        PersistentTopic pTopic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) pTopic.getManagedLedger();
+        ml.setFenced();
+
+        Reader<byte[]> reader = newPulsarClient.newReader().topic(topic).startMessageId(MessageId.earliest)
+                .createAsync().get(5, TimeUnit.SECONDS);
+        assertNotNull(reader);
+    }
 }
