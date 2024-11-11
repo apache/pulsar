@@ -464,9 +464,9 @@ The Apache Software License, Version 2.0
     - org.apache.avro-avro-1.11.4.jar
     - org.apache.avro-avro-protobuf-1.11.4.jar
   * Apache Curator
-    - org.apache.curator-curator-client-5.1.0.jar
-    - org.apache.curator-curator-framework-5.1.0.jar
-    - org.apache.curator-curator-recipes-5.1.0.jar
+    - org.apache.curator-curator-client-5.7.1.jar
+    - org.apache.curator-curator-framework-5.7.1.jar
+    - org.apache.curator-curator-recipes-5.7.1.jar
   * Apache Yetus
     - org.apache.yetus-audience-annotations-0.12.0.jar
   * Kubernetes Client
