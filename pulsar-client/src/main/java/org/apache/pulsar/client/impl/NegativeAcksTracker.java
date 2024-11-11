@@ -30,15 +30,17 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.RedeliveryBackoff;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class NegativeAcksTracker implements Closeable {
     private static final Logger log = LoggerFactory.getLogger(NegativeAcksTracker.class);
 
-    private HashMap<MessageId, Long> nackedMessages = null;
+    private ConcurrentLongLongPairHashMap nackedMessages = null;
 
     private final ConsumerBase<?> consumer;
     private final Timer timer;
@@ -75,15 +77,19 @@ class NegativeAcksTracker implements Closeable {
         // Group all the nacked messages into one single re-delivery request
         Set<MessageId> messagesToRedeliver = new HashSet<>();
         long now = System.nanoTime();
-        nackedMessages.forEach((msgId, timestamp) -> {
+        nackedMessages.forEach((ledgerId, entryId, partitionIndex, timestamp) -> {
             if (timestamp < now) {
+                MessageId msgId = new MessageIdImpl(ledgerId, entryId, (int) partitionIndex);
                 addChunkedMessageIdsAndRemoveFromSequenceMap(msgId, messagesToRedeliver, this.consumer);
                 messagesToRedeliver.add(msgId);
             }
         });
 
         if (!messagesToRedeliver.isEmpty()) {
-            messagesToRedeliver.forEach(nackedMessages::remove);
+            for(MessageId messageId : messagesToRedeliver) {
+                nackedMessages.remove(((MessageIdImpl) messageId).getLedgerId(),
+                        ((MessageIdImpl) messageId).getEntryId());
+            }
             consumer.onNegativeAcksSend(messagesToRedeliver);
             log.info("[{}] {} messages will be re-delivered", consumer, messagesToRedeliver.size());
             consumer.redeliverUnacknowledgedMessages(messagesToRedeliver);
@@ -102,7 +108,10 @@ class NegativeAcksTracker implements Closeable {
 
     private synchronized void add(MessageId messageId, int redeliveryCount) {
         if (nackedMessages == null) {
-            nackedMessages = new HashMap<>();
+            nackedMessages = ConcurrentLongLongPairHashMap.newBuilder()
+                    .autoShrink(true)
+                    .concurrencyLevel(16)
+                    .build();
         }
 
         long backoffNs;
@@ -111,7 +120,9 @@ class NegativeAcksTracker implements Closeable {
         } else {
             backoffNs = nackDelayNanos;
         }
-        nackedMessages.put(MessageIdAdvUtils.discardBatch(messageId), System.nanoTime() + backoffNs);
+        MessageIdAdv messageIdAdv = MessageIdAdvUtils.discardBatch(messageId);
+        nackedMessages.put(messageIdAdv.getLedgerId(), messageIdAdv.getEntryId(),
+                messageIdAdv.getPartitionIndex(), System.nanoTime() + backoffNs);
 
         if (this.timeout == null) {
             // Schedule a task and group all the redeliveries for same period. Leave a small buffer to allow for
@@ -121,8 +132,8 @@ class NegativeAcksTracker implements Closeable {
     }
 
     @VisibleForTesting
-    Optional<Integer> getNackedMessagesCount() {
-        return Optional.ofNullable(nackedMessages).map(HashMap::size);
+    Optional<Long> getNackedMessagesCount() {
+        return Optional.ofNullable(nackedMessages).map(ConcurrentLongLongPairHashMap::size);
     }
 
     @Override
