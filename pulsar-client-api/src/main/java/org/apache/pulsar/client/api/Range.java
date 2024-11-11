@@ -94,10 +94,28 @@ public class Range implements Comparable<Range> {
         return result;
     }
 
+    /**
+     * Check if the value is in the range.
+     * @param value
+     * @return true if the value is in the range.
+     */
     public boolean contains(int value) {
         return value >= start && value <= end;
     }
 
+    /**
+     * Check if the range is fully contained in the other range.
+     * @param otherRange
+     * @return true if the range is fully contained in the other range.
+     */
+    public boolean contains(Range otherRange) {
+        return start <= otherRange.start && end >= otherRange.end;
+    }
+
+    /**
+     * Get the size of the range.
+     * @return the size of the range.
+     */
     public int size() {
         return end - start + 1;
     }

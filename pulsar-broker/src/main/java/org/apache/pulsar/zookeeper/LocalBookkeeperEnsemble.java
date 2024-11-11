@@ -297,22 +297,16 @@ public class LocalBookkeeperEnsemble {
             }
 
             int bookiePort = portManager.get();
-
+            String bookieId = "bk" + i + "test";
             // Ensure registration Z-nodes are cleared when standalone service is restarted ungracefully
-            String registrationZnode = String.format("/ledgers/available/%s:%d",
-                    baseConf.getAdvertisedAddress(), bookiePort);
-            if (zkc.exists(registrationZnode, null) != null) {
-                try {
-                    zkc.delete(registrationZnode, -1);
-                } catch (NoNodeException nne) {
-                    // Ignore if z-node was just expired
-                }
-            }
+            deleteBookieRegistrationZnode(
+                    String.format("/ledgers/available/%s:%d", baseConf.getAdvertisedAddress(), bookiePort));
+            deleteBookieRegistrationZnode(String.format("/ledgers/available/%s", bookieId));
 
             bsConfs[i] = new ServerConfiguration(baseConf);
             // override settings
             bsConfs[i].setBookiePort(bookiePort);
-            bsConfs[i].setBookieId("bk" + i + "test");
+            bsConfs[i].setBookieId(bookieId);
             String zkServers = "127.0.0.1:" + zkPort;
             String metadataServiceUriStr = "zk://" + zkServers + "/ledgers";
 
@@ -324,6 +318,16 @@ public class LocalBookkeeperEnsemble {
             bsConfs[i].setAllowEphemeralPorts(true);
 
             startBK(i);
+        }
+    }
+
+    private void deleteBookieRegistrationZnode(String registrationZnode) throws InterruptedException, KeeperException {
+        if (zkc.exists(registrationZnode, null) != null) {
+            try {
+                zkc.delete(registrationZnode, -1);
+            } catch (NoNodeException nne) {
+                // Ignore if z-node was just expired
+            }
         }
     }
 

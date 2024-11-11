@@ -37,6 +37,7 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
@@ -52,8 +53,16 @@ public class PulsarClusterMetadataTeardown {
     @Command(name = "delete-cluster-metadata", showDefaultValues = true, scope = ScopeType.INHERIT)
     private static class Arguments {
         @Option(names = { "-zk",
-                "--zookeeper"}, description = "Local ZooKeeper quorum connection string", required = true)
+                "--zookeeper"}, description = "Local ZooKeeper quorum connection string")
         private String zookeeper;
+
+        @Option(names = {"-md",
+                "--metadata-store"}, description = "Metadata Store service url. eg: zk:my-zk:2181")
+        private String metadataStoreUrl;
+
+        @Option(names = {"-mscp",
+                "--metadata-store-config-path"}, description = "Metadata Store config path")
+        private String metadataStoreConfigPath;
 
         @Option(names = {
                 "--zookeeper-session-timeout-ms"
@@ -65,6 +74,11 @@ public class PulsarClusterMetadataTeardown {
 
         @Option(names = { "-cs", "--configuration-store" }, description = "Configuration Store connection string")
         private String configurationStore;
+
+        @Option(names = {"-cmscp",
+                "--configuration-metadata-store-config-path"}, description = "Configuration Metadata Store config path",
+                hidden = false)
+        private String configurationStoreConfigPath;
 
         @Option(names = { "--bookkeeper-metadata-service-uri" }, description = "Metadata service uri of BookKeeper")
         private String bkMetadataServiceUri;
@@ -99,11 +113,21 @@ public class PulsarClusterMetadataTeardown {
             throw e;
         }
 
+        if (arguments.metadataStoreUrl == null && arguments.zookeeper == null) {
+            commander.usage(commander.getOut());
+            throw new IllegalArgumentException("Metadata store address argument is required (--metadata-store)");
+        }
+
+        if (arguments.metadataStoreUrl == null) {
+            arguments.metadataStoreUrl = ZKMetadataStore.ZK_SCHEME_IDENTIFIER + arguments.zookeeper;
+        }
+
         @Cleanup
-        MetadataStoreExtended metadataStore = MetadataStoreExtended.create(arguments.zookeeper,
+        MetadataStoreExtended metadataStore = MetadataStoreExtended.create(arguments.metadataStoreUrl,
                 MetadataStoreConfig.builder()
                         .sessionTimeoutMillis(arguments.zkSessionTimeoutMillis)
                         .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
+                        .configFilePath(arguments.metadataStoreConfigPath)
                         .build());
 
         if (arguments.bkMetadataServiceUri != null) {
@@ -127,6 +151,7 @@ public class PulsarClusterMetadataTeardown {
             @Cleanup
             MetadataStore configMetadataStore = MetadataStoreFactory.create(arguments.configurationStore,
                     MetadataStoreConfig.builder().sessionTimeoutMillis(arguments.zkSessionTimeoutMillis)
+                            .configFilePath(arguments.configurationStoreConfigPath)
                             .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE).build());
             deleteRecursively(configMetadataStore, "/admin/clusters/" + arguments.cluster).join();
         }

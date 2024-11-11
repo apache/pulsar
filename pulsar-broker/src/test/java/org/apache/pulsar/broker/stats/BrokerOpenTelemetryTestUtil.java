@@ -35,10 +35,19 @@ public class BrokerOpenTelemetryTestUtil {
         return sdkBuilder -> {
             sdkBuilder.addMeterProviderCustomizer(
                     (meterProviderBuilder, __) -> meterProviderBuilder.registerMetricReader(reader));
+            sdkBuilder.disableShutdownHook();
+            disableExporters(sdkBuilder);
             sdkBuilder.addPropertiesSupplier(
                     () -> Map.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false",
                             "otel.java.enabled.resource.providers", "none"));
         };
+    }
+
+    public static void disableExporters(AutoConfiguredOpenTelemetrySdkBuilder sdkBuilder) {
+        sdkBuilder.addPropertiesSupplier(() ->
+                Map.of("otel.metrics.exporter", "none",
+                        "otel.traces.exporter", "none",
+                        "otel.logs.exporter", "none"));
     }
 
     public static void assertMetricDoubleSumValue(Collection<MetricData> metrics, String metricName,

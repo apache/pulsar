@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import javax.ws.rs.client.WebTarget;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.Lookup;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Topics;
@@ -57,7 +58,8 @@ public class LookupImpl extends BaseResource implements Lookup {
         WebTarget path = v2lookup.path(prefix).path(topicName.getLookupName());
 
         return asyncGetRequest(path, new FutureCallback<LookupData>() {})
-                .thenApply(lookupData -> useTls ? lookupData.getBrokerUrlTls() : lookupData.getBrokerUrl());
+                .thenApply(lookupData -> useTls && StringUtils.isNotBlank(lookupData.getBrokerUrlTls())
+                        ? lookupData.getBrokerUrlTls() : lookupData.getBrokerUrl());
     }
 
     @Override
