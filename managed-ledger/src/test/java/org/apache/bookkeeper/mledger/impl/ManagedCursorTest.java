@@ -4828,7 +4828,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     void testForceCursorRecovery() throws Exception {
-        ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
         TestPulsarMockBookKeeper bk = new TestPulsarMockBookKeeper(executor);
         factory = new ManagedLedgerFactoryImpl(metadataStore, bk);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
@@ -4874,8 +4873,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 final OpenCallback cb, final Object ctx) {
             if (ledgerErrors.containsKey(lId)) {
                 cb.openComplete(ledgerErrors.get(lId), null, ctx);
+            } else {
+                super.asyncOpenLedger(lId, digestType, passwd, cb, ctx);
             }
-            super.asyncOpenLedger(lId, digestType, passwd, cb, ctx);
         }
     }
 
