@@ -120,8 +120,13 @@ class NegativeAcksTracker implements Closeable {
             backoffNs = nackDelayNanos;
         }
         MessageIdAdv messageIdAdv = MessageIdAdvUtils.discardBatch(messageId);
+        // ConcurrentLongLongPairHashMap requires the key and value >=0.
+        // partitionIndex is -1 if the message is from a non-partitioned topic, but we don't use
+        // partitionIndex actually, so we can set it to 1 in the case of non-partitioned topic to
+        // avoid exception from ConcurrentLongLongPairHashMap.
         nackedMessages.put(messageIdAdv.getLedgerId(), messageIdAdv.getEntryId(),
-                messageIdAdv.getPartitionIndex(), System.nanoTime() + backoffNs);
+                messageIdAdv.getPartitionIndex() >= 0 ? messageIdAdv.getPartitionIndex() : 1,
+                System.nanoTime() + backoffNs);
 
         if (this.timeout == null) {
             // Schedule a task and group all the redeliveries for same period. Leave a small buffer to allow for
