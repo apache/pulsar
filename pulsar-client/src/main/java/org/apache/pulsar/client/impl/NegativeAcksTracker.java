@@ -110,7 +110,7 @@ class NegativeAcksTracker implements Closeable {
         if (nackedMessages == null) {
             nackedMessages = ConcurrentLongLongPairHashMap.newBuilder()
                     .autoShrink(true)
-                    .concurrencyLevel(16)
+                    .concurrencyLevel(1)
                     .build();
         }
 
