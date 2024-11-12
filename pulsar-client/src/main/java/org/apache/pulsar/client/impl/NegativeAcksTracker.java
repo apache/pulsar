@@ -23,7 +23,6 @@ import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import java.io.Closeable;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -86,7 +85,7 @@ class NegativeAcksTracker implements Closeable {
         });
 
         if (!messagesToRedeliver.isEmpty()) {
-            for(MessageId messageId : messagesToRedeliver) {
+            for (MessageId messageId : messagesToRedeliver) {
                 nackedMessages.remove(((MessageIdImpl) messageId).getLedgerId(),
                         ((MessageIdImpl) messageId).getEntryId());
             }
