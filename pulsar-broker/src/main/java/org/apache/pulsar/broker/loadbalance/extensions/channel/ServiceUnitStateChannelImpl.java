@@ -469,15 +469,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         });
     }
 
-    public boolean isChannelOwner() {
-        try {
-            return isChannelOwnerAsync().get(
-                    MAX_CHANNEL_OWNER_ELECTION_WAITING_TIME_IN_SECS, TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            String msg = "Failed to get the channel owner.";
-            log.error(msg, e);
-            throw new RuntimeException(msg, e);
-        }
+    public boolean isChannelOwner() throws ExecutionException, InterruptedException, TimeoutException {
+        return isChannelOwnerAsync().get(
+                MAX_CHANNEL_OWNER_ELECTION_WAITING_TIME_IN_SECS, TimeUnit.SECONDS);
     }
 
     public boolean isOwner(String serviceUnit, String targetBroker) {
@@ -1610,8 +1604,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     @VisibleForTesting
     protected void monitorOwnerships(List<String> brokers) {
-        if (!isChannelOwner()) {
-            log.warn("This broker is not the leader now. Skipping ownership monitor.");
+        try {
+            if (!isChannelOwner()) {
+                log.warn("This broker is not the leader now. Skipping ownership monitor.");
+                return;
+            }
+        } catch (Exception e) {
+            log.error("Failed to monitor ownerships", e);
             return;
         }
 

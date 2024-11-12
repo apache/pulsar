@@ -850,6 +850,22 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 || topic.startsWith(TOP_BUNDLES_LOAD_DATA_STORE_TOPIC);
     }
 
+    private boolean handleNoChannelOwnerError(Throwable e) {
+        if (FutureUtil.unwrapCompletionException(e).getMessage().contains("no channel owner now")) {
+            var leaderElectionService = getLeaderElectionService();
+            log.warn("No channel owner is found. Trying to start LeaderElectionService again.");
+            leaderElectionService.start();
+            var channelOwner = serviceUnitStateChannel.getChannelOwnerAsync().join();
+            if (channelOwner.isEmpty()) {
+                log.error("Still no Leader is found even after LeaderElectionService restarted.");
+                return false;
+            }
+            log.info("Successfully started LeaderElectionService. The new channel owner is {}", channelOwner);
+            return true;
+        }
+        return false;
+    }
+
     @VisibleForTesting
     synchronized void playLeader() {
         log.info("This broker:{} is setting the role from {} to {}",
@@ -861,10 +877,19 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 if (!initWaiter.get() || disabled()) {
                     return;
                 }
-                if (!serviceUnitStateChannel.isChannelOwner()) {
-                    becameFollower = true;
-                    break;
+                try {
+                    if (!serviceUnitStateChannel.isChannelOwner()) {
+                        becameFollower = true;
+                        break;
+                    }
+                } catch (Throwable e) {
+                    if (handleNoChannelOwnerError(e)) {
+                        continue;
+                    } else {
+                        throw e;
+                    }
                 }
+
                 if (disabled()) {
                     return;
                 }
@@ -924,10 +949,19 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 if (!initWaiter.get() || disabled()) {
                     return;
                 }
-                if (serviceUnitStateChannel.isChannelOwner()) {
-                    becameLeader = true;
-                    break;
+                try {
+                    if (serviceUnitStateChannel.isChannelOwner()) {
+                        becameLeader = true;
+                        break;
+                    }
+                } catch (Throwable e) {
+                    if (handleNoChannelOwnerError(e)) {
+                        continue;
+                    } else {
+                        throw e;
+                    }
                 }
+
                 if (disabled()) {
                     return;
                 }
@@ -1015,7 +1049,17 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
 
             // Monitor role
             // Periodically check the role in case metadata store fails.
-            var isChannelOwner = serviceUnitStateChannel.isChannelOwner();
+
+            boolean isChannelOwner = false;
+            try {
+                isChannelOwner = serviceUnitStateChannel.isChannelOwner();
+            } catch (Throwable e) {
+                if (handleNoChannelOwnerError(e)) {
+                    monitor();
+                } else {
+                    throw e;
+                }
+            }
             if (isChannelOwner) {
                 // System topic config might fail due to the race condition
                 // with topic policy init(Topic policies cache have not init).
@@ -1035,7 +1079,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 }
             }
         } catch (Throwable e) {
-            log.error("Failed to get the channel ownership.", e);
+            log.error("Failed to monitor load manager state", e);
         }
     }
 
