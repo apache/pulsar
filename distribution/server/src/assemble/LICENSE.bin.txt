@@ -453,9 +453,9 @@ The Apache Software License, Version 2.0
     - org.apache.avro-avro-1.11.4.jar
     - org.apache.avro-avro-protobuf-1.11.4.jar
   * Apache Curator
-    - org.apache.curator-curator-client-5.1.0.jar
-    - org.apache.curator-curator-framework-5.1.0.jar
-    - org.apache.curator-curator-recipes-5.1.0.jar
+    - org.apache.curator-curator-client-5.7.1.jar
+    - org.apache.curator-curator-framework-5.7.1.jar
+    - org.apache.curator-curator-recipes-5.7.1.jar
   * Apache Yetus
     - org.apache.yetus-audience-annotations-0.12.0.jar
   * Kubernetes Client
@@ -482,9 +482,9 @@ The Apache Software License, Version 2.0
     - io.vertx-vertx-web-4.5.10.jar
     - io.vertx-vertx-web-common-4.5.10.jar
   * Apache ZooKeeper
-    - org.apache.zookeeper-zookeeper-3.9.2.jar
-    - org.apache.zookeeper-zookeeper-jute-3.9.2.jar
-    - org.apache.zookeeper-zookeeper-prometheus-metrics-3.9.2.jar
+    - org.apache.zookeeper-zookeeper-3.9.3.jar
+    - org.apache.zookeeper-zookeeper-jute-3.9.3.jar
+    - org.apache.zookeeper-zookeeper-prometheus-metrics-3.9.3.jar
   * Snappy Java
     - org.xerial.snappy-snappy-java-1.1.10.5.jar
   * Google HTTP Client
