@@ -33,6 +33,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -48,6 +49,8 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PublishRate;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
@@ -209,6 +212,42 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         Assert.assertEquals(policies.topicDispatchRate, dispatchRateMap);
 
         producer.close();
+    }
+
+    @SuppressWarnings("deprecation")
+    @Test
+    public void testSystemTopicDeliveryNonBlock() throws Exception {
+        final String namespace = "my-property/throttling_ns";
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+        final String topicName = "persistent://" + namespace + "/" + UUID.randomUUID().toString().replaceAll("-", "");
+        admin.topics().createNonPartitionedTopic(topicName);
+        // Set a rate limitation.
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(1)
+                .dispatchThrottlingRateInByte(-1)
+                .ratePeriodInSecond(360)
+                .build();
+        admin.namespaces().setDispatchRate(namespace, dispatchRate);
+
+        // Verify the limitation does not take effect. in other words, the topic policies should takes effect.
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
+        admin.topicPolicies().setPublishRate(topicName, new PublishRate(1000, 1000));
+        Awaitility.await().untilAsserted(() -> {
+            assertNotNull(persistentTopic.getHierarchyTopicPolicies().getPublishRate().getTopicValue());
+        });
+        admin.topicPolicies().setRetention(topicName, new RetentionPolicies(1000, 1000));
+        Awaitility.await().untilAsserted(() -> {
+            assertNotNull(persistentTopic.getHierarchyTopicPolicies().getRetentionPolicies().getTopicValue());
+        });
+        admin.topicPolicies().setMessageTTL(topicName, 1000);
+        Awaitility.await().untilAsserted(() -> {
+            assertNotNull(persistentTopic.getHierarchyTopicPolicies().getMessageTTLInSeconds().getTopicValue());
+        });
+
+        // cleanup.
+        admin.topics().delete(topicName);
+        admin.namespaces().removeDispatchRate(namespace);
     }
 
     /**
