@@ -311,7 +311,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         // negative topic message id
         consumer.negativeAcknowledge(topicMessageId);
         NegativeAcksTracker negativeAcksTracker = consumer.getNegativeAcksTracker();
-        assertEquals(negativeAcksTracker.getNackedMessagesCount().orElse(-1).intValue(), 1);
+        assertEquals(negativeAcksTracker.getNackedMessagesCount().orElse((long) -1).longValue(), 1L);
         assertEquals(unAckedMessageTracker.size(), 0);
         negativeAcksTracker.close();
         // negative batch message id
@@ -319,7 +319,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         consumer.negativeAcknowledge(batchMessageId);
         consumer.negativeAcknowledge(batchMessageId2);
         consumer.negativeAcknowledge(batchMessageId3);
-        assertEquals(negativeAcksTracker.getNackedMessagesCount().orElse(-1).intValue(), 1);
+        assertEquals(negativeAcksTracker.getNackedMessagesCount().orElse((long) -1).longValue(), 1L);
         assertEquals(unAckedMessageTracker.size(), 0);
         negativeAcksTracker.close();
     }
