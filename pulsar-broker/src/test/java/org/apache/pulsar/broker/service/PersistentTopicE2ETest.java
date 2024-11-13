@@ -78,6 +78,7 @@ import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
@@ -1335,6 +1336,49 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertTrue(delayNs > TimeUnit.MILLISECONDS.toNanos(500));
         assertTrue(delayNs < TimeUnit.MILLISECONDS.toNanos(1500));
         assertEquals(producer.getPendingQueueSize(), 1);
+
+        // 4. producer disconnect
+        producer.close();
+
+        // 5. Restart broker
+        setup();
+    }
+
+    @Test
+    public void testProducerQueueFullBlockingWithPartitionedTopic() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/topic-xyzx2";
+        admin.topics().createPartitionedTopic(topicName, 2);
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(brokerUrl.toString()).build();
+
+        // 1. Producer connect
+        PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>) client.newProducer()
+                .topic(topicName)
+                .maxPendingMessages(1)
+                .blockIfQueueFull(true)
+                .sendTimeout(1, TimeUnit.SECONDS)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+
+        // 2. Stop broker
+        cleanup();
+
+        // 2. producer publish messages
+        long startTime = System.nanoTime();
+        producer.sendAsync("msg".getBytes());
+
+        // Verify thread was not blocked
+        long delayNs = System.nanoTime() - startTime;
+        assertTrue(delayNs < TimeUnit.SECONDS.toNanos(1));
+
+        // Next send operation must block, until all the messages in the queue expire
+        startTime = System.nanoTime();
+        producer.sendAsync("msg".getBytes());
+        delayNs = System.nanoTime() - startTime;
+        assertTrue(delayNs > TimeUnit.MILLISECONDS.toNanos(500));
+        assertTrue(delayNs < TimeUnit.MILLISECONDS.toNanos(1500));
 
         // 4. producer disconnect
         producer.close();
