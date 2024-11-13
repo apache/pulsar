@@ -81,7 +81,7 @@ class NegativeAcksTracker implements Closeable {
             if (timestamp < now) {
                 MessageId msgId = new MessageIdImpl(ledgerId, entryId,
                         // need to covert non-partitioned topic partition index to -1
-                        (int)(partitionIndex == NON_PARTITIONED_TOPIC_PARTITION_INDEX ? -1 : partitionIndex));
+                        (int) (partitionIndex == NON_PARTITIONED_TOPIC_PARTITION_INDEX ? -1 : partitionIndex));
                 addChunkedMessageIdsAndRemoveFromSequenceMap(msgId, messagesToRedeliver, this.consumer);
                 messagesToRedeliver.add(msgId);
             }
