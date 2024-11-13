@@ -150,7 +150,9 @@ public class ConnectionPool implements AutoCloseable {
     private static AddressResolver<InetSocketAddress> createAddressResolver(ClientConfigurationData conf,
                                                                             EventLoopGroup eventLoopGroup) {
         DnsNameResolverBuilder dnsNameResolverBuilder = new DnsNameResolverBuilder()
-                .traceEnabled(true).channelType(EventLoopUtil.getDatagramChannelClass(eventLoopGroup));
+                .traceEnabled(true)
+                .channelType(EventLoopUtil.getDatagramChannelClass(eventLoopGroup))
+                .socketChannelType(EventLoopUtil.getClientSocketChannelClass(eventLoopGroup), true);
         if (conf.getDnsLookupBindAddress() != null) {
             InetSocketAddress addr = new InetSocketAddress(conf.getDnsLookupBindAddress(),
                     conf.getDnsLookupBindPort());
