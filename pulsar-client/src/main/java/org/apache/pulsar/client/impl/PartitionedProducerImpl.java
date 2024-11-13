@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES;
+import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import io.netty.util.Timeout;
@@ -85,9 +87,16 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                 : null;
 
         // MaxPendingMessagesAcrossPartitions doesn't support partial partition such as SinglePartition correctly
-        int maxPendingMessages = Math.min(conf.getMaxPendingMessages(),
-                conf.getMaxPendingMessagesAcrossPartitions() / numPartitions);
-        conf.setMaxPendingMessages(maxPendingMessages);
+        int maxPendingMessages = conf.getMaxPendingMessages();
+        int maxPendingMessagesAcrossPartitions = conf.getMaxPendingMessagesAcrossPartitions();
+        if (maxPendingMessagesAcrossPartitions != DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS) {
+            int maxPendingMsgsForOnePartition = maxPendingMessagesAcrossPartitions / numPartitions;
+            maxPendingMessages = (maxPendingMessages == DEFAULT_MAX_PENDING_MESSAGES)
+                    ? maxPendingMsgsForOnePartition
+                    : Math.min(maxPendingMessages, maxPendingMsgsForOnePartition);
+            conf.setMaxPendingMessages(maxPendingMessages);
+        }
+
 
         final List<Integer> indexList;
         if (conf.isLazyStartPartitionedProducers()
