@@ -106,5 +106,5 @@ For Pulsar 5.x, deprecate the `ConsumerBuilder#enableBatchIndexAcknowledgment` c
 
 ## Links
 
-* Mailing List discussion thread:
-* Mailing List voting thread:
+* Mailing List discussion thread: https://lists.apache.org/thread/y19s4tn1xtbh8lxbgcf0pc8yy6xs2k25
+* Mailing List voting thread: https://lists.apache.org/thread/6l2th8fwvx9gtljcdov6c1mz7d7oopt9
