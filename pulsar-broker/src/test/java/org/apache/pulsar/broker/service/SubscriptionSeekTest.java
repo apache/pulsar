@@ -87,7 +87,6 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         conf.setDefaultRetentionSizeInMB(100);
         conf.setDefaultRetentionTimeInMinutes(100);
         super.baseSetup();
-        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
     }
 
     @AfterClass(alwaysRun = true)

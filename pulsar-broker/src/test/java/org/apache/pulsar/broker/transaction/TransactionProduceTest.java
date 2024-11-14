@@ -283,7 +283,6 @@ public class TransactionProduceTest extends TransactionTestBase {
                 .topic(ACK_COMMIT_TOPIC)
                 .subscriptionName(subscriptionName)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
 
@@ -348,7 +347,6 @@ public class TransactionProduceTest extends TransactionTestBase {
                 .subscriptionName(subscriptionName)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .enableBatchIndexAcknowledgment(true)
-                .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
         Awaitility.await().until(consumer::isConnected);
 
