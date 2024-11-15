@@ -151,7 +151,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     // Strategy used to determine where new topics should be placed.
     private ModularLoadManagerStrategy placementStrategy;
 
-    private ModularLoadManagerStrategy roundRobinBrokerSelector;
+    private ModularLoadManagerStrategy sheddingExcludedNamespaceSelectionStrategy;
 
     // Policies used to determine which brokers are available for particular namespaces.
     private SimpleResourceAllocationPolicies policies;
@@ -253,7 +253,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         defaultStats.msgRateOut = DEFAULT_MESSAGE_RATE;
 
         placementStrategy = ModularLoadManagerStrategy.create(conf);
-        roundRobinBrokerSelector = new RoundRobinBrokerSelector();
+        sheddingExcludedNamespaceSelectionStrategy = new RoundRobinBrokerSelector();
         policies = new SimpleResourceAllocationPolicies(pulsar);
         filterPipeline.add(new BrokerLoadManagerClassFilter());
         filterPipeline.add(new BrokerVersionFilter());
@@ -926,13 +926,17 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             }
 
             Optional<String> broker;
+            // For shedding excluded namespaces, use RoundRobinBrokerSelector to assign the ownership,
+            // it can make the assignment more average because these will not automatically rebalance to
+            // another broker unless manually unloaded it.
             Set<String> sheddingExcludedNamespaces = conf.getLoadBalancerSheddingExcludedNamespaces();
             String namespaceNameFromBundleName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
             if (sheddingExcludedNamespaces.contains(namespaceNameFromBundleName)) {
                 if (log.isDebugEnabled()) {
                     log.debug("Use round robin broker selector for {}", bundle);
                 }
-                broker = roundRobinBrokerSelector.selectBroker(brokerCandidateCache, data, loadData, conf);
+                broker = sheddingExcludedNamespaceSelectionStrategy
+                        .selectBroker(brokerCandidateCache, data, loadData, conf);
             } else {
                 // Choose a broker among the potentially smaller filtered list, when possible
                 broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
@@ -1143,7 +1147,15 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
      */
     private int selectTopKBundle() {
         bundleArr.clear();
-        bundleArr.addAll(loadData.getBundleData().entrySet());
+        Set<String> sheddingExcludedNamespaces = conf.getLoadBalancerSheddingExcludedNamespaces();
+        for (Map.Entry<String, BundleData> entry : loadData.getBundleData().entrySet()) {
+            String bundle = entry.getKey();
+            String namespace = NamespaceBundle.getBundleNamespace(bundle);
+            if (sheddingExcludedNamespaces.contains(namespace)) {
+                continue;
+            }
+            bundleArr.add(entry);
+        }
 
         int maxNumberOfBundlesInBundleLoadReport = pulsar.getConfiguration()
                 .getLoadBalancerMaxNumberOfBundlesInBundleLoadReport();
