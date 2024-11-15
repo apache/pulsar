@@ -2962,9 +2962,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = "The namespaces skip for load shedding"
+            doc = "The namespaces to be excluded from load shedding"
     )
-    private Set<String> loadBalancerSheddingExcludedNamespaces = new TreeSet<>();
+    private Set<String> loadBalancerSheddingExcludedNamespaces = new HashSet<>();
 
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,

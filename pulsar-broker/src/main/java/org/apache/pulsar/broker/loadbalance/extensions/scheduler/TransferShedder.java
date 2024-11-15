@@ -506,7 +506,8 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                     final String namespaceName = NamespaceBundle.getBundleNamespace(bundle);
                     if (sheddingExcludedNamespaces.contains(namespaceName)) {
                         if (debugMode) {
-                            log.info("Skipping load shedding for namespace {}", namespaceName);
+                            log.info(String.format(CANNOT_UNLOAD_BUNDLE_MSG
+                                    + " Bundle namespace has been found in sheddingExcludedNamespaces", bundle));
                         }
                         continue;
                     }
