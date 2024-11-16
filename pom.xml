@@ -1091,7 +1091,6 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>${project.groupId}</groupId>
         <artifactId>jetcd-core-shaded</artifactId>
         <version>${project.version}</version>
-        <classifier>shaded</classifier>
         <exclusions>
           <exclusion>
             <groupId>io.etcd</groupId>

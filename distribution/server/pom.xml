@@ -50,7 +50,6 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>jetcd-core-shaded</artifactId>
       <version>${project.version}</version>
-      <classifier>shaded</classifier>
     </dependency>
 
     <dependency>
