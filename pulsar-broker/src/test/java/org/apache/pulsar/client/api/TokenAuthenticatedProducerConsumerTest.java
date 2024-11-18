@@ -191,14 +191,14 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
     }
 
     @Test(dataProvider = "provider")
-    public void testTopicNotFound(boolean useTcpServiceUrl, boolean useCorrectToken) throws Exception {
+    public void testTenantNotExist(boolean useTcpServiceUrl, boolean useCorrectToken) throws Exception {
         final var operationTimeoutMs = 10000;
         final var url = useTcpServiceUrl ? pulsar.getBrokerServiceUrl() : pulsar.getWebServiceAddress();
         final var token = useCorrectToken ? ADMIN_TOKEN : USER_TOKEN;
         @Cleanup final var client = PulsarClient.builder().serviceUrl(url)
                 .operationTimeout(operationTimeoutMs, TimeUnit.MILLISECONDS)
                 .authentication(AuthenticationFactory.token(token)).build();
-        final var topic = "my-property/not-exist/tp"; // the namespace does not exist
+        final var topic = "non-exist/not-exist/tp"; // the namespace does not exist
         var start = System.currentTimeMillis();
         try {
             client.newProducer().topic(topic).create();
