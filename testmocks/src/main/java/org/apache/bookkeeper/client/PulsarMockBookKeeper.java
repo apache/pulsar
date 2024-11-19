@@ -105,13 +105,13 @@ public class PulsarMockBookKeeper extends BookKeeper {
     }
 
     @Override
-    public LedgerHandle createLedger(DigestType digestType, byte passwd[])
+    public LedgerHandle createLedger(DigestType digestType, byte[] passwd)
             throws BKException, InterruptedException {
         return createLedger(3, 2, digestType, passwd);
     }
 
     @Override
-    public LedgerHandle createLedger(int ensSize, int qSize, DigestType digestType, byte passwd[])
+    public LedgerHandle createLedger(int ensSize, int qSize, DigestType digestType, byte[] passwd)
             throws BKException, InterruptedException {
         return createLedger(ensSize, qSize, qSize, digestType, passwd);
     }

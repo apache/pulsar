@@ -3930,7 +3930,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    synchronized void setFenced() {
+    @VisibleForTesting
+    public synchronized void setFenced() {
         log.info("{} Moving to Fenced state", name);
         STATE_UPDATER.set(this, State.Fenced);
     }
