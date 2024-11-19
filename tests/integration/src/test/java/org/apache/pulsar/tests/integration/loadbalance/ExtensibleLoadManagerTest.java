@@ -19,7 +19,6 @@
 package org.apache.pulsar.tests.integration.loadbalance;
 
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.BROKER_HTTP_PORT;
-import static org.apache.pulsar.tests.integration.suites.PulsarTestSuite.retryStrategically;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -389,9 +388,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
 
         Awaitility.await().atMost(60, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
             String ownerBroker = admin.lookups().lookupTopicAsync(topic).get(5, TimeUnit.SECONDS);
-            final String brokerName = broker;
-        retryStrategically((test) -> extractBrokerIndex(brokerName) == 1, 100, 200);
-        assertEquals(extractBrokerIndex(ownerBroker), 1);
+            assertEquals(extractBrokerIndex(ownerBroker), 1);
         });
 
         for (BrokerContainer container : pulsarCluster.getBrokers()) {
