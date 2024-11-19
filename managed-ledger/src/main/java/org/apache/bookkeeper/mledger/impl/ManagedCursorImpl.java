@@ -1514,7 +1514,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         Set<Position> alreadyAcknowledgedPositions = new HashSet<>();
         lock.readLock().lock();
         try {
-            positions.stream().filter(this::isMessageDeleted).forEach(alreadyAcknowledgedPositions::add);
+            positions.stream().filter(this::internalIsMessageDeleted).forEach(alreadyAcknowledgedPositions::add);
         } finally {
             lock.readLock().unlock();
         }
@@ -2286,7 +2286,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     return;
                 }
 
-                if (isMessageDeleted(position)) {
+                if (internalIsMessageDeleted(position)) {
                     if (getConfig().isDeletionAtBatchIndexLevelEnabled()) {
                         BitSetRecyclable bitSetRecyclable = batchDeletedIndexes.remove(position);
                         if (bitSetRecyclable != null) {
@@ -3460,11 +3460,17 @@ public class ManagedCursorImpl implements ManagedCursor {
         checkArgument(position instanceof PositionImpl);
         lock.readLock().lock();
         try {
-            return ((PositionImpl) position).compareTo(markDeletePosition) <= 0
-                    || individualDeletedMessages.contains(position.getLedgerId(), position.getEntryId());
+            return internalIsMessageDeleted(position);
         } finally {
             lock.readLock().unlock();
         }
+    }
+
+    // When this method is called while the external has already acquired a write lock or a read lock,
+    // it avoids unnecessary lock nesting.
+    private boolean internalIsMessageDeleted(Position position) {
+        return ((PositionImpl) position).compareTo(markDeletePosition) <= 0
+                || individualDeletedMessages.contains(position.getLedgerId(), position.getEntryId());
     }
 
     //this method will return a copy of the position's ack set
