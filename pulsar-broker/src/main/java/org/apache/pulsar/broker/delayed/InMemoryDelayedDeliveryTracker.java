@@ -20,23 +20,21 @@ package org.apache.pulsar.broker.delayed;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.Timer;
-import java.time.Clock;
-import java.util.NavigableSet;
-import java.util.TreeSet;
-import java.util.concurrent.CompletableFuture;
-
 import it.unimi.dsi.fastutil.longs.Long2ObjectAVLTreeMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectSortedMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
+import java.time.Clock;
+import java.util.NavigableSet;
+import java.util.TreeSet;
+import java.util.concurrent.CompletableFuture;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
-import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 import org.roaringbitmap.longlong.Roaring64Bitmap;
 
 @Slf4j
@@ -44,8 +42,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
 
     // timestamp -> ledgerId -> entryId
     // AVL tree -> OpenHashMap -> RoaringBitmap
-    protected final Long2ObjectSortedMap<Long2ObjectMap<Roaring64Bitmap>> priorityQueue
-            = new Long2ObjectAVLTreeMap<>();
+    protected final Long2ObjectSortedMap<Long2ObjectMap<Roaring64Bitmap>> priorityQueue = new Long2ObjectAVLTreeMap<>();
 
     // If we detect that all messages have fixed delay time, such that the delivery is
     // always going to be in FIFO order, then we can avoid pulling all the messages in
@@ -99,7 +96,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
             tickTimeMillis >>= 1;
             bitCnt++;
         }
-        return bitCnt-1;
+        return bitCnt - 1;
     }
 
     /**

@@ -230,7 +230,7 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
                     return;
                 }
                 try {
-                    this.priorityQueue.peekN1();
+                    this.priorityQueue.firstLongKey();
                 } catch (Exception e) {
                     e.printStackTrace();
                     exceptions[0] = e;
