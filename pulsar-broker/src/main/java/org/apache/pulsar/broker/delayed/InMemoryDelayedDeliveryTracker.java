@@ -43,6 +43,7 @@ import org.roaringbitmap.longlong.Roaring64Bitmap;
 public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker {
 
     // timestamp -> ledgerId -> entryId
+    // AVL tree -> OpenHashMap -> RoaringBitmap
     protected final Long2ObjectSortedMap<Long2ObjectMap<Roaring64Bitmap>> priorityQueue
             = new Long2ObjectAVLTreeMap<>();
 
@@ -62,8 +63,8 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     // Track whether we have seen all messages with fixed delay so far.
     private boolean messagesHaveFixedDelay = true;
 
-    //
-    private int timestampPrecisionBitCnt = 8;
+    // The bit count to trim to reduce memory occupation.
+    private int timestampPrecisionBitCnt = 0;
 
     InMemoryDelayedDeliveryTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher, Timer timer,
                                    long tickTimeMillis,
