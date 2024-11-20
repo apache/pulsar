@@ -22,6 +22,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.PooledByteBufAllocator;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -119,8 +120,7 @@ public class PulsarByteBufAllocator {
                 .map(propertyResolver)
                 .filter(Objects::nonNull)
                 .map(LeakDetectionPolicy::parseLevel)
-                .sorted(((o1, o2) -> Integer.compare(o2.ordinal(), o1.ordinal())))
-                .findFirst()
+                .max(Comparator.comparingInt(Enum::ordinal))
                 .orElse(LeakDetectionPolicy.Disabled);
     }
 }
