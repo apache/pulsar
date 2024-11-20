@@ -61,7 +61,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     private boolean messagesHaveFixedDelay = true;
 
     // The bit count to trim to reduce memory occupation.
-    private int timestampPrecisionBitCnt = 0;
+    private final int timestampPrecisionBitCnt;
 
     InMemoryDelayedDeliveryTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher, Timer timer,
                                    long tickTimeMillis,
@@ -69,7 +69,6 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
                                    long fixedDelayDetectionLookahead) {
         this(dispatcher, timer, tickTimeMillis, Clock.systemUTC(), isDelayedDeliveryDeliverAtTimeStrict,
                 fixedDelayDetectionLookahead);
-        this.timestampPrecisionBitCnt = calculateTimestampPrecisionBitCnt(tickTimeMillis);
     }
 
     public InMemoryDelayedDeliveryTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher, Timer timer,
@@ -176,11 +175,12 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
             for (Long2ObjectMap.Entry<Roaring64Bitmap> ledgerEntry : ledgerMap.long2ObjectEntrySet()) {
                 long ledgerId = ledgerEntry.getLongKey();
                 Roaring64Bitmap entryIds = ledgerEntry.getValue();
-                if (entryIds.getLongCardinality() <= n) {
+                int cardinality = (int) entryIds.getLongCardinality();
+                if (cardinality <= n) {
                     entryIds.forEach(entryId -> {
                         positions.add(PositionFactory.create(ledgerId, entryId));
                     });
-                    n -= (int) entryIds.getLongCardinality();
+                    n -= cardinality;
                     ledgerIdToDelete.add(ledgerId);
                 } else {
                     long[] entryIdsArray = entryIds.toArray();
