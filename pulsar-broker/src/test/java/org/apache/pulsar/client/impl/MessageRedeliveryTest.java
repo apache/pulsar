@@ -345,12 +345,13 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
                 "persistent://public/default/testRedeliveryBrokerAbortSmallerEpoch", false).get().get();
         Awaitility.await().until(() -> persistentTopic.getSubscription(subName).getDispatcher()
                 .getConsumers().get(0).getConsumerEpoch() == 1);
-        consumer.setConsumerEpoch(0);
+        consumer.setConsumerEpoch(-1);
         producer.send("Hello Pulsar!");
 
         // ignore this redeliver request
         consumer.redeliverUnacknowledgedMessages();
         consumer.receive();
+        assertEquals(consumer.getConsumerEpoch(), 0);
         assertEquals(persistentTopic.getSubscription(subName).getDispatcher()
                 .getConsumers().get(0).getConsumerEpoch(), 1);
     }
@@ -377,8 +378,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         producer.send("Hello Pulsar!");
         consumer.receive();
         consumer.redeliverUnacknowledgedMessages();
-        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopic(
-                "persistent://public/default/testRedeliveryCommandDontCheckClientConnectionState",
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopic(topic,
                 false).get().get();
         Awaitility.await().until(() -> persistentTopic.getSubscription(subName).getDispatcher()
                 .getConsumers().get(0).getConsumerEpoch() == 1);
