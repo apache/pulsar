@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.service;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.broker.qos.AsyncTokenBucket;
@@ -71,6 +73,22 @@ public class TopicPublishRateThrottleTest extends BrokerTestBase{
         } catch (TimeoutException e) {
             // No-op
         }
+    }
+
+    @Test
+    public void testSystemTopicPublishNonBlock() throws Exception {
+        super.baseSetup();
+        PublishRate publishRate = new PublishRate(1,10);
+        admin.namespaces().setPublishRate("prop/ns-abc", publishRate);
+        final String topic = BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/tp");
+        PulsarAdmin admin1 = PulsarAdmin.builder().serviceHttpUrl(brokerUrl != null
+            ? brokerUrl.toString() : brokerUrlTls.toString()).readTimeout(5, TimeUnit.SECONDS).build();
+        admin1.topics().createNonPartitionedTopic(topic);
+        admin1.topicPolicies().setDeduplicationStatus(topic, true);
+        admin1.topicPolicies().setDeduplicationStatus(topic, false);
+        // cleanup.
+        admin.namespaces().removePublishRate("prop/ns-abc");
+        admin1.close();
     }
 
     @Test

@@ -293,33 +293,33 @@ The Apache Software License, Version 2.0
     - org.apache.commons-commons-lang3-3.11.jar
     - org.apache.commons-commons-text-1.10.0.jar
  * Netty
-    - io.netty-netty-buffer-4.1.113.Final.jar
-    - io.netty-netty-codec-4.1.113.Final.jar
-    - io.netty-netty-codec-dns-4.1.113.Final.jar
-    - io.netty-netty-codec-http-4.1.113.Final.jar
-    - io.netty-netty-codec-http2-4.1.113.Final.jar
-    - io.netty-netty-codec-socks-4.1.113.Final.jar
-    - io.netty-netty-codec-haproxy-4.1.113.Final.jar
-    - io.netty-netty-common-4.1.113.Final.jar
-    - io.netty-netty-handler-4.1.113.Final.jar
-    - io.netty-netty-handler-proxy-4.1.113.Final.jar
-    - io.netty-netty-resolver-4.1.113.Final.jar
-    - io.netty-netty-resolver-dns-4.1.113.Final.jar
-    - io.netty-netty-resolver-dns-classes-macos-4.1.113.Final.jar
-    - io.netty-netty-resolver-dns-native-macos-4.1.113.Final-osx-aarch_64.jar
-    - io.netty-netty-resolver-dns-native-macos-4.1.113.Final-osx-x86_64.jar
-    - io.netty-netty-transport-4.1.113.Final.jar
-    - io.netty-netty-transport-classes-epoll-4.1.113.Final.jar
-    - io.netty-netty-transport-native-epoll-4.1.113.Final-linux-aarch_64.jar
-    - io.netty-netty-transport-native-epoll-4.1.113.Final-linux-x86_64.jar
-    - io.netty-netty-transport-native-unix-common-4.1.113.Final.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.66.Final.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.66.Final-linux-aarch_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.66.Final-linux-x86_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.66.Final-osx-aarch_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.66.Final-osx-x86_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.66.Final-windows-x86_64.jar
-    - io.netty-netty-tcnative-classes-2.0.66.Final.jar
+    - io.netty-netty-buffer-4.1.115.Final.jar
+    - io.netty-netty-codec-4.1.115.Final.jar
+    - io.netty-netty-codec-dns-4.1.115.Final.jar
+    - io.netty-netty-codec-http-4.1.115.Final.jar
+    - io.netty-netty-codec-http2-4.1.115.Final.jar
+    - io.netty-netty-codec-socks-4.1.115.Final.jar
+    - io.netty-netty-codec-haproxy-4.1.115.Final.jar
+    - io.netty-netty-common-4.1.115.Final.jar
+    - io.netty-netty-handler-4.1.115.Final.jar
+    - io.netty-netty-handler-proxy-4.1.115.Final.jar
+    - io.netty-netty-resolver-4.1.115.Final.jar
+    - io.netty-netty-resolver-dns-4.1.115.Final.jar
+    - io.netty-netty-resolver-dns-classes-macos-4.1.115.Final.jar
+    - io.netty-netty-resolver-dns-native-macos-4.1.115.Final-osx-aarch_64.jar
+    - io.netty-netty-resolver-dns-native-macos-4.1.115.Final-osx-x86_64.jar
+    - io.netty-netty-transport-4.1.115.Final.jar
+    - io.netty-netty-transport-classes-epoll-4.1.115.Final.jar
+    - io.netty-netty-transport-native-epoll-4.1.115.Final-linux-aarch_64.jar
+    - io.netty-netty-transport-native-epoll-4.1.115.Final-linux-x86_64.jar
+    - io.netty-netty-transport-native-unix-common-4.1.115.Final.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.69.Final.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.69.Final-linux-aarch_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.69.Final-linux-x86_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.69.Final-osx-aarch_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.69.Final-osx-x86_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.69.Final-windows-x86_64.jar
+    - io.netty-netty-tcnative-classes-2.0.69.Final.jar
     - io.netty.incubator-netty-incubator-transport-classes-io_uring-0.0.24.Final.jar
     - io.netty.incubator-netty-incubator-transport-native-io_uring-0.0.24.Final-linux-x86_64.jar
     - io.netty.incubator-netty-incubator-transport-native-io_uring-0.0.24.Final-linux-aarch_64.jar
@@ -464,9 +464,9 @@ The Apache Software License, Version 2.0
     - org.apache.avro-avro-1.11.4.jar
     - org.apache.avro-avro-protobuf-1.11.4.jar
   * Apache Curator
-    - org.apache.curator-curator-client-5.1.0.jar
-    - org.apache.curator-curator-framework-5.1.0.jar
-    - org.apache.curator-curator-recipes-5.1.0.jar
+    - org.apache.curator-curator-client-5.7.1.jar
+    - org.apache.curator-curator-framework-5.7.1.jar
+    - org.apache.curator-curator-recipes-5.7.1.jar
   * Apache Yetus
     - org.apache.yetus-audience-annotations-0.12.0.jar
   * Kubernetes Client
@@ -481,8 +481,8 @@ The Apache Software License, Version 2.0
   * Prometheus
     - io.prometheus-simpleclient_httpserver-0.16.0.jar
   * Oxia
-    - io.streamnative.oxia-oxia-client-api-0.4.7.jar
-    - io.streamnative.oxia-oxia-client-0.4.7.jar
+    - io.streamnative.oxia-oxia-client-api-0.4.9.jar
+    - io.streamnative.oxia-oxia-client-0.4.9.jar
   * OpenHFT
     - net.openhft-zero-allocation-hashing-0.16.jar
   * Java JSON WebTokens
@@ -498,9 +498,9 @@ The Apache Software License, Version 2.0
     - io.vertx-vertx-web-4.5.10.jar
     - io.vertx-vertx-web-common-4.5.10.jar
   * Apache ZooKeeper
-    - org.apache.zookeeper-zookeeper-3.9.2.jar
-    - org.apache.zookeeper-zookeeper-jute-3.9.2.jar
-    - org.apache.zookeeper-zookeeper-prometheus-metrics-3.9.2.jar
+    - org.apache.zookeeper-zookeeper-3.9.3.jar
+    - org.apache.zookeeper-zookeeper-jute-3.9.3.jar
+    - org.apache.zookeeper-zookeeper-prometheus-metrics-3.9.3.jar
   * Snappy Java
     - org.xerial.snappy-snappy-java-1.1.10.5.jar
   * Google HTTP Client
