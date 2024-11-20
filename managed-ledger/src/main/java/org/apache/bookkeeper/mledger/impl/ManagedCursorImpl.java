@@ -3207,7 +3207,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                 callback.operationComplete();
             } else {
                 if (isClosed()) {
-                    // After closed the cursor, the in-progress will get a BKException.Code.LedgerClosedException.
+                    // After closed the cursor, the in-progress persistence task will get a
+                    // BKException.Code.LedgerClosedException.
                     callback.operationFailed(new CursorAlreadyClosedException(String.format("%s %s skipped this"
                             + " persistence, because the cursor already closed", ledger.getName(), name)));
                     return;
