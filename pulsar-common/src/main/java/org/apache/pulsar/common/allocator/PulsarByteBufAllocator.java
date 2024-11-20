@@ -119,7 +119,7 @@ public class PulsarByteBufAllocator {
                 .map(propertyResolver)
                 .filter(Objects::nonNull)
                 .map(LeakDetectionPolicy::parseLevel)
-                .sorted(((o1, o2) -> o2.ordinal() - o1.ordinal()))
+                .sorted(((o1, o2) -> Integer.compare(o2.ordinal(), o1.ordinal())))
                 .findFirst()
                 .orElse(LeakDetectionPolicy.Disabled);
     }
