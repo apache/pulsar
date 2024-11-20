@@ -42,7 +42,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
 
     // timestamp -> ledgerId -> entryId
     // AVL tree -> OpenHashMap -> RoaringBitmap
-    protected final Long2ObjectSortedMap<Long2ObjectMap<Roaring64Bitmap>> priorityQueue = new Long2ObjectAVLTreeMap<>();
+    protected final Long2ObjectSortedMap<Long2ObjectMap<Roaring64Bitmap>> delayedMessageMap = new Long2ObjectAVLTreeMap<>();
 
     // If we detect that all messages have fixed delay time, such that the delivery is
     // always going to be in FIFO order, then we can avoid pulling all the messages in
@@ -95,7 +95,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
             tickTimeMillis >>= 1;
             bitCnt++;
         }
-        return bitCnt - 1;
+        return bitCnt > 0 ? bitCnt - 1 : 0;
     }
 
     /**
@@ -121,7 +121,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
         }
 
         long timestamp = trimLowerBit(deliverAt, timestampPrecisionBitCnt);
-        priorityQueue.computeIfAbsent(timestamp, k -> new Long2ObjectOpenHashMap<>())
+        delayedMessageMap.computeIfAbsent(timestamp, k -> new Long2ObjectOpenHashMap<>())
                 .computeIfAbsent(ledgerId, k -> new Roaring64Bitmap())
                 .add(entryId);
         updateTimer();
@@ -148,7 +148,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
      */
     @Override
     public boolean hasMessageAvailable() {
-        boolean hasMessageAvailable = !priorityQueue.isEmpty() && priorityQueue.firstLongKey() <= getCutoffTime();
+        boolean hasMessageAvailable = !delayedMessageMap.isEmpty() && delayedMessageMap.firstLongKey() <= getCutoffTime();
         if (!hasMessageAvailable) {
             updateTimer();
         }
@@ -164,14 +164,14 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
         NavigableSet<Position> positions = new TreeSet<>();
         long cutoffTime = getCutoffTime();
 
-        while (n > 0 && !priorityQueue.isEmpty()) {
-            long timestamp = priorityQueue.firstLongKey();
+        while (n > 0 && !delayedMessageMap.isEmpty()) {
+            long timestamp = delayedMessageMap.firstLongKey();
             if (timestamp > cutoffTime) {
                 break;
             }
 
             LongSet ledgerIdToDelete = new LongOpenHashSet();
-            Long2ObjectMap<Roaring64Bitmap> ledgerMap = priorityQueue.get(timestamp);
+            Long2ObjectMap<Roaring64Bitmap> ledgerMap = delayedMessageMap.get(timestamp);
             for (Long2ObjectMap.Entry<Roaring64Bitmap> ledgerEntry : ledgerMap.long2ObjectEntrySet()) {
                 long ledgerId = ledgerEntry.getLongKey();
                 Roaring64Bitmap entryIds = ledgerEntry.getValue();
@@ -198,7 +198,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
                 ledgerMap.remove(ledgerId);
             }
             if (ledgerMap.isEmpty()) {
-                priorityQueue.remove(timestamp);
+                delayedMessageMap.remove(timestamp);
             }
         }
 
@@ -206,7 +206,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
             log.debug("[{}] Get scheduled messages - found {}", dispatcher.getName(), positions.size());
         }
 
-        if (priorityQueue.isEmpty()) {
+        if (delayedMessageMap.isEmpty()) {
             // Reset to initial state
             highestDeliveryTimeTracked = 0;
             messagesHaveFixedDelay = true;
@@ -218,13 +218,13 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
 
     @Override
     public CompletableFuture<Void> clear() {
-        this.priorityQueue.clear();
+        this.delayedMessageMap.clear();
         return CompletableFuture.completedFuture(null);
     }
 
     @Override
     public long getNumberOfDelayedMessages() {
-        return priorityQueue.values().stream().mapToLong(
+        return delayedMessageMap.values().stream().mapToLong(
                 ledgerMap -> ledgerMap.values().stream().mapToLong(
                         Roaring64Bitmap::getLongCardinality).sum()).sum();
     }
@@ -237,7 +237,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
      */
     @Override
     public long getBufferMemoryUsage() {
-        return priorityQueue.values().stream().mapToLong(
+        return delayedMessageMap.values().stream().mapToLong(
                 ledgerMap -> ledgerMap.values().stream().mapToLong(
                         Roaring64Bitmap::getLongSizeInBytes).sum()).sum();
     }
@@ -257,6 +257,6 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     }
 
     protected long nextDeliveryTime() {
-        return priorityQueue.firstLongKey();
+        return delayedMessageMap.firstLongKey();
     }
 }
