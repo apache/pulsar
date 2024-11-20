@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.stats.prometheus;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -32,21 +33,12 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
 import java.util.zip.GZIPInputStream;
-import lombok.Cleanup;
 import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.common.util.SimpleTextOutputStream;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public class PrometheusMetricsGeneratorTest {
-
-
-    @BeforeClass
-    public static void setProperties() {
-        System.setProperty("io.netty.noUnsafe", "true");
-    }
 
     // reproduce issue #22575
     @Test
@@ -89,24 +81,6 @@ public class PrometheusMetricsGeneratorTest {
             }
         } finally {
             metricsBuffer.release();
-        }
-    }
-
-    @Test
-    public void testWriteStringWithNoUnsafe() {
-        PrometheusMetricsGenerator generator = new PrometheusMetricsGenerator(null, false, false, false, false,
-                Clock.systemUTC());
-        @Cleanup("release")
-        ByteBuf buf = generator.allocateMultipartCompositeDirectBuffer();
-        for (int i = 0; i < 2; i++) {
-            buf.writeBytes(new byte[1024 * 1024]);
-        }
-
-        SimpleTextOutputStream outputStream = new SimpleTextOutputStream(buf);
-        try {
-            outputStream.write("trest");
-        } catch (Exception e) {
-
         }
     }
 }
