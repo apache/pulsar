@@ -92,7 +92,7 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
                             false, 0)
             }};
             case "testAddMessageWithStrictDelay" -> new Object[][]{{
-                    new InMemoryDelayedDeliveryTracker(dispatcher, timer, 0, clock,
+                    new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock,
                             true, 0)
             }};
             case "testAddMessageWithDeliverAtTimeAfterNowBeforeTickTimeFrequencyWithStrict" -> new Object[][]{{
@@ -108,7 +108,7 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
                             true, 0)
             }};
             case "testWithFixedDelays", "testWithMixedDelays","testWithNoDelays" -> new Object[][]{{
-                    new InMemoryDelayedDeliveryTracker(dispatcher, timer, 500, clock,
+                    new InMemoryDelayedDeliveryTracker(dispatcher, timer, 8, clock,
                             true, 100)
             }};
             default -> new Object[][]{{
