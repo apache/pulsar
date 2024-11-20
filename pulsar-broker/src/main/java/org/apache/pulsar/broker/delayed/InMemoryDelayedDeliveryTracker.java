@@ -42,7 +42,8 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
 
     // timestamp -> ledgerId -> entryId
     // AVL tree -> OpenHashMap -> RoaringBitmap
-    protected final Long2ObjectSortedMap<Long2ObjectMap<Roaring64Bitmap>> delayedMessageMap = new Long2ObjectAVLTreeMap<>();
+    protected final Long2ObjectSortedMap<Long2ObjectMap<Roaring64Bitmap>>
+            delayedMessageMap = new Long2ObjectAVLTreeMap<>();
 
     // If we detect that all messages have fixed delay time, such that the delivery is
     // always going to be in FIFO order, then we can avoid pulling all the messages in
@@ -148,7 +149,8 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
      */
     @Override
     public boolean hasMessageAvailable() {
-        boolean hasMessageAvailable = !delayedMessageMap.isEmpty() && delayedMessageMap.firstLongKey() <= getCutoffTime();
+        boolean hasMessageAvailable = !delayedMessageMap.isEmpty()
+                && delayedMessageMap.firstLongKey() <= getCutoffTime();
         if (!hasMessageAvailable) {
             updateTimer();
         }
