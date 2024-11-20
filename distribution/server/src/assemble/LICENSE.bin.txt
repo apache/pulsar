@@ -602,7 +602,7 @@ Datastax
     - com.datastax.oss-pulsar-transaction-common-3.1.4.11-SNAPSHOT.jar
     - com.datastax.oss-pulsar-transaction-coordinator-3.1.4.11-SNAPSHOT.jar
     - com.datastax.oss-testmocks-3.1.4.11-SNAPSHOT.jar
-    - com.datastax.oss-jetcd-core-shaded-3.1.4.11-SNAPSHOT-shaded.jar
+    - com.datastax.oss-jetcd-core-shaded-3.1.4.11-SNAPSHOT.jar
 
 ------------------------
 
