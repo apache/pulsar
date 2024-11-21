@@ -3705,7 +3705,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_SERVER, dynamic = true,
             doc = "Topic name contains cluster, not allow be created automatically."
     )
-    private boolean enableCreateLegacyTopic = true;
+    private boolean enableCreateLegacyTopic = false;
 
     /* packages management service configurations (begin) */
 
