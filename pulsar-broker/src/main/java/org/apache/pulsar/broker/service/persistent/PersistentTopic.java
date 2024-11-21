@@ -3489,10 +3489,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     public CompletableFuture<Void> updateOldPositionInfo() {
         TopicName topicName = TopicName.get(getName());
-        ManagedCursorContainer managedCursorContainer = (ManagedCursorContainer) ledger.getCursors();
-        CursorInfo oldestMarkDeleteCursorInfo = managedCursorContainer.getCursorWithOldestPosition();
+
+        if (!(ledger.getCursors() instanceof ManagedCursorContainer managedCursorContainer)) {
+            return CompletableFuture.failedFuture(new IllegalStateException(
+                    String.format("[%s] No valid cursors found. Skip update old position info.", topicName)));
+        }
 
         // If we have no durable cursor since `ledger.getCursors()` only managed durable cursors
+        CursorInfo oldestMarkDeleteCursorInfo = managedCursorContainer.getCursorWithOldestPosition();
         if (oldestMarkDeleteCursorInfo == null || oldestMarkDeleteCursorInfo.getPosition() == null) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] No durable cursor found. Skip update old position info.", topicName);
