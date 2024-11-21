@@ -587,4 +587,19 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
 
     }
 
+    @Test
+    public void testAutoPartitionedTopicNameWithPartitionCreation() throws Exception {
+        pulsar.getConfiguration().setAllowAutoTopicCreation(true);
+        pulsar.getConfiguration().setAllowAutoTopicCreationType(TopicType.PARTITIONED);
+        pulsar.getConfiguration().setDefaultNumPartitions(3);
+
+        final String topicString = "persistent://prop/ns-abc/testTopic-partition--1";
+
+        Assert.assertThrows(PulsarClientException.NotFoundException.class,
+                ()-> pulsarClient.newProducer().topic(topicString).create());
+
+    }
+
+
+
 }

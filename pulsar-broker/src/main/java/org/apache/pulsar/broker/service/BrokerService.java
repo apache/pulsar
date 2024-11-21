@@ -3532,6 +3532,12 @@ public class BrokerService implements Closeable {
             return CompletableFuture.completedFuture(true);
         }
 
+        // If this topic name contains "-partition--x" , not allow to be created automatically.
+        if (topicName.getLocalName().contains(TopicName.PARTITIONED_TOPIC_SUFFIX)
+                && topicName.getPartitionIndex() == -1) {
+            return CompletableFuture.completedFuture(false);
+        }
+
         final boolean allowed;
         AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName, policies);
         if (autoTopicCreationOverride != null) {
