@@ -3702,6 +3702,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "SSL Factory plugin configuration parameters used by internal client.")
     private String brokerClientSslFactoryPluginParams = "";
 
+    @FieldContext(category = CATEGORY_SERVER, dynamic = true,
+            doc = "Topic name contains cluster, not allow be created automatically."
+    )
+    private boolean enableCreateLegacyTopic = true;
+
     /* packages management service configurations (begin) */
 
     @FieldContext(

@@ -3532,6 +3532,11 @@ public class BrokerService implements Closeable {
             return CompletableFuture.completedFuture(true);
         }
 
+        // If the topic name contains cluster, not allow to be created automatically.
+        if (pulsar.getConfiguration().isEnableCreateLegacyTopic() && StringUtils.isNotBlank(topicName.getCluster())) {
+            return CompletableFuture.completedFuture(false);
+        }
+
         final boolean allowed;
         AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName, policies);
         if (autoTopicCreationOverride != null) {
