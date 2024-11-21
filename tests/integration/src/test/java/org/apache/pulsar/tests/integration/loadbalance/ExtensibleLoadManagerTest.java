@@ -57,6 +57,8 @@ import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 
@@ -78,6 +80,20 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
     private PulsarCluster pulsarCluster = null;
     private String hosts;
     private PulsarAdmin admin;
+    protected String serviceUnitStateTableViewClassName;
+
+    @Factory(dataProvider = "serviceUnitStateTableViewClassName")
+    public ExtensibleLoadManagerTest(String serviceUnitStateTableViewClassName) {
+        this.serviceUnitStateTableViewClassName = serviceUnitStateTableViewClassName;
+    }
+
+    @DataProvider(name = "serviceUnitStateTableViewClassName")
+    public static Object[][] serviceUnitStateTableViewClassName() {
+        return new Object[][]{
+                {"org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateMetadataStoreTableViewImpl"},
+                {"org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl"}
+        };
+    }
 
     @BeforeClass(alwaysRun = true)
     public void setup() throws Exception {
@@ -87,6 +103,8 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                 "org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl");
         brokerEnvs.put("loadBalancerLoadSheddingStrategy",
                 "org.apache.pulsar.broker.loadbalance.extensions.scheduler.TransferShedder");
+        brokerEnvs.put("loadManagerServiceUnitStateTableViewClassName",
+                serviceUnitStateTableViewClassName);
         brokerEnvs.put("forceDeleteNamespaceAllowed", "true");
         brokerEnvs.put("loadBalancerDebugModeEnabled", "true");
         brokerEnvs.put("PULSAR_MEM", "-Xmx512M");
@@ -226,17 +244,17 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         long mid = bundleRanges.get(0) + (bundleRanges.get(1) - bundleRanges.get(0)) / 2;
         Awaitility.waitAtMost(10, TimeUnit.SECONDS).pollDelay(100, TimeUnit.MILLISECONDS)
                 .untilAsserted(
-                () -> {
-                    BundlesData bundlesData = admin.namespaces().getBundles(DEFAULT_NAMESPACE);
-                    assertEquals(bundlesData.getNumBundles(), numBundles + 1);
-                    String lowBundle = String.format("0x%08x", bundleRanges.get(0));
-                    String midBundle = String.format("0x%08x", mid);
-                    String highBundle = String.format("0x%08x", bundleRanges.get(1));
-                    assertTrue(bundlesData.getBoundaries().contains(lowBundle));
-                    assertTrue(bundlesData.getBoundaries().contains(midBundle));
-                    assertTrue(bundlesData.getBoundaries().contains(highBundle));
-                }
-        );
+                        () -> {
+                            BundlesData bundlesData = admin.namespaces().getBundles(DEFAULT_NAMESPACE);
+                            assertEquals(bundlesData.getNumBundles(), numBundles + 1);
+                            String lowBundle = String.format("0x%08x", bundleRanges.get(0));
+                            String midBundle = String.format("0x%08x", mid);
+                            String highBundle = String.format("0x%08x", bundleRanges.get(1));
+                            assertTrue(bundlesData.getBoundaries().contains(lowBundle));
+                            assertTrue(bundlesData.getBoundaries().contains(midBundle));
+                            assertTrue(bundlesData.getBoundaries().contains(highBundle));
+                        }
+                );
 
 
         // Test split bundle with invalid bundle range.
@@ -393,10 +411,10 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         }
 
         Awaitility.await().atMost(60, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(
-            () -> {
-                List<String> activeBrokers = admin.brokers().getActiveBrokersAsync().get(5, TimeUnit.SECONDS);
-                assertEquals(activeBrokers.size(), 1);
-            }
+                () -> {
+                    List<String> activeBrokers = admin.brokers().getActiveBrokersAsync().get(5, TimeUnit.SECONDS);
+                    assertEquals(activeBrokers.size(), 1);
+                }
         );
 
         Awaitility.await().atMost(60, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(

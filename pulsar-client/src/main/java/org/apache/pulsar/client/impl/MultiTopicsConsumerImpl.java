@@ -270,8 +270,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             // Process the message, add to the queue and trigger listener or async callback
             messages.forEach(msg -> {
                 final boolean skipDueToSeek = duringSeek;
-                if (isValidConsumerEpoch((MessageImpl<T>) msg) && !skipDueToSeek) {
+                MessageImpl<T> msgImpl = (MessageImpl<T>) msg;
+                ClientCnx cnx = msgImpl.getCnx();
+                boolean isValidEpoch = isValidConsumerEpoch(msgImpl);
+                if (isValidEpoch && !skipDueToSeek) {
                     messageReceived(consumer, msg);
+                } else if (!isValidEpoch) {
+                    consumer.increaseAvailablePermits(cnx);
                 } else if (skipDueToSeek) {
                     log.info("[{}] [{}] Skip processing message {} received during seek", topic, subscription,
                             msg.getMessageId());
@@ -396,7 +401,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 decreaseIncomingMessageSize(message);
                 checkArgument(message instanceof TopicMessageImpl);
                 trackUnAckedMsgIfNoListener(message.getMessageId(), message.getRedeliveryCount());
-                message = beforeConsume(message);
+                message = listener == null ? beforeConsume(message) : message;
             }
             resumeReceivingFromPausedConsumersIfNeeded();
             return message;
@@ -1607,6 +1612,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     private ConsumerInterceptors<T> getInternalConsumerInterceptors(ConsumerInterceptors<T> multiTopicInterceptors) {
         return new ConsumerInterceptors<T>(new ArrayList<>()) {
+
+            @Override
+            public Message<T> onArrival(Consumer<T> consumer, Message<T> message) {
+                return multiTopicInterceptors.onArrival(consumer, message);
+            }
 
             @Override
             public Message<T> beforeConsume(Consumer<T> consumer, Message<T> message) {

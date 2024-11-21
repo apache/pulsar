@@ -53,10 +53,10 @@ public class PublishingOrderCompactor extends AbstractTwoPhaseCompactor<MessageI
 
     @Override
     protected boolean compactMessage(String topic, Map<String, MessageId> latestForKey,
-        RawMessage m, MessageId id) {
+        RawMessage m, MessageMetadata metadata, MessageId id) {
         boolean deletedMessage = false;
         boolean replaceMessage = false;
-        Pair<String, Integer> keyAndSize = extractKeyAndSize(m);
+        Pair<String, Integer> keyAndSize = extractKeyAndSize(m, metadata);
         if (keyAndSize != null) {
             if (keyAndSize.getRight() > 0) {
                 MessageId old = latestForKey.put(keyAndSize.getLeft(), id);
@@ -84,7 +84,7 @@ public class PublishingOrderCompactor extends AbstractTwoPhaseCompactor<MessageI
             int numMessagesInBatch = metadata.getNumMessagesInBatch();
             int deleteCnt = 0;
             for (ImmutableTriple<MessageId, String, Integer> e : extractIdsAndKeysAndSizeFromBatch(
-                m)) {
+                m, metadata)) {
                 if (e != null) {
                     if (e.getMiddle() == null) {
                         if (!topicCompactionRetainNullKey) {
@@ -119,9 +119,9 @@ public class PublishingOrderCompactor extends AbstractTwoPhaseCompactor<MessageI
     }
 
     protected List<ImmutableTriple<MessageId, String, Integer>> extractIdsAndKeysAndSizeFromBatch(
-        RawMessage msg)
+        RawMessage msg, MessageMetadata metadata)
         throws IOException {
-        return RawBatchConverter.extractIdsAndKeysAndSize(msg);
+        return RawBatchConverter.extractIdsAndKeysAndSize(msg, metadata);
     }
 
 }

@@ -37,7 +37,7 @@ import java.util.NavigableMap;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -46,7 +46,7 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
 
     @DataProvider(name = "delayedTracker")
     public Object[][] provider(Method method) throws Exception {
-        dispatcher = mock(PersistentDispatcherMultipleConsumers.class);
+        dispatcher = mock(AbstractPersistentDispatcherMultipleConsumers.class);
         clock = mock(Clock.class);
         clockTime = new AtomicLong();
         when(clock.millis()).then(x -> clockTime.get());
@@ -212,7 +212,8 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
         Timer timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-in-memory-delayed-delivery-test"),
                 1, TimeUnit.MILLISECONDS);
 
-        PersistentDispatcherMultipleConsumers dispatcher = mock(PersistentDispatcherMultipleConsumers.class);
+        AbstractPersistentDispatcherMultipleConsumers dispatcher =
+                mock(AbstractPersistentDispatcherMultipleConsumers.class);
 
         AtomicLong clockTime = new AtomicLong();
         Clock clock = mock(Clock.class);

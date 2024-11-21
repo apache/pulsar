@@ -32,6 +32,8 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import org.apache.bookkeeper.client.BKException;
@@ -45,7 +47,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer.ReadEntriesCtx;
 import org.apache.pulsar.client.api.MessageId;
@@ -120,8 +121,7 @@ public class CompactedTopicImpl implements CompactedTopic {
                 || currentCompactionHorizon.compareTo(cursorPosition) < 0) {
                 cursor.asyncReadEntriesOrWait(maxEntries, bytesToRead, callback, readEntriesCtx, maxReadPosition);
             } else {
-                ManagedCursorImpl managedCursor = (ManagedCursorImpl) cursor;
-                int numberOfEntriesToRead = managedCursor.applyMaxSizeCap(maxEntries, bytesToRead);
+                int numberOfEntriesToRead = cursor.applyMaxSizeCap(maxEntries, bytesToRead);
 
                 compactedTopicContext.thenCompose(
                     (context) -> findStartPoint(cursorPosition, context.ledger.getLastAddConfirmed(), context.cache)
@@ -141,7 +141,7 @@ public class CompactedTopicImpl implements CompactedTopic {
                                         for (Entry entry : entries) {
                                             entriesSize += entry.getLength();
                                         }
-                                        managedCursor.updateReadStats(entries.size(), entriesSize);
+                                        cursor.updateReadStats(entries.size(), entriesSize);
 
                                         Entry lastEntry = entries.get(entries.size() - 1);
                                         // The compaction task depends on the last snapshot and the incremental
@@ -304,8 +304,10 @@ public class CompactedTopicImpl implements CompactedTopic {
      * Getter for CompactedTopicContext.
      * @return CompactedTopicContext
      */
-    public Optional<CompactedTopicContext> getCompactedTopicContext() throws ExecutionException, InterruptedException {
-        return compactedTopicContext == null ? Optional.empty() : Optional.of(compactedTopicContext.get());
+    public Optional<CompactedTopicContext> getCompactedTopicContext() throws ExecutionException, InterruptedException,
+            TimeoutException {
+        return compactedTopicContext == null ? Optional.empty() :
+                Optional.of(compactedTopicContext.get(30, TimeUnit.SECONDS));
     }
 
     @Override

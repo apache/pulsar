@@ -186,7 +186,7 @@ public class Producer {
                 && other.getEpoch() < epoch;
     }
 
-    public void publishMessage(long producerId, long sequenceId, ByteBuf headersAndPayload, long batchSize,
+    public void publishMessage(long producerId, long sequenceId, ByteBuf headersAndPayload, int batchSize,
             boolean isChunked, boolean isMarker, Position position) {
         if (checkAndStartPublish(producerId, sequenceId, headersAndPayload, batchSize, position)) {
             publishMessageToTopic(headersAndPayload, sequenceId, batchSize, isChunked, isMarker, position);
@@ -194,7 +194,7 @@ public class Producer {
     }
 
     public void publishMessage(long producerId, long lowestSequenceId, long highestSequenceId,
-            ByteBuf headersAndPayload, long batchSize, boolean isChunked, boolean isMarker, Position position) {
+            ByteBuf headersAndPayload, int batchSize, boolean isChunked, boolean isMarker, Position position) {
         if (lowestSequenceId > highestSequenceId) {
             cnx.execute(() -> {
                 cnx.getCommandSender().sendSendError(producerId, highestSequenceId, ServerError.MetadataError,
@@ -209,7 +209,7 @@ public class Producer {
         }
     }
 
-    public boolean checkAndStartPublish(long producerId, long sequenceId, ByteBuf headersAndPayload, long batchSize,
+    public boolean checkAndStartPublish(long producerId, long sequenceId, ByteBuf headersAndPayload, int batchSize,
                                         Position position) {
         if (!isShadowTopic && position != null) {
             cnx.execute(() -> {
@@ -267,7 +267,7 @@ public class Producer {
         return true;
     }
 
-    private void publishMessageToTopic(ByteBuf headersAndPayload, long sequenceId, long batchSize, boolean isChunked,
+    private void publishMessageToTopic(ByteBuf headersAndPayload, long sequenceId, int batchSize, boolean isChunked,
                                        boolean isMarker, Position position) {
         MessagePublishContext messagePublishContext =
                 MessagePublishContext.get(this, sequenceId, headersAndPayload.readableBytes(),
@@ -280,7 +280,7 @@ public class Producer {
     }
 
     private void publishMessageToTopic(ByteBuf headersAndPayload, long lowestSequenceId, long highestSequenceId,
-                                       long batchSize, boolean isChunked, boolean isMarker, Position position) {
+                                       int batchSize, boolean isChunked, boolean isMarker, Position position) {
         MessagePublishContext messagePublishContext = MessagePublishContext.get(this, lowestSequenceId,
                 highestSequenceId, headersAndPayload.readableBytes(), batchSize,
                 isChunked, System.nanoTime(), isMarker, position);
@@ -375,7 +375,7 @@ public class Producer {
         private long ledgerId;
         private long entryId;
         private int msgSize;
-        private long batchSize;
+        private int batchSize;
         private boolean chunked;
         private boolean isMarker;
 
@@ -551,7 +551,7 @@ public class Producer {
             recycle();
         }
 
-        static MessagePublishContext get(Producer producer, long sequenceId, int msgSize, long batchSize,
+        static MessagePublishContext get(Producer producer, long sequenceId, int msgSize, int batchSize,
                                          boolean chunked, long startTimeNs, boolean isMarker, Position position) {
             MessagePublishContext callback = RECYCLER.get();
             callback.producer = producer;
@@ -572,7 +572,7 @@ public class Producer {
         }
 
         static MessagePublishContext get(Producer producer, long lowestSequenceId, long highestSequenceId, int msgSize,
-                             long batchSize, boolean chunked, long startTimeNs, boolean isMarker, Position position) {
+                             int batchSize, boolean chunked, long startTimeNs, boolean isMarker, Position position) {
             MessagePublishContext callback = RECYCLER.get();
             callback.producer = producer;
             callback.sequenceId = lowestSequenceId;
@@ -628,7 +628,7 @@ public class Producer {
             msgSize = 0;
             ledgerId = -1L;
             entryId = -1L;
-            batchSize = 0L;
+            batchSize = 0;
             startTimeNs = -1L;
             chunked = false;
             isMarker = false;
@@ -795,7 +795,7 @@ public class Producer {
     }
 
     public void publishTxnMessage(TxnID txnID, long producerId, long sequenceId, long highSequenceId,
-                                  ByteBuf headersAndPayload, long batchSize, boolean isChunked, boolean isMarker) {
+                                  ByteBuf headersAndPayload, int batchSize, boolean isChunked, boolean isMarker) {
         if (!checkAndStartPublish(producerId, sequenceId, headersAndPayload, batchSize, null)) {
             return;
         }

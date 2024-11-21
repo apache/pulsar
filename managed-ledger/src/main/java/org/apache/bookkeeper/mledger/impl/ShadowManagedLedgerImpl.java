@@ -131,7 +131,8 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                         currentLedger = lh;
 
                         if (managedLedgerInterceptor != null) {
-                            managedLedgerInterceptor.onManagedLedgerLastLedgerInitialize(name, lh)
+                            managedLedgerInterceptor
+                                    .onManagedLedgerLastLedgerInitialize(name, createLastEntryHandle(lh))
                                     .thenRun(() -> ShadowManagedLedgerImpl.super.initialize(callback, ctx))
                                     .exceptionally(ex -> {
                                         callback.initializeFailed(

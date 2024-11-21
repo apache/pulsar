@@ -187,14 +187,14 @@ public class ReplicationTxnTest extends OneWayReplicatorTestBase {
         for (int i = 0; i < txnLogPartitions; i++) {
             TopicName txnLog = TopicName.get(TopicDomain.persistent.value(),
                     NamespaceName.SYSTEM_NAMESPACE, TRANSACTION_LOG_PREFIX + i);
-            assertNotNull(pulsar1.getManagedLedgerFactory()
+            assertNotNull(pulsar1.getDefaultManagedLedgerFactory()
                     .getManagedLedgerInfo(txnLog.getPersistenceNamingEncoding()));
             assertFalse(broker1.getTopics().containsKey(txnLog.toString()));
         }
         // __transaction_pending_ack: it only uses ML, will not create topic.
         TopicName pendingAck = TopicName.get(
                 MLPendingAckStore.getTransactionPendingAckStoreSuffix(topic, subscription));
-        assertNotNull(pulsar1.getManagedLedgerFactory()
+        assertNotNull(pulsar1.getDefaultManagedLedgerFactory()
                 .getManagedLedgerInfo(pendingAck.getPersistenceNamingEncoding()));
         assertFalse(broker1.getTopics().containsKey(pendingAck.toString()));
         // __transaction_buffer_snapshot.

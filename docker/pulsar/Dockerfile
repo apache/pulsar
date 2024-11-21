@@ -18,6 +18,7 @@
 #
 
 ARG ALPINE_VERSION=3.20
+ARG IMAGE_JDK_MAJOR_VERSION=21
 
 # First create a stage with just the Pulsar tarball and scripts
 FROM alpine:$ALPINE_VERSION as pulsar
@@ -54,7 +55,7 @@ RUN chmod -R o+rx /pulsar
 RUN echo 'OPTS="$OPTS -Dorg.xerial.snappy.use.systemlib=true"' >> /pulsar/conf/bkenv.sh
 
 ###  Create one stage to include JVM distribution
-FROM amazoncorretto:21-alpine AS jvm
+FROM amazoncorretto:${IMAGE_JDK_MAJOR_VERSION}-alpine AS jvm
 
 RUN apk add --no-cache binutils
 
@@ -92,7 +93,8 @@ RUN apk add --no-cache \
             ca-certificates \
             procps \
             curl \
-            bind-tools
+            bind-tools \
+            openssl
 
 # Upgrade all packages to get latest versions with security fixes
 RUN apk upgrade --no-cache
@@ -139,6 +141,8 @@ COPY --from=pulsar /pulsar /pulsar
 
 WORKDIR /pulsar
 ENV PATH=$PATH:$JAVA_HOME/bin:/pulsar/bin
+# Use musl libc library for RocksDB
+ENV ROCKSDB_MUSL_LIBC=true
 
 # The UID must be non-zero. Otherwise, it is arbitrary. No logic should rely on its specific value.
 ARG DEFAULT_USERNAME=pulsar

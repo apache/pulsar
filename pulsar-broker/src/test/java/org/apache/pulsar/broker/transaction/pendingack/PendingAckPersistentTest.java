@@ -23,7 +23,7 @@ import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertM
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -45,6 +45,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.BKException;
@@ -952,8 +953,14 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
         assertNotNull(persistentTopic);
         BrokerService brokerService = spy(persistentTopic.getBrokerService());
-        doReturn(FutureUtil.failedFuture(new BrokerServiceException.ServiceUnitNotReadyException("test")))
-                .when(brokerService).getManagedLedgerConfig(any());
+        AtomicBoolean isGetManagedLedgerConfigFail = new AtomicBoolean(false);
+        doAnswer(invocation -> {
+            if (isGetManagedLedgerConfigFail.get()) {
+                return FutureUtil.failedFuture(new BrokerServiceException.ServiceUnitNotReadyException("test"));
+            } else {
+                return invocation.callRealMethod();
+            }
+        }).when(brokerService).getManagedLedgerConfig(any());
         Field field = AbstractTopic.class.getDeclaredField("brokerService");
         field.setAccessible(true);
         field.set(persistentTopic, brokerService);
@@ -968,11 +975,13 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
         producer.send("test");
         Transaction transaction = pulsarClient.newTransaction()
-                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
+                .withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
 
+        isGetManagedLedgerConfigFail.set(true);
         // pending ack init fail, so the ack will throw exception
         try {
             consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction).get();
+            fail("ack should fail");
         } catch (Exception e) {
             assertTrue(e.getCause() instanceof PulsarClientException.LookupException);
         }

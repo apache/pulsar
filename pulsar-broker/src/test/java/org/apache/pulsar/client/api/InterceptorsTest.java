@@ -33,6 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.RandomUtils;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.common.api.proto.KeyValue;
@@ -475,6 +476,84 @@ public class InterceptorsTest extends ProducerConsumerBase {
         consumer.close();
     }
 
+    @Test(dataProvider = "topicPartition")
+    public void testDoNotEarlierHitBeforeConsumerWithMessageListener(int partitions) throws Exception {
+
+        AtomicInteger beforeConsumeCount = new AtomicInteger(0);
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(lookupUrl.toString())
+                .listenerThreads(1)
+                .build();
+
+        ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<>() {
+            @Override
+            public void close() {
+            }
+
+            @Override
+            public Message<String> beforeConsume(Consumer<String> consumer, Message<String> message) {
+                beforeConsumeCount.incrementAndGet();
+                log.info("beforeConsume messageId: {}", message.getMessageId());
+                return message;
+            }
+
+            @Override
+            public void onAcknowledge(Consumer<String> consumer, MessageId messageId, Throwable cause) {
+            }
+
+            @Override
+            public void onAcknowledgeCumulative(Consumer<String> consumer, MessageId messageId, Throwable cause) {
+            }
+
+            @Override
+            public void onNegativeAcksSend(Consumer<String> consumer, Set<MessageId> messageIds) {
+            }
+
+            @Override
+            public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
+            }
+        };
+
+        final String topicName = "persistent://my-property/my-ns/my-topic";
+
+        if (partitions > 0) {
+            admin.topics().createPartitionedTopic(topicName, partitions);
+        } else {
+            admin.topics().createNonPartitionedTopic(topicName);
+        }
+
+        Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionType(SubscriptionType.Shared)
+                .intercept(interceptor)
+                .subscriptionName("my-subscription")
+                .messageListener((c, m) -> {
+                    // Simulate a long processing time
+                    try {
+                        Thread.sleep(60000);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                })
+                .subscribe();
+
+        Producer<String> producer = client.newProducer(Schema.STRING)
+                .topic("persistent://my-property/my-ns/my-topic")
+                .create();
+
+        final int messages = 10;
+        for (int i = 0; i < messages; i++) {
+            producer.newMessage().value("Hello Pulsar!").send();
+        }
+        Awaitility.await().untilAsserted(() -> {
+            // Ensure that the interceptor is not hit before the message listener
+            Assert.assertEquals(beforeConsumeCount.get(), 1);
+        });
+        producer.close();
+        consumer.close();
+        client.close();
+    }
+
     @Test
     public void testConsumerInterceptorWithPatternTopicSubscribe() throws PulsarClientException {
 
@@ -868,6 +947,101 @@ public class InterceptorsTest extends ProducerConsumerBase {
         Assert.assertTrue(interceptor2.encounterException.get());
         Assert.assertTrue(interceptor3.encounterException.get());
         Assert.assertNull(reader.readNext(3, TimeUnit.SECONDS));
+    }
+
+    @Test(dataProvider = "topicPartition")
+    public void testConsumerInterceptorForOnArrive(int topicPartition) throws PulsarClientException,
+            InterruptedException, PulsarAdminException {
+        String topicName = "persistent://my-property/my-ns/on-arrive";
+        if (topicPartition > 0) {
+            admin.topics().createPartitionedTopic(topicName, topicPartition);
+        }
+
+        final int receiveQueueSize = 100;
+        final int totalNumOfMessages = receiveQueueSize * 2;
+
+        // The onArrival method is called for half of the receiveQueueSize messages before beforeConsume is called for all messages.
+        CountDownLatch latch = new CountDownLatch(receiveQueueSize / 2);
+        final AtomicInteger onArrivalCount = new AtomicInteger(0);
+        ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
+            @Override
+            public void close() {}
+
+            @Override
+            public Message<String> onArrival(Consumer<String> consumer, Message<String> message) {
+                MessageImpl<String> msg = (MessageImpl<String>) message;
+                msg.getMessageBuilder().addProperty().setKey("onArrival").setValue("1");
+                latch.countDown();
+                onArrivalCount.incrementAndGet();
+                return msg;
+            }
+
+            @Override
+            public Message<String> beforeConsume(Consumer<String> consumer, Message<String> message) {
+                return message;
+            }
+
+            @Override
+            public void onAcknowledge(Consumer<String> consumer, MessageId messageId, Throwable cause) {
+
+            }
+
+            @Override
+            public void onAcknowledgeCumulative(Consumer<String> consumer, MessageId messageId, Throwable cause) {
+
+            }
+
+            @Override
+            public void onNegativeAcksSend(Consumer<String> consumer, Set<MessageId> messageIds) {
+            }
+
+            @Override
+            public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
+
+            }
+        };
+
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .create();
+
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("test-arrive")
+                .intercept(interceptor)
+                .receiverQueueSize(receiveQueueSize)
+                .subscribe();
+
+        for (int i = 0; i < totalNumOfMessages; i++) {
+            producer.send("Mock message");
+        }
+
+        // Not call receive message, just wait for onArrival interceptor.
+        latch.await();
+        Assert.assertEquals(latch.getCount(), 0);
+
+        for (int i = 0; i < totalNumOfMessages; i++) {
+            Message<String> message = consumer.receive();
+            MessageImpl<String> msgImpl;
+            if (message instanceof MessageImpl<String>) {
+                msgImpl = (MessageImpl<String>) message;
+            } else if (message instanceof TopicMessageImpl<String>) {
+                msgImpl = (MessageImpl<String>) ((TopicMessageImpl<String>) message).getMessage();
+            } else {
+                throw new ClassCastException("Message type is not expected");
+            }
+            boolean haveKey = false;
+            for (KeyValue keyValue : msgImpl.getMessageBuilder().getPropertiesList()) {
+                if ("onArrival".equals(keyValue.getKey())) {
+                    haveKey = true;
+                }
+            }
+            Assert.assertTrue(haveKey);
+        }
+        Assert.assertEquals(totalNumOfMessages, onArrivalCount.get());
+
+        producer.close();
+        consumer.close();
     }
 
     private void produceAndConsume(int msgCount, Producer<byte[]> producer, Reader<byte[]> reader)

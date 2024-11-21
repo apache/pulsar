@@ -32,6 +32,7 @@ import org.apache.bookkeeper.mledger.ManagedCursorMXBean;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 
 public class MockManagedCursor implements ManagedCursor {
 
@@ -413,5 +414,35 @@ public class MockManagedCursor implements ManagedCursor {
     @Override
     public boolean isClosed() {
         return false;
+    }
+
+    @Override
+    public ManagedLedgerInternalStats.CursorStats getCursorStats() {
+        return null;
+    }
+
+    @Override
+    public boolean isMessageDeleted(Position position) {
+        return false;
+    }
+
+    @Override
+    public ManagedCursor duplicateNonDurableCursor(String nonDurableCursorName) throws ManagedLedgerException {
+        return null;
+    }
+
+    @Override
+    public long[] getBatchPositionAckSet(Position position) {
+        return new long[0];
+    }
+
+    @Override
+    public int applyMaxSizeCap(int maxEntries, long maxSizeBytes) {
+        return 0;
+    }
+
+    @Override
+    public void updateReadStats(int readEntriesCount, long readEntriesSize) {
+
     }
 }

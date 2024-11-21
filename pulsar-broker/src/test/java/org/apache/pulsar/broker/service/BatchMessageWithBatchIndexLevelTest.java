@@ -41,7 +41,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
-import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -106,7 +106,7 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
         }
         FutureUtil.waitForAll(sendFutureList).get();
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
-        PersistentDispatcherMultipleConsumers dispatcher = (PersistentDispatcherMultipleConsumers) topic
+        AbstractPersistentDispatcherMultipleConsumers dispatcher = (AbstractPersistentDispatcherMultipleConsumers) topic
                 .getSubscription(subscriptionName).getDispatcher();
         Message<byte[]> receive1 = consumer.receive();
         Message<byte[]> receive2 = consumer.receive();
@@ -515,8 +515,8 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
     private ManagedCursorImpl getCursor(String topic, String sub) {
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).join().get();
-        PersistentDispatcherMultipleConsumers dispatcher =
-                (PersistentDispatcherMultipleConsumers) persistentTopic.getSubscription(sub).getDispatcher();
+        AbstractPersistentDispatcherMultipleConsumers dispatcher =
+                (AbstractPersistentDispatcherMultipleConsumers) persistentTopic.getSubscription(sub).getDispatcher();
         return (ManagedCursorImpl) dispatcher.getCursor();
     }
 
@@ -528,8 +528,8 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
                                                             CompletableFuture<Void> signal) throws Exception {
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).join().get();
-        PersistentDispatcherMultipleConsumers dispatcher =
-                (PersistentDispatcherMultipleConsumers) persistentTopic.getSubscription(sub).getDispatcher();
+        AbstractPersistentDispatcherMultipleConsumers dispatcher =
+                (AbstractPersistentDispatcherMultipleConsumers) persistentTopic.getSubscription(sub).getDispatcher();
         org.apache.pulsar.broker.service.Consumer serviceConsumer = null;
         for (org.apache.pulsar.broker.service.Consumer c : dispatcher.getConsumers()){
             if (c.consumerName().equals(consumerName)) {
@@ -664,8 +664,8 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
     private org.apache.pulsar.broker.service.Consumer getTheUniqueServiceConsumer(String topic, String sub) {
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsar.getBrokerService(). getTopic(topic, false).join().get();
-        PersistentDispatcherMultipleConsumers dispatcher =
-                (PersistentDispatcherMultipleConsumers) persistentTopic.getSubscription(sub).getDispatcher();
+        AbstractPersistentDispatcherMultipleConsumers dispatcher =
+                (AbstractPersistentDispatcherMultipleConsumers) persistentTopic.getSubscription(sub).getDispatcher();
         return dispatcher.getConsumers().iterator().next();
     }
 }

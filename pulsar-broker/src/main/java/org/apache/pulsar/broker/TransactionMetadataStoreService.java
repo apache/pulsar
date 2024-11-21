@@ -227,7 +227,9 @@ public class TransactionMetadataStoreService {
                 .setBatchedWriteMaxDelayInMillis(serviceConfiguration.getTransactionLogBatchedWriteMaxDelayInMillis());
 
         return pulsarService.getBrokerService().getManagedLedgerConfig(getMLTransactionLogName(tcId)).thenCompose(
-                v -> transactionMetadataStoreProvider.openStore(tcId, pulsarService.getManagedLedgerFactory(), v,
+                v -> transactionMetadataStoreProvider.openStore(tcId,
+                        pulsarService.getManagedLedgerStorage().getManagedLedgerStorageClass(v.getStorageClassName())
+                                .get().getManagedLedgerFactory(), v,
                         timeoutTracker, recoverTracker,
                         pulsarService.getConfig().getMaxActiveTransactionsPerCoordinator(), txnLogBufferedWriterConfig,
                         brokerClientSharedTimer));

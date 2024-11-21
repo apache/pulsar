@@ -60,7 +60,6 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.broker.qos.AsyncTokenBucket;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -230,9 +229,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         messageDeduplication.purgeInactiveProducers();
         assertFalse(inactiveProducers.containsKey(producerName2));
         assertFalse(inactiveProducers.containsKey(producerName3));
-        field = MessageDeduplication.class.getDeclaredField("highestSequencedPushed");
-        field.setAccessible(true);
-        ConcurrentOpenHashMap<String, Long> highestSequencedPushed = (ConcurrentOpenHashMap<String, Long>) field.get(messageDeduplication);
+        final var highestSequencedPushed = messageDeduplication.highestSequencedPushed;
 
         assertEquals((long) highestSequencedPushed.get(producerName1), 2L);
         assertFalse(highestSequencedPushed.containsKey(producerName2));

@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.opentelemetry.Constants;
 
 public class OpenTelemetryManagedLedgerStats implements AutoCloseable {
@@ -130,8 +131,8 @@ public class OpenTelemetryManagedLedgerStats implements AutoCloseable {
         batchCallback.close();
     }
 
-    private void recordMetrics(ManagedLedgerImpl ml) {
-        var stats = ml.getMbean();
+    private void recordMetrics(ManagedLedger ml) {
+        var stats = ml.getStats();
         var ledgerAttributeSet = ml.getManagedLedgerAttributes();
         var attributes = ledgerAttributeSet.getAttributes();
         var attributesSucceed = ledgerAttributeSet.getAttributesOperationSucceed();

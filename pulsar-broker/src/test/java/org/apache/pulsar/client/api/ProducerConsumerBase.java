@@ -18,15 +18,15 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.receiveMessagesInThreads;
 import com.google.common.collect.Sets;
-
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
-
-import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -78,32 +78,16 @@ public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
             BiFunction<MessageId, T, Boolean> ackPredicate,
             Consumer<T>...consumers) throws Exception {
         ReceivedMessages receivedMessages = new ReceivedMessages();
-        while (true) {
-            int receivedMsgCount = 0;
-            for (int i = 0; i < consumers.length; i++) {
-                Consumer<T> consumer = consumers[i];
-                while (true) {
-                    Message<T> msg = consumer.receive(2, TimeUnit.SECONDS);
-                    if (msg != null) {
-                        receivedMsgCount++;
-                        T v = msg.getValue();
-                        MessageId messageId = msg.getMessageId();
-                        receivedMessages.messagesReceived.add(Pair.of(msg.getMessageId(), v));
-                        if (ackPredicate.apply(messageId, v)) {
-                            consumer.acknowledge(msg);
-                            receivedMessages.messagesAcked.add(Pair.of(msg.getMessageId(), v));
-                        }
-                    } else {
-                        break;
-                    }
-                }
+        receiveMessagesInThreads((consumer, msg) -> {
+            T v = msg.getValue();
+            MessageId messageId = msg.getMessageId();
+            receivedMessages.messagesReceived.add(Pair.of(msg.getMessageId(), v));
+            if (ackPredicate.apply(messageId, v)) {
+                consumer.acknowledgeAsync(msg);
+                receivedMessages.messagesAcked.add(Pair.of(msg.getMessageId(), v));
             }
-            // Because of the possibility of consumers getting stuck with each other, only jump out of the loop if all
-            // consumers could not receive messages.
-            if (receivedMsgCount == 0) {
-                break;
-            }
-        }
+            return true;
+        }, Duration.ofSeconds(2), consumers);
         return receivedMessages;
     }
 
@@ -113,9 +97,9 @@ public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
 
     protected static class ReceivedMessages<T> {
 
-        List<Pair<MessageId, T>> messagesReceived = new ArrayList<>();
+        List<Pair<MessageId, T>> messagesReceived = Collections.synchronizedList(new ArrayList<>());
 
-        List<Pair<MessageId, T>> messagesAcked = new ArrayList<>();
+        List<Pair<MessageId, T>> messagesAcked = Collections.synchronizedList(new ArrayList<>());
 
         public boolean hasReceivedMessage(T v) {
             for (Pair<MessageId, T> pair : messagesReceived) {

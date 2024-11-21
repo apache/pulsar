@@ -19,23 +19,30 @@
 package org.apache.pulsar.client.api;
 
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.namespace.LookupOptions;
+import org.apache.pulsar.client.impl.LookupTopicResult;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.ServiceUnitId;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -72,6 +79,7 @@ public class LookupPropertiesTest extends MultiBrokerBaseTest {
 
     @Test
     public void testLookupProperty() throws Exception {
+        admin.namespaces().unload("public/default");
         final var topic = "test-lookup-property";
         admin.topics().createPartitionedTopic(topic, 16);
         @Cleanup final var client = (PulsarClientImpl) PulsarClient.builder()
@@ -89,7 +97,35 @@ public class LookupPropertiesTest extends MultiBrokerBaseTest {
         Assert.assertEquals(port, additionalBrokers.get(0).getBrokerListenPort().orElseThrow());
     }
 
+    @Test
+    public void testConcurrentLookupProperties() throws Exception {
+        @Cleanup final var client = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .build();
+        final var futures = new ArrayList<CompletableFuture<LookupTopicResult>>();
+        BrokerIdAwareLoadManager.clientIdList.clear();
+
+        final var clientIdList = IntStream.range(0, 10).mapToObj(i -> "key-" + i).toList();
+        for (var clientId : clientIdList) {
+            client.getConfiguration().setLookupProperties(Collections.singletonMap(CLIENT_KEY, clientId));
+            futures.add(client.getLookup().getBroker(TopicName.get("test-concurrent-lookup-properties")));
+            client.getConfiguration().setLookupProperties(Collections.emptyMap());
+        }
+        FutureUtil.waitForAll(futures).get();
+        Assert.assertEquals(clientIdList, BrokerIdAwareLoadManager.clientIdList);
+    }
+
     public static class BrokerIdAwareLoadManager extends ExtensibleLoadManagerImpl {
+
+        static final List<String> clientIdList = Collections.synchronizedList(new ArrayList<>());
+
+        @Override
+        public CompletableFuture<Optional<BrokerLookupData>> assign(Optional<ServiceUnitId> topic,
+                                                                    ServiceUnitId serviceUnit, LookupOptions options) {
+            getClientId(options).ifPresent(clientIdList::add);
+            return super.assign(topic, serviceUnit, options);
+        }
+
         @Override
         public CompletableFuture<Optional<String>> selectAsync(ServiceUnitId bundle, Set<String> excludeBrokerSet,
                                                                LookupOptions options) {
@@ -105,6 +141,13 @@ public class LookupPropertiesTest extends MultiBrokerBaseTest {
                 return optBroker.map(Map.Entry::getKey).map(Optional::of).map(CompletableFuture::completedFuture)
                         .orElseGet(() -> super.selectAsync(bundle, excludeBrokerSet, options));
             });
+        }
+
+        private static Optional<String> getClientId(LookupOptions options) {
+            if (options.getProperties() == null) {
+                return Optional.empty();
+            }
+            return Optional.ofNullable(options.getProperties().get(CLIENT_KEY));
         }
     }
 }

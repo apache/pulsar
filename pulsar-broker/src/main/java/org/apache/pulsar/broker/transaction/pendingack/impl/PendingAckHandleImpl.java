@@ -47,7 +47,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.AckSetState;
 import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -235,8 +234,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
                             // If try to ack message already acked by committed transaction or
                             // normal acknowledge,throw exception.
-                            if (((ManagedCursorImpl) persistentSubscription.getCursor())
-                                    .isMessageDeleted(position)) {
+                            if (persistentSubscription.getCursor().isMessageDeleted(position)) {
                                 String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID
                                         + " try to ack message:" + position + " already acked before.";
                                 log.error(errorMsg);
@@ -258,8 +256,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                                 bitSetRecyclable.set(positionIntegerMutablePair.right, bitSetRecyclable.size());
                                 long[] ackSetOverlap = bitSetRecyclable.toLongArray();
                                 bitSetRecyclable.recycle();
-                                if (isAckSetOverlap(ackSetOverlap,
-                                        ((ManagedCursorImpl) persistentSubscription.getCursor())
+                                if (isAckSetOverlap(ackSetOverlap, persistentSubscription.getCursor()
                                                 .getBatchPositionAckSet(position))) {
                                     String errorMsg = "[" + topicName + "][" + subName + "] Transaction:"
                                             + txnID + " try to ack message:"
@@ -865,8 +862,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
             // If try to ack message already acked by committed transaction or
             // normal acknowledge,throw exception.
-            if (((ManagedCursorImpl) persistentSubscription.getCursor())
-                    .isMessageDeleted(position)) {
+            if (persistentSubscription.getCursor().isMessageDeleted(position)) {
                 return;
             }
 
@@ -885,8 +881,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 long[] ackSetOverlap = bitSetRecyclable.toLongArray();
                 bitSetRecyclable.recycle();
                 if (isAckSetOverlap(ackSetOverlap,
-                        ((ManagedCursorImpl) persistentSubscription.getCursor())
-                                .getBatchPositionAckSet(position))) {
+                        persistentSubscription.getCursor().getBatchPositionAckSet(position))) {
                     return;
                 }
 

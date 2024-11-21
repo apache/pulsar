@@ -92,7 +92,8 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
             return FutureUtil
                     .failedFuture(new IllegalArgumentException(
                             "Start message id or start message from roll back must be specified but they cannot be"
-                                    + " specified at the same time"));
+                                    + " specified at the same time. MessageId =" + conf.getStartMessageId()
+                                    + ", rollback seconds =" + conf.getStartMessageFromRollbackDurationInSec()));
         }
 
         if (conf.getStartMessageFromRollbackDurationInSec() > 0) {

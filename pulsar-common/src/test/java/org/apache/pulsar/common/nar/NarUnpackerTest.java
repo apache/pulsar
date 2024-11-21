@@ -119,6 +119,17 @@ public class NarUnpackerTest {
     }
 
     @Test
+    void shouldReExtractWhenUnpackedDirectoryIsMissing() throws IOException {
+        AtomicInteger extractCounter = new AtomicInteger();
+
+        File narWorkingDirectory = NarUnpacker.doUnpackNar(sampleZipFile, extractDirectory, extractCounter::incrementAndGet);
+        FileUtils.deleteFile(narWorkingDirectory, true);
+        NarUnpacker.doUnpackNar(sampleZipFile, extractDirectory, extractCounter::incrementAndGet);
+
+        assertEquals(extractCounter.get(), 2);
+    }
+
+    @Test
     void shouldExtractFilesOnceInDifferentProcess() throws InterruptedException {
         int processes = 5;
         String javaExePath = findJavaExe().getAbsolutePath();

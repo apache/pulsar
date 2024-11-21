@@ -25,9 +25,9 @@ on:
       - branch-*
       - pulsar-*
   schedule:
-    # scheduled job with JDK 17
-    - cron: '0 12 * * *'
     # scheduled job with JDK 21
+    - cron: '0 12 * * *'
+    # scheduled job with JDK 17
     # if cron expression is changed, make sure to update the expression in jdk_major_version step in preconditions job
     - cron: '0 6 * * *'
   workflow_dispatch:
@@ -44,7 +44,7 @@ on:
         options:
           - '17'
           - '21'
-        default: '17'
+        default: '21'
       trace_test_resource_cleanup:
         description: 'Collect thread & heap information before exiting a test JVM. When set to "on", thread dump and heap histogram will be collected. When set to "full", a heap dump will also be collected.'
         required: true
@@ -95,13 +95,13 @@ jobs:
       - name: Select JDK major version
         id: jdk_major_version
         run: |
-          # use JDK 21 for the scheduled build with cron expression '0 6 * * *'
+          # use JDK 17 for the scheduled build with cron expression '0 6 * * *'
           if [[ "${{ github.event_name == 'schedule' && github.event.schedule == '0 6 * * *' && 'true' || 'false' }}" == "true" ]]; then
-            echo "jdk_major_version=21" >> $GITHUB_OUTPUT
+            echo "jdk_major_version=17" >> $GITHUB_OUTPUT
             exit 0
           fi
-          # use JDK 17 for build unless overridden with workflow_dispatch input
-          echo "jdk_major_version=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.jdk_major_version || '17'}}" >> $GITHUB_OUTPUT
+          # use JDK 21 for build unless overridden with workflow_dispatch input
+          echo "jdk_major_version=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.jdk_major_version || '21'}}" >> $GITHUB_OUTPUT
 
       - name: checkout
         if: ${{ github.event_name == 'pull_request' }}
@@ -603,6 +603,9 @@ jobs:
           - name: Metrics
             group: METRICS
 
+          - name: Upgrade
+            group: UPGRADE
+
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -890,8 +893,10 @@ jobs:
         run: src/check-binary-license.sh ./distribution/server/target/apache-pulsar-*-bin.tar.gz && src/check-binary-license.sh ./distribution/shell/target/apache-pulsar-shell-*-bin.tar.gz
 
       - name: Run Trivy container scan
-        uses: aquasecurity/trivy-action@master
+        id: trivy_scan
+        uses: aquasecurity/trivy-action@0.26.0
         if: ${{ github.repository == 'apache/pulsar' && github.event_name != 'pull_request' }}
+        continue-on-error: true
         with:
           image-ref: "apachepulsar/pulsar:latest"
           scanners: vuln
@@ -902,7 +907,8 @@ jobs:
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
-        if: ${{ github.repository == 'apache/pulsar' && github.event_name != 'pull_request' }}
+        if: ${{ steps.trivy_scan.outcome == 'success' && github.repository == 'apache/pulsar' && github.event_name != 'pull_request' }}
+        continue-on-error: true
         with:
           sarif_file: 'trivy-results.sarif'
 
@@ -1492,7 +1498,7 @@ jobs:
       - name: trigger dependency check
         run: |
           mvn -B -ntp verify -PskipDocker,skip-all,owasp-dependency-check -Dcheckstyle.skip=true -DskipTests \
-            -pl '!distribution/server,!distribution/io,!distribution/offloaders,!tiered-storage/file-system,!pulsar-io/flume,!pulsar-io/hbase,!pulsar-io/hdfs2,!pulsar-io/hdfs3,!pulsar-io/docs,!pulsar-io/jdbc/openmldb'
+            -pl '!distribution/server,!distribution/io,!distribution/offloaders,!tiered-storage/file-system,!pulsar-io/flume,!pulsar-io/hbase,!pulsar-io/hdfs3,!pulsar-io/docs,!pulsar-io/jdbc/openmldb'
 
       - name: Upload report
         uses: actions/upload-artifact@v4

@@ -23,6 +23,7 @@ import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.opentelemetry.Constants;
 
 public class OpenTelemetryManagedCursorStats implements AutoCloseable {
@@ -98,7 +99,7 @@ public class OpenTelemetryManagedCursorStats implements AutoCloseable {
         batchCallback = meter.batchCallback(() -> factory.getManagedLedgers()
                         .values()
                         .stream()
-                        .map(ManagedLedgerImpl::getCursors)
+                        .map(ManagedLedger::getCursors)
                         .flatMap(Streams::stream)
                         .forEach(this::recordMetrics),
                 persistOperationCounter,

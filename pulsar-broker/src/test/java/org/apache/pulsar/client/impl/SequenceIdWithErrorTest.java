@@ -62,7 +62,7 @@ public class SequenceIdWithErrorTest extends BkEnsemblesTestBase {
         ManagedLedgerClientFactory clientFactory = new ManagedLedgerClientFactory();
         clientFactory.initialize(pulsar.getConfiguration(), pulsar.getLocalMetadataStore(),
                 pulsar.getBookKeeperClientFactory(), eventLoopGroup, OpenTelemetry.noop());
-        ManagedLedgerFactory mlFactory = clientFactory.getManagedLedgerFactory();
+        ManagedLedgerFactory mlFactory = clientFactory.getDefaultStorageClass().getManagedLedgerFactory();
         ManagedLedger ml = mlFactory.open(TopicName.get(topicName).getPersistenceNamingEncoding());
         ml.close();
         clientFactory.close();

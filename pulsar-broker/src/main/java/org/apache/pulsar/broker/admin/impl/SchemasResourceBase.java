@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.web.RestException;
@@ -38,6 +39,7 @@ import org.apache.pulsar.client.impl.schema.SchemaUtils;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.SchemaMetadata;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.protocol.schema.GetAllVersionsSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.GetSchemaResponse;
@@ -103,6 +105,13 @@ public class SchemasResourceBase extends AdminResource {
                     String schemaId = getSchemaId();
                     return pulsar().getSchemaRegistryService().trimDeletedSchemaAndGetList(schemaId);
                 });
+    }
+
+    public CompletableFuture<SchemaMetadata> getSchemaMetadataAsync(boolean authoritative) {
+        String schemaId = getSchemaId();
+        BookkeeperSchemaStorage storage = (BookkeeperSchemaStorage) pulsar().getSchemaStorage();
+        return validateOwnershipAndOperationAsync(authoritative, TopicOperation.GET_METADATA)
+                .thenCompose(__ -> storage.getSchemaMetadata(schemaId));
     }
 
     public CompletableFuture<SchemaVersion> deleteSchemaAsync(boolean authoritative, boolean force) {

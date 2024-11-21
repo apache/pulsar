@@ -108,7 +108,9 @@ public class PersistentTopicInitializeDelayTest extends BrokerTestBase {
             SystemTopicBasedTopicPoliciesService topicPoliciesService =
                     (SystemTopicBasedTopicPoliciesService) brokerService.getPulsar().getTopicPoliciesService();
             if (topicPoliciesService.getListeners().containsKey(TopicName.get(topic)) ) {
-                this.onUpdate(brokerService.getPulsar().getTopicPoliciesService().getTopicPoliciesIfExists(TopicName.get(topic)));
+                brokerService.getPulsar().getTopicPoliciesService().getTopicPoliciesAsync(TopicName.get(topic),
+                        TopicPoliciesService.GetType.DEFAULT
+                ).thenAccept(optionalPolicies -> optionalPolicies.ifPresent(this::onUpdate));
             }
         }
 

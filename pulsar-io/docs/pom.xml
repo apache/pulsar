@@ -24,7 +24,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-io</artifactId>
-    <version>4.0.0-SNAPSHOT</version>
+    <version>4.1.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-io-docs</artifactId>
@@ -125,11 +125,6 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-hbase</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-io-hdfs2</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>

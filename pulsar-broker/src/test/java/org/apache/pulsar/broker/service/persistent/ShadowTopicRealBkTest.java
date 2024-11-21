@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.persistent;
 import com.google.common.collect.Lists;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.impl.ShadowManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
@@ -74,7 +75,7 @@ public class ShadowTopicRealBkTest {
 
     @Test
     public void testReadFromStorage() throws Exception {
-        final var sourceTopic = TopicName.get("test-read-from-source").toString();
+        final var sourceTopic = TopicName.get("test-read-from-source" + UUID.randomUUID()).toString();
         final var shadowTopic = sourceTopic + "-shadow";
 
         admin.topics().createNonPartitionedTopic(sourceTopic);

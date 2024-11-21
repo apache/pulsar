@@ -30,10 +30,10 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -90,7 +90,7 @@ public class TransactionMetaStoreHandler extends HandlerState
 
     private final CompletableFuture<Void> connectFuture;
     private final long lookupDeadline;
-    private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<>();
+    private final AtomicInteger previousExceptionCount = new AtomicInteger();
 
 
 
@@ -126,7 +126,7 @@ public class TransactionMetaStoreHandler extends HandlerState
         boolean nonRetriableError = !PulsarClientException.isRetriableError(exception);
         boolean timeout = System.currentTimeMillis() > lookupDeadline;
         if (nonRetriableError || timeout) {
-            exception.setPreviousExceptions(previousExceptions);
+            exception.setPreviousExceptionCount(previousExceptionCount);
             if (connectFuture.completeExceptionally(exception)) {
                 if (nonRetriableError) {
                     LOG.error("Transaction meta handler with transaction coordinator id {} connection failed.",
@@ -138,7 +138,7 @@ public class TransactionMetaStoreHandler extends HandlerState
                 setState(State.Failed);
             }
         } else {
-            previousExceptions.add(exception);
+            previousExceptionCount.getAndIncrement();
         }
     }
 

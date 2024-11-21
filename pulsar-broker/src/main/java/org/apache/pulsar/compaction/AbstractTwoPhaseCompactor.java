@@ -77,7 +77,7 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
   protected abstract Map<String, MessageId> toLatestMessageIdForKey(Map<String, T> latestForKey);
 
   protected abstract boolean compactMessage(String topic, Map<String, T> latestForKey,
-      RawMessage m, MessageId id);
+      RawMessage m, MessageMetadata metadata, MessageId id);
 
 
   protected abstract boolean compactBatchMessage(String topic, Map<String, T> latestForKey,
@@ -147,7 +147,7 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
         } else if (RawBatchConverter.isReadableBatch(metadata)) {
           deletedMessage = compactBatchMessage(reader.getTopic(), latestForKey, m, metadata, id);
         } else {
-          deletedMessage = compactMessage(reader.getTopic(), latestForKey, m, id);
+          deletedMessage = compactMessage(reader.getTopic(), latestForKey, m, metadata, id);
         }
         MessageId first = firstMessageId.orElse(deletedMessage ? null : id);
         MessageId to = deletedMessage ? toMessageId.orElse(null) : id;
@@ -239,7 +239,7 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
         } else if (RawBatchConverter.isReadableBatch(metadata)) {
           try {
             messageToAdd = rebatchMessage(reader.getTopic(),
-                m, (key, subid) -> subid.equals(latestForKey.get(key)),
+                m, metadata, (key, subid) -> subid.equals(latestForKey.get(key)),
                 topicCompactionRetainNullKey);
           } catch (IOException ioe) {
             log.info("Error decoding batch for message {}. Whole batch will be included in output",
@@ -247,7 +247,7 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
             messageToAdd = Optional.of(m);
           }
         } else {
-          Pair<String, Integer> keyAndSize = extractKeyAndSize(m);
+          Pair<String, Integer> keyAndSize = extractKeyAndSize(m, metadata);
           MessageId msg;
           if (keyAndSize == null) {
             messageToAdd = topicCompactionRetainNullKey ? Optional.of(m) : Optional.empty();
@@ -392,9 +392,8 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
     return bkf;
   }
 
-  protected Pair<String, Integer> extractKeyAndSize(RawMessage m) {
+  protected Pair<String, Integer> extractKeyAndSize(RawMessage m, MessageMetadata msgMetadata) {
     ByteBuf headersAndPayload = m.getHeadersAndPayload();
-    MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
     if (msgMetadata.hasPartitionKey()) {
       int size = headersAndPayload.readableBytes();
       if (msgMetadata.hasUncompressedSize()) {
@@ -408,13 +407,14 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
 
 
   protected Optional<RawMessage> rebatchMessage(String topic, RawMessage msg,
+      MessageMetadata metadata,
       BiPredicate<String, MessageId> filter,
       boolean retainNullKey)
       throws IOException {
     if (log.isDebugEnabled()) {
       log.debug("Rebatching message {} for topic {}", msg.getMessageId(), topic);
     }
-    return RawBatchConverter.rebatchMessage(msg, filter, retainNullKey);
+    return RawBatchConverter.rebatchMessage(msg, metadata, filter, retainNullKey);
   }
 
   protected static class PhaseOneResult<T> {

@@ -45,7 +45,7 @@ import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
  *
  */
 @Slf4j
-public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
+public class OpAddEntry implements AddCallback, CloseCallback, Runnable, ManagedLedgerInterceptor.AddEntryOperation {
     protected ManagedLedgerImpl ml;
     LedgerHandle ledger;
     long entryId;
@@ -139,8 +139,8 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
             lastInitTime = System.nanoTime();
             if (ml.getManagedLedgerInterceptor() != null) {
                 long originalDataLen = data.readableBytes();
-                payloadProcessorHandle = ml.getManagedLedgerInterceptor().processPayloadBeforeLedgerWrite(this,
-                        duplicateBuffer);
+                payloadProcessorHandle = ml.getManagedLedgerInterceptor()
+                        .processPayloadBeforeLedgerWrite(this.getCtx(), duplicateBuffer);
                 if (payloadProcessorHandle != null) {
                     duplicateBuffer = payloadProcessorHandle.getProcessedPayload();
                     // If data len of entry changes, correct "dataLength" and "currentLedgerSize".
@@ -239,7 +239,8 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
         ManagedLedgerImpl.TOTAL_SIZE_UPDATER.addAndGet(ml, dataLength);
 
         long ledgerId = ledger != null ? ledger.getId() : ((Position) ctx).getLedgerId();
-        if (ml.hasActiveCursors()) {
+        // Don't insert to the entry cache for the ShadowManagedLedger
+        if (!(ml instanceof ShadowManagedLedgerImpl) && ml.hasActiveCursors()) {
             // Avoid caching entries if no cursor has been created
             EntryImpl entry = EntryImpl.create(ledgerId, entryId, data);
             // EntryCache.insert: duplicates entry by allocating new entry and data. so, recycle entry after calling
