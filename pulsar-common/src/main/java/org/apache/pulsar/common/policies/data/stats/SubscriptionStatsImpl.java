@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.policies.data.stats;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -112,9 +113,11 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     public List<ConsumerStatsImpl> consumers;
 
     /** Tells whether this subscription is durable or ephemeral (eg.: from a reader). */
+    @JsonProperty("isDurable")
     public boolean isDurable;
 
     /** Mark that the subscription state is kept in sync across different regions. */
+    @JsonProperty("isReplicated")
     public boolean isReplicated;
 
     /** Whether out of order delivery is allowed on the Key_Shared subscription. */
