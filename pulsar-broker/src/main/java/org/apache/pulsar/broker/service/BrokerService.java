@@ -2245,29 +2245,31 @@ public class BrokerService implements Closeable {
     public void monitorBacklogQuota() {
         long startTimeMillis = System.currentTimeMillis();
         forEachPersistentTopic(topic -> {
-            if (topic.isSizeBacklogExceeded()) {
-                getBacklogQuotaManager().handleExceededBacklogQuota(topic,
-                        BacklogQuota.BacklogQuotaType.destination_storage, false);
-            } else {
-                topic.checkTimeBacklogExceeded().thenAccept(isExceeded -> {
-                    if (isExceeded) {
-                        getBacklogQuotaManager().handleExceededBacklogQuota(topic,
-                                BacklogQuota.BacklogQuotaType.message_age,
-                                pulsar.getConfiguration().isPreciseTimeBasedBacklogQuotaCheck());
-                    } else {
-                        if (log.isDebugEnabled()) {
-                            log.debug("quota not exceeded for [{}]", topic.getName());
+            topic.updateOldPositionInfo().thenAccept(__ -> {
+                if (topic.isSizeBacklogExceeded()) {
+                    getBacklogQuotaManager().handleExceededBacklogQuota(topic,
+                            BacklogQuota.BacklogQuotaType.destination_storage, false);
+                } else {
+                    topic.checkTimeBacklogExceeded(false).thenAccept(isExceeded -> {
+                        if (isExceeded) {
+                            getBacklogQuotaManager().handleExceededBacklogQuota(topic,
+                                    BacklogQuota.BacklogQuotaType.message_age,
+                                    pulsar.getConfiguration().isPreciseTimeBasedBacklogQuotaCheck());
+                        } else {
+                            if (log.isDebugEnabled()) {
+                                log.debug("quota not exceeded for [{}]", topic.getName());
+                            }
                         }
-                    }
-                }).exceptionally(throwable -> {
-                    log.error("Error when checkTimeBacklogExceeded({}) in monitorBacklogQuota",
+                    });
+                }
+            }).whenComplete((unused, throwable) -> {
+                if (throwable != null) {
+                    log.error("Error when checkBacklogQuota({}) in monitorBacklogQuota",
                             topic.getName(), throwable);
-                    return null;
-                }).whenComplete((unused, throwable) -> {
-                    backlogQuotaCheckDuration.observe(
-                            MILLISECONDS.toSeconds(System.currentTimeMillis() - startTimeMillis));
-                });
-            }
+                }
+                backlogQuotaCheckDuration.observe(
+                        MILLISECONDS.toSeconds(System.currentTimeMillis() - startTimeMillis));
+            });
         });
     }
 
