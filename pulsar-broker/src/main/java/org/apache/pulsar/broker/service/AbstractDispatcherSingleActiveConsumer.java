@@ -123,7 +123,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
                 }
             }
         }
-        int index = partitionIndex >= 0
+        int index = partitionIndex >= 0 && !serviceConfig.isActiveConsumerFailoverConsistentHashing()
                 ? partitionIndex % consumersSize
                 : peekConsumerIndexFromHashRing(makeHashRing(consumersSize));
 
