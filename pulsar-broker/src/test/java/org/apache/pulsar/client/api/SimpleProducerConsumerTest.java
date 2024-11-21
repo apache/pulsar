@@ -4252,6 +4252,62 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         });
     }
 
+    @Test(timeOut = 100000)
+    public void testNegativeIncomingMessageSize() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/testIncomingMessageSize-" +
+                UUID.randomUUID().toString();
+        final String subName = "my-sub";
+
+        admin.topics().createPartitionedTopic(topicName, 3);
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+
+        final int messages = 1000;
+        List<CompletableFuture<MessageId>> messageIds = new ArrayList<>(messages);
+        for (int i = 0; i < messages; i++) {
+            messageIds.add(producer.newMessage().key(i + "").value(("Message-" + i).getBytes()).sendAsync());
+        }
+        FutureUtil.waitForAll(messageIds).get();
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+
+        Awaitility.await().untilAsserted(() -> {
+            long size = ((ConsumerBase<byte[]>) consumer).getIncomingMessageSize();
+            log.info("Check the incoming message size should greater that 0, current size is {}", size);
+            Assert.assertTrue(size > 0);
+        });
+
+
+        for (int i = 0; i < messages; i++) {
+            consumer.receive();
+        }
+
+
+        Awaitility.await().untilAsserted(() -> {
+            long size = ((ConsumerBase<byte[]>) consumer).getIncomingMessageSize();
+            log.info("Check the incoming message size should be 0, current size is {}", size);
+            Assert.assertEquals(size, 0);
+        });
+
+
+        MultiTopicsConsumerImpl multiTopicsConsumer = (MultiTopicsConsumerImpl) consumer;
+        List<ConsumerImpl<byte[]>> list = multiTopicsConsumer.getConsumers();
+        for (ConsumerImpl<byte[]> subConsumer : list) {
+            long size = subConsumer.getIncomingMessageSize();
+            log.info("Check the sub consumer incoming message size should be 0, current size is {}", size);
+            Assert.assertEquals(size, 0);
+        }
+    }
 
     @Data
     @EqualsAndHashCode
