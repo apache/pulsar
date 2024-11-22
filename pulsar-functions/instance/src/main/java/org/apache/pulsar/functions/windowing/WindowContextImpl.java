@@ -23,8 +23,15 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.WindowContext;
+import org.apache.pulsar.functions.api.utils.FunctionRecord;
 import org.slf4j.Logger;
 
 public class WindowContextImpl implements WindowContext {
@@ -81,6 +88,11 @@ public class WindowContextImpl implements WindowContext {
     }
 
     @Override
+    public Record<?> getCurrentRecord() {
+        return null;
+    }
+
+    @Override
     public String getOutputSchemaType() {
         return this.context.getOutputSchemaType();
     }
@@ -91,8 +103,18 @@ public class WindowContextImpl implements WindowContext {
     }
 
     @Override
+    public String getSecret(String secretName) {
+        return this.context.getSecret(secretName);
+    }
+
+    @Override
     public void incrCounter(String key, long amount) {
         this.context.incrCounter(key, amount);
+    }
+
+    @Override
+    public CompletableFuture<Void> incrCounterAsync(String key, long amount) {
+        return this.context.incrCounterAsync(key, amount);
     }
 
     @Override
@@ -101,13 +123,38 @@ public class WindowContextImpl implements WindowContext {
     }
 
     @Override
+    public CompletableFuture<Long> getCounterAsync(String key) {
+        return this.context.getCounterAsync(key);
+    }
+
+    @Override
     public void putState(String key, ByteBuffer value) {
         this.context.putState(key, value);
     }
 
     @Override
+    public CompletableFuture<Void> putStateAsync(String key, ByteBuffer value) {
+        return this.context.putStateAsync(key, value);
+    }
+
+    @Override
     public ByteBuffer getState(String key) {
         return this.context.getState(key);
+    }
+
+    @Override
+    public CompletableFuture<ByteBuffer> getStateAsync(String key) {
+        return this.context.getStateAsync(key);
+    }
+
+    @Override
+    public void deleteState(String key) {
+        this.context.deleteState(key);
+    }
+
+    @Override
+    public CompletableFuture<Void> deleteStateAsync(String key) {
+        return this.context.deleteStateAsync(key);
     }
 
     @Override
@@ -126,13 +173,39 @@ public class WindowContextImpl implements WindowContext {
     }
 
     @Override
+    public PulsarAdmin getPulsarAdmin() {
+        return this.context.getPulsarAdmin();
+    }
+
+    @Override
     public void recordMetric(String metricName, double value) {
         this.context.recordMetric(metricName, value);
     }
 
     @Override
+    public void fatal(Throwable t) {
+        this.context.fatal(t);
+    }
+
+    @Override
     public <T> CompletableFuture<Void> publish(String topicName, T object) {
         return this.context.publish(topicName, object);
+    }
+
+    @Override
+    public <X> TypedMessageBuilder<X> newOutputMessage(String topicName, Schema<X> schema)
+            throws PulsarClientException {
+        return this.context.newOutputMessage(topicName, schema);
+    }
+
+    @Override
+    public <X> ConsumerBuilder<X> newConsumerBuilder(Schema<X> schema) throws PulsarClientException {
+        return this.context.newConsumerBuilder(schema);
+    }
+
+    @Override
+    public <X> FunctionRecord.FunctionRecordBuilder<X> newOutputRecordBuilder(Schema<X> schema) {
+        return this.context.newOutputRecordBuilder(schema);
     }
 
     @Override
