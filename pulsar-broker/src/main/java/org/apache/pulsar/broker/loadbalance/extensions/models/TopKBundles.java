@@ -72,6 +72,12 @@ public class TopKBundles {
                     pulsar.getConfiguration().isLoadBalancerSheddingBundlesWithPoliciesEnabled();
             for (var etr : bundleStats.entrySet()) {
                 String bundle = etr.getKey();
+                var stat = etr.getValue();
+
+                // skip zero traffic bundles
+                if (stat.msgThroughputIn + stat.msgThroughputOut == 0) {
+                    continue;
+                }
                 // TODO: do not filter system topic while shedding
                 if (NamespaceService.isSystemServiceNamespace(NamespaceBundle.getBundleNamespace(bundle))) {
                     continue;
