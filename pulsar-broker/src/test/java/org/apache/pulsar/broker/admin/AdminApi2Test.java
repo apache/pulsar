@@ -1218,6 +1218,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertNotNull(consumerStats.getAddress());
         assertNotNull(consumerStats.getClientVersion());
         assertNotNull(consumerStats.getConnectedSince());
+        assertTrue(subscriber.isDurable());
+        assertFalse(subscriber.isReplicated());
 
         producer.close();
         consumer.close();

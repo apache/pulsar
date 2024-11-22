@@ -116,12 +116,10 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     public List<ConsumerStatsImpl> consumers;
 
     /** Tells whether this subscription is durable or ephemeral (eg.: from a reader). */
-    @JsonProperty("isDurable")
-    public boolean isDurable;
+    public boolean durable;
 
     /** Mark that the subscription state is kept in sync across different regions. */
-    @JsonProperty("isReplicated")
-    public boolean isReplicated;
+    public boolean replicated;
 
     /** Whether out of order delivery is allowed on the Key_Shared subscription. */
     public boolean allowOutOfOrderDelivery;
@@ -234,8 +232,8 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         this.type = stats.type;
         this.msgRateExpired += stats.msgRateExpired;
         this.totalMsgExpired += stats.totalMsgExpired;
-        this.isReplicated |= stats.isReplicated;
-        this.isDurable |= stats.isDurable;
+        this.replicated |= stats.replicated;
+        this.durable |= stats.durable;
         if (this.consumers.size() != stats.consumers.size()) {
             for (int i = 0; i < stats.consumers.size(); i++) {
                 ConsumerStatsImpl consumerStats = new ConsumerStatsImpl();
