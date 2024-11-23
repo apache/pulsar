@@ -27,6 +27,8 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response.Status;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.util.ThreadDumpUtil;
 
 /**
  * Web resource used by the VIP service to check to availability of the service instance.
@@ -52,7 +54,15 @@ public class VipStatus {
         if (statusFilePath != null) {
             File statusFile = new File(statusFilePath);
             if (isReady && statusFile.exists() && statusFile.isFile()) {
-                return "OK";
+                // check deadlock
+                String diagnosticResult = ThreadDumpUtil.buildThreadDiagnosticString();
+                if (StringUtils.isBlank(diagnosticResult)) {
+                    return "OK";
+                } else {
+                    log.warn("Deadlock detected, service may be unavailable, "
+                            + "thread stack details are as follows: {}.", diagnosticResult);
+                    throw new WebApplicationException(Status.SERVICE_UNAVAILABLE);
+                }
             }
         }
         log.warn("Failed to access \"status.html\". The service is not ready");
