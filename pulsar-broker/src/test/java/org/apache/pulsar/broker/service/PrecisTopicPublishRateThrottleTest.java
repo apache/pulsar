@@ -35,6 +35,7 @@ import org.apache.pulsar.common.util.RateLimiter;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -46,9 +47,10 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
         //No-op
     }
 
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
-        //No-op
+        super.internalCleanup();
     }
 
     @Test
@@ -85,7 +87,6 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
             // No-op
         }
         Assert.assertNotNull(messageId);
-        super.internalCleanup();
     }
 
     @Test
@@ -114,7 +115,6 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
         } catch (TimeoutException e) {
             // No-op
         }
-        super.internalCleanup();
     }
 
     @Test
@@ -167,7 +167,6 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
             // No-op
         }
         Assert.assertNotNull(messageId);
-        super.internalCleanup();
     }
 
     @Test
@@ -206,7 +205,6 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
         Assert.assertEquals(limiter.publishMaxMessageRate, rateInMsg);
 
         producer.close();
-        super.internalCleanup();
     }
 
     @Test
@@ -265,7 +263,5 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
         blocking.set(false);
 
         sendFuture.join();
-
-        super.internalCleanup();
     }
 }
