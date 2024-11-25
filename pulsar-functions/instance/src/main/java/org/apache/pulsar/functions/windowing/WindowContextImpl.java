@@ -23,15 +23,8 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.WindowContext;
-import org.apache.pulsar.functions.api.utils.FunctionRecord;
 import org.slf4j.Logger;
 
 public class WindowContextImpl implements WindowContext {
@@ -85,11 +78,6 @@ public class WindowContextImpl implements WindowContext {
     @Override
     public String getOutputTopic() {
         return this.context.getOutputTopic();
-    }
-
-    @Override
-    public Record<?> getCurrentRecord() {
-        return this.context.getCurrentRecord();
     }
 
     @Override
@@ -173,11 +161,6 @@ public class WindowContextImpl implements WindowContext {
     }
 
     @Override
-    public PulsarAdmin getPulsarAdmin() {
-        return this.context.getPulsarAdmin();
-    }
-
-    @Override
     public void recordMetric(String metricName, double value) {
         this.context.recordMetric(metricName, value);
     }
@@ -190,22 +173,6 @@ public class WindowContextImpl implements WindowContext {
     @Override
     public <T> CompletableFuture<Void> publish(String topicName, T object) {
         return this.context.publish(topicName, object);
-    }
-
-    @Override
-    public <X> TypedMessageBuilder<X> newOutputMessage(String topicName, Schema<X> schema)
-            throws PulsarClientException {
-        return this.context.newOutputMessage(topicName, schema);
-    }
-
-    @Override
-    public <X> ConsumerBuilder<X> newConsumerBuilder(Schema<X> schema) throws PulsarClientException {
-        return this.context.newConsumerBuilder(schema);
-    }
-
-    @Override
-    public <X> FunctionRecord.FunctionRecordBuilder<X> newOutputRecordBuilder(Schema<X> schema) {
-        return this.context.newOutputRecordBuilder(schema);
     }
 
     @Override

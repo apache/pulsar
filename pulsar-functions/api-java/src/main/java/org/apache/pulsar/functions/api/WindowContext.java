@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,7 +21,99 @@ package org.apache.pulsar.functions.api;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
+import java.util.Collection;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public interface WindowContext extends Context {
+public interface WindowContext extends BaseContext {
+    /**
+     * The name of the function that we are executing.
+     *
+     * @return The Function name
+     */
+    String getFunctionName();
+
+    /**
+     * The id of the function that we are executing.
+     *
+     * @return The function id
+     */
+    String getFunctionId();
+
+    /**
+     * The version of the function that we are executing.
+     *
+     * @return The version id
+     */
+    String getFunctionVersion();
+
+    /**
+     * Get a list of all input topics.
+     *
+     * @return a list of all input topics
+     */
+    Collection<String> getInputTopics();
+
+    /**
+     * Get the output topic of the function.
+     *
+     * @return output topic name
+     */
+    String getOutputTopic();
+
+    /**
+     * Get output schema builtin type or custom class name.
+     *
+     * @return output schema builtin type or custom class name
+     */
+    String getOutputSchemaType();
+
+    /**
+     * Get a map of all user-defined key/value configs for the function.
+     *
+     * @return The full map of user-defined config values
+     */
+    Map<String, Object> getUserConfigMap();
+
+    /**
+     * Get any user-defined key/value.
+     *
+     * @param key The key
+     * @return The Optional value specified by the user for that key.
+     */
+    Optional<Object> getUserConfigValue(String key);
+
+    /**
+     * Get any user-defined key/value or a default value if none is present.
+     *
+     * @param key
+     * @param defaultValue
+     * @return Either the user config value associated with a given key or a supplied default value
+     */
+    Object getUserConfigValueOrDefault(String key, Object defaultValue);
+
+    /**
+     * Publish an object using serDe for serializing to the topic.
+     *
+     * @param topicName
+     *            The name of the topic for publishing
+     * @param object
+     *            The object that needs to be published
+     * @param schemaOrSerdeClassName
+     *            Either a builtin schema type (eg: "avro", "json", "protobuf") or the class name of the custom schema class
+     * @return A future that completes when the framework is done publishing the message
+     */
+    <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName);
+
+    /**
+     * Publish an object to the topic using default schemas.
+     *
+     * @param topicName The name of the topic for publishing
+     * @param object The object that needs to be published
+     * @return A future that completes when the framework is done publishing the message
+     */
+    <O> CompletableFuture<Void> publish(String topicName, O object);
 }
