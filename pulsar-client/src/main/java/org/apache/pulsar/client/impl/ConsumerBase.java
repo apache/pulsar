@@ -58,8 +58,8 @@ import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
-import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.client.util.NameUtil;
 import org.apache.pulsar.client.util.NoOpLock;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
@@ -130,7 +130,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         this.maxReceiverQueueSize = receiverQueueSize;
         this.subscription = conf.getSubscriptionName();
         this.conf = conf;
-        this.consumerName = conf.getConsumerName() == null ? ConsumerName.generateRandomName() : conf.getConsumerName();
+        this.consumerName = conf.getConsumerName() == null ? NameUtil.generateRandomName() : conf.getConsumerName();
         this.subscribeFuture = subscribeFuture;
         this.listener = conf.getMessageListener();
         this.consumerEventListener = conf.getConsumerEventListener();
