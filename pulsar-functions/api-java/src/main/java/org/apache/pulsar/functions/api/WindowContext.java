@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -89,8 +89,8 @@ public interface WindowContext extends BaseContext {
     /**
      * Get any user-defined key/value or a default value if none is present.
      *
-     * @param key
-     * @param defaultValue
+     * @param key the config key to retrieve
+     * @param defaultValue value returned if the key is not found
      * @return Either the user config value associated with a given key or a supplied default value
      */
     Object getUserConfigValueOrDefault(String key, Object defaultValue);
@@ -103,10 +103,11 @@ public interface WindowContext extends BaseContext {
      * @param object
      *            The object that needs to be published
      * @param schemaOrSerdeClassName
-     *            Either a builtin schema type (eg: "avro", "json", "protobuf") or the class name of the custom schema class
+     *            Either a builtin schema type (eg: "avro", "json", "protobuf")
+     *            or the class name of the custom schema class
      * @return A future that completes when the framework is done publishing the message
      */
-    <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName);
+    <T> CompletableFuture<Void> publish(String topicName, T object, String schemaOrSerdeClassName);
 
     /**
      * Publish an object to the topic using default schemas.
@@ -115,5 +116,5 @@ public interface WindowContext extends BaseContext {
      * @param object The object that needs to be published
      * @return A future that completes when the framework is done publishing the message
      */
-    <O> CompletableFuture<Void> publish(String topicName, O object);
+    <T> CompletableFuture<Void> publish(String topicName, T object);
 }
