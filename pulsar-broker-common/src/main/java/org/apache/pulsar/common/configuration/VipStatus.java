@@ -19,7 +19,12 @@
 package org.apache.pulsar.common.configuration;
 
 import java.io.File;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
+import java.util.Arrays;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import javax.servlet.ServletContext;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -27,7 +32,6 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response.Status;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.ThreadDumpUtil;
 
 /**
@@ -39,6 +43,11 @@ public class VipStatus {
 
     public static final String ATTRIBUTE_STATUS_FILE_PATH = "statusFilePath";
     public static final String ATTRIBUTE_IS_READY_PROBE = "isReadyProbe";
+
+    // log a full thread dump when a deadlock is detected in status check once every 10 minutes
+    // to prevent excessive logging
+    private static final long LOG_THREADDUMP_INTERVAL_WHEN_DEADLOCK_DETECTED = 600000L;
+    private static volatile long threadDumpLoggedTimestamp;
 
     @Context
     protected ServletContext servletContext;
@@ -55,13 +64,27 @@ public class VipStatus {
             File statusFile = new File(statusFilePath);
             if (isReady && statusFile.exists() && statusFile.isFile()) {
                 // check deadlock
-                String diagnosticResult = ThreadDumpUtil.buildThreadDiagnosticString();
-                if (StringUtils.isBlank(diagnosticResult)) {
-                    return "OK";
-                } else {
-                    log.warn("Deadlock detected, service may be unavailable, "
-                            + "thread stack details are as follows: {}.", diagnosticResult);
+                ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
+                long[] threadIds = threadBean.findDeadlockedThreads();
+                if (threadIds != null && threadIds.length > 0) {
+                    ThreadInfo[] threadInfos = threadBean.getThreadInfo(threadIds, false,
+                            false);
+                    String threadNames = Arrays.stream(threadInfos)
+                            .map(threadInfo -> threadInfo.getThreadName()
+                                    + "(tid=" + threadInfo.getThreadId() + ")")
+                            .collect(Collectors.joining(", "));
+                    if (System.currentTimeMillis() - threadDumpLoggedTimestamp
+                            > LOG_THREADDUMP_INTERVAL_WHEN_DEADLOCK_DETECTED) {
+                        String diagnosticResult = ThreadDumpUtil.buildThreadDiagnosticString();
+                        log.error("Deadlock detected, service may be unavailable, "
+                                + "thread stack details are as follows: {}.", diagnosticResult);
+                        threadDumpLoggedTimestamp = System.currentTimeMillis();
+                    } else {
+                        log.error("Deadlocked threads detected. {}", threadNames);
+                    }
                     throw new WebApplicationException(Status.SERVICE_UNAVAILABLE);
+                } else {
+                    return "OK";
                 }
             }
         }
