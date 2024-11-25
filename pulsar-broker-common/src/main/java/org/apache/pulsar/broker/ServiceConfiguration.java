@@ -3703,9 +3703,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String brokerClientSslFactoryPluginParams = "";
 
     @FieldContext(category = CATEGORY_SERVER, dynamic = true,
-            doc = "Topic name contains cluster, not allow be created automatically."
+            doc = "If automatic topic creation is enabled and the name of the topic contains 'cluster', "
+                    + "the topic cannot be automatically created"
     )
-    private boolean enableCreateLegacyTopic = false;
+    private boolean allowAutoTopicCreationWithLegacyNamingScheme = false;
 
     /* packages management service configurations (begin) */
 
