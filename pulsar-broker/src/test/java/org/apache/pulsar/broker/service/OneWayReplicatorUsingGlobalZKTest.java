@@ -204,14 +204,16 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         // The topics under the namespace of the cluster-1 will be deleted.
         // Verify the result.
         admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster2)));
-        Awaitility.await().atMost(Duration.ofSeconds(120)).untilAsserted(() -> {
+        Awaitility.await().atMost(Duration.ofSeconds(60)).ignoreExceptions().untilAsserted(() -> {
             ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> tps
                     = pulsar1.getBrokerService().getTopics();
             assertFalse(tps.containsKey(topic));
             assertFalse(tps.containsKey(topicChangeEvents));
-            assertFalse(pulsar1.getNamespaceService().checkTopicExists(TopicName.get(topic)).join().isExists());
+            assertFalse(pulsar1.getNamespaceService().checkTopicExists(TopicName.get(topic))
+                    .get(5, TimeUnit.SECONDS).isExists());
             assertFalse(pulsar1.getNamespaceService()
-                    .checkTopicExists(TopicName.get(topicChangeEvents)).join().isExists());
+                    .checkTopicExists(TopicName.get(topicChangeEvents))
+                    .get(5, TimeUnit.SECONDS).isExists());
         });
 
         // cleanup.
