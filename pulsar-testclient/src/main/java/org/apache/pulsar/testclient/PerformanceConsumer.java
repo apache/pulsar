@@ -443,7 +443,7 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
             double elapsed = (now - oldTime) / 1e9;
             long total = totalMessagesReceived.sum();
             double rate = messagesReceived.sumThenReset() / elapsed;
-            double throughput = bytesReceived.sumThenReset() / elapsed * 8 / 1024 / 1024;
+            double throughput = bytesReceived.sumThenReset() / elapsed / 1024 / 1024;
             double rateAck = messageAck.sumThenReset() / elapsed;
             long totalTxnOpSuccessNum = 0;
             long totalTxnOpFailNum = 0;
