@@ -89,7 +89,7 @@ public class WindowContextImpl implements WindowContext {
 
     @Override
     public Record<?> getCurrentRecord() {
-        return null;
+        return this.context.getCurrentRecord();
     }
 
     @Override
