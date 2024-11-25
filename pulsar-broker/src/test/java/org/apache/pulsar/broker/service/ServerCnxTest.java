@@ -108,7 +108,7 @@ import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.client.util.ConsumerName;
+import org.apache.pulsar.client.util.NameUtil;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.AuthMethod;
 import org.apache.pulsar.common.api.proto.BaseCommand;
@@ -1084,8 +1084,8 @@ public class ServerCnxTest {
         final long consumerId = 1;
         final MutableInt requestId = new MutableInt(1);
         final String sName = successSubName;
-        final String cName1 = ConsumerName.generateRandomName();
-        final String cName2 = ConsumerName.generateRandomName();
+        final String cName1 = NameUtil.generateRandomName();
+        final String cName2 = NameUtil.generateRandomName();
         resetChannel();
         setChannelConnected();
 
@@ -1126,8 +1126,8 @@ public class ServerCnxTest {
         final long consumerId = 1;
         final MutableInt requestId = new MutableInt(1);
         final String sName = successSubName;
-        final String cName1 = ConsumerName.generateRandomName();
-        final String cName2 = ConsumerName.generateRandomName();
+        final String cName1 = NameUtil.generateRandomName();
+        final String cName2 = NameUtil.generateRandomName();
         // Disabled connection check.
         pulsar.getConfig().setConnectionLivenessCheckTimeoutMillis(-1);
         resetChannel();
