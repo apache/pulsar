@@ -72,6 +72,21 @@ public class AuthenticationDataSubscription implements AuthenticationDataSource 
         return subscription;
     }
 
+    @Override
+    public boolean hasDataFromHttp() {
+        return authData.hasDataFromHttp();
+    }
+
+    @Override
+    public String getHttpAuthType() {
+        return authData.getHttpAuthType();
+    }
+
+    @Override
+    public String getHttpHeader(String name) {
+        return authData.getHttpHeader(name);
+    }
+
     public AuthenticationDataSource getAuthData() {
         return authData;
     }
