@@ -103,6 +103,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
@@ -1916,5 +1917,49 @@ public class BrokerServiceTest extends BrokerTestBase {
             }
         }
     }
+
+    @Test
+    public void testTlsWithAuthParams() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/newTopic";
+        final String subName = "newSub";
+        Authentication auth;
+
+        Set<String> providers = new HashSet<>();
+        providers.add("org.apache.pulsar.broker.authentication.AuthenticationProviderTls");
+
+        conf.setAuthenticationEnabled(true);
+        conf.setAuthenticationProviders(providers);
+        conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setWebServicePortTls(Optional.of(0));
+        conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
+        conf.setTlsAllowInsecureConnection(false);
+        conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+        conf.setNumExecutorThreadPoolSize(5);
+        restartBroker();
+
+        String authParam = String.format("tlsCertFile:%s,tlsKeyFile:%s", getTlsFileForClient("admin.cert"),
+                getTlsFileForClient("admin.key-pk8"));
+        String authClassName = "org.apache.pulsar.client.impl.auth.AuthenticationTls";
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl(brokerUrlTls.toString());
+        conf.setAuthParams(authParam);
+        conf.setAuthPluginClassName(authClassName);
+        conf.setTlsAllowInsecureConnection(true);
+
+        PulsarClient pulsarClient = null;
+        try {
+            pulsarClient = (new ClientBuilderImpl(conf)).build();
+
+            @Cleanup
+            Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                    .subscribe();
+        } catch (Exception e) {
+            fail("should not fail");
+        } finally {
+            pulsarClient.close();
+        }
+    }
+
 }
 
