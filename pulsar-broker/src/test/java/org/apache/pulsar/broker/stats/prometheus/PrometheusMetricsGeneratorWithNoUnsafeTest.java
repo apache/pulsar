@@ -18,9 +18,10 @@
  */
 package org.apache.pulsar.broker.stats.prometheus;
 
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.fail;
-
 import io.netty.buffer.ByteBuf;
+import io.netty.util.internal.PlatformDependent;
 import java.time.Clock;
 import lombok.Cleanup;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
@@ -37,6 +38,7 @@ public class PrometheusMetricsGeneratorWithNoUnsafeTest {
 
     @Test
     public void testWriteStringWithNoUnsafe() {
+        assertFalse(PlatformDependent.hasUnsafe());
         PrometheusMetricsGenerator generator = new PrometheusMetricsGenerator(null, false, false, false, false,
             Clock.systemUTC());
         @Cleanup("release")
@@ -44,8 +46,6 @@ public class PrometheusMetricsGeneratorWithNoUnsafeTest {
         for (int i = 0; i < 2; i++) {
             buf.writeBytes(new byte[1024 * 1024]);
         }
-
-        System.out.println(buf.nioBuffers().length);
         SimpleTextOutputStream outputStream = new SimpleTextOutputStream(buf);
         try {
             outputStream.write("test");
