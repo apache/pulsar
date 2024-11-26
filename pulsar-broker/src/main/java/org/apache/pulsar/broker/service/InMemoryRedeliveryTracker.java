@@ -19,48 +19,98 @@
 package org.apache.pulsar.broker.service;
 
 import java.util.List;
+import java.util.concurrent.locks.StampedLock;
+
+import it.unimi.dsi.fastutil.longs.Long2IntMap;
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2LongMap;
+import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap.LongPair;
 
-public class InMemoryRedeliveryTracker implements RedeliveryTracker {
-
-    private ConcurrentLongLongPairHashMap trackerCache = ConcurrentLongLongPairHashMap.newBuilder()
-            .concurrencyLevel(1)
-            .expectedItems(256)
-            .autoShrink(true)
-            .build();
+public class InMemoryRedeliveryTracker extends StampedLock implements RedeliveryTracker {
+    // ledgerId -> entryId -> count
+    private Long2ObjectMap<Long2IntMap> trackerCache = new Long2ObjectOpenHashMap<>();
 
     @Override
     public int incrementAndGetRedeliveryCount(Position position) {
-        Position positionImpl = position;
-        LongPair count = trackerCache.get(positionImpl.getLedgerId(), positionImpl.getEntryId());
-        int newCount = (int) (count != null ? count.first + 1 : 1);
-        trackerCache.put(positionImpl.getLedgerId(), positionImpl.getEntryId(), newCount, 0L);
+        long stamp = writeLock();
+        int newCount;
+        try {
+            Long2IntMap entryMap = trackerCache.computeIfAbsent(position.getLedgerId(),
+                    k -> new Long2IntOpenHashMap());
+            newCount = entryMap.getOrDefault(position.getEntryId(), 0) + 1;
+            entryMap.put(position.getEntryId(), newCount);
+        } finally {
+            unlockWrite(stamp);
+        }
         return newCount;
     }
 
     @Override
     public int getRedeliveryCount(long ledgerId, long entryId) {
-        LongPair count = trackerCache.get(ledgerId, entryId);
-        return (int) (count != null ? count.first : 0);
+        long stamp = tryOptimisticRead();
+        Long2IntMap entryMap = trackerCache.get(ledgerId);
+        int count = entryMap != null ? entryMap.get(entryId) : 0;
+        if (!validate(stamp)) {
+            stamp = readLock();
+            try {
+                entryMap = trackerCache.get(ledgerId);
+                count = entryMap != null ? entryMap.get(entryId) : 0;
+            } finally {
+                unlockRead(stamp);
+            }
+        }
+        return count;
     }
 
     @Override
     public void remove(Position position) {
-        Position positionImpl = position;
-        trackerCache.remove(positionImpl.getLedgerId(), positionImpl.getEntryId());
+        long stamp = writeLock();
+        try {
+            Long2IntMap entryMap = trackerCache.get(position.getLedgerId());
+            if (entryMap != null) {
+                entryMap.remove(position.getEntryId());
+                if (entryMap.isEmpty()) {
+                    trackerCache.remove(position.getLedgerId());
+                }
+            }
+        } finally {
+            unlockWrite(stamp);
+        }
     }
 
     @Override
     public void removeBatch(List<Position> positions) {
-        if (positions != null) {
-            positions.forEach(this::remove);
+        if (positions == null) {
+            return;
+        }
+        long stamp = writeLock();
+        try {
+            for (Position position : positions) {
+                Long2IntMap entryMap = trackerCache.get(position.getLedgerId());
+                if (entryMap != null) {
+                    entryMap.remove(position.getEntryId());
+                    if (entryMap.isEmpty()) {
+                        trackerCache.remove(position.getLedgerId());
+                    }
+                }
+            }
+        } finally {
+            unlockWrite(stamp);
         }
     }
 
     @Override
     public void clear() {
-        trackerCache.clear();
+        long stamp = writeLock();
+        try {
+            trackerCache.clear();
+        } finally {
+            unlockWrite(stamp);
+        }
     }
 }
