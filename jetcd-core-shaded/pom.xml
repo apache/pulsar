@@ -94,6 +94,10 @@
                   <include>io.etcd:*</include>
                   <include>io.vertx:*</include>
                 </includes>
+                <excludes>
+                  <!-- This is required for execute shade multiple times without clean -->
+                  <exclude>org.apache.pulsar:jetcd-core-shaded</exclude>
+                </excludes>
               </artifactSet>
               <relocations>
                 <!-- relocate vertx packages since they will be transformed to use grpc-netty-shaded packages -->
