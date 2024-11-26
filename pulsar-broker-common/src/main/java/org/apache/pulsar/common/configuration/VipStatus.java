@@ -55,7 +55,7 @@ public class VipStatus {
     // when there's more than 1 seconds from the previous check.
     // If it's less than that, the previous result of the deadlock check would be reused.
     private static final long DEADLOCK_DETECTED_INTERVAL = 1000L;
-    private static volatile boolean brokerIsHealthy = true;
+    private static volatile boolean lastCheckStatusResult = true;
 
     @Context
     protected ServletContext servletContext;
@@ -66,7 +66,7 @@ public class VipStatus {
         synchronized (VipStatus.class) {
             if (System.currentTimeMillis() - lastCheckStatusTimestamp < DEADLOCK_DETECTED_INTERVAL) {
                 lastCheckStatusTimestamp = System.currentTimeMillis();
-                if (brokerIsHealthy) {
+                if (lastCheckStatusResult) {
                     return "OK";
                 } else {
                     throw new WebApplicationException(Status.SERVICE_UNAVAILABLE);
@@ -101,15 +101,15 @@ public class VipStatus {
                         } else {
                             log.error("Deadlocked threads detected. {}", threadNames);
                         }
-                        brokerIsHealthy = false;
+                        lastCheckStatusResult = false;
                         throw new WebApplicationException(Status.SERVICE_UNAVAILABLE);
                     } else {
-                        brokerIsHealthy = true;
+                        lastCheckStatusResult = true;
                         return "OK";
                     }
                 }
             }
-            brokerIsHealthy = false;
+            lastCheckStatusResult = false;
             log.warn("Failed to access \"status.html\". The service is not ready");
             throw new WebApplicationException(Status.NOT_FOUND);
         }
