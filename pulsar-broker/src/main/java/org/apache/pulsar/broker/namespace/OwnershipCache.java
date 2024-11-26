@@ -72,7 +72,7 @@ public class OwnershipCache {
     /**
      * The NamespaceEphemeralData objects that can be associated with the current owner, when the broker is disabled.
      */
-    private final NamespaceEphemeralData selfOwnerInfoDisabled;
+    private NamespaceEphemeralData selfOwnerInfoDisabled;
 
     private final LockManager<NamespaceEphemeralData> lockManager;
 
@@ -119,6 +119,9 @@ public class OwnershipCache {
         this.pulsar = pulsar;
         this.ownerBrokerUrl = pulsar.getBrokerServiceUrl();
         this.ownerBrokerUrlTls = pulsar.getBrokerServiceUrlTls();
+        // At this moment, the variables "webServiceAddress" and "webServiceAddressTls" and so on have not been
+        // initialized, so we will get an empty "selfOwnerInfo" and an empty "selfOwnerInfoDisabled" here.
+        // But do not worry, these two fields will be set by the method "refreshSelfOwnerInfo" soon.
         this.selfOwnerInfo = new NamespaceEphemeralData(ownerBrokerUrl, ownerBrokerUrlTls,
                 pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                 false, pulsar.getAdvertisedListeners());
@@ -351,6 +354,9 @@ public class OwnershipCache {
         this.selfOwnerInfo = new NamespaceEphemeralData(pulsar.getBrokerServiceUrl(),
                 pulsar.getBrokerServiceUrlTls(), pulsar.getWebServiceAddress(),
                 pulsar.getWebServiceAddressTls(), false, pulsar.getAdvertisedListeners());
+        this.selfOwnerInfoDisabled = new NamespaceEphemeralData(pulsar.getBrokerServiceUrl(),
+                pulsar.getBrokerServiceUrlTls(), pulsar.getWebServiceAddress(),
+                pulsar.getWebServiceAddressTls(), true, pulsar.getAdvertisedListeners());
         return selfOwnerInfo.getNativeUrl() != null || selfOwnerInfo.getNativeUrlTls() != null;
     }
 }
