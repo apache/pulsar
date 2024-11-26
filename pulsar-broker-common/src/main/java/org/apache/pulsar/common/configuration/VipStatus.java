@@ -62,6 +62,7 @@ public class VipStatus {
 
     @GET
     public String checkStatus() {
+        // Locking classes to avoid deadlock detection in multi-thread concurrent requests.
         synchronized (VipStatus.class) {
             if (System.currentTimeMillis() - lastCheckStatusTimestamp < DEADLOCK_DETECTED_INTERVAL) {
                 lastCheckStatusTimestamp = System.currentTimeMillis();
@@ -72,46 +73,46 @@ public class VipStatus {
                 }
             }
             lastCheckStatusTimestamp = System.currentTimeMillis();
-        }
 
-        String statusFilePath = (String) servletContext.getAttribute(ATTRIBUTE_STATUS_FILE_PATH);
-        @SuppressWarnings("unchecked")
-        Supplier<Boolean> isReadyProbe = (Supplier<Boolean>) servletContext.getAttribute(ATTRIBUTE_IS_READY_PROBE);
+            String statusFilePath = (String) servletContext.getAttribute(ATTRIBUTE_STATUS_FILE_PATH);
+            @SuppressWarnings("unchecked")
+            Supplier<Boolean> isReadyProbe = (Supplier<Boolean>) servletContext.getAttribute(ATTRIBUTE_IS_READY_PROBE);
 
-        boolean isReady = isReadyProbe != null ? isReadyProbe.get() : true;
+            boolean isReady = isReadyProbe != null ? isReadyProbe.get() : true;
 
-        if (statusFilePath != null) {
-            File statusFile = new File(statusFilePath);
-            if (isReady && statusFile.exists() && statusFile.isFile()) {
-                // check deadlock
-                ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
-                long[] threadIds = threadBean.findDeadlockedThreads();
-                if (threadIds != null && threadIds.length > 0) {
-                    ThreadInfo[] threadInfos = threadBean.getThreadInfo(threadIds, false,
-                            false);
-                    String threadNames = Arrays.stream(threadInfos)
-                            .map(threadInfo -> threadInfo.getThreadName()
-                                    + "(tid=" + threadInfo.getThreadId() + ")")
-                            .collect(Collectors.joining(", "));
-                    if (System.currentTimeMillis() - lastCheckStatusTimestamp
-                            > LOG_THREADDUMP_INTERVAL_WHEN_DEADLOCK_DETECTED) {
-                        String diagnosticResult = ThreadDumpUtil.buildThreadDiagnosticString();
-                        log.error("Deadlock detected, service may be unavailable, "
-                                + "thread stack details are as follows: {}.", diagnosticResult);
+            if (statusFilePath != null) {
+                File statusFile = new File(statusFilePath);
+                if (isReady && statusFile.exists() && statusFile.isFile()) {
+                    // check deadlock
+                    ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
+                    long[] threadIds = threadBean.findDeadlockedThreads();
+                    if (threadIds != null && threadIds.length > 0) {
+                        ThreadInfo[] threadInfos = threadBean.getThreadInfo(threadIds, false,
+                                false);
+                        String threadNames = Arrays.stream(threadInfos)
+                                .map(threadInfo -> threadInfo.getThreadName()
+                                        + "(tid=" + threadInfo.getThreadId() + ")")
+                                .collect(Collectors.joining(", "));
+                        if (System.currentTimeMillis() - lastCheckStatusTimestamp
+                                > LOG_THREADDUMP_INTERVAL_WHEN_DEADLOCK_DETECTED) {
+                            String diagnosticResult = ThreadDumpUtil.buildThreadDiagnosticString();
+                            log.error("Deadlock detected, service may be unavailable, "
+                                    + "thread stack details are as follows: {}.", diagnosticResult);
+                        } else {
+                            log.error("Deadlocked threads detected. {}", threadNames);
+                        }
+                        brokerIsHealthy = false;
+                        throw new WebApplicationException(Status.SERVICE_UNAVAILABLE);
                     } else {
-                        log.error("Deadlocked threads detected. {}", threadNames);
+                        brokerIsHealthy = true;
+                        return "OK";
                     }
-                    brokerIsHealthy = false;
-                    throw new WebApplicationException(Status.SERVICE_UNAVAILABLE);
-                } else {
-                    brokerIsHealthy = true;
-                    return "OK";
                 }
             }
+            brokerIsHealthy = false;
+            log.warn("Failed to access \"status.html\". The service is not ready");
+            throw new WebApplicationException(Status.NOT_FOUND);
         }
-        brokerIsHealthy = false;
-        log.warn("Failed to access \"status.html\". The service is not ready");
-        throw new WebApplicationException(Status.NOT_FOUND);
     }
 
 }
