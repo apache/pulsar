@@ -27,6 +27,7 @@ import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker-isolated")
 public class PrometheusMetricsGeneratorWithNoUnsafeTest {
 
     @BeforeClass
