@@ -96,7 +96,7 @@ public class TestOffloadDeletionFS extends TestBaseOffload {
         result.put("managedLedgerMaxEntriesPerLedger", String.valueOf(getNumEntriesPerLedger()));
         result.put("managedLedgerMinLedgerRolloverTimeMinutes", "0");
         result.put("managedLedgerOffloadDriver", "filesystem");
-        result.put("fileSystemURI", "file:///");
+        result.put("fileSystemURI", "file:///pulsar/data");
 
         return result;
     }
