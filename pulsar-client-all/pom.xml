@@ -225,6 +225,12 @@
                     <exclude>org/bouncycastle/**</exclude>
                   </excludes>
                 </filter>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>**/module-info.class</exclude>
+                  </excludes>
+                </filter>
               </filters>
               <relocations>
                 <relocation>
