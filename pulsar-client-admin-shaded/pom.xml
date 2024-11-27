@@ -200,6 +200,9 @@
                     <exclude>META-INF/LICENSE*</exclude>
                     <exclude>META-INF/DEPENDENCIES*</exclude>
                     <exclude>META-INF/MANIFEST.MF</exclude>
+                    <exclude>findbugsExclude.xml</exclude>
+                    <exclude>META-INF/native-image/**</exclude>
+                    <exclude>META-INF/io.netty.versions.properties</exclude>
                   </excludes>
                 </filter>
               </filters>
