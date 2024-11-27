@@ -356,7 +356,7 @@ public class TopicLookupBase extends PulsarWebResource {
             log.warn("[{}] Unexpected lookup result: brokerUrl is required when TLS isn't enabled. options: {},"
                 + " result {}", topic, options, lookupData);
         } else if (tlsEnabled && StringUtils.isBlank(lookupData.getBrokerUrlTls())) {
-            log.warn("[{}] Unexpected lookup resul: brokerUrlTls is required when TLS is enabled. options: {},"
+            log.warn("[{}] Unexpected lookup result: brokerUrlTls is required when TLS is enabled. options: {},"
                     + " result {}", topic, options, lookupData);
         }
     }
