@@ -318,7 +318,7 @@ public class TopicLookupBase extends PulsarWebResource {
                             }
 
                             LookupData lookupData = lookupResult.get().getLookupData();
-                            printWarnLogIfLookupResUnexpected(topicName, lookupData, pulsarService);
+                            printWarnLogIfLookupResUnexpected(topicName, lookupData, options, pulsarService);
                             if (lookupResult.get().isRedirect()) {
                                 boolean newAuthoritative = lookupResult.get().isAuthoritativeRedirect();
                                 lookupfuture.complete(
