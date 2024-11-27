@@ -157,6 +157,7 @@
                   <include>io.airlift:*</include>
                   <include>com.sun.activation:javax.activation</include>
                   <include>javax.annotation:javax.annotation-api</include>
+                  <include>javax.ws.rs:*</include>
 
                   <include>org.apache.pulsar:pulsar-common</include>
                   <include>com.yahoo.datasketches:sketches-core</include>
@@ -251,6 +252,10 @@
                 <relocation>
                   <pattern>org.checkerframework</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.checkerframework</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>javax.ws</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.javax.ws</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>javax.annotation</pattern>
