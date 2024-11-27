@@ -36,8 +36,8 @@ pushd ${ROOT_DIR}
 # Get the current version
 OLD_VERSION=`python3 ${ROOT_DIR}/src/get-project-version.py`
 
-mvn versions:set -DnewVersion=$NEW_VERSION
-mvn versions:set -DnewVersion=$NEW_VERSION -pl buildtools
+mvn versions:set -DnewVersion=$NEW_VERSION -DgenerateBackupPoms=false
+mvn versions:set -DnewVersion=$NEW_VERSION -DgenerateBackupPoms=false -pl buildtools
 # Set terraform ansible deployment pulsar version
 sed -i -e "s/${OLD_VERSION}/${NEW_VERSION}/g" ${TERRAFORM_DIR}/deploy-pulsar.yaml
 
