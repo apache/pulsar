@@ -21,6 +21,7 @@ package org.apache.pulsar.testclient;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
 import java.lang.management.ManagementFactory;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -79,6 +80,9 @@ public class PerfClientUtils {
                 .maxLookupRequests(arguments.maxLookupRequest)
                 .proxyServiceUrl(arguments.proxyServiceURL, arguments.proxyProtocol)
                 .openTelemetry(AutoConfiguredOpenTelemetrySdk.builder()
+                        .addPropertiesSupplier(() -> Map.of(
+                                "otel.sdk.disabled", "true"
+                        ))
                         .build().getOpenTelemetrySdk());
 
         if (isNotBlank(arguments.authPluginClassName)) {
