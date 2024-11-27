@@ -429,10 +429,6 @@ MIT License
  * The Checker Framework
     - checker-qual-3.33.0.jar
 
-Protocol Buffers License
- * Protocol Buffers
-   - protobuf-java-3.25.5.jar -- ../licenses/LICENSE-protobuf.txt
-
 CDDL-1.1 -- ../licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API
     - javax.annotation-api-1.3.2.jar
