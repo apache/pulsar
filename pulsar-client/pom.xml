@@ -29,7 +29,7 @@
   </parent>
 
   <artifactId>pulsar-client-original</artifactId>
-  <name>Pulsar Client Java</name>
+  <name>Pulsar Client Java Original</name>
 
   <dependencies>
     <dependency>
