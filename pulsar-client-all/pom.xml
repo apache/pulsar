@@ -183,6 +183,8 @@
                   <include>org.glassfish.jersey*:*</include>
                   <include>javax.ws.rs:*</include>
                   <include>javax.xml.bind:jaxb-api</include>
+                  <include>com.sun.activation:javax.activation</include>
+                  <include>javax.annotation:javax.annotation-api</include>
                   <include>jakarta.annotation:*</include>
                   <include>org.glassfish.hk2*:*</include>
                   <include>io.grpc:*</include>
@@ -292,6 +294,14 @@
                   <shadedPattern>org.apache.pulsar.shade.javax.annotation</shadedPattern>
                 </relocation>
                 <relocation>
+                  <pattern>javax.activation</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.javax.activation</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.sun.activation</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.sun.activation</shadedPattern>
+                </relocation>
+                <relocation>
                   <pattern>javax.xml.bind</pattern>
                   <shadedPattern>org.apache.pulsar.shade.javax.xml.bind</shadedPattern>
                 </relocation>
@@ -383,10 +393,6 @@
                 <relocation>
                   <pattern>org.checkerframework</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.checkerframework</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>javax.annotation</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.javax.annotation</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.tukaani</pattern>

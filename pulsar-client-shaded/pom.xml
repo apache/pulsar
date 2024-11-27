@@ -155,6 +155,8 @@
                   <include>commons-*:*</include>
                   <include>io.swagger:*</include>
                   <include>io.airlift:*</include>
+                  <include>com.sun.activation:javax.activation</include>
+                  <include>javax.annotation:javax.annotation-api</include>
 
                   <include>org.apache.pulsar:pulsar-common</include>
                   <include>com.yahoo.datasketches:sketches-core</include>
@@ -227,6 +229,14 @@
                 <relocation>
                   <pattern>javax.annotation</pattern>
                   <shadedPattern>org.apache.pulsar.shade.javax.annotation</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>javax.activation</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.javax.activation</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.sun.activation</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.sun.activation</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>io.swagger</pattern>
