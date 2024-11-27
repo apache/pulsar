@@ -207,6 +207,11 @@
                   </excludes>
                 </relocation>
                 <relocation>
+                  <pattern>META-INF/versions/(\d+)/com/fasterxml/jackson/core/</pattern>
+                  <shadedPattern>META-INF/versions/$1/org/apache/pulsar/shade/com/fasterxml/jackson/core/</shadedPattern>
+                  <rawString>true</rawString>
+                </relocation>
+                <relocation>
                   <pattern>io.netty</pattern>
                   <shadedPattern>org.apache.pulsar.shade.io.netty</shadedPattern>
                 </relocation>
@@ -231,6 +236,11 @@
                   <shadedPattern>org.apache.pulsar.shade.org.glassfish</shadedPattern>
                 </relocation>
                 <relocation>
+                  <pattern>META-INF/versions/(\d+)/org/glassfish/</pattern>
+                  <shadedPattern>META-INF/versions/$1/org/apache/pulsar/shade/org/glassfish/</shadedPattern>
+                  <rawString>true</rawString>
+                </relocation>
+                <relocation>
                   <pattern>javax.ws</pattern>
                   <shadedPattern>org.apache.pulsar.shade.javax.ws</shadedPattern>
                 </relocation>
@@ -249,6 +259,11 @@
                 <relocation>
                   <pattern>javax.xml.bind</pattern>
                   <shadedPattern>org.apache.pulsar.shade.javax.xml.bind</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>META-INF/versions/(\d+)/javax/xml/bind/</pattern>
+                  <shadedPattern>META-INF/versions/$1/org/apache/pulsar/shade/javax/xml/bind/</shadedPattern>
+                  <rawString>true</rawString>
                 </relocation>
                 <relocation>
                   <pattern>jersey</pattern>
@@ -303,6 +318,11 @@
                       <shadedPattern>org.apache.pulsar.shade.org.yaml</shadedPattern>
                   </relocation>
                   <relocation>
+                    <pattern>META-INF/versions/(\d+)/org/yaml/</pattern>
+                    <shadedPattern>META-INF/versions/$1/org/apache/pulsar/shade/org/yaml/</shadedPattern>
+                    <rawString>true</rawString>
+                  </relocation>
+                  <relocation>
                       <pattern>io.swagger</pattern>
                       <shadedPattern>org.apache.pulsar.shade.io.swagger</shadedPattern>
                   </relocation>
@@ -320,6 +340,11 @@
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
                 <transformer implementation="org.apache.maven.plugins.shade.resource.PluginXmlResourceTransformer" />
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <manifestEntries>
+                    <Multi-Release>true</Multi-Release>
+                  </manifestEntries>
+                </transformer>
               </transformers>
             </configuration>
           </execution>
