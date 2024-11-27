@@ -115,6 +115,7 @@
                   <include>org.apache.commons:commons-lang3</include>
                   <include>commons-codec:commons-codec</include>
                   <include>commons-collections:commons-collections</include>
+                  <include>org.apache.commons:commons-compress</include>
                   <include>org.asynchttpclient:*</include>
                   <include>org.reactivestreams:reactive-streams</include>
                   <include>com.typesafe.netty:netty-reactive-streams</include>
