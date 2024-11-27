@@ -61,7 +61,6 @@ public class VipStatus {
         // Locking classes to avoid deadlock detection in multi-thread concurrent requests.
         synchronized (VipStatus.class) {
             if (System.currentTimeMillis() - lastCheckStatusTimestamp < CHECK_STATUS_INTERVAL) {
-                lastCheckStatusTimestamp = System.currentTimeMillis();
                 if (lastCheckStatusResult) {
                     return "OK";
                 } else {
