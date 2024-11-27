@@ -852,6 +852,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 this.webSocketService.setLocalCluster(clusterData);
             }
 
+            // Initialize namespace service, after service url assigned. Should init zk and refresh self owner info.
+            this.nsService.initialize();
+
             // Start the leader election service
             startLeaderElectionService();
 
@@ -862,9 +865,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             // The load manager service and its service unit state channel need to be initialized first
             // (namespace service depends on load manager)
             this.startLoadManagementService();
-
-            // Initialize namespace service, after service url assigned. Should init zk and refresh self owner info.
-            this.nsService.initialize();
 
             // Start topic level policies service
             if (config.isTopicLevelPoliciesEnabled() && config.isSystemTopicEnabled()) {
