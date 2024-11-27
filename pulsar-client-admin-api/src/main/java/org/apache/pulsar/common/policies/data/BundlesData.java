@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import static org.apache.pulsar.common.policies.data.Policies.FIRST_BOUNDARY;
+import static org.apache.pulsar.common.policies.data.Policies.LAST_BOUNDARY;
+import java.util.ArrayList;
 import java.util.List;
 import org.apache.pulsar.common.policies.data.impl.BundlesDataImpl;
 
@@ -26,16 +29,30 @@ import org.apache.pulsar.common.policies.data.impl.BundlesDataImpl;
  */
 public interface BundlesData {
     List<String> getBoundaries();
-    int getNumBundles();
 
+    int getNumBundles();
     interface Builder {
+
         Builder boundaries(List<String> boundaries);
         Builder numBundles(int numBundles);
         BundlesData build();
     }
-
     static Builder builder() {
         return BundlesDataImpl.builder();
     }
 
+    /**
+     * Return the default bundle data for a single bundle.
+     *
+     * @return default bundle data for a single bundle
+     */
+    static BundlesData defaultBundle() {
+        List<String> boundaries = new ArrayList<>();
+        boundaries.add(FIRST_BOUNDARY);
+        boundaries.add(LAST_BOUNDARY);
+        return builder()
+                .numBundles(1)
+                .boundaries(boundaries)
+                .build();
+    }
 }

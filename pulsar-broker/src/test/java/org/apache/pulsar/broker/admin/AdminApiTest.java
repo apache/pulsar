@@ -807,7 +807,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() ->
             assertEquals(admin.tenants().getTenantInfo("prop-xyz").getAllowedClusters(), Set.of("test", "usw")));
 
-        assertEquals(admin.namespaces().getPolicies("prop-xyz/ns1").bundles, PoliciesUtil.defaultBundle());
+        assertEquals(admin.namespaces().getPolicies("prop-xyz/ns1").bundles, BundlesData.defaultBundle());
 
         admin.namespaces().createNamespace("prop-xyz/ns2", Set.of("test"));
 
@@ -842,7 +842,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         Policies policies = new Policies();
         policies.replication_clusters = Set.of("test");
-        policies.bundles = PoliciesUtil.defaultBundle();
+        policies.bundles = BundlesData.defaultBundle();
         policies.auth_policies.getNamespaceAuthentication().put("spiffe://developer/passport-role", EnumSet.allOf(AuthAction.class));
         policies.auth_policies.getNamespaceAuthentication().put("my-role", EnumSet.allOf(AuthAction.class));
         policies.is_allow_auto_update_schema = conf.isAllowAutoUpdateSchemaEnabled();

@@ -95,6 +95,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.BrokerAssignment;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
@@ -103,7 +104,6 @@ import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.PoliciesUtil;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -660,7 +660,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
                 Set.of("use", "usw"));
         admin.tenants().updateTenant("prop-xyz", tenantInfo);
 
-        assertEquals(admin.namespaces().getPolicies("prop-xyz/use/ns1").bundles, PoliciesUtil.defaultBundle());
+        assertEquals(admin.namespaces().getPolicies("prop-xyz/use/ns1").bundles, BundlesData.defaultBundle());
 
         admin.namespaces().createNamespace("prop-xyz/use/ns2");
 
@@ -694,7 +694,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().grantPermissionOnNamespace("prop-xyz/use/ns1", "my-role", EnumSet.allOf(AuthAction.class));
 
         Policies policies = new Policies();
-        policies.bundles = PoliciesUtil.defaultBundle();
+        policies.bundles = BundlesData.defaultBundle();
         policies.auth_policies.getNamespaceAuthentication().put("my-role", EnumSet.allOf(AuthAction.class));
         policies.is_allow_auto_update_schema = conf.isAllowAutoUpdateSchemaEnabled();
 
