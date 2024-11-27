@@ -353,7 +353,7 @@ public class TopicLookupBase extends PulsarWebResource {
         }
         boolean tlsEnabled = pulsar.getConfig().isBrokerClientTlsEnabled();
         if (!tlsEnabled && StringUtils.isBlank(lookupData.getBrokerUrl())) {
-            log.warn("[{}] Unexpected lookup resul: brokerUrlTls is required when TLS isn't enabled. options: {},"
+            log.warn("[{}] Unexpected lookup result: brokerUrl is required when TLS isn't enabled. options: {},"
                 + " result {}", topic, options, lookupData);
         } else if (tlsEnabled && StringUtils.isBlank(lookupData.getBrokerUrlTls())) {
             log.warn("[{}] Unexpected lookup resul: brokerUrlTls is required when TLS is enabled. options: {},"
