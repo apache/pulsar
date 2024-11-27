@@ -287,6 +287,10 @@
                   <shadedPattern>org.apache.pulsar.shade.com.sun.activation</shadedPattern>
                 </relocation>
                 <relocation>
+                  <pattern>io.swagger</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.io.swagger</shadedPattern>
+                </relocation>
+                <relocation>
                   <pattern>javax.xml.bind</pattern>
                   <shadedPattern>org.apache.pulsar.shade.javax.xml.bind</shadedPattern>
                 </relocation>
