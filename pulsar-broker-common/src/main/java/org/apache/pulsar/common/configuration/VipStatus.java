@@ -49,13 +49,9 @@ public class VipStatus {
     private static final long LOG_THREADDUMP_INTERVAL_WHEN_DEADLOCK_DETECTED = 600000L;
     private static volatile long lastCheckStatusTimestamp;
 
-    // Since the status endpoint doesn't have authentication, it will be necessary to have a solution to prevent
-    // introducing a new DoS vulnerability where calling the status endpoint in a tight loop could introduce
-    // significant load to the system. One way would be to check that the deadlock check is executed only
-    // when there's more than 1 seconds from the previous check.
-    // If it's less than that, the previous result of the deadlock check would be reused.
-    private static final long DEADLOCK_DETECTED_INTERVAL = 1000L;
-    private static volatile boolean lastCheckStatusResult = true;
+    // Rate limit status checks to every 500ms to prevent DoS
+    private static final long CHECK_STATUS_INTERVAL = 500L;
+    private static volatile boolean lastCheckStatusResult;
 
     @Context
     protected ServletContext servletContext;
@@ -64,7 +60,7 @@ public class VipStatus {
     public String checkStatus() {
         // Locking classes to avoid deadlock detection in multi-thread concurrent requests.
         synchronized (VipStatus.class) {
-            if (System.currentTimeMillis() - lastCheckStatusTimestamp < DEADLOCK_DETECTED_INTERVAL) {
+            if (System.currentTimeMillis() - lastCheckStatusTimestamp < CHECK_STATUS_INTERVAL) {
                 lastCheckStatusTimestamp = System.currentTimeMillis();
                 if (lastCheckStatusResult) {
                     return "OK";
