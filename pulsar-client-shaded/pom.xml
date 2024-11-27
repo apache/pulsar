@@ -47,11 +47,6 @@
       <artifactId>pulsar-client-messagecrypto-bc</artifactId>
       <version>${project.version}</version>
     </dependency>
-    <dependency>
-      <groupId>com.google.protobuf</groupId>
-      <artifactId>protobuf-java</artifactId>
-      <optional>true</optional>
-    </dependency>
   </dependencies>
 
   <build>
