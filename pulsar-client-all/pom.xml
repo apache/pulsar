@@ -244,12 +244,15 @@
                     <exclude>META-INF/maven/**</exclude>
                     <exclude>META-INF/license/**</exclude>
                     <exclude>META-INF/NOTICE*</exclude>
+                    <exclude>META-INF/*-NOTICE</exclude>
                     <exclude>META-INF/LICENSE*</exclude>
+                    <exclude>META-INF/*-LICENSE</exclude>
                     <exclude>META-INF/DEPENDENCIES*</exclude>
                     <exclude>META-INF/MANIFEST.MF</exclude>
                     <exclude>findbugsExclude.xml</exclude>
                     <exclude>META-INF/native-image/**</exclude>
                     <exclude>META-INF/io.netty.versions.properties</exclude>
+                    <exclude>META-INF/proguard/**</exclude>
                   </excludes>
                 </filter>
               </filters>
