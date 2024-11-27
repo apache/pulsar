@@ -226,6 +226,15 @@
                   </excludes>
                 </filter>
                 <filter>
+                  <artifact>org.asynchttpclient:async-http-client</artifact>
+                  <includes>
+                    <include>**</include>
+                  </includes>
+                  <excludes>
+                    <exclude>org/asynchttpclient/config/ahc-default.properties</exclude>
+                  </excludes>
+                </filter>
+                <filter>
                   <artifact>*:*</artifact>
                   <excludes>
                     <exclude>**/module-info.class</exclude>
@@ -233,6 +242,11 @@
                     <exclude>META-INF/*.DSA</exclude>
                     <exclude>META-INF/*.RSA</exclude>
                     <exclude>META-INF/maven/**</exclude>
+                    <exclude>META-INF/license/**</exclude>
+                    <exclude>META-INF/NOTICE*</exclude>
+                    <exclude>META-INF/LICENSE*</exclude>
+                    <exclude>META-INF/DEPENDENCIES*</exclude>
+                    <exclude>META-INF/MANIFEST.MF</exclude>
                   </excludes>
                 </filter>
               </filters>
