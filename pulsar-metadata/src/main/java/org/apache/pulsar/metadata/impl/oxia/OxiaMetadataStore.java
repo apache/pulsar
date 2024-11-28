@@ -297,10 +297,12 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
 
     @Override
     public void close() throws Exception {
-        if (client != null) {
-            client.close();
+        if (isClosed.compareAndSet(false, true)) {
+            if (client != null) {
+                client.close();
+            }
+            super.close();
         }
-        super.close();
     }
 
     public Optional<MetadataEventSynchronizer> getMetadataEventSynchronizer() {
