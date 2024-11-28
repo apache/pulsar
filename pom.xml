@@ -220,7 +220,7 @@ flexible messaging model and an intuitive client API.</description>
     <commons-configuration.version>1.10</commons-configuration.version>
     <commons-io.version>2.14.0</commons-io.version>
     <commons-codec.version>1.15</commons-codec.version>
-    <javax.ws.rs-api.version>2.1</javax.ws.rs-api.version>
+    <jakarta.ws.rs-api.version>2.1.6</jakarta.ws.rs-api.version>
     <hdrHistogram.version>2.1.9</hdrHistogram.version>
     <javax.servlet-api>3.1.0</javax.servlet-api>
     <caffeine.version>2.9.1</caffeine.version>
@@ -854,9 +854,9 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>javax.ws.rs</groupId>
-        <artifactId>javax.ws.rs-api</artifactId>
-        <version>${javax.ws.rs-api.version}</version>
+        <groupId>jakarta.ws.rs</groupId>
+        <artifactId>jakarta.ws.rs-api</artifactId>
+        <version>${jakarta.ws.rs-api.version}</version>
       </dependency>
 
       <dependency>
@@ -990,6 +990,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>com.yahoo.athenz</groupId>
         <artifactId>athenz-zts-java-client-core</artifactId>
         <version>${athenz.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>javax.ws.rs</groupId>
+            <artifactId>javax.ws.rs-api</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
