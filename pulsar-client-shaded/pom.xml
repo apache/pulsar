@@ -155,12 +155,11 @@
                   <include>commons-*:*</include>
                   <include>io.swagger:*</include>
                   <include>io.airlift:*</include>
-                  <include>jakarta.annotation:*</include>
+                  <include>jakarta.annotation:jakarta-annotation-api</include>
                   <include>jakarta.ws.rs:jakarta.ws.rs-api</include>
                   <include>jakarta.xml.bind:jakarta.xml.bind-api</include>
                   <include>jakarta.activation:jakarta.activation-api</include>
                   <include>com.sun.activation:javax.activation</include>
-                  <include>javax.annotation:javax.annotation-api</include>
                   <include>javax.ws.rs:*</include>
                   <include>net.jcip:jcip-annotations</include>
                   <include>org.apache.pulsar:pulsar-common</include>
