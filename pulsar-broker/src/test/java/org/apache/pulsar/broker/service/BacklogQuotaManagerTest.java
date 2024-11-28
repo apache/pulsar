@@ -526,7 +526,7 @@ public class BacklogQuotaManagerTest {
             assertThat(topicStats.getBacklogSize()).isEqualTo(0);
             assertThat(topicStats.getSubscriptions().get(subName1).getMsgBacklog()).isEqualTo(0);
             assertThat(topicStats.getSubscriptions().get(subName2).getMsgBacklog()).isEqualTo(0);
-            assertThat(topicStats.getOldestBacklogMessageAgeSeconds()).isEqualTo(0);
+            assertThat(topicStats.getOldestBacklogMessageAgeSeconds()).isEqualTo(-1);
             assertThat(topicStats.getOldestBacklogMessageSubscriptionName()).isNull();
 
             metrics = prometheusMetricsClient.getMetrics();
@@ -537,7 +537,7 @@ public class BacklogQuotaManagerTest {
                     entry("cluster", CLUSTER_NAME),
                     entry("namespace", namespace),
                     entry("topic", topic1));
-            assertThat((long) backlogAgeMetric.value).isEqualTo(0);
+            assertThat((long) backlogAgeMetric.value).isEqualTo(-1);
 
             // producer should create success.
             Producer<byte[]> producer2 = createProducer(client, topic1);
@@ -598,7 +598,7 @@ public class BacklogQuotaManagerTest {
             assertThat(topicStats.getBacklogQuotaLimitTime()).isEqualTo(timeLimitSeconds);
             assertThat(topicStats.getBacklogSize()).isEqualTo(0);
             assertThat(topicStats.getSubscriptions().get(subName1).getMsgBacklog()).isEqualTo(0);
-            assertThat(topicStats.getOldestBacklogMessageAgeSeconds()).isEqualTo(0);
+            assertThat(topicStats.getOldestBacklogMessageAgeSeconds()).isEqualTo(-1);
             assertThat(topicStats.getOldestBacklogMessageSubscriptionName()).isNull();
 
             Metric backlogAgeMetric =
@@ -608,7 +608,7 @@ public class BacklogQuotaManagerTest {
                     entry("cluster", CLUSTER_NAME),
                     entry("namespace", namespace),
                     entry("topic", topic1));
-            assertThat((long) backlogAgeMetric.value).isEqualTo(0);
+            assertThat((long) backlogAgeMetric.value).isEqualTo(-1);
 
             // producer should create success.
             Producer<byte[]> producer2 = createProducer(client, topic1);
@@ -830,6 +830,15 @@ public class BacklogQuotaManagerTest {
             assertThat(topicStats.getOldestBacklogMessageSubscriptionName()).isEqualTo(subName2);
             expectedAge = MILLISECONDS.toSeconds(System.currentTimeMillis() - unloadTime);
             assertThat(topicStats.getOldestBacklogMessageAgeSeconds()).isCloseTo(expectedAge, within(1L));
+            
+            // Unsubscribe consume1 and consumer2
+            consumer1.unsubscribe();
+            consumer2.unsubscribe();
+            waitForQuotaCheckToRunTwice();
+            topicStats = getTopicStats(topic1);
+            assertThat(topicStats.getOldestBacklogMessageSubscriptionName()).isNull();
+            assertThat(topicStats.getOldestBacklogMessageAgeSeconds()).isEqualTo(-1);
+            
             config.setManagedLedgerMaxEntriesPerLedger(MAX_ENTRIES_PER_LEDGER);
         }
     }
@@ -885,11 +894,11 @@ public class BacklogQuotaManagerTest {
             Metrics metrics = prometheusMetricsClient.getMetrics();
             assertEquals(topicStats.getSubscriptions().get(subName1).getMsgBacklog(), 0);
             assertThat(topicStats.getOldestBacklogMessageSubscriptionName()).isNull();
-            assertThat(topicStats.getOldestBacklogMessageAgeSeconds()).isEqualTo(0);
+            assertThat(topicStats.getOldestBacklogMessageAgeSeconds()).isEqualTo(-1);
             Metric backlogAgeMetric =
                     metrics.findSingleMetricByNameAndLabels("pulsar_storage_backlog_age_seconds",
                             Pair.of("topic", topic1));
-            assertThat(backlogAgeMetric.value).isEqualTo(0);
+            assertThat(backlogAgeMetric.value).isEqualTo(-1);
 
             // producer should create success.
             Producer<byte[]> producer2 = createProducer(client, topic1);

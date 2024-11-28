@@ -295,6 +295,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             PERSISTENT_TOPIC_ATTRIBUTES_FIELD_UPDATER = AtomicReferenceFieldUpdater.newUpdater(
                     PersistentTopic.class, PersistentTopicAttributes.class, "persistentTopicAttributes");
 
+    // The topic's oldest position information, if null, indicates that there is no cursor or no backlog.
     private volatile OldestPositionInfo oldestPositionInfo;
     private static final AtomicReferenceFieldUpdater<PersistentTopic, OldestPositionInfo>
             TIME_BASED_BACKLOG_QUOTA_CHECK_RESULT_UPDATER = AtomicReferenceFieldUpdater.newUpdater(
@@ -2636,7 +2637,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         stats.oldestBacklogMessageAgeSeconds = getBestEffortOldestUnacknowledgedMessageAgeSeconds();
         stats.oldestBacklogMessageSubscriptionName = (oldestPositionInfo == null)
-                || !hasBacklogs(getStatsOptions.isGetPreciseBacklog())
             ? null
             : oldestPositionInfo.getCursorName();
 
@@ -3462,9 +3462,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public long getBestEffortOldestUnacknowledgedMessageAgeSeconds() {
-        if (!hasBacklogs(false)) {
-            return 0;
-        }
         if (oldestPositionInfo == null) {
             return -1;
         } else {
@@ -3495,12 +3492,21 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     String.format("[%s] No valid cursors found. Skip update old position info.", topicName)));
         }
 
+        if (!hasBacklogs(brokerService.pulsar().getConfiguration().isPreciseTimeBasedBacklogQuotaCheck())) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] No backlog. Update old position info is null", topicName);
+            }
+            TIME_BASED_BACKLOG_QUOTA_CHECK_RESULT_UPDATER.set(this, null);
+            return CompletableFuture.completedFuture(null);
+        }
+
         // If we have no durable cursor since `ledger.getCursors()` only managed durable cursors
         CursorInfo oldestMarkDeleteCursorInfo = managedCursorContainer.getCursorWithOldestPosition();
         if (oldestMarkDeleteCursorInfo == null || oldestMarkDeleteCursorInfo.getPosition() == null) {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] No durable cursor found. Skip update old position info.", topicName);
+                log.debug("[{}] No durable cursor found. Update old position info is null", topicName);
             }
+            TIME_BASED_BACKLOG_QUOTA_CHECK_RESULT_UPDATER.set(this, null);
             return CompletableFuture.completedFuture(null);
         }
 
@@ -3527,9 +3533,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return CompletableFuture.completedFuture(null);
         }
         if (brokerService.pulsar().getConfiguration().isPreciseTimeBasedBacklogQuotaCheck()) {
-            if (!hasBacklogs(true)) {
-                return CompletableFuture.completedFuture(null);
-            }
             CompletableFuture<Void> future = new CompletableFuture<>();
             // Check if first unconsumed message(first message after mark delete position)
             // for slowest cursor's has expired.
@@ -3546,6 +3549,18 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                 oldestMarkDeleteCursorInfo.getCursor().getName(),
                                                 entryTimestamp,
                                                 oldestMarkDeleteCursorInfo.getVersion()));
+                                if (log.isDebugEnabled()) {
+                                    log.debug("[{}] Precise based update oldest position info. "
+                                                    + "Oldest unacked entry read from BK. "
+                                                    + "Oldest entry in cursor {}'s backlog: {}. "
+                                                    + "Oldest mark-delete position: {}. "
+                                                    + "EntryTimestamp: {}",
+                                            topicName,
+                                            oldestMarkDeleteCursorInfo.getCursor().getName(),
+                                            position,
+                                            oldestMarkDeletePosition,
+                                            entryTimestamp);
+                                }
                                 future.complete(null);
                             } catch (Exception e) {
                                 log.error("[{}][{}] Error deserializing message for update old position", topicName, e);
@@ -3564,9 +3579,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     }, null);
             return future;
         } else {
-            if (!hasBacklogs(false)) {
-                return CompletableFuture.completedFuture(null);
-            }
             try {
                 EstimateTimeBasedBacklogQuotaCheckResult checkResult =
                         estimatedTimeBasedBacklogQuotaCheck(oldestMarkDeletePosition);
@@ -3604,9 +3616,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 return CompletableFuture.completedFuture(false);
             }
             if (oldestPositionInfo == null) {
-                return CompletableFuture.completedFuture(false);
-            }
-            if (!hasBacklogs(brokerService.pulsar().getConfiguration().isPreciseTimeBasedBacklogQuotaCheck())) {
                 return CompletableFuture.completedFuture(false);
             }
             long entryTimestamp = oldestPositionInfo.getPositionPublishTimestampInMillis();
