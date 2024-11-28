@@ -118,6 +118,7 @@
                   <include>commons-*:*</include>
                   <include>commons-codec:commons-codec</include>
                   <include>commons-collections:commons-collections</include>
+                  <include>io.airlift:*</include>
                   <include>io.grpc:*</include>
                   <include>io.netty.incubator:*</include>
                   <include>io.netty:*</include>
@@ -247,6 +248,10 @@
                 <relocation>
                   <pattern>com.yahoo</pattern>
                   <shadedPattern>org.apache.pulsar.shade.com.yahoo</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>io.airlift</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.io.airlift</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>io.grpc</pattern>
