@@ -249,10 +249,6 @@
                   <shadedPattern>org.apache.pulsar.shade.com.yahoo</shadedPattern>
                 </relocation>
                 <relocation>
-                  <pattern>io.airlift</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.io.airlift</shadedPattern>
-                </relocation>
-                <relocation>
                   <pattern>io.grpc</pattern>
                   <shadedPattern>org.apache.pulsar.shade.io.grpc</shadedPattern>
                 </relocation>
