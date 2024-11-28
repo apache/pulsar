@@ -1729,11 +1729,6 @@ flexible messaging model and an intuitive client API.</description>
       <artifactId>lombok</artifactId>
       <scope>provided</scope>
     </dependency>
-    <dependency>
-      <groupId>jakarta.annotation</groupId>
-      <artifactId>jakarta.annotation-api</artifactId>
-      <scope>provided</scope>
-    </dependency>
 
     <dependency>
       <!-- We use MockedBookKeeper in many unit tests -->
