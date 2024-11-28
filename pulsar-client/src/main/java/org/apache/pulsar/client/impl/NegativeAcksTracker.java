@@ -68,36 +68,38 @@ class NegativeAcksTracker implements Closeable {
         }
     }
 
-    private synchronized void triggerRedelivery(Timeout t) {
-        if (nackedMessages.isEmpty()) {
-            this.timeout = null;
-            return;
-        }
-
-        // Group all the nacked messages into one single re-delivery request
+    private void triggerRedelivery(Timeout t) {
         Set<MessageId> messagesToRedeliver = new HashSet<>();
-        long now = System.nanoTime();
-        nackedMessages.forEach((ledgerId, entryId, partitionIndex, timestamp) -> {
-            if (timestamp < now) {
-                MessageId msgId = new MessageIdImpl(ledgerId, entryId,
-                        // need to covert non-partitioned topic partition index to -1
-                        (int) (partitionIndex == NON_PARTITIONED_TOPIC_PARTITION_INDEX ? -1 : partitionIndex));
-                addChunkedMessageIdsAndRemoveFromSequenceMap(msgId, messagesToRedeliver, this.consumer);
-                messagesToRedeliver.add(msgId);
+        synchronized (this) {
+            if (nackedMessages.isEmpty()) {
+                this.timeout = null;
+                return;
             }
-        });
 
-        if (!messagesToRedeliver.isEmpty()) {
+            long now = System.nanoTime();
+            nackedMessages.forEach((ledgerId, entryId, partitionIndex, timestamp) -> {
+                if (timestamp < now) {
+                    MessageId msgId = new MessageIdImpl(ledgerId, entryId,
+                            // need to covert non-partitioned topic partition index to -1
+                            (int) (partitionIndex == NON_PARTITIONED_TOPIC_PARTITION_INDEX ? -1 : partitionIndex));
+                    addChunkedMessageIdsAndRemoveFromSequenceMap(msgId, messagesToRedeliver, this.consumer);
+                    messagesToRedeliver.add(msgId);
+                }
+            });
             for (MessageId messageId : messagesToRedeliver) {
                 nackedMessages.remove(((MessageIdImpl) messageId).getLedgerId(),
                         ((MessageIdImpl) messageId).getEntryId());
             }
+            this.timeout = timer.newTimeout(this::triggerRedelivery, timerIntervalNanos, TimeUnit.NANOSECONDS);
+        }
+
+        // release the lock of NegativeAcksTracker before calling consumer.redeliverUnacknowledgedMessages,
+        // in which we may acquire the lock of consumer, leading to potential deadlock.
+        if (!messagesToRedeliver.isEmpty()) {
             consumer.onNegativeAcksSend(messagesToRedeliver);
             log.info("[{}] {} messages will be re-delivered", consumer, messagesToRedeliver.size());
             consumer.redeliverUnacknowledgedMessages(messagesToRedeliver);
         }
-
-        this.timeout = timer.newTimeout(this::triggerRedelivery, timerIntervalNanos, TimeUnit.NANOSECONDS);
     }
 
     public synchronized void add(MessageId messageId) {
