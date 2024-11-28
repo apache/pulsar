@@ -28,6 +28,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -41,6 +42,8 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+
+import it.unimi.dsi.fastutil.Pair;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
@@ -48,6 +51,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,7 +66,7 @@ public class TenantsBase extends PulsarWebResource {
             @ApiResponse(code = 404, message = "Tenant doesn't exist")})
     public void getTenants(@Suspended final AsyncResponse asyncResponse) {
         final String clientAppId = clientAppId();
-        validateSuperUserAccessAsync()
+        validateBothTenantOperationAndSuperUser(null, TenantOperation.LIST_TENANTS)
                 .thenCompose(__ -> tenantResources().listTenantsAsync())
                 .thenAccept(tenants -> {
                     // deep copy the tenants to avoid concurrent sort exception
@@ -84,7 +88,7 @@ public class TenantsBase extends PulsarWebResource {
     public void getTenantAdmin(@Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "The tenant name") @PathParam("tenant") String tenant) {
         final String clientAppId = clientAppId();
-        validateSuperUserAccessAsync()
+        validateBothTenantOperationAndSuperUser(tenant, TenantOperation.GET_TENANT)
                 .thenCompose(__ -> tenantResources().getTenantAsync(tenant))
                 .thenApply(tenantInfo -> {
                     if (!tenantInfo.isPresent()) {
@@ -121,7 +125,7 @@ public class TenantsBase extends PulsarWebResource {
             asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED, "Tenant name is not valid"));
             return;
         }
-        validateSuperUserAccessAsync()
+        validateBothTenantOperationAndSuperUser(tenant, TenantOperation.CREATE_TENANT)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> validateClustersAsync(tenantInfo))
                 .thenCompose(__ -> validateAdminRoleAsync(tenantInfo))
@@ -169,7 +173,7 @@ public class TenantsBase extends PulsarWebResource {
             @ApiParam(value = "The tenant name") @PathParam("tenant") String tenant,
             @ApiParam(value = "TenantInfo") TenantInfoImpl newTenantAdmin) {
         final String clientAppId = clientAppId();
-        validateSuperUserAccessAsync()
+        validateBothTenantOperationAndSuperUser(tenant, TenantOperation.UPDATE_TENANT)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> validateClustersAsync(newTenantAdmin))
                 .thenCompose(__ -> validateAdminRoleAsync(newTenantAdmin))
@@ -206,7 +210,7 @@ public class TenantsBase extends PulsarWebResource {
             @PathParam("tenant") @ApiParam(value = "The tenant name") String tenant,
             @QueryParam("force") @DefaultValue("false") boolean force) {
         final String clientAppId = clientAppId();
-        validateSuperUserAccessAsync()
+        validateBothTenantOperationAndSuperUser(tenant, TenantOperation.DELETE_TENANT)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> internalDeleteTenant(tenant, force))
                 .thenAccept(__ -> {
@@ -303,5 +307,19 @@ public class TenantsBase extends PulsarWebResource {
             }
         }
         return CompletableFuture.completedFuture(null);
+    }
+
+    private CompletableFuture<Boolean> validateBothTenantOperationAndSuperUser(String tenant,
+                                                                               TenantOperation operation) {
+        final var superUserValidationFuture = validateSuperUserAccessAsync();
+        final var tenantOperationValidationFuture = validateTenantOperationAsync(tenant, operation);
+        return CompletableFuture.allOf(superUserValidationFuture, tenantOperationValidationFuture)
+                .handle((__, ex) -> {
+                    if (!superUserValidationFuture.isCompletedExceptionally()
+                        || !tenantOperationValidationFuture.isCompletedExceptionally() ) {
+                        return true;
+                    }
+                    throw new CompletionException(ex);
+                });
     }
 }
