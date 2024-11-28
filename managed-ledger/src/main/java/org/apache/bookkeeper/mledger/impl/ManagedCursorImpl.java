@@ -2247,7 +2247,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         if (State.NoLedger.equals(STATE_UPDATER.get(this))) {
             if (ledger.isNoMessagesAfterPos(mdEntry.newPosition)) {
-                log.error("[{}][{}] Metadata ledger creation failed {}, try to persist the position in the metadata"
+                log.error("[{}][{}] Metadata ledger creation failed, try to persist the position in the metadata"
                         + " store.", ledger.getName(), name);
                 persistPositionToMetaStore(mdEntry, cb);
             } else {
