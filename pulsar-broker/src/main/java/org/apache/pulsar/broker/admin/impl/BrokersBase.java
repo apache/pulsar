@@ -391,8 +391,8 @@ public class BrokersBase extends AdminResource {
                             @ApiParam(value = "Topic Version")
                             @QueryParam("topicVersion") TopicVersion topicVersion,
                             @QueryParam("brokerId") String brokerId) {
-        validateBrokerOperationAsync(pulsar().getConfig().getClusterName(), StringUtils.isBlank(brokerId) ?
-                        pulsar().getBrokerId() : brokerId, BrokerOperation.HEALTH_CHECK)
+        validateBrokerOperationAsync(pulsar().getConfig().getClusterName(), StringUtils.isBlank(brokerId)
+                ? pulsar().getBrokerId() : brokerId, BrokerOperation.HEALTH_CHECK)
                 .thenAccept(__ -> checkDeadlockedThreads())
                 .thenCompose(__ -> maybeRedirectToBroker(
                         StringUtils.isBlank(brokerId) ? pulsar().getBrokerId() : brokerId))
