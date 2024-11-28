@@ -109,7 +109,8 @@ public class BrokersBase extends AdminResource {
             @ApiResponse(code = 404, message = "Cluster does not exist: cluster={clustername}") })
     public void getActiveBrokers(@Suspended final AsyncResponse asyncResponse,
                                  @PathParam("cluster") String cluster) {
-        validateBrokerOperationAsync(cluster, pulsar().getBrokerId(), BrokerOperation.LIST_BROKERS)
+        validateBrokerOperationAsync(cluster == null ? pulsar().getConfiguration().getClusterName() : cluster,
+                pulsar().getBrokerId(), BrokerOperation.LIST_BROKERS)
                 .thenCompose(__ -> validateClusterOwnershipAsync(cluster))
                 .thenCompose(__ -> pulsar().getLoadManager().get().getAvailableBrokersAsync())
                 .thenAccept(activeBrokers -> {
@@ -390,8 +391,8 @@ public class BrokersBase extends AdminResource {
                             @ApiParam(value = "Topic Version")
                             @QueryParam("topicVersion") TopicVersion topicVersion,
                             @QueryParam("brokerId") String brokerId) {
-        validateBrokerOperationAsync(pulsar().getConfig().getClusterName(), pulsar().getBrokerId(),
-                BrokerOperation.HEALTH_CHECK)
+        validateBrokerOperationAsync(pulsar().getConfig().getClusterName(), StringUtils.isBlank(brokerId) ?
+                        pulsar().getBrokerId() : brokerId, BrokerOperation.HEALTH_CHECK)
                 .thenAccept(__ -> checkDeadlockedThreads())
                 .thenCompose(__ -> maybeRedirectToBroker(
                         StringUtils.isBlank(brokerId) ? pulsar().getBrokerId() : brokerId))
@@ -630,11 +631,13 @@ public class BrokersBase extends AdminResource {
     }
 
 
-    private CompletableFuture<Void> validateBrokerOperationAsync(String cluster, String brokerId, BrokerOperation operation) {
+    private CompletableFuture<Void> validateBrokerOperationAsync(String cluster, String brokerId,
+                                                                 BrokerOperation operation) {
         final var pulsar = pulsar();
         if (pulsar.getBrokerService().isAuthorizationEnabled()) {
             return pulsar.getBrokerService().getAuthorizationService()
-                    .allowBrokerOperationAsync(cluster, brokerId, operation, originalPrincipal(), clientAppId(), clientAuthData())
+                    .allowBrokerOperationAsync(cluster, brokerId, operation, originalPrincipal(),
+                            clientAppId(), clientAuthData())
                     .thenAccept(isAuthorized -> {
                         if (!isAuthorized) {
                             throw new RestException(Status.UNAUTHORIZED,
