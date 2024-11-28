@@ -21,7 +21,6 @@ package org.apache.pulsar.client.metrics;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.fail;
-import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
@@ -48,7 +47,7 @@ import org.testng.annotations.Test;
 public class ClientMetricsTest extends ProducerConsumerBase {
 
     InMemoryMetricReader reader;
-    OpenTelemetry otel;
+    OpenTelemetrySdk otel;
 
     @BeforeMethod
     @Override
@@ -67,6 +66,14 @@ public class ClientMetricsTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+        if (otel != null) {
+            otel.close();
+            otel = null;
+        }
+        if (reader != null) {
+            reader.close();
+            reader = null;
+        }
     }
 
     private Map<String, MetricData> collectMetrics() {
