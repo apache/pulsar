@@ -2004,6 +2004,9 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>src/assemble/LICENSE.bin.txt</exclude>
             <exclude>src/assemble/NOTICE.bin.txt</exclude>
 
+            <!-- exclude services files -->
+            <exclude>**/META-INF/services/*</exclude>
+
             <!-- These files are generated automatically by the Protobuf compiler
                  and are included in source tree for convenience -->
             <exclude>src/main/java/org/apache/bookkeeper/mledger/proto/MLDataFormats.java</exclude>
