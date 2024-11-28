@@ -634,7 +634,8 @@ public class BrokersBase extends AdminResource {
     private CompletableFuture<Void> validateBrokerOperationAsync(String cluster, String brokerId,
                                                                  BrokerOperation operation) {
         final var pulsar = pulsar();
-        if (pulsar.getBrokerService().isAuthorizationEnabled()) {
+        if (pulsar.getBrokerService().isAuthenticationEnabled() &&
+                pulsar.getBrokerService().isAuthorizationEnabled()) {
             return pulsar.getBrokerService().getAuthorizationService()
                     .allowBrokerOperationAsync(cluster, brokerId, operation, originalPrincipal(),
                             clientAppId(), clientAuthData())
