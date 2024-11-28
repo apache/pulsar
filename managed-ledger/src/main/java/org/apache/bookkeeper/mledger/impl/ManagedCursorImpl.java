@@ -2923,7 +2923,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             @Override
             public void operationFailed(ManagedLedgerException exception) {
-                log.error("[{}][{}] Cursor ledger creation failed {}", ledger.getName(), name, exception);
+                log.error("[{}][{}] Metadata ledger creation failed {}", ledger.getName(), name, exception);
                 synchronized (pendingMarkDeleteOps) {
                     // At this point we don't have a ledger ready
                     STATE_UPDATER.set(ManagedCursorImpl.this, State.NoLedger);
