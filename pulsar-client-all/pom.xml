@@ -184,7 +184,7 @@
                   <include>javax.ws.rs:*</include>
                   <include>javax.xml.bind:jaxb-api</include>
                   <include>com.sun.activation:javax.activation</include>
-                  <include>jakarta.annotation:jakarta-annotation-api</include>
+                  <include>jakarta.annotation:jakarta.annotation-api</include>
                   <include>jakarta.ws.rs:jakarta.ws.rs-api</include>
                   <include>jakarta.xml.bind:jakarta.xml.bind-api</include>
                   <include>jakarta.activation:jakarta.activation-api</include>
