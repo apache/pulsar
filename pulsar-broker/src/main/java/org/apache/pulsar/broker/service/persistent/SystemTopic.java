@@ -50,7 +50,7 @@ public class SystemTopic extends PersistentTopic {
     }
 
     @Override
-    public CompletableFuture<Boolean> checkTimeBacklogExceeded() {
+    public CompletableFuture<Boolean> checkTimeBacklogExceeded(boolean shouldUpdateOldPositionInfo) {
         return CompletableFuture.completedFuture(false);
     }
 
