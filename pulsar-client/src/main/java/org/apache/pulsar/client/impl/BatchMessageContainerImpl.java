@@ -175,7 +175,8 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         int uncompressedSize = batchedMessageMetadataAndPayload.readableBytes();
         ByteBuf compressedPayload;
         if (!allowCompression && producer != null){
-            if (uncompressedSize > producer.conf.getCompressMinMsgBodySize()) {
+            if (compressionType != CompressionType.NONE
+                    && uncompressedSize > producer.conf.getCompressMinMsgBodySize()) {
                 compressedPayload = producer.applyCompression(batchedMessageMetadataAndPayload);
                 messageMetadata.setCompression(compressionType);
                 messageMetadata.setUncompressedSize(uncompressedSize);
