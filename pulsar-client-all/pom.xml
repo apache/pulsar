@@ -19,7 +19,7 @@
 
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
@@ -120,7 +120,7 @@
             <configuration>
               <target>
                 <!-- shade the AsyncHttpClient ahc-default.properties files -->
-                <replace token= "org.asynchttpclient."
+                <replace token="org.asynchttpclient."
                          value="org.apache.pulsar.shade.org.asynchttpclient."
                          file="${project.build.directory}/classes/org/asynchttpclient/config/ahc-default.properties"/>
               </target>
@@ -189,6 +189,7 @@
                   <include>jakarta.ws.rs:jakarta.ws.rs-api</include>
                   <include>jakarta.xml.bind:jakarta.xml.bind-api</include>
                   <include>jakarta.activation:jakarta.activation-api</include>
+                  <include>net.jcip:jcip-annotations</include>
                   <include>org.glassfish.hk2*:*</include>
                   <include>io.grpc:*</include>
                   <include>io.perfmark:*</include>
@@ -382,24 +383,24 @@
                   <rawString>true</rawString>
                 </relocation>
                 <relocation>
-                    <pattern>io.grpc</pattern>
-                    <shadedPattern>org.apache.pulsar.shade.io.grpc</shadedPattern>
+                  <pattern>io.grpc</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.io.grpc</shadedPattern>
                 </relocation>
                 <relocation>
-                    <pattern>okio</pattern>
-                    <shadedPattern>org.apache.pulsar.shade.okio</shadedPattern>
+                  <pattern>okio</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.okio</shadedPattern>
                 </relocation>
                 <relocation>
-                    <pattern>com.squareup</pattern>
-                    <shadedPattern>org.apache.pulsar.shade.com.squareup</shadedPattern>
+                  <pattern>com.squareup</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.squareup</shadedPattern>
                 </relocation>
                 <relocation>
-                    <pattern>io.opencensus</pattern>
-                    <shadedPattern>org.apache.pulsar.shade.io.opencensus</shadedPattern>
+                  <pattern>io.opencensus</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.io.opencensus</shadedPattern>
                 </relocation>
                 <relocation>
-                    <pattern>org.eclipse.jetty</pattern>
-                    <shadedPattern>org.apache.pulsar.shade.org.eclipse.jetty</shadedPattern>
+                  <pattern>org.eclipse.jetty</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.eclipse.jetty</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.objenesis</pattern>
@@ -452,6 +453,10 @@
                   <shadedPattern>org.apache.pulsar.shade.org.checkerframework</shadedPattern>
                 </relocation>
                 <relocation>
+                  <pattern>net.jcip</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.net.jcip</shadedPattern>
+                </relocation>
+                <relocation>
                   <pattern>org.tukaani</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.tukaani</shadedPattern>
                 </relocation>
@@ -463,8 +468,8 @@
                 </relocation>
               </relocations>
               <transformers>
-                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
-                <transformer implementation="org.apache.maven.plugins.shade.resource.PluginXmlResourceTransformer" />
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.PluginXmlResourceTransformer"/>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                   <manifestEntries>
                     <Multi-Release>true</Multi-Release>

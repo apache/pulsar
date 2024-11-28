@@ -19,7 +19,7 @@
 
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
@@ -101,7 +101,7 @@
             <configuration>
               <target>
                 <!-- shade the AsyncHttpClient ahc-default.properties files -->
-                <replace token= "org.asynchttpclient."
+                <replace token="org.asynchttpclient."
                          value="org.apache.pulsar.shade.org.asynchttpclient."
                          file="${project.build.directory}/classes/org/asynchttpclient/config/ahc-default.properties"/>
               </target>
@@ -162,7 +162,7 @@
                   <include>com.sun.activation:javax.activation</include>
                   <include>javax.annotation:javax.annotation-api</include>
                   <include>javax.ws.rs:*</include>
-
+                  <include>net.jcip:jcip-annotations</include>
                   <include>org.apache.pulsar:pulsar-common</include>
                   <include>com.yahoo.datasketches:sketches-core</include>
                   <include>org.objenesis:*</include>
@@ -256,6 +256,10 @@
                 <relocation>
                   <pattern>org.checkerframework</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.checkerframework</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>net.jcip</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.net.jcip</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>javax.ws</pattern>
@@ -363,8 +367,8 @@
                 </relocation>
               </relocations>
               <transformers>
-                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
-                <transformer implementation="org.apache.maven.plugins.shade.resource.PluginXmlResourceTransformer" />
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.PluginXmlResourceTransformer"/>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                   <manifestEntries>
                     <Multi-Release>true</Multi-Release>
