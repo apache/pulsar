@@ -641,7 +641,7 @@ public class BrokersBase extends AdminResource {
                     .thenAccept(isAuthorized -> {
                         if (!isAuthorized) {
                             throw new RestException(Status.UNAUTHORIZED,
-                                    String.format("Unauthorized to validateTenantOperation for"
+                                    String.format("Unauthorized to validateBrokerOperation for"
                                                   + " originalPrincipal [%s] and clientAppId [%s] "
                                                   + "about operation [%s] on broker [%s]",
                                             originalPrincipal(), clientAppId(), operation.toString(), brokerId));
