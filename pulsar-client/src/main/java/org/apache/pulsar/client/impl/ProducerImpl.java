@@ -520,8 +520,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     String compressedStr = conf.getCompressionType() != CompressionType.NONE ? "Compressed" : "";
                     PulsarClientException.InvalidMessageException invalidMessageException =
                             new PulsarClientException.InvalidMessageException(
-                                    format("The producer %s of the topic %s sends a %s message with %d bytes that exceeds"
-                                                    + " %d bytes",
+                                    format("The producer %s of the topic %s sends a %s message with %d bytes that "
+                                                    + "exceeds %d bytes",
                                             producerName, topic, compressedStr, compressedSize,
                                             getMaxMessageSize()));
                     completeCallbackAndReleaseSemaphore(uncompressedSize, callback, invalidMessageException);
@@ -642,7 +642,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
      * @param uncompressedSize
      * @return the sequence id
      */
-    private void updateMessageMetadata(final MessageMetadata msgMetadata, final int uncompressedSize, boolean isCompressed) {
+    @SuppressWarnings("checkstyle:Indentation")
+    private void updateMessageMetadata(final MessageMetadata msgMetadata, final int uncompressedSize,
+                                       boolean isCompressed) {
         if (!msgMetadata.hasPublishTime()) {
             msgMetadata.setPublishTime(client.getClientClock().millis());
 
@@ -653,8 +655,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             // The field "uncompressedSize" is zero means the compression info were not set yet.
             if (msgMetadata.getUncompressedSize() <= 0) {
                 if (conf.getCompressionType() != CompressionType.NONE && isCompressed) {
-                    msgMetadata
-                            .setCompression(CompressionCodecProvider.convertToWireProtocol(conf.getCompressionType()));
+                    msgMetadata.setCompression(
+                            CompressionCodecProvider.convertToWireProtocol(conf.getCompressionType()));
                 }
                 msgMetadata.setUncompressedSize(uncompressedSize);
             }

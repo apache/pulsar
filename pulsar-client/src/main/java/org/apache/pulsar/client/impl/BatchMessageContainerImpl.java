@@ -141,7 +141,11 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         return isBatchFull();
     }
 
-    protected ByteBuf getCompressedBatchMetadataAndPayload(boolean isBrokerTwoPhaseCompactor) {
+    protected ByteBuf getCompressedBatchMetadataAndPayload() {
+        return getCompressedBatchMetadataAndPayload(true);
+    }
+
+    protected ByteBuf getCompressedBatchMetadataAndPayload(boolean allowCompression) {
         int batchWriteIndex = batchedMessageMetadataAndPayload.writerIndex();
         int batchReadIndex = batchedMessageMetadataAndPayload.readerIndex();
 
@@ -170,21 +174,17 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
 
         int uncompressedSize = batchedMessageMetadataAndPayload.readableBytes();
         ByteBuf compressedPayload;
-        boolean isCompressed = false;
-        if (!isBrokerTwoPhaseCompactor && producer != null){
+        if (!allowCompression && producer != null){
             if (uncompressedSize > producer.conf.getCompressMinMsgBodySize()) {
                 compressedPayload = producer.applyCompression(batchedMessageMetadataAndPayload);
-                isCompressed = true;
+                messageMetadata.setCompression(compressionType);
+                messageMetadata.setUncompressedSize(uncompressedSize);
             } else {
                 compressedPayload = batchedMessageMetadataAndPayload;
             }
         } else {
             compressedPayload = compressor.encode(batchedMessageMetadataAndPayload);
             batchedMessageMetadataAndPayload.release();
-        }
-        if (compressionType != CompressionType.NONE && isCompressed) {
-            messageMetadata.setCompression(compressionType);
-            messageMetadata.setUncompressedSize(uncompressedSize);
         }
 
         // Update the current max batch size using the uncompressed size, which is what we need in any case to
@@ -264,7 +264,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             messageMetadata.clear();
             messageMetadata.copyFrom(messages.get(0).getMessageBuilder());
             ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata,
-                    getCompressedBatchMetadataAndPayload(false));
+                    getCompressedBatchMetadataAndPayload());
             updateAndReserveBatchAllocatedSize(encryptedPayload.capacity());
             ByteBufPair cmd = producer.sendMessage(producer.producerId, messageMetadata.getSequenceId(),
                 1, null, messageMetadata, encryptedPayload);
@@ -296,7 +296,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             return op;
         }
         ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata,
-                getCompressedBatchMetadataAndPayload(false));
+                getCompressedBatchMetadataAndPayload());
         updateAndReserveBatchAllocatedSize(encryptedPayload.capacity());
         if (encryptedPayload.readableBytes() > getMaxMessageSize()) {
             producer.semaphoreRelease(messages.size());
