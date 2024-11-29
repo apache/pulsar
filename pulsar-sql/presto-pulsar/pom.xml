@@ -185,8 +185,8 @@
                                     <include>com.datastax.oss:pulsar-metadata</include>
 
                                     <include>org.glassfish.jersey*:*</include>
-                                    <include>javax.ws.rs:*</include>
-                                    <include>javax.annotation:*</include>
+                                    <include>jakarta.ws.rs:jakarta.ws.rs-api</include>
+                                    <include>jakarta.annotation:*</include>
                                     <include>org.glassfish.hk2*:*</include>
 
                                     <include>org.eclipse.jetty:*</include>
