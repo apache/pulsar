@@ -2415,7 +2415,8 @@ flexible messaging model and an intuitive client API.</description>
             <configuration>
               <configLocation>${pulsar.basedir}/buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
               <suppressionsLocation>${pulsar.basedir}/buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
-              <encoding>UTF-8</encoding>
+              <inputEncoding>UTF-8</inputEncoding>
+              <outputEncoding>UTF-8</outputEncoding>
               <excludes>**/proto/*</excludes>
             </configuration>
           </plugin>
@@ -2479,7 +2480,7 @@ flexible messaging model and an intuitive client API.</description>
                          <configuration>
                            <configLocation>${pulsar.basedir}/buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
                            <suppressionsLocation>${pulsar.basedir}/buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
-                           <encoding>UTF-8</encoding>
+                           <inputEncoding>UTF-8</inputEncoding>
                            <excludes>**/proto/*</excludes>
                          </configuration>
                           <goals>
