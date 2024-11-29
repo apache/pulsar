@@ -147,5 +147,10 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
         MessageId msgId =
                 admin.topics().getMessageIdByTimestamp(topic + "-partition-0", System.currentTimeMillis());
         Assert.assertNotNull(msgId);
+        try {
+            admin.topics().getMessageIdByTimestamp(topic + "-partition-1", System.currentTimeMillis());
+        } catch (Exception e) {
+            Assert.assertEquals(e.getClass(), PulsarAdminException.NotFoundException.class);
+        }
     }
 }
