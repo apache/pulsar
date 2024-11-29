@@ -6,13 +6,17 @@ import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.security.MockedPulsarStandalone;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.isNull;
+
+import java.util.Set;
+import java.util.UUID;
+
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
@@ -86,45 +90,49 @@ public class TenantEndpointsAuthorizationTest extends MockedPulsarStandalone {
     public void testGetTenant() throws PulsarAdminException {
         String tenantName = "public";
         superUserAdmin.tenants().getTenantInfo(tenantName);
-        final String brokerId = getPulsarService().getBrokerId();
-        final String clusterName = getPulsarService().getConfiguration().getClusterName();
         // test allow broker operation
         verify(spyAuthorizationService)
-                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId), eq(BrokerOperation.LIST_BROKERS), any(), any(), any());
+                .allowTenantOperationAsync(eq(tenantName), Mockito.eq(TenantOperation.GET_TENANT), any(), any());
         // fallback to superuser
         verify(spyAuthorizationService).isSuperUser(any(), any());
 
         // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.brokers().getActiveBrokers());
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.tenants().getTenantInfo(tenantName));
     }
 
     @Test
     public void testUpdateTenant() throws PulsarAdminException {
-        superUserAdmin.brokers().getActiveBrokers();
-        final String brokerId = getPulsarService().getBrokerId();
-        final String clusterName = getPulsarService().getConfiguration().getClusterName();
+        String tenantName = "public";
+        superUserAdmin.tenants().updateTenant(tenantName, TenantInfo.builder()
+                .allowedClusters(Set.of(getPulsarService().getConfiguration().getClusterName()))
+                .adminRoles(Set.of("example")).build());
         // test allow broker operation
         verify(spyAuthorizationService)
-                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId), eq(BrokerOperation.LIST_BROKERS), any(), any(), any());
+                .allowTenantOperationAsync(eq(tenantName), Mockito.eq(TenantOperation.UPDATE_TENANT), any(), any());
         // fallback to superuser
         verify(spyAuthorizationService).isSuperUser(any(), any());
 
         // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.brokers().getActiveBrokers());
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.tenants()
+                .updateTenant(tenantName, TenantInfo.builder().adminRoles(Set.of("example")).build()));
     }
 
     @Test
     public void testDeleteTenant() throws PulsarAdminException {
-        superUserAdmin.brokers().getActiveBrokers();
-        final String brokerId = getPulsarService().getBrokerId();
-        final String clusterName = getPulsarService().getConfiguration().getClusterName();
+        String tenantName = UUID.randomUUID().toString();
+        superUserAdmin.tenants().createTenant(tenantName, TenantInfo.builder()
+                .allowedClusters(Set.of(getPulsarService().getConfiguration().getClusterName()))
+                .adminRoles(Set.of("example")).build());
+
+        Mockito.clearInvocations(spyAuthorizationService);
+        superUserAdmin.tenants().deleteTenant(tenantName);
         // test allow broker operation
         verify(spyAuthorizationService)
-                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId), eq(BrokerOperation.LIST_BROKERS), any(), any(), any());
+                .allowTenantOperationAsync(eq(tenantName), Mockito.eq(TenantOperation.DELETE_TENANT), any(), any());
         // fallback to superuser
         verify(spyAuthorizationService).isSuperUser(any(), any());
 
         // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.brokers().getActiveBrokers());
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.tenants().deleteTenant(tenantName));
     }
 }
