@@ -641,7 +641,30 @@ public class BrokersBase extends AdminResource {
                         || !brokerOperationValidation.isCompletedExceptionally()) {
                         return null;
                     }
-                    throw new CompletionException(err);
+                    if (LOG.isDebugEnabled()) {
+                        Throwable superUserValidationException = null;
+                        try {
+                            superUserAccessValidation.join();
+                        } catch (Throwable ex) {
+                            superUserValidationException = ex;
+                        }
+                        Throwable brokerOperationValidationException = null;
+                        try {
+                            brokerOperationValidation.join();
+                        } catch (Throwable ex) {
+                            brokerOperationValidationException = ex;
+                        }
+                        LOG.debug("validateBothSuperuserAndBrokerOperation failed."
+                                  + " originalPrincipal={} clientAppId={} operation={} broker={} "
+                                  + "superuserValidationError={} brokerOperationValidationError={}",
+                                originalPrincipal(), clientAppId(), operation.toString(), brokerId,
+                                superUserValidationException, brokerOperationValidationException);
+                    }
+                    throw new RestException(Status.UNAUTHORIZED,
+                            String.format("Unauthorized to validateBothSuperuserAndBrokerOperation for"
+                                          + " originalPrincipal [%s] and clientAppId [%s] "
+                                          + "about operation [%s] on broker [%s]",
+                                    originalPrincipal(), clientAppId(), operation.toString(), brokerId));
                 });
     }
 
