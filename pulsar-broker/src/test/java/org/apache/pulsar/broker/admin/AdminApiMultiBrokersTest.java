@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
@@ -33,6 +34,8 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
@@ -122,4 +125,27 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
         Assert.assertEquals(lookupResultSet.size(), 1);
     }
 
+    @Test(timeOut = 30 * 1000)
+    public void testTopicGetMessageIdByTimestamp() throws Exception {
+        PulsarAdmin admin0 = getAllAdmins().get(0);
+        String topic = "public/default/t1";
+        admin0.topics().createPartitionedTopic(topic, 1);
+        pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+        for (int i = 0; i < 20; i++) {
+            producer.send("msg".getBytes());
+        }
+        String brokerUrl = admin0.lookups().lookupTopic(topic + "-partition-0");
+        PulsarAdmin admin = null;
+        for (PulsarService additionalBroker : additionalBrokers) {
+            if (!brokerUrl.endsWith(String.valueOf(additionalBroker.getBrokerListenPort().get()))) {
+                admin = additionalBroker.getAdminClient();
+            }
+        }
+        Assert.assertNotNull(admin);
+        MessageId msgId =
+                admin.topics().getMessageIdByTimestamp(topic + "-partition-0", System.currentTimeMillis());
+        Assert.assertNotNull(msgId);
+    }
 }

@@ -1767,8 +1767,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                     if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to get message ID by timestamp {} from {}",
                                 clientAppId(), timestamp, topicName, ex);
-                        resumeAsyncResponseExceptionally(asyncResponse, ex);
                     }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
     }
