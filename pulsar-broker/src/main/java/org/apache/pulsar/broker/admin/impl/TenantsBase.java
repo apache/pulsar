@@ -314,12 +314,35 @@ public class TenantsBase extends PulsarWebResource {
         final var superUserValidationFuture = validateSuperUserAccessAsync();
         final var tenantOperationValidationFuture = validateTenantOperationAsync(tenant, operation);
         return CompletableFuture.allOf(superUserValidationFuture, tenantOperationValidationFuture)
-                .handle((__, ex) -> {
+                .handle((__, err) -> {
                     if (!superUserValidationFuture.isCompletedExceptionally()
                         || !tenantOperationValidationFuture.isCompletedExceptionally() ) {
                         return true;
                     }
-                    throw new CompletionException(ex);
+                    if (log.isDebugEnabled()) {
+                        Throwable superUserValidationException = null;
+                        try {
+                            superUserValidationFuture.join();
+                        } catch (Throwable ex) {
+                            superUserValidationException = FutureUtil.unwrapCompletionException(ex);
+                        }
+                        Throwable brokerOperationValidationException = null;
+                        try {
+                            tenantOperationValidationFuture.join();
+                        } catch (Throwable ex) {
+                            brokerOperationValidationException = FutureUtil.unwrapCompletionException(ex);
+                        }
+                        log.debug("validateBothTenantOperationAndSuperUser failed."
+                                  + " originalPrincipal={} clientAppId={} operation={} "
+                                  + "superuserValidationError={} tenantOperationValidationError={}",
+                                originalPrincipal(), clientAppId(), operation.toString(),
+                                superUserValidationException, brokerOperationValidationException);
+                    }
+                    throw new RestException(Status.UNAUTHORIZED,
+                            String.format("Unauthorized to validateBothTenantOperationAndSuperUser for"
+                                          + " originalPrincipal [%s] and clientAppId [%s] "
+                                          + "about operation [%s] ",
+                                    originalPrincipal(), clientAppId(), operation.toString()));
                 });
     }
 }
