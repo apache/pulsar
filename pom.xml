@@ -216,7 +216,7 @@ flexible messaging model and an intuitive client API.</description>
     <commons-configuration.version>1.10</commons-configuration.version>
     <commons-io.version>2.14.0</commons-io.version>
     <commons-codec.version>1.15</commons-codec.version>
-    <javax.ws.rs-api.version>2.1</javax.ws.rs-api.version>
+    <jakarta.ws.rs-api.version>2.1.6</jakarta.ws.rs-api.version>
     <hdrHistogram.version>2.1.9</hdrHistogram.version>
     <javax.servlet-api>3.1.0</javax.servlet-api>
     <caffeine.version>2.9.1</caffeine.version>
@@ -227,7 +227,7 @@ flexible messaging model and an intuitive client API.</description>
     <spark-streaming_2.10.version>2.1.0</spark-streaming_2.10.version>
     <assertj-core.version>3.24.2</assertj-core.version>
     <lombok.version>1.18.32</lombok.version>
-    <javax.annotation-api.version>1.3.2</javax.annotation-api.version>
+    <jakarta.annotation-api.version>1.3.5</jakarta.annotation-api.version>
     <jaxb-api>2.3.1</jaxb-api>
     <javax.activation.version>1.2.0</javax.activation.version>
     <jakarta.activation.version>1.2.2</jakarta.activation.version>
@@ -843,9 +843,9 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>javax.ws.rs</groupId>
-        <artifactId>javax.ws.rs-api</artifactId>
-        <version>${javax.ws.rs-api.version}</version>
+        <groupId>jakarta.ws.rs</groupId>
+        <artifactId>jakarta.ws.rs-api</artifactId>
+        <version>${jakarta.ws.rs-api.version}</version>
       </dependency>
 
       <dependency>
@@ -973,6 +973,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>com.yahoo.athenz</groupId>
         <artifactId>athenz-zts-java-client-core</artifactId>
         <version>${athenz.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>javax.ws.rs</groupId>
+            <artifactId>javax.ws.rs-api</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
@@ -1401,9 +1407,9 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>javax.annotation</groupId>
-        <artifactId>javax.annotation-api</artifactId>
-        <version>${javax.annotation-api.version}</version>
+        <groupId>jakarta.annotation</groupId>
+        <artifactId>jakarta.annotation-api</artifactId>
+        <version>${jakarta.annotation-api.version}</version>
       </dependency>
 
       <dependency>
@@ -1706,11 +1712,6 @@ flexible messaging model and an intuitive client API.</description>
       <artifactId>lombok</artifactId>
       <scope>provided</scope>
     </dependency>
-    <dependency>
-      <groupId>javax.annotation</groupId>
-      <artifactId>javax.annotation-api</artifactId>
-      <scope>provided</scope>
-    </dependency>
 
     <dependency>
       <!-- We use MockedBookKeeper in many unit tests -->
@@ -1985,6 +1986,9 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>src/assemble/README.bin.txt</exclude>
             <exclude>src/assemble/LICENSE.bin.txt</exclude>
             <exclude>src/assemble/NOTICE.bin.txt</exclude>
+
+            <!-- exclude services files -->
+            <exclude>**/META-INF/services/*</exclude>
 
             <!-- These files are generated automatically by the Protobuf compiler
                  and are included in source tree for convenience -->
