@@ -375,7 +375,6 @@ The Apache Software License, Version 2.0
     - javax.inject-1.jar
     - javax.servlet-api-3.1.0.jar
     - javax.servlet-api-4.0.1.jar
-    - javax.ws.rs-api-2.1.jar
   * JCommander
     - jcommander-1.82.jar
   * FindBugs JSR305
