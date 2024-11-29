@@ -641,18 +641,18 @@ public class BrokersBase extends AdminResource {
                         || !brokerOperationValidation.isCompletedExceptionally()) {
                         return null;
                     }
-                    if (LOG.isDebugEnabled()) {
+                    if (LOG.isInfoEnabled()) {
                         Throwable superUserValidationException = null;
                         try {
                             superUserAccessValidation.join();
                         } catch (Throwable ex) {
-                            superUserValidationException = ex;
+                            superUserValidationException = FutureUtil.unwrapCompletionException(ex);
                         }
                         Throwable brokerOperationValidationException = null;
                         try {
                             brokerOperationValidation.join();
                         } catch (Throwable ex) {
-                            brokerOperationValidationException = ex;
+                            brokerOperationValidationException = FutureUtil.unwrapCompletionException(ex);
                         }
                         LOG.debug("validateBothSuperuserAndBrokerOperation failed."
                                   + " originalPrincipal={} clientAppId={} operation={} broker={} "
