@@ -32,8 +32,8 @@
             <useProjectArtifact>false</useProjectArtifact>
             <scope>runtime</scope>
             <excludes>
-              <exclude>jakarta.ws.rs:jakarta.ws.rs-api</exclude>
                 <!-- prevent adding annotation libraries -->
+                <exclude>javax.annotation:javax.annotation-api</exclude>
                 <exclude>org.codehaus.mojo:animal-sniffer-annotations</exclude>
                 <exclude>com.google.android:annotations</exclude>
             </excludes>
