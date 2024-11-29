@@ -109,7 +109,7 @@ public class BrokersBase extends AdminResource {
             @ApiResponse(code = 404, message = "Cluster does not exist: cluster={clustername}") })
     public void getActiveBrokers(@Suspended final AsyncResponse asyncResponse,
                                  @PathParam("cluster") String cluster) {
-        validateBrokerOperationAsync(cluster == null ? pulsar().getConfiguration().getClusterName() : cluster,
+        validateBothSuperuserAndBrokerOperation(cluster == null ? pulsar().getConfiguration().getClusterName() : cluster,
                 pulsar().getBrokerId(), BrokerOperation.LIST_BROKERS)
                 .thenCompose(__ -> validateClusterOwnershipAsync(cluster))
                 .thenCompose(__ -> pulsar().getLoadManager().get().getAvailableBrokersAsync())
@@ -151,7 +151,7 @@ public class BrokersBase extends AdminResource {
                     @ApiResponse(code = 403, message = "This operation requires super-user access"),
                     @ApiResponse(code = 404, message = "Leader broker not found") })
     public void getLeaderBroker(@Suspended final AsyncResponse asyncResponse) {
-        validateBrokerOperationAsync(pulsar().getConfig().getClusterName(),
+        validateBothSuperuserAndBrokerOperation(pulsar().getConfig().getClusterName(),
                 pulsar().getBrokerId(), BrokerOperation.GET_LEADER_BROKER)
                 .thenAccept(__ -> {
                     LeaderBroker leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader()
@@ -180,7 +180,7 @@ public class BrokersBase extends AdminResource {
     public void getOwnedNamespaces(@Suspended final AsyncResponse asyncResponse,
                                    @PathParam("clusterName") String cluster,
                                    @PathParam("brokerId") String brokerId) {
-        validateBrokerOperationAsync(pulsar().getConfig().getClusterName(),
+        validateBothSuperuserAndBrokerOperation(pulsar().getConfig().getClusterName(),
                 pulsar().getBrokerId(), BrokerOperation.LIST_OWNED_NAMESPACES)
                 .thenCompose(__ -> maybeRedirectToBroker(brokerId))
                 .thenCompose(__ -> validateClusterOwnershipAsync(cluster))
@@ -210,7 +210,7 @@ public class BrokersBase extends AdminResource {
     public void updateDynamicConfiguration(@Suspended AsyncResponse asyncResponse,
                                            @PathParam("configName") String configName,
                                            @PathParam("configValue") String configValue) {
-        validateBrokerOperationAsync(pulsar().getConfig().getClusterName(), pulsar().getBrokerId(),
+        validateBothSuperuserAndBrokerOperation(pulsar().getConfig().getClusterName(), pulsar().getBrokerId(),
                 BrokerOperation.UPDATE_DYNAMIC_CONFIGURATION)
                 .thenCompose(__ -> persistDynamicConfigurationAsync(configName, configValue))
                 .thenAccept(__ -> {
@@ -235,7 +235,7 @@ public class BrokersBase extends AdminResource {
     public void deleteDynamicConfiguration(
             @Suspended AsyncResponse asyncResponse,
             @PathParam("configName") String configName) {
-        validateBrokerOperationAsync(pulsar().getConfig().getClusterName(), pulsar().getBrokerId(),
+        validateBothSuperuserAndBrokerOperation(pulsar().getConfig().getClusterName(), pulsar().getBrokerId(),
                 BrokerOperation.DELETE_DYNAMIC_CONFIGURATION)
                 .thenCompose(__ -> internalDeleteDynamicConfigurationOnMetadataAsync(configName))
                 .thenAccept(__ -> {
@@ -257,7 +257,7 @@ public class BrokersBase extends AdminResource {
         @ApiResponse(code = 404, message = "Configuration not found"),
         @ApiResponse(code = 500, message = "Internal server error")})
     public void getAllDynamicConfigurations(@Suspended AsyncResponse asyncResponse) {
-        validateBrokerOperationAsync(pulsar().getConfig().getClusterName(), pulsar().getBrokerId(),
+        validateBothSuperuserAndBrokerOperation(pulsar().getConfig().getClusterName(), pulsar().getBrokerId(),
                 BrokerOperation.LIST_DYNAMIC_CONFIGURATIONS)
                 .thenCompose(__ -> dynamicConfigurationResources().getDynamicConfigurationAsync())
                 .thenAccept(configOpt -> asyncResponse.resume(configOpt.orElseGet(Collections::emptyMap)))
@@ -275,7 +275,7 @@ public class BrokersBase extends AdminResource {
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "You don't have admin permission to get configuration")})
     public void getDynamicConfigurationName(@Suspended AsyncResponse asyncResponse) {
-        validateBrokerOperationAsync(pulsar().getConfig().getClusterName(), pulsar().getBrokerId(),
+        validateBothSuperuserAndBrokerOperation(pulsar().getConfig().getClusterName(), pulsar().getBrokerId(),
                 BrokerOperation.LIST_DYNAMIC_CONFIGURATIONS)
                 .thenAccept(__ -> asyncResponse.resume(pulsar().getBrokerService().getDynamicConfiguration()))
                 .exceptionally(ex -> {
@@ -291,7 +291,7 @@ public class BrokersBase extends AdminResource {
             response = String.class, responseContainer = "Map")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
     public void getRuntimeConfiguration(@Suspended AsyncResponse asyncResponse) {
-        validateBrokerOperationAsync(pulsar().getConfig().getClusterName(), pulsar().getBrokerId(),
+        validateBothSuperuserAndBrokerOperation(pulsar().getConfig().getClusterName(), pulsar().getBrokerId(),
                 BrokerOperation.LIST_RUNTIME_CONFIGURATIONS)
                 .thenAccept(__ -> asyncResponse.resume(pulsar().getBrokerService().getRuntimeConfiguration()))
                 .exceptionally(ex -> {
@@ -333,7 +333,7 @@ public class BrokersBase extends AdminResource {
     @ApiOperation(value = "Get the internal configuration data", response = InternalConfigurationData.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
     public void getInternalConfigurationData(@Suspended AsyncResponse asyncResponse) {
-        validateBrokerOperationAsync(pulsar().getConfig().getClusterName(), pulsar().getBrokerId(),
+        validateBothSuperuserAndBrokerOperation(pulsar().getConfig().getClusterName(), pulsar().getBrokerId(),
                 BrokerOperation.GET_INTERNAL_CONFIGURATION_DATA)
                 .thenAccept(__ -> asyncResponse.resume(pulsar().getInternalConfigurationData()))
                 .exceptionally(ex -> {
@@ -351,7 +351,7 @@ public class BrokersBase extends AdminResource {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 500, message = "Internal server error")})
     public void backlogQuotaCheck(@Suspended AsyncResponse asyncResponse) {
-        validateBrokerOperationAsync(pulsar().getConfig().getClusterName(), pulsar().getBrokerId(),
+        validateBothSuperuserAndBrokerOperation(pulsar().getConfig().getClusterName(), pulsar().getBrokerId(),
                 BrokerOperation.CHECK_BACKLOG_QUOTA)
                 .thenAcceptAsync(__ -> {
                     pulsar().getBrokerService().monitorBacklogQuota();
@@ -391,7 +391,7 @@ public class BrokersBase extends AdminResource {
                             @ApiParam(value = "Topic Version")
                             @QueryParam("topicVersion") TopicVersion topicVersion,
                             @QueryParam("brokerId") String brokerId) {
-        validateBrokerOperationAsync(pulsar().getConfig().getClusterName(), StringUtils.isBlank(brokerId)
+        validateBothSuperuserAndBrokerOperation(pulsar().getConfig().getClusterName(), StringUtils.isBlank(brokerId)
                 ? pulsar().getBrokerId() : brokerId, BrokerOperation.HEALTH_CHECK)
                 .thenAccept(__ -> checkDeadlockedThreads())
                 .thenCompose(__ -> maybeRedirectToBroker(
@@ -610,7 +610,7 @@ public class BrokersBase extends AdminResource {
             @QueryParam("forcedTerminateTopic") @DefaultValue("true") boolean forcedTerminateTopic,
             @Suspended final AsyncResponse asyncResponse
     ) {
-        validateBrokerOperationAsync(pulsar().getConfig().getClusterName(), pulsar().getBrokerId(),
+        validateBothSuperuserAndBrokerOperation(pulsar().getConfig().getClusterName(), pulsar().getBrokerId(),
                 BrokerOperation.SHUTDOWN)
                 .thenCompose(__ -> doShutDownBrokerGracefullyAsync(maxConcurrentUnloadPerSec, forcedTerminateTopic))
                 .thenAccept(__ -> {
@@ -631,6 +631,21 @@ public class BrokersBase extends AdminResource {
     }
 
 
+    private CompletableFuture<Void> validateBothSuperuserAndBrokerOperation(String cluster, String brokerId,
+                                                                            BrokerOperation operation) {
+        final var superUserAccessValidation = validateSuperUserAccessAsync();
+        final var brokerOperationValidation = validateBrokerOperationAsync(cluster, brokerId, operation);
+        return FutureUtil.waitForAll(List.of(superUserAccessValidation, brokerOperationValidation))
+                .handle((result, err) -> {
+                    if (!superUserAccessValidation.isCompletedExceptionally()
+                        || !brokerOperationValidation.isCompletedExceptionally()) {
+                        return null;
+                    }
+                    throw new CompletionException(err);
+                });
+    }
+
+
     private CompletableFuture<Void> validateBrokerOperationAsync(String cluster, String brokerId,
                                                                  BrokerOperation operation) {
         final var pulsar = pulsar();
@@ -647,13 +662,6 @@ public class BrokersBase extends AdminResource {
                                                   + "about operation [%s] on broker [%s]",
                                             originalPrincipal(), clientAppId(), operation.toString(), brokerId));
                         }
-                    }).exceptionallyCompose(ex -> {
-                        // Fallback to superuser validation for compatibility purposes.
-                        final var rc = FutureUtil.unwrapCompletionException(ex);
-                        if (rc instanceof UnsupportedOperationException) {
-                            return validateSuperUserAccessAsync();
-                        }
-                        throw new CompletionException(ex);
                     });
         }
         return CompletableFuture.completedFuture(null);
