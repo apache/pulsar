@@ -28,7 +28,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -42,8 +41,6 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
-
-import it.unimi.dsi.fastutil.Pair;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
@@ -316,7 +313,7 @@ public class TenantsBase extends PulsarWebResource {
         return CompletableFuture.allOf(superUserValidationFuture, tenantOperationValidationFuture)
                 .handle((__, err) -> {
                     if (!superUserValidationFuture.isCompletedExceptionally()
-                        || !tenantOperationValidationFuture.isCompletedExceptionally() ) {
+                        || !tenantOperationValidationFuture.isCompletedExceptionally()) {
                         return true;
                     }
                     if (log.isDebugEnabled()) {
