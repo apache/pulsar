@@ -571,10 +571,8 @@ Protocol Buffers License
 CDDL-1.1 -- ../licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API
     - com.sun.activation-javax.activation-1.2.0.jar
-    - javax.xml.bind-jaxb-api-2.3.1.jar
  * Java Servlet API -- javax.servlet-javax.servlet-api-3.1.0.jar
  * WebSocket Server API -- javax.websocket-javax.websocket-client-api-1.0.jar
- * Java Web Service REST API -- javax.ws.rs-javax.ws.rs-api-2.1.jar
  * HK2 - Dependency Injection Kernel
     - org.glassfish.hk2-hk2-api-2.6.1.jar
     - org.glassfish.hk2-hk2-locator-2.6.1.jar

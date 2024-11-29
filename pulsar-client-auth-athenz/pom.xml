@@ -47,6 +47,11 @@
     </dependency>
 
     <dependency>
+      <groupId>jakarta.ws.rs</groupId>
+      <artifactId>jakarta.ws.rs-api</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>com.yahoo.athenz</groupId>
       <artifactId>athenz-cert-refresher</artifactId>
     </dependency>
