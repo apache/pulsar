@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
@@ -29,14 +34,13 @@ import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.security.MockedPulsarStandalone;
 import org.mockito.Mockito;
 import org.testng.Assert;
-import org.testng.annotations.*;
-
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 import java.util.Set;
 import java.util.UUID;
-
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
 
 @Test(groups = "broker-admin")
 public class TenantEndpointsAuthorizationTest extends MockedPulsarStandalone {
