@@ -688,6 +688,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     public CompletableFuture<Boolean> allowBrokerOperationAsync(String clusterName, String brokerId,
                                                                 BrokerOperation brokerOperation, String role,
                                                                 AuthenticationDataSource authData) {
+        return isSuperUser(role, authData, conf);
     }
 
     @Override
@@ -695,7 +696,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                                                                      PolicyName policyName,
                                                                      PolicyOperation policyOperation,
                                                                      AuthenticationDataSource authData) {
-        return isSuperUser(role, authData, conf);
+        return validateTenantAdminAccess(topicName.getTenant(), role, authData);
     }
 
     public CompletableFuture<Boolean> validateTenantAdminAccess(String tenantName, String role,
