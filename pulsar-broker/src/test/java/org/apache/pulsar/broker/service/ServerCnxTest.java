@@ -84,6 +84,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -106,7 +107,6 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.client.util.NameUtil;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.AuthMethod;
 import org.apache.pulsar.common.api.proto.BaseCommand;
@@ -1081,8 +1081,8 @@ public class ServerCnxTest {
         final long consumerId = 1;
         final MutableInt requestId = new MutableInt(1);
         final String sName = successSubName;
-        final String cName1 = NameUtil.generateRandomName();
-        final String cName2 = NameUtil.generateRandomName();
+        final String cName1 = RandomStringUtils.randomAlphanumeric(5);
+        final String cName2 = RandomStringUtils.randomAlphanumeric(5);
         resetChannel();
         setChannelConnected();
 
@@ -1123,8 +1123,8 @@ public class ServerCnxTest {
         final long consumerId = 1;
         final MutableInt requestId = new MutableInt(1);
         final String sName = successSubName;
-        final String cName1 = NameUtil.generateRandomName();
-        final String cName2 = NameUtil.generateRandomName();
+        final String cName1 = RandomStringUtils.randomAlphanumeric(5);
+        final String cName2 = RandomStringUtils.randomAlphanumeric(5);
         // Disabled connection check.
         pulsar.getConfig().setConnectionLivenessCheckTimeoutMillis(-1);
         resetChannel();

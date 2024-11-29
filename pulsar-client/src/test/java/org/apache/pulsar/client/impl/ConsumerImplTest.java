@@ -38,6 +38,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import java.util.regex.Pattern;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -295,5 +296,11 @@ public class ConsumerImplTest {
         assertTrue(firstResult.isDone());
         assertTrue(secondResult.isCompletedExceptionally());
         verify(cnx, times(1)).sendRequestWithId(any(ByteBuf.class), anyLong());
+    }
+
+    @Test(invocationTimeOut = 1000)
+    public void testAutoGenerateConsumerName() {
+        Pattern consumerNamePattern = Pattern.compile("[a-zA-Z0-9]{5}");
+        assertTrue(consumerNamePattern.matcher(consumer.getConsumerName()).matches());
     }
 }
