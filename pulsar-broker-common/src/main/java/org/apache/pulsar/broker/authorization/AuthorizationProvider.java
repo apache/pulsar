@@ -32,6 +32,7 @@ import org.apache.pulsar.client.admin.RevokeTopicPermissionOptions;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.BrokerOperation;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
@@ -382,5 +383,14 @@ public interface AuthorizationProvider extends Closeable {
         return FutureUtil.failedFuture(new IllegalStateException(
                 String.format("getPermissionsAsync on namespaceName %s is not supported by the Authorization",
                         namespaceName)));
+    }
+
+    default CompletableFuture<Boolean> allowBrokerOperationAsync(String clusterName,
+                                                                 String brokerId,
+                                                                 BrokerOperation brokerOperation,
+                                                                 String role,
+                                                                 AuthenticationDataSource authData) {
+        return FutureUtil.failedFuture(
+                new UnsupportedOperationException("allowBrokerOperationAsync is not supported yet."));
     }
 }
