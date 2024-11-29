@@ -641,7 +641,7 @@ public class BrokersBase extends AdminResource {
                         || !brokerOperationValidation.isCompletedExceptionally()) {
                         return null;
                     }
-                    if (LOG.isInfoEnabled()) {
+                    if (LOG.isDebugEnabled()) {
                         Throwable superUserValidationException = null;
                         try {
                             superUserAccessValidation.join();
