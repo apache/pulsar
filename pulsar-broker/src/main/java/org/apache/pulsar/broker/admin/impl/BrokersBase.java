@@ -109,8 +109,8 @@ public class BrokersBase extends AdminResource {
             @ApiResponse(code = 404, message = "Cluster does not exist: cluster={clustername}") })
     public void getActiveBrokers(@Suspended final AsyncResponse asyncResponse,
                                  @PathParam("cluster") String cluster) {
-        validateBothSuperuserAndBrokerOperation(cluster == null ? pulsar().getConfiguration().getClusterName() : cluster,
-                pulsar().getBrokerId(), BrokerOperation.LIST_BROKERS)
+        validateBothSuperuserAndBrokerOperation(cluster == null ? pulsar().getConfiguration().getClusterName()
+                        : cluster, pulsar().getBrokerId(), BrokerOperation.LIST_BROKERS)
                 .thenCompose(__ -> validateClusterOwnershipAsync(cluster))
                 .thenCompose(__ -> pulsar().getLoadManager().get().getAvailableBrokersAsync())
                 .thenAccept(activeBrokers -> {
