@@ -66,7 +66,7 @@ public class TenantsBase extends PulsarWebResource {
             @ApiResponse(code = 404, message = "Tenant doesn't exist")})
     public void getTenants(@Suspended final AsyncResponse asyncResponse) {
         final String clientAppId = clientAppId();
-        validateBothTenantOperationAndSuperUser(null, TenantOperation.LIST_TENANTS)
+        validateBothSuperUserAndTenantOperation(null, TenantOperation.LIST_TENANTS)
                 .thenCompose(__ -> tenantResources().listTenantsAsync())
                 .thenAccept(tenants -> {
                     // deep copy the tenants to avoid concurrent sort exception
@@ -88,7 +88,7 @@ public class TenantsBase extends PulsarWebResource {
     public void getTenantAdmin(@Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "The tenant name") @PathParam("tenant") String tenant) {
         final String clientAppId = clientAppId();
-        validateBothTenantOperationAndSuperUser(tenant, TenantOperation.GET_TENANT)
+        validateBothSuperUserAndTenantOperation(tenant, TenantOperation.GET_TENANT)
                 .thenCompose(__ -> tenantResources().getTenantAsync(tenant))
                 .thenApply(tenantInfo -> {
                     if (!tenantInfo.isPresent()) {
@@ -125,7 +125,7 @@ public class TenantsBase extends PulsarWebResource {
             asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED, "Tenant name is not valid"));
             return;
         }
-        validateBothTenantOperationAndSuperUser(tenant, TenantOperation.CREATE_TENANT)
+        validateBothSuperUserAndTenantOperation(tenant, TenantOperation.CREATE_TENANT)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> validateClustersAsync(tenantInfo))
                 .thenCompose(__ -> validateAdminRoleAsync(tenantInfo))
@@ -173,7 +173,7 @@ public class TenantsBase extends PulsarWebResource {
             @ApiParam(value = "The tenant name") @PathParam("tenant") String tenant,
             @ApiParam(value = "TenantInfo") TenantInfoImpl newTenantAdmin) {
         final String clientAppId = clientAppId();
-        validateBothTenantOperationAndSuperUser(tenant, TenantOperation.UPDATE_TENANT)
+        validateBothSuperUserAndTenantOperation(tenant, TenantOperation.UPDATE_TENANT)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> validateClustersAsync(newTenantAdmin))
                 .thenCompose(__ -> validateAdminRoleAsync(newTenantAdmin))
@@ -210,7 +210,7 @@ public class TenantsBase extends PulsarWebResource {
             @PathParam("tenant") @ApiParam(value = "The tenant name") String tenant,
             @QueryParam("force") @DefaultValue("false") boolean force) {
         final String clientAppId = clientAppId();
-        validateBothTenantOperationAndSuperUser(tenant, TenantOperation.DELETE_TENANT)
+        validateBothSuperUserAndTenantOperation(tenant, TenantOperation.DELETE_TENANT)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> internalDeleteTenant(tenant, force))
                 .thenAccept(__ -> {
@@ -309,7 +309,7 @@ public class TenantsBase extends PulsarWebResource {
         return CompletableFuture.completedFuture(null);
     }
 
-    private CompletableFuture<Boolean> validateBothTenantOperationAndSuperUser(String tenant,
+    private CompletableFuture<Boolean> validateBothSuperUserAndTenantOperation(String tenant,
                                                                                TenantOperation operation) {
         final var superUserValidationFuture = validateSuperUserAccessAsync();
         final var tenantOperationValidationFuture = validateTenantOperationAsync(tenant, operation);
