@@ -4,11 +4,18 @@ import lombok.SneakyThrows;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
+import org.apache.pulsar.common.policies.data.BrokerOperation;
+import org.apache.pulsar.common.policies.data.ClusterOperation;
 import org.apache.pulsar.security.MockedPulsarStandalone;
+import org.testng.Assert;
 import org.testng.annotations.*;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 
 @Test(groups = "broker-admin")
 public class ClusterEndpointsAuthorizationTest extends MockedPulsarStandalone {
@@ -63,4 +70,24 @@ public class ClusterEndpointsAuthorizationTest extends MockedPulsarStandalone {
     }
 
 
+    @Test
+    public void testGetCluster() throws PulsarAdminException {
+        final String clusterName = getPulsarService().getConfiguration().getClusterName();
+        superUserAdmin.clusters().getCluster(clusterName);
+        // test allow broker operation
+        verify(spyAuthorizationService)
+                .allowClusterOperationAsync(eq(clusterName), eq(ClusterOperation.GET_CLUSTER), any(), any(), any());
+        // fallback to superuser
+        verify(spyAuthorizationService).isSuperUser(any(), any());
+
+        // ---- test nobody
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> nobodyAdmin.clusters().getCluster(clusterName));
+    }
+
+
+    @Test
+    public void testCreateCluster() {
+
+    }
 }
