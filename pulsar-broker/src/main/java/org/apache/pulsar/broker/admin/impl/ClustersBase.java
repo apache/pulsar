@@ -59,15 +59,8 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamedEntity;
-import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
-import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.*;
 import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
-import org.apache.pulsar.common.policies.data.ClusterPoliciesImpl;
-import org.apache.pulsar.common.policies.data.FailureDomainImpl;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationPolicyUnloadScope;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicyImpl;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -117,7 +110,7 @@ public class ClustersBase extends AdminResource {
     public void getCluster(@Suspended AsyncResponse asyncResponse,
                            @ApiParam(value = "The cluster name", required = true)
                            @PathParam("cluster") String cluster) {
-        validateSuperUserAccessAsync()
+        validateBothSuperuserAndClusterOperation(cluster, ClusterOperation.GET_CLUSTER)
                 .thenCompose(__ -> clusterResources().getClusterAsync(cluster))
                 .thenAccept(clusterData -> {
                     asyncResponse.resume(clusterData
@@ -162,7 +155,7 @@ public class ClustersBase extends AdminResource {
                 )
             )
         ) ClusterDataImpl clusterData) {
-        validateSuperUserAccessAsync()
+        validateBothSuperuserAndClusterOperation(cluster, ClusterOperation.CREATE_CLUSTER)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> {
                     NamedEntity.checkName(cluster);
@@ -227,7 +220,7 @@ public class ClustersBase extends AdminResource {
                 )
             )
         ) ClusterDataImpl clusterData) {
-        validateSuperUserAccessAsync()
+        validateBothSuperuserAndClusterOperation(cluster, ClusterOperation.UPDATE_CLUSTER)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> {
                     try {
@@ -271,7 +264,7 @@ public class ClustersBase extends AdminResource {
             required = true
         )
         @PathParam("cluster") String cluster) {
-        validateSuperUserAccessAsync()
+        validateBothSuperuserAndClusterPolicyOperation(cluster, PolicyName.CLUSTER_MIGRATION, PolicyOperation.READ)
                 .thenCompose(__ -> clusterResources().getClusterPoliciesResources().getClusterPoliciesAsync(cluster))
                 .thenAccept(policies -> {
                     asyncResponse.resume(
@@ -326,7 +319,7 @@ public class ClustersBase extends AdminResource {
             asyncResponse.resume(new RestException(Status.BAD_REQUEST, "Cluster url must not be empty"));
             return;
         }
-        validateSuperUserAccessAsync()
+        validateBothSuperuserAndClusterPolicyOperation(cluster, PolicyName.CLUSTER_MIGRATION, PolicyOperation.WRITE)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> clusterResources().getClusterPoliciesResources().setPoliciesWithCreateAsync(cluster,
                         old -> {
@@ -376,7 +369,7 @@ public class ClustersBase extends AdminResource {
                                                    "cluster-b"
                                                 ]""")))
                                     LinkedHashSet<String> peerClusterNames) {
-        validateSuperUserAccessAsync()
+        validateBothSuperuserAndClusterOperation(cluster, ClusterOperation.UPDATE_PEER_CLUSTER)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> innerSetPeerClusterNamesAsync(cluster, peerClusterNames))
                 .thenAccept(__ -> {
@@ -437,7 +430,7 @@ public class ClustersBase extends AdminResource {
     public void getPeerCluster(@Suspended AsyncResponse asyncResponse,
                                @ApiParam(value = "The cluster name", required = true)
                                @PathParam("cluster") String cluster) {
-        validateSuperUserAccessAsync()
+        validateBothSuperuserAndClusterOperation(cluster, ClusterOperation.GET_PEER_CLUSTER)
                 .thenCompose(__ -> clusterResources().getClusterAsync(cluster))
                 .thenAccept(clusterOpt -> {
                     ClusterData clusterData =
@@ -466,7 +459,7 @@ public class ClustersBase extends AdminResource {
     public void deleteCluster(@Suspended AsyncResponse asyncResponse,
                               @ApiParam(value = "The cluster name", required = true)
                               @PathParam("cluster") String cluster) {
-        validateSuperUserAccessAsync()
+        validateBothSuperuserAndClusterOperation(cluster, ClusterOperation.DELETE_CLUSTER)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> internalDeleteClusterAsync(cluster))
                 .thenAccept(__ -> {
@@ -525,7 +518,7 @@ public class ClustersBase extends AdminResource {
         @Suspended AsyncResponse asyncResponse,
         @ApiParam(value = "The cluster name", required = true) @PathParam("cluster") String cluster
     ) {
-        validateSuperUserAccessAsync()
+        validateBothSuperuserAndClusterPolicyOperation(cluster, PolicyName.NAMESPACE_ISOLATION, PolicyOperation.READ)
                 .thenCompose(__ -> validateClusterExistAsync(cluster, Status.NOT_FOUND))
                 .thenCompose(__ -> internalGetNamespaceIsolationPolicies(cluster))
                 .thenAccept(asyncResponse::resume)
@@ -583,7 +576,7 @@ public class ClustersBase extends AdminResource {
         @ApiParam(value = "The name of the namespace isolation policy", required = true)
         @PathParam("policyName") String policyName
     ) {
-        validateSuperUserAccessAsync()
+        validateBothSuperuserAndClusterPolicyOperation(cluster, PolicyName.NAMESPACE_ISOLATION, PolicyOperation.READ)
                 .thenCompose(__ -> validateClusterExistAsync(cluster, Status.PRECONDITION_FAILED))
                 .thenCompose(__ -> internalGetNamespaceIsolationPolicies(cluster))
                 .thenAccept(policies -> {
@@ -619,7 +612,7 @@ public class ClustersBase extends AdminResource {
             @Suspended AsyncResponse asyncResponse,
             @ApiParam(value = "The cluster name", required = true)
             @PathParam("cluster") String cluster) {
-        validateSuperUserAccessAsync()
+        validateBothSuperuserAndClusterPolicyOperation(cluster, PolicyName.NAMESPACE_ISOLATION, PolicyOperation.READ)
                 .thenCompose(__ -> validateClusterExistAsync(cluster, Status.PRECONDITION_FAILED))
                 .thenCompose(__ -> pulsar().getLoadManager().get().getAvailableBrokersAsync())
                 .thenCompose(availableBrokers -> internalGetNamespaceIsolationPolicies(cluster)
@@ -676,7 +669,7 @@ public class ClustersBase extends AdminResource {
         @ApiParam(value = "The broker name (<broker-hostname>:<web-service-port>)", required = true,
             example = "broker1:8080")
         @PathParam("broker") String broker) {
-        validateSuperUserAccessAsync()
+        validateBothSuperuserAndClusterPolicyOperation(cluster, PolicyName.NAMESPACE_ISOLATION, PolicyOperation.READ)
                 .thenCompose(__ -> validateClusterExistAsync(cluster, PRECONDITION_FAILED))
                 .thenCompose(__ -> internalGetNamespaceIsolationPolicies(cluster))
                 .thenApply(policies -> internalGetBrokerNsIsolationData(broker, policies))
@@ -711,7 +704,7 @@ public class ClustersBase extends AdminResource {
         @ApiParam(value = "The namespace isolation policy data", required = true)
         NamespaceIsolationDataImpl policyData
     ) {
-        validateSuperUserAccessAsync()
+        validateBothSuperuserAndClusterPolicyOperation(cluster, PolicyName.NAMESPACE_ISOLATION, PolicyOperation.WRITE)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> validateClusterExistAsync(cluster, PRECONDITION_FAILED))
                 .thenCompose(__ -> {
@@ -874,7 +867,7 @@ public class ClustersBase extends AdminResource {
         @ApiParam(value = "The namespace isolation policy name", required = true)
         @PathParam("policyName") String policyName
     ) {
-        validateSuperUserAccessAsync()
+        validateBothSuperuserAndClusterPolicyOperation(cluster, PolicyName.NAMESPACE_ISOLATION, PolicyOperation.WRITE)
                 .thenCompose(__ -> validateClusterExistAsync(cluster, PRECONDITION_FAILED))
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> namespaceIsolationPolicies().getIsolationDataPoliciesAsync(cluster))
@@ -924,7 +917,7 @@ public class ClustersBase extends AdminResource {
         @PathParam("domainName") String domainName,
         @ApiParam(value = "The configuration data of a failure domain", required = true) FailureDomainImpl domain
     ) {
-        validateSuperUserAccessAsync()
+        validateBothSuperuserAndClusterOperation(cluster, ClusterOperation.UPDATE_FAILURE_DOMAIN)
                 .thenCompose(__ -> validateClusterExistAsync(cluster, PRECONDITION_FAILED))
                 .thenCompose(__ -> validateBrokerExistsInOtherDomain(cluster, domainName, domain))
                 .thenCompose(__ -> clusterResources().getFailureDomainResources()
@@ -967,7 +960,7 @@ public class ClustersBase extends AdminResource {
         @ApiParam(value = "The cluster name", required = true)
         @PathParam("cluster") String cluster
     ) {
-        validateSuperUserAccessAsync()
+        validateBothSuperuserAndClusterOperation(cluster, ClusterOperation.GET_FAILURE_DOMAIN)
                 .thenCompose(__ -> clusterResources().getFailureDomainResources()
                         .listFailureDomainsAsync(cluster)
                         .thenCompose(domainNames -> {
@@ -1023,7 +1016,7 @@ public class ClustersBase extends AdminResource {
         @ApiParam(value = "The failure domain name", required = true)
         @PathParam("domainName") String domainName
     ) {
-        validateSuperUserAccessAsync()
+        validateBothSuperuserAndClusterOperation(cluster, ClusterOperation.GET_FAILURE_DOMAIN)
                 .thenCompose(__ -> validateClusterExistAsync(cluster, PRECONDITION_FAILED))
                 .thenCompose(__ -> clusterResources().getFailureDomainResources()
                         .getFailureDomainAsync(cluster, domainName))
@@ -1058,7 +1051,7 @@ public class ClustersBase extends AdminResource {
         @ApiParam(value = "The failure domain name", required = true)
         @PathParam("domainName") String domainName
     ) {
-        validateSuperUserAccessAsync()
+        validateBothSuperuserAndClusterOperation(cluster, ClusterOperation.DELETE_FAILURE_DOMAIN)
                 .thenCompose(__ -> validateClusterExistAsync(cluster, PRECONDITION_FAILED))
                 .thenCompose(__ -> clusterResources()
                         .getFailureDomainResources().deleteFailureDomainAsync(cluster, domainName))
@@ -1122,6 +1115,126 @@ public class ClustersBase extends AdminResource {
                             ).collect(Collectors.toList());
                     return FutureUtil.waitForAll(futures);
                 });
+    }
+
+
+
+    private CompletableFuture<Void> validateBothSuperuserAndClusterOperation(String clusterName, ClusterOperation operation) {
+        final var superUserAccessValidation = validateSuperUserAccessAsync();
+        final var clusterOperationValidation = validateClusterOperationAsync(clusterName, operation);
+        return FutureUtil.waitForAll(List.of(superUserAccessValidation, clusterOperationValidation))
+                .handle((result, err) -> {
+                    if (!superUserAccessValidation.isCompletedExceptionally()
+                        || !clusterOperationValidation.isCompletedExceptionally()) {
+                        return null;
+                    }
+                    if (log.isDebugEnabled()) {
+                        Throwable superUserValidationException = null;
+                        try {
+                            superUserAccessValidation.join();
+                        } catch (Throwable ex) {
+                            superUserValidationException = FutureUtil.unwrapCompletionException(ex);
+                        }
+                        Throwable brokerOperationValidationException = null;
+                        try {
+                            clusterOperationValidation.join();
+                        } catch (Throwable ex) {
+                            brokerOperationValidationException = FutureUtil.unwrapCompletionException(ex);
+                        }
+                        log.debug("validateBothSuperuserAndClusterOperation failed."
+                                  + " originalPrincipal={} clientAppId={} operation={} cluster={} "
+                                  + "superuserValidationError={} brokerOperationValidationError={}",
+                                originalPrincipal(), clientAppId(), operation.toString(), clusterName,
+                                superUserValidationException, brokerOperationValidationException);
+                    }
+                    throw new RestException(Status.UNAUTHORIZED,
+                            String.format("Unauthorized to validateBothSuperuserAndClusterOperation for"
+                                          + " originalPrincipal [%s] and clientAppId [%s] "
+                                          + "about operation [%s] on cluster [%s]",
+                                    originalPrincipal(), clientAppId(), operation.toString(), clusterName));
+                });
+    }
+
+
+    private CompletableFuture<Void> validateBothSuperuserAndClusterPolicyOperation(String clusterName, PolicyName name,
+                                                                                   PolicyOperation operation) {
+        final var superUserAccessValidation = validateSuperUserAccessAsync();
+        final var clusterOperationValidation = validateClusterPolicyOperationAsync(clusterName, name, operation);
+        return FutureUtil.waitForAll(List.of(superUserAccessValidation, clusterOperationValidation))
+                .handle((result, err) -> {
+                    if (!superUserAccessValidation.isCompletedExceptionally()
+                        || !clusterOperationValidation.isCompletedExceptionally()) {
+                        return null;
+                    }
+                    if (log.isDebugEnabled()) {
+                        Throwable superUserValidationException = null;
+                        try {
+                            superUserAccessValidation.join();
+                        } catch (Throwable ex) {
+                            superUserValidationException = FutureUtil.unwrapCompletionException(ex);
+                        }
+                        Throwable brokerOperationValidationException = null;
+                        try {
+                            clusterOperationValidation.join();
+                        } catch (Throwable ex) {
+                            brokerOperationValidationException = FutureUtil.unwrapCompletionException(ex);
+                        }
+                        log.debug("validateBothSuperuserAndClusterPolicyOperation failed."
+                                  + " originalPrincipal={} clientAppId={} operation={} cluster={} "
+                                  + "superuserValidationError={} brokerOperationValidationError={}",
+                                originalPrincipal(), clientAppId(), operation.toString(), clusterName,
+                                superUserValidationException, brokerOperationValidationException);
+                    }
+                    throw new RestException(Status.UNAUTHORIZED,
+                            String.format("Unauthorized to validateBothSuperuserAndClusterPolicyOperation for"
+                                          + " originalPrincipal [%s] and clientAppId [%s] "
+                                          + "about operation [%s] on cluster [%s]",
+                                    originalPrincipal(), clientAppId(), operation.toString(), clusterName));
+                });
+    }
+
+
+
+
+    private CompletableFuture<Void> validateClusterOperationAsync(String cluster, ClusterOperation operation) {
+        final var pulsar = pulsar();
+        if (pulsar.getBrokerService().isAuthenticationEnabled()
+            && pulsar.getBrokerService().isAuthorizationEnabled()) {
+            return pulsar.getBrokerService().getAuthorizationService()
+                    .allowClusterOperationAsync(cluster, operation, originalPrincipal(),
+                            clientAppId(), clientAuthData())
+                    .thenAccept(isAuthorized -> {
+                        if (!isAuthorized) {
+                            throw new RestException(Status.UNAUTHORIZED,
+                                    String.format("Unauthorized to validateClusterOperation for"
+                                                  + " originalPrincipal [%s] and clientAppId [%s] "
+                                                  + "about operation [%s] on cluster [%s]",
+                                            originalPrincipal(), clientAppId(), operation.toString(), cluster));
+                        }
+                    });
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
+    private CompletableFuture<Void> validateClusterPolicyOperationAsync(String cluster, PolicyName policyName,
+                                                                        PolicyOperation operation) {
+        final var pulsar = pulsar();
+        if (pulsar.getBrokerService().isAuthenticationEnabled()
+            && pulsar.getBrokerService().isAuthorizationEnabled()) {
+            return pulsar.getBrokerService().getAuthorizationService()
+                    .allowClusterPolicyOperationAsync(cluster, policyName, operation, originalPrincipal(),
+                            clientAppId(), clientAuthData())
+                    .thenAccept(isAuthorized -> {
+                        if (!isAuthorized) {
+                            throw new RestException(Status.UNAUTHORIZED,
+                                    String.format("Unauthorized to validateClusterPolicyOperation for"
+                                                  + " originalPrincipal [%s] and clientAppId [%s] "
+                                                  + "about operation [%s] on cluster [%s]",
+                                            originalPrincipal(), clientAppId(), operation.toString(), cluster));
+                        }
+                    });
+        }
+        return CompletableFuture.completedFuture(null);
     }
 
     private static final Logger log = LoggerFactory.getLogger(ClustersBase.class);
