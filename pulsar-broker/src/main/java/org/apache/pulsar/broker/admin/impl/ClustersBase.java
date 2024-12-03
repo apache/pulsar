@@ -59,8 +59,18 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamedEntity;
-import org.apache.pulsar.common.policies.data.*;
+import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
+import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.ClusterOperation;
 import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
+import org.apache.pulsar.common.policies.data.ClusterPoliciesImpl;
+import org.apache.pulsar.common.policies.data.FailureDomainImpl;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationPolicyUnloadScope;
+import org.apache.pulsar.common.policies.data.PolicyName;
+import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicyImpl;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -1119,7 +1129,8 @@ public class ClustersBase extends AdminResource {
 
 
 
-    private CompletableFuture<Void> validateBothSuperuserAndClusterOperation(String clusterName, ClusterOperation operation) {
+    private CompletableFuture<Void> validateBothSuperuserAndClusterOperation(String clusterName,
+                                                                             ClusterOperation operation) {
         final var superUserAccessValidation = validateSuperUserAccessAsync();
         final var clusterOperationValidation = validateClusterOperationAsync(clusterName, operation);
         return FutureUtil.waitForAll(List.of(superUserAccessValidation, clusterOperationValidation))
