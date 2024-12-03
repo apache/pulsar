@@ -340,7 +340,7 @@ The Apache Software License, Version 2.0
  * Apache Commons
     - commons-codec-1.15.jar
     - commons-configuration-1.10.jar
-    - commons-io-2.14.0.jar
+    - commons-io-2.18.0.jar
     - commons-lang-2.6.jar
     - commons-logging-1.2.jar
     - commons-lang3-3.11.jar
