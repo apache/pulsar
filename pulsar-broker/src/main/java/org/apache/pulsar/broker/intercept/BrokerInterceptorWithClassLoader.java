@@ -22,6 +22,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.util.Map;
+import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
@@ -267,6 +268,18 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
         try {
             Thread.currentThread().setContextClassLoader(narClassLoader);
             this.interceptor.initialize(pulsarService);
+        } finally {
+            Thread.currentThread().setContextClassLoader(previousContext);
+        }
+    }
+
+    @Override
+    public void onFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+            throws ServletException, IOException {
+        final ClassLoader previousContext = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(narClassLoader);
+            this.interceptor.onFilter(request, response, chain);
         } finally {
             Thread.currentThread().setContextClassLoader(previousContext);
         }
