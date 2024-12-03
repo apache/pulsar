@@ -1146,17 +1146,17 @@ public class ClustersBase extends AdminResource {
                         } catch (Throwable ex) {
                             superUserValidationException = FutureUtil.unwrapCompletionException(ex);
                         }
-                        Throwable brokerOperationValidationException = null;
+                        Throwable clusterOperationValidationException = null;
                         try {
                             clusterOperationValidation.join();
                         } catch (Throwable ex) {
-                            brokerOperationValidationException = FutureUtil.unwrapCompletionException(ex);
+                            clusterOperationValidationException = FutureUtil.unwrapCompletionException(ex);
                         }
                         log.debug("validateBothSuperuserAndClusterOperation failed."
                                   + " originalPrincipal={} clientAppId={} operation={} cluster={} "
-                                  + "superuserValidationError={} brokerOperationValidationError={}",
+                                  + "superuserValidationError={} clusterOperationValidationError={}",
                                 originalPrincipal(), clientAppId(), operation.toString(), clusterName,
-                                superUserValidationException, brokerOperationValidationException);
+                                superUserValidationException, clusterOperationValidationException);
                     }
                     throw new RestException(Status.UNAUTHORIZED,
                             String.format("Unauthorized to validateBothSuperuserAndClusterOperation for"
@@ -1184,17 +1184,17 @@ public class ClustersBase extends AdminResource {
                         } catch (Throwable ex) {
                             superUserValidationException = FutureUtil.unwrapCompletionException(ex);
                         }
-                        Throwable brokerOperationValidationException = null;
+                        Throwable clusterOperationValidationException = null;
                         try {
                             clusterOperationValidation.join();
                         } catch (Throwable ex) {
-                            brokerOperationValidationException = FutureUtil.unwrapCompletionException(ex);
+                            clusterOperationValidationException = FutureUtil.unwrapCompletionException(ex);
                         }
                         log.debug("validateBothSuperuserAndClusterPolicyOperation failed."
                                   + " originalPrincipal={} clientAppId={} operation={} cluster={} "
-                                  + "superuserValidationError={} brokerOperationValidationError={}",
+                                  + "superuserValidationError={} clusterOperationValidationError={}",
                                 originalPrincipal(), clientAppId(), operation.toString(), clusterName,
-                                superUserValidationException, brokerOperationValidationException);
+                                superUserValidationException, clusterOperationValidationException);
                     }
                     throw new RestException(Status.UNAUTHORIZED,
                             String.format("Unauthorized to validateBothSuperuserAndClusterPolicyOperation for"
