@@ -16,13 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.util;
+package org.apache.pulsar.common.policies.data;
 
-import java.util.UUID;
-import org.apache.commons.codec.digest.DigestUtils;
+public enum BrokerOperation {
+    LIST_BROKERS,
+    GET_BROKER,
 
-public class ConsumerName {
-    public static String generateRandomName() {
-        return DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 5);
-    }
+    GET_LEADER_BROKER,
+    LIST_OWNED_NAMESPACES,
+
+    LIST_DYNAMIC_CONFIGURATIONS,
+    UPDATE_DYNAMIC_CONFIGURATION,
+    DELETE_DYNAMIC_CONFIGURATION,
+
+    LIST_RUNTIME_CONFIGURATIONS,
+
+    GET_INTERNAL_CONFIGURATION_DATA,
+
+    CHECK_BACKLOG_QUOTA,
+    HEALTH_CHECK,
+    SHUTDOWN
 }

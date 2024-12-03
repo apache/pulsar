@@ -1,3 +1,4 @@
+<?xml version="1.0" ?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -19,18 +20,15 @@
 
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
     <version>4.1.0-SNAPSHOT</version>
   </parent>
-
   <artifactId>pulsar-client-all</artifactId>
   <name>Pulsar Client All</name>
-
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -69,7 +67,6 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
-
   <build>
     <plugins>
       <plugin>
@@ -107,7 +104,6 @@
           </execution>
         </executions>
       </plugin>
-
       <plugin>
         <artifactId>maven-antrun-plugin</artifactId>
         <executions>
@@ -120,15 +116,13 @@
             <configuration>
               <target>
                 <!-- shade the AsyncHttpClient ahc-default.properties files -->
-                <replace token= "org.asynchttpclient."
-                         value="org.apache.pulsar.shade.org.asynchttpclient."
-                         file="${project.build.directory}/classes/org/asynchttpclient/config/ahc-default.properties"/>
+                <replace file="${project.build.directory}/classes/org/asynchttpclient/config/ahc-default.properties"
+                         token="org.asynchttpclient." value="org.apache.pulsar.shade.org.asynchttpclient."/>
               </target>
             </configuration>
           </execution>
         </executions>
       </plugin>
-
       <plugin>
         <!-- Shade all the dependencies to avoid conflicts -->
         <groupId>org.apache.maven.plugins</groupId>
@@ -145,67 +139,67 @@
               <createDependencyReducedPom>true</createDependencyReducedPom>
               <promoteTransitiveDependencies>true</promoteTransitiveDependencies>
               <minimizeJar>false</minimizeJar>
-
               <artifactSet>
                 <includes>
-                  <include>org.apache.pulsar:pulsar-client-original</include>
-                  <include>org.apache.pulsar:pulsar-client-admin-original</include>
-                  <include>org.apache.commons:commons-lang3</include>
-                  <include>commons-codec:commons-codec</include>
-                  <include>commons-collections:commons-collections</include>
-                  <include>org.asynchttpclient:*</include>
-                  <include>io.netty:netty-codec-http</include>
-                  <include>io.netty:netty-transport-native-epoll</include>
-                  <include>org.reactivestreams:reactive-streams</include>
-                  <include>com.typesafe.netty:netty-reactive-streams</include>
-                  <include>org.javassist:javassist</include>
-                  <include>com.google.guava:*</include>
-                  <include>org.checkerframework:*</include>
+                  <include>com.fasterxml.jackson.*:*</include>
+                  <include>com.google.*:*</include>
+                  <include>com.google.auth:*</include>
                   <include>com.google.code.findbugs:*</include>
-                  <include>com.google.errorprone:*</include>
-                  <include>com.google.j2objc:*</include>
                   <include>com.google.code.gson:gson</include>
+                  <include>com.google.errorprone:*</include>
+                  <include>com.google.guava:*</include>
+                  <include>com.google.j2objc:*</include>
                   <include>com.google.re2j:re2j</include>
                   <include>com.spotify:completable-futures</include>
-                  <include>com.fasterxml.jackson.*:*</include>
+                  <include>com.squareup.*:*</include>
+                  <include>com.sun.activation:javax.activation</include>
+                  <!-- Avro transitive dependencies -->
+                  <include>com.thoughtworks.paranamer:paranamer</include>
+                  <include>com.typesafe.netty:netty-reactive-streams</include>
+                  <include>com.yahoo.datasketches:*</include>
+                  <include>com.yahoo.datasketches:sketches-core</include>
+                  <include>commons-*:*</include>
+                  <include>commons-codec:commons-codec</include>
+                  <include>commons-collections:commons-collections</include>
+                  <include>io.airlift:*</include>
+                  <include>io.grpc:*</include>
+                  <include>io.netty.incubator:*</include>
+                  <include>io.netty:*</include>
                   <include>io.netty:netty</include>
                   <include>io.netty:netty-all</include>
+                  <include>io.netty:netty-codec-http</include>
                   <include>io.netty:netty-tcnative-boringssl-static</include>
-                  <include>org.eclipse.jetty:*</include>
-                  <include>com.yahoo.datasketches:*</include>
-                  <include>commons-*:*</include>
+                  <include>io.netty:netty-transport-native-epoll</include>
+                  <include>io.opencensus:*</include>
+                  <include>io.perfmark:*</include>
                   <include>io.swagger:*</include>
-                  <include>io.airlift:*</include>
-
-                  <include>org.apache.pulsar:pulsar-common</include>
-                  <include>org.apache.bookkeeper:*</include>
-                  <include>com.yahoo.datasketches:sketches-core</include>
-                  <include>org.glassfish.jersey*:*</include>
+                  <include>jakarta.activation:jakarta.activation-api</include>
+                  <include>jakarta.annotation:jakarta.annotation-api</include>
+                  <include>jakarta.ws.rs:jakarta.ws.rs-api</include>
+                  <include>jakarta.xml.bind:jakarta.xml.bind-api</include>
                   <include>javax.ws.rs:*</include>
                   <include>javax.xml.bind:jaxb-api</include>
-                  <include>jakarta.annotation:*</include>
-                  <include>org.glassfish.hk2*:*</include>
-                  <include>io.grpc:*</include>
-                  <include>io.perfmark:*</include>
-                  <include>com.yahoo.datasketches:*</include>
-                  <include>io.netty:*</include>
-                  <include>io.netty.incubator:*</include>
-                  <include>com.squareup.*:*</include>
-                  <include>com.google.*:*</include>
-                  <include>commons-*:*</include>
-                  <include>org.eclipse.jetty:*</include>
-                  <include>com.google.auth:*</include>
-                  <include>org.jvnet.mimepull:*</include>
-                  <include>io.opencensus:*</include>
-                  <include>org.objenesis:*</include>
-                  <include>org.yaml:snakeyaml</include>
+                  <include>net.jcip:jcip-annotations</include>
                   <include>org.apache.avro:*</include>
-                  <!-- Avro transitive dependencies-->
-                  <include>com.thoughtworks.paranamer:paranamer</include>
+                  <include>org.apache.bookkeeper:*</include>
                   <include>org.apache.commons:commons-compress</include>
-                  <include>org.tukaani:xz</include>
+                  <include>org.apache.commons:commons-lang3</include>
+                  <include>org.apache.pulsar:pulsar-client-admin-original</include>
                   <!-- Issue #6834, Since Netty ByteBuf shaded, we need also shade this module -->
                   <include>org.apache.pulsar:pulsar-client-messagecrypto-bc</include>
+                  <include>org.apache.pulsar:pulsar-client-original</include>
+                  <include>org.apache.pulsar:pulsar-common</include>
+                  <include>org.asynchttpclient:*</include>
+                  <include>org.checkerframework:*</include>
+                  <include>org.eclipse.jetty:*</include>
+                  <include>org.glassfish.hk2*:*</include>
+                  <include>org.glassfish.jersey*:*</include>
+                  <include>org.javassist:javassist</include>
+                  <include>org.jvnet.mimepull:*</include>
+                  <include>org.objenesis:*</include>
+                  <include>org.reactivestreams:reactive-streams</include>
+                  <include>org.tukaani:xz</include>
+                  <include>org.yaml:snakeyaml</include>
                 </includes>
                 <excludes>
                   <exclude>com.fasterxml.jackson.core:jackson-annotations</exclude>
@@ -219,23 +213,54 @@
                     <include>**</include>
                   </includes>
                   <excludes>
-                    <!-- bouncycastle jars could not be shaded, or the signatures will be wrong-->
+                    <!-- bouncycastle jars could not be shaded, or the signatures will be wrong -->
                     <exclude>org/bouncycastle/**</exclude>
+                  </excludes>
+                </filter>
+                <filter>
+                  <artifact>org.asynchttpclient:async-http-client</artifact>
+                  <includes>
+                    <include>**</include>
+                  </includes>
+                  <excludes>
+                    <exclude>org/asynchttpclient/config/ahc-default.properties</exclude>
+                  </excludes>
+                </filter>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>**/module-info.class</exclude>
+                    <exclude>findbugsExclude.xml</exclude>
+                    <exclude>META-INF/*-LICENSE</exclude>
+                    <exclude>META-INF/*-NOTICE</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/DEPENDENCIES*</exclude>
+                    <exclude>META-INF/io.netty.versions.properties</exclude>
+                    <exclude>META-INF/LICENSE*</exclude>
+                    <exclude>META-INF/license/**</exclude>
+                    <exclude>META-INF/MANIFEST.MF</exclude>
+                    <exclude>META-INF/maven/**</exclude>
+                    <exclude>META-INF/native-image/**</exclude>
+                    <exclude>META-INF/NOTICE*</exclude>
+                    <exclude>META-INF/proguard/**</exclude>
                   </excludes>
                 </filter>
               </filters>
               <relocations>
+                <!-- Rename Netty native libraries to include the shaded prefix -->
                 <relocation>
-                  <pattern>org.asynchttpclient</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.asynchttpclient</shadedPattern>
+                  <pattern>(META-INF/native/(lib)?)(netty.+\.(so|jnilib|dll))$</pattern>
+                  <shadedPattern>$1org_apache_pulsar_shade_$3</shadedPattern>
+                  <rawString>true</rawString>
                 </relocation>
                 <relocation>
-                  <pattern>org.apache.bookkeeper</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.apache.bookkeeper</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>org.apache.commons</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.apache.commons</shadedPattern>
+                  <pattern>com.fasterxml.jackson</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.fasterxml.jackson</shadedPattern>
+                  <excludes>
+                    <exclude>com.fasterxml.jackson.annotation.*</exclude>
+                  </excludes>
                 </relocation>
                 <relocation>
                   <pattern>com.google</pattern>
@@ -249,47 +274,68 @@
                   <shadedPattern>org.apache.pulsar.shade.com.spotify.futures</shadedPattern>
                 </relocation>
                 <relocation>
-                  <pattern>com.fasterxml.jackson</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.com.fasterxml.jackson</shadedPattern>
-                  <excludes>
-                    <exclude>com.fasterxml.jackson.annotation.*</exclude>
-                  </excludes>
+                  <pattern>com.squareup</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.squareup</shadedPattern>
                 </relocation>
                 <relocation>
-                  <pattern>io.netty</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.io.netty</shadedPattern>
+                  <pattern>com.sun.activation</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.sun.activation</shadedPattern>
                 </relocation>
                 <relocation>
-                  <pattern>org.apache.pulsar.policies</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.apache.pulsar.policies</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>com.yahoo.datasketches</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.com.yahoo.datasketches</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>com.yahoo</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.com.yahoo</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>org.eclipse.jetty</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.eclipse</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>org.reactivestreams</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.reactivestreams</shadedPattern>
+                  <pattern>com.thoughtworks.paranamer</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.thoughtworks.paranamer</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.typesafe</pattern>
                   <shadedPattern>org.apache.pulsar.shade.com.typesafe</shadedPattern>
                 </relocation>
                 <relocation>
-                  <pattern>javax.ws</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.javax.ws</shadedPattern>
+                  <pattern>com.yahoo</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.yahoo</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.yahoo.datasketches</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.yahoo.datasketches</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>io.airlift</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.io.airlift</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>io.grpc</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.io.grpc</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>io.netty</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.io.netty</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>io.opencensus</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.io.opencensus</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>io.swagger</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.io.swagger</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>javassist</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.javassist</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>javax.activation</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.javax.activation</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>javax.annotation</pattern>
                   <shadedPattern>org.apache.pulsar.shade.javax.annotation</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>javax.inject</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.javax.inject</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>javax.ws</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.javax.ws</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>javax.xml.bind</pattern>
@@ -300,52 +346,37 @@
                   <shadedPattern>org.apache.pulsar.shade.jersey</shadedPattern>
                 </relocation>
                 <relocation>
-                  <pattern>org.jvnet</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.jvnet</shadedPattern>
+                  <pattern>META-INF/versions/(\d+)/com/fasterxml/jackson/core/</pattern>
+                  <shadedPattern>META-INF/versions/$1/org/apache/pulsar/shade/com/fasterxml/jackson/core/
+                  </shadedPattern>
+                  <rawString>true</rawString>
+                </relocation>
+                <relocation>
+                  <pattern>META-INF/versions/(\d+)/javax/xml/bind/</pattern>
+                  <shadedPattern>META-INF/versions/$1/org/apache/pulsar/shade/javax/xml/bind/</shadedPattern>
+                  <rawString>true</rawString>
+                </relocation>
+                <relocation>
+                  <pattern>META-INF/versions/(\d+)/org/glassfish/</pattern>
+                  <shadedPattern>META-INF/versions/$1/org/apache/pulsar/shade/org/glassfish/</shadedPattern>
+                  <rawString>true</rawString>
+                </relocation>
+                <relocation>
+                  <pattern>META-INF/versions/(\d+)/org/yaml/</pattern>
+                  <shadedPattern>META-INF/versions/$1/org/apache/pulsar/shade/org/yaml/</shadedPattern>
+                  <rawString>true</rawString>
+                </relocation>
+                <relocation>
+                  <pattern>net.jcip</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.net.jcip</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>okio</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.okio</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.aopalliance</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.aopalliance</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>javassist</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.javassist</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>javax.inject</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.javax.inject</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>org.glassfish</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.glassfish</shadedPattern>
-                </relocation>
-                <relocation>
-                    <pattern>io.grpc</pattern>
-                    <shadedPattern>org.apache.pulsar.shade.io.grpc</shadedPattern>
-                </relocation>
-                <relocation>
-                    <pattern>okio</pattern>
-                    <shadedPattern>org.apache.pulsar.shade.okio</shadedPattern>
-                </relocation>
-                <relocation>
-                    <pattern>com.squareup</pattern>
-                    <shadedPattern>org.apache.pulsar.shade.com.squareup</shadedPattern>
-                </relocation>
-                <relocation>
-                    <pattern>io.opencensus</pattern>
-                    <shadedPattern>org.apache.pulsar.shade.io.opencensus</shadedPattern>
-                </relocation>
-                <relocation>
-                    <pattern>org.eclipse.jetty</pattern>
-                    <shadedPattern>org.apache.pulsar.shade.org.eclipse.jetty</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>org.objenesis</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.objenesis</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>org.yaml</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.yaml</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.apache.avro</pattern>
@@ -363,45 +394,68 @@
                     <exclude>org.apache.avro.reflect.Union</exclude>
                   </excludes>
                 </relocation>
-                <!--Avro transitive dependencies-->
                 <relocation>
-                  <pattern>org.codehaus.jackson</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.codehaus.jackson</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>com.thoughtworks.paranamer</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.com.thoughtworks.paranamer</shadedPattern>
+                  <pattern>org.apache.bookkeeper</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.bookkeeper</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.apache.commons</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.apache.commons</shadedPattern>
                 </relocation>
                 <relocation>
-                  <pattern>io.airlift</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.io.airlift</shadedPattern>
+                  <pattern>org.apache.pulsar.policies</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.pulsar.policies</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.asynchttpclient</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.asynchttpclient</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.checkerframework</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.checkerframework</shadedPattern>
                 </relocation>
+                <!-- Avro transitive dependencies -->
                 <relocation>
-                  <pattern>javax.annotation</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.javax.annotation</shadedPattern>
+                  <pattern>org.codehaus.jackson</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.codehaus.jackson</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.eclipse.jetty</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.eclipse</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.glassfish</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.glassfish</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.jvnet</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.jvnet</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.objenesis</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.objenesis</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.reactivestreams</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.reactivestreams</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.tukaani</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.tukaani</shadedPattern>
                 </relocation>
-                <!-- Rename Netty native libraries to include the shaded prefix -->
                 <relocation>
-                  <pattern>(META-INF/native/(lib)?)(netty.+\.(so|jnilib|dll))$</pattern>
-                  <shadedPattern>$1org_apache_pulsar_shade_$3</shadedPattern>
-                  <rawString>true</rawString>
+                  <pattern>org.yaml</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.yaml</shadedPattern>
                 </relocation>
               </relocations>
               <transformers>
-                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
-                <transformer implementation="org.apache.maven.plugins.shade.resource.PluginXmlResourceTransformer" />
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.PluginXmlResourceTransformer"/>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <manifestEntries>
+                    <Multi-Release>true</Multi-Release>
+                  </manifestEntries>
+                </transformer>
               </transformers>
             </configuration>
           </execution>

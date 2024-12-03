@@ -36,6 +36,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
 import lombok.Cleanup;
 import lombok.Data;
 import org.apache.avro.reflect.Nullable;
@@ -261,7 +262,12 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         final String topic = "persistent://my-property/my-ns/dead-letter-topic";
         final String subscription = "my-subscription";
         final String consumerName = "my-consumer";
-        String deadLetterProducerName = String.format("%s-%s-%s-DLQ", topic, subscription, consumerName);
+        Pattern deadLetterProducerNamePattern =
+                Pattern.compile("^persistent://my-property/my-ns/dead-letter-topic"
+                        + "-my-subscription"
+                        + "-my-consumer"
+                        + "-[a-zA-Z0-9]{5}"
+                        + "-DLQ$");
 
         final int maxRedeliveryCount = 1;
 
@@ -308,14 +314,90 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         int totalInDeadLetter = 0;
         do {
             Message message = deadLetterConsumer.receive();
-            assertEquals(message.getProducerName(), deadLetterProducerName);
-            log.info("dead letter consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+            assertTrue(deadLetterProducerNamePattern.matcher(message.getProducerName()).matches());
+            log.info("dead letter consumer received message : {} {}, dead letter producer name : {}",
+                    message.getMessageId(), new String(message.getData()), message.getProducerName());
             deadLetterConsumer.acknowledge(message);
             totalInDeadLetter++;
         } while (totalInDeadLetter < sendMessages);
 
         deadLetterConsumer.close();
         consumer.close();
+    }
+
+
+    @Test(timeOut = 30000)
+    public void testMultipleSameNameConsumersToDeadLetterTopic() throws Exception {
+        final String topic = "persistent://my-property/my-ns/same-name-consumers-dead-letter-topic";
+        final int maxRedeliveryCount = 1;
+        final int messageCount = 10;
+        final int consumerCount = 3;
+
+        //1 start 3 parallel consumers
+        List<Consumer<String>> consumers = new ArrayList<>();
+        final AtomicInteger totalReceived = new AtomicInteger(0);
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newFixedThreadPool(consumerCount);
+        for (int i = 0; i < consumerCount; i++) {
+            executor.execute(() -> {
+                try {
+                    Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                            .topic(topic)
+                            .subscriptionName("my-subscription-DuplicatedMessage")
+                            .subscriptionType(SubscriptionType.Shared)
+                            .consumerName("my-consumer")
+                            .ackTimeout(1001, TimeUnit.MILLISECONDS)
+                            .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount)
+                                    .deadLetterTopic(topic + "-DLQ").build())
+                            .negativeAckRedeliveryDelay(1001, TimeUnit.MILLISECONDS)
+                            .receiverQueueSize(100)
+                            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                            .messageListener((MessageListener<String>) (consumer1, msg) -> {
+                                totalReceived.getAndIncrement();
+                                //never ack
+                            })
+                            .subscribe();
+                    consumers.add(consumer);
+                } catch (PulsarClientException e) {
+                    fail();
+                }
+            });
+        }
+
+        //2 send messages
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        for (int i = 0; i < messageCount; i++) {
+            producer.send(String.format("Message [%d]", i));
+        }
+
+        //3 start a DLQ consumer
+        Consumer<String> deadLetterConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic + "-DLQ")
+                .subscriptionName("my-subscription-DuplicatedMessage-DLQ")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+        int totalInDeadLetter = 0;
+        while (true) {
+            Message<String> message = deadLetterConsumer.receive(10, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            deadLetterConsumer.acknowledge(message);
+            totalInDeadLetter++;
+        }
+
+        //4 The number of messages that consumers can consume should be equal to messageCount * (maxRedeliveryCount + 1)
+        assertEquals(totalReceived.get(), messageCount * (maxRedeliveryCount + 1));
+
+        //5 The message in DLQ should be equal to messageCount
+        assertEquals(totalInDeadLetter, messageCount);
+
+        //6 clean up
+        producer.close();
+        deadLetterConsumer.close();
+        for (Consumer<String> consumer : consumers) {
+            consumer.close();
+        }
     }
 
     @DataProvider(name = "produceLargeMessages")
