@@ -595,8 +595,14 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
 
         final String topicString = "persistent://prop/ns-abc/testTopic/1";
 
+        // When allowAutoTopicCreationWithLegacyNamingScheme as the default value is false,
+        // four-paragraph topic cannot be created.
         Assert.assertThrows(PulsarClientException.NotFoundException.class,
                 ()-> pulsarClient.newProducer().topic(topicString).create());
+
+        pulsar.getConfiguration().setAllowAutoTopicCreationWithLegacyNamingScheme(true);
+        Producer producer=pulsarClient.newProducer().topic(topicString).create();
+        Assert.assertEquals(producer.getTopic(), topicString);
 
     }
 
