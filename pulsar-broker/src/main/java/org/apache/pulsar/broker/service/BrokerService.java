@@ -3532,7 +3532,7 @@ public class BrokerService implements Closeable {
             return CompletableFuture.completedFuture(true);
         }
 
-        //If automatic topic creation is enabled, and the name of the topic contains 'cluster',
+        //If 'allowAutoTopicCreation' is true, and the name of the topic contains 'cluster',
         //the topic cannot be automatically created.
         if (!pulsar.getConfiguration().isAllowAutoTopicCreationWithLegacyNamingScheme()
                 && StringUtils.isNotBlank(topicName.getCluster())) {

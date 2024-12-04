@@ -603,6 +603,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         pulsar.getConfiguration().setAllowAutoTopicCreationWithLegacyNamingScheme(true);
         Producer producer=pulsarClient.newProducer().topic(topicString).create();
         Assert.assertEquals(producer.getTopic(), topicString);
+        producer.close();
 
     }
 

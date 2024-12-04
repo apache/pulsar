@@ -2154,6 +2154,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "The type of topic that is allowed to be automatically created.(partitioned/non-partitioned)"
     )
     private TopicType allowAutoTopicCreationType = TopicType.NON_PARTITIONED;
+    @FieldContext(category = CATEGORY_SERVER, dynamic = true,
+            doc = "If 'allowAutoTopicCreation' is true and the name of the topic contains 'cluster',"
+                    + "the topic cannot be automatically created."
+    )
+    private boolean allowAutoTopicCreationWithLegacyNamingScheme = false;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         dynamic = true,
@@ -3702,11 +3707,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "SSL Factory plugin configuration parameters used by internal client.")
     private String brokerClientSslFactoryPluginParams = "";
 
-    @FieldContext(category = CATEGORY_SERVER, dynamic = true,
-            doc = "If automatic topic creation is enabled and the name of the topic contains 'cluster', "
-                    + "the topic cannot be automatically created"
-    )
-    private boolean allowAutoTopicCreationWithLegacyNamingScheme = false;
 
     /* packages management service configurations (begin) */
 
