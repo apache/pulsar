@@ -33,6 +33,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BrokerOperation;
+import org.apache.pulsar.common.policies.data.ClusterOperation;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
@@ -392,5 +393,24 @@ public interface AuthorizationProvider extends Closeable {
                                                                  AuthenticationDataSource authData) {
         return FutureUtil.failedFuture(
                 new UnsupportedOperationException("allowBrokerOperationAsync is not supported yet."));
+    }
+
+
+    default CompletableFuture<Boolean> allowClusterOperationAsync(String clusterName,
+                                                                  ClusterOperation clusterOperation,
+                                                                  String role,
+                                                                  AuthenticationDataSource authData) {
+        return FutureUtil.failedFuture(
+                new UnsupportedOperationException("allowClusterOperationAsync is not supported yet."));
+    }
+
+    default CompletableFuture<Boolean> allowClusterPolicyOperationAsync(String clusterName,
+                                                                        String role,
+                                                                        PolicyName policy,
+                                                                        PolicyOperation operation,
+                                                                        AuthenticationDataSource authData) {
+        return FutureUtil.failedFuture(
+                new IllegalStateException("ClusterPolicyOperation [" + policy.name() + "/" + operation.name() + "] "
+                                          + "is not supported by the Authorization provider you are using."));
     }
 }
