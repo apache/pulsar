@@ -19,8 +19,10 @@
 package org.apache.pulsar.tests.integration.plugins;
 
 import io.netty.buffer.ByteBuf;
+import java.io.IOException;
 import java.util.Map;
 import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import org.apache.bookkeeper.mledger.Entry;
@@ -122,7 +124,9 @@ public class LoggingBrokerInterceptor implements BrokerInterceptor {
     }
 
     @Override
-    public void onFilter(ServletRequest request, ServletResponse response, FilterChain chain) {
+    public void onFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+            throws ServletException, IOException {
         log.info("onFilter");
+        chain.doFilter(request, response);
     }
 }
