@@ -3706,8 +3706,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_TLS,
             doc = "SSL Factory plugin configuration parameters used by internal client.")
     private String brokerClientSslFactoryPluginParams = "";
-
-
+    
     /* packages management service configurations (begin) */
 
     @FieldContext(
