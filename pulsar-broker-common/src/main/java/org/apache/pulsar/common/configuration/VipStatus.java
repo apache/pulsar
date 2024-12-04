@@ -48,6 +48,7 @@ public class VipStatus {
     // to prevent excessive logging
     private static final long LOG_THREADDUMP_INTERVAL_WHEN_DEADLOCK_DETECTED = 600000L;
     private static volatile long lastCheckStatusTimestamp;
+    private static volatile long lastPrintThreadDumpTimestamp;
 
     // Rate limit status checks to every 500ms to prevent DoS
     private static final long CHECK_STATUS_INTERVAL = 500L;
@@ -88,11 +89,12 @@ public class VipStatus {
                                 .map(threadInfo -> threadInfo.getThreadName()
                                         + "(tid=" + threadInfo.getThreadId() + ")")
                                 .collect(Collectors.joining(", "));
-                        if (System.currentTimeMillis() - lastCheckStatusTimestamp
+                        if (System.currentTimeMillis() - lastPrintThreadDumpTimestamp
                                 > LOG_THREADDUMP_INTERVAL_WHEN_DEADLOCK_DETECTED) {
                             String diagnosticResult = ThreadDumpUtil.buildThreadDiagnosticString();
                             log.error("Deadlock detected, service may be unavailable, "
                                     + "thread stack details are as follows: {}.", diagnosticResult);
+                            lastPrintThreadDumpTimestamp = System.currentTimeMillis();
                         } else {
                             log.error("Deadlocked threads detected. {}", threadNames);
                         }
