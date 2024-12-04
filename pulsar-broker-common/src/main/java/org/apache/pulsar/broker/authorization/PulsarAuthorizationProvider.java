@@ -41,6 +41,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AuthPolicies;
 import org.apache.pulsar.common.policies.data.BrokerOperation;
+import org.apache.pulsar.common.policies.data.ClusterOperation;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
@@ -859,5 +860,19 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         }
                     });
         });
+    }
+
+    @Override
+    public CompletableFuture<Boolean> allowClusterOperationAsync(String clusterName, ClusterOperation clusterOperation,
+                                                                 String role, AuthenticationDataSource authData) {
+        return isSuperUser(role, authData, conf);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> allowClusterPolicyOperationAsync(String clusterName, String role,
+                                                                       PolicyName policy,
+                                                                       PolicyOperation operation,
+                                                                       AuthenticationDataSource authData) {
+        return isSuperUser(role, authData, conf);
     }
 }
