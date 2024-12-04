@@ -460,7 +460,6 @@ public class VipStatusTest {
 
         @SneakyThrows
         public static void startDeadlock() {
-            // 启动两个线程来模拟死锁
             t1.start();
             t2.start();
             Thread.sleep(CHECK_STATUS_INTERVAL);
