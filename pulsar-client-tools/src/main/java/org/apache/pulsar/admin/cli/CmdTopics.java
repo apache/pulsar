@@ -1852,7 +1852,7 @@ public class CmdTopics extends CmdBase {
                 + "-t 120 will set retention to 2 minutes. "
                 + "0 means no retention and -1 means infinite time retention.", required = true,
                 converter = TimeUnitToSecondsConverter.class)
-        private Integer retentionTimeInSec;
+        private Long retentionTimeInSec;
 
         @Option(names = { "--size", "-s" }, description = "Retention size limit with optional size unit suffix. "
                 + "For example, 4096, 10M, 16G, 3T.  The size unit suffix character can be k/K, m/M, g/G, or t/T.  "
