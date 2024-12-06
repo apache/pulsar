@@ -30,6 +30,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -37,6 +39,7 @@ import java.util.function.Supplier;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.metadata.api.CacheGetResult;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
@@ -58,6 +61,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     private final MetadataStore store;
     private final MetadataStoreExtended storeExtended;
     private final MetadataSerde<T> serde;
+    private final ScheduledExecutorService backoffExecutor = Executors.newSingleThreadScheduledExecutor();
 
     private final AsyncLoadingCache<String, Optional<CacheGetResult<T>>> objCache;
 
@@ -321,22 +325,25 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
         }
     }
 
-    private CompletableFuture<T> executeWithRetry(Supplier<CompletableFuture<T>> op, String key) {
-        CompletableFuture<T> result = new CompletableFuture<>();
+    private void execute(Supplier<CompletableFuture<T>> op, String key, CompletableFuture<T> result, Backoff backoff) {
         op.get().thenAccept(result::complete).exceptionally((ex) -> {
             if (ex.getCause() instanceof BadVersionException) {
                 // if resource is updated by other than metadata-cache then metadata-cache will get bad-version
                 // exception. so, try to invalidate the cache and try one more time.
                 objCache.synchronous().invalidate(key);
-                op.get().thenAccept(result::complete).exceptionally((ex1) -> {
-                    result.completeExceptionally(ex1.getCause());
-                    return null;
-                });
+                backoffExecutor.schedule(() -> execute(op, key, result, backoff), backoff.next(),
+                        TimeUnit.MILLISECONDS);
                 return null;
             }
             result.completeExceptionally(ex.getCause());
             return null;
         });
+    }
+
+    private CompletableFuture<T> executeWithRetry(Supplier<CompletableFuture<T>> op, String key) {
+        final var backoff = new Backoff(100, TimeUnit.MILLISECONDS, 1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
+        CompletableFuture<T> result = new CompletableFuture<>();
+        execute(op, key, result, backoff);
         return result;
     }
 }
