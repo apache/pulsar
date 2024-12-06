@@ -18,36 +18,30 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import org.apache.pulsar.client.admin.Namespaces;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.Test;
-import java.io.IOException;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.TopicPolicies;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.testng.annotations.Test;
 
-public class TestCmdNamespaces {
-
-    @AfterMethod(alwaysRun = true)
-    public void cleanup() throws IOException {
-        //NOTHING FOR NOW
-    }
-
+public class CmdTopicPoliciesTest {
 
     @Test
     public void testSetRetentionCmd() throws Exception {
-        Namespaces namespaces = mock(Namespaces.class);
+        TopicPolicies topicPolicies = mock(TopicPolicies.class);
 
         PulsarAdmin admin = mock(PulsarAdmin.class);
-        when(admin.namespaces()).thenReturn(namespaces);
+        when(admin.topicPolicies(anyBoolean())).thenReturn(topicPolicies);
 
-        CmdNamespaces cmd = new CmdNamespaces(() -> admin);
+        CmdTopicPolicies cmd = new CmdTopicPolicies(() -> admin);
 
-        cmd.run("set-retention public/default -s 2T -t 200d".split("\\s+"));
-        verify(namespaces, times(1)).setRetention("public/default",
+        cmd.run("set-retention public/default/topic -s 2T -t 200d".split("\\s+"));
+
+        verify(topicPolicies, times(1)).setRetention("persistent://public/default/topic",
                 new RetentionPolicies(200 * 24 * 60, 2 * 1024 * 1024));
-   }
+    }
 }
