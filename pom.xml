@@ -218,7 +218,7 @@ flexible messaging model and an intuitive client API.</description>
     <asynchttpclient.version>2.12.1</asynchttpclient.version>
     <commons-lang3.version>3.11</commons-lang3.version>
     <commons-configuration.version>1.10</commons-configuration.version>
-    <commons-io.version>2.14.0</commons-io.version>
+    <commons-io.version>2.18.0</commons-io.version>
     <commons-codec.version>1.15</commons-codec.version>
     <jakarta.ws.rs-api.version>2.1.6</jakarta.ws.rs-api.version>
     <hdrHistogram.version>2.1.9</hdrHistogram.version>
