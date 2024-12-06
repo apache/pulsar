@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.intercept;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.fail;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.nio.charset.StandardCharsets;
@@ -450,6 +452,7 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
                     @Override
                     public void release(ByteBuf processedPayload) {
                         // no-op
+                        fail("the release method can't be reached");
                     }
                 };
             }
