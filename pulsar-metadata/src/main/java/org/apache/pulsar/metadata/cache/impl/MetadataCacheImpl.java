@@ -24,6 +24,7 @@ import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
 import java.util.EnumSet;
 import java.util.List;
@@ -61,7 +62,8 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     private final MetadataStore store;
     private final MetadataStoreExtended storeExtended;
     private final MetadataSerde<T> serde;
-    private final ScheduledExecutorService backoffExecutor = Executors.newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService backoffExecutor =
+            Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("metadata-cache-backoff"));
 
     private final AsyncLoadingCache<String, Optional<CacheGetResult<T>>> objCache;
 
