@@ -589,7 +589,7 @@ public class Commands {
         return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
                 isDurable, startMessageId, metadata, readCompacted, isReplicated, subscriptionInitialPosition,
                 startMessageRollbackDurationInSec, schemaInfo, createTopicIfDoesNotExist, null,
-                Collections.emptyMap(), DEFAULT_CONSUMER_EPOCH);
+                Collections.emptyMap(), DEFAULT_CONSUMER_EPOCH, false);
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
@@ -597,7 +597,7 @@ public class Commands {
                Map<String, String> metadata, boolean readCompacted, boolean isReplicated,
                InitialPosition subscriptionInitialPosition, long startMessageRollbackDurationInSec,
                SchemaInfo schemaInfo, boolean createTopicIfDoesNotExist, KeySharedPolicy keySharedPolicy,
-               Map<String, String> subscriptionProperties, long consumerEpoch) {
+               Map<String, String> subscriptionProperties, long consumerEpoch, boolean resetIncludeHead) {
         BaseCommand cmd = localCmd(Type.SUBSCRIBE);
         CommandSubscribe subscribe = cmd.setSubscribe()
                 .setTopic(topic)
@@ -612,7 +612,8 @@ public class Commands {
                 .setInitialPosition(subscriptionInitialPosition)
                 .setReplicateSubscriptionState(isReplicated)
                 .setForceTopicCreation(createTopicIfDoesNotExist)
-                .setConsumerEpoch(consumerEpoch);
+                .setConsumerEpoch(consumerEpoch)
+                .setResetIncludeHead(resetIncludeHead);
 
         if (subscriptionProperties != null && !subscriptionProperties.isEmpty()) {
             List<KeyValue> keyValues = new ArrayList<>();

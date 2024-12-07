@@ -257,6 +257,50 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test
+    public void testNonDurableSubscriptionBackLogAfterTopicUnload() throws Exception {
+        String topicName = "persistent://my-property/my-ns/nonDurable-sub-test";
+        String subName = "test-sub";
+
+        admin.topics().createNonPartitionedTopic(topicName);
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscriptionMode(SubscriptionMode.NonDurable).subscribe();
+
+        // 1. send message
+        for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        assertEquals(admin.topics().getStats(topicName).getSubscriptions().get(subName).getMsgBacklog(), 10);
+
+        // 2. receive the message
+        for (int i = 0; i < 10; i++) {
+            Message<byte[]> msg = consumer.receive();
+            consumer.acknowledge(msg);
+        }
+
+        // 3. consumed all messages and the msgBacklog is 0
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.topics().getStats(topicName).getSubscriptions().get(subName).getMsgBacklog(), 0));
+
+        // 4. unload the topic
+        admin.topics().unload(topicName);
+
+        // 5. wait the consumer reconnect
+        Awaitility.await().until(() -> admin.topics().getStats(topicName).getSubscriptions() != null);
+
+        // 6. the backlog should still be 0
+        Awaitility.await().untilAsserted(() -> assertEquals(admin.topics().getStats(topicName).
+                getSubscriptions().get(subName).getMsgBacklog(), 0));
+    }
+
+    @Test
     public void testFlowCountForMultiTopics() throws Exception {
         String topicName = "persistent://my-property/my-ns/test-flow-count";
         int numPartitions = 5;
@@ -497,7 +541,7 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
         ManagedLedgerInternalStats.CursorStats cursor10 = admin.topics().getInternalStats(topicName).cursors.get(s10);
         log.info("cursor10 readPosition: {}, markDeletedPosition: {}", cursor10.readPosition, cursor10.markDeletePosition);
         Position p10 = parseReadPosition(cursor10);
-        assertEquals(p10.getLedgerId(), ledgers.get(2));
+        assertEquals(p10.getLedgerId(), ledgers.get(3));
         assertEquals(p10.getEntryId(), 0);
         reader10.close();
 
