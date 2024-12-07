@@ -50,6 +50,7 @@ import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.LedgerInfo;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -260,4 +261,10 @@ public class TestCmdTopics {
         mockTopics = mock(Topics.class);
     }
 
+    @Test
+    public void testSetRetentionCmd() throws Exception {
+        cmdTopics.run("set-retention public/default/topic -s 2T -t 200d".split("\\s+"));
+        verify(mockTopics, times(1)).setRetention("persistent://public/default/topic",
+                new RetentionPolicies(200 * 24 * 60, 2 * 1024 * 1024));
+    }
 }
