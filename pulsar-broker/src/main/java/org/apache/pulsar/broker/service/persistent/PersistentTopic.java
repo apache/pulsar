@@ -3261,6 +3261,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 if (sub.dispatcher != null && sub.dispatcher.isConsumerConnected()
                         || sub.isReplicated()
                         || isCompactionSubscription(subName)) {
+                    sub.cursor.updateLastActive();
                     return;
                 }
                 if (System.currentTimeMillis() - sub.cursor.getLastActive() > expirationTimeMillis) {
