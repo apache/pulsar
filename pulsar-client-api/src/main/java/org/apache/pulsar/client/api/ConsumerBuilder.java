@@ -884,13 +884,16 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * If this is enabled, the consumer receiver queue size is initialized as a very small value, 1 by default,
-     * and will double itself until it reaches the value set by {@link #receiverQueueSize(int)}, if and only if:
+     * and will double itself until it reaches either the value set by {@link #receiverQueueSize(int)} or the client
+     * memory limit set by {@link ClientBuilder#memoryLimit(long, SizeUnit)}.
+     *
+     * <p>The consumer receiver queue size will double if and only if:
      * <p>1) User calls receive() and there are no messages in receiver queue.
      * <p>2) The last message we put in the receiver queue took the last space available in receiver queue.
      *
-     * This is disabled by default and currentReceiverQueueSize is initialized as maxReceiverQueueSize.
+     * <p>This is disabled by default and currentReceiverQueueSize is initialized as maxReceiverQueueSize.
      *
-     * The feature should be able to reduce client memory usage.
+     * <p>The feature should be able to reduce client memory usage.
      *
      * @param enabled whether to enable AutoScaledReceiverQueueSize.
      */
