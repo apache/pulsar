@@ -170,8 +170,7 @@ public class TopicName implements ServiceUnitId {
                 throw new IllegalArgumentException("Invalid topic name: " + completeTopicName);
             }
 
-
-            if (localName == null || localName.isEmpty()) {
+            if (StringUtils.isBlank(localName)) {
                 throw new IllegalArgumentException("Invalid topic name: " + completeTopicName);
             }
 
