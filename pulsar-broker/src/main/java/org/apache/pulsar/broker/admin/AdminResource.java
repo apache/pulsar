@@ -45,6 +45,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.resources.ClusterResources;
+import org.apache.pulsar.broker.service.TopicEventsListener.EventStage;
+import org.apache.pulsar.broker.service.TopicEventsListener.TopicEvent;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.plugin.InvalidEntryFilterException;
 import org.apache.pulsar.broker.web.PulsarWebResource;
@@ -166,6 +168,10 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected CompletableFuture<Void> tryCreatePartitionsAsync(int numPartitions) {
         if (!topicName.isPersistent()) {
+            for (int i = 0; i < numPartitions; i++) {
+                pulsar().getBrokerService().getTopicEventsDispatcher()
+                        .notify(topicName.getPartition(i).toString(), TopicEvent.CREATE, EventStage.SUCCESS);
+            }
             return CompletableFuture.completedFuture(null);
         }
         List<CompletableFuture<Void>> futures = new ArrayList<>(numPartitions);
@@ -201,6 +207,8 @@ public abstract class AdminResource extends PulsarWebResource {
                     }
                     return null;
                 });
+        pulsar().getBrokerService().getTopicEventsDispatcher()
+                .notifyOnCompletion(result, topicName.getPartition(partition).toString(), TopicEvent.CREATE);
         return result;
     }
 
@@ -592,6 +600,13 @@ public abstract class AdminResource extends PulsarWebResource {
                     if (exists) {
                         log.warn("[{}] Failed to create already existing topic {}", clientAppId(), topicName);
                         throw new RestException(Status.CONFLICT, "This topic already exists");
+                    }
+                })
+                .thenRun(() -> {
+                    for (int i = 0; i < numPartitions; i++) {
+                        pulsar().getBrokerService().getTopicEventsDispatcher()
+                                .notify(topicName.getPartition(i).toString(), TopicEvent.CREATE,
+                                        EventStage.BEFORE);
                     }
                 })
                 .thenCompose(__ -> provisionPartitionedTopicPath(numPartitions, createLocalTopicOnly, properties))
