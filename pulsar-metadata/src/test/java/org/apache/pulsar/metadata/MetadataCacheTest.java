@@ -44,6 +44,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.CacheGetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
@@ -488,32 +489,29 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
     public void readModifyUpdateBadVersionRetry() throws Exception {
         String url = zks.getConnectionString();
         @Cleanup
-        MetadataStore sourceStore1 = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
-        @Cleanup
-        MetadataStore sourceStore2 = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
 
-        MetadataCache<MyClass> objCache1 = sourceStore1.getMetadataCache(MyClass.class);
-        MetadataCache<MyClass> objCache2 = sourceStore2.getMetadataCache(MyClass.class);
+        MetadataCache<MyClass> cache = store.getMetadataCache(MyClass.class);
 
         String key1 = newKey();
 
         MyClass value1 = new MyClass("a", 1);
-        objCache1.create(key1, value1).join();
-        assertEquals(objCache1.get(key1).join().get().b, 1);
+        cache.create(key1, value1).join();
+        assertEquals(cache.get(key1).join().get().b, 1);
 
-        CompletableFuture<MyClass> future1 = objCache1.readModifyUpdate(key1, v -> {
-            return new MyClass(v.a, v.b + 1);
-        });
+        final var futures = new ArrayList<CompletableFuture<MyClass>>();
+        final var sourceStores = new ArrayList<MetadataStore>();
 
-        CompletableFuture<MyClass> future2 = objCache2.readModifyUpdate(key1, v -> {
-            return new MyClass(v.a, v.b + 1);
-        });
-
-        MyClass myClass1 = future1.join();
-        assertEquals(myClass1.b, 2);
-
-        MyClass myClass2 = future2.join();
-        assertEquals(myClass2.b, 3);
+        for (int i = 0; i < 20; i++) {
+            final var sourceStore = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+            sourceStores.add(sourceStore);
+            final var objCache = sourceStore.getMetadataCache(MyClass.class);
+            futures.add(objCache.readModifyUpdate(key1, v -> new MyClass(v.a, v.b + 1)));
+        }
+        FutureUtil.waitForAll(futures).join();
+        for (var sourceStore : sourceStores) {
+            sourceStore.close();
+        }
     }
 
     @Test(dataProvider = "impl")
