@@ -22,6 +22,7 @@ import java.io.File;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
+import java.time.Clock;
 import java.util.Arrays;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -31,6 +32,7 @@ import javax.ws.rs.Path;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response.Status;
+import com.google.common.annotations.VisibleForTesting;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.util.ThreadDumpUtil;
 
@@ -47,33 +49,47 @@ public class VipStatus {
     // log a full thread dump when a deadlock is detected in status check once every 10 minutes
     // to prevent excessive logging
     private static final long LOG_THREADDUMP_INTERVAL_WHEN_DEADLOCK_DETECTED = 600000L;
-    private static volatile long lastCheckStatusTimestamp;
-    private static volatile long lastPrintThreadDumpTimestamp;
-
     // Rate limit status checks to every 500ms to prevent DoS
     private static final long CHECK_STATUS_INTERVAL = 500L;
+
+    private static volatile long lastCheckStatusTimestamp;
+    private static volatile long lastPrintThreadDumpTimestamp;
     private static volatile boolean lastCheckStatusResult;
+
+    private long printThreadDumpIntervalMs;
+    private Clock clock;
 
     @Context
     protected ServletContext servletContext;
+
+    public VipStatus() {
+        this.clock = Clock.systemUTC();
+        this.printThreadDumpIntervalMs = LOG_THREADDUMP_INTERVAL_WHEN_DEADLOCK_DETECTED;
+    }
+
+    @VisibleForTesting
+    public VipStatus(ServletContext servletContext, long printThreadDumpIntervalMs) {
+        this.servletContext = servletContext;
+        this.printThreadDumpIntervalMs = printThreadDumpIntervalMs;
+        this.clock = Clock.systemUTC();
+    }
 
     @GET
     public String checkStatus() {
         // Locking classes to avoid deadlock detection in multi-thread concurrent requests.
         synchronized (VipStatus.class) {
-            if (System.currentTimeMillis() - lastCheckStatusTimestamp < CHECK_STATUS_INTERVAL) {
+            if (clock.millis() - lastCheckStatusTimestamp < CHECK_STATUS_INTERVAL) {
                 if (lastCheckStatusResult) {
                     return "OK";
                 } else {
                     throw new WebApplicationException(Status.SERVICE_UNAVAILABLE);
                 }
             }
-            lastCheckStatusTimestamp = System.currentTimeMillis();
+            lastCheckStatusTimestamp = clock.millis();
 
             String statusFilePath = (String) servletContext.getAttribute(ATTRIBUTE_STATUS_FILE_PATH);
             @SuppressWarnings("unchecked")
             Supplier<Boolean> isReadyProbe = (Supplier<Boolean>) servletContext.getAttribute(ATTRIBUTE_IS_READY_PROBE);
-
             boolean isReady = isReadyProbe != null ? isReadyProbe.get() : true;
 
             if (statusFilePath != null) {
@@ -89,12 +105,11 @@ public class VipStatus {
                                 .map(threadInfo -> threadInfo.getThreadName()
                                         + "(tid=" + threadInfo.getThreadId() + ")")
                                 .collect(Collectors.joining(", "));
-                        if (System.currentTimeMillis() - lastPrintThreadDumpTimestamp
-                                > LOG_THREADDUMP_INTERVAL_WHEN_DEADLOCK_DETECTED) {
+                        if (clock.millis() - lastPrintThreadDumpTimestamp > printThreadDumpIntervalMs) {
                             String diagnosticResult = ThreadDumpUtil.buildThreadDiagnosticString();
                             log.error("Deadlock detected, service may be unavailable, "
                                     + "thread stack details are as follows: {}.", diagnosticResult);
-                            lastPrintThreadDumpTimestamp = System.currentTimeMillis();
+                            lastPrintThreadDumpTimestamp = clock.millis();
                         } else {
                             log.error("Deadlocked threads detected. {}", threadNames);
                         }
@@ -111,5 +126,4 @@ public class VipStatus {
             throw new WebApplicationException(Status.NOT_FOUND);
         }
     }
-
 }
