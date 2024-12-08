@@ -265,12 +265,23 @@ public class TopicEventsListenerTest extends BrokerTestBase {
     private void createTopicAndVerifyEvents(String topicDomain, String topicTypePartitioned, String topicName) throws Exception {
         final String[] expectedEvents;
         if (topicDomain.equalsIgnoreCase("persistent") || topicTypePartitioned.equals("partitioned")) {
-            expectedEvents = new String[]{
-                    "LOAD__BEFORE",
-                    "CREATE__BEFORE",
-                    "CREATE__SUCCESS",
-                    "LOAD__SUCCESS"
-            };
+            if (topicTypePartitioned.equals("partitioned")) {
+                expectedEvents = new String[]{
+                        "CREATE__BEFORE",
+                        "CREATE__SUCCESS",
+                        "LOAD__BEFORE",
+                        "CREATE__BEFORE",
+                        "CREATE__SUCCESS",
+                        "LOAD__SUCCESS"
+                };
+            } else {
+                expectedEvents = new String[]{
+                        "LOAD__BEFORE",
+                        "CREATE__BEFORE",
+                        "CREATE__SUCCESS",
+                        "LOAD__SUCCESS"
+                };
+            }
         } else {
             expectedEvents = new String[]{
                     // Before https://github.com/apache/pulsar/pull/21995, Pulsar will skip create topic if the topic
