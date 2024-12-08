@@ -820,6 +820,13 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_PLUGIN,
+            doc = "Default http header map to add into http-proxy for the any security requirements "
+                    + "eg: { \"header1\": \"val1\", \"header2\": \"val2\" }"
+    )
+    private String proxyHttpResponseHeadersJson;
+
+    @FieldContext(
+            category = CATEGORY_PLUGIN,
             doc = "List of proxy additional servlet to load, which is a list of proxy additional servlet names"
     )
     private Set<String> additionalServlets = new TreeSet<>();
