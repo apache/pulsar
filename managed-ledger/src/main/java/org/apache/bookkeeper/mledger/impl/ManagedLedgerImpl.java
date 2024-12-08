@@ -1904,7 +1904,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (ledgerInfo == null || ledgerInfo.getEntries() == 0) {
                 // Cursor is pointing to an empty ledger, there's no need to try opening it. Skip this ledger and
                 // move to the next one
-                opReadEntry.updateReadPosition(PositionFactory.create(opReadEntry.readPosition.getLedgerId() + 1, 0));
+                Position position = PositionFactory.create(opReadEntry.readPosition.getLedgerId() + 1, 0);
+                Position maxPosition = lastConfirmedEntry.getNext();
+                opReadEntry.updateReadPosition(position.compareTo(maxPosition) > 0 ? maxPosition : position);
                 opReadEntry.checkReadCompletion();
                 return;
             }
@@ -2095,7 +2097,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 if (nextLedgerId != null) {
                     opReadEntry.updateReadPosition(PositionFactory.create(nextLedgerId, 0));
                 } else {
-                    opReadEntry.updateReadPosition(PositionFactory.create(ledger.getId() + 1, 0));
+                    Position position = PositionFactory.create(opReadEntry.readPosition.getLedgerId() + 1, 0);
+                    Position maxPosition = lastPosition.getNext();
+                    opReadEntry.updateReadPosition(position.compareTo(maxPosition) > 0 ? maxPosition : position);
                 }
             } else {
                 opReadEntry.updateReadPosition(opReadEntry.readPosition);
