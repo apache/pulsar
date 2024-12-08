@@ -138,8 +138,15 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
             lastInitTime = System.nanoTime();
             if (ml.getManagedLedgerInterceptor() != null) {
                 long originalDataLen = data.readableBytes();
-                payloadProcessorHandle = ml.getManagedLedgerInterceptor().processPayloadBeforeLedgerWrite(this,
-                        duplicateBuffer);
+                try {
+                    payloadProcessorHandle = ml.getManagedLedgerInterceptor()
+                            .processPayloadBeforeLedgerWrite(this, duplicateBuffer);
+                } catch (Exception e) {
+                    ReferenceCountUtil.safeRelease(duplicateBuffer);
+                    log.error("[{}] Error processing payload before ledger write", ml.getName(), e);
+                    this.failed(new ManagedLedgerException.ManagedLedgerInterceptException(e));
+                    return;
+                }
                 if (payloadProcessorHandle != null) {
                     duplicateBuffer = payloadProcessorHandle.getProcessedPayload();
                     // If data len of entry changes, correct "dataLength" and "currentLedgerSize".
