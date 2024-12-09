@@ -71,4 +71,9 @@ public class NonPersistentAcknowledgmentGroupingTracker implements Acknowledgmen
     public void flushAndClean() {
         // no-op
     }
+
+    @Override
+    public void clean() {
+        // no-op
+    }
 }

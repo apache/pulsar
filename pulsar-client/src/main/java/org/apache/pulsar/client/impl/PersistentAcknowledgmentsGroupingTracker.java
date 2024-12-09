@@ -518,6 +518,13 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     }
 
     @Override
+    public void clean() {
+        lastCumulativeAck.reset();
+        pendingIndividualAcks.clear();
+        pendingIndividualBatchIndexAcks.clear();
+    }
+
+    @Override
     public void close() {
         flush();
         if (scheduledTask != null && !scheduledTask.isCancelled()) {
