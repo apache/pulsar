@@ -171,7 +171,8 @@ public class TopicName implements ServiceUnitId {
             }
 
             if (StringUtils.isBlank(localName)) {
-                throw new IllegalArgumentException("Invalid topic name: " + completeTopicName);
+                throw new IllegalArgumentException(String.format("Invalid topic name: %s. Topic local name must not"
+                        + " be blank.", completeTopicName));
             }
 
         } catch (NullPointerException e) {
