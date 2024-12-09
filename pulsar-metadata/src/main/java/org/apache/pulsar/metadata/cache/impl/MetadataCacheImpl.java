@@ -34,6 +34,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -64,6 +65,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     private final MetadataSerde<T> serde;
     private final ScheduledExecutorService backoffExecutor =
             Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("metadata-cache-backoff"));
+    private final MetadataCacheConfig<T> cacheConfig;
 
     private final AsyncLoadingCache<String, Optional<CacheGetResult<T>>> objCache;
 
@@ -83,6 +85,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
             this.storeExtended = null;
         }
         this.serde = serde;
+        this.cacheConfig = cacheConfig;
 
         Caffeine<Object, Object> cacheBuilder = Caffeine.newBuilder();
         if (cacheConfig.getRefreshAfterWriteMillis() > 0) {
@@ -333,7 +336,15 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                 // if resource is updated by other than metadata-cache then metadata-cache will get bad-version
                 // exception. so, try to invalidate the cache and try one more time.
                 objCache.synchronous().invalidate(key);
-                backoffExecutor.schedule(() -> execute(op, key, result, backoff), backoff.next(),
+                if (backoff.isMandatoryStopMade()) {
+                    result.completeExceptionally(new TimeoutException(String.format("Timeout to update key %s", key)));
+                    return null;
+                }
+                final var next = backoff.next();
+                log.info("Update key {} conflicts. Retrying in {} ms. Mandatory stop: {} ms. Elapsed time: {} ms", key,
+                        next, backoff.isMandatoryStopMade(),
+                        System.currentTimeMillis() - backoff.getFirstBackoffTimeInMillis());
+                backoffExecutor.schedule(() -> execute(op, key, result, backoff), next,
                         TimeUnit.MILLISECONDS);
                 return null;
             }
@@ -343,7 +354,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     }
 
     private CompletableFuture<T> executeWithRetry(Supplier<CompletableFuture<T>> op, String key) {
-        final var backoff = new Backoff(100, TimeUnit.MILLISECONDS, 1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
+        final var backoff = cacheConfig.getRetryBackoff().create();
         CompletableFuture<T> result = new CompletableFuture<>();
         execute(op, key, result, backoff);
         return result;
