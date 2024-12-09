@@ -122,22 +122,27 @@ public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
     protected void cleanup() throws Exception {
         if (transactionCoordinatorClient != null) {
             transactionCoordinatorClient.close();
+            transactionCoordinatorClient = null;
         }
-        for (PulsarAdmin admin : pulsarAdmins) {
-            if (admin != null) {
-                admin.close();
+        for (int i = 0; i < BROKER_COUNT; i++) {
+            if (pulsarAdmins[i] != null) {
+                pulsarAdmins[i].close();
+                pulsarAdmins[i] = null;
             }
         }
         if (pulsarClient != null) {
             pulsarClient.close();
+            pulsarClient = null;
         }
-        for (PulsarService service : pulsarServices) {
-            if (service != null) {
-                service.close();
+        for (int i = 0; i < BROKER_COUNT; i++) {
+            if (pulsarServices[i] != null) {
+                pulsarServices[i].close();
+                pulsarServices[i] = null;
             }
         }
         if (bkEnsemble != null) {
             bkEnsemble.stop();
+            bkEnsemble = null;
         }
         Mockito.reset();
     }

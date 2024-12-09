@@ -38,6 +38,7 @@ import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.compaction.MessageCompactionData;
 
 public class RawBatchConverter {
 
@@ -51,12 +52,16 @@ public class RawBatchConverter {
         return metadata.hasNumMessagesInBatch() && metadata.getEncryptionKeysCount() == 0;
     }
 
-    public static List<ImmutableTriple<MessageId, String, Integer>> extractIdsAndKeysAndSize(RawMessage msg)
-            throws IOException {
+    public static List<MessageCompactionData> extractMessageCompactionData(RawMessage msg, MessageMetadata metadata)
+        throws IOException {
         checkArgument(msg.getMessageIdData().getBatchIndex() == -1);
 
         ByteBuf payload = msg.getHeadersAndPayload();
-        MessageMetadata metadata = Commands.parseMessageMetadata(payload);
+        if (metadata == null) {
+            metadata = Commands.parseMessageMetadata(payload);
+        } else {
+            Commands.skipMessageMetadata(payload);
+        }
         int batchSize = metadata.getNumMessagesInBatch();
 
         CompressionType compressionType = metadata.getCompression();
@@ -64,31 +69,50 @@ public class RawBatchConverter {
         int uncompressedSize = metadata.getUncompressedSize();
         ByteBuf uncompressedPayload = codec.decode(payload, uncompressedSize);
 
-        List<ImmutableTriple<MessageId, String, Integer>> idsAndKeysAndSize = new ArrayList<>();
+        List<MessageCompactionData> messageCompactionDataList = new ArrayList<>();
 
         SingleMessageMetadata smm = new SingleMessageMetadata();
         for (int i = 0; i < batchSize; i++) {
             ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(uncompressedPayload,
-                                                                                    smm,
-                                                                                    0, batchSize);
+                smm,
+                0, batchSize);
             MessageId id = new BatchMessageIdImpl(msg.getMessageIdData().getLedgerId(),
-                                                  msg.getMessageIdData().getEntryId(),
-                                                  msg.getMessageIdData().getPartition(),
-                                                  i);
+                msg.getMessageIdData().getEntryId(),
+                msg.getMessageIdData().getPartition(),
+                i);
             if (!smm.isCompactedOut()) {
-                idsAndKeysAndSize.add(ImmutableTriple.of(id,
-                            smm.hasPartitionKey() ? smm.getPartitionKey() : null,
-                            smm.hasPayloadSize() ? smm.getPayloadSize() : 0));
+                messageCompactionDataList.add(new MessageCompactionData(id,
+                    smm.hasPartitionKey() ? smm.getPartitionKey() : null,
+                    smm.hasPayloadSize() ? smm.getPayloadSize() : 0, smm.getEventTime()));
             }
             singleMessagePayload.release();
         }
         uncompressedPayload.release();
+        return messageCompactionDataList;
+    }
+
+    public static List<ImmutableTriple<MessageId, String, Integer>> extractIdsAndKeysAndSize(
+        RawMessage msg)
+        throws IOException {
+        List<ImmutableTriple<MessageId, String, Integer>> idsAndKeysAndSize = new ArrayList<>();
+        for (MessageCompactionData mcd : extractMessageCompactionData(msg, null)) {
+            idsAndKeysAndSize.add(ImmutableTriple.of(mcd.messageId(), mcd.key(), mcd.payloadSize()));
+        }
+        return idsAndKeysAndSize;
+    }
+
+    public static List<ImmutableTriple<MessageId, String, Integer>> extractIdsAndKeysAndSize(
+            RawMessage msg, MessageMetadata metadata) throws IOException {
+        List<ImmutableTriple<MessageId, String, Integer>> idsAndKeysAndSize = new ArrayList<>();
+        for (MessageCompactionData mcd : extractMessageCompactionData(msg, metadata)) {
+            idsAndKeysAndSize.add(ImmutableTriple.of(mcd.messageId(), mcd.key(), mcd.payloadSize()));
+        }
         return idsAndKeysAndSize;
     }
 
     public static Optional<RawMessage> rebatchMessage(RawMessage msg,
                                                       BiPredicate<String, MessageId> filter) throws IOException {
-        return rebatchMessage(msg, filter, true);
+        return rebatchMessage(msg, null, filter, true);
     }
 
     /**
@@ -98,6 +122,7 @@ public class RawBatchConverter {
      *  NOTE: this message does not alter the reference count of the RawMessage argument.
      */
     public static Optional<RawMessage> rebatchMessage(RawMessage msg,
+                                                      MessageMetadata metadata,
                                                       BiPredicate<String, MessageId> filter,
                                                       boolean retainNullKey)
             throws IOException {
@@ -112,7 +137,11 @@ public class RawBatchConverter {
             payload.readerIndex(readerIndex);
             brokerMeta = payload.readSlice(brokerEntryMetadataSize + Short.BYTES + Integer.BYTES);
         }
-        MessageMetadata metadata = Commands.parseMessageMetadata(payload);
+        if (metadata == null) {
+            metadata = Commands.parseMessageMetadata(payload);
+        } else {
+            Commands.skipMessageMetadata(payload);
+        }
         ByteBuf batchBuffer = PulsarByteBufAllocator.DEFAULT.buffer(payload.capacity());
 
         CompressionType compressionType = metadata.getCompression();

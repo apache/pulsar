@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.transaction.pendingack;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -30,11 +29,11 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.commons.lang3.tuple.MutablePair;
-import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
@@ -47,7 +46,6 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -119,24 +117,20 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
 
             int count = 0;
             for (int i = 0; i < getPulsarServiceList().size(); i++) {
-                Field field = BrokerService.class.getDeclaredField("topics");
-                field.setAccessible(true);
-                ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
-                        (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>) field
-                                .get(getPulsarServiceList().get(i).getBrokerService());
+                final var topics = getPulsarServiceList().get(i).getBrokerService().getTopics();
                 CompletableFuture<Optional<Topic>> completableFuture = topics.get("persistent://" + normalTopic);
                 if (completableFuture != null) {
                     Optional<Topic> topic = completableFuture.get();
                     if (topic.isPresent()) {
                         PersistentSubscription persistentSubscription = (PersistentSubscription) topic.get()
                                 .getSubscription(subscriptionName);
-                        field = PersistentSubscription.class.getDeclaredField("pendingAckHandle");
+                        var field = PersistentSubscription.class.getDeclaredField("pendingAckHandle");
                         field.setAccessible(true);
                         PendingAckHandleImpl pendingAckHandle = (PendingAckHandleImpl) field.get(persistentSubscription);
                         field = PendingAckHandleImpl.class.getDeclaredField("individualAckOfTransaction");
                         field.setAccessible(true);
-                        LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>> individualAckOfTransaction =
-                                (LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>>) field.get(pendingAckHandle);
+                        LinkedMap<TxnID, HashMap<Position, Position>> individualAckOfTransaction =
+                                (LinkedMap<TxnID, HashMap<Position, Position>>) field.get(pendingAckHandle);
                         assertTrue(individualAckOfTransaction.isEmpty());
                         if (retryCnt == 0) {
                             //one message are not ack
@@ -176,7 +170,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
 
         PendingAckHandleImpl pendingAckHandle = null;
 
-        LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>> individualAckOfTransaction = null;
+        LinkedMap<TxnID, HashMap<Position, Position>> individualAckOfTransaction = null;
         ManagedCursorImpl managedCursor = null;
 
         MessageId[] messageIds = new MessageId[2];
@@ -213,30 +207,26 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
             commitTxn.commit().get();
             int count = 0;
             for (int i = 0; i < getPulsarServiceList().size(); i++) {
-                Field field = BrokerService.class.getDeclaredField("topics");
-                field.setAccessible(true);
-                ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
-                        (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>) field
-                                .get(getPulsarServiceList().get(i).getBrokerService());
+                final var topics = getPulsarServiceList().get(i).getBrokerService().getTopics();
                 CompletableFuture<Optional<Topic>> completableFuture = topics.get("persistent://" + normalTopic);
                 if (completableFuture != null) {
                     Optional<Topic> topic = completableFuture.get();
                     if (topic.isPresent()) {
                         PersistentSubscription testPersistentSubscription =
                                 (PersistentSubscription) topic.get().getSubscription(subscriptionName);
-                        field = PersistentSubscription.class.getDeclaredField("pendingAckHandle");
+                        var field = PersistentSubscription.class.getDeclaredField("pendingAckHandle");
                         field.setAccessible(true);
                         pendingAckHandle = (PendingAckHandleImpl) field.get(testPersistentSubscription);
                         field = PendingAckHandleImpl.class.getDeclaredField("individualAckOfTransaction");
                         field.setAccessible(true);
                         individualAckOfTransaction =
-                                (LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>>) field.get(pendingAckHandle);
+                                (LinkedMap<TxnID, HashMap<Position, Position>>) field.get(pendingAckHandle);
                         assertTrue(individualAckOfTransaction.isEmpty());
                         managedCursor = (ManagedCursorImpl) testPersistentSubscription.getCursor();
                         field = ManagedCursorImpl.class.getDeclaredField("batchDeletedIndexes");
                         field.setAccessible(true);
-                        final ConcurrentSkipListMap<PositionImpl, BitSetRecyclable> batchDeletedIndexes =
-                                (ConcurrentSkipListMap<PositionImpl, BitSetRecyclable>) field.get(managedCursor);
+                        final ConcurrentSkipListMap<Position, BitSetRecyclable> batchDeletedIndexes =
+                                (ConcurrentSkipListMap<Position, BitSetRecyclable>) field.get(managedCursor);
                         if (retryCnt == 0) {
                             //one message are not ack
                             Awaitility.await().until(() -> {
@@ -313,16 +303,16 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                 .orElseThrow();
         PersistentSubscription subscription = (PersistentSubscription) t.getSubscription(subscriptionName);
         PendingAckHandleImpl pendingAckHandle = (PendingAckHandleImpl) subscription.getPendingAckHandle();
-        Map<PositionImpl, MutablePair<PositionImpl, Integer>> individualAckPositions =
+        Map<Position, MutablePair<Position, Integer>> individualAckPositions =
                 pendingAckHandle.getIndividualAckPositions();
         // one message in pending ack state
         assertEquals(1, individualAckPositions.size());
 
         // put the PositionImpl.EARLIEST to the map
-        individualAckPositions.put(PositionImpl.EARLIEST, new MutablePair<>(PositionImpl.EARLIEST, 0));
+        individualAckPositions.put(PositionFactory.EARLIEST, new MutablePair<>(PositionFactory.EARLIEST, 0));
 
         // put the PositionImpl.LATEST to the map
-        individualAckPositions.put(PositionImpl.LATEST, new MutablePair<>(PositionImpl.EARLIEST, 0));
+        individualAckPositions.put(PositionFactory.LATEST, new MutablePair<>(PositionFactory.EARLIEST, 0));
 
         // three position in pending ack state
         assertEquals(3, individualAckPositions.size());

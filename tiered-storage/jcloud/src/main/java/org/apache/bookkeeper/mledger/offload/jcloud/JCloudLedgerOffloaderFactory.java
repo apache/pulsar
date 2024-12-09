@@ -25,6 +25,7 @@ import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStatsDisable;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.BlobStoreManagedLedgerOffloader;
+import org.apache.bookkeeper.mledger.offload.jcloud.impl.OffsetsCache;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
@@ -33,12 +34,7 @@ import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
  * A jcloud based offloader factory.
  */
 public class JCloudLedgerOffloaderFactory implements LedgerOffloaderFactory<BlobStoreManagedLedgerOffloader> {
-
-    public static JCloudLedgerOffloaderFactory of() {
-        return INSTANCE;
-    }
-
-    private static final JCloudLedgerOffloaderFactory INSTANCE = new JCloudLedgerOffloaderFactory();
+    private final OffsetsCache entryOffsetsCache = new OffsetsCache();
 
     @Override
     public boolean isDriverSupported(String driverName) {
@@ -58,6 +54,12 @@ public class JCloudLedgerOffloaderFactory implements LedgerOffloaderFactory<Blob
 
         TieredStorageConfiguration config =
                 TieredStorageConfiguration.create(offloadPolicies.toProperties());
-        return BlobStoreManagedLedgerOffloader.create(config, userMetadata, scheduler, offloaderStats);
+        return BlobStoreManagedLedgerOffloader.create(config, userMetadata, scheduler, offloaderStats,
+                entryOffsetsCache);
+    }
+
+    @Override
+    public void close() throws Exception {
+        entryOffsetsCache.close();
     }
 }

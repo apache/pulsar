@@ -77,12 +77,6 @@ runs:
             # stop Azure Linux agent to save RAM
             sudo systemctl stop walinuxagent.service || true
           
-            # enable docker experimental mode which is
-            # required for using "docker build --squash" / "-Ddocker.squash=true"
-            daemon_json="$(sudo cat /etc/docker/daemon.json  | jq '.experimental = true')"
-            echo "$daemon_json" | sudo tee /etc/docker/daemon.json
-            # restart docker daemon
-            sudo systemctl restart docker
             echo '::endgroup::'
 
             # show memory

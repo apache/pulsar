@@ -241,7 +241,8 @@ public class LookupProxyHandler {
             // Connected to backend broker
             long requestId = proxyConnection.newRequestId();
             ByteBuf command;
-            command = Commands.newPartitionMetadataRequest(topicName.toString(), requestId);
+            command = Commands.newPartitionMetadataRequest(topicName.toString(), requestId,
+                    partitionMetadata.isMetadataAutoCreationEnabled());
             clientCnx.newLookup(command, requestId).whenComplete((r, t) -> {
                 if (t != null) {
                     log.warn("[{}] failed to get Partitioned metadata : {}", topicName.toString(),
@@ -340,7 +341,8 @@ public class LookupProxyHandler {
                         Commands.newError(clientRequestId, getServerError(t), t.getMessage()));
                 } else {
                     writeAndFlush(
-                        Commands.newGetTopicsOfNamespaceResponse(r.getTopics(), r.getTopicsHash(), r.isFiltered(),
+                        Commands.newGetTopicsOfNamespaceResponse(r.getNonPartitionedOrPartitionTopics(),
+                                r.getTopicsHash(), r.isFiltered(),
                                 r.isChanged(), clientRequestId));
                 }
             });

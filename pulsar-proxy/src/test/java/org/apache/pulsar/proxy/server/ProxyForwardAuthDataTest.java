@@ -30,6 +30,8 @@ import lombok.Cleanup;
 
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -118,7 +120,11 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
 
         AuthenticationService authenticationService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
-        try (ProxyService proxyService = new ProxyService(proxyConfig, authenticationService)) {
+        @Cleanup
+        final Authentication proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
+        try (ProxyService proxyService = new ProxyService(proxyConfig, authenticationService, proxyClientAuthentication)) {
             proxyService.start();
             try (PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrl(), clientAuthParams)) {
                 proxyClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
@@ -134,7 +140,7 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
 
         @Cleanup
-        ProxyService proxyService = new ProxyService(proxyConfig, authenticationService);
+        ProxyService proxyService = new ProxyService(proxyConfig, authenticationService, proxyClientAuthentication);
         proxyService.start();
 
         @Cleanup

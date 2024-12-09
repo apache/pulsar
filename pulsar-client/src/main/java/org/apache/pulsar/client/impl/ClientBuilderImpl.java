@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import io.opentelemetry.api.OpenTelemetry;
 import java.net.InetSocketAddress;
 import java.time.Clock;
 import java.util.List;
@@ -35,9 +36,11 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.common.tls.InetAddressUtils;
+import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
 
 public class ClientBuilderImpl implements ClientBuilder {
     ClientConfigurationData conf;
@@ -61,6 +64,9 @@ public class ClientBuilderImpl implements ClientBuilder {
             checkArgument(StringUtils.isNotBlank(conf.getServiceUrlProvider().getServiceUrl()),
                     "Cannot get service url from service url provider.");
             conf.setServiceUrl(conf.getServiceUrlProvider().getServiceUrl());
+        }
+        if (conf.getAuthentication() == null || conf.getAuthentication() == AuthenticationDisabled.INSTANCE) {
+            setAuthenticationFromPropsIfAvailable(conf);
         }
         PulsarClient client = new PulsarClientImpl(conf);
         if (conf.getServiceUrlProvider() != null) {
@@ -118,6 +124,12 @@ public class ClientBuilderImpl implements ClientBuilder {
     @Override
     public ClientBuilder authentication(Authentication authentication) {
         conf.setAuthentication(authentication);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder openTelemetry(OpenTelemetry openTelemetry) {
+        conf.setOpenTelemetry(openTelemetry);
         return this;
     }
 
@@ -424,6 +436,28 @@ public class ClientBuilderImpl implements ClientBuilder {
         return this;
     }
 
+    @Override
+    public ClientBuilder sslFactoryPlugin(String sslFactoryPlugin) {
+        if (StringUtils.isBlank(sslFactoryPlugin)) {
+            conf.setSslFactoryPlugin(DefaultPulsarSslFactory.class.getName());
+        } else {
+            conf.setSslFactoryPlugin(sslFactoryPlugin);
+        }
+        return this;
+    }
+
+    @Override
+    public ClientBuilder sslFactoryPluginParams(String sslFactoryPluginParams) {
+        conf.setSslFactoryPluginParams(sslFactoryPluginParams);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder autoCertRefreshSeconds(int autoCertRefreshSeconds) {
+        conf.setAutoCertRefreshSeconds(autoCertRefreshSeconds);
+        return this;
+    }
+
     /**
      * Set the description.
      *
@@ -444,6 +478,12 @@ public class ClientBuilderImpl implements ClientBuilder {
             throw new IllegalArgumentException("description should be at most 64 characters");
         }
         conf.setDescription(description);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder lookupProperties(Map<String, String> properties) {
+        conf.setLookupProperties(properties);
         return this;
     }
 }

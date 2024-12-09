@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.client;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -89,6 +90,7 @@ public class PulsarMockBookKeeper extends BookKeeper {
     }
 
     final Queue<Long> addEntryDelaysMillis = new ConcurrentLinkedQueue<>();
+    final Queue<Long> addEntryResponseDelaysMillis = new ConcurrentLinkedQueue<>();
     final List<CompletableFuture<Void>> failures = new ArrayList<>();
     final List<CompletableFuture<Void>> addEntryFailures = new ArrayList<>();
 
@@ -103,13 +105,13 @@ public class PulsarMockBookKeeper extends BookKeeper {
     }
 
     @Override
-    public LedgerHandle createLedger(DigestType digestType, byte passwd[])
+    public LedgerHandle createLedger(DigestType digestType, byte[] passwd)
             throws BKException, InterruptedException {
         return createLedger(3, 2, digestType, passwd);
     }
 
     @Override
-    public LedgerHandle createLedger(int ensSize, int qSize, DigestType digestType, byte passwd[])
+    public LedgerHandle createLedger(int ensSize, int qSize, DigestType digestType, byte[] passwd)
             throws BKException, InterruptedException {
         return createLedger(ensSize, qSize, qSize, digestType, passwd);
     }
@@ -365,6 +367,11 @@ public class PulsarMockBookKeeper extends BookKeeper {
 
     public synchronized void addEntryDelay(long delay, TimeUnit unit) {
         addEntryDelaysMillis.add(unit.toMillis(delay));
+    }
+
+    public synchronized void addEntryResponseDelay(long delay, TimeUnit unit) {
+        checkArgument(delay >= 0, "The delay time must not be negative.");
+        addEntryResponseDelaysMillis.add(unit.toMillis(delay));
     }
 
     static int getExceptionCode(Throwable t) {

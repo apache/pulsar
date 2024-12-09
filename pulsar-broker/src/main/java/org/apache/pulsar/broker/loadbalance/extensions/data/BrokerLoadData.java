@@ -69,8 +69,8 @@ public class BrokerLoadData {
      * loadBalancerCPUResourceWeight,
      * loadBalancerMemoryResourceWeight,
      * loadBalancerDirectMemoryResourceWeight,
-     * loadBalancerBandwithInResourceWeight, and
-     * loadBalancerBandwithOutResourceWeight.
+     * loadBalancerBandwidthInResourceWeight, and
+     * loadBalancerBandwidthOutResourceWeight.
      *
      * The historical resource percentage is configured by loadBalancerHistoryResourcePercentage.
      */
@@ -186,8 +186,8 @@ public class BrokerLoadData {
         var weightedMax = getMaxResourceUsageWithWeight(
                 conf.getLoadBalancerCPUResourceWeight(),
                 conf.getLoadBalancerMemoryResourceWeight(), conf.getLoadBalancerDirectMemoryResourceWeight(),
-                conf.getLoadBalancerBandwithInResourceWeight(),
-                conf.getLoadBalancerBandwithOutResourceWeight());
+                conf.getLoadBalancerBandwidthInResourceWeight(),
+                conf.getLoadBalancerBandwidthOutResourceWeight());
         weightedMaxEMA = updatedAt == 0 ? weightedMax :
                 weightedMaxEMA * historyPercentage + (1 - historyPercentage) * weightedMax;
     }
@@ -220,9 +220,9 @@ public class BrokerLoadData {
 
     public String toString(ServiceConfiguration conf) {
         return String.format("cpu= %.2f%%, memory= %.2f%%, directMemory= %.2f%%, "
-                        + "bandwithIn= %.2f%%, bandwithOut= %.2f%%, "
+                        + "bandwidthIn= %.2f%%, bandwidthOut= %.2f%%, "
                         + "cpuWeight= %f, memoryWeight= %f, directMemoryWeight= %f, "
-                        + "bandwithInResourceWeight= %f, bandwithOutResourceWeight= %f, "
+                        + "bandwidthInResourceWeight= %f, bandwidthOutResourceWeight= %f, "
                         + "msgThroughputIn= %.2f, msgThroughputOut= %.2f, msgRateIn= %.2f, msgRateOut= %.2f, "
                         + "bundleCount= %d, "
                         + "maxResourceUsage= %.2f%%, weightedMaxEMA= %.2f%%, msgThroughputEMA= %.2f, "
@@ -233,8 +233,8 @@ public class BrokerLoadData {
                 conf.getLoadBalancerCPUResourceWeight(),
                 conf.getLoadBalancerMemoryResourceWeight(),
                 conf.getLoadBalancerDirectMemoryResourceWeight(),
-                conf.getLoadBalancerBandwithInResourceWeight(),
-                conf.getLoadBalancerBandwithOutResourceWeight(),
+                conf.getLoadBalancerBandwidthInResourceWeight(),
+                conf.getLoadBalancerBandwidthOutResourceWeight(),
                 msgThroughputIn, msgThroughputOut, msgRateIn, msgRateOut,
                 bundleCount,
                 maxResourceUsage * 100, weightedMaxEMA * 100, msgThroughputEMA,

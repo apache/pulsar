@@ -47,6 +47,7 @@ import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.customroute.PartialRoundRobinMessageRouterImpl;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.assertj.core.util.Sets;
@@ -78,6 +79,7 @@ public class PartitionedProducerImplTest {
 
         producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
 
+        when(client.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
         when(client.getConfiguration()).thenReturn(clientConfigurationData);
         when(client.timer()).thenReturn(timer);
         when(client.newProducer()).thenReturn(producerBuilderImpl);
@@ -268,6 +270,44 @@ public class PartitionedProducerImplTest {
         ProducerImpl producerImpl = new ProducerImpl(clientImpl, nonPartitionedTopicName, producerConfDataNonPartitioned,
                 null, 0, null, null, Optional.empty());
         assertEquals(producerImpl.getNumOfPartitions(), 0);
+    }
+
+    @Test
+    public void testMaxPendingQueueSize() throws Exception {
+        String topicName = "test-max-pending-queue-size";
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        conf.setStatsIntervalSeconds(100);
+
+        ThreadFactory threadFactory = new DefaultThreadFactory("client-test-stats", Thread.currentThread().isDaemon());
+        @Cleanup("shutdownGracefully")
+        EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), false, threadFactory);
+
+        @Cleanup
+        PulsarClientImpl clientImpl = new PulsarClientImpl(conf, eventLoopGroup);
+
+        // Test set maxPendingMessage to 10
+        ProducerConfigurationData producerConfData = new ProducerConfigurationData();
+        producerConfData.setMessageRoutingMode(MessageRoutingMode.CustomPartition);
+        producerConfData.setCustomMessageRouter(new CustomMessageRouter());
+        producerConfData.setMaxPendingMessages(10);
+        PartitionedProducerImpl partitionedProducerImpl = new PartitionedProducerImpl(
+                clientImpl, topicName, producerConfData, 1, null, null, null);
+        assertEquals(partitionedProducerImpl.getConfiguration().getMaxPendingMessages(), 10);
+
+        // Test set MaxPendingMessagesAcrossPartitions=5
+        producerConfData.setMaxPendingMessages(ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES);
+        producerConfData.setMaxPendingMessagesAcrossPartitions(5);
+        partitionedProducerImpl = new PartitionedProducerImpl(
+                clientImpl, topicName, producerConfData, 1, null, null, null);
+        assertEquals(partitionedProducerImpl.getConfiguration().getMaxPendingMessages(), 5);
+        
+        // Test set maxPendingMessage=10 and MaxPendingMessagesAcrossPartitions=10 with 2 partitions
+        producerConfData.setMaxPendingMessages(10);
+        producerConfData.setMaxPendingMessagesAcrossPartitions(10);
+        partitionedProducerImpl = new PartitionedProducerImpl(
+                clientImpl, topicName, producerConfData, 2, null, null, null);
+        assertEquals(partitionedProducerImpl.getConfiguration().getMaxPendingMessages(), 5);
     }
 
 

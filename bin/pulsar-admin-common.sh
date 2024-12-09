@@ -37,6 +37,21 @@ else
     JAVA=$JAVA_HOME/bin/java
 fi
 
+for token in $("$JAVA" -version 2>&1 | grep 'version "'); do
+    if [[ $token =~ \"([[:digit:]]+)\.([[:digit:]]+)(.*)\" ]]; then
+        if [[ ${BASH_REMATCH[1]} == "1" ]]; then
+          JAVA_MAJOR_VERSION=${BASH_REMATCH[2]}
+        else
+          JAVA_MAJOR_VERSION=${BASH_REMATCH[1]}
+        fi
+        break
+    elif [[ $token =~ \"([[:digit:]]+)(.*)\" ]]; then
+        # Process the java versions without dots, such as `17-internal`.
+        JAVA_MAJOR_VERSION=${BASH_REMATCH[1]}
+        break
+    fi
+done
+
 # exclude tests jar
 RELEASE_JAR=`ls $PULSAR_HOME/pulsar-*.jar 2> /dev/null | grep -v tests | tail -1`
 if [ $? == 0 ]; then
@@ -91,11 +106,20 @@ PULSAR_CLASSPATH="`dirname $PULSAR_LOG_CONF`:$PULSAR_CLASSPATH"
 OPTS="$OPTS -Dlog4j.configurationFile=`basename $PULSAR_LOG_CONF`"
 OPTS="$OPTS -Djava.net.preferIPv4Stack=true"
 
-IS_JAVA_8=$( $JAVA -version 2>&1 | grep version | grep '"1\.8' )
-# Start --add-opens options
-# '--add-opens' option is not supported in jdk8
-if [[ -z "$IS_JAVA_8" ]]; then
+# Allow Netty to use reflection access
+OPTS="$OPTS -Dio.netty.tryReflectionSetAccessible=true"
+OPTS="$OPTS -Dorg.apache.pulsar.shade.io.netty.tryReflectionSetAccessible=true"
+
+if [[ $JAVA_MAJOR_VERSION -gt 8 ]]; then
   OPTS="$OPTS --add-opens java.base/sun.net=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED"
+  # Required by Pulsar client optimized checksum calculation on other than Linux x86_64 platforms
+  # reflection access to java.util.zip.CRC32C
+  OPTS="$OPTS --add-opens java.base/java.util.zip=ALL-UNNAMED"
+fi
+
+if [[ $JAVA_MAJOR_VERSION -ge 11 ]]; then
+  # Required by Netty for optimized direct byte buffer access
+  OPTS="$OPTS --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
 fi
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"

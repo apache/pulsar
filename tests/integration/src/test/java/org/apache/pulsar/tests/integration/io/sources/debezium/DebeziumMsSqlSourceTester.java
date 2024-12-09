@@ -100,7 +100,7 @@ public class DebeziumMsSqlSourceTester extends SourceTester<DebeziumMsSqlContain
         log.info("Executing \"{}\"", cmd);
         ContainerExecResult response = this.debeziumMsSqlContainer
                 .execCmd("/bin/bash", "-c",
-                "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \""
+                "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \""
                         + DebeziumMsSqlContainer.SA_PASSWORD + "\" -Q \""
                         + (useTestDb ? "USE TestDB; " : "")
                         + cmd

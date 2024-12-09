@@ -38,7 +38,6 @@ import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.stats.Metrics;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
 import org.slf4j.Logger;
@@ -78,8 +77,7 @@ public class PulsarStats implements Closeable {
         this.bundleStats = new ConcurrentHashMap<>();
         this.tempMetricsCollection = new ArrayList<>();
         this.metricsCollection = new ArrayList<>();
-        this.brokerOperabilityMetrics = new BrokerOperabilityMetrics(pulsar.getConfiguration().getClusterName(),
-                pulsar.getAdvertisedAddress());
+        this.brokerOperabilityMetrics = new BrokerOperabilityMetrics(pulsar);
         this.tempNonPersistentTopics = new ArrayList<>();
 
         this.exposePublisherStats = pulsar.getConfiguration().isExposePublisherStats();
@@ -102,9 +100,7 @@ public class PulsarStats implements Closeable {
         return clusterReplicationMetrics;
     }
 
-    public synchronized void updateStats(
-            ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>>>
-                    topicsMap) {
+    public synchronized void updateStats(Map<String, Map<String, Map<String, Topic>>> topicsMap) {
 
         StatsOutputStream topicStatsStream = new StatsOutputStream(tempTopicStatsBuf);
 

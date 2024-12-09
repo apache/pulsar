@@ -46,6 +46,7 @@ import com.google.common.collect.Range;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -697,7 +698,7 @@ public class TransferShedderTest {
                 webServiceUrl, webServiceUrlTls, pulsarServiceUrl,
                 pulsarServiceUrlTls, advertisedListeners, protocols,
                 true, true,
-                conf.getLoadManagerClassName(), System.currentTimeMillis(), "3.0.0");
+                conf.getLoadManagerClassName(), System.currentTimeMillis(), "3.0.0", Collections.emptyMap());
     }
 
     private void setIsolationPolicies(SimpleResourceAllocationPolicies policies,
@@ -918,6 +919,26 @@ public class TransferShedderTest {
         assertEquals(counter.getLoadStd(), setupLoadStd);
     }
 
+    @Test
+    public void testZeroBundleThroughput() {
+        UnloadCounter counter = new UnloadCounter();
+        TransferShedder transferShedder = new TransferShedder(counter);
+        var ctx = setupContext();
+        var topBundlesLoadDataStore = ctx.topBundleLoadDataStore();
+        for (var e : topBundlesLoadDataStore.entrySet()) {
+            for (var stat : e.getValue().getTopBundlesLoadData()) {
+                stat.stats().msgThroughputOut = 0;
+                stat.stats().msgThroughputIn = 0;
+
+            }
+        }
+        var res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
+        assertTrue(res.isEmpty());
+        assertEquals(counter.getBreakdownCounters().get(Skip).get(NoBundles).get(), 1);
+        assertEquals(counter.getLoadAvg(), setupLoadAvg);
+        assertEquals(counter.getLoadStd(), setupLoadStd);
+    }
+
 
     @Test
     public void testTargetStdAfterTransfer() {
@@ -1104,16 +1125,17 @@ public class TransferShedderTest {
         assertEquals(stats.std(), 2.5809568279517847E-8);
     }
 
-
     @Test
-    public void testMinBrokerWithZeroTraffic() throws IllegalAccessException {
+    public void testMinBrokerWithLowTraffic() throws IllegalAccessException {
         UnloadCounter counter = new UnloadCounter();
         TransferShedder transferShedder = new TransferShedder(counter);
         var ctx = setupContext();
         var brokerLoadDataStore = ctx.brokerLoadDataStore();
 
-        var load = getCpuLoad(ctx,  4, "broker2:8080");
-        FieldUtils.writeDeclaredField(load,"msgThroughputEMA", 0, true);
+        var load = getCpuLoad(ctx, 4, "broker2:8080");
+        FieldUtils.writeDeclaredField(load, "msgThroughputEMA", 10, true);
+
+
         brokerLoadDataStore.pushAsync("broker2:8080", load);
         brokerLoadDataStore.pushAsync("broker4:8080", getCpuLoad(ctx,  55, "broker4:8080"));
         brokerLoadDataStore.pushAsync("broker5:8080", getCpuLoad(ctx,  65, "broker5:8080"));
@@ -1268,10 +1290,10 @@ public class TransferShedderTest {
         Assertions.assertThat(res).isIn(
                 Set.of(new UnloadDecision(
                         new Unload("broker99:8080", "my-tenant/my-namespace99/0x00000000_0x0FFFFFFF",
-                                Optional.of("broker52:8080")), Success, Overloaded)),
+                                Optional.of("broker52:8080")), Success, Underloaded)),
                 Set.of(new UnloadDecision(
                         new Unload("broker99:8080", "my-tenant/my-namespace99/0x00000000_0x0FFFFFFF",
-                                Optional.of("broker83:8080")), Success, Overloaded))
+                                Optional.of("broker83:8080")), Success, Underloaded))
         );
         assertEquals(counter.getLoadAvg(), 0.019900000000000008, 0.00001);
         assertEquals(counter.getLoadStd(), 0.09850375627355534, 0.00001);

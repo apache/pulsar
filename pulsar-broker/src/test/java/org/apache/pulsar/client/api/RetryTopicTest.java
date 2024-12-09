@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.Data;
@@ -45,6 +46,7 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import org.testng.collections.Lists;
 
 @Test(groups = "broker-api")
 public class RetryTopicTest extends ProducerConsumerBase {
@@ -257,6 +259,9 @@ public class RetryTopicTest extends ProducerConsumerBase {
     public void testRetryTopicProperties() throws Exception {
         final String topic = "persistent://my-property/my-ns/retry-topic";
 
+        byte[] key = "key".getBytes();
+        byte[] orderingKey = "orderingKey".getBytes();
+
         final int maxRedeliveryCount = 3;
 
         final int sendMessages = 10;
@@ -285,7 +290,11 @@ public class RetryTopicTest extends ProducerConsumerBase {
 
         Set<String> originMessageIds = new HashSet<>();
         for (int i = 0; i < sendMessages; i++) {
-            MessageId msgId = producer.send(String.format("Hello Pulsar [%d]", i).getBytes());
+            MessageId msgId = producer.newMessage()
+                    .value(String.format("Hello Pulsar [%d]", i).getBytes())
+                    .keyBytes(key)
+                    .orderingKey(orderingKey)
+                    .send();
             originMessageIds.add(msgId.toString());
         }
 
@@ -298,6 +307,10 @@ public class RetryTopicTest extends ProducerConsumerBase {
             if (message.hasProperty(RetryMessageUtil.SYSTEM_PROPERTY_RECONSUMETIMES)) {
                 // check the REAL_TOPIC property
                 assertEquals(message.getProperty(RetryMessageUtil.SYSTEM_PROPERTY_REAL_TOPIC), topic);
+                assertTrue(message.hasKey());
+                assertEquals(message.getKeyBytes(), key);
+                assertTrue(message.hasOrderingKey());
+                assertEquals(message.getOrderingKey(), orderingKey);
                 retryMessageIds.add(message.getProperty(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID));
             }
             consumer.reconsumeLater(message, 1, TimeUnit.SECONDS);
@@ -317,6 +330,10 @@ public class RetryTopicTest extends ProducerConsumerBase {
             if (message.hasProperty(RetryMessageUtil.SYSTEM_PROPERTY_RECONSUMETIMES)) {
                 // check the REAL_TOPIC property
                 assertEquals(message.getProperty(RetryMessageUtil.SYSTEM_PROPERTY_REAL_TOPIC), topic);
+                assertTrue(message.hasKey());
+                assertEquals(message.getKeyBytes(), key);
+                assertTrue(message.hasOrderingKey());
+                assertEquals(message.getOrderingKey(), orderingKey);
                 deadLetterMessageIds.add(message.getProperty(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID));
             }
             deadLetterConsumer.acknowledge(message);
@@ -696,6 +713,72 @@ public class RetryTopicTest extends ProducerConsumerBase {
         //  topics can be deleted successfully.
         admin.topics().delete(topicRetry, false);
         admin.topics().delete(topicDLQ, false);
+    }
+
+
+    @Test(timeOut = 30000L)
+    public void testRetryTopicExceptionWithConcurrent() throws Exception {
+        final String topic = "persistent://my-property/my-ns/retry-topic";
+        final int maxRedeliveryCount = 2;
+        final int sendMessages = 10;
+        // subscribe before publish
+        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName("my-subscription")
+                .subscriptionType(SubscriptionType.Shared)
+                .enableRetry(true)
+                .receiverQueueSize(100)
+                .deadLetterPolicy(DeadLetterPolicy.builder()
+                        .maxRedeliverCount(maxRedeliveryCount)
+                        .retryLetterTopic("persistent://my-property/my-ns/my-subscription-custom-Retry")
+                        .build())
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+                .topic(topic)
+                .create();
+        for (int i = 0; i < sendMessages; i++) {
+            producer.newMessage().key("1").value(String.format("Hello Pulsar [%d]", i).getBytes()).send();
+        }
+        producer.close();
+
+        // mock a retry producer exception when reconsumelater is called
+        MultiTopicsConsumerImpl<byte[]> multiTopicsConsumer = (MultiTopicsConsumerImpl<byte[]>) consumer;
+        List<ConsumerImpl<byte[]>> consumers = multiTopicsConsumer.getConsumers();
+        for (ConsumerImpl<byte[]> c : consumers) {
+            Set<Field> deadLetterPolicyField =
+                    ReflectionUtils.getAllFields(c.getClass(), ReflectionUtils.withName("deadLetterPolicy"));
+
+            if (deadLetterPolicyField.size() != 0) {
+                Field field = deadLetterPolicyField.iterator().next();
+                field.setAccessible(true);
+                DeadLetterPolicy deadLetterPolicy = (DeadLetterPolicy) field.get(c);
+                deadLetterPolicy.setRetryLetterTopic("#persistent://invalid-topic#");
+            }
+        }
+
+        List<Message<byte[]>> messages = Lists.newArrayList();
+        for (int i = 0; i < sendMessages; i++) {
+            messages.add(consumer.receive());
+        }
+
+        // mock call the reconsumeLater method concurrently
+        CountDownLatch latch = new CountDownLatch(messages.size());
+        for (Message<byte[]> message : messages) {
+            new Thread(() -> {
+                try {
+                    consumer.reconsumeLater(message, 1, TimeUnit.SECONDS);
+                } catch (Exception ignore) {
+
+                } finally {
+                    latch.countDown();
+                }
+            }).start();
+        }
+
+        latch.await();
+        consumer.close();
     }
 
 }

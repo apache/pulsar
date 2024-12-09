@@ -33,7 +33,9 @@ import org.apache.avro.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
 import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.jdbc.JdbcUtils.ColumnId;
 
@@ -137,6 +139,10 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
             }
             recordValueGetter = (k) -> data.get(k);
         } else {
+            SchemaType schemaType = message.getSchema().getSchemaInfo().getType();
+            if (schemaType.isPrimitive()) {
+                throw new UnsupportedOperationException("Primitive schema is not supported: " + schemaType);
+            }
             recordValueGetter = (key) -> ((GenericRecord) record).getField(key);
         }
         String action = message.getProperties().get(ACTION_PROPERTY);
@@ -168,7 +174,7 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
 
     }
 
-    private static void setColumnValue(PreparedStatement statement, int index, Object value) throws Exception {
+    protected void setColumnValue(PreparedStatement statement, int index, Object value) throws Exception {
 
         log.debug("Setting column value, statement: {}, index: {}, value: {}", statement, index, value);
 
@@ -188,6 +194,8 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
             statement.setShort(index, (Short) value);
         } else if (value instanceof ByteString) {
             statement.setBytes(index, ((ByteString) value).toByteArray());
+        } else if (value instanceof GenericJsonRecord) {
+            statement.setString(index, ((GenericJsonRecord) value).getJsonNode().toString());
         } else {
             throw new Exception("Not supported value type, need to add it. " + value.getClass());
         }

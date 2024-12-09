@@ -204,6 +204,8 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
 
     private SortedMap<String, String> properties = new TreeMap<>();
 
+    private boolean isNonPartitionedTopicExpected;
+
     @ApiModelProperty(
             name = "initialSubscriptionName",
             value = "Use this configuration to automatically create an initial subscription when creating a topic."

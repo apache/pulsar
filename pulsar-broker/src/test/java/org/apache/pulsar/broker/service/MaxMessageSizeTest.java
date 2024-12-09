@@ -91,9 +91,18 @@ public class MaxMessageSizeTest {
     @AfterMethod(alwaysRun = true)
     void shutdown() {
         try {
-            pulsar.close();
-            bkEnsemble.stop();
-            admin.close();
+            if (admin != null) {
+                admin.close();
+                admin = null;
+            }
+            if (pulsar != null) {
+                pulsar.close();
+                pulsar = null;
+            }
+            if (bkEnsemble != null) {
+                bkEnsemble.stop();
+                bkEnsemble = null;
+            }
         } catch (Throwable t) {
             t.printStackTrace();
         }

@@ -44,6 +44,7 @@ public class CmdSchemas extends CmdBase {
         addCommand("delete", new DeleteSchema());
         addCommand("upload", new UploadSchema());
         addCommand("extract", new ExtractSchema());
+        addCommand("metadata", new GetSchemaMetadata());
         addCommand("compatibility", new TestCompatibility());
     }
 
@@ -74,6 +75,18 @@ public class CmdSchemas extends CmdBase {
             } else {
                 print(getAdmin().schemas().getAllSchemas(topic));
             }
+        }
+    }
+
+    @Command(description = "Get the schema for a topic")
+    private class GetSchemaMetadata extends CliCommand {
+        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(topicName);
+            print(getAdmin().schemas().getSchemaMetadata(topic));
         }
     }
 

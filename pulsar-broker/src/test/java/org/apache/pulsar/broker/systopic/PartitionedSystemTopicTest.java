@@ -37,6 +37,7 @@ import org.apache.commons.lang3.reflect.MethodUtils;
 import org.apache.pulsar.broker.admin.impl.BrokersBase;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.TopicPolicyTestUtils;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
@@ -359,7 +360,8 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         PersistentTopic persistentTopic = (PersistentTopic) topic.join().get();
         persistentTopic.close();
         admin.topics().delete(topicName);
-        TopicPolicies topicPolicies = pulsar.getTopicPoliciesService().getTopicPoliciesIfExists(TopicName.get(topicName));
+        TopicPolicies topicPolicies = TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
+                TopicName.get(topicName));
         assertNull(topicPolicies);
         String base = TopicName.get(topicName).getPartitionedTopicName();
         String id = TopicName.get(base).getSchemaName();

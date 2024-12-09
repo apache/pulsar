@@ -39,6 +39,10 @@ public abstract class PerformanceTopicListArguments extends PerformanceBaseArgum
     )
     public int numTopics = 1;
 
+    public PerformanceTopicListArguments(String cmdName) {
+        super(cmdName);
+    }
+
     @Override
     public void validate() throws Exception {
         super.validate();

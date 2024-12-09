@@ -99,7 +99,7 @@ public class PulsarBrokerStarter {
         @Option(names = {"-fwc", "--functions-worker-conf"}, description = "Configuration file for Functions Worker")
         private String fnWorkerConfigFile = "conf/functions_worker.yml";
 
-        @Option(names = {"-h", "--help"}, description = "Show this help message")
+        @Option(names = {"-h", "--help"}, usageHelp = true, description = "Show this help message")
         private boolean help = false;
 
         @Option(names = {"-g", "--generate-docs"}, description = "Generate docs")

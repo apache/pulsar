@@ -38,6 +38,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import java.util.regex.Pattern;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -49,6 +50,7 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.TopicConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.ScheduledExecutorProvider;
+import org.apache.pulsar.common.util.Backoff;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -207,7 +209,7 @@ public class ConsumerImplTest {
         Exception checkException = null;
         try {
             if (consumer != null) {
-                consumer.negativeAcknowledge(new MessageIdImpl(-1, -1, -1));
+                consumer.negativeAcknowledge(new MessageIdImpl(0, 0, -1));
                 consumer.close();
             }
         } catch (Exception e) {
@@ -294,5 +296,11 @@ public class ConsumerImplTest {
         assertTrue(firstResult.isDone());
         assertTrue(secondResult.isCompletedExceptionally());
         verify(cnx, times(1)).sendRequestWithId(any(ByteBuf.class), anyLong());
+    }
+
+    @Test(invocationTimeOut = 1000)
+    public void testAutoGenerateConsumerName() {
+        Pattern consumerNamePattern = Pattern.compile("[a-zA-Z0-9]{5}");
+        assertTrue(consumerNamePattern.matcher(consumer.getConsumerName()).matches());
     }
 }

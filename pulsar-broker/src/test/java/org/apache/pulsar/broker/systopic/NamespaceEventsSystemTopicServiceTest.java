@@ -20,10 +20,13 @@ package org.apache.pulsar.broker.systopic;
 
 import static org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService.getEventKey;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import com.google.common.collect.Sets;
 import java.util.HashSet;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -99,7 +102,9 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
         TopicPoliciesSystemTopicClient systemTopicClientForNamespace1 = systemTopicFactory
                 .createTopicPoliciesSystemTopicClient(NamespaceName.get(NAMESPACE1));
         String topicName = systemTopicClientForNamespace1.getTopicName().toString();
-        SystemTopic topic = new SystemTopic(topicName, mock(ManagedLedger.class), pulsar.getBrokerService());
+        final var mockManagedLedger = mock(ManagedLedger.class);
+        when(mockManagedLedger.getConfig()).thenReturn(new ManagedLedgerConfig());
+        SystemTopic topic = new SystemTopic(topicName, mockManagedLedger, pulsar.getBrokerService());
 
         Assert.assertEquals(SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE, topic.getSchemaCompatibilityStrategy());
     }

@@ -18,8 +18,19 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.fail;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Predicate;
@@ -34,8 +45,6 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.OpAddEntry;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
@@ -48,15 +57,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import java.nio.charset.StandardCharsets;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertNotNull;
 
 @Test(groups = "broker")
 public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
@@ -264,9 +264,9 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         assertEquals(((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(), 9);
 
 
-        PositionImpl position = null;
+        Position position = null;
         for (int index = 0; index <= ((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(); index ++) {
-            position = (PositionImpl) ledger.asyncFindPosition(new IndexSearchPredicate(index)).get();
+            position = ledger.asyncFindPosition(new IndexSearchPredicate(index)).get();
             assertEquals(position.getEntryId(), (index % maxSequenceIdPerLedger) / MOCK_BATCH_SIZE);
         }
 
@@ -279,7 +279,7 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         assertNotEquals(firstLedgerId, secondLedgerId);
 
         for (int index = 0; index <= ((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(); index ++) {
-            position = (PositionImpl) ledger.asyncFindPosition(new IndexSearchPredicate(index)).get();
+            position = ledger.asyncFindPosition(new IndexSearchPredicate(index)).get();
             assertEquals(position.getEntryId(), (index % maxSequenceIdPerLedger) / MOCK_BATCH_SIZE);
         }
 
@@ -298,7 +298,7 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         assertNotEquals(secondLedgerId, thirdLedgerId);
 
         for (int index = 0; index <= ((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex(); index ++) {
-            position = (PositionImpl) ledger.asyncFindPosition(new IndexSearchPredicate(index)).get();
+            position = ledger.asyncFindPosition(new IndexSearchPredicate(index)).get();
             assertEquals(position.getEntryId(), (index % maxSequenceIdPerLedger) / MOCK_BATCH_SIZE);
         }
         cursor.close();
@@ -394,16 +394,15 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         }
 
         @Override
-        public OpAddEntry beforeAddEntry(OpAddEntry op, int numberOfMessages) {
+        public void beforeAddEntry(AddEntryOperation op, int numberOfMessages) {
             if (op == null || numberOfMessages <= 0) {
-                return op;
+                return;
             }
             op.setData(Commands.addBrokerEntryMetadata(op.getData(), brokerEntryMetadataInterceptors,
                     numberOfMessages));
             if (op != null) {
                 throw new RuntimeException("throw exception before add entry for test");
             }
-            return op;
         }
     }
 
@@ -434,6 +433,51 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
             }
             return false;
         }
+    }
+
+    @Test(timeOut = 3000)
+    public void testManagedLedgerPayloadInputProcessorFailure() throws Exception {
+        var config = new ManagedLedgerConfig();
+        final String failureMsg = "failed to process input payload";
+        config.setManagedLedgerInterceptor(new ManagedLedgerInterceptorImpl(
+                Collections.emptySet(), Set.of(new ManagedLedgerPayloadProcessor() {
+            @Override
+            public Processor inputProcessor() {
+                return new Processor() {
+                    @Override
+                    public ByteBuf process(Object contextObj, ByteBuf inputPayload) {
+                        throw new RuntimeException(failureMsg);
+                    }
+
+                    @Override
+                    public void release(ByteBuf processedPayload) {
+                        // no-op
+                        fail("the release method can't be reached");
+                    }
+                };
+            }
+        })));
+
+        var ledger = factory.open("testManagedLedgerPayloadProcessorFailure", config);
+        var countDownLatch = new CountDownLatch(1);
+        var expectedException = new ArrayList<Exception>();
+        ledger.asyncAddEntry("test".getBytes(), 1, 1, new AsyncCallbacks.AddEntryCallback() {
+            @Override
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                entryData.release();
+                countDownLatch.countDown();
+            }
+
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                // expected
+                expectedException.add(exception);
+                countDownLatch.countDown();
+            }
+        }, null);
+        countDownLatch.await();
+        assertEquals(expectedException.size(), 1);
+        assertEquals(expectedException.get(0).getCause().getMessage(), failureMsg);
     }
 
 }

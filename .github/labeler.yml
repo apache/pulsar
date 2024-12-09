@@ -16,4 +16,5 @@
 # under the License.
 
 PIP:
-- 'pip/**'
+  - changed-files:
+      - any-glob-to-any-file: 'pip/**'

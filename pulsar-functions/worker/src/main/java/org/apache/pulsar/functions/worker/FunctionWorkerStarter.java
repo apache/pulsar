@@ -40,7 +40,7 @@ public class FunctionWorkerStarter {
             description = "Configuration File for Function Worker")
         private String configFile;
 
-        @Option(names = {"-h", "--help"}, description = "Show this help message")
+        @Option(names = {"-h", "--help"}, usageHelp = true, description = "Show this help message")
         private boolean help = false;
 
         @Option(names = {"-g", "--generate-docs"}, description = "Generate docs")

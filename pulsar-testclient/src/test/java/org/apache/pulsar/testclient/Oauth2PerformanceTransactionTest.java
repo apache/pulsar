@@ -186,7 +186,7 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
 
         Thread thread = new Thread(() -> {
             try {
-                PerformanceTransaction.main(args.split(" "));
+                new PerformanceTransaction().run(args.split(" "));
             } catch (Exception e) {
                 e.printStackTrace();
             }

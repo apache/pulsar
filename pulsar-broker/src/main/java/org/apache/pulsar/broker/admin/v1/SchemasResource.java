@@ -43,6 +43,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.admin.impl.SchemasResourceBase;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
+import org.apache.pulsar.common.policies.data.SchemaMetadata;
 import org.apache.pulsar.common.protocol.schema.DeleteSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.GetAllVersionsSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.GetSchemaResponse;
@@ -165,6 +166,37 @@ public class SchemasResource extends SchemasResourceBase {
                     if (shouldPrintErrorLog(ex)) {
                         log.error("[{}] Failed to get all schemas for topic {}", clientAppId(), topicName, ex);
                     }
+                    resumeAsyncResponseExceptionally(response, ex);
+                    return null;
+                });
+    }
+
+    @GET
+    @Path("/{tenant}/{cluster}/{namespace}/{topic}/metadata")
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Get the schema metadata of a topic", response = SchemaMetadata.class)
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
+            @ApiResponse(code = 403, message = "Client is not authenticated"),
+            @ApiResponse(code = 404,
+                    message = "Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic"),
+            @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
+            @ApiResponse(code = 500, message = "Internal Server Error"),
+    })
+    public void getSchemaMetadata(
+            @PathParam("tenant") String tenant,
+            @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") String topic,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @Suspended final AsyncResponse response
+    ) {
+        validateTopicName(tenant, cluster, namespace, topic);
+        getSchemaMetadataAsync(authoritative)
+                .thenAccept(response::resume)
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get schema metadata for topic {}", clientAppId(), topicName, ex);
                     resumeAsyncResponseExceptionally(response, ex);
                     return null;
                 });

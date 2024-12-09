@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.collect.Sets;
+import com.google.common.io.Resources;
 import io.netty.channel.Channel;
 import java.net.URL;
 import java.nio.channels.SelectionKey;
@@ -43,9 +44,14 @@ import org.awaitility.reflect.WhiteboxImpl;
 
 @Slf4j
 public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetrySupport {
-
     protected final String defaultTenant = "public";
     protected final String defaultNamespace = defaultTenant + "/default";
+    final static String caCertPath = Resources.getResource("certificate-authority/certs/ca.cert.pem")
+            .getPath();
+    final static String brokerCertPath =
+            Resources.getResource("certificate-authority/server-keys/broker.cert.pem").getPath();
+    final static String brokerKeyPath =
+            Resources.getResource("certificate-authority/server-keys/broker.key-pk8.pem").getPath();
     protected int numberOfBookies = 3;
     protected final String clusterName = "r1";
     protected URL url;
@@ -60,6 +66,7 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
     protected ZooKeeper localZkOfBroker;
     protected Object localMetaDataStoreClientCnx;
     protected final AtomicBoolean LocalMetadataStoreInReconnectFinishSignal = new AtomicBoolean();
+
     protected void startZKAndBK() throws Exception {
         // Start ZK.
         brokerConfigZk = new ZookeeperServerTest(0);
@@ -188,6 +195,9 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
         config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
         config.setEnableReplicatedSubscriptions(true);
         config.setReplicatedSubscriptionsSnapshotFrequencyMillis(1000);
+        config.setTlsTrustCertsFilePath(caCertPath);
+        config.setTlsCertificateFilePath(brokerCertPath);
+        config.setTlsKeyFilePath(brokerKeyPath);
     }
 
     @Override
@@ -198,18 +208,30 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
         stopLocalMetadataStoreAlwaysReconnect();
 
         // Stop brokers.
-        client.close();
-        admin.close();
+        if (client != null) {
+            client.close();
+            client = null;
+        }
+        if (admin != null) {
+            admin.close();
+            admin = null;
+        }
         if (pulsar != null) {
             pulsar.close();
+            pulsar = null;
         }
 
         // Stop ZK and BK.
-        bkEnsemble.stop();
-        brokerConfigZk.stop();
+        if (bkEnsemble != null) {
+            bkEnsemble.stop();
+            bkEnsemble = null;
+        }
+        if (brokerConfigZk != null) {
+            brokerConfigZk.stop();
+            brokerConfigZk = null;
+        }
 
         // Reset configs.
         config = new ServiceConfiguration();
-        setConfigDefaults(config, clusterName, bkEnsemble, brokerConfigZk);
     }
 }

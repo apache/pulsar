@@ -22,22 +22,23 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.flush.FlushConsolidationHandler;
-import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
-import io.netty.handler.ssl.SslProvider;
 import io.netty.handler.timeout.ReadTimeoutHandler;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.OptionalProxyProtocolDecoder;
-import org.apache.pulsar.common.util.NettyServerSslContextBuilder;
-import org.apache.pulsar.common.util.SslContextAutoRefreshBuilder;
-import org.apache.pulsar.common.util.keystoretls.NettySSLContextAutoRefreshBuilder;
+import org.apache.pulsar.common.util.PulsarSslConfiguration;
+import org.apache.pulsar.common.util.PulsarSslFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Initialize service channel handlers.
  *
  */
 public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel> {
+    private static final Logger log = LoggerFactory.getLogger(ServiceChannelInitializer.class);
 
     public static final String TLS_HANDLER = "tls";
     private final ProxyService proxyService;
@@ -46,10 +47,10 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
     private final int brokerProxyReadTimeoutMs;
     private final int maxMessageSize;
 
-    private SslContextAutoRefreshBuilder<SslContext> serverSslCtxRefresher;
-    private NettySSLContextAutoRefreshBuilder serverSSLContextAutoRefreshBuilder;
+    private PulsarSslFactory sslFactory;
 
-    public ServiceChannelInitializer(ProxyService proxyService, ProxyConfiguration serviceConfig, boolean enableTls)
+    public ServiceChannelInitializer(ProxyService proxyService, ProxyConfiguration serviceConfig,
+                                     boolean enableTls, ScheduledExecutorService sslContextRefresher)
             throws Exception {
         super();
         this.proxyService = proxyService;
@@ -59,36 +60,16 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
         this.maxMessageSize = serviceConfig.getMaxMessageSize();
 
         if (enableTls) {
-            if (tlsEnabledWithKeyStore) {
-                serverSSLContextAutoRefreshBuilder = new NettySSLContextAutoRefreshBuilder(
-                        serviceConfig.getTlsProvider(),
-                        serviceConfig.getTlsKeyStoreType(),
-                        serviceConfig.getTlsKeyStore(),
-                        serviceConfig.getTlsKeyStorePassword(),
-                        serviceConfig.isTlsAllowInsecureConnection(),
-                        serviceConfig.getTlsTrustStoreType(),
-                        serviceConfig.getTlsTrustStore(),
-                        serviceConfig.getTlsTrustStorePassword(),
-                        serviceConfig.isTlsRequireTrustedClientCertOnConnect(),
-                        serviceConfig.getTlsCiphers(),
-                        serviceConfig.getTlsProtocols(),
-                        serviceConfig.getTlsCertRefreshCheckDurationSec());
-            } else {
-                SslProvider sslProvider = null;
-                if (serviceConfig.getTlsProvider() != null) {
-                    sslProvider = SslProvider.valueOf(serviceConfig.getTlsProvider());
-                }
-                serverSslCtxRefresher = new NettyServerSslContextBuilder(
-                        sslProvider,
-                        serviceConfig.isTlsAllowInsecureConnection(),
-                        serviceConfig.getTlsTrustCertsFilePath(), serviceConfig.getTlsCertificateFilePath(),
-                        serviceConfig.getTlsKeyFilePath(), serviceConfig.getTlsCiphers(),
-                        serviceConfig.getTlsProtocols(),
-                        serviceConfig.isTlsRequireTrustedClientCertOnConnect(),
-                        serviceConfig.getTlsCertRefreshCheckDurationSec());
+            PulsarSslConfiguration sslConfiguration = buildSslConfiguration(serviceConfig);
+            this.sslFactory = (PulsarSslFactory) Class.forName(serviceConfig.getSslFactoryPlugin())
+                    .getConstructor().newInstance();
+            this.sslFactory.initialize(sslConfiguration);
+            this.sslFactory.createInternalSslContext();
+            if (serviceConfig.getTlsCertRefreshCheckDurationSec() > 0) {
+                sslContextRefresher.scheduleWithFixedDelay(this::refreshSslContext,
+                        serviceConfig.getTlsCertRefreshCheckDurationSec(),
+                        serviceConfig.getTlsCertRefreshCheckDurationSec(), TimeUnit.SECONDS);
             }
-        } else {
-            this.serverSslCtxRefresher = null;
         }
     }
 
@@ -96,14 +77,8 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
     protected void initChannel(SocketChannel ch) throws Exception {
         ch.pipeline().addLast("consolidation", new FlushConsolidationHandler(1024,
                 true));
-        if (serverSslCtxRefresher != null && this.enableTls) {
-            SslContext sslContext = serverSslCtxRefresher.get();
-            if (sslContext != null) {
-                ch.pipeline().addLast(TLS_HANDLER, sslContext.newHandler(ch.alloc()));
-            }
-        } else if (this.tlsEnabledWithKeyStore && serverSSLContextAutoRefreshBuilder != null) {
-            ch.pipeline().addLast(TLS_HANDLER,
-                    new SslHandler(serverSSLContextAutoRefreshBuilder.get().createSSLEngine()));
+        if (this.enableTls) {
+            ch.pipeline().addLast(TLS_HANDLER, new SslHandler(this.sslFactory.createServerSslEngine(ch.alloc())));
         }
         if (brokerProxyReadTimeoutMs > 0) {
             ch.pipeline().addLast("readTimeoutHandler",
@@ -116,5 +91,36 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
                 this.maxMessageSize + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
 
         ch.pipeline().addLast("handler", new ProxyConnection(proxyService, proxyService.getDnsAddressResolverGroup()));
+    }
+
+    protected PulsarSslConfiguration buildSslConfiguration(ProxyConfiguration config) {
+        return PulsarSslConfiguration.builder()
+                .tlsProvider(config.getTlsProvider())
+                .tlsKeyStoreType(config.getTlsKeyStoreType())
+                .tlsKeyStorePath(config.getTlsKeyStore())
+                .tlsKeyStorePassword(config.getTlsKeyStorePassword())
+                .tlsTrustStoreType(config.getTlsTrustStoreType())
+                .tlsTrustStorePath(config.getTlsTrustStore())
+                .tlsTrustStorePassword(config.getTlsTrustStorePassword())
+                .tlsCiphers(config.getTlsCiphers())
+                .tlsProtocols(config.getTlsProtocols())
+                .tlsTrustCertsFilePath(config.getTlsTrustCertsFilePath())
+                .tlsCertificateFilePath(config.getTlsCertificateFilePath())
+                .tlsKeyFilePath(config.getTlsKeyFilePath())
+                .allowInsecureConnection(config.isTlsAllowInsecureConnection())
+                .requireTrustedClientCertOnConnect(config.isTlsRequireTrustedClientCertOnConnect())
+                .tlsEnabledWithKeystore(config.isTlsEnabledWithKeyStore())
+                .tlsCustomParams(config.getSslFactoryPluginParams())
+                .authData(null)
+                .serverMode(true)
+                .build();
+    }
+
+    protected void refreshSslContext() {
+        try {
+            this.sslFactory.update();
+        } catch (Exception e) {
+            log.error("Failed to refresh SSL context", e);
+        }
     }
 }

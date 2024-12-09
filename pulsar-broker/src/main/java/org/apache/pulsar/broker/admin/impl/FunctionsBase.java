@@ -39,7 +39,6 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.StreamingOutput;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionDefinition;
 import org.apache.pulsar.common.functions.FunctionState;
@@ -486,7 +485,7 @@ public class FunctionsBase extends AdminResource {
     @POST
     @ApiOperation(
             value = "Triggers a Pulsar Function with a user-specified value or file data",
-            response = Message.class
+            response = String.class
     )
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Invalid request"),
@@ -541,6 +540,7 @@ public class FunctionsBase extends AdminResource {
             value = "Put the state associated with a Pulsar Function"
     )
     @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Operation successful"),
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "The Pulsar Function does not exist"),
@@ -557,8 +557,9 @@ public class FunctionsBase extends AdminResource {
     }
 
     @POST
-    @ApiOperation(value = "Restart an instance of a Pulsar Function", response = Void.class)
+    @ApiOperation(value = "Restart an instance of a Pulsar Function")
     @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Operation successful"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this function"),
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 404, message = "The Pulsar Function does not exist"),
@@ -578,8 +579,9 @@ public class FunctionsBase extends AdminResource {
     }
 
     @POST
-    @ApiOperation(value = "Restart all instances of a Pulsar Function", response = Void.class)
+    @ApiOperation(value = "Restart all instances of a Pulsar Function")
     @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Operation successful"),
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 404, message = "The Pulsar Function does not exist"),
             @ApiResponse(code = 500, message = "Internal server error")
@@ -597,8 +599,9 @@ public class FunctionsBase extends AdminResource {
     }
 
     @POST
-    @ApiOperation(value = "Stop an instance of a Pulsar Function", response = Void.class)
+    @ApiOperation(value = "Stop an instance of a Pulsar Function")
     @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Operation successful"),
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 404, message = "The Pulsar Function does not exist"),
             @ApiResponse(code = 500, message = "Internal server error")
@@ -617,8 +620,9 @@ public class FunctionsBase extends AdminResource {
     }
 
     @POST
-    @ApiOperation(value = "Stop all instances of a Pulsar Function", response = Void.class)
+    @ApiOperation(value = "Stop all instances of a Pulsar Function")
     @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Operation successful"),
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 404, message = "The Pulsar Function does not exist"),
             @ApiResponse(code = 500, message = "Internal server error")
@@ -636,8 +640,9 @@ public class FunctionsBase extends AdminResource {
     }
 
     @POST
-    @ApiOperation(value = "Start an instance of a Pulsar Function", response = Void.class)
+    @ApiOperation(value = "Start an instance of a Pulsar Function")
     @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Operation successful"),
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 404, message = "The Pulsar Function does not exist"),
             @ApiResponse(code = 500, message = "Internal server error")
@@ -656,8 +661,9 @@ public class FunctionsBase extends AdminResource {
     }
 
     @POST
-    @ApiOperation(value = "Start all instances of a Pulsar Function", response = Void.class)
+    @ApiOperation(value = "Start all instances of a Pulsar Function")
     @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Operation successful"),
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 404, message = "The Pulsar Function does not exist"),
             @ApiResponse(code = 500, message = "Internal server error")
@@ -718,7 +724,8 @@ public class FunctionsBase extends AdminResource {
     @GET
     @ApiOperation(
             value = "Fetches a list of supported Pulsar IO connectors currently running in cluster mode",
-            response = List.class
+            response = ConnectorDefinition.class,
+            responseContainer = "List"
     )
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
@@ -739,6 +746,7 @@ public class FunctionsBase extends AdminResource {
             value = "Reload the built-in Functions"
     )
     @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Operation successful"),
             @ApiResponse(code = 401, message = "This operation requires super-user access"),
             @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later."),
             @ApiResponse(code = 500, message = "Internal server error")
@@ -768,6 +776,7 @@ public class FunctionsBase extends AdminResource {
     @PUT
     @ApiOperation(value = "Updates a Pulsar Function on the worker leader", hidden = true)
     @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Operation successful"),
             @ApiResponse(code = 403, message = "The requester doesn't have super-user permissions"),
             @ApiResponse(code = 404, message = "The function does not exist"),
             @ApiResponse(code = 400, message = "Invalid request"),

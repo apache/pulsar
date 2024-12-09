@@ -19,15 +19,11 @@
 package org.apache.pulsar.common.naming;
 
 import com.google.common.base.Splitter;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.util.concurrent.UncheckedExecutionException;
+import com.google.re2j.Pattern;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.Codec;
 
@@ -53,13 +49,17 @@ public class TopicName implements ServiceUnitId {
 
     private final int partitionIndex;
 
-    private static final LoadingCache<String, TopicName> cache = CacheBuilder.newBuilder().maximumSize(100000)
-            .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<String, TopicName>() {
-                @Override
-                public TopicName load(String name) throws Exception {
-                    return new TopicName(name);
-                }
-            });
+    private static final ConcurrentHashMap<String, TopicName> cache = new ConcurrentHashMap<>();
+
+    public static void clearIfReachedMaxCapacity(int maxCapacity) {
+        if (maxCapacity < 0) {
+            // Unlimited cache.
+            return;
+        }
+        if (cache.size() > maxCapacity) {
+            cache.clear();
+        }
+    }
 
     public static TopicName get(String domain, NamespaceName namespaceName, String topic) {
         String name = domain + "://" + namespaceName.toString() + '/' + topic;
@@ -78,11 +78,11 @@ public class TopicName implements ServiceUnitId {
     }
 
     public static TopicName get(String topic) {
-        try {
-            return cache.get(topic);
-        } catch (ExecutionException | UncheckedExecutionException e) {
-            throw (RuntimeException) e.getCause();
+        TopicName tp = cache.get(topic);
+        if (tp != null) {
+            return tp;
         }
+        return cache.computeIfAbsent(topic, k -> new TopicName(k));
     }
 
     public static TopicName getPartitionedTopicName(String topic) {
@@ -100,6 +100,14 @@ public class TopicName implements ServiceUnitId {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    public static String getPartitionPattern(String topic) {
+        return "^" + Pattern.quote(get(topic).getPartitionedTopicName().toString()) + "-partition-[0-9]+$";
+    }
+
+    public static String getPattern(String topic) {
+        return "^" + Pattern.quote(get(topic).getPartitionedTopicName().toString()) + "$";
     }
 
     @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
@@ -358,17 +366,16 @@ public class TopicName implements ServiceUnitId {
         String localName;
         if (parts.size() == 4) {
             tenant = parts.get(0);
-            cluster = null;
             namespacePortion = parts.get(1);
             domain = parts.get(2);
-            localName = parts.get(3);
+            localName = Codec.decode(parts.get(3));
             return String.format("%s://%s/%s/%s", domain, tenant, namespacePortion, localName);
         } else if (parts.size() == 5) {
             tenant = parts.get(0);
             cluster = parts.get(1);
             namespacePortion = parts.get(2);
             domain = parts.get(3);
-            localName = parts.get(4);
+            localName = Codec.decode(parts.get(4));
             return String.format("%s://%s/%s/%s/%s", domain, tenant, cluster, namespacePortion, localName);
         } else {
             throw new IllegalArgumentException("Invalid managedLedger name: " + mlName);

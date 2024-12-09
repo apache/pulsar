@@ -100,6 +100,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                     .allowReadOnlyMode(metadataStoreConfig.isAllowReadOnlyOperations())
                     .sessionTimeoutMs(metadataStoreConfig.getSessionTimeoutMillis())
                     .watchers(Collections.singleton(this::processSessionWatcher))
+                    .configPath(metadataStoreConfig.getConfigFilePath())
                     .build();
             if (enableSessionWatcher) {
                 sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent);
@@ -192,7 +193,20 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                     Code code = Code.get(rc);
                     if (code == Code.CONNECTIONLOSS) {
                         // There is the chance that we caused a connection reset by sending or requesting a batch
-                        // that passed the max ZK limit. Retry with the individual operations
+                        // that passed the max ZK limit.
+
+                        // Build the log warning message
+                        // summarize the operations by type
+                        String countsByType = ops.stream().collect(
+                                        Collectors.groupingBy(MetadataOp::getType, Collectors.summingInt(op -> 1)))
+                                .entrySet().stream().map(e -> e.getValue() + " " + e.getKey().name() + " entries")
+                                .collect(Collectors.joining(", "));
+                        Long totalSize = ops.stream().collect(Collectors.summingLong(MetadataOp::size));
+                        log.warn("Connection loss while executing batch operation of {} "
+                                + "of total data size of {}. "
+                                + "Retrying individual operations one-by-one.", countsByType, totalSize);
+
+                        // Retry with the individual operations
                         executor.schedule(() -> {
                             ops.forEach(o -> batchOperation(Collections.singletonList(o)));
                         }, 100, TimeUnit.MILLISECONDS);
@@ -564,6 +578,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                     .connectRetryPolicy(
                             new BoundExponentialBackoffRetryPolicy(metadataStoreConfig.getSessionTimeoutMillis(),
                                     metadataStoreConfig.getSessionTimeoutMillis(), 0))
+                    .configPath(metadataStoreConfig.getConfigFilePath())
                     .build()) {
                 if (chrootZk.exists(chrootPath, false) == null) {
                     createFullPathOptimistic(chrootZk, chrootPath, new byte[0], CreateMode.PERSISTENT);

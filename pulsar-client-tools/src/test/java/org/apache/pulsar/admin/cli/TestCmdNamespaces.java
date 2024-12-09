@@ -46,7 +46,8 @@ public class TestCmdNamespaces {
 
         CmdNamespaces cmd = new CmdNamespaces(() -> admin);
 
-        cmd.run("set-retention public/default -s 2T -t 2h".split("\\s+"));
-        verify(namespaces, times(1)).setRetention("public/default", new RetentionPolicies(120, 2 * 1024 * 1024));
+        cmd.run("set-retention public/default -s 2T -t 200d".split("\\s+"));
+        verify(namespaces, times(1)).setRetention("public/default",
+                new RetentionPolicies(200 * 24 * 60, 2 * 1024 * 1024));
    }
 }
