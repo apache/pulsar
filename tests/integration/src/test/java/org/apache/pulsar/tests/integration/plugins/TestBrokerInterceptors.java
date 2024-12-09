@@ -96,6 +96,7 @@ public class TestBrokerInterceptors extends TopicMessagingBase {
                 "consumerCreated",
                 "messageProduced",
                 "beforeSendMessage: OK",
+                "onFilter",
         }) {
             assertTrue(log.contains("LoggingBrokerInterceptor - " + line), "Log did not contain line '" + line + "'");
         }

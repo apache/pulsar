@@ -75,8 +75,8 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerEntry;
-import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -4874,8 +4874,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    public void testForceCursorRecovery() throws Exception {
-        ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
+    void testForceCursorRecovery() throws Exception {
         TestPulsarMockBookKeeper bk = new TestPulsarMockBookKeeper(executor);
         factory = new ManagedLedgerFactoryImpl(metadataStore, bk);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
@@ -4921,8 +4920,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 final OpenCallback cb, final Object ctx) {
             if (ledgerErrors.containsKey(lId)) {
                 cb.openComplete(ledgerErrors.get(lId), null, ctx);
+            } else {
+                super.asyncOpenLedger(lId, digestType, passwd, cb, ctx);
             }
-            super.asyncOpenLedger(lId, digestType, passwd, cb, ctx);
         }
     }
 

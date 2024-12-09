@@ -69,6 +69,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.Getter;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.Consumer;
@@ -542,7 +543,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return null;
             }
             messageProcessed(message);
-            return beforeConsume(message);
+            message = listener == null ? beforeConsume(message) : message;
+            return message;
         } catch (InterruptedException e) {
             ExceptionHandler.handleInterruptedException(e);
             State state = getState();
@@ -750,6 +752,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             } catch (Exception e) {
                 result.completeExceptionally(e);
             }
+        } else {
+            result.completeExceptionally(new PulsarClientException("Retry letter producer is null."));
         }
         MessageId finalMessageId = messageId;
         result.exceptionally(ex -> {
@@ -1667,6 +1671,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return;
         }
 
+        // increase incomingMessageSize here because the size would be decreased in messageProcessed() next step
+        increaseIncomingMessageSize(message);
         // increase permits for available message-queue
         messageProcessed(message);
         // call interceptor and complete received callback
@@ -2262,8 +2268,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             ((ProducerBuilderImpl<byte[]>) client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema)))
                                     .initialSubscriptionName(this.deadLetterPolicy.getInitialSubscriptionName())
                                     .topic(this.deadLetterPolicy.getDeadLetterTopic())
-                                    .producerName(String.format("%s-%s-%s-DLQ", this.topicName, this.subscription,
-                                            this.consumerName))
+                                    .producerName(String.format("%s-%s-%s-%s-DLQ", this.topicName, this.subscription,
+                                            this.consumerName, RandomStringUtils.randomAlphanumeric(5)))
                                     .blockIfQueueFull(false)
                                     .enableBatching(false)
                                     .enableChunking(true)
@@ -2515,6 +2521,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                 .result();
                         if (lastMessageId.getEntryId() < 0) {
                             completehasMessageAvailableWithValue(booleanFuture, false);
+                        } else if (hasSoughtByTimestamp) {
+                            completehasMessageAvailableWithValue(booleanFuture, result < 0);
                         } else {
                             completehasMessageAvailableWithValue(booleanFuture,
                                     resetIncludeHead ? result <= 0 : result < 0);

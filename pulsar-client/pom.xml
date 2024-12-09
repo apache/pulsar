@@ -25,11 +25,11 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>4.0.0-SNAPSHOT</version>
+    <version>4.1.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-client-original</artifactId>
-  <name>Pulsar Client Java</name>
+  <name>Pulsar Client Java Original</name>
 
   <dependencies>
     <dependency>

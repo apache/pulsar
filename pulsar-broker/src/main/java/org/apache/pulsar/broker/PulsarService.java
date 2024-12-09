@@ -263,6 +263,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private final ExecutorProvider brokerClientSharedExternalExecutorProvider;
     private final ScheduledExecutorProvider brokerClientSharedScheduledExecutorProvider;
     private final Timer brokerClientSharedTimer;
+    private final ExecutorProvider brokerClientSharedLookupExecutorProvider;
 
     private MetricsGenerator metricsGenerator;
     private final PulsarBrokerOpenTelemetry openTelemetry;
@@ -388,6 +389,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 new ScheduledExecutorProvider(1, "broker-client-shared-scheduled-executor");
         this.brokerClientSharedTimer =
                 new HashedWheelTimer(new DefaultThreadFactory("broker-client-shared-timer"), 1, TimeUnit.MILLISECONDS);
+        this.brokerClientSharedLookupExecutorProvider =
+                new ScheduledExecutorProvider(1, "broker-client-shared-lookup-executor");
 
         // here in the constructor we don't have the offloader scheduler yet
         this.offloaderStats = LedgerOffloaderStats.create(false, false, null, 0);
@@ -696,6 +699,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             brokerClientSharedExternalExecutorProvider.shutdownNow();
             brokerClientSharedInternalExecutorProvider.shutdownNow();
             brokerClientSharedScheduledExecutorProvider.shutdownNow();
+            brokerClientSharedLookupExecutorProvider.shutdownNow();
             brokerClientSharedTimer.stop();
             monotonicSnapshotClock.close();
 
@@ -975,6 +979,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 this.webSocketService.setLocalCluster(clusterData);
             }
 
+            // Initialize namespace service, after service url assigned. Should init zk and refresh self owner info.
+            this.nsService.initialize();
+
             // Start the leader election service
             startLeaderElectionService();
 
@@ -985,9 +992,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             // The load manager service and its service unit state channel need to be initialized first
             // (namespace service depends on load manager)
             this.startLoadManagementService();
-
-            // Initialize namespace service, after service url assigned. Should init zk and refresh self owner info.
-            this.nsService.initialize();
 
             // Start topic level policies service
             this.topicPoliciesService = initTopicPoliciesService();
@@ -1687,6 +1691,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 .internalExecutorProvider(brokerClientSharedInternalExecutorProvider)
                 .externalExecutorProvider(brokerClientSharedExternalExecutorProvider)
                 .scheduledExecutorProvider(brokerClientSharedScheduledExecutorProvider)
+                .lookupExecutorProvider(brokerClientSharedLookupExecutorProvider)
                 .build();
     }
 

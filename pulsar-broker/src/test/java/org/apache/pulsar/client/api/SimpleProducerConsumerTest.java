@@ -91,13 +91,10 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorageClass;
-import org.apache.pulsar.broker.testcontext.PulsarTestContext;
-import org.apache.pulsar.broker.testcontext.SpyConfig;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
@@ -153,14 +150,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
-    }
-
-    @Override
-    protected PulsarTestContext.Builder createPulsarTestContextBuilder(ServiceConfiguration conf) {
-        return super.createPulsarTestContextBuilder(conf)
-                .spyConfig(SpyConfig.builder()
-                        .managedLedgerStorage(SpyConfig.SpyType.SPY_ALSO_INVOCATIONS)
-                        .build());
     }
 
     @AfterMethod(alwaysRun = true)
@@ -3531,7 +3520,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             producer3.send(message.getBytes(UTF_8));
         }
 
-        int receiverQueueSize = 1;
+        int receiverQueueSize = 6;
         Consumer<byte[]> consumer = pulsarClient
             .newConsumer()
             .topics(Lists.newArrayList(topicNameBase + "1", topicNameBase + "2"))
@@ -4263,6 +4252,62 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         });
     }
 
+    @Test(timeOut = 100000)
+    public void testNegativeIncomingMessageSize() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/testIncomingMessageSize-" +
+                UUID.randomUUID().toString();
+        final String subName = "my-sub";
+
+        admin.topics().createPartitionedTopic(topicName, 3);
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+
+        final int messages = 1000;
+        List<CompletableFuture<MessageId>> messageIds = new ArrayList<>(messages);
+        for (int i = 0; i < messages; i++) {
+            messageIds.add(producer.newMessage().key(i + "").value(("Message-" + i).getBytes()).sendAsync());
+        }
+        FutureUtil.waitForAll(messageIds).get();
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+
+        Awaitility.await().untilAsserted(() -> {
+            long size = ((ConsumerBase<byte[]>) consumer).getIncomingMessageSize();
+            log.info("Check the incoming message size should greater that 0, current size is {}", size);
+            Assert.assertTrue(size > 0);
+        });
+
+
+        for (int i = 0; i < messages; i++) {
+            consumer.receive();
+        }
+
+
+        Awaitility.await().untilAsserted(() -> {
+            long size = ((ConsumerBase<byte[]>) consumer).getIncomingMessageSize();
+            log.info("Check the incoming message size should be 0, current size is {}", size);
+            Assert.assertEquals(size, 0);
+        });
+
+
+        MultiTopicsConsumerImpl multiTopicsConsumer = (MultiTopicsConsumerImpl) consumer;
+        List<ConsumerImpl<byte[]>> list = multiTopicsConsumer.getConsumers();
+        for (ConsumerImpl<byte[]> subConsumer : list) {
+            long size = subConsumer.getIncomingMessageSize();
+            log.info("Check the sub consumer incoming message size should be 0, current size is {}", size);
+            Assert.assertEquals(size, 0);
+        }
+    }
 
     @Data
     @EqualsAndHashCode
@@ -4989,5 +5034,32 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         } else {
             return 0;
         }
+    }
+
+    @Test
+    public void testFencedLedger() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        final String topic = "persistent://my-property/my-ns/fencedLedger";
+
+        @Cleanup
+        PulsarClient newPulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).build();
+
+        @Cleanup
+        Producer<byte[]> producer = newPulsarClient.newProducer().topic(topic).enableBatching(false).create();
+
+        final int numMessages = 5;
+        for (int i = 0; i < numMessages; i++) {
+            producer.newMessage().value(("value-" + i).getBytes(UTF_8)).eventTime((i + 1) * 100L).sendAsync();
+        }
+        producer.flush();
+
+        PersistentTopic pTopic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) pTopic.getManagedLedger();
+        ml.setFenced();
+
+        Reader<byte[]> reader = newPulsarClient.newReader().topic(topic).startMessageId(MessageId.earliest)
+                .createAsync().get(5, TimeUnit.SECONDS);
+        assertNotNull(reader);
     }
 }

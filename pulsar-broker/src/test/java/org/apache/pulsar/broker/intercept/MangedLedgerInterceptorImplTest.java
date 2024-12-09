@@ -21,9 +21,13 @@ package org.apache.pulsar.broker.intercept;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.fail;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -429,6 +433,51 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
             }
             return false;
         }
+    }
+
+    @Test(timeOut = 3000)
+    public void testManagedLedgerPayloadInputProcessorFailure() throws Exception {
+        var config = new ManagedLedgerConfig();
+        final String failureMsg = "failed to process input payload";
+        config.setManagedLedgerInterceptor(new ManagedLedgerInterceptorImpl(
+                Collections.emptySet(), Set.of(new ManagedLedgerPayloadProcessor() {
+            @Override
+            public Processor inputProcessor() {
+                return new Processor() {
+                    @Override
+                    public ByteBuf process(Object contextObj, ByteBuf inputPayload) {
+                        throw new RuntimeException(failureMsg);
+                    }
+
+                    @Override
+                    public void release(ByteBuf processedPayload) {
+                        // no-op
+                        fail("the release method can't be reached");
+                    }
+                };
+            }
+        })));
+
+        var ledger = factory.open("testManagedLedgerPayloadProcessorFailure", config);
+        var countDownLatch = new CountDownLatch(1);
+        var expectedException = new ArrayList<Exception>();
+        ledger.asyncAddEntry("test".getBytes(), 1, 1, new AsyncCallbacks.AddEntryCallback() {
+            @Override
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                entryData.release();
+                countDownLatch.countDown();
+            }
+
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                // expected
+                expectedException.add(exception);
+                countDownLatch.countDown();
+            }
+        }, null);
+        countDownLatch.await();
+        assertEquals(expectedException.size(), 1);
+        assertEquals(expectedException.get(0).getCause().getMessage(), failureMsg);
     }
 
 }
