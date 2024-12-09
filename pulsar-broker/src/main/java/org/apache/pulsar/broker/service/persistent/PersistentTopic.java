@@ -22,7 +22,6 @@ import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl.TOPIC;
-import static org.apache.pulsar.broker.service.persistent.PersistentReplicator.CURSOR_PROP_REPL_TERM;
 import static org.apache.pulsar.broker.service.persistent.SubscribeRateLimiter.isSubscribeRateEnabled;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isEventSystemTopic;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
@@ -2074,9 +2073,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         } else {
             initialPosition = InitialPosition.Latest;
         }
-        HashMap<String, String> replProps = new HashMap<>(2);
-        replProps.put(CURSOR_PROP_REPL_TERM, Long.valueOf(System.currentTimeMillis()).toString());
-        ledger.asyncOpenCursor(name, initialPosition, Collections.emptyMap(), replProps, new OpenCursorCallback() {
+        ledger.asyncOpenCursor(name, initialPosition, new OpenCursorCallback() {
             @Override
             public void openCursorComplete(ManagedCursor cursor, Object ctx) {
                 String localCluster = brokerService.pulsar().getConfiguration().getClusterName();

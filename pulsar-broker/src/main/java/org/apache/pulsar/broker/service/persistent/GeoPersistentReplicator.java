@@ -51,8 +51,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
      */
     @Override
     protected String getProducerName() {
-        return getReplicatorName(replicatorPrefix, localCluster) + REPL_PRODUCER_NAME_DELIMITER + remoteCluster
-                + "_" + replTerm;
+        return getReplicatorName(replicatorPrefix, localCluster) + REPL_PRODUCER_NAME_DELIMITER + remoteCluster;
     }
 
     @Override
