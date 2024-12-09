@@ -4354,7 +4354,6 @@ public interface Topics {
      *
      * @param topic
      * @param applied
-     *            Whether to return the configuration value of the previous level if the current level's don't set
      * @return
      * @throws PulsarAdminException
      */
@@ -4365,7 +4364,6 @@ public interface Topics {
      *
      * @param topic
      * @param applied
-     *            Whether to return the configuration value of the previous level if the current level's don't set
      * @return
      * @throws PulsarAdminException
      */
