@@ -197,6 +197,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     //   - Reopen Geo-Replication.
                     //   - Multi version schemas.
                     //   - Deduplicated replication.
+                    //   - Compatability test.
 
                     msg.setSchemaInfoForReplicator(schemaFuture.get());
                     msg.getMessageBuilder().clearTxnidMostBits();
