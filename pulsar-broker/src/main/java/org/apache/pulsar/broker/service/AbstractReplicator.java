@@ -79,6 +79,9 @@ public abstract class AbstractReplicator implements Replicator {
     protected volatile State state = State.Disconnected;
 
     private volatile Attributes attributes = null;
+
+    protected final long replTerm;
+
     private static final AtomicReferenceFieldUpdater<AbstractReplicator, Attributes> ATTRIBUTES_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(AbstractReplicator.class, Attributes.class, "attributes");
 
@@ -106,7 +109,8 @@ public abstract class AbstractReplicator implements Replicator {
     }
 
     public AbstractReplicator(String localCluster, Topic localTopic, String remoteCluster, String remoteTopicName,
-                              String replicatorPrefix, BrokerService brokerService, PulsarClientImpl replicationClient)
+                              String replicatorPrefix, BrokerService brokerService, PulsarClientImpl replicationClient,
+                              long replTerm)
             throws PulsarServerException {
         this.brokerService = brokerService;
         this.localTopic = localTopic;
@@ -118,11 +122,13 @@ public abstract class AbstractReplicator implements Replicator {
         this.replicationClient = replicationClient;
         this.client = (PulsarClientImpl) brokerService.pulsar().getClient();
         this.producer = null;
+        this.replTerm = replTerm;
         this.producerQueueSize = brokerService.pulsar().getConfiguration().getReplicationProducerQueueSize();
-        this.replicatorId = String.format("%s | %s",
+        this.replicatorId = String.format("%s | %s | %s",
                 StringUtils.equals(localTopicName, remoteTopicName) ? localTopicName :
                         localTopicName + "-->" + remoteTopicName,
-                StringUtils.equals(localCluster, remoteCluster) ? localCluster : localCluster + "-->" + remoteCluster
+                StringUtils.equals(localCluster, remoteCluster) ? localCluster : localCluster + "-->" + remoteCluster,
+                replTerm
         );
         this.producerBuilder = replicationClient.newProducer(Schema.AUTO_PRODUCE_BYTES()) //
                 .topic(remoteTopicName)
@@ -195,6 +201,7 @@ public abstract class AbstractReplicator implements Replicator {
         prepareCreateProducer().thenCompose(ignore -> {
             ProducerBuilderImpl builderImpl = (ProducerBuilderImpl) producerBuilder;
             builderImpl.getConf().setNonPartitionedTopicExpected(true);
+            builderImpl.getConf().setReplProducer(true);
             return producerBuilder.createAsync().thenAccept(producer -> {
                 setProducerAndTriggerReadEntries(producer);
             });

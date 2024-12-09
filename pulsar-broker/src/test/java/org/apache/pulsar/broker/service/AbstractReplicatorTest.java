@@ -124,7 +124,7 @@ public class AbstractReplicatorTest {
                                 String replicatorPrefix, BrokerService brokerService,
                                 PulsarClientImpl replicationClient) throws PulsarServerException {
             super(localCluster, localTopic, remoteCluster, remoteTopicName, replicatorPrefix, brokerService,
-                    replicationClient);
+                    replicationClient, -1L);
         }
 
         @Override

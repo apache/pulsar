@@ -76,6 +76,8 @@ import org.slf4j.LoggerFactory;
 public abstract class PersistentReplicator extends AbstractReplicator
         implements Replicator, ReadEntriesCallback, DeleteCallback, MessageExpirer {
 
+    public static final String CURSOR_PROP_REPL_TERM = "__CURSOR_PROP_REPL_TERM";
+
     protected final PersistentTopic topic;
     protected final ManagedCursor cursor;
 
@@ -105,6 +107,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
     protected int messageTTLInSeconds = 0;
 
+    protected volatile long msgSequenceIdGenerator;
+
     private final Backoff readFailureBackoff = new Backoff(1, TimeUnit.SECONDS,
             1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
 
@@ -123,7 +127,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
                                    BrokerService brokerService, PulsarClientImpl replicationClient)
             throws PulsarServerException {
         super(localCluster, localTopic, remoteCluster, remoteTopic, localTopic.getReplicatorPrefix(),
-                brokerService, replicationClient);
+                brokerService, replicationClient,
+                Long.valueOf(cursor.getCursorProperties().get(CURSOR_PROP_REPL_TERM)));
         this.topic = localTopic;
         this.cursor = Objects.requireNonNull(cursor);
         this.expiryMonitor = new PersistentMessageExpiryMonitor(localTopic,
