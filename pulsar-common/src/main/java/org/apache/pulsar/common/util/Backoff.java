@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.common.util;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.time.Clock;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import lombok.Data;
+import lombok.Getter;
 
 // All variables are in TimeUnit millis by default
 @Data
@@ -35,6 +35,7 @@ public class Backoff {
     private long next;
     private long mandatoryStop;
 
+    @Getter
     private long firstBackoffTimeInMillis;
     private boolean mandatoryStopMade = false;
 
@@ -93,11 +94,6 @@ public class Backoff {
     public void reset() {
         this.next = this.initial;
         this.mandatoryStopMade = false;
-    }
-
-    @VisibleForTesting
-    long getFirstBackoffTimeInMillis() {
-        return firstBackoffTimeInMillis;
     }
 
     public static boolean shouldBackoff(long initialTimestamp, TimeUnit unitInitial, int failedAttempts,
