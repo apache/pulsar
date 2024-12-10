@@ -482,7 +482,7 @@ public class Producer {
          */
         @Override
         public void completed(Exception exception, long ledgerId, long entryId) {
-            if (exception != null) {
+            if (exception != null /*&& !(exception instanceof MessageDeduplication.MessageDupUnknownException)*/) {
                 final ServerError serverError = getServerError(exception);
 
                 producer.cnx.execute(() -> {
