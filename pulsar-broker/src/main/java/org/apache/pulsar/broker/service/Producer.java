@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.service;
 
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static org.apache.pulsar.broker.service.AbstractReplicator.REPL_PRODUCER_NAME_DELIMITER;
+import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SEQUENCE_EID;
+import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SEQUENCE_LID;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 import com.google.common.annotations.VisibleForTesting;
@@ -40,6 +42,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
@@ -537,8 +540,11 @@ public class Producer {
             // stats
             producer.stats.recordMsgIn(batchSize, msgSize);
             producer.topic.recordAddLatency(System.nanoTime() - startTimeNs, TimeUnit.NANOSECONDS);
-            producer.cnx.getCommandSender().sendSendReceiptResponse(producer.producerId, sequenceId, highestSequenceId,
-                    ledgerId, entryId);
+            if (producer.isRemote()) {
+                sendSendReceiptResponseRepl();
+            } else {
+                sendSendReceiptResponseNormal();
+            }
             producer.cnx.completedSendOperation(producer.isNonPersistentTopic, msgSize);
             if (this.chunked) {
                 producer.stats.recordChunkedMsgIn();
@@ -549,6 +555,24 @@ public class Producer {
                         (ServerCnx) producer.cnx, producer, startTimeNs, ledgerId, entryId, this);
             }
             recycle();
+        }
+
+        private void sendSendReceiptResponseRepl() {
+            String replSequenceLIdStr = String.valueOf(getProperty(MSG_PROP_REPL_SEQUENCE_LID));
+            String replSequenceEIdStr = String.valueOf(getProperty(MSG_PROP_REPL_SEQUENCE_EID));
+            if (!StringUtils.isNumeric(replSequenceLIdStr) || !StringUtils.isNumeric(replSequenceEIdStr)) {
+                sendSendReceiptResponseNormal();
+                return;
+            }
+            Long replSequenceLId = Long.valueOf(replSequenceLIdStr);
+            Long replSequenceEId = Long.valueOf(replSequenceEIdStr);
+            producer.cnx.getCommandSender().sendSendReceiptResponse(producer.producerId, replSequenceLId,
+                    replSequenceEId, ledgerId, entryId);
+        }
+
+        private void sendSendReceiptResponseNormal() {
+            producer.cnx.getCommandSender().sendSendReceiptResponse(producer.producerId, sequenceId, highestSequenceId,
+                    ledgerId, entryId);
         }
 
         static MessagePublishContext get(Producer producer, long sequenceId, int msgSize, int batchSize,
