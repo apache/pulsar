@@ -88,6 +88,9 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
                 //    pending messages from the queue?
                 // A: if both @param-ledgerId and @param-entry-id are "-1", it means the message has been sent
                 //    successfully.
+                //    PS: broker will respond "-1" only when it confirms the message has been persisted, broker will
+                //        respond a "MessageDeduplication.MessageDupUnknownException" if the message is sending
+                //        in-progress.
                 // Conclusion: So whether @param-ledgerId and @param-entry-id are "-1" or not, we can remove pending
                 //    message.
                 pendingMessages.remove();
