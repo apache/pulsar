@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -29,7 +30,8 @@ import org.apache.pulsar.common.classification.InterfaceStability;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public abstract class KeySharedPolicy {
+public abstract class KeySharedPolicy implements Serializable {
+    private static final long serialVersionUID = 1L;
 
     protected KeySharedMode keySharedMode;
 
