@@ -83,9 +83,12 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
                 return;
             }
 
-            if (lIdSent == lIdPendingRes && eIdSent == eIdPendingRes/* && ledgerId > 0 && entryId > 0*/) {
-                // TODO after a reconnect, maybe we have lost the response of Send-Receipt, then how can we remove
-                //  pending messages from the queue?
+            if (lIdSent == lIdPendingRes && eIdSent == eIdPendingRes) {
+                // After a reconnect, maybe we have lost the response of Send-Receipt, then how can we remove
+                // pending messages from the queue?
+                // -> if both @param-ledgerId and @param-entry-id are "-1", it means the message has been sent
+                //    successfully.
+                // So whether @param-ledgerId and @param-entry-id are "-1" or not, we can remove pending message.
                 pendingMessages.remove();
                 releaseSemaphoreForSendOp(op);
                 // TODO LAST_SEQ_ID_PUBLISHED_UPDATER.getAndUpdate(this, last -> Math.max(last, getHighestSequenceId(finalOp)));
