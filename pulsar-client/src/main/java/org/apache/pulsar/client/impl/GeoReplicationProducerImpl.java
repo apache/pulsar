@@ -43,7 +43,8 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
         super(client, topic, conf, producerCreatedFuture, partitionIndex, schema, interceptors, overrideProducerName);
     }
 
-    void ackReceived(ClientCnx cnx, long lIdSent, long eIdSent, long ledgerId, long entryId) {
+    @Override
+    protected void ackReceived(ClientCnx cnx, long lIdSent, long eIdSent, long ledgerId, long entryId) {
         OpSendMsg op = null;
         synchronized (this) {
             op = pendingMessages.peek();

@@ -474,18 +474,18 @@ public class ClientCnx extends PulsarHandler {
             ledgerId = sendReceipt.getMessageId().getLedgerId();
             entryId = sendReceipt.getMessageId().getEntryId();
         }
-
+        ProducerImpl<?> producer = producers.get(producerId);
         if (ledgerId == -1 && entryId == -1) {
-            log.warn("{} Message with sequence-id {} published by producer {} has been dropped", ctx.channel(),
-                    sequenceId, producerId);
+            log.warn("{} Message with sequence-id {}-{} published by producer [id:{}, name:{}] has been dropped",
+                    ctx.channel(), sequenceId, highestSequenceId, producerId, producer.getProducerName());
         }
 
-        if (log.isDebugEnabled()) {
-            log.debug("{} Got receipt for producer: {} -- msg: {} -- id: {}:{}", ctx.channel(), producerId, sequenceId,
+        if (log.isInfoEnabled()) {
+            log.info("{} Got receipt for producer: [id:{}, name:{}] -- sequence-id: {}={} -- entry-id: {}:{}",
+                    ctx.channel(), producerId, producer.getProducerName(), sequenceId, highestSequenceId,
                     ledgerId, entryId);
         }
 
-        ProducerImpl<?> producer = producers.get(producerId);
         if (producer != null) {
             producer.ackReceived(this, sequenceId, highestSequenceId, ledgerId, entryId);
         } else {
