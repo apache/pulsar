@@ -396,7 +396,6 @@ public class MessageDeduplication {
                     (replSequenceLId < lastSequenceLIdPersisted
                         || (replSequenceLId == lastSequenceLIdPersisted
                             && replSequenceEId <= lastSequenceEIdPersisted))) {
-                    System.out.println("==> DUP");
                     return MessageDupStatus.Dup;
                 } else {
                     return MessageDupStatus.Unknown;
