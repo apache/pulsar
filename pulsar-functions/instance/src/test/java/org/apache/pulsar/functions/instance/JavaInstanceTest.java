@@ -23,10 +23,13 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
+import static org.testng.Assert.assertTrue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Function;
@@ -244,5 +247,66 @@ public class JavaInstanceTest {
     	public UserException(String msg) {
     		super(msg);
     	}
+    }
+
+    @Test
+    public void testAsyncFunctionMaxPendingVoidResult() throws Exception {
+        CountDownLatch count = new CountDownLatch(1);
+        InstanceConfig instanceConfig = new InstanceConfig();
+        instanceConfig.setFunctionDetails(org.apache.pulsar.functions.proto.Function.FunctionDetails.newBuilder()
+                .setSink(org.apache.pulsar.functions.proto.Function.SinkSpec.newBuilder()
+                        .setTypeClassName(Void.class.getName())
+                        .build())
+                .build());
+        int pendingQueueSize = 3;
+        instanceConfig.setMaxPendingAsyncRequests(pendingQueueSize);
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newCachedThreadPool();
+
+        Function<String, CompletableFuture<Void>> function = (input, context) -> {
+            CompletableFuture<Void> result  = new CompletableFuture<>();
+            executor.submit(() -> {
+                try {
+                    count.await();
+                    result.complete(null);
+                } catch (Exception e) {
+                    result.completeExceptionally(e);
+                }
+            });
+
+            return result;
+        };
+
+        JavaInstance instance = new JavaInstance(
+                mock(ContextImpl.class),
+                function,
+                instanceConfig);
+        String testString = "ABC123";
+
+        CountDownLatch resultsLatch = new CountDownLatch(3);
+
+        long startTime = System.currentTimeMillis();
+        assertEquals(pendingQueueSize, instance.getAsyncRequestsConcurrencyLimiter().availablePermits());
+        JavaInstanceRunnable.AsyncResultConsumer asyncResultConsumer = (rec, result) -> {
+            resultsLatch.countDown();
+        };
+        Consumer<Throwable> asyncFailureHandler = cause -> {
+        };
+        assertNull(instance.handleMessage(mock(Record.class), testString, asyncResultConsumer, asyncFailureHandler));
+        assertEquals(pendingQueueSize - 1, instance.getAsyncRequestsConcurrencyLimiter().availablePermits());
+        assertNull(instance.handleMessage(mock(Record.class), testString, asyncResultConsumer, asyncFailureHandler));
+        assertEquals(pendingQueueSize - 2, instance.getAsyncRequestsConcurrencyLimiter().availablePermits());
+        assertNull(instance.handleMessage(mock(Record.class), testString, asyncResultConsumer, asyncFailureHandler));
+        // no space left
+        assertEquals(0, instance.getAsyncRequestsConcurrencyLimiter().availablePermits());
+
+        count.countDown();
+
+        assertTrue(resultsLatch.await(5, TimeUnit.SECONDS));
+
+        long endTime = System.currentTimeMillis();
+
+        log.info("start:{} end:{} during:{}", startTime, endTime, endTime - startTime);
+        instance.close();
     }
 }
