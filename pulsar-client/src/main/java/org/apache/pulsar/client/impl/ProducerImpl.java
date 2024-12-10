@@ -134,7 +134,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private String connectionId;
     private String connectedSince;
-    private final int partitionIndex;
+    protected final int partitionIndex;
 
     private final ProducerStatsRecorder stats;
 

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import io.netty.util.ReferenceCountUtil;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -82,20 +83,32 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
                 return;
             }
 
-            if (lIdSent == lIdPendingRes  && eIdSent == eIdPendingRes) {
+            if (lIdSent == lIdPendingRes && eIdSent == eIdPendingRes/* && ledgerId > 0 && entryId > 0*/) {
+                // TODO after a reconnect, maybe we have lost the response of Send-Receipt, then how can we remove
+                //  pending messages from the queue?
                 pendingMessages.remove();
                 releaseSemaphoreForSendOp(op);
+                // TODO LAST_SEQ_ID_PUBLISHED_UPDATER.getAndUpdate(this, last -> Math.max(last, getHighestSequenceId(finalOp)));
+                op.setMessageId(ledgerId, entryId, partitionIndex);
+                try {
+                    // Need to protect ourselves from any exception being thrown in the future handler from the
+                    // application
+                    op.sendComplete(null);
+                } catch (Throwable t) {
+                    log.warn("[{}] [{}] Got exception while completing the callback for sequence-id {}:{}", topic,
+                            producerName, lIdSent, eIdSent, t);
+                }
+                ReferenceCountUtil.safeRelease(op.cmd);
+                op.recycle();
             } else if (lIdSent < lIdPendingRes || (lIdSent == lIdPendingRes  && eIdSent < eIdPendingRes)) {
                 // Ignoring the ack since it's referring to a message that has already timed out.
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] [{}] Got ack for timed out msg. expecting less than {}:{}, but got: {}:{}",
+                    log.debug("[{}] [{}] Got ack for timed out msg. expecting less or equals {}:{}, but got: {}:{}",
                             topic, producerName, lIdPendingRes, eIdPendingRes, lIdSent,
                             eIdSent);
                 }
-                pendingMessages.remove();
-                releaseSemaphoreForSendOp(op);
             } else {
-                log.warn("[{}] [{}] Got ack for msg. expecting less than {}:{}, but got: {}:{} - queue-size: {}",
+                log.warn("[{}] [{}] Got ack for msg. expecting less or equals {}:{}, but got: {}:{} - queue-size: {}",
                         topic, producerName, lIdPendingRes, eIdPendingRes, lIdSent,
                         eIdSent, pendingMessages.messagesCount());
                 // Force connection closing so that messages can be re-transmitted in a new connection

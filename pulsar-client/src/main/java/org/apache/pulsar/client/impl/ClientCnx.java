@@ -478,12 +478,12 @@ public class ClientCnx extends PulsarHandler {
         if (ledgerId == -1 && entryId == -1) {
             log.warn("{} Message with sequence-id {}-{} published by producer [id:{}, name:{}] has been dropped",
                     ctx.channel(), sequenceId, highestSequenceId, producerId, producer.getProducerName());
-        }
-
-        if (log.isInfoEnabled()) {
-            log.info("{} Got receipt for producer: [id:{}, name:{}] -- sequence-id: {}={} -- entry-id: {}:{}",
-                    ctx.channel(), producerId, producer.getProducerName(), sequenceId, highestSequenceId,
-                    ledgerId, entryId);
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("{} Got receipt for producer: [id:{}, name:{}] -- sequence-id: {}-{} -- entry-id: {}:{}",
+                        ctx.channel(), producerId, producer.getProducerName(), sequenceId, highestSequenceId,
+                        ledgerId, entryId);
+            }
         }
 
         if (producer != null) {

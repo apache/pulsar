@@ -196,7 +196,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     // TODO test cases
                     //   - Reopen Geo-Replication.
                     //   - Multi version schemas.
-                    //   - Deduplicated replication.
+                    //   - Deduplicated replication. -> Done
                     //   - Compatability test.
 
                     msg.setSchemaInfoForReplicator(schemaFuture.get());
