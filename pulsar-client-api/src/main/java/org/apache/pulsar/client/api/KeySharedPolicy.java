@@ -31,7 +31,6 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 @InterfaceAudience.Public
 @InterfaceStability.Stable
 public abstract class KeySharedPolicy implements Serializable {
-    private static final long serialVersionUID = 1L;
 
     protected KeySharedMode keySharedMode;
 
@@ -84,6 +83,7 @@ public abstract class KeySharedPolicy implements Serializable {
      * for message, the cursor will rewind.
      */
     public static class KeySharedPolicySticky extends KeySharedPolicy {
+        private static final long serialVersionUID = 1L;
 
         protected final List<Range> ranges;
 
@@ -131,6 +131,7 @@ public abstract class KeySharedPolicy implements Serializable {
      * Auto split hash range key shared policy.
      */
     public static class KeySharedPolicyAutoSplit extends KeySharedPolicy {
+        private static final long serialVersionUID = 1L;
 
         KeySharedPolicyAutoSplit() {
             this.keySharedMode = KeySharedMode.AUTO_SPLIT;
