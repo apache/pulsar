@@ -398,8 +398,8 @@ public class MessageDeduplication {
                     return MessageDupStatus.Unknown;
                 }
             }
-            highestSequencedPushed.put(lastSequenceLIdKey, lastSequenceLIdPushed);
-            highestSequencedPushed.put(lastSequenceEIdKey, lastSequenceEIdPushed);
+            highestSequencedPushed.put(lastSequenceLIdKey, replSequenceLId);
+            highestSequencedPushed.put(lastSequenceEIdKey, replSequenceEId);
         }
         return MessageDupStatus.NotDup;
     }
