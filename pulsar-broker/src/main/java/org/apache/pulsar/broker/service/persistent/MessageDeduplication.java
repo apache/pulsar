@@ -374,8 +374,9 @@ public class MessageDeduplication {
         synchronized (highestSequencedPushed) {
             Long lastSequenceLIdPushed = highestSequencedPushed.get(lastSequenceLIdKey);
             Long lastSequenceEIdPushed = highestSequencedPushed.get(lastSequenceEIdKey);
-            if (lastSequenceLIdPushed != null && replSequenceLId <= lastSequenceLIdPushed
-                    && lastSequenceEIdPushed != null && replSequenceEId <= lastSequenceEIdPushed) {
+            if (lastSequenceLIdPushed != null && lastSequenceEIdPushed != null &&
+                (replSequenceLId < lastSequenceLIdPushed
+                    || (replSequenceLId == lastSequenceLIdPushed && replSequenceEId <= lastSequenceEIdPushed))) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Message identified as duplicated producer={} seq-lid={} -- seq-eid={}",
                             topic.getName(), publishContext.getProducerName(), lastSequenceLIdPushed,
@@ -391,8 +392,11 @@ public class MessageDeduplication {
                 // at a future time
                 Long lastSequenceLIdPersisted = highestSequencedPersisted.get(lastSequenceLIdKey);
                 Long lastSequenceEIdPersisted = highestSequencedPersisted.get(lastSequenceEIdKey);
-                if (lastSequenceLIdPersisted != null && replSequenceLId <= lastSequenceLIdPersisted
-                        && lastSequenceEIdPersisted != null && replSequenceEId <= lastSequenceEIdPersisted) {
+                if (lastSequenceLIdPersisted != null && lastSequenceEIdPersisted != null &&
+                    (replSequenceLId < lastSequenceLIdPersisted
+                        || (replSequenceLId == lastSequenceLIdPersisted
+                            && replSequenceEId <= lastSequenceEIdPersisted))) {
+                    System.out.println("==> DUP");
                     return MessageDupStatus.Dup;
                 } else {
                     return MessageDupStatus.Unknown;

@@ -43,64 +43,60 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
         super(client, topic, conf, producerCreatedFuture, partitionIndex, schema, interceptors, overrideProducerName);
     }
 
-    void ackReceived(ClientCnx cnx, long replSequenceLIdSent, long replSequenceEIdSent, long ledgerId, long entryId) {
-        // Since parse message metadata cost much, we only check sequence id when a duplication occurs.
-        // Why not adding attributes that indicates sequence ids into "OpSendMsg" to avoid parsing the message metadata?
-        // - Since the send order conflict is a small probability event, we avoid to add two fields to "OpSendMsg" to
-        //   save the cost of high frequency events(publishing messages).
-        if (ledgerId >=0 && entryId >=0) {
-            return;
-        }
-
+    void ackReceived(ClientCnx cnx, long lIdSent, long eIdSent, long ledgerId, long entryId) {
         OpSendMsg op = null;
         synchronized (this) {
             op = pendingMessages.peek();
-
-            // Message is coming from replication, we need to use the replication's producer name, ledger id and entry id
-            // for the purpose of deduplication.
-            int readerIndex = op.cmd.getSecond().readerIndex();
-            MessageMetadata md = Commands.parseMessageMetadata(op.cmd.getSecond());
-            op.cmd.getSecond().readerIndex(readerIndex);
-
-            Long replSequenceLIdNext = null;
-            Long replSequenceEIdNext = null;
-            List<KeyValue> kvPairList = md.getPropertiesList();
+            if (op == null) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] [{}] Got ack for timed out msg {}:{}", topic, producerName, lIdSent, eIdSent);
+                }
+                return;
+            }
+            Long lIdPendingRes = null;
+            Long eIdPendingRes = null;
+            List<KeyValue> kvPairList =  op.msg.getMessageBuilder().getPropertiesList();
             for (KeyValue kvPair : kvPairList) {
                 if (kvPair.getKey().equals(MSG_PROP_REPL_SEQUENCE_LID)) {
                     if (StringUtils.isNumeric(kvPair.getValue())) {
-                        replSequenceLIdNext = Long.valueOf(kvPair.getValue());
+                        lIdPendingRes = Long.valueOf(kvPair.getValue());
                     } else {
                         break;
                     }
                 }
                 if (kvPair.getKey().equals(MSG_PROP_REPL_SEQUENCE_EID)) {
                     if (StringUtils.isNumeric(kvPair.getValue())) {
-                        replSequenceEIdNext = Long.valueOf(kvPair.getValue());
+                        eIdPendingRes = Long.valueOf(kvPair.getValue());
                     } else {
                         break;
                     }
                 }
-                if (replSequenceLIdNext != null && replSequenceEIdNext != null) {
+                if (lIdPendingRes != null && eIdPendingRes != null) {
                     break;
                 }
             }
-            if (replSequenceLIdNext == null || replSequenceEIdNext == null) {
+            if (lIdPendingRes == null || eIdPendingRes == null) {
                 // Rollback to the original implementation.
-                super.ackReceived(cnx, replSequenceLIdSent, replSequenceEIdSent, ledgerId, entryId);
+                super.ackReceived(cnx, lIdSent, eIdSent, ledgerId, entryId);
                 return;
             }
 
-            if (replSequenceLIdSent <= replSequenceLIdNext && replSequenceEIdSent < replSequenceEIdNext) {
+            if (lIdSent == lIdPendingRes  && eIdSent == eIdPendingRes) {
+                pendingMessages.remove();
+                releaseSemaphoreForSendOp(op);
+            } else if (lIdSent < lIdPendingRes || (lIdSent == lIdPendingRes  && eIdSent < eIdPendingRes)) {
                 // Ignoring the ack since it's referring to a message that has already timed out.
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] [{}] Got ack for timed out msg. expecting: {} - {} - got: {} - {}",
-                            topic, producerName, replSequenceLIdNext, replSequenceEIdNext, replSequenceLIdSent,
-                            replSequenceEIdSent);
+                    log.debug("[{}] [{}] Got ack for timed out msg. expecting less than {}:{}, but got: {}:{}",
+                            topic, producerName, lIdPendingRes, eIdPendingRes, lIdSent,
+                            eIdSent);
                 }
+                pendingMessages.remove();
+                releaseSemaphoreForSendOp(op);
             } else {
-                log.warn("[{}] [{}] Got ack for msg. expecting: {} - {} - got: {} - {} - queue-size: {}",
-                        topic, producerName, replSequenceLIdNext, replSequenceEIdNext, replSequenceLIdSent,
-                        replSequenceEIdSent, pendingMessages.messagesCount());
+                log.warn("[{}] [{}] Got ack for msg. expecting less than {}:{}, but got: {}:{} - queue-size: {}",
+                        topic, producerName, lIdPendingRes, eIdPendingRes, lIdSent,
+                        eIdSent, pendingMessages.messagesCount());
                 // Force connection closing so that messages can be re-transmitted in a new connection
                 cnx.channel().close();
             }
