@@ -561,8 +561,12 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         clientBuilder.memoryLimit(10000L, SizeUnit.BYTES);
     }
 
+    interface ThrowingBiConsumer<T, U> {
+        void accept(T t, U u) throws Exception;
+    }
+
     @Test
-    public void testSeekChunkMessages() throws PulsarClientException {
+    public void testSeekChunkMessages() throws Exception {
         log.info("-- Starting {} test --", methodName);
         this.conf.setMaxMessageSize(50);
         final int totalMessages = 5;
@@ -612,14 +616,17 @@ public class MessageChunkingTest extends ProducerConsumerBase {
             assertEquals(msgIds.get(i), msgAfterSeek.getMessageId());
         }
 
-        Reader<byte[]> reader = pulsarClient.newReader()
-                .topic(topicName)
-                .startMessageIdInclusive()
-                .startMessageId(msgIds.get(1))
-                .create();
-
-        Message<byte[]> readMsg = reader.readNext(5, TimeUnit.SECONDS);
-        assertEquals(msgIds.get(1), readMsg.getMessageId());
+        ThrowingBiConsumer<Boolean, MessageId> assertStartMessageId = (inclusive, expectedFirstMsgId) -> {
+            final var builder = pulsarClient.newReader().topic(topicName).startMessageId(msgIds.get(1));
+            if (inclusive) {
+                builder.startMessageIdInclusive();
+            }
+            @Cleanup final var reader = builder.create();
+            final var readMsg = reader.readNext(5, TimeUnit.SECONDS);
+            assertEquals(expectedFirstMsgId, readMsg.getMessageId());
+        };
+        assertStartMessageId.accept(true, msgIds.get(1));
+        assertStartMessageId.accept(false, msgIds.get(2));
 
         consumer1.close();
         consumer2.close();

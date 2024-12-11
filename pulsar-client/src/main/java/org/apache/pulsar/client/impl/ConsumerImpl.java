@@ -298,7 +298,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.subscriptionMode = conf.getSubscriptionMode();
         if (startMessageId != null) {
             MessageIdAdv firstChunkMessageId = ((MessageIdAdv) startMessageId).getFirstChunkMessageId();
-            this.startMessageId = (firstChunkMessageId == null) ? (MessageIdAdv) startMessageId : firstChunkMessageId;
+            if (conf.isResetIncludeHead() && firstChunkMessageId != null) {
+                // The chunk message id's ledger id and entry id are the last chunk's ledger id and entry id, when
+                // startMessageIdInclusive() is enabled, we need to start from the first chunk's message id
+                this.startMessageId = firstChunkMessageId;
+            } else {
+                this.startMessageId = (MessageIdAdv) startMessageId;
+            }
         }
         this.initialStartMessageId = this.startMessageId;
         this.startMessageRollbackDurationInSec = startMessageRollbackDurationInSec;
