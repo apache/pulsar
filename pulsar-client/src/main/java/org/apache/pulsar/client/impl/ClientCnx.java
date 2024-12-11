@@ -791,9 +791,8 @@ public class ClientCnx extends PulsarHandler {
             producers.get(producerId).recoverNotAllowedError(sequenceId, sendError.getMessage());
             break;
         default:
-            // By default, for transient error, let the reconnection logic
-            // to take place and re-establish the produce again
-            ctx.close();
+            // don't close this ctx, otherwise it will close all consumers and producers which use this ctx
+            producers.get(producerId).connectionClosed(this, Optional.empty(), Optional.empty());
         }
     }
 

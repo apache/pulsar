@@ -34,15 +34,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.UnpooledByteBufAllocator;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelPromise;
 import io.netty.util.concurrent.FastThreadLocalThread;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -67,51 +62,36 @@ import lombok.Data;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
-import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
-import org.apache.pulsar.broker.service.persistent.MessageDeduplication;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.InjectedClientCnxClientBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.client.impl.ClientBuilderImpl;
-import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
-import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
-import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
-import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
-import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.glassfish.jersey.client.JerseyClient;
@@ -137,13 +117,6 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
     @AfterClass(alwaysRun = true, timeOut = 300000)
     public void cleanup() throws Exception {
         super.cleanup();
-    }
-
-    @Override
-    protected void setConfigDefaults(ServiceConfiguration config, String clusterName,
-                                     LocalBookkeeperEnsemble bookkeeperEnsemble, ZookeeperServerTest brokerConfigZk) {
-        super.setConfigDefaults(config, clusterName, bookkeeperEnsemble, brokerConfigZk);
-        config.setBrokerDeduplicationEntriesInterval(10);
     }
 
     private void waitReplicatorStopped(String topicName) {
@@ -306,10 +279,18 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
     private Runnable injectMockReplicatorProducerBuilder(
                                 BiFunction<ProducerConfigurationData, ProducerImpl, ProducerImpl> producerDecorator)
             throws Exception {
-        waitInternalClientCreated();
-
         String cluster2 = pulsar2.getConfig().getClusterName();
         BrokerService brokerService = pulsar1.getBrokerService();
+        // Wait for the internal client created.
+        final String topicNameTriggerInternalClientCreate =
+                BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
+        admin1.topics().createNonPartitionedTopic(topicNameTriggerInternalClientCreate);
+        waitReplicatorStarted(topicNameTriggerInternalClientCreate);
+        cleanupTopics(() -> {
+            admin1.topics().delete(topicNameTriggerInternalClientCreate);
+            admin2.topics().delete(topicNameTriggerInternalClientCreate);
+        });
+
         // Inject spy client.
         final var replicationClients = brokerService.getReplicationClients();
         PulsarClientImpl internalClient = (PulsarClientImpl) replicationClients.get(cluster2);
@@ -350,18 +331,6 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             assertTrue(replicationClients.remove(cluster2, spyClient));
             assertNull(replicationClients.putIfAbsent(cluster2, internalClient));
         };
-    }
-
-    private void waitInternalClientCreated() throws Exception {
-        // Wait for the internal client created.
-        final String topicNameTriggerInternalClientCreate =
-                BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
-        admin1.topics().createNonPartitionedTopic(topicNameTriggerInternalClientCreate);
-        waitReplicatorStarted(topicNameTriggerInternalClientCreate);
-        cleanupTopics(() -> {
-            admin1.topics().delete(topicNameTriggerInternalClientCreate);
-            admin2.topics().delete(topicNameTriggerInternalClientCreate);
-        });
     }
 
     private SpyCursor spyCursor(PersistentTopic persistentTopic, String cursorName) throws Exception {
@@ -1195,310 +1164,6 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         admin2.topics().delete(tp, false);
         admin1.namespaces().deleteNamespace(ns);
         admin2.namespaces().deleteNamespace(ns);
-    }
-
-    private Runnable injectReplicatorClientCnx(
-            InjectedClientCnxClientBuilder.ClientCnxFactory clientCnxFactory) throws Exception {
-        waitInternalClientCreated();
-
-        String cluster2 = pulsar2.getConfig().getClusterName();
-        BrokerService brokerService = pulsar1.getBrokerService();
-        ClientBuilderImpl clientBuilder2 = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(url2.toString());
-
-        // Inject spy client.
-        final var replicationClients = brokerService.getReplicationClients();
-        PulsarClientImpl internalClient = (PulsarClientImpl) replicationClients.get(cluster2);
-        PulsarClientImpl injectedClient = InjectedClientCnxClientBuilder.create(clientBuilder2, clientCnxFactory);
-        assertTrue(replicationClients.remove(cluster2, internalClient));
-        assertNull(replicationClients.putIfAbsent(cluster2, injectedClient));
-
-        // Return a cleanup injection task;
-        return () -> {
-            assertTrue(replicationClients.remove(cluster2, injectedClient));
-            assertNull(replicationClients.putIfAbsent(cluster2, internalClient));
-            injectedClient.closeAsync();
-        };
-    }
-
-    @Test(timeOut = 360 * 1000)
-    public void testDeduplication() throws Exception {
-        final ObjectMapper jacksonForLog = new ObjectMapper();
-        // Replication start at earliest;
-        pulsar1.getConfiguration().setReplicationStartAt("earliest");
-
-        // 0. Inject a mechanism that duplicate all Send-Command for the replicator.
-        final List<ByteBufPair> duplicatedMsgs = new ArrayList<>();
-        Runnable taskToClearInjection = injectReplicatorClientCnx(
-            (conf, eventLoopGroup) -> new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
-                @Override
-                public ChannelHandlerContext ctx() {
-                    final ChannelHandlerContext originalCtx = super.ctx;
-                    ChannelHandlerContext spyContext = spy(originalCtx);
-                    doAnswer(invocation -> {
-                        // Do not repeat the messages re-sending, and clear the previous cached messages when
-                        // calling re-sending, to avoid publishing outs of order.
-                        for (StackTraceElement stackTraceElement : Thread.currentThread().getStackTrace()) {
-                            if (stackTraceElement.toString().contains("recoverProcessOpSendMsgFrom")
-                                    || stackTraceElement.toString().contains("resendMessages")) {
-                                duplicatedMsgs.clear();
-                                return invocation.callRealMethod();
-                            }
-                        }
-
-                        Object data = invocation.getArguments()[0];
-                        if (true && !(data instanceof ByteBufPair)) {
-                            return invocation.callRealMethod();
-                        }
-                        // Repeatedly send every message.
-                        ByteBufPair byteBufPair = (ByteBufPair) data;
-                        ByteBuf buf1 = byteBufPair.getFirst();
-                        ByteBuf buf2 = byteBufPair.getSecond();
-                        int bufferIndex1 = buf1.readerIndex();
-                        int bufferIndex2 = buf2.readerIndex();
-                        // Skip totalSize.
-                        buf1.readInt();
-                        int cmdSize = buf1.readInt();
-                        BaseCommand cmd = new BaseCommand();
-                        cmd.parseFrom(buf1, cmdSize);
-                        buf1.readerIndex(bufferIndex1);
-                        if (cmd.getType().equals(BaseCommand.Type.SEND)) {
-                            synchronized (duplicatedMsgs) {
-                                if (duplicatedMsgs.size() >= 10) {
-                                    for (ByteBufPair bufferPair : duplicatedMsgs) {
-                                        originalCtx.channel().write(bufferPair, originalCtx.voidPromise());
-                                        originalCtx.channel().flush();
-                                    }
-                                    duplicatedMsgs.clear();
-                                }
-                            }
-                            ByteBuf newBuffer1 = UnpooledByteBufAllocator.DEFAULT.heapBuffer(
-                                    buf1.readableBytes());
-                            buf1.readBytes(newBuffer1);
-                            buf1.readerIndex(bufferIndex1);
-                            ByteBuf newBuffer2 = UnpooledByteBufAllocator.DEFAULT.heapBuffer(
-                                    buf2.readableBytes());
-                            buf2.readBytes(newBuffer2);
-                            buf2.readerIndex(bufferIndex2);
-                            synchronized (duplicatedMsgs) {
-                                if (newBuffer2.readableBytes() > 0) {
-                                    duplicatedMsgs.add(ByteBufPair.get(newBuffer1, newBuffer2));
-                                }
-                            }
-                            return invocation.callRealMethod();
-                        } else {
-                            return invocation.callRealMethod();
-                        }
-                    }).when(spyContext).write(any(), any(ChannelPromise.class));
-                    return spyContext;
-                }
-            });
-
-        // 1. Create topics and enable deduplication.
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + nonReplicatedNamespace + "/tp_");
-        admin1.topics().createNonPartitionedTopic(topicName);
-        admin1.topics().createSubscription(topicName, "s1", MessageId.earliest);
-        admin2.topics().createNonPartitionedTopic(topicName);
-        admin2.topics().createSubscription(topicName, "s1", MessageId.earliest);
-        admin1.topics().createSubscription(topicName, "pulsar.repl.r2", MessageId.earliest);
-        Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
-            // TODO fix the bug, after unloading topic, the replication does not work.
-//            admin1.topics().unload(topicName);
-//            admin2.topics().unload(topicName);
-            // TODO fix the bug: the policy "admin1.topicPolicies().setDeduplicationSnapshotInterval(topicName, 10)"
-            //      does not work.
-            PersistentTopic persistentTopic1 =
-                    (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
-            PersistentTopic persistentTopic2 =
-                    (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
-            admin1.topicPolicies().setDeduplicationStatus(topicName, true);
-            admin1.topicPolicies().setSchemaCompatibilityStrategy(topicName,
-                    SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
-            admin2.topicPolicies().setDeduplicationStatus(topicName, true);
-            admin2.topicPolicies().setSchemaCompatibilityStrategy(topicName,
-                    SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
-            MessageDeduplication messageDeduplication1 = persistentTopic1.getMessageDeduplication();
-            if (messageDeduplication1 != null) {
-                int snapshotInterval1 = WhiteboxImpl.getInternalState(messageDeduplication1, "snapshotInterval");
-                assertEquals(snapshotInterval1, 10);
-            }
-            MessageDeduplication messageDeduplication2 = persistentTopic2.getMessageDeduplication();
-            if (messageDeduplication2 != null) {
-                int snapshotInterval2 = WhiteboxImpl.getInternalState(messageDeduplication2, "snapshotInterval");
-                assertEquals(snapshotInterval2, 10);
-            }
-            assertEquals(persistentTopic1.getHierarchyTopicPolicies().getDeduplicationEnabled().get(), Boolean.TRUE);
-            assertEquals(persistentTopic1.getHierarchyTopicPolicies().getSchemaCompatibilityStrategy().get(),
-                    SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
-            assertEquals(persistentTopic2.getHierarchyTopicPolicies().getDeduplicationEnabled().get(), Boolean.TRUE);
-            assertEquals(persistentTopic2.getHierarchyTopicPolicies().getSchemaCompatibilityStrategy().get(),
-                    SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
-            // TODO fix the bug: after schema check failed, the replication will get a broken package error.
-        });
-        PersistentTopic persistentTopic1 =
-                (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
-        PersistentTopic persistentTopic2 =
-                (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
-
-        // To cover more cases, write more than one ledger.
-        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic1.getManagedLedger();
-        managedLedger.getConfig().setMaxEntriesPerLedger(200);
-        managedLedger.getConfig().setMinimumRolloverTime(0, TimeUnit.SECONDS);
-        managedLedger.getConfig().setMaximumRolloverTime(10, TimeUnit.SECONDS);
-
-        // 2, Publish messages.
-        List<String> msgSent = new ArrayList<>();
-        Producer<Integer> p1 = client1.newProducer(Schema.INT32).topic(topicName).create();
-        Producer<Integer> p2 = client1.newProducer(Schema.INT32).topic(topicName).create();
-        Producer<String> p3 = client1.newProducer(Schema.STRING).topic(topicName).create();
-        Producer<Boolean> p4 = client1.newProducer(Schema.BOOL).topic(topicName).create();
-        for (int i = 0; i < 10; i++) {
-            p1.send(i);
-            msgSent.add(String.valueOf(i));
-        }
-        for (int i = 10; i < 200; i++) {
-            int msg1 = i;
-            int msg2 = 1000 + i;
-            String msg3 = (2000 + i) + "";
-            boolean msg4 = i % 2 == 0;
-            p1.send(msg1);
-            p2.send(msg2);
-            p3.send(msg3);
-            p4.send(msg4);
-            msgSent.add(String.valueOf(msg1));
-            msgSent.add(String.valueOf(msg2));
-            msgSent.add(String.valueOf(msg3));
-            msgSent.add(String.valueOf(msg4));
-        }
-        p1.close();
-        p2.close();
-        p3.close();
-        p4.close();
-
-        // 3. Enable replication.
-        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
-        Awaitility.await().atMost(Duration.ofSeconds(60)).untilAsserted(() -> {
-            for (ManagedCursor cursor : persistentTopic2.getManagedLedger().getCursors()) {
-                if (cursor.getName().equals("pulsar.repl.c2")) {
-                    assertEquals(cursor.getNumberOfEntriesInBacklog(true), 0);
-                }
-            }
-        });
-
-        // Verify: all messages were copied correctly.
-        List<String> msgReceived = new ArrayList<>();
-        Consumer<GenericRecord> consumer = client2.newConsumer(Schema.AUTO_CONSUME()).topic(topicName)
-                .subscriptionName("s1").subscribe();
-        while (true) {
-            Message<GenericRecord> msg = consumer.receive(10, TimeUnit.SECONDS);
-            if (msg == null) {
-                break;
-            }
-            MessageIdAdv messageIdAdv = (MessageIdAdv) msg.getMessageId();
-            log.info("received msg. source {}, target {}:{}", StringUtils.join(msg.getProperties().values(), ":"),
-                    messageIdAdv.getLedgerId(), messageIdAdv.getEntryId());
-            msgReceived.add(String.valueOf(msg.getValue()));
-            consumer.acknowledgeAsync(msg);
-        }
-        log.info("c1 topic stats-internal: "
-                + jacksonForLog.writeValueAsString(admin1.topics().getInternalStats(topicName)));
-        log.info("c2 topic stats-internal: "
-                + jacksonForLog.writeValueAsString(admin2.topics().getInternalStats(topicName)));
-        log.info("c1 topic stats-internal: "
-                + jacksonForLog.writeValueAsString(admin1.topics().getStats(topicName)));
-        log.info("c2 topic stats-internal: "
-                + jacksonForLog.writeValueAsString(admin2.topics().getStats(topicName)));
-        assertEquals(msgReceived, msgSent);
-        consumer.close();
-
-        // Verify: the deduplication cursor has been acked.
-        // "topic-policy.DeduplicationSnapshotInterval" is "10".
-        Awaitility.await().untilAsserted(() -> {
-            for (ManagedCursor cursor : persistentTopic1.getManagedLedger().getCursors()) {
-                if (cursor.getName().equals("pulsar.dedup")) {
-                    assertTrue(cursor.getNumberOfEntriesInBacklog(true) < 10);
-                }
-            }
-            for (ManagedCursor cursor : persistentTopic2.getManagedLedger().getCursors()) {
-                if (cursor.getName().equals("pulsar.dedup")) {
-                    assertTrue(cursor.getNumberOfEntriesInBacklog(true) < 10);
-                }
-            }
-        });
-        // Remove the injection.
-        taskToClearInjection.run();
-
-        log.info("======  Verify: all messages will be replicated after reopening replication  ======");
-
-        // Verify: all messages will be replicated after reopening replication.
-        // Reopen replication: stop replication.
-        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
-        waitReplicatorStopped(topicName);
-        Awaitility.await().until(() -> {
-            for (ManagedCursor cursor : persistentTopic1.getManagedLedger().getCursors()) {
-                if (cursor.getName().equals("pulsar.repl.r2")) {
-                    return false;
-                }
-            }
-            return true;
-        });
-        admin2.topics().unload(topicName);
-        admin2.topics().delete(topicName);
-        // Reopen replication: enable replication.
-        admin2.topics().createNonPartitionedTopic(topicName);
-        admin2.topics().createSubscription(topicName, "s1", MessageId.earliest);
-        admin1.topics().deleteSubscription(topicName, "pulsar.repl.r2");
-        admin1.topics().createSubscription(topicName, "pulsar.repl.r2", MessageId.earliest);
-        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
-        Awaitility.await().atMost(Duration.ofSeconds(60)).untilAsserted(() -> {
-            for (ManagedCursor cursor : persistentTopic2.getManagedLedger().getCursors()) {
-                if (cursor.getName().equals("pulsar.repl.c2")) {
-                    assertEquals(cursor.getNumberOfEntriesInBacklog(true), 0);
-                }
-            }
-        });
-        // Reopen replication: consumption.
-        List<String> msgReceived2 = new ArrayList<>();
-        Consumer<GenericRecord> consumer2 = client2.newConsumer(Schema.AUTO_CONSUME()).topic(topicName)
-                .subscriptionName("s1").subscribe();
-        while (true) {
-            Message<GenericRecord> msg = consumer2.receive(10, TimeUnit.SECONDS);
-            if (msg == null) {
-                break;
-            }
-            MessageIdAdv messageIdAdv = (MessageIdAdv) msg.getMessageId();
-            log.info("received msg. source {}, target {}:{}", StringUtils.join(msg.getProperties().values(), ":"),
-                    messageIdAdv.getLedgerId(), messageIdAdv.getEntryId());
-            msgReceived2.add(String.valueOf(msg.getValue()));
-            consumer2.acknowledgeAsync(msg);
-        }
-        // Verify: all messages were copied correctly.
-        log.info("c1 topic stats-internal: "
-                + jacksonForLog.writeValueAsString(admin1.topics().getInternalStats(topicName)));
-        log.info("c2 topic stats-internal: "
-                + jacksonForLog.writeValueAsString(admin2.topics().getInternalStats(topicName)));
-        log.info("c1 topic stats-internal: "
-                + jacksonForLog.writeValueAsString(admin1.topics().getStats(topicName)));
-        log.info("c2 topic stats-internal: "
-                + jacksonForLog.writeValueAsString(admin2.topics().getStats(topicName)));
-        assertEquals(msgReceived2, msgSent);
-        consumer2.close();
-
-        // cleanup.
-        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
-        waitReplicatorStopped(topicName);
-        Awaitility.await().until(() -> {
-            for (ManagedCursor cursor : persistentTopic1.getManagedLedger().getCursors()) {
-                if (cursor.getName().equals("pulsar.repl.r2")) {
-                    return false;
-                }
-            }
-            return true;
-        });
-        admin1.topics().unload(topicName);// TODO fix the bug: topic can not be deleted successfully without an unload,
-        admin1.topics().delete(topicName);
-        admin2.topics().unload(topicName);
-        admin2.topics().delete(topicName);
-        pulsar1.getConfiguration().setReplicationStartAt("latest");
     }
 
     @Test

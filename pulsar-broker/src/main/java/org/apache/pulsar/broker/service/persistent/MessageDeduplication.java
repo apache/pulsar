@@ -402,7 +402,6 @@ public class MessageDeduplication {
                     publishContext.supportsDedupReplV2(), publishContext.getSequenceId(),
                     MSG_PROP_REPL_SEQUENCE_LID, replSequenceLId,
                     MSG_PROP_REPL_SEQUENCE_EID, replSequenceEId);
-            //  TODO 有没有可能：第一个客户端支持，第二个客户端不支持？
             return MessageDupStatus.Unknown;
         }
 
@@ -443,7 +442,6 @@ public class MessageDeduplication {
                             && replSequenceEId.compareTo(lastSequenceEIdPersisted) <= 0))) {
                     return MessageDupStatus.Dup;
                 } else {
-                    // TODO 查看 in-progress 的写入。。。
                     return MessageDupStatus.Unknown;
                 }
             }

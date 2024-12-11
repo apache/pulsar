@@ -148,162 +148,34 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
         };
     }
 
-//    @Test
-//    public void testDeduplicationCompatability() throws Exception {
-//        // 0. Inject a mechanism that make the connection disable the feature named "supportsDedupReplV2".
-//        Runnable taskToClearInjection = injectReplicatorClientCnx(
-//            (conf, eventLoopGroup) -> new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
-//                @Override
-//                protected ByteBuf newConnectCommand() throws Exception {
-//                    // mutual authentication is to auth between `remoteHostName` and this client for this channel.
-//                    // each channel will have a mutual client/server pair, mutual client evaluateChallenge with init data,
-//                    // and return authData to server.
-//                    authenticationDataProvider = authentication.getAuthData(remoteHostName);
-//                    AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
-//                    BaseCommand cmd = Commands.newConnectWithoutSerialize(authentication.getAuthMethodName(), authData,
-//                            this.protocolVersion, clientVersion, proxyToTargetBrokerAddress, null, null, null, null);
-//                    cmd.getConnect().getFeatureFlags().setSupportsDedupReplV2(false);
-//                    return Commands.serializeWithSize(cmd);
-//                }
-//            });
-//
-//        // 1. Create topics and enable deduplication.
-//        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + nonReplicatedNamespace + "/tp_");
-//        admin1.topics().createNonPartitionedTopic(topicName);
-//        admin1.topics().createSubscription(topicName, "s1", MessageId.earliest);
-//        admin2.topics().createNonPartitionedTopic(topicName);
-//        admin2.topics().createSubscription(topicName, "s1", MessageId.earliest);
-//        PersistentTopic tp1 =
-//                (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
-//        PersistentTopic tp2 =
-//                (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
-//
-//        // 2, Publish messages.
-//        List<String> msgSent = new ArrayList<>();
-//        Producer<Integer> p1 = client1.newProducer(Schema.INT32).topic(topicName).create();
-//        Producer<Integer> p2 = client1.newProducer(Schema.INT32).topic(topicName).create();
-//        Producer<String> p3 = client1.newProducer(Schema.STRING).topic(topicName).create();
-//        Producer<Boolean> p4 = client1.newProducer(Schema.BOOL).topic(topicName).create();
-//        for (int i = 0; i < 10; i++) {
-//            p1.send(i);
-//            msgSent.add(String.valueOf(i));
-//        }
-//        for (int i = 10; i < 200; i++) {
-//            int msg1 = i;
-//            int msg2 = 1000 + i;
-//            String msg3 = (2000 + i) + "";
-//            boolean msg4 = i % 2 == 0;
-//            p1.send(msg1);
-//            p2.send(msg2);
-//            p3.send(msg3);
-//            p4.send(msg4);
-//            msgSent.add(String.valueOf(msg1));
-//            msgSent.add(String.valueOf(msg2));
-//            msgSent.add(String.valueOf(msg3));
-//            msgSent.add(String.valueOf(msg4));
-//        }
-//        p1.close();
-//        p2.close();
-//        p3.close();
-//        p4.close();
-//
-//        // 3. Enable replication.
-//        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
-//        Awaitility.await().atMost(Duration.ofSeconds(60)).untilAsserted(() -> {
-//            for (ManagedCursor cursor : tp2.getManagedLedger().getCursors()) {
-//                if (cursor.getName().equals("pulsar.repl.c2")) {
-//                    assertEquals(cursor.getNumberOfEntriesInBacklog(true), 0);
-//                }
-//            }
-//        });
-//
-//        // Verify: all messages were copied correctly.
-//        List<String> msgReceived = new ArrayList<>();
-//        Consumer<GenericRecord> consumer = client2.newConsumer(Schema.AUTO_CONSUME()).topic(topicName)
-//                .subscriptionName("s1").subscribe();
-//        while (true) {
-//            Message<GenericRecord> msg = consumer.receive(10, TimeUnit.SECONDS);
-//            if (msg == null) {
-//                break;
-//            }
-//            MessageIdAdv messageIdAdv = (MessageIdAdv) msg.getMessageId();
-//            log.info("received msg. source {}, target {}:{}", StringUtils.join(msg.getProperties().values(), ":"),
-//                    messageIdAdv.getLedgerId(), messageIdAdv.getEntryId());
-//            msgReceived.add(String.valueOf(msg.getValue()));
-//            consumer.acknowledgeAsync(msg);
-//        }
-//        log.info("c1 topic stats-internal: "
-//                + JACKSON.writeValueAsString(admin1.topics().getInternalStats(topicName)));
-//        log.info("c2 topic stats-internal: "
-//                + JACKSON.writeValueAsString(admin2.topics().getInternalStats(topicName)));
-//        log.info("c1 topic stats-internal: "
-//                + JACKSON.writeValueAsString(admin1.topics().getStats(topicName)));
-//        log.info("c2 topic stats-internal: "
-//                + JACKSON.writeValueAsString(admin2.topics().getStats(topicName)));
-//        assertEquals(msgReceived, msgSent);
-//        consumer.close();
-//
-//        // Verify: the deduplication cursor has been acked.
-//        // "topic-policy.DeduplicationSnapshotInterval" is "10".
-//        Awaitility.await().untilAsserted(() -> {
-//            for (ManagedCursor cursor : tp1.getManagedLedger().getCursors()) {
-//                if (cursor.getName().equals("pulsar.dedup")) {
-//                    assertTrue(cursor.getNumberOfEntriesInBacklog(true) < 10);
-//                }
-//            }
-//            for (ManagedCursor cursor : tp2.getManagedLedger().getCursors()) {
-//                if (cursor.getName().equals("pulsar.dedup")) {
-//                    assertTrue(cursor.getNumberOfEntriesInBacklog(true) < 10);
-//                }
-//            }
-//        });
-//
-//        // cleanup.
-//        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
-//        waitReplicatorStopped(topicName);
-//        Awaitility.await().until(() -> {
-//            for (ManagedCursor cursor : tp1.getManagedLedger().getCursors()) {
-//                if (cursor.getName().equals("pulsar.repl.r2")) {
-//                    return false;
-//                }
-//            }
-//            return true;
-//        });
-//        admin1.topics().unload(topicName);
-//        admin1.topics().delete(topicName);
-//        admin2.topics().unload(topicName);
-//        admin2.topics().delete(topicName);
-//        pulsar1.getConfiguration().setReplicationStartAt("latest");
-//    }
-
     @DataProvider(name = "deduplicationArgs")
     public Object[][] deduplicationArgs() {
         return new Object[][] {
-//            {true/* inject repeated publishing*/, 1/* repeated messages window */,
-//                    true /* supportsDedupReplV2 */, false/* multi schemas */},
-//            {true/* inject repeated publishing*/, 2/* repeated messages window */,
-//                    true /* supportsDedupReplV2 */, false/* multi schemas */},
-//            {true/* inject repeated publishing*/, 3/* repeated messages window */,
-//                    true /* supportsDedupReplV2 */, false/* multi schemas */},
-//            {true/* inject repeated publishing*/, 4/* repeated messages window */,
-//                    true /* supportsDedupReplV2 */, false/* multi schemas */},
-//            {true/* inject repeated publishing*/, 5/* repeated messages window */,
-//                    true /* supportsDedupReplV2 */, false/* multi schemas */},
-//            {true/* inject repeated publishing*/, 10/* repeated messages window */,
-//                    true /* supportsDedupReplV2 */, false/* multi schemas */},
-//            // ===== multi schema
-//            {true/* inject repeated publishing*/, 1/* repeated messages window */,
-//                    true /* supportsDedupReplV2 */, true/* multi schemas */},
-//            {true/* inject repeated publishing*/, 2/* repeated messages window */,
-//                    true /* supportsDedupReplV2 */, true/* multi schemas */},
-//            {true/* inject repeated publishing*/, 3/* repeated messages window */,
-//                    true /* supportsDedupReplV2 */, true/* multi schemas */},
-//            {true/* inject repeated publishing*/, 4/* repeated messages window */,
-//                    true /* supportsDedupReplV2 */, true/* multi schemas */},
-//            {true/* inject repeated publishing*/, 5/* repeated messages window */,
-//                    true /* supportsDedupReplV2 */, true/* multi schemas */},
-//            {true/* inject repeated publishing*/, 10/* repeated messages window */,
-//                    true /* supportsDedupReplV2 */, true/* multi schemas */},
+            {true/* inject repeated publishing*/, 1/* repeated messages window */,
+                    true /* supportsDedupReplV2 */, false/* multi schemas */},
+            {true/* inject repeated publishing*/, 2/* repeated messages window */,
+                    true /* supportsDedupReplV2 */, false/* multi schemas */},
+            {true/* inject repeated publishing*/, 3/* repeated messages window */,
+                    true /* supportsDedupReplV2 */, false/* multi schemas */},
+            {true/* inject repeated publishing*/, 4/* repeated messages window */,
+                    true /* supportsDedupReplV2 */, false/* multi schemas */},
+            {true/* inject repeated publishing*/, 5/* repeated messages window */,
+                    true /* supportsDedupReplV2 */, false/* multi schemas */},
+            {true/* inject repeated publishing*/, 10/* repeated messages window */,
+                    true /* supportsDedupReplV2 */, false/* multi schemas */},
+            // ===== multi schema
+            {true/* inject repeated publishing*/, 1/* repeated messages window */,
+                    true /* supportsDedupReplV2 */, true/* multi schemas */},
+            {true/* inject repeated publishing*/, 2/* repeated messages window */,
+                    true /* supportsDedupReplV2 */, true/* multi schemas */},
+            {true/* inject repeated publishing*/, 3/* repeated messages window */,
+                    true /* supportsDedupReplV2 */, true/* multi schemas */},
+            {true/* inject repeated publishing*/, 4/* repeated messages window */,
+                    true /* supportsDedupReplV2 */, true/* multi schemas */},
+            {true/* inject repeated publishing*/, 5/* repeated messages window */,
+                    true /* supportsDedupReplV2 */, true/* multi schemas */},
+            {true/* inject repeated publishing*/, 10/* repeated messages window */,
+                    true /* supportsDedupReplV2 */, true/* multi schemas */},
             // ===== Compatability "source-cluster: old, target-cluster: new".
             {false/* inject repeated publishing*/, 0/* repeated messages window */,
                     false /* supportsDedupReplV2 */, false/* multi schemas */},
