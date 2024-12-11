@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -3667,5 +3668,24 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertThrows(NotFoundException.class, () -> admin.topics().getPermissions(topic));
         assertThrows(NotFoundException.class, () -> admin.topics().grantPermission(topic, subject, Set.of(AuthAction.produce)));
         assertThrows(NotFoundException.class, () -> admin.topics().revokePermissions(topic, subject));
+    }
+
+    @Test
+    @SneakyThrows
+    public void testPermissionsAllowAclChangesOnNonExistentTopics() {
+        pulsar.getConfiguration().setAllowAclChangesOnNonExistentTopics(true);
+        try {
+            String namespace = "prop-xyz/ns1/";
+            final String random = UUID.randomUUID().toString();
+            final String topic = "persistent://" + namespace + random;
+            final String subject = UUID.randomUUID().toString();
+            admin.topics().grantPermission(topic, subject, Set.of(AuthAction.produce));
+            assertThat(admin.topics().getPermissions(topic).get(subject)).containsExactly(AuthAction.produce);
+            admin.topics().revokePermissions(topic, subject);
+            assertThat(admin.topics().getPermissions(topic).get(subject)).isNullOrEmpty();
+        } finally {
+            // reset config
+            pulsar.getConfiguration().setAllowAclChangesOnNonExistentTopics(false);
+        }
     }
 }
