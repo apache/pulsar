@@ -194,7 +194,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     });
                 } else {
                     // TODO test cases
-                    //   - Reopen Geo-Replication.
+                    //   - Reopen Geo-Replication. -> Done
                     //   - Multi version schemas. -> Done
                     //   - Deduplicated replication. -> Done
                     //   - Compatability test.
