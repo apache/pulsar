@@ -439,9 +439,8 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder tlsProtocols(Set<String> tlsProtocols);
 
     /**
-     * Configure a limit on the amount of direct memory that will be allocated by this client instance.
-     * <p>
-     * <b>Note: at this moment this is only limiting the memory for producers.</b>
+     * Configure a limit on the amount of direct memory that will be allocated by this client instance
+     * <i>(default: 64 MB)</i>.
      * <p>
      * Setting this to 0 will disable the limit.
      *
