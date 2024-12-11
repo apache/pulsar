@@ -79,6 +79,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
     @BeforeClass(alwaysRun = true, timeOut = 300000)
     public void setup() throws Exception {
         super.setup();
+        waitInternalClientCreated();
     }
 
     @Override
@@ -128,8 +129,6 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
 
     protected Runnable injectReplicatorClientCnx(
             InjectedClientCnxClientBuilder.ClientCnxFactory clientCnxFactory) throws Exception {
-        waitInternalClientCreated();
-
         String cluster2 = pulsar2.getConfig().getClusterName();
         BrokerService brokerService = pulsar1.getBrokerService();
         ClientBuilderImpl clientBuilder2 = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(url2.toString());
@@ -280,19 +279,44 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
     @DataProvider(name = "deduplicationArgs")
     public Object[][] deduplicationArgs() {
         return new Object[][] {
-//            {true/* inject repeated publishing*/, 1, /* repeated messages window */ true /* supportsDedupReplV2 */},
-//            {true/* inject repeated publishing*/, 2, /* repeated messages window */ true /* supportsDedupReplV2 */},
-//            {true/* inject repeated publishing*/, 3, /* repeated messages window */ true /* supportsDedupReplV2 */},
-//            {true/* inject repeated publishing*/, 4, /* repeated messages window */ true /* supportsDedupReplV2 */},
-//            {true/* inject repeated publishing*/, 5, /* repeated messages window */ true /* supportsDedupReplV2 */},
-//            {true/* inject repeated publishing*/, 10, /* repeated messages window */ true /* supportsDedupReplV2 */},
-            {false/* inject repeated publishing*/, 0, /* repeated messages window */ false /* supportsDedupReplV2 */},
+//            {true/* inject repeated publishing*/, 1/* repeated messages window */,
+//                    true /* supportsDedupReplV2 */, false/* multi schemas */},
+//            {true/* inject repeated publishing*/, 2/* repeated messages window */,
+//                    true /* supportsDedupReplV2 */, false/* multi schemas */},
+//            {true/* inject repeated publishing*/, 3/* repeated messages window */,
+//                    true /* supportsDedupReplV2 */, false/* multi schemas */},
+//            {true/* inject repeated publishing*/, 4/* repeated messages window */,
+//                    true /* supportsDedupReplV2 */, false/* multi schemas */},
+//            {true/* inject repeated publishing*/, 5/* repeated messages window */,
+//                    true /* supportsDedupReplV2 */, false/* multi schemas */},
+//            {true/* inject repeated publishing*/, 10/* repeated messages window */,
+//                    true /* supportsDedupReplV2 */, false/* multi schemas */},
+//            // ===== multi schema
+//            {true/* inject repeated publishing*/, 1/* repeated messages window */,
+//                    true /* supportsDedupReplV2 */, true/* multi schemas */},
+//            {true/* inject repeated publishing*/, 2/* repeated messages window */,
+//                    true /* supportsDedupReplV2 */, true/* multi schemas */},
+//            {true/* inject repeated publishing*/, 3/* repeated messages window */,
+//                    true /* supportsDedupReplV2 */, true/* multi schemas */},
+//            {true/* inject repeated publishing*/, 4/* repeated messages window */,
+//                    true /* supportsDedupReplV2 */, true/* multi schemas */},
+//            {true/* inject repeated publishing*/, 5/* repeated messages window */,
+//                    true /* supportsDedupReplV2 */, true/* multi schemas */},
+//            {true/* inject repeated publishing*/, 10/* repeated messages window */,
+//                    true /* supportsDedupReplV2 */, true/* multi schemas */},
+            // ===== Compatability "source-cluster: old, target-cluster: new".
+            {false/* inject repeated publishing*/, 0/* repeated messages window */,
+                    false /* supportsDedupReplV2 */, false/* multi schemas */},
+            {false/* inject repeated publishing*/, 0/* repeated messages window */,
+                    false /* supportsDedupReplV2 */, true/* multi schemas */},
+            {false/* inject repeated publishing*/, 3/* repeated messages window */,
+                    false /* supportsDedupReplV2 */, true/* multi schemas */},
         };
     }
 
     @Test(timeOut = 360 * 1000, dataProvider = "deduplicationArgs")
     public void testDeduplication(final boolean injectRepeatedPublish, final int repeatedMessagesWindow,
-                                  final boolean supportsDedupReplV2) throws Exception {
+                                  final boolean supportsDedupReplV2, boolean multiSchemas) throws Exception {
         // 0. Inject a mechanism that duplicate all Send-Command for the replicator.
         final List<ByteBufPair> duplicatedMsgs = new ArrayList<>();
         Runnable taskToClearInjection = injectReplicatorClientCnx(
@@ -309,6 +333,11 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                             this.protocolVersion, clientVersion, proxyToTargetBrokerAddress, null, null, null, null);
                     cmd.getConnect().getFeatureFlags().setSupportsDedupReplV2(false);
                     return Commands.serializeWithSize(cmd);
+                }
+
+                @Override
+                public boolean isBrokerSupportsDedupReplV2() {
+                    return supportsDedupReplV2;
                 }
 
                 @Override
@@ -436,22 +465,24 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
             boolean msg4 = i % 2 == 0;
             p1.send(msg1);
             p2.send(msg2);
-            p3.send(msg3);
-            p4.send(msg4);
             msgSent.add(String.valueOf(msg1));
             msgSent.add(String.valueOf(msg2));
-            msgSent.add(String.valueOf(msg3));
-            msgSent.add(String.valueOf(msg4));
+            if (multiSchemas) {
+                p3.send(msg3);
+                p4.send(msg4);
+                msgSent.add(String.valueOf(msg3));
+                msgSent.add(String.valueOf(msg4));
+            }
         }
         p1.close();
         p2.close();
         p3.close();
         p4.close();
 
-        // 3. Enable replication.
+        // 3. Enable replication and wait the task to be finished.
         admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
         Awaitility.await().atMost(Duration.ofSeconds(60)).untilAsserted(() -> {
-            for (ManagedCursor cursor : tp2.getManagedLedger().getCursors()) {
+            for (ManagedCursor cursor : tp1.getManagedLedger().getCursors()) {
                 if (cursor.getName().equals("pulsar.repl.c2")) {
                     assertEquals(cursor.getNumberOfEntriesInBacklog(true), 0);
                 }
@@ -577,6 +608,5 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
         admin1.topics().delete(topicName);
         admin2.topics().unload(topicName);
         admin2.topics().delete(topicName);
-        pulsar1.getConfiguration().setReplicationStartAt("latest");
     }
 }

@@ -274,7 +274,7 @@ public class Producer {
                                        boolean isMarker, Position position) {
         MessagePublishContext messagePublishContext =
                 MessagePublishContext.get(this, sequenceId, headersAndPayload.readableBytes(),
-                        batchSize, isChunked, System.nanoTime(), isMarker, position, cnx.supportsDedupReplV2());
+                        batchSize, isChunked, System.nanoTime(), isMarker, position, cnx.isClientSupportsDedupReplV2());
         if (brokerInterceptor != null) {
             brokerInterceptor
                     .onMessagePublish(this, headersAndPayload, messagePublishContext);
@@ -286,7 +286,7 @@ public class Producer {
                                        int batchSize, boolean isChunked, boolean isMarker, Position position) {
         MessagePublishContext messagePublishContext = MessagePublishContext.get(this, lowestSequenceId,
                 highestSequenceId, headersAndPayload.readableBytes(), batchSize,
-                isChunked, System.nanoTime(), isMarker, position, cnx.supportsDedupReplV2());
+                isChunked, System.nanoTime(), isMarker, position, cnx.isClientSupportsDedupReplV2());
         if (brokerInterceptor != null) {
             brokerInterceptor
                     .onMessagePublish(this, headersAndPayload, messagePublishContext);
@@ -846,7 +846,7 @@ public class Producer {
         MessagePublishContext messagePublishContext =
                 MessagePublishContext.get(this, sequenceId, highSequenceId,
                         headersAndPayload.readableBytes(), batchSize, isChunked, System.nanoTime(), isMarker, null,
-                        cnx.supportsDedupReplV2());
+                        cnx.isClientSupportsDedupReplV2());
         if (brokerInterceptor != null) {
             brokerInterceptor
                     .onMessagePublish(this, headersAndPayload, messagePublishContext);

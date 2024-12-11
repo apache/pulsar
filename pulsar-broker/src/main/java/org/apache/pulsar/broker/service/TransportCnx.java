@@ -107,7 +107,7 @@ public interface TransportCnx {
 
     FeatureFlags getFeatures();
 
-    default boolean supportsDedupReplV2() {
+    default boolean isClientSupportsDedupReplV2() {
         return getFeatures() != null && getFeatures().hasSupportsDedupReplV2() && getFeatures().isSupportsDedupReplV2();
     }
 }

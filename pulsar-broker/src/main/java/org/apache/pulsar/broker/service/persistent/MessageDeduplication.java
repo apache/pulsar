@@ -337,7 +337,7 @@ public class MessageDeduplication {
                 return isDuplicateReplV2(publishContext, headersAndPayload);
             }
         }
-        return isDuplicateNormal(publishContext, headersAndPayload);
+        return isDuplicateNormal(publishContext, headersAndPayload, false);
     }
 
     public MessageDupStatus isDuplicateReplV1(PublishContext publishContext, ByteBuf headersAndPayload) {
@@ -353,7 +353,7 @@ public class MessageDeduplication {
         publishContext.setOriginalProducerName(producerName);
         publishContext.setOriginalSequenceId(sequenceId);
         publishContext.setOriginalHighestSequenceId(highestSequenceId);
-        return isDuplicateNormal(publishContext, headersAndPayload);
+        return isDuplicateNormal(publishContext, headersAndPayload, true);
     }
 
     private void setContextPropsIfRepl(PublishContext publishContext, ByteBuf headersAndPayload) {
@@ -457,8 +457,12 @@ public class MessageDeduplication {
         return MessageDupStatus.NotDup;
     }
 
-    public MessageDupStatus isDuplicateNormal(PublishContext publishContext, ByteBuf headersAndPayload) {
+    public MessageDupStatus isDuplicateNormal(PublishContext publishContext, ByteBuf headersAndPayload,
+                                              boolean useOriginalProducerName) {
         String producerName = publishContext.getProducerName();
+        if (useOriginalProducerName) {
+            producerName = publishContext.getOriginalProducerName();
+        }
         long sequenceId = publishContext.getSequenceId();
         long highestSequenceId = Math.max(publishContext.getHighestSequenceId(), sequenceId);
         MessageMetadata md = null;

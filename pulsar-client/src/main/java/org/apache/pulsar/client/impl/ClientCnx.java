@@ -194,7 +194,7 @@ public class ClientCnx extends PulsarHandler {
     @Getter
     private boolean supportsGetPartitionedMetadataWithoutAutoCreation;
     @Getter
-    private boolean supportsDedupReplV2;
+    private boolean brokerSupportsDedupReplV2;
 
     /** Idle stat. **/
     @Getter
@@ -407,7 +407,7 @@ public class ClientCnx extends PulsarHandler {
         supportsGetPartitionedMetadataWithoutAutoCreation =
             connected.hasFeatureFlags()
                     && connected.getFeatureFlags().isSupportsGetPartitionedMetadataWithoutAutoCreation();
-        supportsDedupReplV2 =
+        brokerSupportsDedupReplV2 =
             connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsDedupReplV2();
 
         // set remote protocol version to the correct version before we complete the connection future
