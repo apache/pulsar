@@ -270,7 +270,7 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync());
 
         var checkIfTopicExists = !pulsar().getConfiguration().isAllowAclChangesOnNonExistentTopics();
-        if (!checkIfTopicExists) {
+        if (checkIfTopicExists) {
             validateAccessForTenantCf = validateAccessForTenantCf
                     .thenCompose(__ -> internalCheckTopicExists(topicName));
         }
