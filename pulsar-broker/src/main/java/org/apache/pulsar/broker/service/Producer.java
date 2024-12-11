@@ -546,7 +546,7 @@ public class Producer {
             // stats
             producer.stats.recordMsgIn(batchSize, msgSize);
             producer.topic.recordAddLatency(System.nanoTime() - startTimeNs, TimeUnit.NANOSECONDS);
-            if (producer.isRemote()) {
+            if (producer.isRemote() && supportsDedupReplV2) {
                 sendSendReceiptResponseRepl();
             } else {
                 sendSendReceiptResponseNormal();

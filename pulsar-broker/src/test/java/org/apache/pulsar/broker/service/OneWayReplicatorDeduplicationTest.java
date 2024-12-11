@@ -359,10 +359,13 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
 
         // 3. Enable replication and wait the task to be finished.
         admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
+        waitReplicatorStarted(topicName);
         Awaitility.await().atMost(Duration.ofSeconds(60)).untilAsserted(() -> {
             for (ManagedCursor cursor : tp1.getManagedLedger().getCursors()) {
-                if (cursor.getName().equals("pulsar.repl.c2")) {
-                    assertEquals(cursor.getNumberOfEntriesInBacklog(true), 0);
+                if (cursor.getName().equals("pulsar.repl.r2")) {
+                    long replBacklog = cursor.getNumberOfEntriesInBacklog(true);
+                    log.info("repl backlog: {}", replBacklog);
+                    assertEquals(replBacklog, 0);
                 }
             }
         });
