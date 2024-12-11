@@ -186,6 +186,12 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
         };
     }
 
+    // TODO add more tests
+    //  - The old deduplication does not work when multi source producers use a same sequence-id.
+    //    - Add more issue explain in the PR.
+    //  - Review the code to confirm that multi source-brokers can work when the source topic switch.
+    //  - Try to reproduce the issue mentioned in the PR.
+
     @Test(timeOut = 360 * 1000, dataProvider = "deduplicationArgs")
     public void testDeduplication(final boolean injectRepeatedPublish, final int repeatedMessagesWindow,
                                   final boolean supportsDedupReplV2, boolean multiSchemas) throws Exception {
