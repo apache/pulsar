@@ -1384,9 +1384,10 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             }
         });
 
+        // Verify: all messages were copied correctly.
         List<String> msgReceived = new ArrayList<>();
-        Consumer<GenericRecord> consumer = client2.newConsumer(Schema.AUTO_CONSUME()).topic(topicName).subscriptionName("s1")
-                .subscribe();
+        Consumer<GenericRecord> consumer = client2.newConsumer(Schema.AUTO_CONSUME()).topic(topicName)
+                .subscriptionName("s1").subscribe();
         while (true) {
             Message<GenericRecord> msg = consumer.receive(10, TimeUnit.SECONDS);
             if (msg == null) {
@@ -1398,8 +1399,6 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             msgReceived.add(String.valueOf(msg.getValue()));
             consumer.acknowledgeAsync(msg);
         }
-
-        // Verify: all messages were copied correctly.
         log.info("c1 topic stats-internal: "
                 + jacksonForLog.writeValueAsString(admin1.topics().getInternalStats(topicName)));
         log.info("c2 topic stats-internal: "
@@ -1425,16 +1424,81 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                 }
             }
         });
-
-        // cleanup.
+        // Remove the injection.
         taskToClearInjection.run();
-        pulsar1.getConfiguration().setReplicationStartAt("latest");
+
+        log.info("======  Verify: all messages will be replicated after reopening replication  ======");
+
+        // Verify: all messages will be replicated after reopening replication.
+        // Reopen replication: stop replication.
         admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
         waitReplicatorStopped(topicName);
+        Awaitility.await().until(() -> {
+            for (ManagedCursor cursor : persistentTopic1.getManagedLedger().getCursors()) {
+                if (cursor.getName().equals("pulsar.repl.r2")) {
+                    return false;
+                }
+            }
+            return true;
+        });
         admin2.topics().unload(topicName);
         admin2.topics().delete(topicName);
+        // Reopen replication: enable replication.
+        admin2.topics().createNonPartitionedTopic(topicName);
+        admin2.topics().createSubscription(topicName, "s1", MessageId.earliest);
+        admin1.topics().deleteSubscription(topicName, "pulsar.repl.r2");
+        admin1.topics().createSubscription(topicName, "pulsar.repl.r2", MessageId.earliest);
+        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
+        Awaitility.await().atMost(Duration.ofSeconds(60)).untilAsserted(() -> {
+            for (ManagedCursor cursor : persistentTopic2.getManagedLedger().getCursors()) {
+                if (cursor.getName().equals("pulsar.repl.c2")) {
+                    assertEquals(cursor.getNumberOfEntriesInBacklog(true), 0);
+                }
+            }
+        });
+        // Reopen replication: consumption.
+        List<String> msgReceived2 = new ArrayList<>();
+        Consumer<GenericRecord> consumer2 = client2.newConsumer(Schema.AUTO_CONSUME()).topic(topicName)
+                .subscriptionName("s1").subscribe();
+        while (true) {
+            Message<GenericRecord> msg = consumer2.receive(10, TimeUnit.SECONDS);
+            if (msg == null) {
+                break;
+            }
+            MessageIdAdv messageIdAdv = (MessageIdAdv) msg.getMessageId();
+            log.info("received msg. source {}, target {}:{}", StringUtils.join(msg.getProperties().values(), ":"),
+                    messageIdAdv.getLedgerId(), messageIdAdv.getEntryId());
+            msgReceived2.add(String.valueOf(msg.getValue()));
+            consumer2.acknowledgeAsync(msg);
+        }
+        // Verify: all messages were copied correctly.
+        log.info("c1 topic stats-internal: "
+                + jacksonForLog.writeValueAsString(admin1.topics().getInternalStats(topicName)));
+        log.info("c2 topic stats-internal: "
+                + jacksonForLog.writeValueAsString(admin2.topics().getInternalStats(topicName)));
+        log.info("c1 topic stats-internal: "
+                + jacksonForLog.writeValueAsString(admin1.topics().getStats(topicName)));
+        log.info("c2 topic stats-internal: "
+                + jacksonForLog.writeValueAsString(admin2.topics().getStats(topicName)));
+        assertEquals(msgReceived2, msgSent);
+        consumer2.close();
+
+        // cleanup.
+        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
+        waitReplicatorStopped(topicName);
+        Awaitility.await().until(() -> {
+            for (ManagedCursor cursor : persistentTopic1.getManagedLedger().getCursors()) {
+                if (cursor.getName().equals("pulsar.repl.r2")) {
+                    return false;
+                }
+            }
+            return true;
+        });
         admin1.topics().unload(topicName);// TODO fix the bug: topic can not be deleted successfully without an unload,
         admin1.topics().delete(topicName);
+        admin2.topics().unload(topicName);
+        admin2.topics().delete(topicName);
+        pulsar1.getConfiguration().setReplicationStartAt("latest");
     }
 
     @Test

@@ -2067,7 +2067,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         String name = PersistentReplicator.getReplicatorName(replicatorPrefix, remoteCluster);
         final InitialPosition initialPosition;
-        if (MessageId.earliest.toString()
+        if (InitialPosition.Earliest.toString() // TODO Bug fix.
                 .equalsIgnoreCase(getBrokerService().getPulsar().getConfiguration().getReplicationStartAt())) {
             initialPosition = InitialPosition.Earliest;
         } else {
@@ -3640,6 +3640,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo
                 markDeletePositionLedgerInfo = ledger.getLedgerInfo(markDeletePosition.getLedgerId()).get();
+        // TODO markDeletePositionLedgerInfo may be null;
 
         org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo positionToCheckLedgerInfo =
                 markDeletePositionLedgerInfo;

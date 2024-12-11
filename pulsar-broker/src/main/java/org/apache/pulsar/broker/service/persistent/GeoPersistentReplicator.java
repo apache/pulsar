@@ -195,7 +195,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                 } else {
                     // TODO test cases
                     //   - Reopen Geo-Replication.
-                    //   - Multi version schemas.
+                    //   - Multi version schemas. -> Done
                     //   - Deduplicated replication. -> Done
                     //   - Compatability test.
 
@@ -218,6 +218,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Publishing {}:{}", replicatorId, entry.getLedgerId(), entry.getEntryId());
                     }
+                    // TODO Memory leak when getting error "Producer send queue is full".
                     producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg));
                     atLeastOneMessageSentForReplication = true;
                 }

@@ -131,6 +131,7 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
                         topic, producerName, lIdPendingRes, eIdPendingRes, lIdSent,
                         eIdSent, pendingMessages.messagesCount());
                 // Force connection closing so that messages can be re-transmitted in a new connection
+                // TODO 如果频繁发生，应该停止 replicator.
                 cnx.channel().close();
             }
         }
