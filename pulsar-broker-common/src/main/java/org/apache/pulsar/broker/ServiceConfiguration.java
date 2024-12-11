@@ -3314,6 +3314,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
+            doc = "Opt-out of topic-existence check when setting permissions"
+    )
+    private boolean allowAclChangesOnNonExistentTopics = false;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
             doc = "The class name of the factory that implements the topic compaction service."
     )
     private String compactionServiceFactoryClassName = "org.apache.pulsar.compaction.PulsarCompactionServiceFactory";
