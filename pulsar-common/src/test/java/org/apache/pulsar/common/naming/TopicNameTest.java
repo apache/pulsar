@@ -177,6 +177,13 @@ public class TopicNameTest {
             // Ok
         }
 
+        try {
+            TopicName.get(" ");
+            fail("Should have raised exception");
+        } catch (IllegalArgumentException e) {
+            // Ok
+        }
+
         TopicName nameWithSlash = TopicName.get("persistent://tenant/cluster/namespace/ns-abc/table/1");
         assertEquals(nameWithSlash.getEncodedLocalName(), Codec.encode("ns-abc/table/1"));
 
