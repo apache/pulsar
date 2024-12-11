@@ -27,8 +27,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.api.proto.KeyValue;
-import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.apache.pulsar.common.protocol.Commands;
 
 @Slf4j
 public class GeoReplicationProducerImpl extends ProducerImpl{
@@ -46,6 +44,11 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
 
     @Override
     protected void ackReceived(ClientCnx cnx, long lIdSent, long eIdSent, long ledgerId, long entryId) {
+        if (!cnx.isSupportsDedupReplV2()) {
+            super.ackReceived(cnx, lIdSent, eIdSent, ledgerId, entryId);
+            return;
+        }
+
         OpSendMsg op = null;
         synchronized (this) {
             op = pendingMessages.peek();
@@ -79,7 +82,10 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
             }
             if (lIdPendingRes == null || eIdPendingRes == null) {
                 // Rollback to the original implementation.
-                super.ackReceived(cnx, lIdSent, eIdSent, ledgerId, entryId);
+                log.error("[{}] [{}] can not found v2 sequence-id {}:{}, ackReceived: {}:{} {}:{} - queue-size: {}",
+                        topic, producerName, lIdPendingRes, eIdPendingRes, lIdSent,
+                        eIdSent, ledgerId, entryId, pendingMessages.messagesCount());
+                cnx.channel().close();
                 return;
             }
 
@@ -91,8 +97,13 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
                 //    PS: broker will respond "-1" only when it confirms the message has been persisted, broker will
                 //        respond a "MessageDeduplication.MessageDupUnknownException" if the message is sending
                 //        in-progress.
+                //    Notice: if send messages outs of oder, may lost messages.
                 // Conclusion: So whether @param-ledgerId and @param-entry-id are "-1" or not, we can remove pending
                 //    message.
+                if (log.isInfoEnabled()) {
+                    log.info("Got receipt for producer: [{}] -- source-message: {}:{} -- target-msg: {}:{}",
+                            getProducerName(), lIdSent, eIdSent, ledgerId, entryId);
+                }
                 pendingMessages.remove();
                 releaseSemaphoreForSendOp(op);
                 // TODO LAST_SEQ_ID_PUBLISHED_UPDATER.getAndUpdate(this, last -> Math.max(last, getHighestSequenceId(finalOp)));
@@ -102,8 +113,9 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
                     // application
                     op.sendComplete(null);
                 } catch (Throwable t) {
-                    log.warn("[{}] [{}] Got exception while completing the callback for sequence-id {}:{}", topic,
-                            producerName, lIdSent, eIdSent, t);
+                    log.warn("[{}] [{}] Got exception while completing the callback for -- source-message: {}:{} --"
+                                    + " target-msg: {}:{}",
+                            topic, producerName, lIdSent, eIdSent, ledgerId, entryId, t);
                 }
                 ReferenceCountUtil.safeRelease(op.cmd);
                 op.recycle();

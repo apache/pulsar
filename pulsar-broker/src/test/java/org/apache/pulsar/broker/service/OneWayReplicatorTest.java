@@ -67,9 +67,11 @@ import lombok.Data;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
@@ -81,6 +83,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.InjectedClientCnxClientBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -1218,6 +1221,16 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                     final ChannelHandlerContext originalCtx = super.ctx;
                     ChannelHandlerContext spyContext = spy(originalCtx);
                     doAnswer(invocation -> {
+                        // Do not repeat the messages re-sending, and clear the previous cached messages when
+                        // calling re-sending, to avoid publishing outs of order.
+                        for (StackTraceElement stackTraceElement : Thread.currentThread().getStackTrace()) {
+                            if (stackTraceElement.toString().contains("recoverProcessOpSendMsgFrom")
+                                    || stackTraceElement.toString().contains("resendMessages")) {
+                                duplicatedMsgs.clear();
+                                return invocation.callRealMethod();
+                            }
+                        }
+
                         Object data = invocation.getArguments()[0];
                         if (true && !(data instanceof ByteBufPair)) {
                             return invocation.callRealMethod();
@@ -1272,12 +1285,16 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         admin1.topics().createSubscription(topicName, "s1", MessageId.earliest);
         admin1.topics().createSubscription(topicName, "pulsar.repl.r2", MessageId.earliest);
         admin1.topicPolicies().setDeduplicationStatus(topicName, true);
+        admin1.topicPolicies().setDeduplicationSnapshotInterval(topicName, 10);
         admin2.topics().createNonPartitionedTopic(topicName);
         admin2.topics().createSubscription(topicName, "s1", MessageId.earliest);
         admin2.topicPolicies().setDeduplicationStatus(topicName, true);
+        admin2.topicPolicies().setDeduplicationSnapshotInterval(topicName, 10);
 
         // To cover more cases, write more than one ledger.
         PersistentTopic persistentTopic1 =
+                (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
+        PersistentTopic persistentTopic2 =
                 (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic1.getManagedLedger();
         managedLedger.getConfig().setMaxEntriesPerLedger(200);
@@ -1289,13 +1306,13 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         Producer<Integer> p1 = client1.newProducer(Schema.INT32).topic(topicName).create();
         Producer<Integer> p2 = client1.newProducer(Schema.INT32).topic(topicName).create();
         for (int i = 0; i < 10; i++) {
-            p1.send(i);
-            msgSent.add(i);
+            p1.send(1000 + i);
+            msgSent.add(1000 + i);
         }
         for (int i = 10; i < 450; i++) {
-            p1.send(i);
+            p1.send(1000 + i);
             p2.send(i);
-            msgSent.add(i);
+            msgSent.add(1000 + i);
             msgSent.add(i);
         }
         p1.close();
@@ -1312,17 +1329,33 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             if (msg == null) {
                 break;
             }
+            MessageIdAdv messageIdAdv = (MessageIdAdv) msg.getMessageId();
+            log.info("received msg. source {}, target {}:{}", StringUtils.join(msg.getProperties().values(), ":"),
+                    messageIdAdv.getLedgerId(), messageIdAdv.getEntryId());
             msgReceived.add(msg.getValue());
             consumer.acknowledgeAsync(msg);
         }
 
-        //Thread.sleep(180 * 1000);
-
         // Verify: all messages were copied.
-        System.out.println(new ObjectMapper().writeValueAsString(admin2.topics().getInternalStats(topicName)));
-        System.out.println(new ObjectMapper().writeValueAsString(admin2.topics().getStats(topicName)));
+        log.info(jacksonForLog.writeValueAsString(admin2.topics().getInternalStats(topicName)));
+        log.info(jacksonForLog.writeValueAsString(admin2.topics().getStats(topicName)));
         assertEquals(msgReceived, msgSent);
         consumer.close();
+
+        // Verify: the deduplication cursor has been acked.
+        // "topic-policy.DeduplicationSnapshotInterval" is "10".
+        Awaitility.await().untilAsserted(() -> {
+            for (ManagedCursor cursor : persistentTopic1.getManagedLedger().getCursors()) {
+                if (cursor.getName().equals("pulsar.dedup")) {
+                    assertTrue(cursor.getNumberOfEntriesInBacklog(true) < 10);
+                }
+            }
+            for (ManagedCursor cursor : persistentTopic2.getManagedLedger().getCursors()) {
+                if (cursor.getName().equals("pulsar.dedup")) {
+                    assertTrue(cursor.getNumberOfEntriesInBacklog(true) < 10);
+                }
+            }
+        });
 
         // cleanup.
         taskToClearInjection.run();

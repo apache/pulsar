@@ -325,48 +325,85 @@ public class MessageDeduplication {
      * @return true if the message should be published or false if it was recognized as a duplicate
      */
     public MessageDupStatus isDuplicate(PublishContext publishContext, ByteBuf headersAndPayload) {
+        setContextPropsIfRepl(publishContext, headersAndPayload);
+
         if (!isEnabled() || publishContext.isMarkerMessage()) {
             return MessageDupStatus.NotDup;
         }
         if (publishContext.getProducerName().startsWith(replicatorPrefix)) {
-            return isDuplicateRepl(publishContext, headersAndPayload);
+            if (!publishContext.supportsDedupReplV2()){
+                return isDuplicateReplV1(publishContext, headersAndPayload);
+            } else {
+                return isDuplicateReplV2(publishContext, headersAndPayload);
+            }
         }
         return isDuplicateNormal(publishContext, headersAndPayload);
     }
 
-    public MessageDupStatus isDuplicateRepl(PublishContext publishContext, ByteBuf headersAndPayload) {
-        // Message is coming from replication, we need to use the replication's producer name, ledger id and entry id
-        // for the purpose of deduplication.
+    public MessageDupStatus isDuplicateReplV1(PublishContext publishContext, ByteBuf headersAndPayload) {
+        // Message is coming from replication, we need to use the original producer name and sequence id
+        // for the purpose of deduplication and not rely on the "replicator" name.
         int readerIndex = headersAndPayload.readerIndex();
         MessageMetadata md = Commands.parseMessageMetadata(headersAndPayload);
         headersAndPayload.readerIndex(readerIndex);
 
-        Long replSequenceLId = null;
-        Long replSequenceEId = null;
-        List<KeyValue> kvPairList = md.getPropertiesList();
-        for (KeyValue kvPair : kvPairList) {
-            if (kvPair.getKey().equals(MSG_PROP_REPL_SEQUENCE_LID)) {
-                if (StringUtils.isNumeric(kvPair.getValue())) {
-                    publishContext.setProperty(kvPair.getKey(), kvPair.getValue());
-                    replSequenceLId = Long.valueOf(kvPair.getValue());
-                } else {
+        String producerName = md.getProducerName();
+        long sequenceId = md.getSequenceId();
+        long highestSequenceId = Math.max(md.getHighestSequenceId(), sequenceId);
+        publishContext.setOriginalProducerName(producerName);
+        publishContext.setOriginalSequenceId(sequenceId);
+        publishContext.setOriginalHighestSequenceId(highestSequenceId);
+        return isDuplicateNormal(publishContext, headersAndPayload);
+    }
+
+    private void setContextPropsIfRepl(PublishContext publishContext, ByteBuf headersAndPayload) {
+        if (publishContext.getProducerName().startsWith(replicatorPrefix)) {
+            // Message is coming from replication, we need to use the replication's producer name, ledger id and entry id
+            // for the purpose of deduplication.
+            int readerIndex = headersAndPayload.readerIndex();
+            MessageMetadata md = Commands.parseMessageMetadata(headersAndPayload);
+            headersAndPayload.readerIndex(readerIndex);
+
+            Long replSequenceLId = null;
+            Long replSequenceEId = null;
+            List<KeyValue> kvPairList = md.getPropertiesList();
+            for (KeyValue kvPair : kvPairList) {
+                if (kvPair.getKey().equals(MSG_PROP_REPL_SEQUENCE_LID)) {
+                    if (StringUtils.isNumeric(kvPair.getValue())) {
+                        replSequenceLId = Long.valueOf(kvPair.getValue());
+                        publishContext.setProperty(MSG_PROP_REPL_SEQUENCE_LID, replSequenceLId);
+                    } else {
+                        break;
+                    }
+                }
+                if (kvPair.getKey().equals(MSG_PROP_REPL_SEQUENCE_EID)) {
+                    if (StringUtils.isNumeric(kvPair.getValue())) {
+                        replSequenceEId = Long.valueOf(kvPair.getValue());
+                        publishContext.setProperty(MSG_PROP_REPL_SEQUENCE_EID, replSequenceEId);
+                    } else {
+                        break;
+                    }
+                }
+                if (replSequenceLId != null && replSequenceEId != null) {
                     break;
                 }
-            }
-            if (kvPair.getKey().equals(MSG_PROP_REPL_SEQUENCE_EID)) {
-                if (StringUtils.isNumeric(kvPair.getValue())) {
-                    publishContext.setProperty(kvPair.getKey(), kvPair.getValue());
-                    replSequenceEId = Long.valueOf(kvPair.getValue());
-                } else {
-                    break;
-                }
-            }
-            if (replSequenceLId != null && replSequenceEId != null) {
-                break;
             }
         }
+    }
+
+    public MessageDupStatus isDuplicateReplV2(PublishContext publishContext, ByteBuf headersAndPayload) {
+        Long replSequenceLId = (Long) publishContext.getProperty(MSG_PROP_REPL_SEQUENCE_LID);
+        Long replSequenceEId = (Long) publishContext.getProperty(MSG_PROP_REPL_SEQUENCE_EID);
         if (replSequenceLId == null || replSequenceEId == null) {
-            return isDuplicateNormal(publishContext, headersAndPayload);
+            log.error("[{}] Message can not determine whether the message is duplicated due to the acquired messages"
+                            + " props were are invalid. producer={}. supportsDedupReplV2: {}, sequence-id {},"
+                            + " prop-{}: {}, prop-{}: {}",
+                    topic.getName(), publishContext.getProducerName(),
+                    publishContext.supportsDedupReplV2(), publishContext.getSequenceId(),
+                    MSG_PROP_REPL_SEQUENCE_LID, replSequenceLId,
+                    MSG_PROP_REPL_SEQUENCE_EID, replSequenceEId);
+            //  TODO 有没有可能：第一个客户端支持，第二个客户端不支持？
+            return MessageDupStatus.Unknown;
         }
 
         String lastSequenceLIdKey = publishContext.getProducerName() + "_LID";
@@ -375,12 +412,14 @@ public class MessageDeduplication {
             Long lastSequenceLIdPushed = highestSequencedPushed.get(lastSequenceLIdKey);
             Long lastSequenceEIdPushed = highestSequencedPushed.get(lastSequenceEIdKey);
             if (lastSequenceLIdPushed != null && lastSequenceEIdPushed != null &&
-                (replSequenceLId < lastSequenceLIdPushed
-                    || (replSequenceLId == lastSequenceLIdPushed && replSequenceEId <= lastSequenceEIdPushed))) {
+                (replSequenceLId.compareTo(lastSequenceLIdPushed) < 0
+                        || (replSequenceLId.compareTo(lastSequenceLIdPushed) == 0
+                        && replSequenceEId.compareTo(lastSequenceEIdPushed) <= 0))) {
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Message identified as duplicated producer={} seq-lid={} -- seq-eid={}",
+                    log.debug("[{}] Message identified as duplicated producer={}. publishing {}:{}, latest publishing"
+                            + " in-progress {}:{}",
                             topic.getName(), publishContext.getProducerName(), lastSequenceLIdPushed,
-                            lastSequenceEIdPushed);
+                            lastSequenceEIdPushed, lastSequenceLIdPushed, lastSequenceEIdPushed);
                 }
 
                 // Also need to check sequence ids that has been persisted.
@@ -392,17 +431,28 @@ public class MessageDeduplication {
                 // at a future time
                 Long lastSequenceLIdPersisted = highestSequencedPersisted.get(lastSequenceLIdKey);
                 Long lastSequenceEIdPersisted = highestSequencedPersisted.get(lastSequenceEIdKey);
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Message identified as duplicated producer={}. publishing {}:{}, latest"
+                                    + " persisted {}:{}",
+                            topic.getName(), publishContext.getProducerName(), replSequenceLId,
+                            replSequenceEId, lastSequenceLIdPersisted, lastSequenceEIdPersisted);
+                }
                 if (lastSequenceLIdPersisted != null && lastSequenceEIdPersisted != null &&
-                    (replSequenceLId < lastSequenceLIdPersisted
-                        || (replSequenceLId == lastSequenceLIdPersisted
-                            && replSequenceEId <= lastSequenceEIdPersisted))) {
+                    (replSequenceLId.compareTo(lastSequenceLIdPersisted) < 0
+                        || (replSequenceLId.compareTo(lastSequenceLIdPersisted) == 0
+                            && replSequenceEId.compareTo(lastSequenceEIdPersisted) <= 0))) {
                     return MessageDupStatus.Dup;
                 } else {
+                    // TODO 查看 in-progress 的写入。。。
                     return MessageDupStatus.Unknown;
                 }
             }
             highestSequencedPushed.put(lastSequenceLIdKey, replSequenceLId);
             highestSequencedPushed.put(lastSequenceEIdKey, replSequenceEId);
+        }
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Message identified as non-duplicated producer={}. publishing {}:{}",
+                    topic.getName(), publishContext.getProducerName(), replSequenceLId, replSequenceEId);
         }
         return MessageDupStatus.NotDup;
     }
@@ -475,10 +525,18 @@ public class MessageDeduplication {
             recordMessagePersistedNormal(publishContext, position);
         }
     }
+
     public void recordMessagePersistedRepl(PublishContext publishContext, Position position) {
         String replSequenceLIdStr = String.valueOf(publishContext.getProperty(MSG_PROP_REPL_SEQUENCE_LID));
         String replSequenceEIdStr = String.valueOf(publishContext.getProperty(MSG_PROP_REPL_SEQUENCE_EID));
         if (!StringUtils.isNumeric(replSequenceLIdStr) || !StringUtils.isNumeric(replSequenceEIdStr)) {
+            log.error("[{}] Can not persist highest sequence-id due to the acquired messages"
+                            + " props are invalid. producer={}. supportsDedupReplV2: {}, sequence-id {},"
+                            + " prop-{}: {}, prop-{}: {}",
+                    topic.getName(), publishContext.getProducerName(),
+                    publishContext.supportsDedupReplV2(), publishContext.getSequenceId(),
+                    MSG_PROP_REPL_SEQUENCE_LID, replSequenceLIdStr,
+                    MSG_PROP_REPL_SEQUENCE_EID, replSequenceEIdStr);
             recordMessagePersistedNormal(publishContext, position);
             return;
         }
@@ -488,7 +546,9 @@ public class MessageDeduplication {
         String lastSequenceEIdKey = publishContext.getProducerName() + "_EID";
         highestSequencedPersisted.put(lastSequenceLIdKey, replSequenceLId);
         highestSequencedPersisted.put(lastSequenceEIdKey, replSequenceEId);
+        increaseSnapshotCounterAndTakeSnapshotIfNeeded(position);
     }
+
     public void recordMessagePersistedNormal(PublishContext publishContext, Position position) {
         String producerName = publishContext.getProducerName();
         long sequenceId = publishContext.getSequenceId();
