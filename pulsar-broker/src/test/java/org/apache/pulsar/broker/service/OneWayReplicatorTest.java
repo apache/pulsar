@@ -73,8 +73,10 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
+import org.apache.pulsar.broker.service.persistent.MessageDeduplication;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
@@ -88,6 +90,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
@@ -101,11 +104,14 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
+import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.glassfish.jersey.client.JerseyClient;
@@ -131,6 +137,13 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
     @AfterClass(alwaysRun = true, timeOut = 300000)
     public void cleanup() throws Exception {
         super.cleanup();
+    }
+
+    @Override
+    protected void setConfigDefaults(ServiceConfiguration config, String clusterName,
+                                     LocalBookkeeperEnsemble bookkeeperEnsemble, ZookeeperServerTest brokerConfigZk) {
+        super.setConfigDefaults(config, clusterName, bookkeeperEnsemble, brokerConfigZk);
+        config.setBrokerDeduplicationEntriesInterval(10);
     }
 
     private void waitReplicatorStopped(String topicName) {
@@ -1209,6 +1222,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
 
     @Test(timeOut = 360 * 1000)
     public void testDeduplication() throws Exception {
+        final ObjectMapper jacksonForLog = new ObjectMapper();
         // Replication start at earliest;
         pulsar1.getConfiguration().setReplicationStartAt("earliest");
 
@@ -1283,62 +1297,117 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + nonReplicatedNamespace + "/tp_");
         admin1.topics().createNonPartitionedTopic(topicName);
         admin1.topics().createSubscription(topicName, "s1", MessageId.earliest);
-        admin1.topics().createSubscription(topicName, "pulsar.repl.r2", MessageId.earliest);
-        admin1.topicPolicies().setDeduplicationStatus(topicName, true);
-        admin1.topicPolicies().setDeduplicationSnapshotInterval(topicName, 10);
         admin2.topics().createNonPartitionedTopic(topicName);
         admin2.topics().createSubscription(topicName, "s1", MessageId.earliest);
-        admin2.topicPolicies().setDeduplicationStatus(topicName, true);
-        admin2.topicPolicies().setDeduplicationSnapshotInterval(topicName, 10);
-
-        // To cover more cases, write more than one ledger.
+        admin1.topics().createSubscription(topicName, "pulsar.repl.r2", MessageId.earliest);
+        Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+            // TODO fix the bug, after unloading topic, the replication does not work.
+//            admin1.topics().unload(topicName);
+//            admin2.topics().unload(topicName);
+            // TODO fix the bug: the policy "admin1.topicPolicies().setDeduplicationSnapshotInterval(topicName, 10)"
+            //      does not work.
+            PersistentTopic persistentTopic1 =
+                    (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
+            PersistentTopic persistentTopic2 =
+                    (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
+            admin1.topicPolicies().setDeduplicationStatus(topicName, true);
+            admin1.topicPolicies().setSchemaCompatibilityStrategy(topicName,
+                    SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+            admin2.topicPolicies().setDeduplicationStatus(topicName, true);
+            admin2.topicPolicies().setSchemaCompatibilityStrategy(topicName,
+                    SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+            MessageDeduplication messageDeduplication1 = persistentTopic1.getMessageDeduplication();
+            if (messageDeduplication1 != null) {
+                int snapshotInterval1 = WhiteboxImpl.getInternalState(messageDeduplication1, "snapshotInterval");
+                assertEquals(snapshotInterval1, 10);
+            }
+            MessageDeduplication messageDeduplication2 = persistentTopic2.getMessageDeduplication();
+            if (messageDeduplication2 != null) {
+                int snapshotInterval2 = WhiteboxImpl.getInternalState(messageDeduplication2, "snapshotInterval");
+                assertEquals(snapshotInterval2, 10);
+            }
+            assertEquals(persistentTopic1.getHierarchyTopicPolicies().getDeduplicationEnabled().get(), Boolean.TRUE);
+            assertEquals(persistentTopic1.getHierarchyTopicPolicies().getSchemaCompatibilityStrategy().get(),
+                    SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+            assertEquals(persistentTopic2.getHierarchyTopicPolicies().getDeduplicationEnabled().get(), Boolean.TRUE);
+            assertEquals(persistentTopic2.getHierarchyTopicPolicies().getSchemaCompatibilityStrategy().get(),
+                    SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+            // TODO fix the bug: after schema check failed, the replication will get a broken package error.
+        });
         PersistentTopic persistentTopic1 =
                 (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
         PersistentTopic persistentTopic2 =
-                (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
+                (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
+
+        // To cover more cases, write more than one ledger.
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic1.getManagedLedger();
         managedLedger.getConfig().setMaxEntriesPerLedger(200);
         managedLedger.getConfig().setMinimumRolloverTime(0, TimeUnit.SECONDS);
         managedLedger.getConfig().setMaximumRolloverTime(10, TimeUnit.SECONDS);
 
         // 2, Publish messages.
-        List<Integer> msgSent = new ArrayList<>();
+        List<String> msgSent = new ArrayList<>();
         Producer<Integer> p1 = client1.newProducer(Schema.INT32).topic(topicName).create();
         Producer<Integer> p2 = client1.newProducer(Schema.INT32).topic(topicName).create();
+        Producer<String> p3 = client1.newProducer(Schema.STRING).topic(topicName).create();
+        Producer<Boolean> p4 = client1.newProducer(Schema.BOOL).topic(topicName).create();
         for (int i = 0; i < 10; i++) {
-            p1.send(1000 + i);
-            msgSent.add(1000 + i);
+            p1.send(i);
+            msgSent.add(String.valueOf(i));
         }
-        for (int i = 10; i < 450; i++) {
-            p1.send(1000 + i);
-            p2.send(i);
-            msgSent.add(1000 + i);
-            msgSent.add(i);
+        for (int i = 10; i < 200; i++) {
+            int msg1 = i;
+            int msg2 = 1000 + i;
+            String msg3 = (2000 + i) + "";
+            boolean msg4 = i % 2 == 0;
+            p1.send(msg1);
+            p2.send(msg2);
+            p3.send(msg3);
+            p4.send(msg4);
+            msgSent.add(String.valueOf(msg1));
+            msgSent.add(String.valueOf(msg2));
+            msgSent.add(String.valueOf(msg3));
+            msgSent.add(String.valueOf(msg4));
         }
         p1.close();
         p2.close();
+        p3.close();
+        p4.close();
 
         // 3. Enable replication.
         admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
+        Awaitility.await().atMost(Duration.ofSeconds(60)).untilAsserted(() -> {
+            for (ManagedCursor cursor : persistentTopic2.getManagedLedger().getCursors()) {
+                if (cursor.getName().equals("pulsar.repl.c2")) {
+                    assertEquals(cursor.getNumberOfEntriesInBacklog(true), 0);
+                }
+            }
+        });
 
-        List<Integer> msgReceived = new ArrayList<>();
-        Consumer<Integer> consumer = client2.newConsumer(Schema.INT32).topic(topicName).subscriptionName("s1")
+        List<String> msgReceived = new ArrayList<>();
+        Consumer<GenericRecord> consumer = client2.newConsumer(Schema.AUTO_CONSUME()).topic(topicName).subscriptionName("s1")
                 .subscribe();
         while (true) {
-            Message<Integer> msg = consumer.receive(10, TimeUnit.SECONDS);
+            Message<GenericRecord> msg = consumer.receive(10, TimeUnit.SECONDS);
             if (msg == null) {
                 break;
             }
             MessageIdAdv messageIdAdv = (MessageIdAdv) msg.getMessageId();
             log.info("received msg. source {}, target {}:{}", StringUtils.join(msg.getProperties().values(), ":"),
                     messageIdAdv.getLedgerId(), messageIdAdv.getEntryId());
-            msgReceived.add(msg.getValue());
+            msgReceived.add(String.valueOf(msg.getValue()));
             consumer.acknowledgeAsync(msg);
         }
 
-        // Verify: all messages were copied.
-        log.info(jacksonForLog.writeValueAsString(admin2.topics().getInternalStats(topicName)));
-        log.info(jacksonForLog.writeValueAsString(admin2.topics().getStats(topicName)));
+        // Verify: all messages were copied correctly.
+        log.info("c1 topic stats-internal: "
+                + jacksonForLog.writeValueAsString(admin1.topics().getInternalStats(topicName)));
+        log.info("c2 topic stats-internal: "
+                + jacksonForLog.writeValueAsString(admin2.topics().getInternalStats(topicName)));
+        log.info("c1 topic stats-internal: "
+                + jacksonForLog.writeValueAsString(admin1.topics().getStats(topicName)));
+        log.info("c2 topic stats-internal: "
+                + jacksonForLog.writeValueAsString(admin2.topics().getStats(topicName)));
         assertEquals(msgReceived, msgSent);
         consumer.close();
 
@@ -1364,7 +1433,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         waitReplicatorStopped(topicName);
         admin2.topics().unload(topicName);
         admin2.topics().delete(topicName);
-        admin1.topics().unload(topicName);// TODO fix the bug.
+        admin1.topics().unload(topicName);// TODO fix the bug: topic can not be deleted successfully without an unload,
         admin1.topics().delete(topicName);
     }
 

@@ -519,7 +519,7 @@ public class MessageDeduplication {
         if (!isEnabled() || publishContext.isMarkerMessage()) {
             return;
         }
-        if (publishContext.getProducerName().startsWith(replicatorPrefix)) {
+        if (publishContext.getProducerName().startsWith(replicatorPrefix) && publishContext.supportsDedupReplV2()) {
             recordMessagePersistedRepl(publishContext, position);
         } else {
             recordMessagePersistedNormal(publishContext, position);
@@ -570,6 +570,11 @@ public class MessageDeduplication {
         if (++snapshotCounter >= snapshotInterval) {
             snapshotCounter = 0;
             takeSnapshot(position);
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Waiting for sequence-id snapshot {}/{}", topic.getName(), snapshotCounter,
+                        snapshotInterval);
+            }
         }
     }
 
