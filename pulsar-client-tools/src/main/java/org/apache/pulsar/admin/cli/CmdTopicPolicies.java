@@ -169,6 +169,7 @@ public class CmdTopicPolicies extends CmdBase {
                 new GetDispatcherPauseOnAckStatePersistent());
         addCommand("remove-dispatcher-pause-on-ack-state-persistent",
                 new RemoveDispatcherPauseOnAckStatePersistent());
+        addCommand("enable-migration", new EnableMigration());
     }
 
     @Command(description = "Get entry filters for a topic")
@@ -1991,6 +1992,18 @@ public class CmdTopicPolicies extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
             getTopicPolicies(isGlobal).removeDispatcherPauseOnAckStatePersistent(persistentTopic);
+        }
+    }
+
+    @Command(description = "Enable migration for a topic")
+    private class EnableMigration extends CliCommand {
+        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(topicName);
+            getTopicPolicies(false).enableMigration(topic);
         }
     }
 

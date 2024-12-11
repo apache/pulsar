@@ -1081,6 +1081,147 @@ public class ClusterMigrationTest {
         client3.close();
     }
 
+    @Test
+    public void testTopicMigration() throws Exception {
+        final String topicName1 = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/migrationTopic");
+        final String topicName2 = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/migrationTopic");
+
+        @Cleanup
+        PulsarClient client1 = PulsarClient.builder()
+                .serviceUrl(url1.toString())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        // blue cluster - topic1 - producer/consumer
+        Producer<byte[]> blueProducer1 = client1.newProducer().topic(topicName1).enableBatching(false)
+                .producerName("blue-producer-1").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
+        Consumer<byte[]> blueConsumer1 = client1.newConsumer().topic(topicName1)
+                .subscriptionType(SubscriptionType.Shared).subscriptionName("s1").subscribe();
+        AbstractTopic blueTopic1 = (AbstractTopic) pulsar1.getBrokerService().getTopic(topicName1, false).getNow(null).get();
+        retryStrategically((test) -> !blueTopic1.getProducers().isEmpty(), 5, 500);
+        retryStrategically((test) -> !blueTopic1.getSubscriptions().isEmpty(), 5, 500);
+        assertFalse(blueTopic1.getProducers().isEmpty());
+        assertFalse(blueTopic1.getSubscriptions().isEmpty());
+
+        // blue cluster - topic2 - producer/consumer
+        Producer<byte[]> blueProducer2 = client1.newProducer().topic(topicName2).enableBatching(false)
+                .producerName("blue-producer-2").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
+        Consumer<byte[]> blueConsumer2 = client1.newConsumer().topic(topicName2)
+                .subscriptionType(SubscriptionType.Shared).subscriptionName("s2").subscribe();
+        AbstractTopic blueTopic2 = (AbstractTopic) pulsar1.getBrokerService().getTopic(topicName2, false).getNow(null).get();
+        retryStrategically((test) -> !blueTopic2.getProducers().isEmpty(), 5, 500);
+        retryStrategically((test) -> !blueTopic2.getSubscriptions().isEmpty(), 5, 500);
+        assertFalse(blueTopic2.getProducers().isEmpty());
+        assertFalse(blueTopic2.getSubscriptions().isEmpty());
+
+        // build backlog on the blue cluster
+        blueConsumer1.close();
+        blueConsumer2.close();
+        int n = 5;
+        for (int i = 0; i < n; i++) {
+            blueProducer1.send("test1".getBytes());
+            blueProducer2.send("test1".getBytes());
+        }
+
+        @Cleanup
+        PulsarClient client2 = PulsarClient.builder()
+                .serviceUrl(url2.toString())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        // green cluster - topic1 - producer
+        Producer<byte[]> greenProducer1 = client2.newProducer().topic(topicName1).enableBatching(false)
+                .producerName("green-producer-1").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
+        AbstractTopic greenTopic1 = (AbstractTopic) pulsar2.getBrokerService().getTopic(topicName1, false).getNow(null).get();
+        assertFalse(greenTopic1.getProducers().isEmpty());
+        // green cluster - topic2 - producer
+        Producer<byte[]> greenProducer2 = client2.newProducer().topic(topicName2).enableBatching(false)
+                .producerName("green-producer-2").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
+        AbstractTopic greenTopic2 = (AbstractTopic) pulsar2.getBrokerService().getTopic(topicName2, false).getNow(null).get();
+        assertFalse(greenTopic2.getProducers().isEmpty());
+
+        // migrate topic1 from the blue cluster to the green cluster
+        ClusterUrl migratedUrl = new ClusterUrl(pulsar2.getWebServiceAddress(), pulsar2.getWebServiceAddressTls(),
+                pulsar2.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrlTls());
+        admin1.clusters().updateClusterMigration("r1", false, migratedUrl);
+        admin1.topicPolicies().enableMigration(topicName1);
+        sleep(1000);
+
+        retryStrategically((test) -> {
+            try {
+                blueTopic1.checkClusterMigration().get();
+                return true;
+            } catch (Exception e) {
+                // ok
+            }
+            return false;
+        }, 10, 500);
+        blueTopic1.checkClusterMigration().get();
+
+        sleep(1000);
+        blueProducer1.send("test1".getBytes());
+        blueProducer2.send("test1".getBytes());
+
+        // the producers belonging to topic1 will be disconnected from the blue cluster,
+        // while the producers belonging to topic2 will remain connected to the blue cluster
+        retryStrategically((test) -> blueTopic1.getProducers().isEmpty(), 10, 500);
+        assertTrue(blueTopic1.getProducers().isEmpty());
+        assertFalse(blueTopic2.getProducers().isEmpty());
+
+        retryStrategically((test) -> greenTopic1.getProducers().size() == 2, 10, 500);
+        assertEquals(greenTopic1.getProducers().size(), 2);
+        assertEquals(blueTopic2.getProducers().size(), 1);
+        assertEquals(greenTopic2.getProducers().size(), 1);
+
+        // try to consume backlog messages from blue cluster
+        blueConsumer1 = client1.newConsumer().topic(topicName1).subscriptionName("s1").subscribe();
+        blueConsumer2 = client1.newConsumer().topic(topicName2).subscriptionName("s2").subscribe();
+        for (int i = 0; i < n; i++) {
+            Message<byte[]> msg1 = blueConsumer1.receive();
+            assertEquals(msg1.getData(), "test1".getBytes());
+            blueConsumer1.acknowledge(msg1);
+
+            Message<byte[]> msg2 = blueConsumer2.receive();
+            assertEquals(msg2.getData(), "test1".getBytes());
+            blueConsumer2.acknowledge(msg2);
+        }
+
+        // after consuming all messages, the consumers belonging to topic1 will be disconnected from the blue cluster,
+        // while the consumers belonging to topic2 will remain connected to the blue cluster
+        retryStrategically((test) -> !greenTopic1.getSubscriptions().isEmpty(), 10, 500);
+        assertFalse(greenTopic1.getSubscriptions().isEmpty());
+        assertTrue(greenTopic2.getSubscriptions().isEmpty());
+
+        // publish messages to green cluster and consume them
+        for (int i = 0; i < n; i++) {
+            blueProducer1.send("test2".getBytes());
+            greenProducer1.send("test2".getBytes());
+        }
+        for (int i = 0; i < n * 2; i++) {
+            assertEquals(blueConsumer1.receive(2, TimeUnit.SECONDS).getData(), "test2".getBytes());
+        }
+
+        // since topic2 has not been migrated, blueConsumer2 can only consume messages from the blue cluster
+        assertEquals(blueConsumer2.receive(2, TimeUnit.SECONDS).getData(), "test1".getBytes());
+        for (int i = 0; i < n; i++) {
+            blueProducer2.send("test3".getBytes());
+            greenProducer2.send("test3".getBytes());
+        }
+        for (int i = 0; i < n; i++) {
+            Message<byte[]> msg = blueConsumer2.receive(2, TimeUnit.SECONDS);
+            assertEquals(msg.getData(), "test3".getBytes());
+            blueConsumer2.acknowledge(msg);
+        }
+        assertNull(blueConsumer2.receive(2, TimeUnit.SECONDS));
+
+        blueConsumer1.close();
+        blueConsumer2.close();
+        blueProducer1.close();
+        blueProducer2.close();
+        greenProducer1.close();
+        greenProducer2.close();
+        client1.close();
+        client2.close();
+    }
+
     static class TestBroker extends MockedPulsarServiceBaseTest {
 
         private String clusterName;

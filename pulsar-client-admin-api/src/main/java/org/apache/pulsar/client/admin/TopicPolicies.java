@@ -1929,4 +1929,23 @@ public interface TopicPolicies {
      * Get the dispatcherPauseOnAckStatePersistentEnabled policy for a given topic asynchronously.
      */
     CompletableFuture<Boolean> getDispatcherPauseOnAckStatePersistent(String topic, boolean applied);
+
+    /**
+     * Enable migration for a topic.
+     *
+     * @param topic
+     *             Topic name
+     * @throws PulsarAdminException.NotAuthorizedException
+     *             Don't have admin permission
+     * @throws PulsarAdminException.NotFoundException
+     *             Topic does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void enableMigration(String topic) throws PulsarAdminException;
+
+    /**
+     * Enable migration for a topic asynchronously.
+     */
+    CompletableFuture<Void> enableMigrationAsync(String topic);
 }

@@ -79,6 +79,7 @@ public class TopicPolicies {
     private EntryFilters entryFilters;
     // If set, it will override the namespace settings for allowing auto subscription creation
     private AutoSubscriptionCreationOverrideImpl autoSubscriptionCreationOverride;
+    private Boolean migrated;
 
     /**
      * Subscription level policies for specific subscription.

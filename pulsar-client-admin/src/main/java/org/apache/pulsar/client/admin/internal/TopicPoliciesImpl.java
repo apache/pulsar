@@ -1281,6 +1281,18 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         return asyncGetRequest(path, new FutureCallback<Boolean>(){});
     }
 
+    @Override
+    public void enableMigration(String topic) throws PulsarAdminException {
+        sync(() -> enableMigrationAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<Void> enableMigrationAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "migration");
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
     /*
      * returns topic name with encoded Local Name
      */

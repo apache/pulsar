@@ -5015,5 +5015,33 @@ public class PersistentTopics extends PersistentTopicsBase {
                 });
     }
 
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/migration")
+    @ApiOperation(value = "Enable migration for a topic.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405,
+                    message = "Topic level policy is disabled, please enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void enableMigration(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> preValidation(authoritative))
+                .thenCompose(__ -> internalEnableMigration())
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("enableMigration", ex, asyncResponse);
+                    return null;
+                });
+    }
+
     private static final Logger log = LoggerFactory.getLogger(PersistentTopics.class);
 }

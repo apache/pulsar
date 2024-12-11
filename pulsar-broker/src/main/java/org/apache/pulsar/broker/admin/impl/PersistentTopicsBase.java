@@ -5454,4 +5454,13 @@ public class PersistentTopicsBase extends AdminResource {
                             return null;
                         }));
     }
+
+    protected CompletableFuture<Void> internalEnableMigration() {
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setMigrated(true);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                });
+    }
 }
