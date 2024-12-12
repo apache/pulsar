@@ -136,6 +136,7 @@ public class BackoffTest {
 
         // would have been 1600 w/o the mandatory stop
         assertTrue(withinTenPercentAndDecrementTimer(backoff, 400));
+        assertTrue(backoff.isMandatoryStopMade());
         Mockito.when(mockClock.millis()).thenReturn(1900L);
         assertTrue(withinTenPercentAndDecrementTimer(backoff, 3200));
         Mockito.when(mockClock.millis()).thenReturn(3200L);

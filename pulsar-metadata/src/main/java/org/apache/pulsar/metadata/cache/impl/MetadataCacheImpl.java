@@ -24,19 +24,24 @@ import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.metadata.api.CacheGetResult;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
@@ -58,6 +63,9 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     private final MetadataStore store;
     private final MetadataStoreExtended storeExtended;
     private final MetadataSerde<T> serde;
+    private final ScheduledExecutorService backoffExecutor =
+            Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("metadata-cache-backoff"));
+    private final MetadataCacheConfig<T> cacheConfig;
 
     private final AsyncLoadingCache<String, Optional<CacheGetResult<T>>> objCache;
 
@@ -77,6 +85,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
             this.storeExtended = null;
         }
         this.serde = serde;
+        this.cacheConfig = cacheConfig;
 
         Caffeine<Object, Object> cacheBuilder = Caffeine.newBuilder();
         if (cacheConfig.getRefreshAfterWriteMillis() > 0) {
@@ -321,22 +330,33 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
         }
     }
 
-    private CompletableFuture<T> executeWithRetry(Supplier<CompletableFuture<T>> op, String key) {
-        CompletableFuture<T> result = new CompletableFuture<>();
+    private void execute(Supplier<CompletableFuture<T>> op, String key, CompletableFuture<T> result, Backoff backoff) {
         op.get().thenAccept(result::complete).exceptionally((ex) -> {
             if (ex.getCause() instanceof BadVersionException) {
                 // if resource is updated by other than metadata-cache then metadata-cache will get bad-version
                 // exception. so, try to invalidate the cache and try one more time.
                 objCache.synchronous().invalidate(key);
-                op.get().thenAccept(result::complete).exceptionally((ex1) -> {
-                    result.completeExceptionally(ex1.getCause());
+                if (backoff.isMandatoryStopMade()) {
+                    result.completeExceptionally(new TimeoutException(String.format("Timeout to update key %s", key)));
                     return null;
-                });
+                }
+                final var next = backoff.next();
+                log.info("Update key {} conflicts. Retrying in {} ms. Mandatory stop: {} ms. Elapsed time: {} ms", key,
+                        next, backoff.isMandatoryStopMade(),
+                        System.currentTimeMillis() - backoff.getFirstBackoffTimeInMillis());
+                backoffExecutor.schedule(() -> execute(op, key, result, backoff), next,
+                        TimeUnit.MILLISECONDS);
                 return null;
             }
             result.completeExceptionally(ex.getCause());
             return null;
         });
+    }
+
+    private CompletableFuture<T> executeWithRetry(Supplier<CompletableFuture<T>> op, String key) {
+        final var backoff = cacheConfig.getRetryBackoff().create();
+        CompletableFuture<T> result = new CompletableFuture<>();
+        execute(op, key, result, backoff);
         return result;
     }
 }
