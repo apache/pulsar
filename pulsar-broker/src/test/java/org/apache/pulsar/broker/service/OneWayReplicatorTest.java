@@ -1023,9 +1023,9 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         disableReplication(topic1);
 
         // 2.Update config: start at "earliest".
-        admin1.brokers().updateDynamicConfiguration("replicationStartAt", MessageId.earliest.toString());
+        admin1.brokers().updateDynamicConfiguration("replicationStartAt", "earliest");
         Awaitility.await().untilAsserted(() -> {
-            pulsar1.getConfiguration().getReplicationStartAt().equalsIgnoreCase("earliest");
+            assertEquals(pulsar1.getConfiguration().getReplicationStartAt(), "earliest");
         });
 
         final String topic2 = BrokerTestUtil.newUniqueName("persistent://" + ns1 + "/tp_");
