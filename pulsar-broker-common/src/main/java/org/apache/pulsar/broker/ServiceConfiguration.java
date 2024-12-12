@@ -1449,9 +1449,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_SERVER,
             dynamic = true,
-            doc = "The position that replication task start at, it can be set to earliest or latest (default). Note: do"
-                    + " not use \"MessageId.earliest\" because its value is \"-1:-1:-1\", which does not equals"
-                    + " \"earliest\"")
+            doc = "The position that replication task start at, it can be set to earliest or latest (default).")
     private String replicationStartAt = "latest";
 
     @FieldContext(
