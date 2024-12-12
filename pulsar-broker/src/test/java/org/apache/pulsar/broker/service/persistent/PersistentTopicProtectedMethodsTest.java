@@ -57,6 +57,20 @@ public class PersistentTopicProtectedMethodsTest extends ProducerConsumerBase {
         this.conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
     }
 
+    /***
+     * Background: the steps for checking backlog metadata are as follows.
+     * - Get the oldest cursor.
+     * - Return the result if the oldest `cursor.md` equals LAC.
+     * - Else, calculate the estimated backlog quota.
+     *
+     * What case been covered by this test.
+     * - The method `PersistentTopic.estimatedTimeBasedBacklogQuotaCheck` may get an NPE when the
+     *   `@param position(cursor.markDeletedPositon)` equals LAC and the latest ledger has been removed by a
+     *   `ML.trimLedgers`, which was introduced by https://github.com/apache/pulsar/pull/21816.
+     * - Q: The broker checked whether the oldest `cursor.md` equals LAC at step 2 above, why does it still call
+     *      `PersistentTopic.estimatedTimeBasedBacklogQuotaCheck` with a param that equals `LAC`?
+     *   - A: There may be some `acknowledgments` and `ML.trimLedgers` that happened between `step2 above and step 3`.
+     */
     @Test
     public void testEstimatedTimeBasedBacklogQuotaCheckWhenNoBacklog() throws Exception {
         final String tp = BrokerTestUtil.newUniqueName("public/default/tp");
