@@ -198,7 +198,7 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testCnxReceiveSendErrorWithConfigMultiPerConnection() throws Exception {
         PulsarClient client = PulsarClient.builder().serviceUrl(lookupUrl.toString())
-                .maxNumberOfRejectedRequestPerConnection(1000).build();
+                .connectionsPerBroker(1000).build();
 
         // Create a producer with customized name.
         final String tp = BrokerTestUtil.newUniqueName(NAMESPACE + "/tp");
