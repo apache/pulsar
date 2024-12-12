@@ -159,6 +159,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         if (conf.getConnectionMaxIdleSeconds() > 0) {
             confBuilder.setPooledConnectionIdleTimeout(conf.getConnectionMaxIdleSeconds() * 1000);
         }
+        confBuilder.setCookieStore(null);
         confBuilder.setUseProxyProperties(true);
         confBuilder.setFollowRedirect(false);
         confBuilder.setRequestTimeout(conf.getRequestTimeoutMs());
