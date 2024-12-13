@@ -3647,7 +3647,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         // if the mark-delete position is the last entry it means all entries for
         // that ledger are acknowledged
-        if (markDeletePositionLedgerInfo!= null
+        if (markDeletePositionLedgerInfo != null
                 && (markDeletePosition.getEntryId() == markDeletePositionLedgerInfo.getEntries() - 1)) {
             Position positionToCheck = ledger.getNextValidPosition(markDeletePosition);
             positionToCheckLedgerInfo = ledger.getLedgerInfo(positionToCheck.getLedgerId()).get();
