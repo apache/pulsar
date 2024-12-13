@@ -175,6 +175,7 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
                     .build();
         }
         AsyncHttpClientConfig clientConfig = new DefaultAsyncHttpClientConfig.Builder()
+                .setCookieStore(null)
                 .setConnectTimeout(connectionTimeout)
                 .setReadTimeout(readTimeout)
                 .setSslContext(sslContext)
