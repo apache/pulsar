@@ -193,6 +193,8 @@ public class ClientCnx extends PulsarHandler {
     private boolean supportsTopicWatchers;
     @Getter
     private boolean supportsGetPartitionedMetadataWithoutAutoCreation;
+    @Getter
+    private boolean brokerSupportsDedupReplV2;
 
     /** Idle stat. **/
     @Getter
@@ -201,7 +203,7 @@ public class ClientCnx extends PulsarHandler {
     @Getter
     private long lastDisconnectedTimestamp;
 
-    private final String clientVersion;
+    protected final String clientVersion;
 
     protected enum State {
         None, SentConnectFrame, Ready, Failed, Connecting
@@ -405,6 +407,8 @@ public class ClientCnx extends PulsarHandler {
         supportsGetPartitionedMetadataWithoutAutoCreation =
             connected.hasFeatureFlags()
                     && connected.getFeatureFlags().isSupportsGetPartitionedMetadataWithoutAutoCreation();
+        brokerSupportsDedupReplV2 =
+            connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsDedupReplV2();
 
         // set remote protocol version to the correct version before we complete the connection future
         setRemoteEndpointProtocolVersion(connected.getProtocolVersion());
@@ -474,18 +478,18 @@ public class ClientCnx extends PulsarHandler {
             ledgerId = sendReceipt.getMessageId().getLedgerId();
             entryId = sendReceipt.getMessageId().getEntryId();
         }
-
-        if (ledgerId == -1 && entryId == -1) {
-            log.warn("{} Message with sequence-id {} published by producer {} has been dropped", ctx.channel(),
-                    sequenceId, producerId);
-        }
-
-        if (log.isDebugEnabled()) {
-            log.debug("{} Got receipt for producer: {} -- msg: {} -- id: {}:{}", ctx.channel(), producerId, sequenceId,
-                    ledgerId, entryId);
-        }
-
         ProducerImpl<?> producer = producers.get(producerId);
+        if (ledgerId == -1 && entryId == -1) {
+            log.warn("{} Message with sequence-id {}-{} published by producer [id:{}, name:{}] has been dropped",
+                    ctx.channel(), sequenceId, highestSequenceId, producerId, producer.getProducerName());
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("{} Got receipt for producer: [id:{}, name:{}] -- sequence-id: {}-{} -- entry-id: {}:{}",
+                        ctx.channel(), producerId, producer.getProducerName(), sequenceId, highestSequenceId,
+                        ledgerId, entryId);
+            }
+        }
+
         if (producer != null) {
             producer.ackReceived(this, sequenceId, highestSequenceId, ledgerId, entryId);
         } else {
