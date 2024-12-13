@@ -196,14 +196,15 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testCnxReceiveSendErrorWithConfigMultiPerConnection() throws Exception {
+    public void testCnxReceiveSendErrorWithMultiConnectionsPerBroker() throws Exception {
         PulsarClient client = PulsarClient.builder().serviceUrl(lookupUrl.toString())
                 .connectionsPerBroker(1000).build();
 
         // Create a producer with customized name.
         final String tp = BrokerTestUtil.newUniqueName(NAMESPACE + "/tp");
         admin.topics().createNonPartitionedTopic(tp);
-        Producer<String> p = client.newProducer(Schema.STRING).producerName("p1").topic(tp).create();
+        ProducerImpl<String> p =
+                (ProducerImpl<String>) client.newProducer(Schema.STRING).producerName("p1").topic(tp).create();
 
         // Inject a persistence error.
         org.apache.pulsar.broker.service.Producer serverProducer = pulsar.getBrokerService().getTopic(tp, false)
@@ -211,8 +212,11 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
         ServerCnx serverCnx = (ServerCnx) serverProducer.getCnx();
         serverCnx.getCommandSender().sendSendError(serverProducer.getProducerId(), 1/* sequenceId */,
                 ServerError.PersistenceError, "mocked error");
+
         // Wait for the client receives the error.
-        Thread.sleep(1000);
+        // If the client confirmed two Pings, it means the client has handled the PersistenceError we sent.
+        serverCnx.checkConnectionLiveness().join();
+        serverCnx.checkConnectionLiveness().join();
 
         try {
             // Verify: the next publish will finish.
