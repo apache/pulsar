@@ -2104,9 +2104,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         final CompletableFuture<Void> future = new CompletableFuture<>();
 
         String name = PersistentReplicator.getReplicatorName(replicatorPrefix, remoteCluster);
+        String replicationStartAt = getBrokerService().getPulsar().getConfiguration().getReplicationStartAt();
         final InitialPosition initialPosition;
-        if (MessageId.earliest.toString()
-                .equalsIgnoreCase(getBrokerService().getPulsar().getConfiguration().getReplicationStartAt())) {
+        // "MessageId.earliest.toString()" is "-1:-1:-1", which is not suggested, just guarantee compatibility with the
+        //  previous version.
+        // "InitialPosition.Earliest.name()" is "Earliest", which is suggested.
+        if (MessageId.earliest.toString().equalsIgnoreCase(replicationStartAt)
+                || InitialPosition.Earliest.name().equalsIgnoreCase(replicationStartAt)) {
             initialPosition = InitialPosition.Earliest;
         } else {
             initialPosition = InitialPosition.Latest;
