@@ -298,6 +298,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
 
         validateAccessForTenantCf
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, true, false)
                 .thenCompose(metadata -> {
                     int numPartitions = metadata.partitions;
