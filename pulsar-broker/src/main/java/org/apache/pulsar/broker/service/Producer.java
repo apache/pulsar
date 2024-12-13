@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.service;
 
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static org.apache.pulsar.broker.service.AbstractReplicator.REPL_PRODUCER_NAME_DELIMITER;
+import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SEQUENCE_EID;
+import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SEQUENCE_LID;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 import com.google.common.annotations.VisibleForTesting;
@@ -40,6 +42,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
@@ -271,7 +274,7 @@ public class Producer {
                                        boolean isMarker, Position position) {
         MessagePublishContext messagePublishContext =
                 MessagePublishContext.get(this, sequenceId, headersAndPayload.readableBytes(),
-                        batchSize, isChunked, System.nanoTime(), isMarker, position);
+                        batchSize, isChunked, System.nanoTime(), isMarker, position, cnx.isClientSupportsDedupReplV2());
         if (brokerInterceptor != null) {
             brokerInterceptor
                     .onMessagePublish(this, headersAndPayload, messagePublishContext);
@@ -283,7 +286,7 @@ public class Producer {
                                        int batchSize, boolean isChunked, boolean isMarker, Position position) {
         MessagePublishContext messagePublishContext = MessagePublishContext.get(this, lowestSequenceId,
                 highestSequenceId, headersAndPayload.readableBytes(), batchSize,
-                isChunked, System.nanoTime(), isMarker, position);
+                isChunked, System.nanoTime(), isMarker, position, cnx.isClientSupportsDedupReplV2());
         if (brokerInterceptor != null) {
             brokerInterceptor
                     .onMessagePublish(this, headersAndPayload, messagePublishContext);
@@ -378,6 +381,7 @@ public class Producer {
         private int batchSize;
         private boolean chunked;
         private boolean isMarker;
+        private boolean supportsDedupReplV2;
 
         private long startTimeNs;
 
@@ -464,6 +468,11 @@ public class Producer {
         }
 
         @Override
+        public boolean supportsDedupReplV2() {
+            return supportsDedupReplV2;
+        }
+
+        @Override
         public void setOriginalHighestSequenceId(long originalHighestSequenceId) {
             this.originalHighestSequenceId = originalHighestSequenceId;
         }
@@ -537,8 +546,11 @@ public class Producer {
             // stats
             producer.stats.recordMsgIn(batchSize, msgSize);
             producer.topic.recordAddLatency(System.nanoTime() - startTimeNs, TimeUnit.NANOSECONDS);
-            producer.cnx.getCommandSender().sendSendReceiptResponse(producer.producerId, sequenceId, highestSequenceId,
-                    ledgerId, entryId);
+            if (producer.isRemote() && supportsDedupReplV2) {
+                sendSendReceiptResponseRepl();
+            } else {
+                sendSendReceiptResponseNormal();
+            }
             producer.cnx.completedSendOperation(producer.isNonPersistentTopic, msgSize);
             if (this.chunked) {
                 producer.stats.recordChunkedMsgIn();
@@ -551,8 +563,37 @@ public class Producer {
             recycle();
         }
 
+        private void sendSendReceiptResponseRepl() {
+            String replSequenceLIdStr = String.valueOf(getProperty(MSG_PROP_REPL_SEQUENCE_LID));
+            String replSequenceEIdStr = String.valueOf(getProperty(MSG_PROP_REPL_SEQUENCE_EID));
+            if (!StringUtils.isNumeric(replSequenceLIdStr) || !StringUtils.isNumeric(replSequenceEIdStr)) {
+                log.error("[{}] Message can not determine whether the message is duplicated due to the acquired messages"
+                                + " props were are invalid. producer={}. supportsDedupReplV2: {}, sequence-id {},"
+                                + " prop-{}: {}, prop-{}: {}",
+                        producer.topic.getName(), producer.producerName,
+                        supportsDedupReplV2(), getSequenceId(),
+                        MSG_PROP_REPL_SEQUENCE_LID, replSequenceLIdStr,
+                        MSG_PROP_REPL_SEQUENCE_EID, replSequenceEIdStr);
+                producer.cnx.getCommandSender().sendSendError(producer.producerId,
+                        Math.max(highestSequenceId, sequenceId),
+                        ServerError.PersistenceError, "Message can not determine whether the message is"
+                                + " duplicated due to the acquired messages props were are invalid");
+                return;
+            }
+            Long replSequenceLId = Long.valueOf(replSequenceLIdStr);
+            Long replSequenceEId = Long.valueOf(replSequenceEIdStr);
+            producer.cnx.getCommandSender().sendSendReceiptResponse(producer.producerId, replSequenceLId,
+                    replSequenceEId, ledgerId, entryId);
+        }
+
+        private void sendSendReceiptResponseNormal() {
+            producer.cnx.getCommandSender().sendSendReceiptResponse(producer.producerId, sequenceId, highestSequenceId,
+                    ledgerId, entryId);
+        }
+
         static MessagePublishContext get(Producer producer, long sequenceId, int msgSize, int batchSize,
-                                         boolean chunked, long startTimeNs, boolean isMarker, Position position) {
+                                         boolean chunked, long startTimeNs, boolean isMarker, Position position,
+                                         boolean supportsDedupReplV2) {
             MessagePublishContext callback = RECYCLER.get();
             callback.producer = producer;
             callback.sequenceId = sequenceId;
@@ -563,6 +604,7 @@ public class Producer {
             callback.originalSequenceId = -1L;
             callback.startTimeNs = startTimeNs;
             callback.isMarker = isMarker;
+            callback.supportsDedupReplV2 = supportsDedupReplV2;
             callback.ledgerId = position == null ? -1 : position.getLedgerId();
             callback.entryId = position == null ? -1 : position.getEntryId();
             if (callback.propertyMap != null) {
@@ -572,7 +614,8 @@ public class Producer {
         }
 
         static MessagePublishContext get(Producer producer, long lowestSequenceId, long highestSequenceId, int msgSize,
-                             int batchSize, boolean chunked, long startTimeNs, boolean isMarker, Position position) {
+                             int batchSize, boolean chunked, long startTimeNs, boolean isMarker, Position position,
+                             boolean supportsDedupReplV2) {
             MessagePublishContext callback = RECYCLER.get();
             callback.producer = producer;
             callback.sequenceId = lowestSequenceId;
@@ -584,6 +627,7 @@ public class Producer {
             callback.startTimeNs = startTimeNs;
             callback.chunked = chunked;
             callback.isMarker = isMarker;
+            callback.supportsDedupReplV2 = supportsDedupReplV2;
             callback.ledgerId = position == null ? -1 : position.getLedgerId();
             callback.entryId = position == null ? -1 : position.getEntryId();
             if (callback.propertyMap != null) {
@@ -801,7 +845,8 @@ public class Producer {
         }
         MessagePublishContext messagePublishContext =
                 MessagePublishContext.get(this, sequenceId, highSequenceId,
-                        headersAndPayload.readableBytes(), batchSize, isChunked, System.nanoTime(), isMarker, null);
+                        headersAndPayload.readableBytes(), batchSize, isChunked, System.nanoTime(), isMarker, null,
+                        cnx.isClientSupportsDedupReplV2());
         if (brokerInterceptor != null) {
             brokerInterceptor
                     .onMessagePublish(this, headersAndPayload, messagePublishContext);
