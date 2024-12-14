@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.util;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.time.Clock;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -93,11 +92,6 @@ public class Backoff {
     public void reset() {
         this.next = this.initial;
         this.mandatoryStopMade = false;
-    }
-
-    @VisibleForTesting
-    long getFirstBackoffTimeInMillis() {
-        return firstBackoffTimeInMillis;
     }
 
     public static boolean shouldBackoff(long initialTimestamp, TimeUnit unitInitial, int failedAttempts,
