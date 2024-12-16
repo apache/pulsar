@@ -2890,6 +2890,54 @@ public class ManagedCursorImpl implements ManagedCursor {
                 }, null);
     }
 
+    /**
+     * Manually acknowledge all entries from startPosition to endPosition.
+     * - Since this is an uncommon event, we focus on maintainability. So we do not modify
+     *   {@link #individualDeletedMessages} and {@link #batchDeletedIndexes}, but call
+     *   {@link #asyncDelete(Position, AsyncCallbacks.DeleteCallback, Object)}.
+     * - This method is valid regardless of the consumer ACK type.
+     * - If there is a consumer ack request after this event, it will also work.
+     */
+    public void skipNonRecoverableEntries(Position startPosition, Position endPosition){
+        long ledgerId = startPosition.getLedgerId();
+        LedgerInfo ledgerInfo = ledger.getLedgersInfo().get(ledgerId);
+        if (ledgerInfo == null) {
+            return;
+        }
+
+        long startEntryId = Math.max(0, startPosition.getEntryId());
+        long endEntryId = ledgerId != endPosition.getLedgerId() ? ledgerInfo.getEntries() : endPosition.getEntryId();
+        if (startEntryId >= endEntryId) {
+            return;
+        }
+
+        lock.writeLock().lock();
+        log.warn("[{}] [{}] Since these entry for ledger [{}] is lost and the autoSkipNonRecoverableData is true, "
+                        + "these entries [{}:{}) will be auto acknowledge in subscription",
+                ledger.getName(), name, ledgerId, startEntryId, endEntryId);
+        try {
+            for (long i = startEntryId; i < endEntryId; i++) {
+                if (!individualDeletedMessages.contains(ledgerId, i)) {
+                    asyncDelete(PositionFactory.create(ledgerId, i), new AsyncCallbacks.DeleteCallback() {
+                        @Override
+                        public void deleteComplete(Object ctx) {
+                            // ignore.
+                        }
+
+                        @Override
+                        public void deleteFailed(ManagedLedgerException ex, Object ctx) {
+                            // The method internalMarkDelete already handled the failure operation. We only need to
+                            // make sure the memory state is updated.
+                            // If the broker crashed, the non-recoverable ledger will be detected again.
+                        }
+                    }, null);
+                }
+            }
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
     // //////////////////////////////////////////////////
 
     void startCreatingNewMetadataLedger() {
