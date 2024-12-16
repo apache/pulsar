@@ -389,8 +389,8 @@ The Apache Software License, Version 2.0
  * AirCompressor
     - io.airlift-aircompressor-0.27.jar
  * AsyncHttpClient
-    - org.asynchttpclient-async-http-client-2.12.1.jar
-    - org.asynchttpclient-async-http-client-netty-utils-2.12.1.jar
+    - org.asynchttpclient-async-http-client-2.12.4.jar
+    - org.asynchttpclient-async-http-client-netty-utils-2.12.4.jar
  * Jetty
     - org.eclipse.jetty-jetty-client-9.4.56.v20240826.jar
     - org.eclipse.jetty-jetty-continuation-9.4.56.v20240826.jar
@@ -570,7 +570,7 @@ Protocol Buffers License
 
 CDDL-1.1 -- ../licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API
-    - com.sun.activation-javax.activation-1.2.0.jar
+    - com.sun.activation-jakarta.activation-1.2.2.jar
  * Java Servlet API -- javax.servlet-javax.servlet-api-3.1.0.jar
  * WebSocket Server API -- javax.websocket-javax.websocket-client-api-1.0.jar
  * HK2 - Dependency Injection Kernel

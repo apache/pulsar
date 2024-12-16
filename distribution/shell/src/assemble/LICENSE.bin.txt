@@ -399,8 +399,8 @@ The Apache Software License, Version 2.0
   * AirCompressor
      - aircompressor-0.27.jar
  * AsyncHttpClient
-    - async-http-client-2.12.1.jar
-    - async-http-client-netty-utils-2.12.1.jar
+    - async-http-client-2.12.4.jar
+    - async-http-client-netty-utils-2.12.4.jar
  * Jetty
     - jetty-client-9.4.56.v20240826.jar
     - jetty-http-9.4.56.v20240826.jar
@@ -431,7 +431,7 @@ MIT License
 
 CDDL-1.1 -- ../licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API
-    - javax.activation-1.2.0.jar
+    - jakarta.activation-1.2.2.jar
  * WebSocket Server API -- javax.websocket-client-api-1.0.jar
  * HK2 - Dependency Injection Kernel
     - hk2-api-2.6.1.jar
