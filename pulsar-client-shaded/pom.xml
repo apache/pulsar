@@ -126,7 +126,7 @@
                   <include>com.google.j2objc:*</include>
                   <include>com.google.re2j:re2j</include>
                   <include>com.spotify:completable-futures</include>
-                  <include>com.sun.activation:javax.activation</include>
+                  <include>com.sun.activation:jakarta.activation</include>
                   <!-- Avro transitive dependencies -->
                   <include>com.thoughtworks.paranamer:paranamer</include>
                   <include>com.typesafe.netty:netty-reactive-streams</include>
