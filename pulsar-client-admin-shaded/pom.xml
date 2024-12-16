@@ -112,6 +112,7 @@
                   <include>com.spotify:completable-futures</include>
                   <include>com.squareup.*:*</include>
                   <include>com.sun.activation:javax.activation</include>
+                  <include>com.sun.activation:jakarta.activation</include>
                   <include>com.typesafe.netty:netty-reactive-streams</include>
                   <include>com.yahoo.datasketches:*</include>
                   <include>com.yahoo.datasketches:sketches-core</include>

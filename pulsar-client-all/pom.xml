@@ -153,6 +153,7 @@
                   <include>com.spotify:completable-futures</include>
                   <include>com.squareup.*:*</include>
                   <include>com.sun.activation:javax.activation</include>
+                  <include>com.sun.activation:jakarta.activation</include>
                   <!-- Avro transitive dependencies -->
                   <include>com.thoughtworks.paranamer:paranamer</include>
                   <include>com.typesafe.netty:netty-reactive-streams</include>
