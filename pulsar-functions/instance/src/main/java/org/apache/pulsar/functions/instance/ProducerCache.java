@@ -67,7 +67,7 @@ public class ProducerCache implements Closeable {
                 .<ProducerCacheKey, Producer<?>>removalListener((key, producer, cause) -> {
                     log.info("Closing producer for topic {}, cause {}", key.topic(), cause);
                     CompletableFuture closeFuture =
-                            producer.flushAsync()
+                            CompletableFuture.supplyAsync(() -> producer.flushAsync(), Runnable::run)
                                     .orTimeout(FLUSH_OR_CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                                     .exceptionally(ex -> {
                                         Throwable unwrappedCause = FutureUtil.unwrapCompletionException(ex);
