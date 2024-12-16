@@ -289,7 +289,8 @@ public class PersistentTopicsBase extends AdminResource {
     protected void internalRevokePermissionsOnTopic(AsyncResponse asyncResponse, String role) {
         // This operation should be reading from zookeeper and it should be allowed without having admin privileges
         CompletableFuture<Void> validateAccessForTenantCf =
-                validateAdminAccessForTenantAsync(namespaceName.getTenant());
+                validateAdminAccessForTenantAsync(namespaceName.getTenant())
+                        .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync());
 
         var checkIfTopicExists = !pulsar().getConfiguration().isAllowAclChangesOnNonExistentTopics();
         if (checkIfTopicExists) {
@@ -298,7 +299,6 @@ public class PersistentTopicsBase extends AdminResource {
         }
 
         validateAccessForTenantCf
-                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, true, false)
                 .thenCompose(metadata -> {
                     int numPartitions = metadata.partitions;
