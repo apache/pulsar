@@ -38,4 +38,27 @@ public class ProducerCacheTest {
                 () -> (Producer<Object>) producer);
         cache.close();
     }
+
+    @Test
+    public void shouldTolerateRuntimeExceptionInClose() {
+        ProducerCache cache = new ProducerCache();
+        Producer producer = mock(Producer.class);
+        when(producer.flushAsync()).thenReturn(CompletableFuture.completedFuture(null));
+        when(producer.closeAsync()).thenThrow(new RuntimeException("Some exception"));
+        cache.getOrCreateProducer(ProducerCache.CacheArea.CONTEXT_CACHE, "topic", "key",
+                () -> (Producer<Object>) producer);
+        cache.close();
+    }
+
+    @Test
+    public void shouldTolerateRuntimeExceptionInFlush() {
+        ProducerCache cache = new ProducerCache();
+        Producer producer = mock(Producer.class);
+        when(producer.flushAsync()).thenThrow(new RuntimeException("Some exception"));
+        when(producer.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+        cache.getOrCreateProducer(ProducerCache.CacheArea.CONTEXT_CACHE, "topic", "key",
+                () -> (Producer<Object>) producer);
+        cache.close();
+    }
+
 }
