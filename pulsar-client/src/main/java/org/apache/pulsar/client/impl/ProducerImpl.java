@@ -32,6 +32,9 @@ import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelOutboundHandler;
+import io.netty.channel.ChannelPromise;
 import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
@@ -483,19 +486,41 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return compressedPayload;
     }
 
+    /**
+     * Please ignore the note. below if you have a customized {@param callback}.
+     *
+     * Otherwise, please confirm the value "refCnt()" of {@param message} {@link MessageImpl#getDataBuffer}' is "2"
+     * when you call this method, because the ByteBuf will be released twice:
+     * 1. When enabled "isBatchMessagingEnabled":
+     *      1-1. Releasing when it was pushed into the batched message queue, see: {@link #doBatchSendAndAdd}
+     *      1-2. Releasing in the method {@link SendCallback#sendComplete(Throwable, OpSendMsgStats)}.
+     * 2. Single message, in other words, disabled "isBatchMessagingEnabled":
+     *      2-1. Releasing when it was writen out by
+     *           {@link ChannelOutboundHandler#write(ChannelHandlerContext, Object, ChannelPromise)}.
+     *      2-2. Releasing in the method {@link SendCallback#sendComplete(Throwable, OpSendMsgStats)}.
+     */
     public void sendAsync(Message<?> message, SendCallback callback) {
         checkArgument(message instanceof MessageImpl);
-
-        if (!isValidProducerState(callback, message.getSequenceId())) {
-            return;
-        }
-
         MessageImpl<?> msg = (MessageImpl<?>) message;
         MessageMetadata msgMetadata = msg.getMessageBuilder();
         ByteBuf payload = msg.getDataBuffer();
         final int uncompressedSize = payload.readableBytes();
 
+        // To guarantee compatibility with customized "SendCallback", see detail the doc of this method.
+        if (callback instanceof ProducerImpl.DefaultSendMessageCallback
+            || callback.getClass().getName().endsWith("NonPersistentReplicator$ProducerSendCallback")
+            || callback.getClass().getName().endsWith("ProducerSendCallback$ProducerSendCallback")) {
+            checkArgument(msg.getDataBuffer().refCnt() >= 2,
+                    "Message's data's refCnt is less than 2, see #123");
+        }
+
+        if (!isValidProducerState(callback, message.getSequenceId())) {
+            payload.release();
+            return;
+        }
+
         if (!canEnqueueRequest(callback, message.getSequenceId(), uncompressedSize)) {
+            payload.release();
             return;
         }
 
@@ -573,6 +598,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         for (int i = 0; i < (totalChunks - 1); i++) {
             if (!conf.isBlockIfQueueFull() && !canEnqueueRequest(callback, message.getSequenceId(),
                     0 /* The memory was already reserved */)) {
+                compressedPayload.release();
                 client.getMemoryLimitController().releaseMemory(uncompressedSize);
                 semaphoreRelease(i + 1);
                 return;
@@ -603,6 +629,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 }
                 if (chunkId > 0 && conf.isBlockIfQueueFull() && !canEnqueueRequest(callback,
                         message.getSequenceId(), 0 /* The memory was already reserved */)) {
+                    compressedPayload.release();
                     client.getMemoryLimitController().releaseMemory(uncompressedSize - readStartIndex);
                     semaphoreRelease(totalChunks - chunkId);
                     return;
@@ -723,10 +750,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     } else {
                         // handle boundary cases where message being added would exceed
                         // batch size and/or max message size
-                        boolean isBatchFull = batchMessageContainer.add(msg, callback);
-                        lastSendFuture = callback.getFuture();
-                        payload.release();
-                        triggerSendIfFullOrScheduleFlush(isBatchFull);
+                        try {
+                            boolean isBatchFull = batchMessageContainer.add(msg, callback);
+                            lastSendFuture = callback.getFuture();
+                            triggerSendIfFullOrScheduleFlush(isBatchFull);
+                        } finally {
+                            payload.release();
+                        }
                     }
                     isLastSequenceIdPotentialDuplicated = false;
                 }
@@ -2304,6 +2334,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 batchMessageAndSend(false);
             }
             if (isMessageSizeExceeded(op)) {
+                op.cmd.release();
                 return;
             }
             pendingMessages.add(op);

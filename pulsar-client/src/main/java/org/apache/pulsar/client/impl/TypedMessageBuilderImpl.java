@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.client.util.TypeCheckUtil.checkType;
+import com.google.common.annotations.VisibleForTesting;
 import java.nio.ByteBuffer;
 import java.util.Base64;
 import java.util.List;
@@ -45,10 +46,10 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     private static final ByteBuffer EMPTY_CONTENT = ByteBuffer.allocate(0);
 
-    private final transient ProducerBase<?> producer;
-    private final transient MessageMetadata msgMetadata = new MessageMetadata();
-    private final transient Schema<T> schema;
-    private transient ByteBuffer content;
+    protected final transient ProducerBase<?> producer;
+    protected final transient MessageMetadata msgMetadata = new MessageMetadata();
+    protected final transient Schema<T> schema;
+    protected transient ByteBuffer content;
     private final transient TransactionImpl txn;
     private transient T value;
 
@@ -65,7 +66,8 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
         this.txn = txn;
     }
 
-    private long beforeSend() {
+    @VisibleForTesting
+    protected long beforeSend() {
         if (value == null) {
             msgMetadata.setNullValue(true);
         } else {

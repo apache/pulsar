@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.Optional;
@@ -42,8 +43,9 @@ public class ConnectionHandler {
     private volatile ClientCnx clientCnx = null;
     @Getter
     @Setter
+    @VisibleForTesting
     // Since the `clientCnx` variable will be set to null at some times, it is necessary to save this value here.
-    private volatile int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
+    volatile int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
 
     protected final HandlerState state;
     protected final Backoff backoff;
