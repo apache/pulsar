@@ -88,7 +88,7 @@
     </dependency>
     <dependency>
       <groupId>com.sun.activation</groupId>
-      <artifactId>javax.activation</artifactId>
+      <artifactId>jakarta.activation</artifactId>
       <scope>runtime</scope>
     </dependency>
 
