@@ -122,10 +122,12 @@ public class ClientCnx extends PulsarHandler {
     protected final Authentication authentication;
     protected State state;
 
-    private AtomicLong duplicatedResponseCounter = new AtomicLong(0);
+    @VisibleForTesting
+    protected AtomicLong duplicatedResponseCounter = new AtomicLong(0);
 
+    @VisibleForTesting
     @Getter
-    private final ConcurrentLongHashMap<TimedCompletableFuture<? extends Object>> pendingRequests =
+    protected final ConcurrentLongHashMap<TimedCompletableFuture<? extends Object>> pendingRequests =
             ConcurrentLongHashMap.<TimedCompletableFuture<? extends Object>>newBuilder()
                     .expectedItems(16)
                     .concurrencyLevel(1)
