@@ -1,0 +1,36 @@
+--- CMakeLists.txt.orig	2024-12-18 01:04:32
++++ CMakeLists.txt	2024-12-18 01:06:07
+@@ -213,22 +213,24 @@
+         boost_chrono)
+ 
+ find_package(Threads)
+-find_package(ZLIB)
++find_package(ZLIB REQUIRED)
+ find_package(AWSSDK REQUIRED COMPONENTS kinesis monitoring sts)
++find_package(OpenSSL REQUIRED)
++find_package(CURL REQUIRED)
+ 
+-add_library(LibCrypto STATIC IMPORTED)
+-set_property(TARGET LibCrypto PROPERTY IMPORTED_LOCATION ${THIRD_PARTY_LIB_DIR}/libcrypto.a)
++add_library(LibCrypto SHARED IMPORTED)
++set_property(TARGET LibCrypto PROPERTY IMPORTED_LOCATION ${OPENSSL_CRYPTO_LIBRARY})
+ set_property(TARGET LibCrypto PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES ${LIBDL_LIBRARIES})
+ 
+-add_library(LibSsl STATIC IMPORTED)
+-set_property(TARGET LibSsl PROPERTY IMPORTED_LOCATION ${THIRD_PARTY_LIB_DIR}/libssl.a)
++add_library(LibSsl SHARED IMPORTED)
++set_property(TARGET LibSsl PROPERTY IMPORTED_LOCATION ${OPENSSL_SSL_LIBRARY})
+ set_property(TARGET LibSsl PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES LibCrypto)
+ 
+-add_library(LibZ STATIC IMPORTED)
+-set_property(TARGET LibZ PROPERTY IMPORTED_LOCATION ${THIRD_PARTY_LIB_DIR}/libz.a)
++add_library(LibZ SHARED IMPORTED)
++set_property(TARGET LibZ PROPERTY IMPORTED_LOCATION ${ZLIB_LIBRARIES})
+ 
+-add_library(LibCurl STATIC IMPORTED)
+-set_property(TARGET LibCurl PROPERTY IMPORTED_LOCATION ${THIRD_PARTY_LIB_DIR}/libcurl.a)
++add_library(LibCurl SHARED IMPORTED)
++set_property(TARGET LibCurl PROPERTY IMPORTED_LOCATION ${CURL_LIBRARIES})
+ set_property(TARGET LibCurl PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES ${CMAKE_THREAD_LIBS_INIT} ${LIBRT_LIBRARIES} ${LIBDL_LIBRARIES} LibSsl LibZ)
+ 
+ add_library(LibProto STATIC IMPORTED)

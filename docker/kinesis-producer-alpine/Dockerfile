@@ -40,6 +40,8 @@ RUN mkdir /build && \
     cd /build && \
     git clone --depth 1 --single-branch --branch v${KINESIS_PRODUCER_LIB_VERSION} https://github.com/awslabs/amazon-kinesis-producer
 
+COPY CMakeLists.txt.patch /build/
+
 # Copy and execute build script
 COPY build-alpine.sh /build/
 RUN chmod +x /build/build-alpine.sh
