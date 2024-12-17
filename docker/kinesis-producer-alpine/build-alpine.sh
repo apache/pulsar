@@ -34,7 +34,7 @@ if [ ! -d "protobuf-${PROTOBUF_VERSION}" ]; then
   curl -LO https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOBUF_VERSION}/protobuf-all-${PROTOBUF_VERSION}.tar.gz
   tar xf protobuf-all-${PROTOBUF_VERSION}.tar.gz
   rm protobuf-all-${PROTOBUF_VERSION}.tar.gz
-  
+
   cd protobuf-${PROTOBUF_VERSION}
   ./configure --prefix=${INSTALL_DIR} \
     --disable-shared \
@@ -53,11 +53,11 @@ if [ ! -d "boost_${BOOST_VERSION_UNDERSCORED}" ]; then
   rm boost_${BOOST_VERSION_UNDERSCORED}.tar.gz
 
   cd boost_${BOOST_VERSION_UNDERSCORED}
-  
+
   BOOST_LIBS="regex,thread,log,system,random,filesystem,chrono,atomic,date_time,program_options,test"
-  
+
   ./bootstrap.sh --with-libraries=$BOOST_LIBS --with-toolset=gcc
-  
+
   ./b2 \
     -j4 \
     variant=release \
@@ -67,7 +67,7 @@ if [ ! -d "boost_${BOOST_VERSION_UNDERSCORED}" ]; then
     --prefix=${INSTALL_DIR} \
     cxxflags="-fPIC ${CXXFLAGS}" \
     install
-    
+
   cd ..
 fi
 
@@ -102,6 +102,7 @@ fi
 
 # Build the native kinesis producer
 cd /build/amazon-kinesis-producer
+ln -s ../third_party
 cmake -DCMAKE_PREFIX_PATH="$INSTALL_DIR" -DCMAKE_BUILD_TYPE=RelWithDebInfo .
 make -j4
 
