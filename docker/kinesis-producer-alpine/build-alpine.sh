@@ -32,7 +32,7 @@ if [ ! -d "protobuf-${PROTOBUF_VERSION}" ]; then
   curl -LO https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOBUF_VERSION}/protobuf-all-${PROTOBUF_VERSION}.tar.gz
   tar xf protobuf-all-${PROTOBUF_VERSION}.tar.gz
   rm protobuf-all-${PROTOBUF_VERSION}.tar.gz
-  
+
   cd protobuf-${PROTOBUF_VERSION}
   ./configure --prefix=${INSTALL_DIR} \
     --disable-shared \
@@ -75,7 +75,7 @@ fi
 
 # Build the native kinesis producer
 cd /build/amazon-kinesis-producer
-cmake -DCMAKE_PREFIX_PATH="$INSTALL_DIR" -DCMAKE_BUILD_TYPE=RelWithDebInfo .
+cmake -DCMAKE_PREFIX_PATH="$INSTALL_DIR" -DTHIRD_PARTY_LIB_DIR="$INSTALL_DIR/lib" -DCMAKE_BUILD_TYPE=RelWithDebInfo .
 make -j4
 
 # Create directory for the native binary
