@@ -24,7 +24,8 @@ cd $INSTALL_DIR
 if [ ! -d "aws-sdk-cpp" ]; then
   git clone --depth 1 --branch ${AWS_SDK_CPP_VERSION} https://github.com/awslabs/aws-sdk-cpp.git aws-sdk-cpp
   pushd aws-sdk-cpp
-  git submodule update --init --recursive
+  git config submodule.fetchJobs 8
+  git submodule update --init --depth 1 --recursive
   popd
 
   rm -rf aws-sdk-cpp-build
