@@ -116,9 +116,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
                     producer.client.getMemoryLimitController().releaseMemory(msg.getUncompressedSize()
                             + batchAllocatedSizeBytes);
                 }
-                PulsarClientException error = new PulsarClientException(e);
-                discardMsg(error, msg, callback);
-                discard(error);
+                discard(new PulsarClientException(e));
                 return false;
             }
         }
@@ -224,18 +222,6 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     @Override
     public boolean isEmpty() {
         return messages.isEmpty();
-    }
-
-    public void discardMsg(Exception ex, MessageImpl<?> msg, SendCallback callback) {
-        try {
-            // Need to protect ourselves from any exception being thrown in the future handler from the application
-            if (callback != null) {
-                callback.sendComplete(ex, null);
-            }
-        } catch (Throwable t) {
-            log.warn("[{}] [{}] Got exception while completing the callback for msg {}:", topicName,
-                    producer.getProducerName(), msg.getSequenceId(), t);
-        }
     }
 
     @Override

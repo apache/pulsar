@@ -125,59 +125,6 @@ public class ProducerCornerCaseTest extends ProducerConsumerBase {
      *   1: reach the limitation before adding the message metadata.
      *   2: reach the limitation after adding the message metadata.
      */
-    @DataProvider(name = "makeGetSequenceIdErrorAtCallTimes")
-    public Object[][] makeGetSequenceIdErrorAtCallTimes(){
-        return new Object[][] {
-            {3}
-        };
-    }
-
-    /**
-     * Mock the error "construct first message failed, exception is", which throws by "BatchMessageContainerBase".
-     */
-    @Test(dataProvider = "makeGetSequenceIdErrorAtCallTimes")
-    public void testSendFailedAddIntoBatchContainer(int makeGetSequenceIdErrorAtCallTimes) throws Exception {
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp_");
-        admin.topics().createNonPartitionedTopic(topicName);
-        ProducerImpl<String> producer = (ProducerImpl<String>) pulsarClient.newProducer(Schema.STRING)
-                .enableBatching(true).topic(topicName).create();
-        // Publish after the producer was closed.
-        MsgPayloadTouchableMessageBuilder<String> msgBuilder = newMessage(producer);
-        AtomicInteger getSequenceTimes = new AtomicInteger();
-        msgBuilder.setMsgMocker(src -> {
-            MessageImpl<String> spyMsg = spy(src);
-            doAnswer(invocation -> {
-                if (getSequenceTimes.incrementAndGet() == makeGetSequenceIdErrorAtCallTimes) {
-                    throw new RuntimeException("mocked error");
-                }
-                return null;
-            }).when(spyMsg).getSequenceId();
-            return spyMsg;
-        });
-        try {
-            msgBuilder.value("msg-1").sendAsync().get(3, TimeUnit.SECONDS);
-        } catch (Exception ex) {
-            log.warn("", ex);
-            assertTrue(ex.getMessage().contains("mocked") || (ex instanceof TimeoutException));
-        }
-
-        // Verify: message payload has been released.
-        // Since "MsgPayloadTouchableMessageBuilder" has called "buffer.retain" once, "refCnt()" should be "1".
-        producer.close();
-        assertEquals(msgBuilder.payload.refCnt(), 1);
-
-        // cleanup.
-        msgBuilder.release();
-        assertEquals(msgBuilder.payload.refCnt(), 0);
-        admin.topics().delete(topicName);
-    }
-
-    /**
-     * The content size of msg(value is "msg-1") will be "5".
-     * Then provides two param: 1 and 5.
-     *   1: reach the limitation before adding the message metadata.
-     *   2: reach the limitation after adding the message metadata.
-     */
     @DataProvider(name = "maxMessageSizeAndCompressions")
     public Object[][] maxMessageSizeAndCompressions(){
         return new Object[][] {
