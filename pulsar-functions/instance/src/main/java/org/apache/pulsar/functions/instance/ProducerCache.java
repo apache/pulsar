@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.util.FutureUtil;
 
 @Slf4j
@@ -61,24 +62,41 @@ public class ProducerCache implements Closeable {
     private final CopyOnWriteArrayList<CompletableFuture<Void>> closeFutures = new CopyOnWriteArrayList<>();
 
     public ProducerCache() {
-        Caffeine<ProducerCacheKey, Producer> builder = Caffeine.newBuilder()
+        Caffeine<ProducerCacheKey, Producer<?>> builder = Caffeine.newBuilder()
                 .scheduler(Scheduler.systemScheduler())
-                .<ProducerCacheKey, Producer>removalListener((key, producer, cause) -> {
+                .<ProducerCacheKey, Producer<?>>removalListener((key, producer, cause) -> {
                     log.info("Closing producer for topic {}, cause {}", key.topic(), cause);
                     CompletableFuture closeFuture =
-                            producer.flushAsync()
+                            CompletableFuture.supplyAsync(() -> producer.flushAsync(), Runnable::run)
                                     .orTimeout(FLUSH_OR_CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                                     .exceptionally(ex -> {
-                                        log.error("Error flushing producer for topic {}", key.topic(), ex);
+                                        Throwable unwrappedCause = FutureUtil.unwrapCompletionException(ex);
+                                        if (unwrappedCause instanceof PulsarClientException.AlreadyClosedException) {
+                                            log.error(
+                                                    "Error flushing producer for topic {} due to "
+                                                            + "AlreadyClosedException",
+                                                    key.topic());
+                                        } else {
+                                            log.error("Error flushing producer for topic {}", key.topic(),
+                                                    unwrappedCause);
+                                        }
                                         return null;
                                     }).thenCompose(__ ->
                                             producer.closeAsync().orTimeout(FLUSH_OR_CLOSE_TIMEOUT_SECONDS,
-                                                            TimeUnit.SECONDS)
-                                                    .exceptionally(ex -> {
-                                                        log.error("Error closing producer for topic {}", key.topic(),
-                                                                ex);
-                                                        return null;
-                                                    }));
+                                                    TimeUnit.SECONDS)
+                                    ).exceptionally(ex -> {
+                                        Throwable unwrappedCause = FutureUtil.unwrapCompletionException(ex);
+                                        if (unwrappedCause instanceof PulsarClientException.AlreadyClosedException) {
+                                            log.error(
+                                                    "Error closing producer for topic {} due to "
+                                                            + "AlreadyClosedException",
+                                                    key.topic());
+                                        } else {
+                                            log.error("Error closing producer for topic {}", key.topic(),
+                                                    unwrappedCause);
+                                        }
+                                        return null;
+                                    });
                     if (closed.get()) {
                         closeFutures.add(closeFuture);
                     }
