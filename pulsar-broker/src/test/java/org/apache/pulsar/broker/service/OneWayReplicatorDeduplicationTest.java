@@ -40,7 +40,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -81,7 +80,6 @@ import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
-import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -205,12 +203,8 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
         };
     }
 
-    // TODO add more tests
-    //  - The old deduplication does not work when multi source producers use a same sequence-id.
-    //    - Add more issue explain in the PR.
+    // TODO
     //  - Review the code to confirm that multi source-brokers can work when the source topic switch.
-    //  - Try to reproduce the issue mentioned in the PR.
-
     @Test(timeOut = 360 * 1000, dataProvider = "deduplicationArgs")
     public void testDeduplication(final boolean injectRepeatedPublish, final int repeatedMessagesWindow,
                                   final boolean supportsDedupReplV2, boolean multiSchemas) throws Exception {
@@ -314,8 +308,6 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
         admin2.topics().createNonPartitionedTopic(topicName);
         admin2.topics().createSubscription(topicName, "s1", MessageId.earliest);
         Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
-            // TODO fix the bug: the policy "admin1.topicPolicies().setDeduplicationSnapshotInterval(topicName, 10)"
-            //      does not work.
             PersistentTopic persistentTopic1 =
                     (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
             PersistentTopic persistentTopic2 =
@@ -342,7 +334,6 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
             assertEquals(persistentTopic2.getHierarchyTopicPolicies().getDeduplicationEnabled().get(), Boolean.TRUE);
             assertEquals(persistentTopic2.getHierarchyTopicPolicies().getSchemaCompatibilityStrategy().get(),
                     SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
-            // TODO fix the bug: after schema check failed, the replication will get a broken package error.
         });
         PersistentTopic tp1 =
                 (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
@@ -530,7 +521,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
      *   2-2. Repeatedly copies M1 and M2. and copies M3 and M4.
      *     2-2-1. After repeatedly copies M1 and M2, the network broke.
      * 3. After a topic unloading.
-     *   3-1. The replicator will start after the topic is loaded yp.
+     *   3-1. The replicator will start after the topic is loaded up.
      *   3-2. The client will create a new connection.
      * 4. Verify: All 4 messages are copied to the remote cluster.
      */
