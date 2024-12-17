@@ -100,8 +100,8 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
                 //    Notice: if send messages outs of oder, may lost messages.
                 // Conclusion: So whether @param-ledgerId and @param-entry-id are "-1" or not, we can remove pending
                 //    message.
-                if (log.isInfoEnabled()) {
-                    log.info("Got receipt for producer: [{}] -- source-message: {}:{} -- target-msg: {}:{}",
+                if (log.isDebugEnabled()) {
+                    log.debug("Got receipt for producer: [{}] -- source-message: {}:{} -- target-msg: {}:{}",
                             getProducerName(), lIdSent, eIdSent, ledgerId, entryId);
                 }
                 pendingMessages.remove();
