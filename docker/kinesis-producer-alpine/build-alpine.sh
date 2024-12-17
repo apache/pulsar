@@ -19,6 +19,14 @@ export LD_LIBRARY_PATH="$INSTALL_DIR/lib:$LD_LIBRARY_PATH"
 
 cd $INSTALL_DIR
 
+# Build libexecinfo
+if [ ! -d "libexecinfo" ]; then
+  git clone https://github.com/mikroskeem/libexecinfo
+  cd libexecinfo
+  make PREFIX=${INSTALL_DIR} install
+  cd ..
+fi
+
 # Build protobuf
 if [ ! -d "protobuf-${PROTOBUF_VERSION}" ]; then
   curl -LO https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOBUF_VERSION}/protobuf-all-${PROTOBUF_VERSION}.tar.gz
@@ -26,8 +34,12 @@ if [ ! -d "protobuf-${PROTOBUF_VERSION}" ]; then
   rm protobuf-all-${PROTOBUF_VERSION}.tar.gz
   
   cd protobuf-${PROTOBUF_VERSION}
-  ./configure --prefix=${INSTALL_DIR} --enable-shared=no
-  make -j$(nproc)
+  ./configure --prefix=${INSTALL_DIR} \
+    --disable-shared \
+    CFLAGS="-fPIC" \
+    CXXFLAGS="-fPIC ${CXXFLAGS}" \
+    --with-pic
+  make -j4 CXXFLAGS="-fPIC ${CXXFLAGS}"
   make install
   cd ..
 fi
@@ -56,7 +68,7 @@ if [ ! -d "aws-sdk-cpp" ]; then
     -DCMAKE_FIND_FRAMEWORK=LAST \
     -DENABLE_TESTING="OFF" \
     ../aws-sdk-cpp
-  make -j$(nproc)
+  make -j4
   make install
   cd ..
 fi
@@ -64,7 +76,7 @@ fi
 # Build the native kinesis producer
 cd /build/amazon-kinesis-producer
 cmake -DCMAKE_PREFIX_PATH="$INSTALL_DIR" -DCMAKE_BUILD_TYPE=RelWithDebInfo .
-make -j$(nproc)
+make -j4
 
 # Create directory for the native binary
 NATIVE_BINARY_DIR=java/amazon-kinesis-producer/src/main/resources/amazon-kinesis-producer-native-binaries/linux-$(uname -m)/
