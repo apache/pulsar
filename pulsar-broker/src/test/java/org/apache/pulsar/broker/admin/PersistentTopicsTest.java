@@ -1031,6 +1031,36 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testRevokePartitionedTopicWithReadonlyPolicies() throws Exception {
+        final String partitionedTopicName = "testRevokePartitionedTopicWithReadonlyPolicies-topic";
+        final int numPartitions = 5;
+        AsyncResponse response = mock(AsyncResponse.class);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.createPartitionedTopic(
+                response, testTenant, testNamespace, partitionedTopicName, numPartitions, true);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+        String role = "role";
+        Set<AuthAction> expectActions = new HashSet<>();
+        expectActions.add(AuthAction.produce);
+        response = mock(AsyncResponse.class);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.grantPermissionsOnTopic(response, testTenant, testNamespace, partitionedTopicName, role,
+                expectActions);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+        response = mock(AsyncResponse.class);
+        doReturn(CompletableFuture.failedFuture(
+                new RestException(Response.Status.FORBIDDEN,  "Broker is forbidden to do read-write operations"))
+        ).when(persistentTopics).validatePoliciesReadOnlyAccessAsync();
+        persistentTopics.revokePermissionsOnTopic(response, testTenant, testNamespace, partitionedTopicName, role);
+        ArgumentCaptor<RestException> exceptionCaptor = ArgumentCaptor.forClass(RestException.class);
+        verify(response, timeout(5000).times(1)).resume(exceptionCaptor.capture());
+        Assert.assertEquals(exceptionCaptor.getValue().getResponse().getStatus(),
+                Response.Status.FORBIDDEN.getStatusCode());
+    }
+
+    @Test
     public void testTriggerCompactionTopic() {
         final String partitionTopicName = "test-part";
         final String nonPartitionTopicName = "test-non-part";
