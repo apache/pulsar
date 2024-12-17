@@ -5,6 +5,7 @@ set -x
 
 INSTALL_DIR=/build/third_party
 AWS_SDK_CPP_VERSION="1.11.420"
+PROTOBUF_VERSION="3.11.4"
 
 # Create install directory
 mkdir -p $INSTALL_DIR
@@ -16,11 +17,22 @@ export CXXFLAGS="-I$INSTALL_DIR/include -O3 -Wno-implicit-fallthrough -Wno-int-i
 export LDFLAGS="-L$INSTALL_DIR/lib"
 export LD_LIBRARY_PATH="$INSTALL_DIR/lib:$LD_LIBRARY_PATH"
 
-# We'll use system libraries for OpenSSL, Boost, zlib, Protobuf, and curl
-# Just need to ensure the headers are available
+cd $INSTALL_DIR
+
+# Build protobuf
+if [ ! -d "protobuf-${PROTOBUF_VERSION}" ]; then
+  curl -LO https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOBUF_VERSION}/protobuf-all-${PROTOBUF_VERSION}.tar.gz
+  tar xf protobuf-all-${PROTOBUF_VERSION}.tar.gz
+  rm protobuf-all-${PROTOBUF_VERSION}.tar.gz
+  
+  cd protobuf-${PROTOBUF_VERSION}
+  ./configure --prefix=${INSTALL_DIR} --enable-shared=no
+  make -j$(nproc)
+  make install
+  cd ..
+fi
 
 # Download and build AWS SDK
-cd $INSTALL_DIR
 if [ ! -d "aws-sdk-cpp" ]; then
   git clone --depth 1 --branch ${AWS_SDK_CPP_VERSION} https://github.com/awslabs/aws-sdk-cpp.git aws-sdk-cpp
   pushd aws-sdk-cpp
