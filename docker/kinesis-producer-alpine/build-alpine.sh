@@ -6,6 +6,8 @@ set -x
 INSTALL_DIR=/build/third_party
 AWS_SDK_CPP_VERSION="1.11.420"
 PROTOBUF_VERSION="3.11.4"
+BOOST_VERSION="1.76.0"
+BOOST_VERSION_UNDERSCORED="${BOOST_VERSION//\./_}"
 
 # Create install directory
 mkdir -p $INSTALL_DIR
@@ -32,15 +34,40 @@ if [ ! -d "protobuf-${PROTOBUF_VERSION}" ]; then
   curl -LO https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOBUF_VERSION}/protobuf-all-${PROTOBUF_VERSION}.tar.gz
   tar xf protobuf-all-${PROTOBUF_VERSION}.tar.gz
   rm protobuf-all-${PROTOBUF_VERSION}.tar.gz
-
+  
   cd protobuf-${PROTOBUF_VERSION}
   ./configure --prefix=${INSTALL_DIR} \
     --disable-shared \
     CFLAGS="-fPIC" \
     CXXFLAGS="-fPIC ${CXXFLAGS}" \
     --with-pic
-  make -j4 CXXFLAGS="-fPIC ${CXXFLAGS}"
+  make -j4
   make install
+  cd ..
+fi
+
+# Build Boost
+if [ ! -d "boost_${BOOST_VERSION_UNDERSCORED}" ]; then
+  curl -LO https://boostorg.jfrog.io/artifactory/main/release/${BOOST_VERSION}/source/boost_${BOOST_VERSION_UNDERSCORED}.tar.gz
+  tar xf boost_${BOOST_VERSION_UNDERSCORED}.tar.gz
+  rm boost_${BOOST_VERSION_UNDERSCORED}.tar.gz
+
+  cd boost_${BOOST_VERSION_UNDERSCORED}
+  
+  BOOST_LIBS="regex,thread,log,system,random,filesystem,chrono,atomic,date_time,program_options,test"
+  
+  ./bootstrap.sh --with-libraries=$BOOST_LIBS --with-toolset=gcc
+  
+  ./b2 \
+    -j4 \
+    variant=release \
+    link=static \
+    threading=multi \
+    runtime-link=static \
+    --prefix=${INSTALL_DIR} \
+    cxxflags="-fPIC ${CXXFLAGS}" \
+    install
+    
   cd ..
 fi
 
@@ -75,7 +102,7 @@ fi
 
 # Build the native kinesis producer
 cd /build/amazon-kinesis-producer
-cmake -DCMAKE_PREFIX_PATH="$INSTALL_DIR" -DTHIRD_PARTY_LIB_DIR="$INSTALL_DIR/lib" -DCMAKE_BUILD_TYPE=RelWithDebInfo .
+cmake -DCMAKE_PREFIX_PATH="$INSTALL_DIR" -DCMAKE_BUILD_TYPE=RelWithDebInfo .
 make -j4
 
 # Create directory for the native binary
