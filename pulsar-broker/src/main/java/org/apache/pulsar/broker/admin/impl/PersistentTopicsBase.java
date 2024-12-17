@@ -305,7 +305,7 @@ public class PersistentTopicsBase extends AdminResource {
         // This operation should be reading from zookeeper and it should be allowed without having admin privileges
         CompletableFuture<Void> validateAccessForTenantCf =
                 validateAdminAccessForTenantAsync(namespaceName.getTenant())
-                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync());
+                        .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync());
 
         var checkIfTopicExists = !pulsar().getConfiguration().isAllowAclChangesOnNonExistentTopics();
         if (checkIfTopicExists) {
