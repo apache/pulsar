@@ -1,7 +1,7 @@
 ARG IMAGE_JDK_MAJOR_VERSION=21
 
 # Build stage
-FROM amazoncorretto:${IMAGE_JDK_MAJOR_VERSION}-alpine AS kpl-build
+FROM amazoncorretto:${IMAGE_JDK_MAJOR_VERSION}-alpine
 
 # Install build dependencies
 RUN apk update && apk add --no-cache \
@@ -43,33 +43,4 @@ RUN mkdir /build && \
 
 # Copy and execute build script
 COPY build-alpine.sh /build/
-RUN chmod +x /build/build-alpine.sh && \
-    cd /build && \
-    ./build-alpine.sh
-
-# Runtime stage
-FROM amazoncorretto:${IMAGE_JDK_MAJOR_VERSION}-alpine
-
-# Install runtime dependencies
-RUN apk add --no-cache \
-    libuuid \
-    libstdc++ \
-    zlib \
-    boost \
-    protobuf \
-    openssl \
-    curl
-
-# Copy built artifacts
-COPY --from=kpl-build /build/amazon-kinesis-producer/java/amazon-kinesis-producer/target/amazon-kinesis-producer-*.jar /opt/kpl/
-COPY --from=kpl-build /build/amazon-kinesis-producer/java/amazon-kinesis-producer/src/main/resources/amazon-kinesis-producer-native-binaries/ /opt/kpl/native-binaries/
-
-# Set environment variables
-ENV LD_LIBRARY_PATH=/opt/kpl/native-binaries/linux-x86_64
-ENV JAVA_HOME=/usr/lib/jvm/java-${IMAGE_JDK_MAJOR_VERSION}-amazon-corretto
-
-# Set working directory
-WORKDIR /opt/kpl
-
-# Command to verify installation (can be modified based on your needs)
-CMD ["java", "-version"]
+RUN chmod +x /build/build-alpine.sh
