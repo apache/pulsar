@@ -27,13 +27,11 @@ import lombok.Data;
  */
 @Data
 public class JavaExecutionResult {
-    private Exception userException;
-    private Exception systemException;
+    private Throwable userException;
     private Object result;
 
     public void reset() {
         setUserException(null);
-        setSystemException(null);
         setResult(null);
     }
 }
