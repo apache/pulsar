@@ -410,8 +410,8 @@ public class MessageDeduplication {
         synchronized (highestSequencedPushed) {
             Long lastSequenceLIdPushed = highestSequencedPushed.get(lastSequenceLIdKey);
             Long lastSequenceEIdPushed = highestSequencedPushed.get(lastSequenceEIdKey);
-            if (lastSequenceLIdPushed != null && lastSequenceEIdPushed != null &&
-                (replSequenceLId.compareTo(lastSequenceLIdPushed) < 0
+            if (lastSequenceLIdPushed != null && lastSequenceEIdPushed != null
+                && (replSequenceLId.compareTo(lastSequenceLIdPushed) < 0
                         || (replSequenceLId.compareTo(lastSequenceLIdPushed) == 0
                         && replSequenceEId.compareTo(lastSequenceEIdPushed) <= 0))) {
                 if (log.isDebugEnabled()) {
@@ -436,8 +436,8 @@ public class MessageDeduplication {
                             topic.getName(), publishContext.getProducerName(), replSequenceLId,
                             replSequenceEId, lastSequenceLIdPersisted, lastSequenceEIdPersisted);
                 }
-                if (lastSequenceLIdPersisted != null && lastSequenceEIdPersisted != null &&
-                    (replSequenceLId.compareTo(lastSequenceLIdPersisted) < 0
+                if (lastSequenceLIdPersisted != null && lastSequenceEIdPersisted != null
+                    && (replSequenceLId.compareTo(lastSequenceLIdPersisted) < 0
                         || (replSequenceLId.compareTo(lastSequenceLIdPersisted) == 0
                             && replSequenceEId.compareTo(lastSequenceEIdPersisted) <= 0))) {
                     return MessageDupStatus.Dup;
