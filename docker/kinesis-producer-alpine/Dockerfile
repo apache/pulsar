@@ -35,12 +35,14 @@ RUN apk update && apk add --no-cache \
 ENV LANG=C.UTF-8
 ENV KINESIS_PRODUCER_LIB_VERSION=0.15.12
 
-# Clone KPL and copy build script
-RUN mkdir /build && \
-    cd /build && \
-    git clone --depth 1 --single-branch --branch v${KINESIS_PRODUCER_LIB_VERSION} https://github.com/awslabs/amazon-kinesis-producer
+RUN mkdir /build
+COPY kinesis_producer_alpine.patch /build/
 
-COPY CMakeLists.txt.patch /build/
+# Clone KPL and copy build script
+RUN cd /build && \
+    git clone --depth 1 --single-branch --branch v${KINESIS_PRODUCER_LIB_VERSION} https://github.com/awslabs/amazon-kinesis-producer && \
+    cd amazon-kinesis-producer && \
+    git apply ../kinesis_producer_alpine.patch
 
 # Copy and execute build script
 COPY build-alpine.sh /build/

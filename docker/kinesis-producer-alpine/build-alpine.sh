@@ -21,14 +21,6 @@ export LD_LIBRARY_PATH="$INSTALL_DIR/lib:$LD_LIBRARY_PATH"
 
 cd $INSTALL_DIR
 
-# Build libexecinfo
-if [ ! -d "libexecinfo" ]; then
-  git clone https://github.com/mikroskeem/libexecinfo
-  cd libexecinfo
-  make PREFIX=${INSTALL_DIR} install
-  cd ..
-fi
-
 # Build protobuf
 if [ ! -d "protobuf-${PROTOBUF_VERSION}" ]; then
   curl -LO https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOBUF_VERSION}/protobuf-all-${PROTOBUF_VERSION}.tar.gz
