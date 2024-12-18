@@ -1,7 +1,27 @@
-ARG IMAGE_JDK_MAJOR_VERSION=21
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+ARG ALPINE_VERSION=3.20
 
 # Build stage
-FROM amazoncorretto:${IMAGE_JDK_MAJOR_VERSION}-alpine
+FROM alpine:$ALPINE_VERSION AS kinesis-producer-build
+ENV KINESIS_PRODUCER_LIB_VERSION=0.15.12
 
 # Install build dependencies
 RUN apk update && apk add --no-cache \
@@ -14,7 +34,6 @@ RUN apk update && apk add --no-cache \
     autoconf \
     automake \
     libtool \
-    maven \
     curl \
     bash \
     tar \
@@ -30,10 +49,10 @@ RUN apk update && apk add --no-cache \
     build-base \
     util-linux-dev \
     g++ \
-    make
+    make \
+    upx
 
 ENV LANG=C.UTF-8
-ENV KINESIS_PRODUCER_LIB_VERSION=0.15.12
 
 RUN mkdir /build
 COPY kinesis_producer_alpine.patch /build/
@@ -47,4 +66,23 @@ RUN cd /build && \
 # Copy and execute build script
 COPY build-alpine.sh /build/
 RUN chmod +x /build/build-alpine.sh
-WORKDIR /build
+RUN /build/build-alpine.sh
+
+# Final stage
+FROM alpine:$ALPINE_VERSION
+COPY --from=kinesis-producer-build /opt/amazon-kinesis-producer /opt/amazon-kinesis-producer
+RUN apk update && apk add --no-cache \
+    brotli-libs \
+    c-ares \
+    libcrypto3 \
+    libcurl \
+    libgcc \
+    libidn2 \
+    libpsl \
+    libssl3 \
+    libunistring \
+    nghttp2-libs \
+    zlib \
+    zstd-libs \
+    libuuid
+WORKDIR /opt/amazon-kinesis-producer/bin

@@ -98,13 +98,17 @@ ln -fs ../third_party
 cmake -DCMAKE_PREFIX_PATH="$INSTALL_DIR" -DCMAKE_BUILD_TYPE=RelWithDebInfo .
 make -j4
 
-# Create directory for the native binary
-NATIVE_BINARY_DIR=java/amazon-kinesis-producer/src/main/resources/amazon-kinesis-producer-native-binaries/linux-$(uname -m)/
-mkdir -p $NATIVE_BINARY_DIR
+FINAL_DIR=/opt/amazon-kinesis-producer
+# copy the binary
+mkdir -p $FINAL_DIR/bin
+cp kinesis_producer $FINAL_DIR/bin/kinesis_producer.original
 
-# Copy the native producer
-cp kinesis_producer $NATIVE_BINARY_DIR
+# copy tests
+mkdir -p $FINAL_DIR/tests
+cp tests $FINAL_DIR/tests/
+cp test_driver $FINAL_DIR/tests/
 
-# Build the Java producer
-cd java/amazon-kinesis-producer
-mvn clean package source:jar javadoc:jar install
+# Strip and compress the binary
+cd $FINAL_DIR/bin
+strip -o kinesis_producer.stripped kinesis_producer.original
+upx --best -o kinesis_producer kinesis_producer.stripped
