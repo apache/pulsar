@@ -487,17 +487,30 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     /**
-     * Please ignore the note. below if you have a customized {@param callback}.
+     * Note on ByteBuf Release Behavior.
      *
-     * Otherwise, please confirm the value "refCnt()" of {@param message} {@link MessageImpl#getDataBuffer}' is "2"
-     * when you call this method, because the ByteBuf will be released twice:
-     * 1. When enabled "isBatchMessagingEnabled":
-     *      1-1. Releasing when it was pushed into the batched message queue, see: {@link #doBatchSendAndAdd}
-     *      1-2. Releasing in the method {@link SendCallback#sendComplete(Throwable, OpSendMsgStats)}.
-     * 2. Single message, in other words, disabled "isBatchMessagingEnabled":
-     *      2-1. Releasing when it was writen out by
-     *           {@link ChannelOutboundHandler#write(ChannelHandlerContext, Object, ChannelPromise)}.
-     *      2-2. Releasing in the method {@link SendCallback#sendComplete(Throwable, OpSendMsgStats)}.
+     * <p>If you have a customized callback, please ignore the note below.</p>
+     *
+     * <p>When using the default callback, please confirm that the {@code refCnt()} value of the {@code message}
+     * (as returned by {@link MessageImpl#getDataBuffer}) is {@code 2} when you call this method. This is because
+     * the {@code ByteBuf} will be released twice under the following conditions:</p>
+     *
+     * <ul>
+     *   <li><b>Batch Messaging Enabled:</b>
+     *     <ol>
+     *       <li>Release 1: When the message is pushed into the batched message queue (see {@link #doBatchSendAndAdd}).
+     *       </li>
+     *       <li>Release 2: In the method {@link SendCallback#sendComplete(Throwable, OpSendMsgStats)}.</li>
+     *     </ol>
+     *   </li>
+     *   <li><b>Single Message (Batch Messaging Disabled):</b>
+     *     <ol>
+     *       <li>Release 1: When the message is written out by
+     *       {@link ChannelOutboundHandler#write(ChannelHandlerContext, Object, ChannelPromise)}.</li>
+     *       <li>Release 2: In the method {@link SendCallback#sendComplete(Throwable, OpSendMsgStats)}.</li>
+     *     </ol>
+     *   </li>
+     * </ul>
      */
     public void sendAsync(Message<?> message, SendCallback callback) {
         checkArgument(message instanceof MessageImpl);
