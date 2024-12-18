@@ -82,20 +82,17 @@ public class ProducerCornerCaseTest extends ProducerConsumerBase {
         int indexCalledSend = 0;
         List<CompletableFuture> sendFutureList = new ArrayList<>();
         for (MsgPayloadTouchableMessageBuilder<String> msgBuilder: msgBuilderList) {
-            try {
-                sendFutureList.add(msgBuilder.value("msg-1").sendAsync());
-                if (indexCalledSend != 99) {
-                    indexCalledSend++;
-                }
-            } catch (Exception ex) {
-                log.warn("", ex);
-                break;
+            sendFutureList.add(msgBuilder.value("msg-1").sendAsync());
+            if (indexCalledSend != 99) {
+                indexCalledSend++;
             }
         }
         try{
             sendFutureList.get(sendFutureList.size() - 1).join();
         } catch (Exception ex) {
-            log.warn("", ex);
+            // Ignore the error PulsarClientException$ProducerQueueIsFullError.
+            assertTrue(FutureUtil.unwrapCompletionException(ex)
+                    instanceof PulsarClientException.ProducerQueueIsFullError);
         }
 
         producer.close();
