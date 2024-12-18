@@ -506,15 +506,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         ByteBuf payload = msg.getDataBuffer();
         final int uncompressedSize = payload.readableBytes();
 
-        // To guarantee compatibility with customized "SendCallback", see detail the doc of this method.
-        if ((callback instanceof ProducerImpl.DefaultSendMessageCallback
-            || callback.getClass().getName().endsWith("NonPersistentReplicator$ProducerSendCallback")
-            || callback.getClass().getName().endsWith("ProducerSendCallback$ProducerSendCallback"))
-            && msg.getDataBuffer().capacity() > 0) {
-            checkArgument(msg.getDataBuffer().refCnt() >= 2,
-                    "Message's data's refCnt is less than 2, see #23738");
-        }
-
         if (!isValidProducerState(callback, message.getSequenceId())) {
             payload.release();
             return;

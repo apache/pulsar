@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static org.awaitility.reflect.WhiteboxImpl.getInternalState;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,8 +35,10 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.interceptor.ProducerInterceptor;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -146,10 +149,13 @@ public class ProducerCornerCaseTest extends ProducerConsumerBase {
         /**
          * Mock an error: reached max message size, see more details {@link #maxMessageSizeAndCompressions()}.
          */
-        msgBuilder.value("msg-1").sendAsync().exceptionally(ex -> {
-            log.warn("reached maxMessageSize", ex);
-            return null;
-        }).join();
+        try {
+            msgBuilder.value("msg-1").send();
+            fail("expected an error that reached the max message size");
+        } catch (Exception ex) {
+            assertTrue(FutureUtil.unwrapCompletionException(ex)
+                    instanceof PulsarClientException.InvalidMessageException);
+        }
 
         // Verify: message payload has been released.
         // Since "MsgPayloadTouchableMessageBuilder" has called "buffer.retain" once, "refCnt()" should be "1".
@@ -198,10 +204,15 @@ public class ProducerCornerCaseTest extends ProducerConsumerBase {
          * Mock an error: reached max message size. see more detail {@link #maxMessageSizes()}.
          */
         msgBuilder1.value("msg-1").sendAsync();
-        msgBuilder2.value("msg-1").sendAsync().exceptionally(ex -> {
-            log.warn("reached maxMessageSize", ex);
-            return null;
-        }).join();
+        try {
+            msgBuilder2.value("msg-1").send();
+            if (maxMessageSize != 26) {
+                fail("expected an error that reached the max message size");
+            }
+        } catch (Exception ex) {
+            assertTrue(FutureUtil.unwrapCompletionException(ex)
+                    instanceof PulsarClientException.InvalidMessageException);
+        }
 
         // Verify: message payload has been released.
         // Since "MsgPayloadTouchableMessageBuilder" has called "buffer.retain" once, "refCnt()" should be "1".
@@ -230,10 +241,13 @@ public class ProducerCornerCaseTest extends ProducerConsumerBase {
         // Publish after the producer was closed.
         MsgPayloadTouchableMessageBuilder<String> msgBuilder = newMessage(producer);
         producer.close();
-        msgBuilder.value("msg-1").sendAsync().exceptionally(ex -> {
-            log.warn("expected error", ex);
-            return null;
-        }).join();
+        try {
+            msgBuilder.value("msg-1").send();
+            fail("expected an error that the producer has closed");
+        } catch (Exception ex) {
+            assertTrue(FutureUtil.unwrapCompletionException(ex)
+                    instanceof PulsarClientException.AlreadyClosedException);
+        }
 
         // Verify: message payload has been released.
         Awaitility.await().untilAsserted(() -> {
@@ -301,8 +315,8 @@ public class ProducerCornerCaseTest extends ProducerConsumerBase {
         MsgPayloadTouchableMessageBuilder<String> msgBuilder = newMessage(producer);
         try {
             msgBuilder.value("msg-1").sendAsync().get(3, TimeUnit.SECONDS);
+            // It may throw error.
         } catch (Exception ex) {
-            log.warn("Intercept error", ex);
             assertTrue(ex.getMessage().contains("Mocked"));
         }
 
