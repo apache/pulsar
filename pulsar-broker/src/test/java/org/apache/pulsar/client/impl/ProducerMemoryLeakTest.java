@@ -27,7 +27,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.api.CompressionType;
@@ -65,7 +64,6 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
     @Override
     protected void doInitConf() throws Exception {
         super.doInitConf();
-        conf.setTopicLevelPoliciesEnabled(false);
     }
 
     @Test
@@ -79,13 +77,9 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
         for (int i = 0; i < 100; i++) {
             msgBuilderList.add(newMessage(producer));
         }
-        int indexCalledSend = 0;
         List<CompletableFuture> sendFutureList = new ArrayList<>();
         for (MsgPayloadTouchableMessageBuilder<String> msgBuilder: msgBuilderList) {
             sendFutureList.add(msgBuilder.value("msg-1").sendAsync());
-            if (indexCalledSend != 99) {
-                indexCalledSend++;
-            }
         }
         try{
             sendFutureList.get(sendFutureList.size() - 1).join();
@@ -95,19 +89,15 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
                     instanceof PulsarClientException.ProducerQueueIsFullError);
         }
 
+        // Verify: ref is expected.
         producer.close();
-        for (int i = indexCalledSend; i > -1; i--) {
+        for (int i = sendFutureList.size() - 1; i > -1; i--) {
             MsgPayloadTouchableMessageBuilder<String> msgBuilder = msgBuilderList.get(i);
             assertEquals(msgBuilder.payload.refCnt(), 1);
-        }
-
-        // cleanup.
-        for (int i = indexCalledSend; i > -1; i--) {
-            MsgPayloadTouchableMessageBuilder<String> msgBuilder = msgBuilderList.get(i);
             msgBuilder.release();
             assertEquals(msgBuilder.payload.refCnt(), 0);
         }
-        for (int i = indexCalledSend + 1; i < 100; i++) {
+        for (int i = sendFutureList.size(); i < 100; i++) {
             MsgPayloadTouchableMessageBuilder<String> msgBuilder = msgBuilderList.get(i);
             msgBuilder.release();
             assertEquals(msgBuilder.payload.refCnt(), 0);
@@ -138,7 +128,6 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
         ProducerImpl<String> producer = (ProducerImpl<String>) pulsarClient.newProducer(Schema.STRING).topic(topicName)
                 .compressionType(compressionType)
                 .enableBatching(false)
-                .compressionType(CompressionType.NONE)
                 .create();
         final ClientCnx cnx = producer.getClientCnx();
         producer.getConnectionHandler().setMaxMessageSize(maxMessageSize);
@@ -256,15 +245,15 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
         msgBuilder.release();
         assertEquals(msgBuilder.payload.refCnt(), 0);
         admin.topics().delete(topicName);
-        //admin.topics().deleteAsync(topicName).get(10, TimeUnit.SECONDS); TODO fix bug.
     }
 
     @DataProvider
     public Object[][] failedInterceptAt() {
         return new Object[][]{
-          {"eligible"},
-          {"beforeSend"},
-          {"onSendAcknowledgement"},
+            {"close"},
+            {"eligible"},
+            {"beforeSend"},
+            {"onSendAcknowledgement"},
         };
     }
 
@@ -328,36 +317,25 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
     }
 
     private <T> MsgPayloadTouchableMessageBuilder<T> newMessage(ProducerImpl<T> producer){
-        Schema<T> schema = getInternalState(producer, "schema");
-        return new MsgPayloadTouchableMessageBuilder<T>(producer, schema);
+        return new MsgPayloadTouchableMessageBuilder<T>(producer, producer.schema);
     }
 
     private static class MsgPayloadTouchableMessageBuilder<T> extends TypedMessageBuilderImpl {
 
         public volatile ByteBuf payload;
 
-        private volatile Function<MessageImpl<T>, MessageImpl<T>> msgMocker;
-
         public <T> MsgPayloadTouchableMessageBuilder(ProducerBase producer, Schema<T> schema) {
             super(producer, schema);
-        }
-        public void setMsgMocker(Function<MessageImpl<T>, MessageImpl<T>> msgMocker) {
-            this.msgMocker = msgMocker;
         }
 
         @Override
         public Message<T> getMessage() {
             beforeSend();
-            MessageImpl<T> msg = MessageImpl.create(msgMetadata, content, schema,
-                    producer != null ? producer.getTopic() : null);
+            MessageImpl<T> msg = (MessageImpl<T>) super.getMessage();
             payload = getInternalState(msg, "payload");
             // Retain the msg to avoid it be reused by other task.
             payload.retain();
-            if (msgMocker == null) {
-                return msg;
-            } else {
-                return msgMocker.apply(msg);
-            }
+            return msg;
         }
 
         public void release() {

@@ -46,10 +46,10 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     private static final ByteBuffer EMPTY_CONTENT = ByteBuffer.allocate(0);
 
-    protected final transient ProducerBase<?> producer;
-    protected final transient MessageMetadata msgMetadata = new MessageMetadata();
-    protected final transient Schema<T> schema;
-    protected transient ByteBuffer content;
+    private final transient ProducerBase<?> producer;
+    private final transient MessageMetadata msgMetadata = new MessageMetadata();
+    private final transient Schema<T> schema;
+    private transient ByteBuffer content;
     private final transient TransactionImpl txn;
     private transient T value;
 
