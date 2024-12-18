@@ -1,6 +1,35 @@
 --- CMakeLists.txt.orig	2024-12-18 01:04:32
-+++ CMakeLists.txt	2024-12-18 01:06:07
-@@ -213,22 +213,24 @@
++++ CMakeLists.txt	2024-12-18 02:08:23
+@@ -183,26 +183,12 @@
+     )
+ 
+ include(CheckFunctionExists)
+-check_library_exists(backtrace backtrace_state "backtrace.h" HAVE_LIB_BACKTRACE)
+-check_function_exists(backtrace HAVE_BACKTRACE)
+-if(HAVE_LIB_BACKTRACE OR FORCE_LIB_BACKTRACE)
+-    message(">>>> Using LibBacktrace")
+-    add_library(libBacktrace STATIC IMPORTED)
+-    set_property(TARGET libBacktrace PROPERTY IMPORTED_LOCATION ${THIRD_PARTY_LIB_DIR}/libbacktrace.a)
+-    set(LIBBACKTRACE_LIBRARIES backtrace)
++message(">>>> No Backtrace Support")
++add_definitions(-DNULL_STACKTRACE)
+ 
+-    add_definitions(-DLIB_BACKTRACE)
+-elseif(HAVE_BACKTRACE)
+-    message(">>>> Using Backtrace")
+-    add_definitions(-DBSD_BACKTRACE)
+-else()
+-    message(">>>> No Backtrace Support")
+-    add_definitions(-DNULL_BACKTRACE)
+-endif()
+ 
+ 
+ 
+-
+ set(STATIC_LIBS
+         boost_regex
+         boost_thread
+@@ -213,22 +199,24 @@
          boost_chrono)
  
  find_package(Threads)
