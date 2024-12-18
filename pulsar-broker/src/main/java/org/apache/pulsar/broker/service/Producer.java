@@ -567,9 +567,9 @@ public class Producer {
             String replSequenceLIdStr = String.valueOf(getProperty(MSG_PROP_REPL_SEQUENCE_LID));
             String replSequenceEIdStr = String.valueOf(getProperty(MSG_PROP_REPL_SEQUENCE_EID));
             if (!StringUtils.isNumeric(replSequenceLIdStr) || !StringUtils.isNumeric(replSequenceEIdStr)) {
-                log.error("[{}] Message can not determine whether the message is duplicated due to the acquired messages"
-                                + " props were are invalid. producer={}. supportsDedupReplV2: {}, sequence-id {},"
-                                + " prop-{}: {}, prop-{}: {}",
+                log.error("[{}] Message can not determine whether the message is duplicated due to the acquired"
+                                + " messages props were are invalid. producer={}. supportsDedupReplV2: {},"
+                                + " sequence-id {}, prop-{}: {}, prop-{}: {}",
                         producer.topic.getName(), producer.producerName,
                         supportsDedupReplV2(), getSequenceId(),
                         MSG_PROP_REPL_SEQUENCE_LID, replSequenceLIdStr,
