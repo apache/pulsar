@@ -102,7 +102,7 @@ fi
 
 # Build the native kinesis producer
 cd /build/amazon-kinesis-producer
-ln -s ../third_party
+ln -fs ../third_party
 cmake -DCMAKE_PREFIX_PATH="$INSTALL_DIR" -DCMAKE_BUILD_TYPE=RelWithDebInfo .
 make -j4
 
