@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_IS_REPL_MARKER;
 import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SEQUENCE_EID;
 import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SEQUENCE_LID;
 import com.google.common.annotations.VisibleForTesting;
@@ -46,6 +47,7 @@ import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.Markers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -326,11 +328,10 @@ public class MessageDeduplication {
      */
     public MessageDupStatus isDuplicate(PublishContext publishContext, ByteBuf headersAndPayload) {
         setContextPropsIfRepl(publishContext, headersAndPayload);
-
         if (!isEnabled() || publishContext.isMarkerMessage()) {
             return MessageDupStatus.NotDup;
         }
-        if (publishContext.getProducerName().startsWith(replicatorPrefix)) {
+        if (publishContext.getProducerName() != null && publishContext.getProducerName().startsWith(replicatorPrefix)) {
             if (!publishContext.supportsDedupReplV2()){
                 return isDuplicateReplV1(publishContext, headersAndPayload);
             } else {
@@ -357,9 +358,24 @@ public class MessageDeduplication {
     }
 
     private void setContextPropsIfRepl(PublishContext publishContext, ByteBuf headersAndPayload) {
-        if (publishContext.getProducerName().startsWith(replicatorPrefix)) {
+        // Case-1: is a replication marker.
+        if (publishContext.isMarkerMessage()) {
             // Message is coming from replication, we need to use the replication's producer name, ledger id and entry
             // id for the purpose of deduplication.
+            int readerIndex = headersAndPayload.readerIndex();
+            MessageMetadata md = Commands.parseMessageMetadata(headersAndPayload);
+            headersAndPayload.readerIndex(readerIndex);
+
+            if (Markers.isReplicationMarker(md.getMarkerType())) {
+                publishContext.setProperty(MSG_PROP_IS_REPL_MARKER, "");
+            }
+            return;
+        }
+
+        // Case-2: is a replicated message.
+        if (publishContext.getProducerName() != null && publishContext.getProducerName().startsWith(replicatorPrefix)) {
+            // Message is coming from replication, we need to use the replication's producer name, source cluster's
+            // ledger id and entry id for the purpose of deduplication.
             int readerIndex = headersAndPayload.readerIndex();
             MessageMetadata md = Commands.parseMessageMetadata(headersAndPayload);
             headersAndPayload.readerIndex(readerIndex);

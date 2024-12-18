@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static org.apache.pulsar.broker.service.AbstractReplicator.REPL_PRODUCER_NAME_DELIMITER;
+import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_IS_REPL_MARKER;
 import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SEQUENCE_EID;
 import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SEQUENCE_LID;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
@@ -270,11 +271,16 @@ public class Producer {
         return true;
     }
 
+    private boolean isSupportsDedupReplV2() {
+        // Non-Persistent topic does not have ledger id or entry id, so it does not support.
+        return cnx.isClientSupportsDedupReplV2() && topic.isPersistent();
+    }
+
     private void publishMessageToTopic(ByteBuf headersAndPayload, long sequenceId, int batchSize, boolean isChunked,
                                        boolean isMarker, Position position) {
         MessagePublishContext messagePublishContext =
                 MessagePublishContext.get(this, sequenceId, headersAndPayload.readableBytes(),
-                        batchSize, isChunked, System.nanoTime(), isMarker, position, cnx.isClientSupportsDedupReplV2());
+                        batchSize, isChunked, System.nanoTime(), isMarker, position, isSupportsDedupReplV2());
         if (brokerInterceptor != null) {
             brokerInterceptor
                     .onMessagePublish(this, headersAndPayload, messagePublishContext);
@@ -286,7 +292,7 @@ public class Producer {
                                        int batchSize, boolean isChunked, boolean isMarker, Position position) {
         MessagePublishContext messagePublishContext = MessagePublishContext.get(this, lowestSequenceId,
                 highestSequenceId, headersAndPayload.readableBytes(), batchSize,
-                isChunked, System.nanoTime(), isMarker, position, cnx.isClientSupportsDedupReplV2());
+                isChunked, System.nanoTime(), isMarker, position, isSupportsDedupReplV2());
         if (brokerInterceptor != null) {
             brokerInterceptor
                     .onMessagePublish(this, headersAndPayload, messagePublishContext);
@@ -546,9 +552,10 @@ public class Producer {
             // stats
             producer.stats.recordMsgIn(batchSize, msgSize);
             producer.topic.recordAddLatency(System.nanoTime() - startTimeNs, TimeUnit.NANOSECONDS);
-            if (producer.isRemote() && supportsDedupReplV2) {
+            if (producer.isRemote() && producer.isSupportsDedupReplV2()) {
                 sendSendReceiptResponseRepl();
             } else {
+                // Repl V1 is the same as normal for this handling.
                 sendSendReceiptResponseNormal();
             }
             producer.cnx.completedSendOperation(producer.isNonPersistentTopic, msgSize);
@@ -564,6 +571,15 @@ public class Producer {
         }
 
         private void sendSendReceiptResponseRepl() {
+            // Case-1: is a repl marker.
+            boolean isReplMarker = getProperty(MSG_PROP_IS_REPL_MARKER) != null;
+            if (isReplMarker) {
+                producer.cnx.getCommandSender().sendSendReceiptResponse(producer.producerId, sequenceId, Long.MIN_VALUE,
+                        ledgerId, entryId);
+
+                return;
+            }
+            // Case-2: is a repl message.
             String replSequenceLIdStr = String.valueOf(getProperty(MSG_PROP_REPL_SEQUENCE_LID));
             String replSequenceEIdStr = String.valueOf(getProperty(MSG_PROP_REPL_SEQUENCE_EID));
             if (!StringUtils.isNumeric(replSequenceLIdStr) || !StringUtils.isNumeric(replSequenceEIdStr)) {

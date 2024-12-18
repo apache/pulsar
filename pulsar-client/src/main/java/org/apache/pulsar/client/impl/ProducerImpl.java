@@ -1329,7 +1329,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         op.recycle();
     }
 
-    private long getHighestSequenceId(OpSendMsg op) {
+    protected long getHighestSequenceId(OpSendMsg op) {
         return Math.max(op.highestSequenceId, op.sequenceId);
     }
 
@@ -2355,10 +2355,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 return;
             }
             pendingMessages.add(op);
-            if (op.msg != null) {
-                LAST_SEQ_ID_PUSHED_UPDATER.getAndUpdate(this,
-                        last -> Math.max(last, getHighestSequenceId(op)));
-            }
+            updateLastSeqPushed(op);
 
             final ClientCnx cnx = getCnxIfReady();
             if (cnx != null) {
@@ -2381,6 +2378,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             releaseSemaphoreForSendOp(op);
             log.warn("[{}] [{}] error while closing out batch -- {}", topic, producerName, t);
             op.sendComplete(new PulsarClientException(t, op.sequenceId));
+        }
+    }
+
+    protected void updateLastSeqPushed(OpSendMsg op) {
+        if (op.msg != null) {
+            LAST_SEQ_ID_PUSHED_UPDATER.getAndUpdate(this,
+                    last -> Math.max(last, getHighestSequenceId(op)));
         }
     }
 
