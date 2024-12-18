@@ -358,8 +358,8 @@ public class MessageDeduplication {
 
     private void setContextPropsIfRepl(PublishContext publishContext, ByteBuf headersAndPayload) {
         if (publishContext.getProducerName().startsWith(replicatorPrefix)) {
-            // Message is coming from replication, we need to use the replication's producer name, ledger id and entry id
-            // for the purpose of deduplication.
+            // Message is coming from replication, we need to use the replication's producer name, ledger id and entry
+            // id for the purpose of deduplication.
             int readerIndex = headersAndPayload.readerIndex();
             MessageMetadata md = Commands.parseMessageMetadata(headersAndPayload);
             headersAndPayload.readerIndex(readerIndex);
