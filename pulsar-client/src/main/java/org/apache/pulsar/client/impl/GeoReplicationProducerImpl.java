@@ -31,8 +31,8 @@ import org.apache.pulsar.common.api.proto.KeyValue;
 @Slf4j
 public class GeoReplicationProducerImpl extends ProducerImpl{
 
-    public static String MSG_PROP_REPL_SEQUENCE_LID = "__MSG_PROP_REPL_SEQUENCE_LID";
-    public static String MSG_PROP_REPL_SEQUENCE_EID = "__MSG_PROP_REPL_SEQUENCE_EID";
+    public static final String MSG_PROP_REPL_SEQUENCE_LID = "__MSG_PROP_REPL_SEQUENCE_LID";
+    public static final String MSG_PROP_REPL_SEQUENCE_EID = "__MSG_PROP_REPL_SEQUENCE_EID";
 
     public GeoReplicationProducerImpl(PulsarClientImpl client, String topic,
                                       ProducerConfigurationData conf,
