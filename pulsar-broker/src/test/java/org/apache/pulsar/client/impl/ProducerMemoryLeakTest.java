@@ -47,7 +47,7 @@ import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker-api")
-public class ProducerCornerCaseTest extends ProducerConsumerBase {
+public class ProducerMemoryLeakTest extends ProducerConsumerBase {
 
     @BeforeClass(alwaysRun = true)
     @Override
@@ -141,7 +141,7 @@ public class ProducerCornerCaseTest extends ProducerConsumerBase {
                 .compressionType(CompressionType.NONE)
                 .create();
         final ClientCnx cnx = producer.getClientCnx();
-        producer.getConnectionHandler().maxMessageSize = maxMessageSize;
+        producer.getConnectionHandler().setMaxMessageSize(maxMessageSize);
         MsgPayloadTouchableMessageBuilder<String> msgBuilder = newMessage(producer);
         /**
          * Mock an error: reached max message size, see more details {@link #maxMessageSizeAndCompressions()}.
@@ -194,7 +194,7 @@ public class ProducerCornerCaseTest extends ProducerConsumerBase {
                 .compressionType(CompressionType.NONE)
                 .create();
         final ClientCnx cnx = producer.getClientCnx();
-        producer.getConnectionHandler().maxMessageSize = maxMessageSize;
+        producer.getConnectionHandler().setMaxMessageSize(maxMessageSize);
         MsgPayloadTouchableMessageBuilder<String> msgBuilder1 = newMessage(producer);
         MsgPayloadTouchableMessageBuilder<String> msgBuilder2 = newMessage(producer);
         /**
