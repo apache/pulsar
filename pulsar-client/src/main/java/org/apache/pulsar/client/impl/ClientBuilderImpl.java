@@ -36,6 +36,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.common.tls.InetAddressUtils;
@@ -63,6 +64,9 @@ public class ClientBuilderImpl implements ClientBuilder {
             checkArgument(StringUtils.isNotBlank(conf.getServiceUrlProvider().getServiceUrl()),
                     "Cannot get service url from service url provider.");
             conf.setServiceUrl(conf.getServiceUrlProvider().getServiceUrl());
+        }
+        if (conf.getAuthentication() == null || conf.getAuthentication() == AuthenticationDisabled.INSTANCE) {
+            setAuthenticationFromPropsIfAvailable(conf);
         }
         PulsarClient client = new PulsarClientImpl(conf);
         if (conf.getServiceUrlProvider() != null) {

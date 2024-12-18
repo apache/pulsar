@@ -16,13 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.util;
+package org.apache.pulsar.common.policies.data;
 
-import java.util.UUID;
-import org.apache.commons.codec.digest.DigestUtils;
+public enum ClusterOperation {
+    LIST_CLUSTERS,
+    GET_CLUSTER,
+    CREATE_CLUSTER,
+    UPDATE_CLUSTER,
+    DELETE_CLUSTER,
 
-public class ConsumerName {
-    public static String generateRandomName() {
-        return DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 5);
-    }
+    // detailed update
+    GET_PEER_CLUSTER,
+    UPDATE_PEER_CLUSTER,
+    GET_FAILURE_DOMAIN,
+    UPDATE_FAILURE_DOMAIN,
+    DELETE_FAILURE_DOMAIN
 }

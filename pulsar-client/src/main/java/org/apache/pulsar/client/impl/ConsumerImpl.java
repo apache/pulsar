@@ -69,6 +69,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.Getter;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.Consumer;
@@ -297,7 +298,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.subscriptionMode = conf.getSubscriptionMode();
         if (startMessageId != null) {
             MessageIdAdv firstChunkMessageId = ((MessageIdAdv) startMessageId).getFirstChunkMessageId();
-            this.startMessageId = (firstChunkMessageId == null) ? (MessageIdAdv) startMessageId : firstChunkMessageId;
+            if (conf.isResetIncludeHead() && firstChunkMessageId != null) {
+                // The chunk message id's ledger id and entry id are the last chunk's ledger id and entry id, when
+                // startMessageIdInclusive() is enabled, we need to start from the first chunk's message id
+                this.startMessageId = firstChunkMessageId;
+            } else {
+                this.startMessageId = (MessageIdAdv) startMessageId;
+            }
         }
         this.initialStartMessageId = this.startMessageId;
         this.startMessageRollbackDurationInSec = startMessageRollbackDurationInSec;
@@ -751,6 +758,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             } catch (Exception e) {
                 result.completeExceptionally(e);
             }
+        } else {
+            result.completeExceptionally(new PulsarClientException("Retry letter producer is null."));
         }
         MessageId finalMessageId = messageId;
         result.exceptionally(ex -> {
@@ -1668,6 +1677,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return;
         }
 
+        // increase incomingMessageSize here because the size would be decreased in messageProcessed() next step
+        increaseIncomingMessageSize(message);
         // increase permits for available message-queue
         messageProcessed(message);
         // call interceptor and complete received callback
@@ -2263,8 +2274,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             ((ProducerBuilderImpl<byte[]>) client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema)))
                                     .initialSubscriptionName(this.deadLetterPolicy.getInitialSubscriptionName())
                                     .topic(this.deadLetterPolicy.getDeadLetterTopic())
-                                    .producerName(String.format("%s-%s-%s-DLQ", this.topicName, this.subscription,
-                                            this.consumerName))
+                                    .producerName(String.format("%s-%s-%s-%s-DLQ", this.topicName, this.subscription,
+                                            this.consumerName, RandomStringUtils.randomAlphanumeric(5)))
                                     .blockIfQueueFull(false)
                                     .enableBatching(false)
                                     .enableChunking(true)
