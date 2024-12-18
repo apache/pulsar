@@ -106,7 +106,8 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
                 }
                 pendingMessages.remove();
                 releaseSemaphoreForSendOp(op);
-                // TODO LAST_SEQ_ID_PUBLISHED_UPDATER.getAndUpdate(this, last -> Math.max(last, getHighestSequenceId(finalOp)));
+                // Since Geo-Replicator will not send batched message, skip to update the field
+                // "LAST_SEQ_ID_PUBLISHED_UPDATER".
                 op.setMessageId(ledgerId, entryId, partitionIndex);
                 try {
                     // Need to protect ourselves from any exception being thrown in the future handler from the
