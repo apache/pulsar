@@ -24,9 +24,11 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Future;
@@ -34,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeperTestClient;
 import org.apache.bookkeeper.client.api.DigestType;
@@ -54,12 +57,16 @@ import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.awaitility.Awaitility;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import io.netty.buffer.ByteBuf;
 import lombok.Cleanup;
 
+@Slf4j
 public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
+
+    private final ObjectMapper jackson = new ObjectMapper();
 
     public ManagedLedgerBkTest() {
         super(2);
@@ -590,44 +597,58 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         Awaitility.await().until(() -> cursorImpl.getCursorLedger() != currentLedgerId);
     }
 
+    @DataProvider(name = "unackedRangesOpenCacheSetEnabledPair")
+    public Object[][] unackedRangesOpenCacheSetEnabledPair() {
+        return new Object[][]{
+            {false, true},
+            {true, false},
+            {true, true},
+            {false, false}
+        };
+    }
+
     /**
      * This test validates that cursor serializes and deserializes individual-ack list from the bk-ledger.
-     * 
      * @throws Exception
      */
-    @Test
-    public void testUnackmessagesAndRecovery() throws Exception {
+    @Test(dataProvider = "unackedRangesOpenCacheSetEnabledPair")
+    public void testUnackmessagesAndRecoveryCompatibility(boolean enabled1, boolean enabled2) throws Exception {
+        final String mlName = "ml" + UUID.randomUUID().toString().replaceAll("-", "");
+        final String cursorName = "c1";
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
-        factoryConf.setMaxCacheSize(0);
-
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConf);
-
-        ManagedLedgerConfig config = new ManagedLedgerConfig().setEnsembleSize(1).setWriteQuorumSize(1)
+        final ManagedLedgerConfig config1 = new ManagedLedgerConfig().setEnsembleSize(1).setWriteQuorumSize(1)
                 .setAckQuorumSize(1).setMetadataEnsembleSize(1).setMetadataWriteQuorumSize(1)
-                .setMaxUnackedRangesToPersistInMetadataStore(1).setMaxEntriesPerLedger(5).setMetadataAckQuorumSize(1);
-        ManagedLedger ledger = factory.open("my_test_unack_messages", config);
-        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+                .setMaxUnackedRangesToPersistInMetadataStore(1).setMaxEntriesPerLedger(5).setMetadataAckQuorumSize(1)
+                .setUnackedRangesOpenCacheSetEnabled(enabled1);
+        final ManagedLedgerConfig config2 = new ManagedLedgerConfig().setEnsembleSize(1).setWriteQuorumSize(1)
+                .setAckQuorumSize(1).setMetadataEnsembleSize(1).setMetadataWriteQuorumSize(1)
+                .setMaxUnackedRangesToPersistInMetadataStore(1).setMaxEntriesPerLedger(5).setMetadataAckQuorumSize(1)
+                .setUnackedRangesOpenCacheSetEnabled(enabled2);
+
+        ManagedLedger ledger1 = factory.open(mlName, config1);
+        ManagedCursorImpl cursor1 = (ManagedCursorImpl) ledger1.openCursor(cursorName);
 
         int totalEntries = 100;
         for (int i = 0; i < totalEntries; i++) {
-            Position p = ledger.addEntry("entry".getBytes());
+            Position p = ledger1.addEntry("entry".getBytes());
             if (i % 2 == 0) {
-                cursor.delete(p);
+                cursor1.delete(p);
             }
         }
+        log.info("ack ranges: {}", cursor1.getIndividuallyDeletedMessagesSet().size());
 
-        LongPairRangeSet<Position> unackMessagesBefore = cursor.getIndividuallyDeletedMessagesSet();
+        // reopen and recover cursor
+        ledger1.close();
+        ManagedLedger ledger2 = factory.open(mlName, config2);
+        ManagedCursorImpl cursor2 = (ManagedCursorImpl) ledger2.openCursor(cursorName);
 
-        ledger.close();
+        log.info("before: {}", cursor1.getIndividuallyDeletedMessagesSet().asRanges());
+        log.info("after : {}", cursor2.getIndividuallyDeletedMessagesSet().asRanges());
+        assertEquals(cursor1.getIndividuallyDeletedMessagesSet().asRanges(), cursor2.getIndividuallyDeletedMessagesSet().asRanges());
+        assertEquals(cursor1.markDeletePosition, cursor2.markDeletePosition);
 
-        // open and recover cursor
-        ledger = factory.open("my_test_unack_messages", config);
-        cursor = (ManagedCursorImpl) ledger.openCursor("c1");
-
-        LongPairRangeSet<Position> unackMessagesAfter = cursor.getIndividuallyDeletedMessagesSet();
-        assertTrue(unackMessagesBefore.equals(unackMessagesAfter));
-
-        ledger.close();
+        ledger2.close();
         factory.shutdown();
     }
 }
