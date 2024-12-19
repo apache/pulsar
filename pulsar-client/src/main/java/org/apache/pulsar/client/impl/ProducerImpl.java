@@ -1142,11 +1142,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
         cnx.sendRequestWithId(cmd, requestId).handle((v, exception) -> {
             cnx.removeProducer(producerId);
+            closeAndClearPendingMessages();
             if (exception == null || !cnx.ctx().channel().isActive()) {
                 // Either we've received the success response for the close producer command from the broker, or the
                 // connection did break in the meantime. In any case, the producer is gone.
                 log.info("[{}] [{}] Closed Producer", topic, producerName);
-                closeAndClearPendingMessages();
                 closeFuture.complete(null);
             } else {
                 closeFuture.completeExceptionally(exception);
@@ -1158,7 +1158,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return closeFuture;
     }
 
-    private synchronized void closeAndClearPendingMessages() {
+    @VisibleForTesting
+    protected synchronized void closeAndClearPendingMessages() {
         setState(State.Closed);
         client.cleanupProducer(this);
         PulsarClientException ex = new PulsarClientException.AlreadyClosedException(
