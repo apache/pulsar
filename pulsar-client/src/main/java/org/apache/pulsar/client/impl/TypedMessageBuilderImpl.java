@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.client.util.TypeCheckUtil.checkType;
-import com.google.common.annotations.VisibleForTesting;
 import java.nio.ByteBuffer;
 import java.util.Base64;
 import java.util.List;
