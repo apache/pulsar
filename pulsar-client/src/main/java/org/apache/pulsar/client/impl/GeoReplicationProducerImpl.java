@@ -118,7 +118,7 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
         }
 
         // Case-2, which is expected.
-        if (pendingLId!= null && pendingEId != null && sourceLId == pendingLId && sourceEId == pendingEId) {
+        if (pendingLId != null && pendingEId != null && sourceLId == pendingLId && sourceEId == pendingEId) {
             // Case-3, which is expected.
             // Q: After a reconnect, maybe we have lost the response of Send-Receipt, then how can we remove
             //    pending messages from the queue?
