@@ -135,7 +135,7 @@ public class GetPartitionMetadataMultiBrokerTest extends GetPartitionMetadataTes
         } catch (Exception ex) {
             // If the namespace bundle has not been loaded yet, it means no non-persistent topic was created. So
             //   this behavior is also correct.
-            // This error is not expected, a seperated PR is needed to fix this issue.
+            // This error is not expected, a separated PR is needed to fix this issue.
             assertTrue(ex.getMessage().contains("Failed to find ownership for"));
         }
     }
@@ -148,7 +148,7 @@ public class GetPartitionMetadataMultiBrokerTest extends GetPartitionMetadataTes
         } catch (Exception ex) {
             // If the namespace bundle has not been loaded yet, it means no non-persistent topic was created. So
             //   this behavior is also correct.
-            // This error is not expected, a seperated PR is needed to fix this issue.
+            // This error is not expected, a separated PR is needed to fix this issue.
             assertTrue(ex.getMessage().contains("Failed to find ownership for"));
         }
     }

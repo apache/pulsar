@@ -281,7 +281,7 @@ public class PulsarClusterMetadataSetup {
         try {
             initializeCluster(arguments, bundleNumberForDefaultNamespace);
         } catch (Exception e) {
-            System.err.println("Unexpected error occured.");
+            System.err.println("Unexpected error occurred.");
             e.printStackTrace(System.err);
             System.err.println("Terminating JVM...");
             ShutdownUtil.triggerImmediateForcefulShutdown();
