@@ -361,7 +361,6 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
 
         @Override
         public Message<T> getMessage() {
-            beforeSend();
             MessageImpl<T> msg = (MessageImpl<T>) super.getMessage();
             payload = msg.getPayload();
             // Retain the msg to avoid it be reused by other task.
