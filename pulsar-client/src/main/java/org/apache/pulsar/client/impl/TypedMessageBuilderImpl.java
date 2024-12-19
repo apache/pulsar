@@ -66,8 +66,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
         this.txn = txn;
     }
 
-    @VisibleForTesting
-    protected long beforeSend() {
+    private long beforeSend() {
         if (value == null) {
             msgMetadata.setNullValue(true);
         } else {
