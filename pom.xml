@@ -2098,6 +2098,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/*.so</exclude>
             <exclude>**/*.so.*</exclude>
             <exclude>**/*.dylib</exclude>
+            <exclude>**/*.patch</exclude>
             <exclude>src/test/resources/*.txt</exclude>
           </excludes>
         </configuration>
