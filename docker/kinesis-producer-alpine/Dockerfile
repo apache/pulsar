@@ -19,6 +19,8 @@
 
 ARG ALPINE_VERSION=3.20
 
+# Builds an Alpine image with kinesis_producer compiled for Alpine Linux / musl
+
 # Build stage
 FROM alpine:$ALPINE_VERSION AS kinesis-producer-build
 ENV KINESIS_PRODUCER_LIB_VERSION=0.15.12

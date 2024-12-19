@@ -20,7 +20,8 @@
 ARG PULSAR_IMAGE
 FROM busybox as pulsar-all
 
-FROM apachepulsar/pulsar-io-kinesis-sink-kinesis_producer:0.15.12 as pulsar-io-kinesis-sink-kinesis_producer
+ARG PULSAR_IO_KINESIS_KPL_IMAGE
+FROM $PULSAR_IO_KINESIS_KPL_IMAGE as pulsar-io-kinesis-sink-kinesis_producer
 
 ARG PULSAR_IO_DIR
 ARG PULSAR_OFFLOADER_TARBALL

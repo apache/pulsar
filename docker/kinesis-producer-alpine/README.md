@@ -22,7 +22,7 @@
 # Alpine image with kinesis_producer compiled for Alpine Linux / musl 
 
 This directory includes the Docker scripts to build an image with `kinesis_producer` for Alpine Linux.
-`kinesis_producer` is a native executable that is required by Amazon Kinesis Producer library which is used by the Pulsar IO Kinesis Sink connector.
+`kinesis_producer` is a native executable that is required by [Amazon Kinesis Producer library (KPL)](https://github.com/awslabs/amazon-kinesis-producer) which is used by the Pulsar IO Kinesis Sink connector. The default `kinesis_producer` binary is compiled for glibc, and it does not work on Alpine Linux which uses musl.
 
 This image only needs to be re-created when we want to upgrade to a newer version of `kinesis_producer`.
 
