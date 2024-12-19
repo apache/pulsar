@@ -165,6 +165,12 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObj
         if (kinesisSinkConfig.getAwsEndpointPort() != null) {
             kinesisConfig.setKinesisPort(kinesisSinkConfig.getAwsEndpointPort());
         }
+        if (kinesisSinkConfig.getAwsStsEndpoint() != null) {
+            kinesisConfig.setStsEndpoint(kinesisSinkConfig.getAwsStsEndpoint());
+        }
+        if (kinesisSinkConfig.getAwsStsPort() != null) {
+            kinesisConfig.setStsPort(kinesisSinkConfig.getAwsStsPort());
+        }
         kinesisConfig.setRegion(kinesisSinkConfig.getAwsRegion());
         kinesisConfig.setThreadingModel(ThreadingModel.POOLED);
         kinesisConfig.setThreadPoolSize(4);

@@ -159,4 +159,17 @@ public class KinesisSinkConfig extends BaseKinesisConfig implements Serializable
         FULL_MESSAGE_IN_JSON_EXPAND_VALUE
     }
 
+    @FieldDoc(
+            required = false,
+            defaultValue = "",
+            help = "Custom AWS STS endpoint"
+    )
+    private String awsStsEndpoint = "";
+
+    @FieldDoc(
+            required = false,
+            defaultValue = "",
+            help = "Custom AWS STS port to connect to"
+    )
+    private Integer awsStsPort;
 }
