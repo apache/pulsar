@@ -104,6 +104,16 @@ public class KinesisSinkConfig extends BaseKinesisConfig implements Serializable
             help = "The maximum delay(in milliseconds) between retries.")
     private long retryMaxDelayInMillis = 60000;
 
+    @FieldDoc(
+            required = false,
+            defaultValue = "",
+            help = "Path to the native Amazon Kinesis Producer Library (KPL) binary.\n"
+                    + "Only use this setting if you want to use a custom build of the native code.\n"
+                    + "This setting can also be set with the environment variable `PULSAR_IO_KINESIS_KPL_PATH`.\n"
+                    + "If not set, the Kinesis sink will use the built-in native executable."
+    )
+    private String nativeExecutable = System.getenv("PULSAR_IO_KINESIS_KPL_PATH");
+
     public static KinesisSinkConfig load(Map<String, Object> config, SinkContext sinkContext) {
         KinesisSinkConfig kinesisSinkConfig = IOConfigUtils.loadWithSecrets(config, KinesisSinkConfig.class, sinkContext);
         checkArgument(isNotBlank(kinesisSinkConfig.getAwsRegion())
@@ -149,4 +159,17 @@ public class KinesisSinkConfig extends BaseKinesisConfig implements Serializable
         FULL_MESSAGE_IN_JSON_EXPAND_VALUE
     }
 
+    @FieldDoc(
+            required = false,
+            defaultValue = "",
+            help = "Custom AWS STS endpoint"
+    )
+    private String awsStsEndpoint = "";
+
+    @FieldDoc(
+            required = false,
+            defaultValue = "",
+            help = "Custom AWS STS port to connect to"
+    )
+    private Integer awsStsPort;
 }

@@ -18,6 +18,16 @@
  */
 package org.apache.pulsar.io.kinesis;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.SneakyThrows;
 import org.apache.pulsar.client.api.Message;
@@ -42,24 +52,14 @@ import software.amazon.awssdk.services.kinesis.model.GetShardIteratorRequest;
 import software.amazon.awssdk.services.kinesis.model.ListShardsRequest;
 import software.amazon.awssdk.services.kinesis.model.ShardIteratorType;
 
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-
 
 public class KinesisSinkTest {
 
     public static final String STREAM_NAME = "my-stream-1";
-    public static LocalStackContainer LOCALSTACK_CONTAINER = new LocalStackContainer(DockerImageName.parse("localstack/localstack:1.0.4"))
-            .withServices(LocalStackContainer.Service.KINESIS);
+    public static LocalStackContainer LOCALSTACK_CONTAINER =
+            new LocalStackContainer(DockerImageName.parse("localstack/localstack:4.0.3"))
+                    .withServices(LocalStackContainer.Service.KINESIS, LocalStackContainer.Service.STS)
+                    .withEnv("KINESIS_PROVIDER", "kinesalite");
 
     @BeforeClass(alwaysRun = true)
     public void beforeClass() throws Exception {
@@ -123,10 +123,13 @@ public class KinesisSinkTest {
     }
 
     private Map<String, Object> createConfig() {
-        final URI endpointOverride = LOCALSTACK_CONTAINER.getEndpointOverride(LocalStackContainer.Service.KINESIS);
+        final URI kinesisEndpointOverride = LOCALSTACK_CONTAINER.getEndpointOverride(LocalStackContainer.Service.KINESIS);
         Map<String, Object> map = new HashMap<>();
-        map.put("awsEndpoint", endpointOverride.getHost());
-        map.put("awsEndpointPort", endpointOverride.getPort());
+        map.put("awsEndpoint", kinesisEndpointOverride.getHost());
+        map.put("awsEndpointPort", kinesisEndpointOverride.getPort());
+        final URI stsEndpointOverride = LOCALSTACK_CONTAINER.getEndpointOverride(LocalStackContainer.Service.STS);
+        map.put("awsStsEndpoint", stsEndpointOverride.getHost());
+        map.put("awsStsPort", stsEndpointOverride.getPort());
         map.put("skipCertificateValidation", true);
         map.put("awsKinesisStreamName", STREAM_NAME);
         map.put("awsRegion", "us-east-1");

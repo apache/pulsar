@@ -80,6 +80,10 @@
     <profile>
       <id>docker</id>
       <!-- include the docker image only when docker profile is active -->
+      <properties>
+        <!-- reference to the image built from docker/kinesis-producer-alpine/Dockerfile -->
+        <PULSAR_IO_KINESIS_KPL_IMAGE>apachepulsar/pulsar-io-kinesis-sink-kinesis_producer:0.15.12</PULSAR_IO_KINESIS_KPL_IMAGE>
+      </properties>
       <dependencies>
         <dependency>
           <groupId>${project.groupId}</groupId>
@@ -161,6 +165,7 @@
                           <PULSAR_IO_DIR>target/apache-pulsar-io-connectors-${project.version}-bin</PULSAR_IO_DIR>
                           <PULSAR_OFFLOADER_TARBALL>target/pulsar-offloader-distribution-${project.version}-bin.tar.gz</PULSAR_OFFLOADER_TARBALL>
                           <PULSAR_IMAGE>${docker.organization}/${docker.image}:${project.version}-${git.commit.id.abbrev}</PULSAR_IMAGE>
+                          <PULSAR_IO_KINESIS_KPL_IMAGE>${PULSAR_IO_KINESIS_KPL_IMAGE}</PULSAR_IO_KINESIS_KPL_IMAGE>
                         </args>
                         <buildx>
                           <platforms>

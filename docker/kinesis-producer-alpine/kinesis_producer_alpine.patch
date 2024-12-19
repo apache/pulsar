@@ -1,0 +1,127 @@
+From 96ba2eb7145363586529e6c770dcc0920bf04ac2 Mon Sep 17 00:00:00 2001
+From: Lari Hotari <lhotari@users.noreply.github.com>
+Date: Wed, 18 Dec 2024 17:16:02 +0200
+Subject: [PATCH] Adapt build for Alpine, fix issue with NULL_BACKTRACE support
+
+- also use dynamic linking to some libraries (zlib, openssl, libz, libcurl, libcrypto)
+  to reduce binary size
+---
+ CMakeLists.txt                        | 20 +++++++++++---------
+ aws/utils/backtrace/bsd_backtrace.cc  |  2 +-
+ aws/utils/backtrace/gcc_backtrace.cc  |  3 +--
+ aws/utils/backtrace/null_backtrace.cc |  5 ++---
+ aws/utils/signal_handler.cc           |  1 -
+ 5 files changed, 15 insertions(+), 16 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 2dd7084..2ba47e6 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -213,22 +213,24 @@ set(STATIC_LIBS
+         boost_chrono)
+ 
+ find_package(Threads)
+-find_package(ZLIB)
++find_package(ZLIB REQUIRED)
+ find_package(AWSSDK REQUIRED COMPONENTS kinesis monitoring sts)
++find_package(OpenSSL REQUIRED)
++find_package(CURL REQUIRED)
+ 
+-add_library(LibCrypto STATIC IMPORTED)
+-set_property(TARGET LibCrypto PROPERTY IMPORTED_LOCATION ${THIRD_PARTY_LIB_DIR}/libcrypto.a)
++add_library(LibCrypto SHARED IMPORTED)
++set_property(TARGET LibCrypto PROPERTY IMPORTED_LOCATION ${OPENSSL_CRYPTO_LIBRARY})
+ set_property(TARGET LibCrypto PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES ${LIBDL_LIBRARIES})
+ 
+-add_library(LibSsl STATIC IMPORTED)
+-set_property(TARGET LibSsl PROPERTY IMPORTED_LOCATION ${THIRD_PARTY_LIB_DIR}/libssl.a)
++add_library(LibSsl SHARED IMPORTED)
++set_property(TARGET LibSsl PROPERTY IMPORTED_LOCATION ${OPENSSL_SSL_LIBRARY})
+ set_property(TARGET LibSsl PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES LibCrypto)
+ 
+-add_library(LibZ STATIC IMPORTED)
+-set_property(TARGET LibZ PROPERTY IMPORTED_LOCATION ${THIRD_PARTY_LIB_DIR}/libz.a)
++add_library(LibZ SHARED IMPORTED)
++set_property(TARGET LibZ PROPERTY IMPORTED_LOCATION ${ZLIB_LIBRARIES})
+ 
+-add_library(LibCurl STATIC IMPORTED)
+-set_property(TARGET LibCurl PROPERTY IMPORTED_LOCATION ${THIRD_PARTY_LIB_DIR}/libcurl.a)
++add_library(LibCurl SHARED IMPORTED)
++set_property(TARGET LibCurl PROPERTY IMPORTED_LOCATION ${CURL_LIBRARIES})
+ set_property(TARGET LibCurl PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES ${CMAKE_THREAD_LIBS_INIT} ${LIBRT_LIBRARIES} ${LIBDL_LIBRARIES} LibSsl LibZ)
+ 
+ add_library(LibProto STATIC IMPORTED)
+diff --git a/aws/utils/backtrace/bsd_backtrace.cc b/aws/utils/backtrace/bsd_backtrace.cc
+index fb5dbe3..cd6c5fe 100644
+--- a/aws/utils/backtrace/bsd_backtrace.cc
++++ b/aws/utils/backtrace/bsd_backtrace.cc
+@@ -15,10 +15,10 @@
+ 
+ #include "backtrace.h"
+ #include <aws/utils/writer_methods.h>
+-#include <execinfo.h>
+ #include <unistd.h>
+ 
+ #ifdef BSD_BACKTRACE
++#include <execinfo.h>
+ namespace aws {
+ namespace utils {
+ namespace backtrace {
+diff --git a/aws/utils/backtrace/gcc_backtrace.cc b/aws/utils/backtrace/gcc_backtrace.cc
+index 446ede9..32a866d 100644
+--- a/aws/utils/backtrace/gcc_backtrace.cc
++++ b/aws/utils/backtrace/gcc_backtrace.cc
+@@ -15,7 +15,6 @@
+ 
+ #include "backtrace.h"
+ #include <aws/utils/writer_methods.h>
+-#include <execinfo.h>
+ #include <unistd.h>
+ #include <aws/utils/logging.h>
+ #include <aws/utils/writer_methods.h>
+@@ -23,7 +22,7 @@
+ #include <cstdio>
+ 
+ #ifdef LIB_BACKTRACE
+-
++#include <execinfo.h>
+ #include <backtrace.h>
+ 
+ namespace {
+diff --git a/aws/utils/backtrace/null_backtrace.cc b/aws/utils/backtrace/null_backtrace.cc
+index 69d57f9..d443eae 100644
+--- a/aws/utils/backtrace/null_backtrace.cc
++++ b/aws/utils/backtrace/null_backtrace.cc
+@@ -15,10 +15,9 @@
+ 
+ #include "backtrace.h"
+ #include <aws/utils/writer_methods.h>
+-#include <execinfo.h>
+ #include <unistd.h>
+ 
+-#ifdef NULL_STACKTRACE
++#ifdef NULL_BACKTRACE
+ 
+ namespace aws {
+ namespace utils {
+@@ -36,4 +35,4 @@ void stack_trace_for_signal(int skip, bool /*signaled*/) {
+ }
+ }
+ 
+-#endif // NULL_STACKTRACE
++#endif // NULL_BACKTRACE
+diff --git a/aws/utils/signal_handler.cc b/aws/utils/signal_handler.cc
+index b58ab0e..f483c77 100644
+--- a/aws/utils/signal_handler.cc
++++ b/aws/utils/signal_handler.cc
+@@ -19,7 +19,6 @@
+ #include "backtrace/backtrace.h"
+ 
+ #include <signal.h>
+-#include <execinfo.h>
+ #include <unistd.h>
+ #include <cstring>
+ #include <cstdint>
+-- 
+2.47.1
+
