@@ -20,6 +20,8 @@
 ARG PULSAR_IMAGE
 FROM busybox as pulsar-all
 
+FROM apachepulsar/pulsar-io-kinesis-sink-kinesis_producer:0.15.12 as pulsar-io-kinesis-sink-kinesis_producer
+
 ARG PULSAR_IO_DIR
 ARG PULSAR_OFFLOADER_TARBALL
 
@@ -30,3 +32,7 @@ RUN mv /apache-pulsar-offloaders-*/offloaders /offloaders
 FROM $PULSAR_IMAGE
 COPY --from=pulsar-all /connectors /pulsar/connectors
 COPY --from=pulsar-all /offloaders /pulsar/offloaders
+# Copy the kinesis_producer native executable compiled for Alpine musl to the pulsar-all image
+# This is required to support the Pulsar IO Kinesis sink connector
+COPY --from=pulsar-io-kinesis-sink-kinesis_producer /opt/amazon-kinesis-producer/bin /opt/amazon-kinesis-producer/bin
+ENV PULSAR_IO_KINESIS_KPL_PATH=/opt/amazon-kinesis-producer/bin/kinesis_producer
