@@ -1241,8 +1241,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 ? subscribe.getStartMessageRollbackDurationSec()
                 : -1;
         final SchemaData schema = subscribe.hasSchema() ? getSchema(subscribe.getSchema()) : null;
-        final boolean isReplicated = subscribe.hasReplicateSubscriptionState()
-                && subscribe.isReplicateSubscriptionState();
+        final Boolean isReplicated =
+                subscribe.hasReplicateSubscriptionState() ? subscribe.isReplicateSubscriptionState() : null;
         final boolean forceTopicCreation = subscribe.isForceTopicCreation();
         final KeySharedMeta keySharedMeta = subscribe.hasKeySharedMeta()
               ? new KeySharedMeta().copyFrom(subscribe.getKeySharedMeta())
