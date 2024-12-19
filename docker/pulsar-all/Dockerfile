@@ -36,4 +36,20 @@ COPY --from=pulsar-all /offloaders /pulsar/offloaders
 # Copy the kinesis_producer native executable compiled for Alpine musl to the pulsar-all image
 # This is required to support the Pulsar IO Kinesis sink connector
 COPY --from=pulsar-io-kinesis-sink-kinesis_producer /opt/amazon-kinesis-producer/bin /opt/amazon-kinesis-producer/bin
+# Set the environment variable to point to the kinesis_producer native executable
 ENV PULSAR_IO_KINESIS_KPL_PATH=/opt/amazon-kinesis-producer/bin/kinesis_producer
+# Install the required dependencies for the kinesis_producer native executable
+RUN apk update && apk add --no-cache \
+    brotli-libs \
+    c-ares \
+    libcrypto3 \
+    libcurl \
+    libgcc \
+    libidn2 \
+    libpsl \
+    libssl3 \
+    libunistring \
+    nghttp2-libs \
+    zlib \
+    zstd-libs \
+    libuuid
