@@ -18,14 +18,12 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static java.util.Objects.requireNonNull;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Range;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.apache.pulsar.common.util.collections.OpenLongPairRangeSet;
 import org.roaringbitmap.RoaringBitSet;
@@ -40,7 +38,6 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
 
     private final LongPairRangeSet<T> rangeSet;
     private final LongPairConsumer<T> rangeConverter;
-    private final ManagedLedgerConfig config;
     private final boolean enableMultiEntry;
 
     /**
@@ -53,13 +50,19 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
     public RangeSetWrapper(LongPairConsumer<T> rangeConverter,
                            RangeBoundConsumer<T> rangeBoundConsumer,
                            ManagedCursorImpl managedCursor) {
-        requireNonNull(managedCursor);
-        this.config = managedCursor.getManagedLedger().getConfig();
+        this(rangeConverter, rangeBoundConsumer, managedCursor.getConfig().isUnackedRangesOpenCacheSetEnabled(),
+                managedCursor.getConfig().isPersistentUnackedRangesWithMultipleEntriesEnabled());
+    }
+
+    public RangeSetWrapper(LongPairConsumer<T> rangeConverter,
+                           RangeBoundConsumer<T> rangeBoundConsumer,
+                           boolean unackedRangesOpenCacheSetEnabled,
+                           boolean persistentUnackedRangesWithMultipleEntriesEnabled) {
         this.rangeConverter = rangeConverter;
-        this.rangeSet = config.isUnackedRangesOpenCacheSetEnabled()
+        this.rangeSet = unackedRangesOpenCacheSetEnabled
                 ? new OpenLongPairRangeSet<>(rangeConverter, RoaringBitSet::new)
                 : new LongPairRangeSet.DefaultRangeSet<>(rangeConverter, rangeBoundConsumer);
-        this.enableMultiEntry = config.isPersistentUnackedRangesWithMultipleEntriesEnabled();
+        this.enableMultiEntry = persistentUnackedRangesWithMultipleEntriesEnabled;
     }
 
     @Override
