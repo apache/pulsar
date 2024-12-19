@@ -103,6 +103,13 @@ FINAL_DIR=/opt/amazon-kinesis-producer
 mkdir -p $FINAL_DIR/bin
 cp kinesis_producer $FINAL_DIR/bin/kinesis_producer.original
 
+# capture version information
+git describe --long --tags > $FINAL_DIR/bin/.version
+git rev-parse HEAD > $FINAL_DIR/bin/.revision
+uname -a > $FINAL_DIR/bin/.system_info
+cat /etc/os-release > $FINAL_DIR/bin/.os_info
+date > $FINAL_DIR/bin/.build_time
+
 # copy tests
 mkdir -p $FINAL_DIR/tests
 cp tests $FINAL_DIR/tests/
