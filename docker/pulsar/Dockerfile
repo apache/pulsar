@@ -143,6 +143,7 @@ WORKDIR /pulsar
 ENV PATH=$PATH:$JAVA_HOME/bin:/pulsar/bin
 # Use musl libc library for RocksDB
 ENV ROCKSDB_MUSL_LIBC=true
+# Preload gcompat library for glibc compatibility with Netty native libraries
 ENV LD_PRELOAD=/lib/libgcompat.so.0
 
 # The UID must be non-zero. Otherwise, it is arbitrary. No logic should rely on its specific value.

@@ -17,22 +17,23 @@
 # under the License.
 #
 
-ARG PULSAR_IO_KINESIS_KPL_IMAGE
-FROM ${PULSAR_IO_KINESIS_KPL_IMAGE} AS pulsar-io-kinesis-sink-kinesis_producer
-
+# global arguments (only to be used in FROM clauses)
 ARG PULSAR_IMAGE
-FROM busybox AS pulsar-all
+ARG PULSAR_IO_KINESIS_KPL_IMAGE
 
+
+FROM busybox AS pulsar-extensions
 ARG PULSAR_IO_DIR
-ARG PULSAR_OFFLOADER_TARBALL
-
 ADD ${PULSAR_IO_DIR} /connectors
+ARG PULSAR_OFFLOADER_TARBALL
 ADD ${PULSAR_OFFLOADER_TARBALL} /
 RUN mv /apache-pulsar-offloaders-*/offloaders /offloaders
 
+FROM ${PULSAR_IO_KINESIS_KPL_IMAGE} AS pulsar-io-kinesis-sink-kinesis_producer
+
 FROM ${PULSAR_IMAGE}
-COPY --from=pulsar-all /connectors /pulsar/connectors
-COPY --from=pulsar-all /offloaders /pulsar/offloaders
+COPY --from=pulsar-extensions /connectors /pulsar/connectors
+COPY --from=pulsar-extensions /offloaders /pulsar/offloaders
 # Copy the kinesis_producer native executable compiled for Alpine musl to the pulsar-all image
 # This is required to support the Pulsar IO Kinesis sink connector
 COPY --from=pulsar-io-kinesis-sink-kinesis_producer /opt/amazon-kinesis-producer/bin /opt/amazon-kinesis-producer/bin
