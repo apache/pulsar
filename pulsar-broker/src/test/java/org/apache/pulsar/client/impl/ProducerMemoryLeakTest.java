@@ -19,11 +19,14 @@
 package org.apache.pulsar.client.impl;
 
 import static org.awaitility.reflect.WhiteboxImpl.getInternalState;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mockStatic;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -37,8 +40,10 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.interceptor.ProducerInterceptor;
+import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
+import org.mockito.MockedStatic;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -117,7 +122,7 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
                 {1, CompressionType.NONE},
                 {5, CompressionType.NONE},
                 {1, CompressionType.LZ4},
-                {5, CompressionType.LZ4}
+                {6, CompressionType.LZ4}
         };
     }
 
@@ -135,25 +140,53 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
         /**
          * Mock an error: reached max message size, see more details {@link #maxMessageSizeAndCompressions()}.
          */
-        try {
-            msgBuilder.value("msg-1").send();
-            fail("expected an error that reached the max message size");
-        } catch (Exception ex) {
-            assertTrue(FutureUtil.unwrapCompletionException(ex)
-                    instanceof PulsarClientException.InvalidMessageException);
-        }
+        try (MockedStatic<ByteBufPair> theMock = mockStatic(ByteBufPair.class)) {
+            List<ByteBufPair> generatedByteBufPairs = Collections.synchronizedList(new ArrayList<>());
+            theMock.when(() -> ByteBufPair.get(any(ByteBuf.class), any(ByteBuf.class))).then(invocation -> {
+                ByteBufPair byteBufPair = (ByteBufPair) invocation.callRealMethod();
+                generatedByteBufPairs.add(byteBufPair);
+                byteBufPair.retain();
+                return byteBufPair;
+            });
+            try {
+                msgBuilder.value("msg-1").send();
+                fail("expected an error that reached the max message size");
+            } catch (Exception ex) {
+                log.warn("", ex);
+                assertTrue(FutureUtil.unwrapCompletionException(ex)
+                        instanceof PulsarClientException.InvalidMessageException);
+            }
 
-        // Verify: message payload has been released.
-        // Since "MsgPayloadTouchableMessageBuilder" has called "buffer.retain" once, "refCnt()" should be "1".
-        producer.close();
-        Awaitility.await().untilAsserted(() -> {
-            assertEquals(producer.getPendingQueueSize(), 0);
-        });
-        assertEquals(msgBuilder.payload.refCnt(), 1);
+            // Verify: message payload has been released.
+            // Since "MsgPayloadTouchableMessageBuilder" has called "buffer.retain" once, "refCnt()" should be "1".
+            producer.close();
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(producer.getPendingQueueSize(), 0);
+            });
+            // Verify: ByteBufPair generated for Pulsar Command.
+            if (maxMessageSize == 1) {
+                assertEquals(generatedByteBufPairs.size(),0);
+            } else {
+                assertEquals(generatedByteBufPairs.size(),1);
+                if (compressionType == CompressionType.NONE) {
+                    assertEquals(msgBuilder.payload.refCnt(), 2);
+                } else {
+                    assertEquals(msgBuilder.payload.refCnt(), 1);
+                }
+                for (ByteBufPair byteBufPair : generatedByteBufPairs) {
+                    assertEquals(byteBufPair.refCnt(), 1);
+                    byteBufPair.release();
+                    assertEquals(byteBufPair.refCnt(), 0);
+                }
+            }
+            // Verify: message.payload
+            assertEquals(msgBuilder.payload.refCnt(), 1);
+            msgBuilder.release();
+            assertEquals(msgBuilder.payload.refCnt(), 0);
+        }
 
         // cleanup.
         cnx.ctx().close();
-        msgBuilder.release();
         assertEquals(msgBuilder.payload.refCnt(), 0);
         admin.topics().delete(topicName);
     }
