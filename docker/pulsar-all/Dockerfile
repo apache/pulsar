@@ -17,11 +17,11 @@
 # under the License.
 #
 
-ARG PULSAR_IMAGE
-FROM busybox as pulsar-all
-
 ARG PULSAR_IO_KINESIS_KPL_IMAGE
-FROM $PULSAR_IO_KINESIS_KPL_IMAGE as pulsar-io-kinesis-sink-kinesis_producer
+FROM ${PULSAR_IO_KINESIS_KPL_IMAGE} AS pulsar-io-kinesis-sink-kinesis_producer
+
+ARG PULSAR_IMAGE
+FROM busybox AS pulsar-all
 
 ARG PULSAR_IO_DIR
 ARG PULSAR_OFFLOADER_TARBALL
@@ -30,7 +30,7 @@ ADD ${PULSAR_IO_DIR} /connectors
 ADD ${PULSAR_OFFLOADER_TARBALL} /
 RUN mv /apache-pulsar-offloaders-*/offloaders /offloaders
 
-FROM $PULSAR_IMAGE
+FROM ${PULSAR_IMAGE}
 COPY --from=pulsar-all /connectors /pulsar/connectors
 COPY --from=pulsar-all /offloaders /pulsar/offloaders
 # Copy the kinesis_producer native executable compiled for Alpine musl to the pulsar-all image
