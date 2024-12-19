@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.awaitility.reflect.WhiteboxImpl.getInternalState;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mockStatic;
 import static org.testng.Assert.assertEquals;
@@ -364,7 +363,7 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
         public Message<T> getMessage() {
             beforeSend();
             MessageImpl<T> msg = (MessageImpl<T>) super.getMessage();
-            payload = getInternalState(msg, "payload");
+            payload = msg.getPayload();
             // Retain the msg to avoid it be reused by other task.
             payload.retain();
             return msg;
