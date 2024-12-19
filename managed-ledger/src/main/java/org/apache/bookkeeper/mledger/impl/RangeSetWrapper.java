@@ -18,14 +18,12 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static java.util.Objects.requireNonNull;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Range;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.apache.pulsar.common.util.collections.OpenLongPairRangeSet;
 import org.roaringbitmap.RoaringBitSet;
