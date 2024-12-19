@@ -76,12 +76,13 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
         for (int i = 0; i < 100; i++) {
             msgBuilderList.add(newMessage(producer));
         }
-        List<CompletableFuture> sendFutureList = new ArrayList<>();
+
+        CompletableFuture latestSendFuture = null;
         for (MsgPayloadTouchableMessageBuilder<String> msgBuilder: msgBuilderList) {
-            sendFutureList.add(msgBuilder.value("msg-1").sendAsync());
+            latestSendFuture = msgBuilder.value("msg-1").sendAsync();
         }
         try{
-            sendFutureList.get(sendFutureList.size() - 1).join();
+            latestSendFuture.join();
         } catch (Exception ex) {
             // Ignore the error PulsarClientException$ProducerQueueIsFullError.
             assertTrue(FutureUtil.unwrapCompletionException(ex)
@@ -90,14 +91,9 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
 
         // Verify: ref is expected.
         producer.close();
-        for (int i = sendFutureList.size() - 1; i > -1; i--) {
+        for (int i = 0; i < msgBuilderList.size(); i++) {
             MsgPayloadTouchableMessageBuilder<String> msgBuilder = msgBuilderList.get(i);
             assertEquals(msgBuilder.payload.refCnt(), 1);
-            msgBuilder.release();
-            assertEquals(msgBuilder.payload.refCnt(), 0);
-        }
-        for (int i = sendFutureList.size(); i < 100; i++) {
-            MsgPayloadTouchableMessageBuilder<String> msgBuilder = msgBuilderList.get(i);
             msgBuilder.release();
             assertEquals(msgBuilder.payload.refCnt(), 0);
         }
@@ -128,7 +124,6 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
                 .compressionType(compressionType)
                 .enableBatching(false)
                 .create();
-        final ClientCnx cnx = producer.getClientCnx();
         producer.getConnectionHandler().setMaxMessageSize(maxMessageSize);
         MsgPayloadTouchableMessageBuilder<String> msgBuilder = newMessage(producer);
         /**
@@ -179,7 +174,6 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
         }
 
         // cleanup.
-        cnx.ctx().close();
         assertEquals(msgBuilder.payload.refCnt(), 0);
         admin.topics().delete(topicName);
     }
