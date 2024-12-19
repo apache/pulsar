@@ -40,6 +40,7 @@ COPY --from=pulsar-io-kinesis-sink-kinesis_producer /opt/amazon-kinesis-producer
 # Set the environment variable to point to the kinesis_producer native executable
 ENV PULSAR_IO_KINESIS_KPL_PATH=/opt/amazon-kinesis-producer/bin/kinesis_producer
 # Install the required dependencies for the kinesis_producer native executable
+USER 0
 RUN apk update && apk add --no-cache \
     brotli-libs \
     c-ares \
@@ -53,4 +54,5 @@ RUN apk update && apk add --no-cache \
     nghttp2-libs \
     zlib \
     zstd-libs \
-    libuuid
+    libuuid \
+USER 10000
