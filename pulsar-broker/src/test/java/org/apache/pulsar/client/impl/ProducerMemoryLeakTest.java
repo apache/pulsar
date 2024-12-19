@@ -152,7 +152,6 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
                 msgBuilder.value("msg-1").send();
                 fail("expected an error that reached the max message size");
             } catch (Exception ex) {
-                log.warn("", ex);
                 assertTrue(FutureUtil.unwrapCompletionException(ex)
                         instanceof PulsarClientException.InvalidMessageException);
             }
