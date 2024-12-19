@@ -54,5 +54,5 @@ RUN apk update && apk add --no-cache \
     nghttp2-libs \
     zlib \
     zstd-libs \
-    libuuid \
+    libuuid
 USER 10000
