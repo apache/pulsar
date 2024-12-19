@@ -65,11 +65,6 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Override
-    protected void doInitConf() throws Exception {
-        super.doInitConf();
-    }
-
     @Test
     public void testSendQueueIsFull() throws Exception {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp_");
