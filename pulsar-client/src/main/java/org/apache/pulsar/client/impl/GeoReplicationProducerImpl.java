@@ -86,14 +86,14 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
         Long pendingEId = null;
         List<KeyValue> kvPairList =  op.msg.getMessageBuilder().getPropertiesList();
         for (KeyValue kvPair : kvPairList) {
-            if (kvPair.getKey().equals(MSG_PROP_REPL_SOURCE_LID)) {
+            if (MSG_PROP_REPL_SOURCE_LID.equals(kvPair.getKey())) {
                 if (StringUtils.isNumeric(kvPair.getValue())) {
                     pendingLId = Long.valueOf(kvPair.getValue());
                 } else {
                     break;
                 }
             }
-            if (kvPair.getKey().equals(MSG_PROP_REPL_SOURCE_EID)) {
+            if (MSG_PROP_REPL_SOURCE_EID.equals(kvPair.getKey())) {
                 if (StringUtils.isNumeric(kvPair.getValue())) {
                     pendingEId = Long.valueOf(kvPair.getValue());
                 } else {
