@@ -109,8 +109,9 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
         //   - The first time: Replicator --M1--> producer --> ...
         //   - Cursor rewind.
         //   - The second time: Replicator --M1--> producer --> ...
-        if (pendingLId < lastPersistedSourceLedgerId
-                || (pendingLId == lastPersistedSourceLedgerId  && pendingEId <= lastPersistedSourceEntryId)) {
+        if (pendingLId != null && pendingEId != null
+                && (pendingLId < lastPersistedSourceLedgerId || (pendingLId.longValue() == lastPersistedSourceLedgerId
+                  && pendingEId.longValue() <= lastPersistedSourceEntryId))) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Received an msg send receipt[pending send is repeated due to repl cursor rewind]:"
                                 + " source entry {}:{}, pending send: {}:{}, latest persisted: {}:{}",
