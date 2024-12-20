@@ -133,9 +133,11 @@ public class PersistentSubscription extends AbstractSubscription {
     private volatile Map<String, String> subscriptionProperties;
     private volatile CompletableFuture<Void> fenceFuture;
     private volatile CompletableFuture<Void> inProgressResetCursorFuture;
+    private volatile Boolean replicatedControlled;
 
-    static Map<String, Long> getBaseCursorProperties(boolean isReplicated) {
-        return isReplicated ? REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES : NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES;
+    static Map<String, Long> getBaseCursorProperties(Boolean isReplicated) {
+        return isReplicated != null && isReplicated ? REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES :
+                NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES;
     }
 
     static boolean isCursorFromReplicatedSubscription(ManagedCursor cursor) {
@@ -143,19 +145,21 @@ public class PersistentSubscription extends AbstractSubscription {
     }
 
     public PersistentSubscription(PersistentTopic topic, String subscriptionName, ManagedCursor cursor,
-                                  boolean replicated) {
+                                  Boolean replicated) {
         this(topic, subscriptionName, cursor, replicated, Collections.emptyMap());
     }
 
     public PersistentSubscription(PersistentTopic topic, String subscriptionName, ManagedCursor cursor,
-                                  boolean replicated, Map<String, String> subscriptionProperties) {
+                                  Boolean replicated, Map<String, String> subscriptionProperties) {
         this.topic = topic;
         this.cursor = cursor;
         this.topicName = topic.getName();
         this.subName = subscriptionName;
         this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topic, subscriptionName, cursor, this);
-        this.setReplicated(replicated);
+        if (replicated != null) {
+            this.setReplicated(replicated);
+        }
         this.subscriptionProperties = MapUtils.isEmpty(subscriptionProperties)
                 ? Collections.emptyMap() : Collections.unmodifiableMap(subscriptionProperties);
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
@@ -194,6 +198,7 @@ public class PersistentSubscription extends AbstractSubscription {
     }
 
     public boolean setReplicated(boolean replicated) {
+        replicatedControlled = replicated;
         ServiceConfiguration config = topic.getBrokerService().getPulsar().getConfig();
 
         if (!replicated || !config.isEnableReplicatedSubscriptions()) {
@@ -1557,4 +1562,8 @@ public class PersistentSubscription extends AbstractSubscription {
 
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);
 
+    @VisibleForTesting
+    public Boolean getReplicatedControlled() {
+        return replicatedControlled;
+    }
 }
