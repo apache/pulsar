@@ -504,7 +504,7 @@ public class ConsumerBuilderImplTest {
         assertTrue(configurationData.isRetryEnable());
         assertFalse(configurationData.isAutoUpdatePartitions());
         assertEquals(configurationData.getAutoUpdatePartitionsIntervalSeconds(), 2);
-        assertTrue(configurationData.isReplicateSubscriptionState());
+        assertEquals(configurationData.getReplicateSubscriptionState(), Boolean.TRUE);
         assertTrue(configurationData.isResetIncludeHead());
         assertTrue(configurationData.isBatchIndexAckEnabled());
         assertTrue(configurationData.isAckReceiptEnabled());
@@ -564,7 +564,7 @@ public class ConsumerBuilderImplTest {
         assertFalse(configurationData.isRetryEnable());
         assertTrue(configurationData.isAutoUpdatePartitions());
         assertEquals(configurationData.getAutoUpdatePartitionsIntervalSeconds(), 60);
-        assertFalse(configurationData.isReplicateSubscriptionState());
+        assertNull(configurationData.getReplicateSubscriptionState());
         assertFalse(configurationData.isResetIncludeHead());
         assertFalse(configurationData.isBatchIndexAckEnabled());
         assertFalse(configurationData.isAckReceiptEnabled());
@@ -582,6 +582,38 @@ public class ConsumerBuilderImplTest {
         assertNull(configurationData.getBatchReceivePolicy());
         assertNull(configurationData.getKeySharedPolicy());
         assertNull(configurationData.getPayloadProcessor());
+    }
+
+    @Test
+    public void testReplicateSubscriptionState() {
+        ConsumerBuilderImpl<byte[]> consumerBuilder = createConsumerBuilder();
+        assertNull(consumerBuilder.getConf().getReplicateSubscriptionState());
+
+        consumerBuilder.replicateSubscriptionState(true);
+        assertEquals(consumerBuilder.getConf().getReplicateSubscriptionState(), Boolean.TRUE);
+
+        consumerBuilder.replicateSubscriptionState(false);
+        assertEquals(consumerBuilder.getConf().getReplicateSubscriptionState(), Boolean.FALSE);
+
+        Map<String, Object> conf = new HashMap<>();
+        consumerBuilder = createConsumerBuilder();
+        consumerBuilder.loadConf(conf);
+        assertNull(consumerBuilder.getConf().getReplicateSubscriptionState());
+
+        conf.put("replicateSubscriptionState", true);
+        consumerBuilder = createConsumerBuilder();
+        consumerBuilder.loadConf(conf);
+        assertEquals(consumerBuilder.getConf().getReplicateSubscriptionState(), Boolean.TRUE);
+
+        conf.put("replicateSubscriptionState", false);
+        consumerBuilder = createConsumerBuilder();
+        consumerBuilder.loadConf(conf);
+        assertEquals(consumerBuilder.getConf().getReplicateSubscriptionState(), Boolean.FALSE);
+
+        conf.put("replicateSubscriptionState", null);
+        consumerBuilder = createConsumerBuilder();
+        consumerBuilder.loadConf(conf);
+        assertNull(consumerBuilder.getConf().getReplicateSubscriptionState());
     }
 
     private ConsumerBuilderImpl<byte[]> createConsumerBuilder() {
