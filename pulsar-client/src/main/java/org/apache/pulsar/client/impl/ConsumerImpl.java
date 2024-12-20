@@ -3105,7 +3105,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @Override
     protected void setRedirectedClusterURI(String serviceUrl, String serviceUrlTls) throws URISyntaxException {
         super.setRedirectedClusterURI(serviceUrl, serviceUrlTls);
-        acknowledgmentsGroupingTracker.clean();
+        acknowledgmentsGroupingTracker.flushAndClean();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerImpl.class);
