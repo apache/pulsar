@@ -572,7 +572,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,
-            boolean replicated, Map<String, String> subscriptionProperties) {
+            Boolean replicated, Map<String, String> subscriptionProperties) {
         Objects.requireNonNull(compactedTopic);
         if (isCompactionSubscription(subscriptionName)) {
             return new CompactorSubscription(this, compactedTopic, subscriptionName, cursor);
@@ -886,7 +886,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                           Map<String, String> metadata, boolean readCompacted,
                                                           InitialPosition initialPosition,
                                                           long startMessageRollbackDurationSec,
-                                                          boolean replicatedSubscriptionStateArg,
+                                                          Boolean replicatedSubscriptionStateArg,
                                                           KeySharedMeta keySharedMeta,
                                                           Map<String, String> subscriptionProperties,
                                                           long consumerEpoch,
@@ -897,12 +897,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         return brokerService.checkTopicNsOwnership(getName()).thenCompose(__ -> {
-            boolean replicatedSubscriptionState = replicatedSubscriptionStateArg;
-
-            if (replicatedSubscriptionState
+            if (replicatedSubscriptionStateArg != null && replicatedSubscriptionStateArg
                     && !brokerService.pulsar().getConfiguration().isEnableReplicatedSubscriptions()) {
                 log.warn("[{}] Replicated Subscription is disabled by broker.", getName());
-                replicatedSubscriptionState = false;
             }
 
             if (subType == SubType.Key_Shared
@@ -971,7 +968,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
             CompletableFuture<? extends Subscription> subscriptionFuture = isDurable
                     ? getDurableSubscription(subscriptionName, initialPosition, startMessageRollbackDurationSec,
-                            replicatedSubscriptionState, subscriptionProperties)
+                    replicatedSubscriptionStateArg, subscriptionProperties)
                     : getNonDurableSubscription(subscriptionName, startMessageId, initialPosition,
                     startMessageRollbackDurationSec, readCompacted, subscriptionProperties);
 
@@ -1068,7 +1065,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName,
                                                                    InitialPosition initialPosition,
                                                                    long startMessageRollbackDurationSec,
-                                                                   boolean replicated,
+                                                                   Boolean replicated,
                                                                    Map<String, String> subscriptionProperties) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
         if (checkMaxSubscriptionsPerTopicExceed(subscriptionName)) {
@@ -1099,7 +1096,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         return;
                     }
                 }
-                if (replicated && !subscription.isReplicated()) {
+                if (replicated != null && replicated && !subscription.isReplicated()) {
                     // Flip the subscription state
                     subscription.setReplicated(replicated);
                 }

@@ -580,7 +580,7 @@ public class Commands {
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
-            Map<String, String> metadata, boolean readCompacted, boolean isReplicated,
+            Map<String, String> metadata, boolean readCompacted, Boolean isReplicated,
             InitialPosition subscriptionInitialPosition, long startMessageRollbackDurationInSec, SchemaInfo schemaInfo,
             boolean createTopicIfDoesNotExist) {
         return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
@@ -591,7 +591,7 @@ public class Commands {
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
                SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
-               Map<String, String> metadata, boolean readCompacted, boolean isReplicated,
+               Map<String, String> metadata, boolean readCompacted, Boolean isReplicated,
                InitialPosition subscriptionInitialPosition, long startMessageRollbackDurationInSec,
                SchemaInfo schemaInfo, boolean createTopicIfDoesNotExist, KeySharedPolicy keySharedPolicy,
                Map<String, String> subscriptionProperties, long consumerEpoch) {
@@ -607,9 +607,11 @@ public class Commands {
                 .setDurable(isDurable)
                 .setReadCompacted(readCompacted)
                 .setInitialPosition(subscriptionInitialPosition)
-                .setReplicateSubscriptionState(isReplicated)
                 .setForceTopicCreation(createTopicIfDoesNotExist)
                 .setConsumerEpoch(consumerEpoch);
+        if (isReplicated != null) {
+            subscribe.setReplicateSubscriptionState(isReplicated);
+        }
 
         if (subscriptionProperties != null && !subscriptionProperties.isEmpty()) {
             List<KeyValue> keyValues = new ArrayList<>();
