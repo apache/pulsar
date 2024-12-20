@@ -81,18 +81,6 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
     }
     private void ackReceivedReplicatedMsg(ClientCnx cnx, OpSendMsg op, long sourceLId, long sourceEId,
                                           long targetLId, long targetEid) {
-        // Case-1: repeatedly publish.
-        if (sourceLId < lastPersistedSourceLedgerId
-                || (sourceLId == lastPersistedSourceLedgerId  && sourceEId < lastPersistedSourceEntryId)) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] Received an msg send receipt[repeated]: source entry {}:{}, latest persisted:"
-                                + " {}:{}",
-                        topic, producerName, sourceLId, sourceEId,
-                        lastPersistedSourceLedgerId, lastPersistedSourceEntryId);
-            }
-            return;
-        }
-
         // Parse source cluster's entry position.
         Long pendingLId = null;
         Long pendingEId = null;
@@ -117,21 +105,43 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
             }
         }
 
-        // Case-2, which is expected.
+        // Case-1: repeatedly publish. Source message was exactly resend by the Replicator after a cursor rewind.
+        //   - The first time: Replicator --M1--> producer --> ...
+        //   - Cursor rewind.
+        //   - The second time: Replicator --M1--> producer --> ...
+        if (pendingLId < lastPersistedSourceLedgerId
+                || (pendingLId == lastPersistedSourceLedgerId  && pendingEId <= lastPersistedSourceEntryId)) {
+            if (log.isInfoEnabled()) {
+                log.info("[{}] [{}] Received an msg send receipt[pending send is repeated due to repl cursor rewind]:"
+                                + " source entry {}:{}, pending send: {}:{}, latest persisted: {}:{}",
+                        topic, producerName, sourceLId, sourceEId, pendingLId, pendingEId,
+                        lastPersistedSourceLedgerId, lastPersistedSourceEntryId);
+            }
+            removeAndApplyCallback(op, sourceLId, sourceEId, targetLId, targetEid, false);
+            ackReceived(cnx, sourceLId, sourceEId, targetLId, targetEid);
+            return;
+        }
+
+        // Case-2: repeatedly publish. Send command was executed again by the producer after a reconnect.
+        //  - Replicator --M1--> producer --> ...
+        //  - The first time: producer call Send-Command-1.
+        //  - Producer reconnect.
+        //  - The second time: producer call Send-Command-1.
+        if (sourceLId < lastPersistedSourceLedgerId
+                || (sourceLId == lastPersistedSourceLedgerId  && sourceEId <= lastPersistedSourceEntryId)) {
+            if (log.isInfoEnabled()) {
+                log.info("[{}] [{}] Received an msg send receipt[repeated]: source entry {}:{}, latest persisted:"
+                                + " {}:{}",
+                        topic, producerName, sourceLId, sourceEId,
+                        lastPersistedSourceLedgerId, lastPersistedSourceEntryId);
+            }
+            return;
+        }
+
+        // Case-3, which is expected.
         if (pendingLId != null && pendingEId != null && sourceLId == pendingLId && sourceEId == pendingEId) {
-            // Case-3, which is expected.
-            // Q: After a reconnect, maybe we have lost the response of Send-Receipt, then how can we remove
-            //    pending messages from the queue?
-            // A: if both @param-ledgerId and @param-entry-id are "-1", it means the message has been sent
-            //    successfully.
-            //    PS: broker will respond "-1" only when it confirms the message has been persisted, broker will
-            //        respond a "MessageDeduplication.MessageDupUnknownException" if the message is sending
-            //        in-progress.
-            //    Notice: if send messages outs of oder, may lost messages.
-            // Conclusion: So whether @param-ledgerId and @param-entry-id are "-1" or not, we can remove pending
-            //    message.
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] Received an msg send receipt[expected]: source entry {}:{}, target entry:"
+            if (log.isInfoEnabled()) {
+                log.info("[{}] [{}] Received an msg send receipt[expected]: source entry {}:{}, target entry:"
                                 + " {}:{}",
                         topic, producerName, sourceLId, sourceEId,
                         targetLId, targetEid);
@@ -142,12 +152,13 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
             return;
         }
 
-        // Case-3: got null source cluster's entry position, which is unexpected.
-        // Case-4: unknown error, which is unexpected.
+        // Case-4: Unexpected
+        //   4-1: got null source cluster's entry position, which is unexpected.
+        //   4-2: unknown error, which is unexpected.
         log.error("[{}] [{}] Received an msg send receipt[error]: source entry {}:{}, target entry: {}:{},"
-                + " pending send: {}:{}, queue-size: {}",
+                + " pending send: {}:{}, latest persisted: {}:{}, queue-size: {}",
                 topic, producerName, sourceLId, sourceEId, targetLId, targetEid, pendingLId, pendingEId,
-                pendingMessages.messagesCount());
+                lastPersistedSourceLedgerId, lastPersistedSourceEntryId, pendingMessages.messagesCount());
         cnx.channel().close();
     }
 
@@ -157,8 +168,8 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
         long lastSeqPersisted = LAST_SEQ_ID_PUBLISHED_UPDATER.get(this);
         if (lastSeqPersisted != 0 && seq <= lastSeqPersisted) {
             // Ignoring the ack since it's referring to a message that has already timed out.
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] Received an repl marker send receipt[repeated]. seq: {}, seqPersisted: {},"
+            if (log.isInfoEnabled()) {
+                log.info("[{}] [{}] Received an repl marker send receipt[repeated]. seq: {}, seqPersisted: {},"
                                 + " isSourceMarker: {}, target entry: {}:{}",
                         topic, producerName, seq, lastSeqPersisted, isSourceMarker, ledgerId, entryId);
             }
@@ -166,12 +177,12 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
         }
 
         // Case-2, which is expected:
-        // 1. Broker responds SendReceipt who is a repl marker.
-        // 2. The current pending msg is also a marker.
+        //   condition: broker responds SendReceipt who is a repl marker.
+        //   and condition: the current pending msg is also a marker.
         boolean pendingMsgIsReplMarker = isReplicationMarker(op);
         if (pendingMsgIsReplMarker && seq == op.sequenceId) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] Received an repl marker send receipt[expected]. seq: {}, seqPersisted: {},"
+            if (log.isInfoEnabled()) {
+                log.info("[{}] [{}] Received an repl marker send receipt[expected]. seq: {}, seqPersisted: {},"
                                 + " isReplMarker: {}, target entry: {}:{}",
                         topic, producerName, seq, lastSeqPersisted, isSourceMarker, ledgerId, entryId);
             }
@@ -181,9 +192,9 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
             return;
         }
 
-        // Case-3, which is unexpected.
-        // Case-3-1: expected a SendError if "seq <= lastInProgressSend".
-        // Case-3-2: something went wrong.
+        // Case-3, unexpected.
+        //   3-1: if "lastSeqPersisted < seq <= lastInProgressSend", rather than going here, it should be a SendError.
+        //   3-2: unknown error.
         long lastInProgressSend = LAST_SEQ_ID_PUSHED_UPDATER.get(this);
         String logText = String.format("[%s] [%s] Received an repl marker send receipt[error]. seq: %s, seqPending: %s."
                 + " sequenceIdPersisted: %s, lastInProgressSend: %s,"
