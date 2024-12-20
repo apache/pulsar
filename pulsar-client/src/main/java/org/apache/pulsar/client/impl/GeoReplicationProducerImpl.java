@@ -111,8 +111,8 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
         //   - The second time: Replicator --M1--> producer --> ...
         if (pendingLId < lastPersistedSourceLedgerId
                 || (pendingLId == lastPersistedSourceLedgerId  && pendingEId <= lastPersistedSourceEntryId)) {
-            if (log.isInfoEnabled()) {
-                log.info("[{}] [{}] Received an msg send receipt[pending send is repeated due to repl cursor rewind]:"
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Received an msg send receipt[pending send is repeated due to repl cursor rewind]:"
                                 + " source entry {}:{}, pending send: {}:{}, latest persisted: {}:{}",
                         topic, producerName, sourceLId, sourceEId, pendingLId, pendingEId,
                         lastPersistedSourceLedgerId, lastPersistedSourceEntryId);
@@ -129,8 +129,8 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
         //  - The second time: producer call Send-Command-1.
         if (sourceLId < lastPersistedSourceLedgerId
                 || (sourceLId == lastPersistedSourceLedgerId  && sourceEId <= lastPersistedSourceEntryId)) {
-            if (log.isInfoEnabled()) {
-                log.info("[{}] [{}] Received an msg send receipt[repeated]: source entry {}:{}, latest persisted:"
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Received an msg send receipt[repeated]: source entry {}:{}, latest persisted:"
                                 + " {}:{}",
                         topic, producerName, sourceLId, sourceEId,
                         lastPersistedSourceLedgerId, lastPersistedSourceEntryId);
@@ -140,8 +140,8 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
 
         // Case-3, which is expected.
         if (pendingLId != null && pendingEId != null && sourceLId == pendingLId && sourceEId == pendingEId) {
-            if (log.isInfoEnabled()) {
-                log.info("[{}] [{}] Received an msg send receipt[expected]: source entry {}:{}, target entry:"
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Received an msg send receipt[expected]: source entry {}:{}, target entry:"
                                 + " {}:{}",
                         topic, producerName, sourceLId, sourceEId,
                         targetLId, targetEid);
@@ -168,8 +168,8 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
         long lastSeqPersisted = LAST_SEQ_ID_PUBLISHED_UPDATER.get(this);
         if (lastSeqPersisted != 0 && seq <= lastSeqPersisted) {
             // Ignoring the ack since it's referring to a message that has already timed out.
-            if (log.isInfoEnabled()) {
-                log.info("[{}] [{}] Received an repl marker send receipt[repeated]. seq: {}, seqPersisted: {},"
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Received an repl marker send receipt[repeated]. seq: {}, seqPersisted: {},"
                                 + " isSourceMarker: {}, target entry: {}:{}",
                         topic, producerName, seq, lastSeqPersisted, isSourceMarker, ledgerId, entryId);
             }
@@ -181,8 +181,8 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
         //   and condition: the current pending msg is also a marker.
         boolean pendingMsgIsReplMarker = isReplicationMarker(op);
         if (pendingMsgIsReplMarker && seq == op.sequenceId) {
-            if (log.isInfoEnabled()) {
-                log.info("[{}] [{}] Received an repl marker send receipt[expected]. seq: {}, seqPersisted: {},"
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Received an repl marker send receipt[expected]. seq: {}, seqPersisted: {},"
                                 + " isReplMarker: {}, target entry: {}:{}",
                         topic, producerName, seq, lastSeqPersisted, isSourceMarker, ledgerId, entryId);
             }
