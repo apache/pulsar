@@ -21,8 +21,8 @@ package org.apache.pulsar.broker.service;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static org.apache.pulsar.broker.service.AbstractReplicator.REPL_PRODUCER_NAME_DELIMITER;
 import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_IS_REPL_MARKER;
-import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SEQUENCE_EID;
-import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SEQUENCE_LID;
+import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SOURCE_EID;
+import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SOURCE_LID;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 import com.google.common.annotations.VisibleForTesting;
@@ -95,6 +95,7 @@ public class Producer {
             AtomicReferenceFieldUpdater.newUpdater(Producer.class, Attributes.class, "attributes");
 
     private final boolean isRemote;
+    private final boolean isRemoteOrShadow;
     private final String remoteCluster;
     private final boolean isNonPersistentTopic;
     private final boolean isShadowTopic;
@@ -152,6 +153,7 @@ public class Producer {
 
         String replicatorPrefix = serviceConf.getReplicatorPrefix() + ".";
         this.isRemote = producerName.startsWith(replicatorPrefix);
+        this.isRemoteOrShadow = isRemoteOrShadow(producerName, serviceConf.getReplicatorPrefix());
         this.remoteCluster = parseRemoteClusterName(producerName, isRemote, replicatorPrefix);
 
         this.isEncrypted = isEncrypted;
@@ -161,6 +163,13 @@ public class Producer {
 
         this.clientAddress = cnx.clientSourceAddress();
         this.brokerInterceptor = cnx.getBrokerService().getInterceptor();
+    }
+
+    /**
+     * Difference with "isRemote" is whether the prefix string is end with a dot.
+     */
+    public static boolean isRemoteOrShadow(String producerName, String replicatorPrefix) {
+        return producerName != null && producerName.startsWith(replicatorPrefix);
     }
 
     /**
@@ -552,7 +561,7 @@ public class Producer {
             // stats
             producer.stats.recordMsgIn(batchSize, msgSize);
             producer.topic.recordAddLatency(System.nanoTime() - startTimeNs, TimeUnit.NANOSECONDS);
-            if (producer.isRemote() && producer.isSupportsDedupReplV2()) {
+            if (producer.isRemoteOrShadow && producer.isSupportsDedupReplV2()) {
                 sendSendReceiptResponseRepl();
             } else {
                 // Repl V1 is the same as normal for this handling.
@@ -580,16 +589,16 @@ public class Producer {
                 return;
             }
             // Case-2: is a repl message.
-            String replSequenceLIdStr = String.valueOf(getProperty(MSG_PROP_REPL_SEQUENCE_LID));
-            String replSequenceEIdStr = String.valueOf(getProperty(MSG_PROP_REPL_SEQUENCE_EID));
+            String replSequenceLIdStr = String.valueOf(getProperty(MSG_PROP_REPL_SOURCE_LID));
+            String replSequenceEIdStr = String.valueOf(getProperty(MSG_PROP_REPL_SOURCE_EID));
             if (!StringUtils.isNumeric(replSequenceLIdStr) || !StringUtils.isNumeric(replSequenceEIdStr)) {
                 log.error("[{}] Message can not determine whether the message is duplicated due to the acquired"
                                 + " messages props were are invalid. producer={}. supportsDedupReplV2: {},"
                                 + " sequence-id {}, prop-{}: {}, prop-{}: {}",
                         producer.topic.getName(), producer.producerName,
                         supportsDedupReplV2(), getSequenceId(),
-                        MSG_PROP_REPL_SEQUENCE_LID, replSequenceLIdStr,
-                        MSG_PROP_REPL_SEQUENCE_EID, replSequenceEIdStr);
+                        MSG_PROP_REPL_SOURCE_LID, replSequenceLIdStr,
+                        MSG_PROP_REPL_SOURCE_EID, replSequenceEIdStr);
                 producer.cnx.getCommandSender().sendSendError(producer.producerId,
                         Math.max(highestSequenceId, sequenceId),
                         ServerError.PersistenceError, "Message can not determine whether the message is"

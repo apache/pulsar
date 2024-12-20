@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SEQUENCE_EID;
-import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SEQUENCE_LID;
+import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SOURCE_EID;
+import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SOURCE_LID;
 import io.netty.buffer.ByteBuf;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -196,13 +196,10 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     msg.setSchemaInfoForReplicator(schemaFuture.get());
                     msg.getMessageBuilder().clearTxnidMostBits();
                     msg.getMessageBuilder().clearTxnidLeastBits();
-                    // Why not use a generated sequence ID that initialized with "-1" when the replicator is starting?
-                    // Because that we should persist the props to the value of the current value of sequence id for
-                    // each acknowledge after publishing for guarantees the sequence id can be recovered after a cursor
-                    // reset that will happen when getting new schema or publish fails, which cost much more.
-                    msg.getMessageBuilder().addProperty().setKey(MSG_PROP_REPL_SEQUENCE_LID)
+                    // Add props for sequence checking.
+                    msg.getMessageBuilder().addProperty().setKey(MSG_PROP_REPL_SOURCE_LID)
                             .setValue(Long.valueOf(entry.getLedgerId()).toString());
-                    msg.getMessageBuilder().addProperty().setKey(MSG_PROP_REPL_SEQUENCE_EID)
+                    msg.getMessageBuilder().addProperty().setKey(MSG_PROP_REPL_SOURCE_EID)
                             .setValue(Long.valueOf(entry.getEntryId()).toString());
                     msgOut.recordEvent(headersAndPayload.readableBytes());
                     stats.incrementMsgOutCounter();
