@@ -139,7 +139,8 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
         }
 
         // Case-3, which is expected.
-        if (pendingLId != null && pendingEId != null && sourceLId == pendingLId && sourceEId == pendingEId) {
+        if (pendingLId != null && pendingEId != null && sourceLId == pendingLId.longValue()
+                && sourceEId == pendingEId.longValue()) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Received an msg send receipt[expected]: source entry {}:{}, target entry:"
                                 + " {}:{}",
