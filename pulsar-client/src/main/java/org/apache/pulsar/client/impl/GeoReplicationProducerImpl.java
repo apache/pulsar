@@ -33,8 +33,8 @@ import org.apache.pulsar.common.protocol.Markers;
 @Slf4j
 public class GeoReplicationProducerImpl extends ProducerImpl{
 
-    public static final String MSG_PROP_REPL_SEQUENCE_LID = "__MSG_PROP_REPL_SEQUENCE_LID";
-    public static final String MSG_PROP_REPL_SEQUENCE_EID = "__MSG_PROP_REPL_SEQUENCE_EID";
+    public static final String MSG_PROP_REPL_SOURCE_LID = "__MSG_PROP_REPL_SOURCE_LID";
+    public static final String MSG_PROP_REPL_SOURCE_EID = "__MSG_PROP_REPL_SOURCE_EID";
     public static final String MSG_PROP_IS_REPL_MARKER = "__MSG_PROP_IS_REPL_MARKER";
 
     private long lastPersistedSourceLedgerId;
@@ -98,14 +98,14 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
         Long pendingEId = null;
         List<KeyValue> kvPairList =  op.msg.getMessageBuilder().getPropertiesList();
         for (KeyValue kvPair : kvPairList) {
-            if (kvPair.getKey().equals(MSG_PROP_REPL_SEQUENCE_LID)) {
+            if (kvPair.getKey().equals(MSG_PROP_REPL_SOURCE_LID)) {
                 if (StringUtils.isNumeric(kvPair.getValue())) {
                     pendingLId = Long.valueOf(kvPair.getValue());
                 } else {
                     break;
                 }
             }
-            if (kvPair.getKey().equals(MSG_PROP_REPL_SEQUENCE_EID)) {
+            if (kvPair.getKey().equals(MSG_PROP_REPL_SOURCE_EID)) {
                 if (StringUtils.isNumeric(kvPair.getValue())) {
                     pendingEId = Long.valueOf(kvPair.getValue());
                 } else {
@@ -154,13 +154,13 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
     protected void ackReceivedReplMarker(ClientCnx cnx, OpSendMsg op, long seq, long isSourceMarker,
                                          long ledgerId, long entryId) {
         // Case-1: repeatedly publish repl marker.
-        long lastSeqReceivedAck = LAST_SEQ_ID_PUBLISHED_UPDATER.get(this);
-        if (seq <= lastSeqReceivedAck) {
+        long lastSeqPersisted = LAST_SEQ_ID_PUBLISHED_UPDATER.get(this);
+        if (lastSeqPersisted != 0 && seq <= lastSeqPersisted) {
             // Ignoring the ack since it's referring to a message that has already timed out.
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Received an repl marker send receipt[repeated]. seq: {}, seqPersisted: {},"
                                 + " isSourceMarker: {}, target entry: {}:{}",
-                        topic, producerName, seq, lastSeqReceivedAck, isSourceMarker, ledgerId, entryId);
+                        topic, producerName, seq, lastSeqPersisted, isSourceMarker, ledgerId, entryId);
             }
             return;
         }
@@ -173,7 +173,7 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Received an repl marker send receipt[expected]. seq: {}, seqPersisted: {},"
                                 + " isReplMarker: {}, target entry: {}:{}",
-                        topic, producerName, seq, lastSeqReceivedAck, isSourceMarker, ledgerId, entryId);
+                        topic, producerName, seq, lastSeqPersisted, isSourceMarker, ledgerId, entryId);
             }
             long calculatedSeq = getHighestSequenceId(op);
             LAST_SEQ_ID_PUBLISHED_UPDATER.getAndUpdate(this, last -> Math.max(last, calculatedSeq));
@@ -189,7 +189,7 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
                 + " sequenceIdPersisted: %s, lastInProgressSend: %s,"
                 + " isSourceMarker: %s, target entry: %s:%s, queue-size: %s",
                 topic, producerName, seq, pendingMsgIsReplMarker ? op.sequenceId : "unknown",
-                lastSeqReceivedAck, lastInProgressSend,
+                lastSeqPersisted, lastInProgressSend,
                 isSourceMarker, ledgerId, entryId, pendingMessages.messagesCount()
         );
         if (seq < lastInProgressSend) {

@@ -19,8 +19,8 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_IS_REPL_MARKER;
-import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SEQUENCE_EID;
-import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SEQUENCE_LID;
+import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SOURCE_EID;
+import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SOURCE_LID;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import java.util.Iterator;
@@ -43,6 +43,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -331,7 +332,7 @@ public class MessageDeduplication {
         if (!isEnabled() || publishContext.isMarkerMessage()) {
             return MessageDupStatus.NotDup;
         }
-        if (publishContext.getProducerName() != null && publishContext.getProducerName().startsWith(replicatorPrefix)) {
+        if (Producer.isRemoteOrShadow(publishContext.getProducerName(), replicatorPrefix)) {
             if (!publishContext.supportsDedupReplV2()){
                 return isDuplicateReplV1(publishContext, headersAndPayload);
             } else {
@@ -373,7 +374,7 @@ public class MessageDeduplication {
         }
 
         // Case-2: is a replicated message.
-        if (publishContext.getProducerName() != null && publishContext.getProducerName().startsWith(replicatorPrefix)) {
+        if (Producer.isRemoteOrShadow(publishContext.getProducerName(), replicatorPrefix)) {
             // Message is coming from replication, we need to use the replication's producer name, source cluster's
             // ledger id and entry id for the purpose of deduplication.
             int readerIndex = headersAndPayload.readerIndex();
@@ -384,18 +385,18 @@ public class MessageDeduplication {
             Long replSequenceEId = null;
             List<KeyValue> kvPairList = md.getPropertiesList();
             for (KeyValue kvPair : kvPairList) {
-                if (kvPair.getKey().equals(MSG_PROP_REPL_SEQUENCE_LID)) {
+                if (kvPair.getKey().equals(MSG_PROP_REPL_SOURCE_LID)) {
                     if (StringUtils.isNumeric(kvPair.getValue())) {
                         replSequenceLId = Long.valueOf(kvPair.getValue());
-                        publishContext.setProperty(MSG_PROP_REPL_SEQUENCE_LID, replSequenceLId);
+                        publishContext.setProperty(MSG_PROP_REPL_SOURCE_LID, replSequenceLId);
                     } else {
                         break;
                     }
                 }
-                if (kvPair.getKey().equals(MSG_PROP_REPL_SEQUENCE_EID)) {
+                if (kvPair.getKey().equals(MSG_PROP_REPL_SOURCE_EID)) {
                     if (StringUtils.isNumeric(kvPair.getValue())) {
                         replSequenceEId = Long.valueOf(kvPair.getValue());
-                        publishContext.setProperty(MSG_PROP_REPL_SEQUENCE_EID, replSequenceEId);
+                        publishContext.setProperty(MSG_PROP_REPL_SOURCE_EID, replSequenceEId);
                     } else {
                         break;
                     }
@@ -408,16 +409,16 @@ public class MessageDeduplication {
     }
 
     public MessageDupStatus isDuplicateReplV2(PublishContext publishContext, ByteBuf headersAndPayload) {
-        Long replSequenceLId = (Long) publishContext.getProperty(MSG_PROP_REPL_SEQUENCE_LID);
-        Long replSequenceEId = (Long) publishContext.getProperty(MSG_PROP_REPL_SEQUENCE_EID);
+        Long replSequenceLId = (Long) publishContext.getProperty(MSG_PROP_REPL_SOURCE_LID);
+        Long replSequenceEId = (Long) publishContext.getProperty(MSG_PROP_REPL_SOURCE_EID);
         if (replSequenceLId == null || replSequenceEId == null) {
             log.error("[{}] Message can not determine whether the message is duplicated due to the acquired messages"
                             + " props were are invalid. producer={}. supportsDedupReplV2: {}, sequence-id {},"
                             + " prop-{}: {}, prop-{}: {}",
                     topic.getName(), publishContext.getProducerName(),
                     publishContext.supportsDedupReplV2(), publishContext.getSequenceId(),
-                    MSG_PROP_REPL_SEQUENCE_LID, replSequenceLId,
-                    MSG_PROP_REPL_SEQUENCE_EID, replSequenceEId);
+                    MSG_PROP_REPL_SOURCE_LID, replSequenceLId,
+                    MSG_PROP_REPL_SOURCE_EID, replSequenceEId);
             return MessageDupStatus.Unknown;
         }
 
@@ -545,16 +546,16 @@ public class MessageDeduplication {
     }
 
     public void recordMessagePersistedRepl(PublishContext publishContext, Position position) {
-        String replSequenceLIdStr = String.valueOf(publishContext.getProperty(MSG_PROP_REPL_SEQUENCE_LID));
-        String replSequenceEIdStr = String.valueOf(publishContext.getProperty(MSG_PROP_REPL_SEQUENCE_EID));
+        String replSequenceLIdStr = String.valueOf(publishContext.getProperty(MSG_PROP_REPL_SOURCE_LID));
+        String replSequenceEIdStr = String.valueOf(publishContext.getProperty(MSG_PROP_REPL_SOURCE_EID));
         if (!StringUtils.isNumeric(replSequenceLIdStr) || !StringUtils.isNumeric(replSequenceEIdStr)) {
             log.error("[{}] Can not persist highest sequence-id due to the acquired messages"
                             + " props are invalid. producer={}. supportsDedupReplV2: {}, sequence-id {},"
                             + " prop-{}: {}, prop-{}: {}",
                     topic.getName(), publishContext.getProducerName(),
                     publishContext.supportsDedupReplV2(), publishContext.getSequenceId(),
-                    MSG_PROP_REPL_SEQUENCE_LID, replSequenceLIdStr,
-                    MSG_PROP_REPL_SEQUENCE_EID, replSequenceEIdStr);
+                    MSG_PROP_REPL_SOURCE_LID, replSequenceLIdStr,
+                    MSG_PROP_REPL_SOURCE_EID, replSequenceEIdStr);
             recordMessagePersistedNormal(publishContext, position);
             return;
         }
