@@ -155,6 +155,9 @@
                       <name>${docker.organization}/pulsar-test-latest-version</name>
                       <build>
                         <contextDir>${project.basedir}</contextDir>
+                        <args>
+                          <PULSAR_ALL_IMAGE>${docker.organization}/pulsar-all:${project.version}-${git.commit.id.abbrev}</PULSAR_ALL_IMAGE>
+                        </args>
                         <tags>
                           <tag>latest</tag>
                           <tag>${project.version}</tag>
