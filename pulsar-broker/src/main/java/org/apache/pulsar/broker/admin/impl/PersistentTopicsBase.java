@@ -2762,9 +2762,10 @@ public class PersistentTopicsBase extends AdminResource {
                         public void readEntryFailed(ManagedLedgerException exception,
                                                     Object ctx) {
                             if (exception instanceof ManagedLedgerException.LedgerNotExistException) {
-                                throw new RestException(Status.NOT_FOUND, "Message id not found");
+                                results.completeExceptionally(
+                                        new RestException(Status.NOT_FOUND, "Message id not found"));
                             }
-                            throw new RestException(exception);
+                            results.completeExceptionally(new RestException(exception));
                         }
 
                         @Override
@@ -2772,7 +2773,7 @@ public class PersistentTopicsBase extends AdminResource {
                             try {
                                 results.complete(generateResponseWithEntry(entry, (PersistentTopic) topic));
                             } catch (IOException exception) {
-                                throw new RestException(exception);
+                                results.completeExceptionally(new RestException(exception));
                             } finally {
                                 if (entry != null) {
                                     entry.release();
