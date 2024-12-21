@@ -1828,7 +1828,9 @@ public class BrokerService implements Closeable {
     }
 
     private CompletableFuture<Void> checkTopicAlreadyMigrated(TopicName topicName) {
-        if (ExtensibleLoadManagerImpl.isInternalTopic(topicName.toString())) {
+        if (ExtensibleLoadManagerImpl.isInternalTopic(topicName.toString())
+                || SystemTopicNames.isEventSystemTopic(topicName)
+                || NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject())) {
             return CompletableFuture.completedFuture(null);
         }
         CompletableFuture<Void> result = new CompletableFuture<>();
