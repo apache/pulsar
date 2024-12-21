@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SOURCE_EID;
+import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SOURCE_LID;
 import io.netty.buffer.ByteBuf;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -194,11 +196,19 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     msg.setSchemaInfoForReplicator(schemaFuture.get());
                     msg.getMessageBuilder().clearTxnidMostBits();
                     msg.getMessageBuilder().clearTxnidLeastBits();
+                    // Add props for sequence checking.
+                    msg.getMessageBuilder().addProperty().setKey(MSG_PROP_REPL_SOURCE_LID)
+                            .setValue(Long.valueOf(entry.getLedgerId()).toString());
+                    msg.getMessageBuilder().addProperty().setKey(MSG_PROP_REPL_SOURCE_EID)
+                            .setValue(Long.valueOf(entry.getEntryId()).toString());
                     msgOut.recordEvent(headersAndPayload.readableBytes());
                     stats.incrementMsgOutCounter();
                     stats.incrementBytesOutCounter(headersAndPayload.readableBytes());
                     // Increment pending messages for messages produced locally
                     PENDING_MESSAGES_UPDATER.incrementAndGet(this);
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Publishing {}:{}", replicatorId, entry.getLedgerId(), entry.getEntryId());
+                    }
                     producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg));
                     atLeastOneMessageSentForReplication = true;
                 }
