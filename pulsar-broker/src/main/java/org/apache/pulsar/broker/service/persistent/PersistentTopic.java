@@ -911,17 +911,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         return brokerService.checkTopicNsOwnership(getName()).thenCompose(__ -> {
             boolean replicatedSubscriptionState = replicatedSubscriptionStateArg;
-            boolean enableReplicatedSubscriptions = brokerService.pulsar().getConfiguration()
-                    .isEnableReplicatedSubscriptions();
 
-            if (replicatedSubscriptionState && !enableReplicatedSubscriptions) {
+            if (replicatedSubscriptionState
+                    && !brokerService.pulsar().getConfiguration().isEnableReplicatedSubscriptions()) {
                 log.warn("[{}] Replicated Subscription is disabled by broker.", getName());
                 replicatedSubscriptionState = false;
             }
 
             boolean replicateAllSubscriptionState = brokerService.pulsar().getConfiguration()
                     .isReplicateAllSubscriptionState();
-            if (replicateAllSubscriptionState && enableReplicatedSubscriptions) {
+            if (replicateAllSubscriptionState
+                    && brokerService.pulsar().getConfiguration().isEnableReplicatedSubscriptions()) {
                 replicatedSubscriptionState = true;
             }
 
