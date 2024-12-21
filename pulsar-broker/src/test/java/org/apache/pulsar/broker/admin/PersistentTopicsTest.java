@@ -1377,6 +1377,10 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Assert.expectThrows(PulsarAdminException.NotFoundException.class, () -> {
             admin.topics().getMessageById(topicName1, id2.getLedgerId(), id2.getEntryId());
         });
+
+        Assert.expectThrows(PulsarAdminException.ServerSideErrorException.class, () -> {
+            admin.topics().getMessageById(topicName1, id1.getLedgerId(), id1.getEntryId() + 10);
+        });
     }
 
     @Test
