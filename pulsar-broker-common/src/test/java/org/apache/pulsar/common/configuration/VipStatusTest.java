@@ -116,7 +116,6 @@ public class VipStatusTest {
                     Thread.sleep(100);
                     while (!lockB.tryLock(1, TimeUnit.SECONDS)) {
                         System.out.println("ThreadOne acquired lockB");
-                        continue;
                     }
                 } catch (InterruptedException e) {
                     //e.printStackTrace();
@@ -135,7 +134,6 @@ public class VipStatusTest {
                     Thread.sleep(100);
                     while (!lockA.tryLock(1, TimeUnit.SECONDS)) {
                         System.out.println("ThreadOne acquired lockA");
-                        continue;
                     }
                 } catch (InterruptedException e) {
                     //e.printStackTrace();
