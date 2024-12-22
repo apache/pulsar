@@ -21,6 +21,10 @@ package org.apache.pulsar.common.configuration;
 import static org.testng.Assert.assertEquals;
 import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
@@ -82,6 +86,8 @@ public class VipStatusTest {
             System.out.println("Simulated deadlock, no deadlock detected, not as expected.");
         } catch (Exception wae) {
             System.out.println("Simulated deadlock and detected it, as expected.");
+        } finally {
+            MockDeadlock.executorService.shutdownNow();
         }
 
         if (!asExpected) {
@@ -90,31 +96,32 @@ public class VipStatusTest {
     }
 
     public class MockDeadlock {
-        private static Object lockA = new Object();
-        private static Object lockB = new Object();
-        private static Thread t1 = new Thread(new ThreadOne());
-        private static Thread t2 = new Thread(new ThreadTwo());
+        private static ExecutorService executorService = Executors.newCachedThreadPool();
+        private static ReentrantLock lockA = new ReentrantLock();
+        private static ReentrantLock lockB = new ReentrantLock();
 
         @SneakyThrows
         public static void startDeadlock() {
-            t1.start();
-            t2.start();
+            executorService.execute(new ThreadOne());
+            executorService.execute(new ThreadTwo());
             Thread.sleep(CHECK_STATUS_INTERVAL);
         }
 
         private static class ThreadOne implements Runnable {
             @Override
             public void run() {
-                synchronized (lockA) {
+                try {
+                    lockA.lock();
                     System.out.println("ThreadOne acquired lockA");
-                    try {
-                        Thread.sleep(100);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                    synchronized (lockB) {
+                    Thread.sleep(100);
+                    while (!lockB.tryLock(1, TimeUnit.SECONDS)) {
                         System.out.println("ThreadOne acquired lockB");
+                        continue;
                     }
+                } catch (InterruptedException e) {
+                    //e.printStackTrace();
+                } finally {
+                    lockA.unlock();
                 }
             }
         }
@@ -122,16 +129,18 @@ public class VipStatusTest {
         private static class ThreadTwo implements Runnable {
             @Override
             public void run() {
-                synchronized (lockB) {
-                    System.out.println("ThreadTwo acquired lockB");
-                    try {
-                        Thread.sleep(100);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
+                try {
+                    lockB.lock();
+                    System.out.println("ThreadOne acquired lockB");
+                    Thread.sleep(100);
+                    while (!lockA.tryLock(1, TimeUnit.SECONDS)) {
+                        System.out.println("ThreadOne acquired lockA");
+                        continue;
                     }
-                    synchronized (lockA) {
-                        System.out.println("ThreadTwo acquired lockA");
-                    }
+                } catch (InterruptedException e) {
+                    //e.printStackTrace();
+                } finally {
+                    lockB.unlock();
                 }
             }
         }
