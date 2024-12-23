@@ -3206,7 +3206,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 mbean.addWriteCursorLedgerSize(data.length);
                 callback.operationComplete();
             } else {
-                if (isClosed()) {
+                if (state == State.Closed) {
                     // After closed the cursor, the in-progress persistence task will get a
                     // BKException.Code.LedgerClosedException.
                     callback.operationFailed(new CursorAlreadyClosedException(String.format("%s %s skipped this"
