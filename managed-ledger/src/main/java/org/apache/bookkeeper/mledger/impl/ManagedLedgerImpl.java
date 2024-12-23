@@ -567,13 +567,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         asyncCreateLedger(bookKeeper, config, digestType, (rc, lh, ctx) -> {
 
-            if (checkAndCompleteLedgerOpTask(rc, lh, ctx)) {
+            if (rc != BKException.Code.TimeoutException && checkAndCompleteLedgerOpTask(rc, lh, ctx)) {
                 return;
             }
 
             executor.execute(() -> {
                 mbean.endDataLedgerCreateOp();
                 if (rc != BKException.Code.OK) {
+                    log.error("[{}] Error creating ledger rc={} {}", name, rc, BKException.getMessage(rc));
                     callback.initializeFailed(createManagedLedgerException(rc));
                     return;
                 }
@@ -1567,7 +1568,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             log.debug("[{}] createComplete rc={} ledger={}", name, rc, lh != null ? lh.getId() : -1);
         }
 
-        if (checkAndCompleteLedgerOpTask(rc, lh, ctx)) {
+        if (rc != BKException.Code.TimeoutException && checkAndCompleteLedgerOpTask(rc, lh, ctx)) {
             return;
         }
 
