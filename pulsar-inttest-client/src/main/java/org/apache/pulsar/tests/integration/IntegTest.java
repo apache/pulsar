@@ -16,28 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration.messaging;
+package org.apache.pulsar.tests.integration;
 
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
+import java.io.IOException;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.PulsarClient;
 
-public class NonDurableConsumerMessagingTest extends MessagingBase {
+public class IntegTest implements Cloneable {
+    public PulsarClient client;
+    public PulsarAdmin admin;
 
-    NonDurableConsumerMessaging test;
-
-    @BeforeClass(alwaysRun = true)
-    public void setupTest() throws Exception {
-        this.test = new NonDurableConsumerMessaging(getPulsarClient(), getPulsarAdmin());
+    public IntegTest(PulsarClient client, PulsarAdmin admin) {
+        this.client = client;
+        this.admin = admin;
     }
 
-    @AfterClass(alwaysRun = true)
-    public void closeTest() throws Exception {
-        this.test.close();
-    }
-
-    @Test
-    public void testNonDurableConsumer() throws Exception {
-        test.testNonDurableConsumer();
+    public void close() throws IOException {
+        client.close();
+        admin.close();
     }
 }
