@@ -3536,6 +3536,12 @@ public class BrokerService implements Closeable {
             return CompletableFuture.completedFuture(true);
         }
 
+        // Skip auto-creation for topics with "-partition-" suffix missing a valid partition number
+        if (topicName.getLocalName().contains(TopicName.PARTITIONED_TOPIC_SUFFIX)
+                && topicName.getPartitionIndex() == -1) {
+            return CompletableFuture.completedFuture(false);
+        }
+
         final boolean allowed;
         AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName, policies);
         if (autoTopicCreationOverride != null) {
