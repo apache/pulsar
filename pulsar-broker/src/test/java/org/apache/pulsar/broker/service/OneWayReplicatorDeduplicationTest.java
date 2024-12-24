@@ -169,37 +169,37 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
     public Object[][] deduplicationArgs() {
         return new Object[][] {
             {true/* inject repeated publishing*/, 1/* repeated messages window */,
-                    true /* supportsDedupReplV2 */, false/* multi schemas */},
+                    true /* supportsReplDedupByLidAndEid */, false/* multi schemas */},
             {true/* inject repeated publishing*/, 2/* repeated messages window */,
-                    true /* supportsDedupReplV2 */, false/* multi schemas */},
+                    true /* supportsReplDedupByLidAndEid */, false/* multi schemas */},
             {true/* inject repeated publishing*/, 3/* repeated messages window */,
-                    true /* supportsDedupReplV2 */, false/* multi schemas */},
+                    true /* supportsReplDedupByLidAndEid */, false/* multi schemas */},
             {true/* inject repeated publishing*/, 4/* repeated messages window */,
-                    true /* supportsDedupReplV2 */, false/* multi schemas */},
+                    true /* supportsReplDedupByLidAndEid */, false/* multi schemas */},
             {true/* inject repeated publishing*/, 5/* repeated messages window */,
-                    true /* supportsDedupReplV2 */, false/* multi schemas */},
+                    true /* supportsReplDedupByLidAndEid */, false/* multi schemas */},
             {true/* inject repeated publishing*/, 10/* repeated messages window */,
-                    true /* supportsDedupReplV2 */, false/* multi schemas */},
+                    true /* supportsReplDedupByLidAndEid */, false/* multi schemas */},
             // ===== multi schema
             {true/* inject repeated publishing*/, 1/* repeated messages window */,
-                    true /* supportsDedupReplV2 */, true/* multi schemas */},
+                    true /* supportsReplDedupByLidAndEid */, true/* multi schemas */},
             {true/* inject repeated publishing*/, 2/* repeated messages window */,
-                    true /* supportsDedupReplV2 */, true/* multi schemas */},
+                    true /* supportsReplDedupByLidAndEid */, true/* multi schemas */},
             {true/* inject repeated publishing*/, 3/* repeated messages window */,
-                    true /* supportsDedupReplV2 */, true/* multi schemas */},
+                    true /* supportsReplDedupByLidAndEid */, true/* multi schemas */},
             {true/* inject repeated publishing*/, 4/* repeated messages window */,
-                    true /* supportsDedupReplV2 */, true/* multi schemas */},
+                    true /* supportsReplDedupByLidAndEid */, true/* multi schemas */},
             {true/* inject repeated publishing*/, 5/* repeated messages window */,
-                    true /* supportsDedupReplV2 */, true/* multi schemas */},
+                    true /* supportsReplDedupByLidAndEid */, true/* multi schemas */},
             {true/* inject repeated publishing*/, 10/* repeated messages window */,
-                    true /* supportsDedupReplV2 */, true/* multi schemas */},
+                    true /* supportsReplDedupByLidAndEid */, true/* multi schemas */},
             // ===== Compatability "source-cluster: old, target-cluster: new".
             {false/* inject repeated publishing*/, 0/* repeated messages window */,
-                    false /* supportsDedupReplV2 */, false/* multi schemas */},
+                    false /* supportsReplDedupByLidAndEid */, false/* multi schemas */},
             {false/* inject repeated publishing*/, 0/* repeated messages window */,
-                    false /* supportsDedupReplV2 */, true/* multi schemas */},
+                    false /* supportsReplDedupByLidAndEid */, true/* multi schemas */},
             {true/* inject repeated publishing*/, 3/* repeated messages window */,
-                    false /* supportsDedupReplV2 */, true/* multi schemas */},
+                    false /* supportsReplDedupByLidAndEid */, true/* multi schemas */},
         };
     }
 
@@ -207,7 +207,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
     //  - Review the code to confirm that multi source-brokers can work when the source topic switch.
     @Test(timeOut = 360 * 1000, dataProvider = "deduplicationArgs")
     public void testDeduplication(final boolean injectRepeatedPublish, final int repeatedMessagesWindow,
-                                  final boolean supportsDedupReplV2, boolean multiSchemas) throws Exception {
+                                  final boolean supportsReplDedupByLidAndEid, boolean multiSchemas) throws Exception {
         // 0. Inject a mechanism that duplicate all Send-Command for the replicator.
         final List<ByteBufPair> duplicatedMsgs = new ArrayList<>();
         Runnable taskToClearInjection = injectReplicatorClientCnx(
@@ -215,20 +215,20 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
 
                 @Override
                 protected ByteBuf newConnectCommand() throws Exception {
-                    if (supportsDedupReplV2) {
+                    if (supportsReplDedupByLidAndEid) {
                         return super.newConnectCommand();
                     }
                     authenticationDataProvider = authentication.getAuthData(remoteHostName);
                     AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
                     BaseCommand cmd = Commands.newConnectWithoutSerialize(authentication.getAuthMethodName(), authData,
                             this.protocolVersion, clientVersion, proxyToTargetBrokerAddress, null, null, null, null);
-                    cmd.getConnect().getFeatureFlags().setSupportsDedupReplV2(false);
+                    cmd.getConnect().getFeatureFlags().setSupportsReplDedupByLidAndEid(false);
                     return Commands.serializeWithSize(cmd);
                 }
 
                 @Override
-                public boolean isBrokerSupportsDedupReplV2() {
-                    return supportsDedupReplV2;
+                public boolean isBrokerSupportsReplDedupByLidAndEid() {
+                    return supportsReplDedupByLidAndEid;
                 }
 
                 @Override

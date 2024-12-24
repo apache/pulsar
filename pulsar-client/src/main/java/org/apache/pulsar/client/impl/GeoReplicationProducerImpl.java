@@ -50,14 +50,14 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
         isPersistentTopic = TopicName.get(topic).isPersistent();
     }
 
-    private boolean isBrokerSupportsDedupReplV2(ClientCnx cnx) {
+    private boolean isBrokerSupportsReplDedupByLidAndEid(ClientCnx cnx) {
         // Non-Persistent topic does not have ledger id or entry id, so it does not support.
-        return cnx.isBrokerSupportsDedupReplV2() && isPersistentTopic;
+        return cnx.isBrokerSupportsReplDedupByLidAndEid() && isPersistentTopic;
     }
 
     @Override
     protected void ackReceived(ClientCnx cnx, long seq, long highSeq, long ledgerId, long entryId) {
-        if (!isBrokerSupportsDedupReplV2(cnx)) {
+        if (!isBrokerSupportsReplDedupByLidAndEid(cnx)) {
             // Repl V1 is the same as normal for this handling.
             super.ackReceived(cnx, seq, highSeq, ledgerId, entryId);
             return;

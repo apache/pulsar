@@ -127,7 +127,7 @@ public interface Topic {
 
         }
 
-        default boolean supportsDedupReplV2() {
+        default boolean supportsReplDedupByLidAndEid() {
             return false;
         }
     }

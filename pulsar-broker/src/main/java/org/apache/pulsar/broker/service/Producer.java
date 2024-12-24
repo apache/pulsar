@@ -278,16 +278,16 @@ public class Producer {
         return true;
     }
 
-    private boolean isSupportsDedupReplV2() {
+    private boolean isSupportsReplDedupByLidAndEid() {
         // Non-Persistent topic does not have ledger id or entry id, so it does not support.
-        return cnx.isClientSupportsDedupReplV2() && topic.isPersistent();
+        return cnx.isClientSupportsReplDedupByLidAndEid() && topic.isPersistent();
     }
 
     private void publishMessageToTopic(ByteBuf headersAndPayload, long sequenceId, int batchSize, boolean isChunked,
                                        boolean isMarker, Position position) {
         MessagePublishContext messagePublishContext =
                 MessagePublishContext.get(this, sequenceId, headersAndPayload.readableBytes(),
-                        batchSize, isChunked, System.nanoTime(), isMarker, position, isSupportsDedupReplV2());
+                        batchSize, isChunked, System.nanoTime(), isMarker, position, isSupportsReplDedupByLidAndEid());
         if (brokerInterceptor != null) {
             brokerInterceptor
                     .onMessagePublish(this, headersAndPayload, messagePublishContext);
@@ -299,7 +299,7 @@ public class Producer {
                                        int batchSize, boolean isChunked, boolean isMarker, Position position) {
         MessagePublishContext messagePublishContext = MessagePublishContext.get(this, lowestSequenceId,
                 highestSequenceId, headersAndPayload.readableBytes(), batchSize,
-                isChunked, System.nanoTime(), isMarker, position, isSupportsDedupReplV2());
+                isChunked, System.nanoTime(), isMarker, position, isSupportsReplDedupByLidAndEid());
         if (brokerInterceptor != null) {
             brokerInterceptor
                     .onMessagePublish(this, headersAndPayload, messagePublishContext);
@@ -394,7 +394,7 @@ public class Producer {
         private int batchSize;
         private boolean chunked;
         private boolean isMarker;
-        private boolean supportsDedupReplV2;
+        private boolean supportsReplDedupByLidAndEid;
 
         private long startTimeNs;
 
@@ -481,8 +481,8 @@ public class Producer {
         }
 
         @Override
-        public boolean supportsDedupReplV2() {
-            return supportsDedupReplV2;
+        public boolean supportsReplDedupByLidAndEid() {
+            return supportsReplDedupByLidAndEid;
         }
 
         @Override
@@ -559,7 +559,7 @@ public class Producer {
             // stats
             producer.stats.recordMsgIn(batchSize, msgSize);
             producer.topic.recordAddLatency(System.nanoTime() - startTimeNs, TimeUnit.NANOSECONDS);
-            if (producer.isRemoteOrShadow && producer.isSupportsDedupReplV2()) {
+            if (producer.isRemoteOrShadow && producer.isSupportsReplDedupByLidAndEid()) {
                 sendSendReceiptResponseRepl();
             } else {
                 // Repl V1 is the same as normal for this handling.
@@ -590,10 +590,10 @@ public class Producer {
             Object positionPairObj = getProperty(MSG_PROP_REPL_SOURCE_POSITION);
             if (positionPairObj == null || !(positionPairObj instanceof long[])) {
                 log.error("[{}] Message can not determine whether the message is duplicated due to the acquired"
-                                + " messages props were are invalid. producer={}. supportsDedupReplV2: {},"
+                                + " messages props were are invalid. producer={}. supportsReplDedupByLidAndEid: {},"
                                 + " sequence-id {}, prop-{}: not in expected format",
                         producer.topic.getName(), producer.producerName,
-                        supportsDedupReplV2(), getSequenceId(),
+                        supportsReplDedupByLidAndEid(), getSequenceId(),
                         MSG_PROP_REPL_SOURCE_POSITION);
                 producer.cnx.getCommandSender().sendSendError(producer.producerId,
                         Math.max(highestSequenceId, sequenceId),
@@ -615,7 +615,7 @@ public class Producer {
 
         static MessagePublishContext get(Producer producer, long sequenceId, int msgSize, int batchSize,
                                          boolean chunked, long startTimeNs, boolean isMarker, Position position,
-                                         boolean supportsDedupReplV2) {
+                                         boolean supportsReplDedupByLidAndEid) {
             MessagePublishContext callback = RECYCLER.get();
             callback.producer = producer;
             callback.sequenceId = sequenceId;
@@ -626,7 +626,7 @@ public class Producer {
             callback.originalSequenceId = -1L;
             callback.startTimeNs = startTimeNs;
             callback.isMarker = isMarker;
-            callback.supportsDedupReplV2 = supportsDedupReplV2;
+            callback.supportsReplDedupByLidAndEid = supportsReplDedupByLidAndEid;
             callback.ledgerId = position == null ? -1 : position.getLedgerId();
             callback.entryId = position == null ? -1 : position.getEntryId();
             if (callback.propertyMap != null) {
@@ -637,7 +637,7 @@ public class Producer {
 
         static MessagePublishContext get(Producer producer, long lowestSequenceId, long highestSequenceId, int msgSize,
                              int batchSize, boolean chunked, long startTimeNs, boolean isMarker, Position position,
-                             boolean supportsDedupReplV2) {
+                             boolean supportsReplDedupByLidAndEid) {
             MessagePublishContext callback = RECYCLER.get();
             callback.producer = producer;
             callback.sequenceId = lowestSequenceId;
@@ -649,7 +649,7 @@ public class Producer {
             callback.startTimeNs = startTimeNs;
             callback.chunked = chunked;
             callback.isMarker = isMarker;
-            callback.supportsDedupReplV2 = supportsDedupReplV2;
+            callback.supportsReplDedupByLidAndEid = supportsReplDedupByLidAndEid;
             callback.ledgerId = position == null ? -1 : position.getLedgerId();
             callback.entryId = position == null ? -1 : position.getEntryId();
             if (callback.propertyMap != null) {
@@ -868,7 +868,7 @@ public class Producer {
         MessagePublishContext messagePublishContext =
                 MessagePublishContext.get(this, sequenceId, highSequenceId,
                         headersAndPayload.readableBytes(), batchSize, isChunked, System.nanoTime(), isMarker, null,
-                        cnx.isClientSupportsDedupReplV2());
+                        cnx.isClientSupportsReplDedupByLidAndEid());
         if (brokerInterceptor != null) {
             brokerInterceptor
                     .onMessagePublish(this, headersAndPayload, messagePublishContext);
