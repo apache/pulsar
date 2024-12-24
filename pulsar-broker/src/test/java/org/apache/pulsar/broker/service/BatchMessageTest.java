@@ -990,8 +990,8 @@ public class BatchMessageTest extends BrokerTestBase {
 
         int numMsgs = 1000;
         int batchMessages = 10;
-        final String topicName = "persistent://prop/ns-abc/testRetrieveSequenceIdSpecify-" + UUID.randomUUID();
-        final String subscriptionName = "sub-1";
+        final String topicName = "persistent://prop/ns-abc/testBatchMessageDispatchingAccordingToPermits-" + UUID.randomUUID();
+        final String subscriptionName = "bmdap-sub-1";
 
         ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).receiverQueueSize(10).subscriptionType(SubscriptionType.Shared)
@@ -1016,6 +1016,7 @@ public class BatchMessageTest extends BrokerTestBase {
 
         producer.close();
         consumer1.close();
+        consumer2.close();
     }
 
     @Test(dataProvider="testSubTypeAndEnableBatch")
