@@ -21,8 +21,7 @@ package org.apache.pulsar.broker.service;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static org.apache.pulsar.broker.service.AbstractReplicator.REPL_PRODUCER_NAME_DELIMITER;
 import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_IS_REPL_MARKER;
-import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SOURCE_EID;
-import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SOURCE_LID;
+import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SOURCE_POSITION;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 import com.google.common.annotations.VisibleForTesting;
@@ -43,7 +42,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
@@ -589,24 +587,23 @@ public class Producer {
                 return;
             }
             // Case-2: is a repl message.
-            String replSequenceLIdStr = String.valueOf(getProperty(MSG_PROP_REPL_SOURCE_LID));
-            String replSequenceEIdStr = String.valueOf(getProperty(MSG_PROP_REPL_SOURCE_EID));
-            if (!StringUtils.isNumeric(replSequenceLIdStr) || !StringUtils.isNumeric(replSequenceEIdStr)) {
+            Object positionPairObj = getProperty(MSG_PROP_REPL_SOURCE_POSITION);
+            if (positionPairObj == null || !(positionPairObj instanceof long[])) {
                 log.error("[{}] Message can not determine whether the message is duplicated due to the acquired"
                                 + " messages props were are invalid. producer={}. supportsDedupReplV2: {},"
-                                + " sequence-id {}, prop-{}: {}, prop-{}: {}",
+                                + " sequence-id {}, prop-{}: not in expected format",
                         producer.topic.getName(), producer.producerName,
                         supportsDedupReplV2(), getSequenceId(),
-                        MSG_PROP_REPL_SOURCE_LID, replSequenceLIdStr,
-                        MSG_PROP_REPL_SOURCE_EID, replSequenceEIdStr);
+                        MSG_PROP_REPL_SOURCE_POSITION);
                 producer.cnx.getCommandSender().sendSendError(producer.producerId,
                         Math.max(highestSequenceId, sequenceId),
                         ServerError.PersistenceError, "Message can not determine whether the message is"
                                 + " duplicated due to the acquired messages props were are invalid");
                 return;
             }
-            Long replSequenceLId = Long.valueOf(replSequenceLIdStr);
-            Long replSequenceEId = Long.valueOf(replSequenceEIdStr);
+            long[] positionPair = (long[]) positionPairObj;
+            long replSequenceLId = positionPair[0];
+            long replSequenceEId = positionPair[1];
             producer.cnx.getCommandSender().sendSendReceiptResponse(producer.producerId, replSequenceLId,
                     replSequenceEId, ledgerId, entryId);
         }

@@ -19,8 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 
-import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SOURCE_EID;
-import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SOURCE_LID;
+import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SOURCE_POSITION;
 import io.netty.buffer.ByteBuf;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -101,10 +100,8 @@ public class ShadowReplicator extends PersistentReplicator {
 
                 msg.setMessageId(new MessageIdImpl(entry.getLedgerId(), entry.getEntryId(), -1));
                 // Add props for sequence checking.
-                msg.getMessageBuilder().addProperty().setKey(MSG_PROP_REPL_SOURCE_LID)
-                        .setValue(Long.valueOf(entry.getLedgerId()).toString());
-                msg.getMessageBuilder().addProperty().setKey(MSG_PROP_REPL_SOURCE_EID)
-                        .setValue(Long.valueOf(entry.getEntryId()).toString());
+                msg.getMessageBuilder().addProperty().setKey(MSG_PROP_REPL_SOURCE_POSITION)
+                        .setValue(String.format("%s:%s", entry.getLedgerId(), entry.getEntryId()));
 
                 headersAndPayload.retain();
 
