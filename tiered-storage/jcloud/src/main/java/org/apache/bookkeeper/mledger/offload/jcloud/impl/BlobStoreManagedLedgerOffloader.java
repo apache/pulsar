@@ -98,6 +98,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
     private final OrderedScheduler scheduler;
     private final TieredStorageConfiguration config;
+    private final OffloadPolicies policies;
     private final Location writeLocation;
 
     // metadata to be stored as part of the offloaded ledger metadata
@@ -105,8 +106,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
     private final ConcurrentMap<BlobStoreLocation, BlobStore> blobStores = new ConcurrentHashMap<>();
     private OffloadSegmentInfoImpl segmentInfo;
-    private AtomicLong bufferLength = new AtomicLong(0);
-    private AtomicLong segmentLength = new AtomicLong(0);
+    private final AtomicLong bufferLength = new AtomicLong(0);
+    private final AtomicLong segmentLength = new AtomicLong(0);
     private final long maxBufferLength;
     private final OffsetsCache entryOffsetsCache;
     private final ConcurrentLinkedQueue<Entry> offloadBuffer = new ConcurrentLinkedQueue<>();
@@ -138,6 +139,9 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         this.scheduler = scheduler;
         this.userMetadata = userMetadata;
         this.config = config;
+        Properties properties = new Properties();
+        properties.putAll(config.getConfigProperties());
+        this.policies = OffloadPoliciesImpl.create(properties);
         this.streamingBlockSize = config.getMinBlockSizeInBytes();
         this.maxSegmentCloseTime = Duration.ofSeconds(config.getMaxSegmentTimeInSecond());
         this.maxSegmentLength = config.getMaxSegmentSizeInBytes();
@@ -658,9 +662,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
     @Override
     public OffloadPolicies getOffloadPolicies() {
-        Properties properties = new Properties();
-        properties.putAll(config.getConfigProperties());
-        return OffloadPoliciesImpl.create(properties);
+        return this.policies;
     }
 
     @Override
