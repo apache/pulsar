@@ -639,7 +639,22 @@ public class ManagedCursorImpl implements ManagedCursor {
             try {
                 Map<Long, long[]> rangeMap = rangeList.stream().collect(Collectors.toMap(LongListMap::getKey,
                         list -> list.getValuesList().stream().mapToLong(i -> i).toArray()));
-                individualDeletedMessages.build(rangeMap);
+                // Guarantee compatability for the config "unackedRangesOpenCacheSetEnabled".
+                if (getConfig().isUnackedRangesOpenCacheSetEnabled()) {
+                    individualDeletedMessages.build(rangeMap);
+                } else {
+                    RangeSetWrapper<Position> rangeSetWrapperV2 = new RangeSetWrapper<>(positionRangeConverter,
+                            positionRangeReverseConverter, true,
+                            getConfig().isPersistentUnackedRangesWithMultipleEntriesEnabled());
+                    rangeSetWrapperV2.build(rangeMap);
+                    rangeSetWrapperV2.forEach(range -> {
+                        individualDeletedMessages.addOpenClosed(range.lowerEndpoint().getLedgerId(),
+                                range.lowerEndpoint().getEntryId(), range.upperEndpoint().getLedgerId(),
+                                range.upperEndpoint().getEntryId());
+                        return true;
+                    });
+                    rangeSetWrapperV2.clear();
+                }
             } catch (Exception e) {
                 log.warn("[{}]-{} Failed to recover individualDeletedMessages from serialized data", ledger.getName(),
                         name, e);
@@ -2367,7 +2382,14 @@ public class ManagedCursorImpl implements ManagedCursor {
                     }
                     // Add a range (prev, pos] to the set. Adding the previous entry as an open limit to the range will
                     // make the RangeSet recognize the "continuity" between adjacent Positions.
-                    Position previousPosition = ledger.getPreviousPosition(position);
+                    // Before https://github.com/apache/pulsar/pull/21105 is merged, the range does not support crossing
+                    // multi ledgers, so the first position's entryId maybe "-1".
+                    Position previousPosition;
+                    if (position.getEntryId() == 0) {
+                        previousPosition = PositionFactory.create(position.getLedgerId(), -1);
+                    } else {
+                        previousPosition = ledger.getPreviousPosition(position);
+                    }
                     individualDeletedMessages.addOpenClosed(previousPosition.getLedgerId(),
                         previousPosition.getEntryId(), position.getLedgerId(), position.getEntryId());
                     MSG_CONSUMED_COUNTER_UPDATER.incrementAndGet(this);
@@ -3222,10 +3244,21 @@ public class ManagedCursorImpl implements ManagedCursor {
                 .addAllProperties(buildPropertiesMap(mdEntry.properties));
 
         Map<Long, long[]> internalRanges = null;
-        try {
-            internalRanges = individualDeletedMessages.toRanges(getConfig().getMaxUnackedRangesToPersist());
-        } catch (Exception e) {
-            log.warn("[{}]-{} Failed to serialize individualDeletedMessages", ledger.getName(), name, e);
+        /**
+         * Cursor will create the {@link #individualDeletedMessages} typed {@link LongPairRangeSet.DefaultRangeSet} if
+         * disabled the config {@link ManagedLedgerConfig#unackedRangesOpenCacheSetEnabled}.
+         * {@link LongPairRangeSet.DefaultRangeSet} never implemented the methods below:
+         *   - {@link LongPairRangeSet#toRanges(int)}, which is used to serialize cursor metadata.
+         *   - {@link LongPairRangeSet#build(Map)}, which is used to deserialize cursor metadata.
+         * Do not enable the feature that https://github.com/apache/pulsar/pull/9292 introduced, to avoid serialization
+         * and deserialization error.
+         */
+        if (getConfig().isUnackedRangesOpenCacheSetEnabled()) {
+            try {
+                internalRanges = individualDeletedMessages.toRanges(getConfig().getMaxUnackedRangesToPersist());
+            } catch (Exception e) {
+                log.warn("[{}]-{} Failed to serialize individualDeletedMessages", ledger.getName(), name, e);
+            }
         }
         if (internalRanges != null && !internalRanges.isEmpty()) {
             piBuilder.addAllIndividualDeletedMessageRanges(buildLongPropertiesMap(internalRanges));
