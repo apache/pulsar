@@ -2247,6 +2247,8 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         if (State.NoLedger.equals(STATE_UPDATER.get(this))) {
             if (ledger.isNoMessagesAfterPos(mdEntry.newPosition)) {
+                log.error("[{}][{}] Metadata ledger creation failed, try to persist the position in the metadata"
+                        + " store.", ledger.getName(), name);
                 persistPositionToMetaStore(mdEntry, cb);
             } else {
                 cb.operationFailed(new ManagedLedgerException("Switch new cursor ledger failed"));
@@ -2969,9 +2971,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             @Override
             public void operationFailed(ManagedLedgerException exception) {
-                log.error("[{}][{}] Metadata ledger creation failed {}, try to persist the position in the metadata"
-                        + " store.", ledger.getName(), name, exception);
-
+                log.error("[{}][{}] Metadata ledger creation failed {}", ledger.getName(), name, exception);
                 synchronized (pendingMarkDeleteOps) {
                     // At this point we don't have a ledger ready
                     STATE_UPDATER.set(ManagedCursorImpl.this, State.NoLedger);
