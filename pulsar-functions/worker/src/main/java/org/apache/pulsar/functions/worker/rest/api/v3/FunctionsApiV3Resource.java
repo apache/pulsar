@@ -429,4 +429,10 @@ public class FunctionsApiV3Resource extends FunctionApiResource {
         functions().updateFunctionOnWorkerLeader(tenant, namespace, functionName, uploadedInputStream,
                 delete, uri.getRequestUri(), authParams());
     }
+
+    @GET
+    @Path("/readiness")
+    public boolean checkReadiness() {
+        return functions().checkReadiness();
+    }
 }

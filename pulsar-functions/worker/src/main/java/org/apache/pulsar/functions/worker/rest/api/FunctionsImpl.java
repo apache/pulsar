@@ -69,6 +69,8 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 @Slf4j
 public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWorkerService> {
 
+    private boolean isIllegalStateException = false;
+
     public FunctionsImpl(Supplier<PulsarWorkerService> workerServiceSupplier) {
         super(workerServiceSupplier, Function.FunctionDetails.ComponentType.FUNCTION);
     }
@@ -693,6 +695,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         try {
             functionMetaDataManager.updateFunctionOnLeader(functionMetaData, delete);
         } catch (IllegalStateException e) {
+            this.isIllegalStateException = true;
             throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
         } catch (IllegalArgumentException e) {
             throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
@@ -787,5 +790,9 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                 }
             }
         }
+    }
+
+    public boolean checkReadiness() {
+        return this.isIllegalStateException;
     }
 }
