@@ -139,7 +139,7 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
     )
     private boolean resetIncludeHead = false;
 
-    private transient List<Range> keyHashRanges;
+    private List<Range> keyHashRanges;
 
     private boolean poolMessages = false;
 

@@ -359,7 +359,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
                     + "When specifying the dead letter policy while not specifying `ackTimeoutMillis`, you can set the"
                     + " ack timeout to 30000 millisecond."
     )
-    private transient DeadLetterPolicy deadLetterPolicy;
+    private DeadLetterPolicy deadLetterPolicy;
 
     private boolean retryEnable = false;
 
@@ -388,7 +388,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private boolean resetIncludeHead = false;
 
     @JsonIgnore
-    private transient KeySharedPolicy keySharedPolicy;
+    private KeySharedPolicy keySharedPolicy;
 
     private boolean batchIndexAckEnabled = false;
 
