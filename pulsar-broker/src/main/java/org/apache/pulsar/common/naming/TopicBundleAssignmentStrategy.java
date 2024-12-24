@@ -23,5 +23,7 @@ import org.apache.pulsar.broker.PulsarService;
 public interface TopicBundleAssignmentStrategy {
     NamespaceBundle findBundle(TopicName topicName,  NamespaceBundles namespaceBundles);
 
+    long getHashCode(String name);
+
     void init(PulsarService pulsarService);
 }
