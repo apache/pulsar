@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.io.Serializable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -36,7 +37,8 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 @AllArgsConstructor
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public class DeadLetterPolicy {
+public class DeadLetterPolicy implements Serializable {
+    private static final long serialVersionUID = 1L;
 
     /**
      * Maximum number of times that a message will be redelivered before being sent to the dead letter queue.
