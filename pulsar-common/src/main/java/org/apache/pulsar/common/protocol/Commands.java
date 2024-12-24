@@ -192,7 +192,7 @@ public class Commands {
         flags.setSupportsBrokerEntryMetadata(true);
         flags.setSupportsPartialProducer(true);
         flags.setSupportsGetPartitionedMetadataWithoutAutoCreation(true);
-        flags.setSupportsDedupReplV2(true);
+        flags.setSupportsReplDedupByLidAndEid(true);
     }
 
     public static ByteBuf newConnect(String authMethodName, String authData, int protocolVersion, String libVersion,
@@ -313,7 +313,7 @@ public class Commands {
 
         connected.setFeatureFlags().setSupportsTopicWatchers(supportsTopicWatchers);
         connected.setFeatureFlags().setSupportsGetPartitionedMetadataWithoutAutoCreation(true);
-        connected.setFeatureFlags().setSupportsDedupReplV2(true);
+        connected.setFeatureFlags().setSupportsReplDedupByLidAndEid(true);
         return cmd;
     }
 

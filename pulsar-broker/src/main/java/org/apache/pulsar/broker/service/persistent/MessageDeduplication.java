@@ -332,7 +332,7 @@ public class MessageDeduplication {
             return MessageDupStatus.NotDup;
         }
         if (Producer.isRemoteOrShadow(publishContext.getProducerName(), replicatorPrefix)) {
-            if (!publishContext.supportsDedupReplV2()){
+            if (!publishContext.supportsReplDedupByLidAndEid()){
                 return isDuplicateReplV1(publishContext, headersAndPayload);
             } else {
                 return isDuplicateReplV2(publishContext, headersAndPayload);
@@ -410,10 +410,10 @@ public class MessageDeduplication {
         Object positionPairObj = publishContext.getProperty(MSG_PROP_REPL_SOURCE_POSITION);
         if (positionPairObj == null || !(positionPairObj instanceof long[])) {
             log.error("[{}] Message can not determine whether the message is duplicated due to the acquired messages"
-                            + " props were are invalid. producer={}. supportsDedupReplV2: {}, sequence-id {},"
+                            + " props were are invalid. producer={}. supportsReplDedupByLidAndEid: {}, sequence-id {},"
                             + " prop-{}: not in expected format",
                     topic.getName(), publishContext.getProducerName(),
-                    publishContext.supportsDedupReplV2(), publishContext.getSequenceId(),
+                    publishContext.supportsReplDedupByLidAndEid(), publishContext.getSequenceId(),
                     MSG_PROP_REPL_SOURCE_POSITION);
             return MessageDupStatus.Unknown;
         }
@@ -538,7 +538,8 @@ public class MessageDeduplication {
         if (!isEnabled() || publishContext.isMarkerMessage()) {
             return;
         }
-        if (publishContext.getProducerName().startsWith(replicatorPrefix) && publishContext.supportsDedupReplV2()) {
+        if (publishContext.getProducerName().startsWith(replicatorPrefix)
+                && publishContext.supportsReplDedupByLidAndEid()) {
             recordMessagePersistedRepl(publishContext, position);
         } else {
             recordMessagePersistedNormal(publishContext, position);
@@ -549,10 +550,10 @@ public class MessageDeduplication {
         Object positionPairObj = publishContext.getProperty(MSG_PROP_REPL_SOURCE_POSITION);
         if (positionPairObj == null || !(positionPairObj instanceof long[])) {
             log.error("[{}] Can not persist highest sequence-id due to the acquired messages"
-                            + " props are invalid. producer={}. supportsDedupReplV2: {}, sequence-id {},"
+                            + " props are invalid. producer={}. supportsReplDedupByLidAndEid: {}, sequence-id {},"
                             + " prop-{}: not in expected format",
                     topic.getName(), publishContext.getProducerName(),
-                    publishContext.supportsDedupReplV2(), publishContext.getSequenceId(),
+                    publishContext.supportsReplDedupByLidAndEid(), publishContext.getSequenceId(),
                     MSG_PROP_REPL_SOURCE_POSITION);
             recordMessagePersistedNormal(publishContext, position);
             return;
