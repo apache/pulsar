@@ -257,7 +257,7 @@ public abstract class AsyncTokenBucket {
         } else if (currentTokens == Long.MIN_VALUE) {
             // when currentTokens is Long.MIN_VALUE, the current tokens balance is unknown since consumed tokens
             // was added to the pendingConsumedTokens LongAdder counter. In this case, assume that tokens balance
-            // hasn't been updated yet and calculate a best guess of the current value by substracting the consumed
+            // hasn't been updated yet and calculate a best guess of the current value by subtracting the consumed
             // tokens from the current tokens balance
             return tokens - consumeTokens > 0;
         } else {
