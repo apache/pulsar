@@ -26,10 +26,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
+import javax.servlet.ServletContext;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
@@ -43,7 +46,8 @@ public class VipStatusTest {
     // Rate limit status checks to every 500ms to prevent DoS
     private static final long CHECK_STATUS_INTERVAL = 500L;
 
-    private MockServletContext mockServletContext = new MockServletContext();
+    @Mock
+    private ServletContext mockServletContext;
     private VipStatus vipStatus;
 
     @BeforeTest
@@ -51,10 +55,12 @@ public class VipStatusTest {
         String statusFilePath = "/tmp/status.html";
         File file = new File(statusFilePath);
         file.createNewFile();
-
-        mockServletContext.setAttribute(ATTRIBUTE_STATUS_FILE_PATH, statusFilePath);
         Supplier<Boolean> isReadyProbe = () -> true;
-        mockServletContext.setAttribute(ATTRIBUTE_IS_READY_PROBE, isReadyProbe);
+
+        mockServletContext = Mockito.mock(ServletContext.class);
+        Mockito.when(mockServletContext.getAttribute(ATTRIBUTE_STATUS_FILE_PATH)).thenReturn(statusFilePath);
+        Mockito.when(mockServletContext.getAttribute(ATTRIBUTE_IS_READY_PROBE)).thenReturn(isReadyProbe);
+
         vipStatus = new VipStatus(mockServletContext, LOG_THREADDUMP_INTERVAL_WHEN_DEADLOCK_DETECTED);
     }
 
