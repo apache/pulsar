@@ -71,6 +71,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.UpdatePropertiesCallback;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -167,6 +168,8 @@ import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.LedgerInfo;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -4271,6 +4274,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 subscription.getDispatcher().checkAndResumeIfPaused();
             });
         }
+    }
+
+    @Override
+    protected void updateOffloadPolicies(OffloadPolicies offloadPolicies) {
+        LedgerOffloader offloader = ledger.getConfig().getLedgerOffloader();
+        if (null == offloader || null == offloadPolicies) {
+            return;
+        }
+        offloader.updateOffloadPolicies(offloadPolicies);
     }
 
     @Override
