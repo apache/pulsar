@@ -64,6 +64,7 @@ import org.slf4j.LoggerFactory;
 public class NamespaceBundleFactory {
     private static final Logger LOG = LoggerFactory.getLogger(NamespaceBundleFactory.class);
 
+    @Getter
     private final HashFunction hashFunc;
 
     private final AsyncLoadingCache<NamespaceName, NamespaceBundles> bundlesCache;
@@ -292,7 +293,7 @@ public class NamespaceBundleFactory {
     }
 
     public long getLongHashCode(String name) {
-        return this.hashFunc.hashString(name, StandardCharsets.UTF_8).padToLong();
+        return this.topicBundleAssignmentStrategy.getHashCode(name);
     }
 
     public NamespaceBundles getBundles(NamespaceName nsname, BundlesData bundleData) {
