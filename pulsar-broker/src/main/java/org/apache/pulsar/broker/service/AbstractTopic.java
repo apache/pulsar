@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.Queue;
 import java.util.Set;
 import java.util.TreeSet;
@@ -62,6 +63,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ProducerBusyExcep
 import org.apache.pulsar.broker.service.BrokerServiceException.ProducerFencedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicMigratedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
@@ -76,6 +78,8 @@ import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -275,8 +279,46 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         topicPolicies.getDispatcherPauseOnAckStatePersistentEnabled()
                 .updateTopicValue(data.getDispatcherPauseOnAckStatePersistentEnabled());
         this.subscriptionPolicies = data.getSubscriptionPolicies();
-
+        internalUpdateOffloadPolicies(data, null);
         updateEntryFilters();
+    }
+
+    private void internalUpdateOffloadPolicies(TopicPolicies policies, Policies nsPolicies) {
+        PulsarService pulsar = brokerService.getPulsar();
+        if (!(this instanceof PersistentTopic) || isSystemTopic()) {
+            return;
+        }
+        CompletableFuture<Optional<Topic>> t = brokerService.getTopics().get(topic);
+        if (!t.isDone() || t.isCompletedExceptionally()) {
+            return;
+        }
+        TopicName topicName = TopicName.get(topic);
+        Properties brokerCnf = pulsar.getConfig().getProperties();
+        CompletableFuture<Optional<TopicPolicies>> f = policies == null ? pulsar.getTopicPoliciesService()
+                .getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.DEFAULT)
+                : CompletableFuture.completedFuture(Optional.of(policies)) ;
+        CompletableFuture<Optional<Policies>> f1 = nsPolicies == null ? pulsar.getPulsarResources()
+                .getNamespaceResources().getPoliciesAsync(topicName.getNamespaceObject())
+                : CompletableFuture.completedFuture(Optional.of(nsPolicies));
+
+        CompletableFuture.allOf(f, f1).thenAccept(__ -> {
+            Optional<TopicPolicies> topicPolicies = f.join();
+            Optional<Policies> namespacePolicies = f1.join();
+            OffloadPoliciesImpl nsLevelOffloadPolicies =
+                    (OffloadPoliciesImpl) namespacePolicies.map(p -> p.offload_policies).orElse(null);
+            OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.mergeConfiguration(
+                    topicPolicies.map(TopicPolicies::getOffloadPolicies).orElse(null),
+                    OffloadPoliciesImpl.oldPoliciesCompatible(nsLevelOffloadPolicies, namespacePolicies.orElse(null)),
+                    brokerCnf);
+            updateOffloadPolicies(offloadPolicies);
+        }).exceptionally(ex -> {
+            log.error("[{}] Failed to get offload policies", topic, ex);
+            return null;
+        });
+    }
+
+    protected void updateOffloadPolicies(OffloadPolicies offloadPolicies) {
+        // No-op by default
     }
 
     protected void updateTopicPolicyByNamespacePolicy(Policies namespacePolicies) {
@@ -334,7 +376,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
 
         topicPolicies.getDispatcherPauseOnAckStatePersistentEnabled().updateNamespaceValue(
                 namespacePolicies.dispatcherPauseOnAckStatePersistentEnabled);
-
+        internalUpdateOffloadPolicies(null, namespacePolicies);
         updateEntryFilters();
     }
 

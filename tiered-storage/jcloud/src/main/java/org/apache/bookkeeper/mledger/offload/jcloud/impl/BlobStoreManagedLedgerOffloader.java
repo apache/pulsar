@@ -97,7 +97,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     private static final String MANAGED_LEDGER_NAME = "ManagedLedgerName";
 
     private final OrderedScheduler scheduler;
-    private final TieredStorageConfiguration config;
+    private volatile TieredStorageConfiguration config;
     private final Location writeLocation;
 
     // metadata to be stored as part of the offloaded ledger metadata
@@ -661,6 +661,16 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         Properties properties = new Properties();
         properties.putAll(config.getConfigProperties());
         return OffloadPoliciesImpl.create(properties);
+    }
+
+    @Override
+    public void updateOffloadPolicies(OffloadPolicies offloadPolicies) {
+        Properties properties = OffloadPoliciesImpl.toProperties((OffloadPoliciesImpl) offloadPolicies);
+        try {
+            this.config = TieredStorageConfiguration.create(properties);
+        } catch (IOException e) {
+            log.warn("Failed to update offload policies", e);
+        }
     }
 
     @Override

@@ -66,7 +66,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     private OrderedScheduler scheduler;
     private static final long ENTRIES_PER_READ = 100;
     private OrderedScheduler assignmentScheduler;
-    private OffloadPolicies offloadPolicies;
+    private volatile OffloadPolicies offloadPolicies;
     private final LedgerOffloaderStats offloaderStats;
 
     public static boolean driverSupported(String driver) {
@@ -392,6 +392,13 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     @Override
     public OffloadPolicies getOffloadPolicies() {
         return offloadPolicies;
+    }
+
+    @Override
+    public void updateOffloadPolicies(OffloadPolicies offloadPolicies) {
+        if (null != offloadPolicies) {
+            this.offloadPolicies = offloadPolicies;
+        }
     }
 
     @Override

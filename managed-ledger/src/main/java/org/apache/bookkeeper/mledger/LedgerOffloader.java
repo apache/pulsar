@@ -214,6 +214,16 @@ public interface LedgerOffloader {
      */
     OffloadPolicies getOffloadPolicies();
 
+
+    /**
+     * Update the offload policies of this LedgerOffloader.
+     *
+     * @param offloadPolicies the new offload policies
+     */
+    default void updateOffloadPolicies(OffloadPolicies offloadPolicies) {
+        // default no-op
+    }
+
     /**
      * Close the resources if necessary.
      */

@@ -346,24 +346,28 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
         return false;
     }
 
-    public Properties toProperties() {
+    public static Properties toProperties(OffloadPoliciesImpl offloadPolicies) {
         Properties properties = new Properties();
         for (Field f : CONFIGURATION_FIELDS) {
             try {
                 f.setAccessible(true);
                 if ("managedLedgerExtraConfigurations".equals(f.getName())) {
-                    Map<String, String> extraConfig = (Map<String, String>) f.get(this);
+                    Map<String, String> extraConfig = (Map<String, String>) f.get(offloadPolicies);
                     extraConfig.forEach((key, value) -> {
                         setProperty(properties, EXTRA_CONFIG_PREFIX + key, value);
                     });
                 } else {
-                    setProperty(properties, f.getName(), f.get(this));
+                    setProperty(properties, f.getName(), f.get(offloadPolicies));
                 }
             } catch (Exception e) {
                 throw new IllegalArgumentException("An error occurred while processing the field: " + f.getName(), e);
             }
         }
         return properties;
+    }
+
+    public Properties toProperties() {
+        return toProperties(this);
     }
 
     private static void setProperty(Properties properties, String key, Object value) {
