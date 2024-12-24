@@ -33,8 +33,7 @@ import org.apache.pulsar.common.protocol.Markers;
 @Slf4j
 public class GeoReplicationProducerImpl extends ProducerImpl{
 
-    public static final String MSG_PROP_REPL_SOURCE_LID = "__MSG_PROP_REPL_SOURCE_LID";
-    public static final String MSG_PROP_REPL_SOURCE_EID = "__MSG_PROP_REPL_SOURCE_EID";
+    public static final String MSG_PROP_REPL_SOURCE_POSITION = "__MSG_PROP_REPL_SOURCE_POSITION";
     public static final String MSG_PROP_IS_REPL_MARKER = "__MSG_PROP_IS_REPL_MARKER";
 
     private long lastPersistedSourceLedgerId;
@@ -86,21 +85,17 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
         Long pendingEId = null;
         List<KeyValue> kvPairList =  op.msg.getMessageBuilder().getPropertiesList();
         for (KeyValue kvPair : kvPairList) {
-            if (MSG_PROP_REPL_SOURCE_LID.equals(kvPair.getKey())) {
-                if (StringUtils.isNumeric(kvPair.getValue())) {
-                    pendingLId = Long.valueOf(kvPair.getValue());
-                } else {
+            if (kvPair.getKey().equals(MSG_PROP_REPL_SOURCE_POSITION)) {
+                if (!kvPair.getValue().contains(":")) {
                     break;
                 }
-            }
-            if (MSG_PROP_REPL_SOURCE_EID.equals(kvPair.getKey())) {
-                if (StringUtils.isNumeric(kvPair.getValue())) {
-                    pendingEId = Long.valueOf(kvPair.getValue());
-                } else {
+                String[] ledgerIdAndEntryId = kvPair.getValue().split(":");
+                if (ledgerIdAndEntryId.length != 2 || !StringUtils.isNumeric(ledgerIdAndEntryId[0])
+                        || !StringUtils.isNumeric(ledgerIdAndEntryId[1])) {
                     break;
                 }
-            }
-            if (pendingLId != null && pendingEId != null) {
+                pendingLId = Long.valueOf(ledgerIdAndEntryId[0]);
+                pendingEId = Long.valueOf(ledgerIdAndEntryId[1]);
                 break;
             }
         }
