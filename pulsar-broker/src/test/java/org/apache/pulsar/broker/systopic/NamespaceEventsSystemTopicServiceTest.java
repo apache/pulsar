@@ -129,6 +129,7 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
             .build();
         systemTopicClientForNamespace1.newWriter().write(getEventKey(event), event);
         SystemTopicClient.Reader reader = systemTopicClientForNamespace1.newReader();
+        @Cleanup("release")
         Message<PulsarEvent> received = reader.readNext();
         log.info("Receive pulsar event from system topic : {}", received.getValue());
 
@@ -139,6 +140,7 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
 
         // test new reader read
         SystemTopicClient.Reader reader1 = systemTopicClientForNamespace1.newReader();
+        @Cleanup("release")
         Message<PulsarEvent> received1 = reader1.readNext();
         log.info("Receive pulsar event from system topic : {}", received1.getValue());
         Assert.assertEquals(received1.getValue(), event);
