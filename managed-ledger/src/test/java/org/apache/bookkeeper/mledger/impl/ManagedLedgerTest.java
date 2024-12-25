@@ -4232,6 +4232,31 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertNotNull(ml.newNonDurableCursor(Position));
     }
 
+    @Test(timeOut = 60 * 1000)
+    public void testCreateDataLedgerTimeout() throws Exception {
+        String mlName = UUID.randomUUID().toString();
+        ManagedLedgerFactoryImpl factory = null;
+        ManagedLedger ml = null;
+        try {
+            factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+            ManagedLedgerConfig config = new ManagedLedgerConfig();
+            config.setMetadataOperationsTimeoutSeconds(5);
+            bkc.delay(10 * 1000);
+            ml = factory.open(mlName, config);
+            fail("Should get a timeout ex");
+        } catch (ManagedLedgerException ex) {
+            assertTrue(ex.getMessage().contains("timeout"));
+        } finally {
+            // cleanup.
+            if (ml != null) {
+                ml.delete();
+            }
+            if (factory != null) {
+                factory.shutdown();
+            }
+        }
+    }
+
     /***
      * When a ML tries to create a ledger, it will create a delay task to check if the ledger create request is timeout.
      * But we should guarantee that the delay task should be canceled after the ledger create request responded.
