@@ -574,6 +574,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             executor.execute(() -> {
                 mbean.endDataLedgerCreateOp();
                 if (rc != BKException.Code.OK) {
+                    log.error("[{}] Error creating ledger rc={} {}", name, rc, BKException.getMessage(rc));
                     callback.initializeFailed(createManagedLedgerException(rc));
                     return;
                 }
@@ -4141,7 +4142,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     protected boolean checkAndCompleteLedgerOpTask(int rc, LedgerHandle lh, Object ctx) {
         if (ctx instanceof CompletableFuture) {
             // ledger-creation is already timed out and callback is already completed so, delete this ledger and return.
-            if (((CompletableFuture) ctx).complete(lh)) {
+            if (((CompletableFuture) ctx).complete(lh) || rc == BKException.Code.TimeoutException) {
                 return false;
             } else {
                 if (rc == BKException.Code.OK) {
