@@ -178,7 +178,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     protected volatile long messagesConsumedCounter;
 
     // Current ledger used to append the mark-delete position
-    private volatile LedgerHandle cursorLedger;
+    @VisibleForTesting
+    volatile LedgerHandle cursorLedger;
 
     // Wether the current cursorLedger is read-only or writable
     private boolean isCursorLedgerReadOnly = true;
@@ -3253,7 +3254,7 @@ public class ManagedCursorImpl implements ManagedCursor {
          * Do not enable the feature that https://github.com/apache/pulsar/pull/9292 introduced, to avoid serialization
          * and deserialization error.
          */
-        if (getConfig().isUnackedRangesOpenCacheSetEnabled()) {
+        if (getConfig().isUnackedRangesOpenCacheSetEnabled() && getConfig().isPersistIndividualAckAsLongArray()) {
             try {
                 internalRanges = individualDeletedMessages.toRanges(getConfig().getMaxUnackedRangesToPersist());
             } catch (Exception e) {
