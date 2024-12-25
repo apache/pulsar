@@ -100,7 +100,7 @@ public class PulsarMockBookKeeper extends BookKeeper {
     public PulsarMockBookKeeper(OrderedExecutor orderedExecutor) throws Exception {
         this.orderedExecutor = orderedExecutor;
         this.executor = orderedExecutor.chooseThread();
-        scheduler = Executors.newScheduledThreadPool(2, new DefaultThreadFactory("mock-bk-scheduler"));
+        scheduler = Executors.newScheduledThreadPool(1, new DefaultThreadFactory("mock-bk-scheduler"));
     }
 
     @Override

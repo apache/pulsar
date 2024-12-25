@@ -567,7 +567,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         asyncCreateLedger(bookKeeper, config, digestType, (rc, lh, ctx) -> {
 
-            if (rc != BKException.Code.TimeoutException && checkAndCompleteLedgerOpTask(rc, lh, ctx)) {
+            if (checkAndCompleteLedgerOpTask(rc, lh, ctx)) {
                 return;
             }
 
@@ -1568,7 +1568,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             log.debug("[{}] createComplete rc={} ledger={}", name, rc, lh != null ? lh.getId() : -1);
         }
 
-        if (rc != BKException.Code.TimeoutException && checkAndCompleteLedgerOpTask(rc, lh, ctx)) {
+        if (checkAndCompleteLedgerOpTask(rc, lh, ctx)) {
             return;
         }
 
@@ -4142,7 +4142,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     protected boolean checkAndCompleteLedgerOpTask(int rc, LedgerHandle lh, Object ctx) {
         if (ctx instanceof CompletableFuture) {
             // ledger-creation is already timed out and callback is already completed so, delete this ledger and return.
-            if (((CompletableFuture) ctx).complete(lh)) {
+            if (((CompletableFuture) ctx).complete(lh) || rc == BKException.Code.TimeoutException) {
                 return false;
             } else {
                 if (rc == BKException.Code.OK) {
