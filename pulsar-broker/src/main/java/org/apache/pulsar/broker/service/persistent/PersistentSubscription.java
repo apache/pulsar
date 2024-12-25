@@ -135,15 +135,13 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     private volatile CompletableFuture<Void> inProgressResetCursorFuture;
     private volatile Boolean replicatedControlled;
 
-    static Map<String, Long> getBaseCursorProperties(Boolean isReplicated) {
-        return isReplicated != null && isReplicated ? REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES :
-                NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES;
     static {
         REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES.put(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
     }
 
-    static Map<String, Long> getBaseCursorProperties(boolean isReplicated) {
-        return isReplicated ? REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES : NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES;
+    static Map<String, Long> getBaseCursorProperties(Boolean isReplicated) {
+        return isReplicated != null && isReplicated ? REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES :
+                NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES;
     }
 
     static boolean isCursorFromReplicatedSubscription(ManagedCursor cursor) {
@@ -162,7 +160,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         this.topicName = topic.getName();
         this.subName = subscriptionName;
         this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
-        this.expiryMonitor = new PersistentMessageExpiryMonitor(topic, subscriptionName, cursor, this);
+        this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor, this);
         if (replicated != null) {
             this.setReplicated(replicated);
         }

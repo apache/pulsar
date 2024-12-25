@@ -879,7 +879,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 option.getSubType(), option.getPriorityLevel(), option.getConsumerName(), option.isDurable(),
                 option.getStartMessageId(), option.getMetadata(), option.isReadCompacted(),
                 option.getInitialPosition(), option.getStartMessageRollbackDurationSec(),
-                option.isReplicatedSubscriptionStateArg(), option.getKeySharedMeta(),
+                option.getReplicatedSubscriptionStateArg(), option.getKeySharedMeta(),
                 option.getSubscriptionProperties().orElse(Collections.emptyMap()),
                 option.getConsumerEpoch(), option.getSchemaType());
     }
