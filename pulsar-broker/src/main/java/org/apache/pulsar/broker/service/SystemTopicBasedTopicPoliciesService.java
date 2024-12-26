@@ -271,9 +271,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         final CompletableFuture<Boolean> preparedFuture = prepareInitPoliciesCacheAsync(topicName.getNamespaceObject());
         // switch thread to avoid potential metadata thread cost and recursive deadlock
         return preparedFuture.thenComposeAsync(inserted -> {
-            final Mutable<CompletableFuture<Optional<TopicPolicies>>> policiesFutureHolder =
-                    new MutableObject<>(CompletableFuture
-                            .failedFuture(new IllegalStateException("BUG! unexpected topic policy init.")));
+            final Mutable<CompletableFuture<Optional<TopicPolicies>>> policiesFutureHolder = new MutableObject<>();
             // NOTICE: avoid using any callback with lock scope to avoid deadlock
             policyCacheInitMap.compute(namespace, (___, existingFuture) -> {
                 if (!inserted || existingFuture != null) {
@@ -291,7 +289,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 }
                 return existingFuture;
             });
-            return policiesFutureHolder.getValue();
+            return Objects.requireNonNullElseGet(policiesFutureHolder.getValue(), ()-> CompletableFuture
+                    .failedFuture(new IllegalStateException("BUG! unexpected topic policy init.")));
         });
     }
 
