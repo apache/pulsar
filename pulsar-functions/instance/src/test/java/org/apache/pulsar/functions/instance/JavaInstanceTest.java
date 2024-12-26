@@ -116,7 +116,7 @@ public class JavaInstanceTest {
         CompletableFuture<JavaExecutionResult> resultHolder = new CompletableFuture<>();
         JavaExecutionResult result = instance.handleMessage(
             mock(Record.class), testString,
-            (record, javaResult) -> resultHolder.complete(javaResult), cause -> {});
+            (record, javaResult) -> resultHolder.complete(javaResult), cause -> {},null);
         assertNull(result);
         assertNotNull(resultHolder.get());
         assertEquals(testString + "-lambda", resultHolder.get().getResult());
@@ -151,7 +151,7 @@ public class JavaInstanceTest {
         String testString = "ABC123";
         CompletableFuture<JavaExecutionResult> resultHolder = new CompletableFuture<>();
         JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString,
-            (record, javaResult) -> resultHolder.complete(javaResult), cause -> {});
+            (record, javaResult) -> resultHolder.complete(javaResult), cause -> {},null);
         assertNull(result);
         assertNotNull(resultHolder.get());
         instance.close();
@@ -181,7 +181,7 @@ public class JavaInstanceTest {
         String testString = "ABC123";
         CompletableFuture<JavaExecutionResult> resultHolder = new CompletableFuture<>();
         JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString,
-            (record, javaResult) -> resultHolder.complete(javaResult), cause -> {});
+            (record, javaResult) -> resultHolder.complete(javaResult), cause -> {},null);
         assertNull(result);
         assertSame(userException, resultHolder.get().getUserException());
         instance.close();
@@ -292,11 +292,11 @@ public class JavaInstanceTest {
         };
         Consumer<Throwable> asyncFailureHandler = cause -> {
         };
-        assertNull(instance.handleMessage(mock(Record.class), testString, asyncResultConsumer, asyncFailureHandler));
+        assertNull(instance.handleMessage(mock(Record.class), testString, asyncResultConsumer, asyncFailureHandler,null));
         assertEquals(pendingQueueSize - 1, instance.getAsyncRequestsConcurrencyLimiter().availablePermits());
-        assertNull(instance.handleMessage(mock(Record.class), testString, asyncResultConsumer, asyncFailureHandler));
+        assertNull(instance.handleMessage(mock(Record.class), testString, asyncResultConsumer, asyncFailureHandler,null));
         assertEquals(pendingQueueSize - 2, instance.getAsyncRequestsConcurrencyLimiter().availablePermits());
-        assertNull(instance.handleMessage(mock(Record.class), testString, asyncResultConsumer, asyncFailureHandler));
+        assertNull(instance.handleMessage(mock(Record.class), testString, asyncResultConsumer, asyncFailureHandler,null));
         // no space left
         assertEquals(0, instance.getAsyncRequestsConcurrencyLimiter().availablePermits());
 
