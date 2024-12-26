@@ -273,6 +273,12 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             @Data
             class PoliciesFutureHolder {
                 CompletableFuture<Optional<TopicPolicies>> future;
+
+                public CompletableFuture<Optional<TopicPolicies>> getFuture() {
+                    return Objects.requireNonNullElseGet(future,
+                            () -> CompletableFuture.failedFuture(
+                                    new IllegalStateException("BUG! unexpected topic policy init.")));
+                }
             }
             final var policiesFutureHolder = new PoliciesFutureHolder();
             // NOTICE: avoid using any callback with lock scope to avoid deadlock
