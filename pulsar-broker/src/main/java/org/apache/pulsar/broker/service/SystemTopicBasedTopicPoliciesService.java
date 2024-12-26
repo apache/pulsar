@@ -35,9 +35,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
-import lombok.Data;
 import org.apache.commons.lang3.concurrent.ConcurrentInitializer;
 import org.apache.commons.lang3.concurrent.LazyInitializer;
+import org.apache.commons.lang3.mutable.Mutable;
+import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
@@ -270,17 +271,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         final CompletableFuture<Boolean> preparedFuture = prepareInitPoliciesCacheAsync(topicName.getNamespaceObject());
         // switch thread to avoid potential metadata thread cost and recursive deadlock
         return preparedFuture.thenComposeAsync(inserted -> {
-            @Data
-            class PoliciesFutureHolder {
-                CompletableFuture<Optional<TopicPolicies>> future;
-
-                public CompletableFuture<Optional<TopicPolicies>> getFuture() {
-                    return Objects.requireNonNullElseGet(future,
-                            () -> CompletableFuture.failedFuture(
-                                    new IllegalStateException("BUG! unexpected topic policy init.")));
-                }
-            }
-            final var policiesFutureHolder = new PoliciesFutureHolder();
+            final Mutable<CompletableFuture<Optional<TopicPolicies>>> policiesFutureHolder =
+                    new MutableObject<>(CompletableFuture
+                            .failedFuture(new IllegalStateException("BUG! unexpected topic policy init.")));
             // NOTICE: avoid using any callback with lock scope to avoid deadlock
             policyCacheInitMap.compute(namespace, (___, existingFuture) -> {
                 if (!inserted || existingFuture != null) {
@@ -291,14 +284,14 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         case GLOBAL_ONLY -> globalPoliciesCache.get(partitionedTopicName);
                         case LOCAL_ONLY -> policiesCache.get(partitionedTopicName);
                     });
-                    policiesFutureHolder.setFuture(CompletableFuture.completedFuture(policies));
+                    policiesFutureHolder.setValue(CompletableFuture.completedFuture(policies));
                 } else {
                     log.info("The future of {} has been removed from cache, retry getTopicPolicies again", namespace);
-                    policiesFutureHolder.setFuture(getTopicPoliciesAsync(topicName, type));
+                    policiesFutureHolder.setValue(getTopicPoliciesAsync(topicName, type));
                 }
                 return existingFuture;
             });
-            return policiesFutureHolder.getFuture();
+            return policiesFutureHolder.getValue();
         });
     }
 
