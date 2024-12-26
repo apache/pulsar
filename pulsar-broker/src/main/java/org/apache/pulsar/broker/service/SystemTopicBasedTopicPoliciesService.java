@@ -34,7 +34,11 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nonnull;
+
+import it.unimi.dsi.fastutil.Pair;
+import lombok.Data;
 import org.apache.commons.lang3.concurrent.ConcurrentInitializer;
 import org.apache.commons.lang3.concurrent.LazyInitializer;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -56,6 +60,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
@@ -267,37 +272,31 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             return CompletableFuture.completedFuture(Optional.empty());
         }
         final CompletableFuture<Boolean> preparedFuture = prepareInitPoliciesCacheAsync(topicName.getNamespaceObject());
-        final var resultFuture = new CompletableFuture<Optional<TopicPolicies>>();
-        preparedFuture.thenAccept(inserted -> policyCacheInitMap.compute(namespace, (___, existingFuture) -> {
-            if (!inserted || existingFuture != null) {
-                final var partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
-                final var policies = Optional.ofNullable(switch (type) {
-                    case DEFAULT -> Optional.ofNullable(policiesCache.get(partitionedTopicName))
-                            .orElseGet(() -> globalPoliciesCache.get(partitionedTopicName));
-                    case GLOBAL_ONLY -> globalPoliciesCache.get(partitionedTopicName);
-                    case LOCAL_ONLY -> policiesCache.get(partitionedTopicName);
-                });
-                resultFuture.complete(policies);
-            } else {
-                CompletableFuture.runAsync(() -> {
-                    log.info("The future of {} has been removed from cache, retry getTopicPolicies again", namespace);
-                    // Call it in another thread to avoid recursive update because getTopicPoliciesAsync() could call
-                    // policyCacheInitMap.computeIfAbsent()
-                    getTopicPoliciesAsync(topicName, type).whenComplete((result, e) -> {
-                        if (e == null) {
-                            resultFuture.complete(result);
-                        } else {
-                            resultFuture.completeExceptionally(e);
-                        }
-                    });
-                });
+        return preparedFuture.thenCompose(inserted -> {
+            @Data
+            class PoliciesFutureHolder {
+                CompletableFuture<Optional<TopicPolicies>> future;
             }
-            return existingFuture;
-        })).exceptionally(e -> {
-            resultFuture.completeExceptionally(e);
-            return null;
+            final var policiesFutureHolder = new PoliciesFutureHolder();
+            // notice: avoid using any callback with lock scope
+            policyCacheInitMap.compute(namespace, (___, existingFuture) -> {
+                if (!inserted || existingFuture != null) {
+                    final var partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
+                    final var policies = Optional.ofNullable(switch (type) {
+                        case DEFAULT -> Optional.ofNullable(policiesCache.get(partitionedTopicName))
+                                .orElseGet(() -> globalPoliciesCache.get(partitionedTopicName));
+                        case GLOBAL_ONLY -> globalPoliciesCache.get(partitionedTopicName);
+                        case LOCAL_ONLY -> policiesCache.get(partitionedTopicName);
+                    });
+                    policiesFutureHolder.setFuture(CompletableFuture.completedFuture(policies));
+                } else {
+                    log.info("The future of {} has been removed from cache, retry getTopicPolicies again", namespace);
+                    policiesFutureHolder.setFuture(getTopicPoliciesAsync(topicName, type));
+                }
+                return existingFuture;
+            });
+            return policiesFutureHolder.getFuture();
         });
-        return resultFuture;
     }
 
     public void addOwnedNamespaceBundleAsync(NamespaceBundle namespaceBundle) {
