@@ -118,7 +118,7 @@ public class PersistentSubscription extends AbstractSubscription {
     // for connected subscriptions, message expiry will be checked if the backlog is greater than this threshold
     private static final int MINIMUM_BACKLOG_FOR_EXPIRY_CHECK = 1000;
 
-    private static final String REPLICATED_SUBSCRIPTION_PROPERTY = "pulsar.replicated.subscription";
+    protected static final String REPLICATED_SUBSCRIPTION_PROPERTY = "pulsar.replicated.subscription";
 
     // Map of properties that is used to mark this subscription as "replicated".
     // Since this is the only field at this point, we can just keep a static
@@ -140,8 +140,12 @@ public class PersistentSubscription extends AbstractSubscription {
                 NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES;
     }
 
-    static boolean isCursorFromReplicatedSubscription(ManagedCursor cursor) {
-        return cursor.getProperties().containsKey(REPLICATED_SUBSCRIPTION_PROPERTY);
+    static Optional<Boolean> getReplicatedSubscriptionConfiguration(ManagedCursor cursor) {
+        Long v = cursor.getProperties().get(REPLICATED_SUBSCRIPTION_PROPERTY);
+        if (v == null || (v < 0L || v > 1L)) {
+            return Optional.empty();
+        }
+        return Optional.of(v == 1L);
     }
 
     public PersistentSubscription(PersistentTopic topic, String subscriptionName, ManagedCursor cursor,
