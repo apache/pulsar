@@ -272,13 +272,14 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             return CompletableFuture.completedFuture(Optional.empty());
         }
         final CompletableFuture<Boolean> preparedFuture = prepareInitPoliciesCacheAsync(topicName.getNamespaceObject());
-        return preparedFuture.thenCompose(inserted -> {
+        // switch thread to avoid potential metadata thread cost and recursive deadlock
+        return preparedFuture.thenComposeAsync(inserted -> {
             @Data
             class PoliciesFutureHolder {
                 CompletableFuture<Optional<TopicPolicies>> future;
             }
             final var policiesFutureHolder = new PoliciesFutureHolder();
-            // notice: avoid using any callback with lock scope
+            // NOTICE: avoid using any callback with lock scope to avoid deadlock
             policyCacheInitMap.compute(namespace, (___, existingFuture) -> {
                 if (!inserted || existingFuture != null) {
                     final var partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
