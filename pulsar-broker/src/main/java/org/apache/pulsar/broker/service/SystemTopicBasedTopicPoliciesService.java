@@ -286,13 +286,13 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     });
                     policiesFutureHolder.setValue(Pair.of(true, policies));
                 } else {
-                    log.info("The future of {} has been removed from cache, retry getTopicPolicies again", namespace);
                     policiesFutureHolder.setValue(Pair.of(false, null));
                 }
                 return existingFuture;
             });
             final var p = policiesFutureHolder.getValue();
             if (!p.getLeft()) {
+                log.info("The future of {} has been removed from cache, retry getTopicPolicies again", namespace);
                 return getTopicPoliciesAsync(topicName, type);
             }
             return CompletableFuture.completedFuture(p.getRight());
