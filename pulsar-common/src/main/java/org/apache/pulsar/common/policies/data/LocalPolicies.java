@@ -19,9 +19,9 @@
 package org.apache.pulsar.common.policies.data;
 
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.defaultBundle;
-import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
+import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 
 /**
  * Local policies.
