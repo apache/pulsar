@@ -3789,8 +3789,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     public synchronized void checkReplicatedSubscriptionControllerState() {
+        Boolean replicatedSubscriptionStatus = topicPolicies.getReplicateSubscriptionState().get();
         AtomicBoolean shouldBeEnabled = new AtomicBoolean(false);
         subscriptions.forEach((name, subscription) -> {
+            // If the subscription does not have a replicated flag configured, please apply the topic policies to the
+            // subscription.
+            if (subscription.getReplicatedControlled() == null) {
+                subscription.setReplicated(replicatedSubscriptionStatus, false);
+            }
             if (subscription.isReplicated()) {
                 shouldBeEnabled.set(true);
             }

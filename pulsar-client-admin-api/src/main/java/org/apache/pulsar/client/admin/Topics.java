@@ -4326,7 +4326,7 @@ public interface Topics {
      * @param enabled
      * @throws PulsarAdminException
      */
-    void setReplicatedSubscriptionStatus(String topic, String subName, boolean enabled) throws PulsarAdminException;
+    void setReplicatedSubscriptionStatus(String topic, String subName, Boolean enabled) throws PulsarAdminException;
 
     /**
      * Enable or disable a replicated subscription on a topic asynchronously.
@@ -4336,7 +4336,7 @@ public interface Topics {
      * @param enabled
      * @return
      */
-    CompletableFuture<Void> setReplicatedSubscriptionStatusAsync(String topic, String subName, boolean enabled);
+    CompletableFuture<Void> setReplicatedSubscriptionStatusAsync(String topic, String subName, Boolean enabled);
 
     /**
      * Get the replication clusters for a topic.

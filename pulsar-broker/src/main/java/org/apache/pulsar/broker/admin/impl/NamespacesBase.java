@@ -2589,6 +2589,16 @@ public abstract class NamespacesBase extends AdminResource {
 
     }
 
+    protected CompletableFuture<Void> internalSetReplicateSubscriptionStateAsync(Boolean enabled) {
+        return validatePoliciesReadOnlyAccessAsync()
+                .thenCompose(__ -> validateNamespacePolicyOperationAsync(namespaceName,
+                        PolicyName.REPLICATED_SUBSCRIPTION, PolicyOperation.WRITE))
+                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+                    policies.replicate_subscription_state = enabled;
+                    return policies;
+                }));
+    }
+
     protected CompletableFuture<Void> internalSetEntryFiltersPerTopicAsync(EntryFilters entryFilters) {
         return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ENTRY_FILTERS, PolicyOperation.WRITE)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())

@@ -87,7 +87,7 @@ public class TopicPolicies {
     private Boolean schemaValidationEnforced;
 
     private String resourceGroupName;
-
+    private Boolean replicateSubscriptionState;
     public boolean isGlobalPolicies() {
         return isGlobal != null && isGlobal;
     }

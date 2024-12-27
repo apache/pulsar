@@ -34,6 +34,7 @@
             <class name="org.apache.pulsar.tests.integration.cli.tenant.TenantTest"/>
             <class name="org.apache.pulsar.tests.integration.cli.PerfToolTest"/>
             <class name="org.apache.pulsar.tests.integration.cli.topicpolicies.SchemaCompatibilityStrategyTest"/>
+            <class name="org.apache.pulsar.tests.integration.cli.ReplicateSubscriptionStateTest"/>
         </classes>
     </test>
 </suite>

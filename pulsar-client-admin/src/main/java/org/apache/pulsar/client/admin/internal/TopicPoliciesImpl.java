@@ -1309,6 +1309,45 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         return setResourceGroupAsync(topic, null);
     }
 
+    @Override
+    public void setReplicateSubscriptionState(String topic, Boolean enabled) throws PulsarAdminException {
+        sync(() -> setReplicateSubscriptionStateAsync(topic, enabled));
+    }
+
+    @Override
+    public CompletableFuture<Void> setReplicateSubscriptionStateAsync(String topic, Boolean enabled) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "replicateSubscriptionState");
+        return asyncPostRequest(path, Entity.entity(enabled, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public Boolean getReplicateSubscriptionState(String topic, boolean applied)
+            throws PulsarAdminException {
+        return sync(() -> getReplicateSubscriptionStateAsync(topic, applied));
+    }
+
+    @Override
+    public CompletableFuture<Boolean> getReplicateSubscriptionStateAsync(String topic, boolean applied) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "replicateSubscriptionState");
+        path = path.queryParam("applied", applied);
+        final CompletableFuture<Boolean> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Boolean>() {
+                    @Override
+                    public void completed(Boolean enabled) {
+                        future.complete(enabled);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
     /*
      * returns topic name with encoded Local Name
      */

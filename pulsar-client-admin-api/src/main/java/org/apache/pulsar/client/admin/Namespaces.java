@@ -4707,4 +4707,53 @@ public interface Namespaces {
      */
     CompletableFuture<Void> setNamespaceAllowedClustersAsync(String namespace, Set<String> clusterIds);
 
+
+    /**
+     * Enable or disable subscription replication on a namespace.
+     *
+     * @param namespace Namespace name
+     * @param enabled   The replication status to set:
+     *                  <ul>
+     *                    <li><code>true</code>: Enable subscription replication.</li>
+     *                    <li><code>false</code>: Disable subscription replication.</li>
+     *                    <li><code>null</code>: Remove config.</li>
+     *                  </ul>
+     */
+    void setReplicateSubscriptionState(String namespace, Boolean enabled) throws PulsarAdminException;
+
+    /**
+     * Enable or disable subscription replication on a namespace asynchronously.
+     *
+     * @param namespace Namespace name
+     * @param enabled   The replication status to set:
+     *                  <ul>
+     *                    <li><code>true</code>: Enable subscription replication.</li>
+     *                    <li><code>false</code>: Disable subscription replication.</li>
+     *                    <li><code>null</code>: Remove config.</li>
+     *                  </ul>
+     */
+    CompletableFuture<Void> setReplicateSubscriptionStateAsync(String namespace, Boolean enabled);
+
+    /**
+     * Get the enabled status of subscription replication on a namespace.
+     *
+     * @param namespace Namespace name
+     * @return <code>true</code> Subscription replication is enabled.
+     * <code>false</code> Subscription replication is disabled.
+     * <code>null</code> Subscription replication is not configured.
+     */
+    Boolean getReplicateSubscriptionState(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the enabled status of subscription replication on a namespace asynchronously.
+     *
+     * @param namespace Namespace name
+     * @return A {@link CompletableFuture} that will complete with the replication status:
+     * <ul>
+     *   <li><code>true</code>: Subscription replication is enabled.</li>
+     *   <li><code>false</code>: Subscription replication is disabled.</li>
+     *   <li><code>null</code>: Subscription replication is not configured.</li>
+     * </ul>
+     */
+    CompletableFuture<Boolean> getReplicateSubscriptionStateAsync(String namespace);
 }

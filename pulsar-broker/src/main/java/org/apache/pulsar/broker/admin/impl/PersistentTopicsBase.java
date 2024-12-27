@@ -5229,8 +5229,31 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
+    protected CompletableFuture<Void> internalSetEnableReplicatedSubscription(Boolean enabled,
+                                                                              boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setReplicateSubscriptionState(enabled);
+                    topicPolicies.setIsGlobal(isGlobal);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                });
+    }
+
+    protected CompletableFuture<Boolean> internalGetReplicateSubscriptionState(boolean applied,
+                                                                                  boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+                .thenApply(op -> op.map(TopicPolicies::getReplicateSubscriptionState)
+                        .orElseGet(() -> {
+                            if (applied) {
+                                return getNamespacePolicies(namespaceName).replicate_subscription_state;
+                            }
+                            return null;
+                        }));
+    }
+
     protected void internalSetReplicatedSubscriptionStatus(AsyncResponse asyncResponse, String subName,
-            boolean authoritative, boolean enabled) {
+            boolean authoritative, Boolean enabled) {
         log.info("[{}] Attempting to change replicated subscription status to {} - {} {}", clientAppId(), enabled,
                 topicName, subName);
 
@@ -5323,7 +5346,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private void internalSetReplicatedSubscriptionStatusForNonPartitionedTopic(
-            AsyncResponse asyncResponse, String subName, boolean authoritative, boolean enabled) {
+            AsyncResponse asyncResponse, String subName, boolean authoritative, Boolean enabled) {
         // Redirect the request to the appropriate broker if this broker is not the owner of the topic
         validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))

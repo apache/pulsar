@@ -248,6 +248,7 @@ public class CmdTopics extends CmdBase {
 
         jcommander.addCommand("set-replicated-subscription-status", new SetReplicatedSubscriptionStatus());
         jcommander.addCommand("get-replicated-subscription-status", new GetReplicatedSubscriptionStatus());
+        jcommander.addCommand("remove-replicated-subscription-status", new RemoveReplicatedSubscriptionStatus());
         jcommander.addCommand("get-backlog-size", new GetBacklogSizeByMessageId());
         jcommander.addCommand("analyze-backlog", new AnalyzeBacklog());
 
@@ -3053,6 +3054,22 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             print(getTopics().getReplicatedSubscriptionStatus(persistentTopic, subName));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove the replicated subscription on a topic")
+    private class RemoveReplicatedSubscriptionStatus extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-s",
+                "--subscription" }, description = "Subscription name to enable or disable replication", required = true)
+        private String subName;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopics().setReplicatedSubscriptionStatus(persistentTopic, subName, null);
         }
     }
 

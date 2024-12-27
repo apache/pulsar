@@ -3027,5 +3027,42 @@ public class Namespaces extends NamespacesBase {
                 });
     }
 
+    @GET
+    @Path("/{tenant}/{namespace}/replicateSubscriptionState")
+    @ApiOperation(value = "Get the enabled status of subscription replication on a namespace.", response =
+            Boolean.class)
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist")})
+    public Boolean getReplicateSubscriptionState(@PathParam("tenant") String tenant,
+                                                     @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        validateNamespacePolicyOperation(NamespaceName.get(tenant, namespace),
+                PolicyName.REPLICATED_SUBSCRIPTION, PolicyOperation.READ);
+
+        Policies policies = getNamespacePolicies(namespaceName);
+        return policies.replicate_subscription_state;
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/replicateSubscriptionState")
+    @ApiOperation(value = "Enable or disable subscription replication on a namespace.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist")})
+    public void setReplicateSubscriptionState(@Suspended final AsyncResponse asyncResponse,
+                                                 @PathParam("tenant") String tenant,
+                                                 @PathParam("namespace") String namespace,
+                                                 @ApiParam(value = "Whether to enable subscription replication",
+                                                         required = true)
+                                                 Boolean enabled) {
+        validateNamespaceName(tenant, namespace);
+        internalSetReplicateSubscriptionStateAsync(enabled)
+                .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("set replicate subscription state failed", ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);
 }

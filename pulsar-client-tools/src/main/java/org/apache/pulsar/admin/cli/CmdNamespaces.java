@@ -2701,6 +2701,46 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Set replicate subscription state from a namespace")
+    private class SetReplicateSubscriptionState extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = "--enabled", arity = 1, required = true, description = "Whether to replicate subscription"
+                + " state")
+        private boolean enabled = true;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().setReplicateSubscriptionState(namespace, enabled);
+        }
+    }
+
+    @Parameters(commandDescription = "Get replicate subscription state from a namespace")
+    private class GetReplicateSubscriptionState extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(getAdmin().namespaces().getReplicateSubscriptionState(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove replicate subscription state from a namespace")
+    private class RemoveReplicateSubscriptionState extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().setReplicateSubscriptionState(namespace, null);
+        }
+    }
+
     public CmdNamespaces(Supplier<PulsarAdmin> admin) {
         super("namespaces", admin);
         jcommander.addCommand("list", new GetNamespacesPerProperty());
@@ -2888,5 +2928,9 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("get-entry-filters", new GetEntryFiltersPerTopic());
         jcommander.addCommand("set-entry-filters", new SetEntryFiltersPerTopic());
         jcommander.addCommand("remove-entry-filters", new RemoveEntryFiltersPerTopic());
+
+        jcommander.addCommand("set-replicate-subscription-state", new SetReplicateSubscriptionState());
+        jcommander.addCommand("get-replicate-subscription-state", new GetReplicateSubscriptionState());
+        jcommander.addCommand("remove-replicate-subscription-state", new RemoveReplicateSubscriptionState());
     }
 }

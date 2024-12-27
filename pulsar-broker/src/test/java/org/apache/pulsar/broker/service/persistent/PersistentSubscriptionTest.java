@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doCallRealMethod;
@@ -30,13 +31,16 @@ import io.netty.channel.EventLoopGroup;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.Position;
@@ -282,5 +286,42 @@ public class PersistentSubscriptionTest {
         public CompletableFuture<Boolean> checkInitializedBefore(PersistentSubscription subscription) {
             return CompletableFuture.completedFuture(true);
         }
+    }
+
+    @Test
+    public void testGetReplicatedSubscriptionConfiguration() {
+        Map<String, Long> properties = PersistentSubscription.getBaseCursorProperties(true);
+        assertThat(properties).containsEntry(PersistentSubscription.REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
+        ManagedCursor cursor = mock(ManagedCursor.class);
+        doReturn(properties).when(cursor).getProperties();
+        Optional<Boolean> replicatedSubscriptionConfiguration =
+                PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
+        assertThat(replicatedSubscriptionConfiguration).isNotEmpty().get().isEqualTo(Boolean.TRUE);
+
+        properties = new HashMap<>();
+        properties.put(PersistentSubscription.REPLICATED_SUBSCRIPTION_PROPERTY, 10L);
+        doReturn(properties).when(cursor).getProperties();
+        replicatedSubscriptionConfiguration =
+                PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
+        assertThat(replicatedSubscriptionConfiguration).isEmpty();
+        properties = new HashMap<>();
+        properties.put(PersistentSubscription.REPLICATED_SUBSCRIPTION_PROPERTY, -1L);
+        doReturn(properties).when(cursor).getProperties();
+        replicatedSubscriptionConfiguration =
+                PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
+        assertThat(replicatedSubscriptionConfiguration).isEmpty();
+
+        properties = PersistentSubscription.getBaseCursorProperties(false);
+        assertThat(properties).containsEntry(PersistentSubscription.REPLICATED_SUBSCRIPTION_PROPERTY, 0L);
+        doReturn(properties).when(cursor).getProperties();
+        replicatedSubscriptionConfiguration =
+                PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
+        assertThat(replicatedSubscriptionConfiguration).isNotEmpty().get().isEqualTo(Boolean.FALSE);
+
+        properties = PersistentSubscription.getBaseCursorProperties(null);
+        doReturn(properties).when(cursor).getProperties();
+        replicatedSubscriptionConfiguration =
+                PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
+        assertThat(replicatedSubscriptionConfiguration).isEmpty();
     }
 }
