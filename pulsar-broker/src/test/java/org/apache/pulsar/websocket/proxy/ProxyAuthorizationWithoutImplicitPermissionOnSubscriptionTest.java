@@ -106,6 +106,8 @@ public class ProxyAuthorizationWithoutImplicitPermissionOnSubscriptionTest exten
         assertTrue(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
         assertTrue(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
 
+        String topic = "persistent://p1/c1/ns1/ds2";
+        admin.topics().createNonPartitionedTopic(topic);
         admin.topics().grantPermission("persistent://p1/c1/ns1/ds2", "other-role",
                 EnumSet.of(AuthAction.consume));
         waitForChange();
@@ -134,6 +136,7 @@ public class ProxyAuthorizationWithoutImplicitPermissionOnSubscriptionTest exten
         assertTrue(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
         assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null, null));
 
+        admin.topics().delete(topic);
         admin.namespaces().deleteNamespace("p1/c1/ns1");
         admin.tenants().deleteTenant("p1");
         admin.clusters().deleteCluster("c1");
