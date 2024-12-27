@@ -100,6 +100,7 @@ import org.apache.pulsar.common.policies.data.BookiesClusterInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.FailureDomain;
@@ -913,6 +914,11 @@ public class PulsarAdminToolTest {
         namespaces.run(split("remove-dispatcher-pause-on-ack-state-persistent myprop/clust/ns1"));
         verify(mockNamespaces).removeDispatcherPauseOnAckStatePersistent("myprop/clust/ns1");
 
+        namespaces.run(split(
+                "update-migration-state --migrated --service-url serviceUrl --service-url-secure serviceUrlTls "
+                        + "--broker-url brokerServiceUrl --broker-url-secure brokerServiceUrlTls myprop/clust/ns1"));
+        verify(mockNamespaces).updateMigrationState("myprop/clust/ns1", true,
+                new ClusterUrl("serviceUrl", "serviceUrlTls", "brokerServiceUrl", "brokerServiceUrlTls"));
     }
 
     @Test

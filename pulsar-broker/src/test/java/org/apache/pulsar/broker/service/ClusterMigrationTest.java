@@ -1192,6 +1192,111 @@ public class ClusterMigrationTest {
         client3.close();
     }
 
+    @Test
+    public void testNamespaceMigrationWithNamespaceLevelMigratedClusterUrl() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/migrationTopic");
+
+        // cluster1 producer/consumer
+        @Cleanup
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        Producer<byte[]> producer1 = client1.newProducer().topic(topicName).enableBatching(false)
+                .producerName("producer1").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
+        Consumer<byte[]> consumer1 = client1.newConsumer().topic(topicName).subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("s1").subscribe();
+        AbstractTopic topic1 = (AbstractTopic) pulsar1.getBrokerService().getTopic(topicName, false).getNow(null).get();
+        retryStrategically((test) -> !topic1.getProducers().isEmpty(), 5, 500);
+        retryStrategically((test) -> !topic1.getSubscriptions().isEmpty(), 5, 500);
+        assertFalse(topic1.getProducers().isEmpty());
+        assertFalse(topic1.getSubscriptions().isEmpty());
+
+        // build backlog
+        consumer1.close();
+        int n = 5;
+        for (int i = 0; i < n; i++) {
+            producer1.send("test1".getBytes());
+        }
+
+        // cluster2 producer/consumer
+        @Cleanup
+        PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        Producer<byte[]> producer2 = client2.newProducer().topic(topicName).enableBatching(false)
+                .producerName("producer2").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
+        AbstractTopic topic2 = (AbstractTopic) pulsar2.getBrokerService().getTopic(topicName, false).getNow(null).get();
+        assertFalse(topic2.getProducers().isEmpty());
+        assertTrue(topic2.getSubscriptions().isEmpty());
+
+        // cluster3 producer/consumer
+        @Cleanup
+        PulsarClient client3 = PulsarClient.builder().serviceUrl(url3.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        Producer<byte[]> producer3 = client3.newProducer().topic(topicName).enableBatching(false)
+                .producerName("producer3").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
+        AbstractTopic topic3 = (AbstractTopic) pulsar3.getBrokerService().getTopic(topicName, false).getNow(null).get();
+        assertFalse(topic3.getProducers().isEmpty());
+        assertTrue(topic3.getSubscriptions().isEmpty());
+
+        // Set the migratedCluster at both the cluster level and the namespace level. Since the configuration at
+        // the namespace level has a higher priority, the topic will be migrated to cluster3.
+        ClusterUrl cluster2MigratedUrl = new ClusterUrl(pulsar2.getWebServiceAddress(),
+                pulsar2.getWebServiceAddressTls(), pulsar2.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrlTls());
+        ClusterUrl cluster3MigratedUrl = new ClusterUrl(pulsar3.getWebServiceAddress(),
+                pulsar3.getWebServiceAddressTls(), pulsar3.getBrokerServiceUrl(), pulsar3.getBrokerServiceUrlTls());
+        admin1.clusters().updateClusterMigration("r1", true, cluster2MigratedUrl);
+        admin1.namespaces().updateMigrationState(namespace, true, cluster3MigratedUrl);
+
+        retryStrategically((test) -> {
+            try {
+                topic1.checkClusterMigration().get();
+                return true;
+            } catch (Exception e) {
+                // ok
+            }
+            return false;
+        }, 10, 500);
+        topic1.checkClusterMigration().get();
+
+        sleep(1000);
+        producer1.sendAsync("test1".getBytes());
+
+        // producer1 is disconnected from cluster1
+        retryStrategically((test) -> topic1.getProducers().isEmpty(), 10, 500);
+        assertTrue(topic1.getProducers().isEmpty());
+        // producer1 is not connected to cluster2
+        retryStrategically((test) -> topic2.getProducers().size() == 1, 10, 500);
+        assertEquals(topic2.getProducers().size(), 1);
+        // producer1 is connected to cluster3
+        retryStrategically((test) -> topic3.getProducers().size() == 2, 10, 500);
+        assertEquals(topic3.getProducers().size(), 2);
+
+        // try to consume backlog messages from cluster1
+        consumer1 = client1.newConsumer().topic(topicName).subscriptionName("s1").subscribe();
+        for (int i = 0; i < n; i++) {
+            Message<byte[]> msg = consumer1.receive();
+            assertEquals(msg.getData(), "test1".getBytes());
+            consumer1.acknowledge(msg);
+        }
+        // after consuming all messages, consumer1 should have disconnected from cluster1 and reconnected to cluster3
+        retryStrategically((test) -> !topic3.getSubscriptions().isEmpty(), 10, 500);
+        assertFalse(topic3.getSubscriptions().isEmpty());
+
+        // publish messages to cluster3 and consume them
+        for (int i = 0; i < n; i++) {
+            producer1.sendAsync("test2".getBytes());
+            producer3.sendAsync("test2".getBytes());
+        }
+        for (int i = 0; i < n * 2; i++) {
+            Message<byte[]> msg = consumer1.receive();
+            assertEquals(msg.getData(), "test2".getBytes());
+            consumer1.acknowledge(msg);
+        }
+
+        client1.close();
+        client2.close();
+        client3.close();
+    }
+
     static class TestBroker extends MockedPulsarServiceBaseTest {
 
         private String clusterName;

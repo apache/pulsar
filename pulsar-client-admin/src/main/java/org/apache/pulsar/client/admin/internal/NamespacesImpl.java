@@ -43,6 +43,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.EntryFilters;
@@ -1931,6 +1932,20 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "migration");
         return asyncPostRequest(path, Entity.entity(migrated, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void updateMigrationState(String namespace, boolean migrated, ClusterUrl clusterUrl)
+            throws PulsarAdminException {
+        sync(() -> updateMigrationStateAsync(namespace, migrated, clusterUrl));
+    }
+
+    @Override
+    public CompletableFuture<Void> updateMigrationStateAsync(String namespace, boolean migrated,
+                                                             ClusterUrl clusterUrl) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "migrationState").queryParam("migrated", migrated);
+        return asyncPostRequest(path, Entity.entity(clusterUrl, MediaType.APPLICATION_JSON));
     }
 
     private WebTarget namespacePath(NamespaceName namespace, String... parts) {

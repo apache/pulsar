@@ -1363,31 +1363,33 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         CompletableFuture<Optional<ClusterUrl>> result = new CompletableFuture<>();
         pulsar.getPulsarResources().getClusterResources().getClusterPoliciesResources()
                 .getClusterPoliciesAsync(pulsar.getConfig().getClusterName())
-                .thenCombine(isNamespaceMigrationEnabledAsync(pulsar, topic),
-                        ((clusterData, isNamespaceMigrationEnabled) -> {
-                            Optional<ClusterUrl> url = (clusterData.isPresent() && (clusterData.get().isMigrated()
-                                    || isNamespaceMigrationEnabled))
-                                            ? Optional.ofNullable(clusterData.get().getMigratedClusterUrl())
-                                            : Optional.empty();
-                            return url;
+                .thenCombine(pulsar.getPulsarResources().getLocalPolicies()
+                        .getLocalPoliciesAsync(TopicName.get(topic).getNamespaceObject()),
+                        ((clusterData, nsLocalPolicies) -> {
+                            boolean isNamespaceMigrated = false;
+                            if (nsLocalPolicies.isPresent() && nsLocalPolicies.get().migrated) {
+                                isNamespaceMigrated = true;
+                                ClusterUrl clusterUrl = nsLocalPolicies.get().migratedClusterUrl;
+                                if (clusterUrl != null && !clusterUrl.isEmpty()) {
+                                    return Optional.of(clusterUrl);
+                                }
+                            }
+                            if (clusterData.isPresent() && (clusterData.get().isMigrated() || isNamespaceMigrated)) {
+                                return Optional.ofNullable(clusterData.get().getMigratedClusterUrl());
+                            }
+                            return Optional.empty();
                         }))
                 .thenAccept(res -> {
                     // cluster policies future is completed by metadata-store thread and continuing further
                     // processing in the same metadata store can cause deadlock while creating topic as
                     // create topic path may have blocking call on metadata-store. so, complete future on a
                     // separate thread to avoid deadlock.
-                    pulsar.getExecutor().execute(() -> result.complete(res));
+                    pulsar.getExecutor().execute(() -> result.complete((Optional<ClusterUrl>) res));
                 }).exceptionally(ex -> {
                     pulsar.getExecutor().execute(() -> result.completeExceptionally(ex.getCause()));
                     return null;
                 });
         return result;
-    }
-
-    private static CompletableFuture<Boolean> isNamespaceMigrationEnabledAsync(PulsarService pulsar, String topic) {
-        return pulsar.getPulsarResources().getLocalPolicies()
-                .getLocalPoliciesAsync(TopicName.get(topic).getNamespaceObject())
-                .thenApply(policies -> policies.isPresent() && policies.get().migrated);
     }
 
     public static Optional<ClusterUrl> getMigratedClusterUrl(PulsarService pulsar, String topic) {

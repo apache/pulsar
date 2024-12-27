@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.policies.data;
 
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.defaultBundle;
+import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
@@ -35,28 +36,32 @@ public class LocalPolicies {
     // namespace anti-affinity-group
     public final String namespaceAntiAffinityGroup;
     public final boolean migrated;
+    public final ClusterUrl migratedClusterUrl;
 
     public LocalPolicies() {
         bundles = defaultBundle();
         bookieAffinityGroup = null;
         namespaceAntiAffinityGroup = null;
         migrated = false;
+        migratedClusterUrl = null;
     }
 
     public LocalPolicies(BundlesData data,
                          BookieAffinityGroupData bookieAffinityGroup,
                          String namespaceAntiAffinityGroup) {
-        this(data, bookieAffinityGroup, namespaceAntiAffinityGroup, false);
+        this(data, bookieAffinityGroup, namespaceAntiAffinityGroup, false, null);
     }
 
     public LocalPolicies(BundlesData data,
                          BookieAffinityGroupData bookieAffinityGroup,
                          String namespaceAntiAffinityGroup,
-                         boolean migrated) {
+                         boolean migrated,
+                         ClusterUrl migratedClusterUrl) {
         bundles = data;
         this.bookieAffinityGroup = bookieAffinityGroup;
         this.namespaceAntiAffinityGroup = namespaceAntiAffinityGroup;
         this.migrated = migrated;
+        this.migratedClusterUrl = migratedClusterUrl;
     }
 
 }
