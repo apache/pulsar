@@ -3140,7 +3140,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                  *   "replicator.producer" to a null value.
                  * Race condition: task 1 will get a NPE when it tries to send messages using the variable
                  * "replicator.producer", because task 2 will set this variable to "null".
-                 * TODO Create a separated PR to fix it.
+                 * TODO Create a separate PR to fix it.
                  */
                 closeReplProducersIfNoBacklog().thenRun(() -> {
                     if (hasRemoteProducers()) {
