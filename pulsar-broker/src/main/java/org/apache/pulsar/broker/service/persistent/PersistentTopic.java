@@ -897,9 +897,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         return brokerService.checkTopicNsOwnership(getName()).thenCompose(__ -> {
-            if (replicatedSubscriptionStateArg != null && replicatedSubscriptionStateArg
+            Boolean replicatedSubscriptionState = replicatedSubscriptionStateArg;
+            if (replicatedSubscriptionState != null && replicatedSubscriptionState
                     && !brokerService.pulsar().getConfiguration().isEnableReplicatedSubscriptions()) {
                 log.warn("[{}] Replicated Subscription is disabled by broker.", getName());
+                replicatedSubscriptionState = false;
             }
 
             if (subType == SubType.Key_Shared
@@ -968,7 +970,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
             CompletableFuture<? extends Subscription> subscriptionFuture = isDurable
                     ? getDurableSubscription(subscriptionName, initialPosition, startMessageRollbackDurationSec,
-                    replicatedSubscriptionStateArg, subscriptionProperties)
+                    replicatedSubscriptionState, subscriptionProperties)
                     : getNonDurableSubscription(subscriptionName, startMessageId, initialPosition,
                     startMessageRollbackDurationSec, readCompacted, subscriptionProperties);
 
