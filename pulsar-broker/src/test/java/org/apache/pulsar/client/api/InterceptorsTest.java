@@ -21,10 +21,12 @@ package org.apache.pulsar.client.api;
 import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -214,6 +216,48 @@ public class InterceptorsTest extends ProducerConsumerBase {
         MessageId messageId = producer.newMessage().value("Hello Pulsar!").send();
         Assert.assertNotNull(messageId);
         producer.close();
+    }
+
+    @Test
+    public void testProducerInterceptorAccessMessageData() throws PulsarClientException {
+        List<String> messageDataInBeforeSend = Collections.synchronizedList(new ArrayList<>());
+        List<String> messageDataOnSendAcknowledgement = Collections.synchronizedList(new ArrayList<>());
+        ProducerInterceptor<String> interceptor = new ProducerInterceptor<>() {
+            @Override
+            public void close() {
+            }
+
+            @Override
+            public Message<String> beforeSend(Producer<String> producer, Message<String> message) {
+                messageDataInBeforeSend.add(new String(message.getData()));
+                return message;
+            }
+
+            @Override
+            public void onSendAcknowledgement(Producer<String> producer, Message<String> message, MessageId msgId,
+                                              Throwable exception) {
+                messageDataOnSendAcknowledgement.add(new String(message.getData()));
+            }
+        };
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic("persistent://my-property/my-ns/my-topic")
+                .intercept(interceptor)
+                .create();
+
+        final String messageValue = UUID.randomUUID().toString();
+        try {
+            producer.newMessage().value(messageValue).send();
+        } catch (Exception ignore) {
+        }
+        Assert.assertEquals(messageDataInBeforeSend.size(), 1,
+                "Message data should be available in beforeSend");
+        Assert.assertEquals(messageDataInBeforeSend.get(0), messageValue,
+                "Message data should be available in beforeSend");
+        Assert.assertEquals(messageDataOnSendAcknowledgement.size(), 1,
+                "Message data should be available in onSendAcknowledgement");
+        Assert.assertEquals(messageDataOnSendAcknowledgement.get(0), messageValue,
+                "Message data should be available in onSendAcknowledgement");
     }
 
     @Test
