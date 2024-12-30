@@ -2158,7 +2158,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "If 'allowAutoTopicCreation' is true and the name of the topic contains 'cluster',"
                     + "the topic cannot be automatically created."
     )
-    private boolean allowAutoTopicCreationWithLegacyNamingScheme = false;
+    private boolean allowAutoTopicCreationWithLegacyNamingScheme = true;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         dynamic = true,
