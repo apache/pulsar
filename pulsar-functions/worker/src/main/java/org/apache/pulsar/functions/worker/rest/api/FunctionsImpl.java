@@ -792,7 +792,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         }
     }
 
-    public boolean checkReadiness() {
+    public boolean checkForIllegalStateException() {
         return this.isIllegalStateException;
     }
 }

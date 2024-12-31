@@ -35,6 +35,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -431,8 +432,16 @@ public class FunctionsApiV3Resource extends FunctionApiResource {
     }
 
     @GET
-    @Path("/readiness")
-    public boolean checkReadiness() {
-        return functions().checkReadiness();
+    @Path("/restart")
+    public Response checkForIllegalStateException() {
+        boolean isIllegalStateException = functions().checkForIllegalStateException();
+        if (isIllegalStateException) {
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE)
+                    .entity("There is IllegalStateException, Service is not running. Need to restart.")
+                    .build();
+        } else {
+            return Response.ok("There is no IllegalStateException, Service is running.")
+                    .build();
+        }
     }
 }
