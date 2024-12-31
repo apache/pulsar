@@ -322,6 +322,10 @@ class AdminProxyHandler extends ProxyServlet {
         } else {
             try {
                 url.append(getWebServiceUrl());
+                if (LOG.isDebugEnabled() && isBlank(brokerWebServiceUrl)) {
+                    LOG.debug("[{}:{}] Selected active broker is {}", request.getRemoteAddr(), request.getRemotePort(),
+                            url);
+                }
             } catch (Exception e) {
                 LOG.warn("[{}:{}] Failed to get next active broker {}", request.getRemoteAddr(),
                         request.getRemotePort(), e.getMessage(), e);
