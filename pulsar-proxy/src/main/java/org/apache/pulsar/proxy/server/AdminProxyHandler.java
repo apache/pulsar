@@ -38,6 +38,7 @@ import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -290,6 +291,19 @@ class AdminProxyHandler extends ProxyServlet {
         return new JettyHttpClient();
     }
 
+    private String getWebServiceUrl() throws PulsarServerException {
+        if (isBlank(brokerWebServiceUrl)) {
+            ServiceLookupData availableBroker = discoveryProvider.nextBroker();
+            if (config.isTlsEnabledWithBroker()) {
+                return availableBroker.getWebServiceUrlTls();
+            } else {
+                return availableBroker.getWebServiceUrl();
+            }
+        } else {
+            return brokerWebServiceUrl;
+        }
+    }
+
     @Override
     protected String rewriteTarget(HttpServletRequest request) {
         StringBuilder url = new StringBuilder();
@@ -305,27 +319,14 @@ class AdminProxyHandler extends ProxyServlet {
 
         if (isFunctionsRestRequest && !isBlank(functionWorkerWebServiceUrl)) {
             url.append(functionWorkerWebServiceUrl);
-        } else if (isBlank(brokerWebServiceUrl)) {
+        } else {
             try {
-                ServiceLookupData availableBroker = discoveryProvider.nextBroker();
-
-                if (config.isTlsEnabledWithBroker()) {
-                    url.append(availableBroker.getWebServiceUrlTls());
-                } else {
-                    url.append(availableBroker.getWebServiceUrl());
-                }
-
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("[{}:{}] Selected active broker is {}", request.getRemoteAddr(), request.getRemotePort(),
-                            url);
-                }
+                url.append(getWebServiceUrl());
             } catch (Exception e) {
                 LOG.warn("[{}:{}] Failed to get next active broker {}", request.getRemoteAddr(),
                         request.getRemotePort(), e.getMessage(), e);
                 return null;
             }
-        } else {
-            url.append(brokerWebServiceUrl);
         }
 
         if (url.lastIndexOf("/") == url.length() - 1) {
@@ -398,7 +399,7 @@ class AdminProxyHandler extends ProxyServlet {
     protected PulsarSslFactory createPulsarSslFactory() {
         try {
             try {
-                AuthenticationDataProvider authData = proxyClientAuthentication.getAuthData();
+                AuthenticationDataProvider authData = proxyClientAuthentication.getAuthData(getWebServiceUrl());
                 PulsarSslConfiguration pulsarSslConfiguration = buildSslConfiguration(authData);
                 PulsarSslFactory sslFactory =
                         (PulsarSslFactory) Class.forName(config.getBrokerClientSslFactoryPlugin())
