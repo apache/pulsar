@@ -3291,6 +3291,13 @@ public class ManagedCursorImpl implements ManagedCursor {
                 mbean.addWriteCursorLedgerSize(data.length);
                 callback.operationComplete();
             } else {
+                if (state == State.Closed) {
+                    // After closed the cursor, the in-progress persistence task will get a
+                    // BKException.Code.LedgerClosedException.
+                    callback.operationFailed(new CursorAlreadyClosedException(String.format("%s %s skipped this"
+                            + " persistence, because the cursor already closed", ledger.getName(), name)));
+                    return;
+                }
                 log.warn("[{}] Error updating cursor {} position {} in meta-ledger {}: {}", ledger.getName(), name,
                         position, lh1.getId(), BKException.getMessage(rc));
                 // If we've had a write error, the ledger will be automatically closed, we need to create a new one,
