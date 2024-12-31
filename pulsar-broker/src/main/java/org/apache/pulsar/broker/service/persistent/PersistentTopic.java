@@ -504,7 +504,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 } else {
                     final String subscriptionName = Codec.decode(cursor.getName());
                     subscriptions.put(subscriptionName, createPersistentSubscription(subscriptionName, cursor,
-                            PersistentSubscription.isCursorFromReplicatedSubscription(cursor),
+                            PersistentSubscription.isCursorFromReplicatedSubscription(cursor) ? true : null,
                             cursor.getCursorProperties()));
                     // subscription-cursor gets activated by default: deactivate as there is no active subscription
                     // right now

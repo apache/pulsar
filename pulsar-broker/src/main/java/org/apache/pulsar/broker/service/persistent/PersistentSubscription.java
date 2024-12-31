@@ -135,10 +135,6 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     private volatile CompletableFuture<Void> inProgressResetCursorFuture;
     private volatile Boolean replicatedControlled;
 
-    static {
-        REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES.put(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
-    }
-
     static Map<String, Long> getBaseCursorProperties(Boolean isReplicated) {
         return isReplicated != null && isReplicated ? REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES :
                 NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES;
