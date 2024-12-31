@@ -159,7 +159,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
         boolean sortNeeded = false;
         Position posPre = null;
         Position posAfter = null;
-        for(Map.Entry<Consumer, Position> entry : recentlyJoinedConsumers.entrySet()) {
+        for (Map.Entry<Consumer, Position> entry : recentlyJoinedConsumers.entrySet()) {
             if (posPre == null) {
                 posPre = entry.getValue();
             } else {
@@ -177,7 +177,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
             List<Map.Entry<Consumer, Position>> sortedList = new ArrayList<>(recentlyJoinedConsumers.entrySet());
             Collections.sort(sortedList, Map.Entry.comparingByValue());
             recentlyJoinedConsumers.clear();
-            for(Map.Entry<Consumer, Position> entry : sortedList) {
+            for (Map.Entry<Consumer, Position> entry : sortedList) {
                 recentlyJoinedConsumers.put(entry.getKey(), entry.getValue());
             }
         }
@@ -195,6 +195,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
         super.removeConsumer(consumer);
         if (recentlyJoinedConsumers != null) {
             recentlyJoinedConsumers.remove(consumer);
+            sortRecentlyJoinedConsumersIfNeeded();
             if (consumerList.size() == 1) {
                 recentlyJoinedConsumers.clear();
             }
