@@ -103,5 +103,5 @@ public interface Functions<W extends WorkerService> extends Component<W> {
 
     List<FunctionDefinition> getBuiltinFunctions(AuthenticationParameters authParams);
 
-    boolean checkForIllegalStateException();
+    boolean checkLiveliness();
 }

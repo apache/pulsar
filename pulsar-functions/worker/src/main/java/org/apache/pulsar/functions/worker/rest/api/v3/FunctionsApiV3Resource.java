@@ -432,10 +432,10 @@ public class FunctionsApiV3Resource extends FunctionApiResource {
     }
 
     @GET
-    @Path("/restart")
-    public Response checkForIllegalStateException() {
-        boolean isIllegalStateException = functions().checkForIllegalStateException();
-        if (isIllegalStateException) {
+    @Path("/live")
+    public Response checkLiveliness() {
+        boolean isAlive = functions().checkLiveliness();
+        if (!isAlive) {
             return Response.status(Response.Status.SERVICE_UNAVAILABLE)
                     .entity("There is IllegalStateException, Service is not running. Need to restart.")
                     .build();
