@@ -436,8 +436,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
                 if (entry.getValue().compareTo(nextPositionOfTheMarkDeletePosition) <= 0) {
                     itr.remove();
                     hasConsumerRemovedFromTheRecentJoinedConsumers = true;
-                } else {
-                    break;
                 }
             }
         }
