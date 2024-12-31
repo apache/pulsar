@@ -359,7 +359,9 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         @Cleanup
         Consumer<byte[]> ignoredConsumer =
                 pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name").subscribe();
+        verify(authentication, never()).getAuthData();
         @Cleanup
         Producer<byte[]> ignoredProducer = pulsarClient.newProducer().topic(topicName).create();
+        verify(authentication, never()).getAuthData();
     }
 }
