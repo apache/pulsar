@@ -560,8 +560,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
                 && ksm.isAllowOutOfOrderDelivery() == this.allowOutOfOrderDelivery);
     }
 
-    public LinkedHashMap<Consumer, Position> getRecentlyJoinedConsumers() {
-        return recentlyJoinedConsumers;
+    public synchronized LinkedHashMap<Consumer, Position> getRecentlyJoinedConsumers() {
+        return new LinkedHashMap<>(recentlyJoinedConsumers);
     }
 
     public Map<Consumer, List<Range>> getConsumerKeyHashRanges() {
