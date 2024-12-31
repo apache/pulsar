@@ -403,7 +403,8 @@ class AdminProxyHandler extends ProxyServlet {
     protected PulsarSslFactory createPulsarSslFactory() {
         try {
             try {
-                AuthenticationDataProvider authData = proxyClientAuthentication.getAuthData(getWebServiceUrl());
+                AuthenticationDataProvider authData =
+                        proxyClientAuthentication.getAuthData(URI.create(getWebServiceUrl()).getHost());
                 PulsarSslConfiguration pulsarSslConfiguration = buildSslConfiguration(authData);
                 PulsarSslFactory sslFactory =
                         (PulsarSslFactory) Class.forName(config.getBrokerClientSslFactoryPlugin())
