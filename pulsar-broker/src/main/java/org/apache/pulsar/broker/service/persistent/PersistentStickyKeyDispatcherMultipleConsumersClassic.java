@@ -594,6 +594,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
     }
 
     public synchronized LinkedHashMap<Consumer, Position> getRecentlyJoinedConsumers() {
+        if (recentlyJoinedConsumers == null) {
+            return null;
+        }
         return new LinkedHashMap<>(recentlyJoinedConsumers);
     }
 
