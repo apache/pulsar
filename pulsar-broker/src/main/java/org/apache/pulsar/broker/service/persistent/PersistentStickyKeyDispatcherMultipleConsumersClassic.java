@@ -170,6 +170,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
                     sortNeeded = true;
                     break;
                 }
+                posPre = posAfter;
             }
         }
 
@@ -195,7 +196,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
         super.removeConsumer(consumer);
         if (recentlyJoinedConsumers != null) {
             recentlyJoinedConsumers.remove(consumer);
-            sortRecentlyJoinedConsumersIfNeeded();
             if (consumerList.size() == 1) {
                 recentlyJoinedConsumers.clear();
             }

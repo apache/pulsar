@@ -192,7 +192,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
                 new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT));
 
         Consumer consumer0 = mock(Consumer.class);
-        when(consumer0.consumerName()).thenReturn("c0");
+        when(consumer0.consumerName()).thenReturn("c0-1");
         Consumer consumer1 = mock(Consumer.class);
         when(consumer1.consumerName()).thenReturn("c1");
         Consumer consumer2 = mock(Consumer.class);
@@ -203,6 +203,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
         when(consumer4.consumerName()).thenReturn("c4");
         Consumer consumer5 = mock(Consumer.class);
         when(consumer5.consumerName()).thenReturn("c5");
+        Consumer consumer6 = mock(Consumer.class);
+        when(consumer6.consumerName()).thenReturn("c6");
 
         when(cursorMock.getNumberOfEntriesSinceFirstNotAckedMessage()).thenReturn(100L);
         when(cursorMock.getMarkDeletedPosition()).thenReturn(PositionFactory.create(-1, -1));
@@ -210,43 +212,52 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
         when(cursorMock.getReadPosition()).thenReturn(PositionFactory.create(0, 0));
         persistentDispatcher.addConsumer(consumer0).join();
 
-        when(cursorMock.getReadPosition()).thenReturn(PositionFactory.create(5, 2));
+        when(cursorMock.getReadPosition()).thenReturn(PositionFactory.create(4, 1));
         persistentDispatcher.addConsumer(consumer1).join();
 
-        when(cursorMock.getReadPosition()).thenReturn(PositionFactory.create(5, 1));
+        when(cursorMock.getReadPosition()).thenReturn(PositionFactory.create(5, 2));
         persistentDispatcher.addConsumer(consumer2).join();
 
-        when(cursorMock.getReadPosition()).thenReturn(PositionFactory.create(5, 3));
+        when(cursorMock.getReadPosition()).thenReturn(PositionFactory.create(5, 1));
         persistentDispatcher.addConsumer(consumer3).join();
 
-        when(cursorMock.getReadPosition()).thenReturn(PositionFactory.create(4, 1));
+        when(cursorMock.getReadPosition()).thenReturn(PositionFactory.create(5, 3));
         persistentDispatcher.addConsumer(consumer4).join();
 
-        when(cursorMock.getReadPosition()).thenReturn(PositionFactory.create(6, 1));
+        when(cursorMock.getReadPosition()).thenReturn(PositionFactory.create(4, 2));
         persistentDispatcher.addConsumer(consumer5).join();
+
+        when(cursorMock.getReadPosition()).thenReturn(PositionFactory.create(6, 1));
+        persistentDispatcher.addConsumer(consumer6).join();
+
+        assertEquals(persistentDispatcher.getRecentlyJoinedConsumers().size(), 6);
 
         Iterator<Map.Entry<Consumer, Position>> itr
                 = persistentDispatcher.getRecentlyJoinedConsumers().entrySet().iterator();
 
         Map.Entry<Consumer, Position> entry1 = itr.next();
-        assertEquals(entry1.getKey(), consumer4);
         assertEquals(entry1.getValue(), PositionFactory.create(4, 1));
+        assertEquals(entry1.getKey(), consumer1);
 
         Map.Entry<Consumer, Position> entry2 = itr.next();
-        assertEquals(entry2.getKey(), consumer2);
-        assertEquals(entry2.getValue(), PositionFactory.create(5, 1));
+        assertEquals(entry2.getValue(), PositionFactory.create(4, 2));
+        assertEquals(entry2.getKey(), consumer5);
 
         Map.Entry<Consumer, Position> entry3 = itr.next();
-        assertEquals(entry3.getKey(), consumer1);
-        assertEquals(entry3.getValue(), PositionFactory.create(5, 2));
+        assertEquals(entry3.getValue(), PositionFactory.create(5, 1));
+        assertEquals(entry3.getKey(), consumer3);
 
         Map.Entry<Consumer, Position> entry4 = itr.next();
-        assertEquals(entry4.getKey(), consumer3);
-        assertEquals(entry4.getValue(), PositionFactory.create(5, 3));
+        assertEquals(entry4.getValue(), PositionFactory.create(5, 2));
+        assertEquals(entry4.getKey(), consumer2);
 
         Map.Entry<Consumer, Position> entry5 = itr.next();
-        assertEquals(entry5.getKey(), consumer5);
-        assertEquals(entry5.getValue(), PositionFactory.create(6, 1));
+        assertEquals(entry5.getValue(), PositionFactory.create(5, 3));
+        assertEquals(entry5.getKey(), consumer4);
+
+        Map.Entry<Consumer, Position> entry6 = itr.next();
+        assertEquals(entry6.getValue(), PositionFactory.create(6, 1));
+        assertEquals(entry6.getKey(), consumer6);
 
         // cleanup.
         persistentDispatcher.close();
