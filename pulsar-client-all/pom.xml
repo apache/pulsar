@@ -39,6 +39,17 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-original</artifactId>
       <version>${project.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>it.unimi.dsi</groupId>
+          <artifactId>fastutil</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-client-dependencies-minimized</artifactId>
+      <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -200,6 +211,8 @@
                   <include>org.reactivestreams:reactive-streams</include>
                   <include>org.tukaani:xz</include>
                   <include>org.yaml:snakeyaml</include>
+                  <include>org.apache.pulsar:pulsar-client-dependencies-minimized</include>
+                  <include>org.roaringbitmap:RoaringBitmap</include>
                 </includes>
                 <excludes>
                   <exclude>com.fasterxml.jackson.core:jackson-annotations</exclude>
@@ -318,6 +331,10 @@
                   <shadedPattern>org.apache.pulsar.shade.io.swagger</shadedPattern>
                 </relocation>
                 <relocation>
+                  <pattern>it.unimi.dsi.fastutil</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.it.unimi.dsi.fastutil</shadedPattern>
+                </relocation>
+                <relocation>
                   <pattern>javassist</pattern>
                   <shadedPattern>org.apache.pulsar.shade.javassist</shadedPattern>
                 </relocation>
@@ -359,6 +376,11 @@
                 <relocation>
                   <pattern>META-INF/versions/(\d+)/org/glassfish/</pattern>
                   <shadedPattern>META-INF/versions/$1/org/apache/pulsar/shade/org/glassfish/</shadedPattern>
+                  <rawString>true</rawString>
+                </relocation>
+                <relocation>
+                  <pattern>META-INF/versions/(\d+)/org/roaringbitmap/</pattern>
+                  <shadedPattern>META-INF/versions/$1/org/apache/pulsar/shade/org/roaringbitmap/</shadedPattern>
                   <rawString>true</rawString>
                 </relocation>
                 <relocation>
@@ -438,6 +460,10 @@
                 <relocation>
                   <pattern>org.reactivestreams</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.reactivestreams</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.roaringbitmap</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.roaringbitmap</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.tukaani</pattern>

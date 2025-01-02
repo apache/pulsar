@@ -2580,6 +2580,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-metadata</module>
         <module>jetcd-core-shaded</module>
         <module>jclouds-shaded</module>
+        <module>pulsar-client-dependencies-minimized</module>
 
         <!-- package management releated modules (begin) -->
         <module>pulsar-package-management</module>
@@ -2645,6 +2646,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>distribution</module>
         <module>pulsar-metadata</module>
         <module>jetcd-core-shaded</module>
+        <module>pulsar-client-dependencies-minimized</module>
         <!-- package management releated modules (begin) -->
         <module>pulsar-package-management</module>
         <!-- package management releated modules (end) -->
