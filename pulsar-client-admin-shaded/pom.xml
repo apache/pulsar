@@ -34,6 +34,17 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-admin-original</artifactId>
       <version>${project.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>it.unimi.dsi</groupId>
+          <artifactId>fastutil</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-client-dependencies-minimized</artifactId>
+      <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -150,6 +161,7 @@
                   <include>org.objenesis:*</include>
                   <include>org.reactivestreams:reactive-streams</include>
                   <include>org.yaml:snakeyaml</include>
+                  <include>org.apache.pulsar:pulsar-client-dependencies-minimized</include>
                 </includes>
                 <excludes>
                   <exclude>com.fasterxml.jackson.core:jackson-annotations</exclude>
@@ -268,6 +280,10 @@
                 <relocation>
                   <pattern>io.swagger</pattern>
                   <shadedPattern>org.apache.pulsar.shade.io.swagger</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>it.unimi.dsi.fastutil</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.it.unimi.dsi.fastutil</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>javassist</pattern>
