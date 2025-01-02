@@ -40,7 +40,7 @@ public class AuthenticationProviderList implements AuthenticationProvider {
 
     private interface AuthProcessor<T, W> {
 
-        T apply(W process) throws AuthenticationException;
+        T apply(W process) throws Exception;
 
     }
 
@@ -49,20 +49,29 @@ public class AuthenticationProviderList implements AuthenticationProvider {
         AUTH_REQUIRED,
     }
 
+    private static AuthenticationException newAuthenticationException(String message, Exception e) {
+        AuthenticationException authenticationException = new AuthenticationException(message);
+        if (e != null) {
+            authenticationException.initCause(e);
+        }
+        return authenticationException;
+    }
+
     static <T, W> T applyAuthProcessor(List<W> processors, AuthProcessor<T, W> authFunc)
         throws AuthenticationException {
-        AuthenticationException authenticationException = null;
+        Exception authenticationException = null;
         String errorCode = ErrorCode.UNKNOWN.name();
         for (W ap : processors) {
             try {
                 return authFunc.apply(ap);
-            } catch (AuthenticationException ae) {
+            } catch (Exception ae) {
                 if (log.isDebugEnabled()) {
                     log.debug("Authentication failed for auth provider " + ap.getClass() + ": ", ae);
                 }
-                // Store the exception so we can throw it later instead of a generic one
                 authenticationException = ae;
-                errorCode = ap.getClass().getSimpleName() + "-INVALID-AUTH";
+                if (ae instanceof AuthenticationException) {
+                    errorCode = ap.getClass().getSimpleName() + "-INVALID-AUTH";
+                }
             }
         }
 
@@ -75,7 +84,7 @@ public class AuthenticationProviderList implements AuthenticationProvider {
             AuthenticationMetrics.authenticateFailure(
                     AuthenticationProviderList.class.getSimpleName(),
                     "authentication-provider-list", errorCode);
-            throw authenticationException;
+            throw newAuthenticationException("Authentication failed", authenticationException);
         }
 
     }
@@ -273,12 +282,12 @@ public class AuthenticationProviderList implements AuthenticationProvider {
         throws AuthenticationException {
         final List<AuthenticationState> states = new ArrayList<>(providers.size());
 
-        AuthenticationException authenticationException = null;
+        Exception authenticationException = null;
         for (AuthenticationProvider provider : providers) {
             try {
                 AuthenticationState state = provider.newAuthState(authData, remoteAddress, sslSession);
                 states.add(state);
-            } catch (AuthenticationException ae) {
+            } catch (Exception ae) {
                 if (log.isDebugEnabled()) {
                     log.debug("Authentication failed for auth provider " + provider.getClass() + ": ", ae);
                 }
@@ -288,11 +297,8 @@ public class AuthenticationProviderList implements AuthenticationProvider {
         }
         if (states.isEmpty()) {
             log.debug("Failed to initialize a new auth state from {}", remoteAddress, authenticationException);
-            if (authenticationException != null) {
-                throw authenticationException;
-            } else {
-                throw new AuthenticationException("Failed to initialize a new auth state from " + remoteAddress);
-            }
+            throw newAuthenticationException("Failed to initialize a new auth state from " + remoteAddress,
+                    authenticationException);
         } else {
             return new AuthenticationListState(states);
         }
@@ -302,12 +308,12 @@ public class AuthenticationProviderList implements AuthenticationProvider {
     public AuthenticationState newHttpAuthState(HttpServletRequest request) throws AuthenticationException {
         final List<AuthenticationState> states = new ArrayList<>(providers.size());
 
-        AuthenticationException authenticationException = null;
+        Exception authenticationException = null;
         for (AuthenticationProvider provider : providers) {
             try {
                 AuthenticationState state = provider.newHttpAuthState(request);
                 states.add(state);
-            } catch (AuthenticationException ae) {
+            } catch (Exception ae) {
                 if (log.isDebugEnabled()) {
                     log.debug("Authentication failed for auth provider " + provider.getClass() + ": ", ae);
                 }
@@ -318,12 +324,9 @@ public class AuthenticationProviderList implements AuthenticationProvider {
         if (states.isEmpty()) {
             log.debug("Failed to initialize a new http auth state from {}",
                     request.getRemoteHost(), authenticationException);
-            if (authenticationException != null) {
-                throw authenticationException;
-            } else {
-                throw new AuthenticationException(
-                        "Failed to initialize a new http auth state from " + request.getRemoteHost());
-            }
+            throw newAuthenticationException(
+                    "Failed to initialize a new http auth state from " + request.getRemoteHost(),
+                    authenticationException);
         } else {
             return new AuthenticationListState(states);
         }
@@ -331,21 +334,10 @@ public class AuthenticationProviderList implements AuthenticationProvider {
 
     @Override
     public boolean authenticateHttpRequest(HttpServletRequest request, HttpServletResponse response) throws Exception {
-        Boolean authenticated = applyAuthProcessor(
+        return applyAuthProcessor(
             providers,
-            provider -> {
-                try {
-                    return provider.authenticateHttpRequest(request, response);
-                } catch (Exception e) {
-                    if (e instanceof AuthenticationException) {
-                        throw (AuthenticationException) e;
-                    } else {
-                        throw new AuthenticationException("Failed to authentication http request");
-                    }
-                }
-            }
+            provider -> provider.authenticateHttpRequest(request, response)
         );
-        return authenticated;
     }
 
     @Override
