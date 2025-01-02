@@ -146,9 +146,42 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
                         && consumerList.size() > 1
                         && cursor.getNumberOfEntriesSinceFirstNotAckedMessage() > 1) {
                     recentlyJoinedConsumers.put(consumer, readPositionWhenJoining);
+                    sortRecentlyJoinedConsumersIfNeeded();
                 }
             }
         });
+    }
+
+    private void sortRecentlyJoinedConsumersIfNeeded() {
+        if (recentlyJoinedConsumers.size() == 1) {
+            return;
+        }
+        boolean sortNeeded = false;
+        Position posPre = null;
+        Position posAfter = null;
+        for (Map.Entry<Consumer, Position> entry : recentlyJoinedConsumers.entrySet()) {
+            if (posPre == null) {
+                posPre = entry.getValue();
+            } else {
+                posAfter = entry.getValue();
+            }
+            if (posPre != null && posAfter != null) {
+                if (posPre.compareTo(posAfter) > 0) {
+                    sortNeeded = true;
+                    break;
+                }
+                posPre = posAfter;
+            }
+        }
+
+        if (sortNeeded) {
+            List<Map.Entry<Consumer, Position>> sortedList = new ArrayList<>(recentlyJoinedConsumers.entrySet());
+            Collections.sort(sortedList, Map.Entry.comparingByValue());
+            recentlyJoinedConsumers.clear();
+            for (Map.Entry<Consumer, Position> entry : sortedList) {
+                recentlyJoinedConsumers.put(entry.getKey(), entry.getValue());
+            }
+        }
     }
 
     @Override
@@ -560,8 +593,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
                 && ksm.isAllowOutOfOrderDelivery() == this.allowOutOfOrderDelivery);
     }
 
-    public LinkedHashMap<Consumer, Position> getRecentlyJoinedConsumers() {
-        return recentlyJoinedConsumers;
+    public synchronized LinkedHashMap<Consumer, Position> getRecentlyJoinedConsumers() {
+        if (recentlyJoinedConsumers == null) {
+            return null;
+        }
+        return new LinkedHashMap<>(recentlyJoinedConsumers);
     }
 
     public Map<Consumer, List<Range>> getConsumerKeyHashRanges() {
