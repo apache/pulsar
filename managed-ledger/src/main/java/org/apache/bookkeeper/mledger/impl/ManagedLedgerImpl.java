@@ -47,6 +47,7 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.Random;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -1347,6 +1348,64 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
         }, null);
         return result;
+    }
+
+    @Override
+    public CompletableFuture<Void> asyncAddLedgerProperty(long ledgerId, String key, String value) {
+        if (state.isFenced()) {
+            return CompletableFuture.failedFuture(new ManagedLedgerFencedException());
+        }
+        LedgerInfo li = ledgers.get(ledgerId);
+        if (li == null) {
+            return CompletableFuture.failedFuture(new ManagedLedgerException("Ledger not found"));
+        }
+
+        List<MLDataFormats.KeyValue> oldProperties = li.getPropertiesList();
+        Map<String, String> newPropertiesMap = new HashMap<>();
+        oldProperties.forEach(kv -> newPropertiesMap.put(kv.getKey(), kv.getValue()));
+        newPropertiesMap.put(key, value);
+
+        return updateAndPersistLedgerProperties(newPropertiesMap, li);
+    }
+
+    @Override
+    public CompletableFuture<Void> asyncRemoveLedgerProperty(long ledgerId, String key) {
+        if (state.isFenced()) {
+            return CompletableFuture.failedFuture(new ManagedLedgerFencedException());
+        }
+        LedgerInfo li = ledgers.get(ledgerId);
+        if (li == null) {
+            return CompletableFuture.failedFuture(new ManagedLedgerException("Ledger not found"));
+        }
+
+        List<MLDataFormats.KeyValue> oldProperties = li.getPropertiesList();
+        Map<String, String> newPropertiesMap = new HashMap<>();
+        oldProperties.forEach(kv -> newPropertiesMap.put(kv.getKey(), kv.getValue()));
+        newPropertiesMap.remove(key);
+
+        return updateAndPersistLedgerProperties(newPropertiesMap, li);
+    }
+
+    private CompletableFuture<Void> updateAndPersistLedgerProperties(Map<String, String> newPropertiesMap,
+                                                                     LedgerInfo li) {
+        List<MLDataFormats.KeyValue> newProperties = newPropertiesMap.entrySet().stream()
+                .map(e -> MLDataFormats.KeyValue.newBuilder().setKey(e.getKey()).setValue(e.getValue()).build())
+                .toList();
+        li = li.toBuilder().clearProperties().addAllProperties(newProperties).build();
+        ledgers.put(li.getLedgerId(), li);
+        CompletableFuture<Void> ret = new CompletableFuture<>();
+        asyncUpdateProperties(Collections.emptyMap(), false, null, new UpdatePropertiesCallback() {
+            @Override
+            public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                ret.complete(null);
+            }
+
+            @Override
+            public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                ret.completeExceptionally(exception);
+            }
+        }, null);
+        return ret;
     }
 
     @Override
