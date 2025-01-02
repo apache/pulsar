@@ -93,7 +93,8 @@ public class HttpClient implements Closeable {
         if ("https".equals(serviceNameResolver.getServiceUri().getServiceName())) {
             try {
                 // Set client key and certificate if available
-                AuthenticationDataProvider authData = authentication.getAuthData();
+                AuthenticationDataProvider authData =
+                        authentication.getAuthData(serviceNameResolver.resolveHostUri().getHost());
 
                 if (conf.isUseKeyStoreTls()) {
                     SSLContext sslCtx = null;
