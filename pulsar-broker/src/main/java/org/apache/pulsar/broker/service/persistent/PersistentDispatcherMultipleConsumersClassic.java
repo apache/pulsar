@@ -98,7 +98,8 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
     protected volatile boolean havePendingRead = false;
     protected volatile boolean havePendingReplayRead = false;
     protected volatile Position minReplayedPosition = null;
-    protected boolean shouldRewindBeforeReadingOrReplaying = false;
+    protected boolean shouldRewindBeforeReading = false;
+    protected boolean shouldSkipNextReplaying = false;
     protected final String name;
     private boolean sendInProgress = false;
     protected static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumersClassic>
@@ -173,12 +174,15 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
             return CompletableFuture.completedFuture(null);
         }
         if (consumerList.isEmpty()) {
-            if (havePendingRead || havePendingReplayRead) {
+            if (havePendingReplayRead) {
+                shouldSkipNextReplaying = true;
+            }
+            if (havePendingRead) {
                 // There is a pending read from previous run. We must wait for it to complete and then rewind
-                shouldRewindBeforeReadingOrReplaying = true;
+                shouldRewindBeforeReading = true;
             } else {
                 cursor.rewind();
-                shouldRewindBeforeReadingOrReplaying = false;
+                shouldRewindBeforeReading = false;
             }
             redeliveryMessages.clear();
             delayedDeliveryTracker.ifPresent(tracker -> {
@@ -600,9 +604,8 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
 
     @Override
     protected void cancelPendingRead() {
-        if ((havePendingRead || havePendingReplayRead) && cursor.cancelPendingReadRequest()) {
+        if ((havePendingRead) && cursor.cancelPendingReadRequest()) {
             havePendingRead = false;
-            havePendingReplayRead = false;
         }
     }
 
@@ -634,6 +637,10 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
             havePendingRead = false;
         } else {
             havePendingReplayRead = false;
+            if (shouldSkipNextReplaying && readType == ReadType.Replay) {
+                shouldSkipNextReplaying = false;
+                return;
+            }
         }
 
         if (readBatchSize < serviceConfig.getDispatcherMaxReadBatchSize()) {
@@ -647,11 +654,11 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
 
         readFailureBackoff.reduceToHalf();
 
-        if (shouldRewindBeforeReadingOrReplaying && readType == ReadType.Normal) {
+        if (shouldRewindBeforeReading && readType == ReadType.Normal) {
             // All consumers got disconnected before the completion of the read operation
             entries.forEach(Entry::release);
             cursor.rewind();
-            shouldRewindBeforeReadingOrReplaying = false;
+            shouldRewindBeforeReading = false;
             readMoreEntries();
             return;
         }
@@ -932,8 +939,10 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
             }
         }
 
-        if (shouldRewindBeforeReadingOrReplaying) {
-            shouldRewindBeforeReadingOrReplaying = false;
+        if (shouldSkipNextReplaying && readType == ReadType.Replay) {
+            shouldSkipNextReplaying = false;
+        } else if (shouldRewindBeforeReading && readType == ReadType.Normal) {
+            shouldRewindBeforeReading = false;
             cursor.rewind();
         }
 
