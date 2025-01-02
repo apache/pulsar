@@ -45,7 +45,9 @@ import io.netty.channel.EventLoopGroup;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -181,6 +183,85 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         verify(consumer, times(1)).disconnect();
         assertEquals(0, persistentDispatcher.getConsumers().size());
         assertTrue(persistentDispatcher.getSelector().getConsumerKeyHashRanges().isEmpty());
+    }
+
+    @Test
+    public void testSortRecentlyJoinedConsumersIfNeeded() throws Exception {
+        PersistentStickyKeyDispatcherMultipleConsumers persistentDispatcher =
+                new PersistentStickyKeyDispatcherMultipleConsumers(
+                topicMock, cursorMock, subscriptionMock, configMock,
+                new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT));
+
+        Consumer consumer0 = mock(Consumer.class);
+        when(consumer0.consumerName()).thenReturn("c0-1");
+        Consumer consumer1 = mock(Consumer.class);
+        when(consumer1.consumerName()).thenReturn("c1");
+        Consumer consumer2 = mock(Consumer.class);
+        when(consumer2.consumerName()).thenReturn("c2");
+        Consumer consumer3 = mock(Consumer.class);
+        when(consumer3.consumerName()).thenReturn("c3");
+        Consumer consumer4 = mock(Consumer.class);
+        when(consumer4.consumerName()).thenReturn("c4");
+        Consumer consumer5 = mock(Consumer.class);
+        when(consumer5.consumerName()).thenReturn("c5");
+        Consumer consumer6 = mock(Consumer.class);
+        when(consumer6.consumerName()).thenReturn("c6");
+
+        when(cursorMock.getNumberOfEntriesSinceFirstNotAckedMessage()).thenReturn(100L);
+        when(cursorMock.getMarkDeletedPosition()).thenReturn(PositionImpl.get(-1, -1));
+
+        when(cursorMock.getReadPosition()).thenReturn(PositionImpl.get(0, 0));
+        persistentDispatcher.addConsumer(consumer0).join();
+
+        when(cursorMock.getReadPosition()).thenReturn(PositionImpl.get(4, 1));
+        persistentDispatcher.addConsumer(consumer1).join();
+
+        when(cursorMock.getReadPosition()).thenReturn(PositionImpl.get(5, 2));
+        persistentDispatcher.addConsumer(consumer2).join();
+
+        when(cursorMock.getReadPosition()).thenReturn(PositionImpl.get(5, 1));
+        persistentDispatcher.addConsumer(consumer3).join();
+
+        when(cursorMock.getReadPosition()).thenReturn(PositionImpl.get(5, 3));
+        persistentDispatcher.addConsumer(consumer4).join();
+
+        when(cursorMock.getReadPosition()).thenReturn(PositionImpl.get(4, 2));
+        persistentDispatcher.addConsumer(consumer5).join();
+
+        when(cursorMock.getReadPosition()).thenReturn(PositionImpl.get(6, 1));
+        persistentDispatcher.addConsumer(consumer6).join();
+
+        assertEquals(persistentDispatcher.getRecentlyJoinedConsumers().size(), 6);
+
+        Iterator<Map.Entry<Consumer, PositionImpl>> itr
+                = persistentDispatcher.getRecentlyJoinedConsumers().entrySet().iterator();
+
+        Map.Entry<Consumer, PositionImpl> entry1 = itr.next();
+        assertEquals(entry1.getValue(), PositionImpl.get(4, 1));
+        assertEquals(entry1.getKey(), consumer1);
+
+        Map.Entry<Consumer, PositionImpl> entry2 = itr.next();
+        assertEquals(entry2.getValue(), PositionImpl.get(4, 2));
+        assertEquals(entry2.getKey(), consumer5);
+
+        Map.Entry<Consumer, PositionImpl> entry3 = itr.next();
+        assertEquals(entry3.getValue(), PositionImpl.get(5, 1));
+        assertEquals(entry3.getKey(), consumer3);
+
+        Map.Entry<Consumer, PositionImpl> entry4 = itr.next();
+        assertEquals(entry4.getValue(), PositionImpl.get(5, 2));
+        assertEquals(entry4.getKey(), consumer2);
+
+        Map.Entry<Consumer, PositionImpl> entry5 = itr.next();
+        assertEquals(entry5.getValue(), PositionImpl.get(5, 3));
+        assertEquals(entry5.getKey(), consumer4);
+
+        Map.Entry<Consumer, PositionImpl> entry6 = itr.next();
+        assertEquals(entry6.getValue(), PositionImpl.get(6, 1));
+        assertEquals(entry6.getKey(), consumer6);
+
+        // cleanup.
+        persistentDispatcher.close();
     }
 
     @Test
