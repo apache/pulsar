@@ -212,6 +212,7 @@
                   <include>org.tukaani:xz</include>
                   <include>org.yaml:snakeyaml</include>
                   <include>org.apache.pulsar:pulsar-client-dependencies-minimized</include>
+                  <include>org.roaringbitmap:RoaringBitmap</include>
                 </includes>
                 <excludes>
                   <exclude>com.fasterxml.jackson.core:jackson-annotations</exclude>
@@ -378,6 +379,11 @@
                   <rawString>true</rawString>
                 </relocation>
                 <relocation>
+                  <pattern>META-INF/versions/(\d+)/org/roaringbitmap/</pattern>
+                  <shadedPattern>META-INF/versions/$1/org/apache/pulsar/shade/org/roaringbitmap/</shadedPattern>
+                  <rawString>true</rawString>
+                </relocation>
+                <relocation>
                   <pattern>META-INF/versions/(\d+)/org/yaml/</pattern>
                   <shadedPattern>META-INF/versions/$1/org/apache/pulsar/shade/org/yaml/</shadedPattern>
                   <rawString>true</rawString>
@@ -454,6 +460,10 @@
                 <relocation>
                   <pattern>org.reactivestreams</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.reactivestreams</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.roaringbitmap</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.roaringbitmap</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.tukaani</pattern>
