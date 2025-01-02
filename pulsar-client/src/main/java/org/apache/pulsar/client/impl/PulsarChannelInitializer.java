@@ -71,7 +71,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         this.socks5ProxyAddress = conf.getSocks5ProxyAddress();
         this.socks5ProxyUsername = conf.getSocks5ProxyUsername();
         this.socks5ProxyPassword = conf.getSocks5ProxyPassword();
-        this.conf = conf;
+        this.conf = conf.clone();
         if (tlsEnabled) {
             this.pulsarSslFactoryMap = new ConcurrentHashMap<>();
             if (scheduledExecutorService != null && conf.getAutoCertRefreshSeconds() > 0) {
