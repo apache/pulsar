@@ -45,6 +45,8 @@ import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.CharsetUtil;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.SneakyThrows;
@@ -87,7 +89,7 @@ public class DirectProxyHandler {
     private final Runnable onHandshakeCompleteAction;
     private final boolean tlsHostnameVerificationEnabled;
     final boolean tlsEnabledWithBroker;
-    private PulsarSslFactory sslFactory;
+    private Map<String, PulsarSslFactory> pulsarSslFactoryMap;
 
     @SneakyThrows
     public DirectProxyHandler(ProxyService service, ProxyConnection proxyConnection) {
@@ -102,27 +104,42 @@ public class DirectProxyHandler {
         this.tlsEnabledWithBroker = service.getConfiguration().isTlsEnabledWithBroker();
         this.tlsHostnameVerificationEnabled = service.getConfiguration().isTlsHostnameVerificationEnabled();
         this.onHandshakeCompleteAction = proxyConnection::cancelKeepAliveTask;
-        ProxyConfiguration config = service.getConfiguration();
-
-        if (tlsEnabledWithBroker) {
-            AuthenticationDataProvider authData = null;
-
-            if (!isEmpty(config.getBrokerClientAuthenticationPlugin())) {
-                try {
-                    authData = authentication.getAuthData();
-                } catch (PulsarClientException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-            PulsarSslConfiguration sslConfiguration = buildSslConfiguration(config, authData);
-            this.sslFactory = (PulsarSslFactory) Class.forName(config.getSslFactoryPlugin())
-                    .getConstructor().newInstance();
-            this.sslFactory.initialize(sslConfiguration);
-            this.sslFactory.createInternalSslContext();
-        }
+        this.pulsarSslFactoryMap = new ConcurrentHashMap<>();
     }
 
     public void connect(String brokerHostAndPort, InetSocketAddress targetBrokerAddress, int protocolVersion) {
+        String remoteHost;
+        try {
+            remoteHost = parseHost(brokerHostAndPort);
+        } catch (IllegalArgumentException e) {
+            log.warn("[{}] Failed to parse broker host '{}'", inboundChannel, brokerHostAndPort, e);
+            inboundChannel.close();
+            return;
+        }
+        PulsarSslFactory sslFactory =
+                tlsEnabledWithBroker ? pulsarSslFactoryMap.computeIfAbsent(remoteHost, (hostname) -> {
+                    AuthenticationDataProvider authData = null;
+
+                    if (!isEmpty(service.getConfiguration().getBrokerClientAuthenticationPlugin())) {
+                        try {
+                            authData = authentication.getAuthData(remoteHost);
+                        } catch (PulsarClientException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                    PulsarSslConfiguration sslConfiguration =
+                            buildSslConfiguration(service.getConfiguration(), authData);
+                    try {
+                        PulsarSslFactory factory =
+                                (PulsarSslFactory) Class.forName(service.getConfiguration().getSslFactoryPlugin())
+                                        .getConstructor().newInstance();
+                        factory.initialize(sslConfiguration);
+                        factory.createInternalSslContext();
+                        return factory;
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                }) : null;
         ProxyConfiguration config = service.getConfiguration();
 
         // Start the connection attempt.
@@ -140,15 +157,6 @@ public class DirectProxyHandler {
 
         if (service.proxyZeroCopyModeEnabled && EpollSocketChannel.class.isAssignableFrom(inboundChannel.getClass())) {
             b.option(EpollChannelOption.EPOLL_MODE, EpollMode.LEVEL_TRIGGERED);
-        }
-
-        String remoteHost;
-        try {
-            remoteHost = parseHost(brokerHostAndPort);
-        } catch (IllegalArgumentException e) {
-            log.warn("[{}] Failed to parse broker host '{}'", inboundChannel, brokerHostAndPort, e);
-            inboundChannel.close();
-            return;
         }
 
         b.handler(new ChannelInitializer<SocketChannel>() {
