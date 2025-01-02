@@ -34,6 +34,7 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import lombok.Setter;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
@@ -82,6 +83,15 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
      */
     private final LinkedHashMap<Consumer, Position> recentlyJoinedConsumers;
 
+    /**
+     * The method {@link #sortRecentlyJoinedConsumersIfNeeded} is a un-normal method, which used to fix the issue that
+     * was described at https://github.com/apache/pulsar/pull/23795.
+     * To cover the case that does not contain the hot fix that https://github.com/apache/pulsar/pull/23795 provided,
+     * we add this method to reproduce the issue in tests.
+     **/
+    @Setter
+    public boolean sortRecentlyJoinedConsumersIfNeeded = true;
+
     PersistentStickyKeyDispatcherMultipleConsumersClassic(PersistentTopic topic, ManagedCursor cursor,
                                                           Subscription subscription, ServiceConfiguration conf,
                                                           KeySharedMeta ksm) {
@@ -110,6 +120,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
         default:
             throw new IllegalArgumentException("Invalid key-shared mode: " + keySharedMode);
         }
+    }
+
+    @Override
+    protected synchronized void afterRewindAfterPendingRead() {
+        recentlyJoinedConsumers.clear();
     }
 
     @VisibleForTesting
@@ -153,6 +168,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
     }
 
     private void sortRecentlyJoinedConsumersIfNeeded() {
+        if (!sortRecentlyJoinedConsumersIfNeeded) {
+            return;
+        }
         if (recentlyJoinedConsumers.size() == 1) {
             return;
         }
@@ -173,8 +191,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
                 posPre = posAfter;
             }
         }
-
         if (sortNeeded) {
+            log.error("[{}] [{}] The items in recentlyJoinedConsumers are out-of-order. {}",
+                    topic.getName(), name, recentlyJoinedConsumers.entrySet().stream().map(entry ->
+                            String.format("%s-%s:%s", entry.getKey().consumerName(), entry.getValue().getLedgerId(),
+                                    entry.getValue().getEntryId())).collect(Collectors.toList()));
             List<Map.Entry<Consumer, Position>> sortedList = new ArrayList<>(recentlyJoinedConsumers.entrySet());
             Collections.sort(sortedList, Map.Entry.comparingByValue());
             recentlyJoinedConsumers.clear();
