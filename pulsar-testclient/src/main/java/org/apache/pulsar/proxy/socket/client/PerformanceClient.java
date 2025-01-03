@@ -263,7 +263,7 @@ public class PerformanceClient {
                     Authentication auth = AuthenticationFactory.create(arguments.authPluginClassName,
                             arguments.authParams);
                     auth.start();
-                    AuthenticationDataProvider authData = auth.getAuthData();
+                    AuthenticationDataProvider authData = auth.getAuthData(produceUri.getHost());
                     if (authData.hasDataForHttp()) {
                         for (Map.Entry<String, String> kv : authData.getHttpHeaders()) {
                             produceRequest.setHeader(kv.getKey(), kv.getValue());

@@ -29,8 +29,10 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.SslProvider;
 import java.net.InetSocketAddress;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.Getter;
@@ -59,9 +61,9 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     private final InetSocketAddress socks5ProxyAddress;
     private final String socks5ProxyUsername;
     private final String socks5ProxyPassword;
-
-    private final Supplier<SslContext> sslContextSupplier;
-    private NettySSLContextAutoRefreshBuilder nettySSLContextAutoRefreshBuilder;
+    private final ClientConfigurationData conf;
+    private Map<String, Supplier<SslContext>> sslContextSupplierMap;
+    private Map<String, NettySSLContextAutoRefreshBuilder> nettySSLContextAutoRefreshBuilderMap;
 
     private static final long TLS_CERTIFICATE_CACHE_MILLIS = TimeUnit.MINUTES.toMillis(1);
 
@@ -76,71 +78,9 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         this.socks5ProxyPassword = conf.getSocks5ProxyPassword();
 
         this.tlsEnabledWithKeyStore = conf.isUseKeyStoreTls();
-
-        if (tlsEnabled) {
-            if (tlsEnabledWithKeyStore) {
-                AuthenticationDataProvider authData1 = conf.getAuthentication().getAuthData();
-                if (StringUtils.isBlank(conf.getTlsTrustStorePath())) {
-                    throw new PulsarClientException("Failed to create TLS context, the tlsTrustStorePath"
-                            + " need to be configured if useKeyStoreTls enabled");
-                }
-                nettySSLContextAutoRefreshBuilder = new NettySSLContextAutoRefreshBuilder(
-                            conf.getSslProvider(),
-                            conf.isTlsAllowInsecureConnection(),
-                            conf.getTlsTrustStoreType(),
-                            conf.getTlsTrustStorePath(),
-                            conf.getTlsTrustStorePassword(),
-                            conf.getTlsKeyStoreType(),
-                            conf.getTlsKeyStorePath(),
-                            conf.getTlsKeyStorePassword(),
-                            conf.getTlsCiphers(),
-                            conf.getTlsProtocols(),
-                            TLS_CERTIFICATE_CACHE_MILLIS,
-                            authData1);
-            }
-
-            sslContextSupplier = new ObjectCache<SslContext>(() -> {
-                try {
-                    SslProvider sslProvider = null;
-                    if (conf.getSslProvider() != null) {
-                        sslProvider = SslProvider.valueOf(conf.getSslProvider());
-                    }
-
-                    // Set client certificate if available
-                    AuthenticationDataProvider authData = conf.getAuthentication().getAuthData();
-                    if (authData.hasDataForTls()) {
-                        return authData.getTlsTrustStoreStream() == null
-                                ? SecurityUtility.createNettySslContextForClient(
-                                sslProvider,
-                                conf.isTlsAllowInsecureConnection(),
-                                conf.getTlsTrustCertsFilePath(),
-                                authData.getTlsCertificates(),
-                                authData.getTlsPrivateKey(),
-                                conf.getTlsCiphers(),
-                                conf.getTlsProtocols())
-                                : SecurityUtility.createNettySslContextForClient(sslProvider,
-                                conf.isTlsAllowInsecureConnection(),
-                                authData.getTlsTrustStoreStream(),
-                                authData.getTlsCertificates(), authData.getTlsPrivateKey(),
-                                conf.getTlsCiphers(),
-                                conf.getTlsProtocols());
-                    } else {
-                        return SecurityUtility.createNettySslContextForClient(
-                                sslProvider,
-                                conf.isTlsAllowInsecureConnection(),
-                                conf.getTlsTrustCertsFilePath(),
-                                conf.getTlsCertificateFilePath(),
-                                conf.getTlsKeyFilePath(),
-                                conf.getTlsCiphers(),
-                                conf.getTlsProtocols());
-                    }
-                } catch (Exception e) {
-                    throw new RuntimeException("Failed to create TLS context", e);
-                }
-            }, TLS_CERTIFICATE_CACHE_MILLIS, TimeUnit.MILLISECONDS);
-        } else {
-            sslContextSupplier = null;
-        }
+        this.conf = conf.clone();
+        this.sslContextSupplierMap = new ConcurrentHashMap<>();
+        this.nettySSLContextAutoRefreshBuilderMap = new ConcurrentHashMap<>();
     }
 
     @Override
@@ -154,6 +94,75 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
                 Commands.DEFAULT_MAX_MESSAGE_SIZE + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
         ChannelHandler clientCnx = clientCnxSupplier.get();
         ch.pipeline().addLast("handler", clientCnx);
+    }
+
+    private NettySSLContextAutoRefreshBuilder getNettySSLContextAutoRefreshBuilder(String host)
+            throws PulsarClientException {
+        if (tlsEnabledWithKeyStore) {
+            AuthenticationDataProvider authData1 = conf.getAuthentication().getAuthData(host);
+            if (StringUtils.isBlank(conf.getTlsTrustStorePath())) {
+                throw new PulsarClientException("Failed to create TLS context, the tlsTrustStorePath"
+                        + " need to be configured if useKeyStoreTls enabled");
+            }
+            return nettySSLContextAutoRefreshBuilderMap.computeIfAbsent(host,
+                    key -> new NettySSLContextAutoRefreshBuilder(
+                            conf.getSslProvider(),
+                            conf.isTlsAllowInsecureConnection(),
+                            conf.getTlsTrustStoreType(),
+                            conf.getTlsTrustStorePath(),
+                            conf.getTlsTrustStorePassword(),
+                            conf.getTlsKeyStoreType(),
+                            conf.getTlsKeyStorePath(),
+                            conf.getTlsKeyStorePassword(),
+                            conf.getTlsCiphers(),
+                            conf.getTlsProtocols(),
+                            TLS_CERTIFICATE_CACHE_MILLIS,
+                            authData1));
+        }
+        throw new PulsarClientException(
+                "Failed to create TLS context, the tlsEnabledWithKeyStore need to be true");
+    }
+
+    private Supplier<SslContext> getSslContextSupplier(String host) {
+        return sslContextSupplierMap.computeIfAbsent(host, key -> new ObjectCache<>(() -> {
+            try {
+                SslProvider sslProvider = null;
+                if (conf.getSslProvider() != null) {
+                    sslProvider = SslProvider.valueOf(conf.getSslProvider());
+                }
+
+                // Set client certificate if available
+                AuthenticationDataProvider authData = conf.getAuthentication().getAuthData(host);
+                if (authData.hasDataForTls()) {
+                    return authData.getTlsTrustStoreStream() == null
+                            ? SecurityUtility.createNettySslContextForClient(
+                            sslProvider,
+                            conf.isTlsAllowInsecureConnection(),
+                            conf.getTlsTrustCertsFilePath(),
+                            authData.getTlsCertificates(),
+                            authData.getTlsPrivateKey(),
+                            conf.getTlsCiphers(),
+                            conf.getTlsProtocols())
+                            : SecurityUtility.createNettySslContextForClient(sslProvider,
+                            conf.isTlsAllowInsecureConnection(),
+                            authData.getTlsTrustStoreStream(),
+                            authData.getTlsCertificates(), authData.getTlsPrivateKey(),
+                            conf.getTlsCiphers(),
+                            conf.getTlsProtocols());
+                } else {
+                    return SecurityUtility.createNettySslContextForClient(
+                            sslProvider,
+                            conf.isTlsAllowInsecureConnection(),
+                            conf.getTlsTrustCertsFilePath(),
+                            conf.getTlsCertificateFilePath(),
+                            conf.getTlsKeyFilePath(),
+                            conf.getTlsCiphers(),
+                            conf.getTlsProtocols());
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to create TLS context", e);
+            }
+        }, TLS_CERTIFICATE_CACHE_MILLIS, TimeUnit.MILLISECONDS));
     }
 
    /**
@@ -175,9 +184,10 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         ch.eventLoop().execute(() -> {
             try {
                 SslHandler handler = tlsEnabledWithKeyStore
-                        ? new SslHandler(nettySSLContextAutoRefreshBuilder.get()
-                                .createSSLEngine(sniHost.getHostString(), sniHost.getPort()))
-                        : sslContextSupplier.get().newHandler(ch.alloc(), sniHost.getHostString(), sniHost.getPort());
+                        ? new SslHandler(getNettySSLContextAutoRefreshBuilder(sniHost.getHostName()).get()
+                        .createSSLEngine(sniHost.getHostString(), sniHost.getPort()))
+                        : getSslContextSupplier(sniHost.getHostName()).get()
+                        .newHandler(ch.alloc(), sniHost.getHostString(), sniHost.getPort());
 
                 if (tlsHostnameVerificationEnabled) {
                     SecurityUtility.configureSSLHandler(handler);

@@ -186,7 +186,8 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                                                           DefaultAsyncHttpClientConfig.Builder confBuilder)
             throws GeneralSecurityException, IOException {
         // Set client key and certificate if available
-        AuthenticationDataProvider authData = conf.getAuthentication().getAuthData();
+        AuthenticationDataProvider authData = conf.getAuthentication().getAuthData(serviceNameResolver
+                .resolveHostUri().getHost());
 
         SslEngineFactory sslEngineFactory = null;
         if (conf.isUseKeyStoreTls()) {
