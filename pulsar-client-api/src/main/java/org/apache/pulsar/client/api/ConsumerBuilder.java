@@ -244,6 +244,19 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> negativeAckRedeliveryDelay(long redeliveryDelay, TimeUnit timeUnit);
 
     /**
+     * Sets the redelivery time precision bit count. The lower bits of the redelivery time will be
+     * trimmed to reduce the memory occupation. The default value is 8, which means the redelivery time
+     * will be bucketed by 256ms, the redelivery time could be earlier(no later) than the expected time,
+     * but no more than 256ms. If set to k, the redelivery time will be bucketed by 2^k ms.
+     * If the value is 0, the redelivery time will be accurate to ms.
+     *
+     * @param negativeAckPrecisionBitCnt
+     *            The redelivery time precision bit count.
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> negativeAckRedeliveryDelayPrecision(int negativeAckPrecisionBitCount);
+
+    /**
      * Select the subscription type to be used when subscribing to a topic.
      *
      * <p>Options are:
