@@ -34,6 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
 
 /**
  * This is the Java Instance. This is started by the runtimeSpawner using the JavaInstanceClient
@@ -106,12 +107,18 @@ public class JavaInstance implements AutoCloseable {
     public JavaExecutionResult handleMessage(Record<?> record, Object input) {
         return handleMessage(record, input, (rec, result) -> {
         }, cause -> {
-        });
+        },null);
+    }
+
+    // register end time
+    public void ProcessEndTime(ComponentStatsManager statsManager){
+        if(statsManager != null)
+            statsManager.processTimeEnd();
     }
 
     public JavaExecutionResult handleMessage(Record<?> record, Object input,
                                              JavaInstanceRunnable.AsyncResultConsumer asyncResultConsumer,
-                                             Consumer<Throwable> asyncFailureHandler) {
+                                             Consumer<Throwable> asyncFailureHandler, ComponentStatsManager stats) {
         if (context != null) {
             context.setCurrentMessageContext(record);
         }
@@ -128,6 +135,7 @@ public class JavaInstance implements AutoCloseable {
             }
         } catch (Exception ex) {
             executionResult.setUserException(ex);
+            ProcessEndTime(stats);
             return executionResult;
         }
 
@@ -164,10 +172,12 @@ public class JavaInstance implements AutoCloseable {
                         asyncFailureHandler.accept(innerException);
                     }
                 }, executor);
+                ProcessEndTime(stats);
                 return null;
             } catch (InterruptedException ie) {
                 log.warn("Exception while put Async requests", ie);
                 executionResult.setUserException(ie);
+                ProcessEndTime(stats);
                 return executionResult;
             }
         } else {
@@ -175,6 +185,7 @@ public class JavaInstance implements AutoCloseable {
                 log.debug("Got result: object: {}", output);
             }
             executionResult.setResult(output);
+            ProcessEndTime(stats);
             return executionResult;
         }
     }

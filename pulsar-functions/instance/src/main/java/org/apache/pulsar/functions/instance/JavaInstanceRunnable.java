@@ -343,11 +343,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                         currentRecord,
                         currentRecord.getValue(),
                         asyncResultConsumer,
-                        asyncErrorHandler);
+                        asyncErrorHandler,
+                        stats);
                 Thread.currentThread().setContextClassLoader(instanceClassLoader);
-
-                // register end time
-                stats.processTimeEnd();
 
                 if (result != null) {
                     // process the synchronous results
