@@ -282,6 +282,13 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
+    public ConsumerBuilder<T> negativeAckPrecisionBitCnt(int negativeAckPrecisionBitCnt) {
+        checkArgument(negativeAckPrecisionBitCnt>= 0, "negativeAckPrecisionBitCnt needs to be >= 0");
+        conf.setNegativeAckPrecisionBitCnt(negativeAckPrecisionBitCnt);
+        return this;
+    }
+
+    @Override
     public ConsumerBuilder<T> subscriptionType(@NonNull SubscriptionType subscriptionType) {
         conf.setSubscriptionType(subscriptionType);
         return this;
