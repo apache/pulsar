@@ -122,11 +122,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
         }
     }
 
-    @Override
-    protected synchronized void finishedRewindAfterInProgressReading() {
-        recentlyJoinedConsumers.clear();
-    }
-
     @VisibleForTesting
     public StickyKeyConsumerSelector getSelector() {
         return selector;
@@ -159,7 +154,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
                 if (!allowOutOfOrderDelivery
                         && recentlyJoinedConsumers != null
                         && consumerList.size() > 1
-                        && cursor.getNumberOfEntriesSinceFirstNotAckedMessage() > 1) {
+                        && cursor.getNumberOfEntriesSinceFirstNotAckedMessage() > 1
+                        && !shouldRewindBeforeReadingOrReplaying) {
                     recentlyJoinedConsumers.put(consumer, readPositionWhenJoining);
                     sortRecentlyJoinedConsumersIfNeeded();
                 }
@@ -174,6 +170,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
         if (recentlyJoinedConsumers.size() == 1) {
             return;
         }
+        // Since we check the order of queue after each consumer joined, we can only check the last two items.
         boolean sortNeeded = false;
         Position posPre = null;
         Position posAfter = null;
@@ -181,16 +178,16 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
             if (posPre == null) {
                 posPre = entry.getValue();
             } else {
+                posPre = posAfter;
                 posAfter = entry.getValue();
             }
-            if (posPre != null && posAfter != null) {
-                if (posPre.compareTo(posAfter) > 0) {
-                    sortNeeded = true;
-                    break;
-                }
-                posPre = posAfter;
+        }
+        if (posPre != null && posAfter != null) {
+            if (posPre.compareTo(posAfter) > 0) {
+                sortNeeded = true;
             }
         }
+        // Something went wrongly, sort the collection.
         if (sortNeeded) {
             log.error("[{}] [{}] The items in recentlyJoinedConsumers are out-of-order. {}",
                     topic.getName(), name, recentlyJoinedConsumers.entrySet().stream().map(entry ->
