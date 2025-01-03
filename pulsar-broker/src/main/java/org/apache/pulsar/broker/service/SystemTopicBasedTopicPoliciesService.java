@@ -428,7 +428,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             }
             if (hasMore) {
                 reader.readNextAsync().thenAccept(msg -> {
-                    refreshTopicPoliciesCache(msg);
+                    try {
+                        refreshTopicPoliciesCache(msg);
+                    } finally {
+                        msg.release();
+                    }
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Loop next event reading for system topic.",
                                 reader.getSystemTopic().getTopicName().getNamespaceObject());
@@ -505,8 +509,12 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         }
         reader.readNextAsync()
                 .thenAccept(msg -> {
-                    refreshTopicPoliciesCache(msg);
-                    notifyListener(msg);
+                    try {
+                        refreshTopicPoliciesCache(msg);
+                        notifyListener(msg);
+                    } finally {
+                        msg.release();
+                    }
                 })
                 .whenComplete((__, ex) -> {
                     if (ex == null) {
