@@ -545,4 +545,51 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         consumer.close();
         admin.topics().deletePartitionedTopic("persistent://public/default/" + topic);
     }
+
+    @DataProvider(name = "negativeAckPrecisionBitCnt")
+    public Object[][] negativeAckPrecisionBitCnt() {
+        return new Object[][]{
+                {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}, {11}, {12}
+        };
+    }
+
+    /**
+     * When negativeAckPrecisionBitCnt is greater than 0, the lower bits of the redelivery time will be truncated
+     * to reduce the memory occupation. If set to k, the redelivery time will be bucketed by 2^k ms, resulting in
+     * the redelivery time could be earlier(no later) than the expected time no more than 2^k ms.
+     * @throws Exception if an error occurs
+     */
+    @Test(dataProvider = "negativeAckPrecisionBitCnt")
+    public void testConfigureNegativeAckPrecisionBitCnt(int negativeAckPrecisionBitCnt) throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("testConfigureNegativeAckPrecisionBitCnt");
+        long timeDeviation = 1L << negativeAckPrecisionBitCnt;
+        long delayInMs = 2000;
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub1")
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscriptionType(SubscriptionType.Shared)
+                .negativeAckRedeliveryDelay(delayInMs, TimeUnit.MILLISECONDS)
+                .negativeAckRedeliveryDelayPrecision(negativeAckPrecisionBitCnt)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+        producer.sendAsync("test-0");
+        producer.flush();
+
+        // receive the message and negative ack
+        consumer.negativeAcknowledge(consumer.receive());
+        long expectedTime = System.currentTimeMillis() + delayInMs;
+
+        // receive the redelivered message and calculate the time deviation
+        // assert that the redelivery time is no earlier than the `expected time - timeDeviation`
+        Message<String> msg1 = consumer.receive();
+        assertTrue(System.currentTimeMillis() >= expectedTime - timeDeviation);
+        assertNotNull(msg1);
+    }
 }
