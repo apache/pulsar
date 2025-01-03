@@ -2906,6 +2906,7 @@ public class PersistentTopicsBase extends AdminResource {
                             if (exception instanceof ManagedLedgerException.LedgerNotExistException) {
                                 results.completeExceptionally(
                                         new RestException(Status.NOT_FOUND, "Message id not found"));
+                                return;
                             }
                             results.completeExceptionally(new RestException(exception));
                         }
