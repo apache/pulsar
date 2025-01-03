@@ -284,8 +284,9 @@ public interface Schema<T> extends Cloneable {
      * @return a Schema instance
      */
     static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF(Class<T> clazz) {
-        return DefaultImplementation.getDefaultImplementation()
-                .newProtobufSchema(SchemaDefinition.builder().withPojo(clazz).build());
+        return SchemaCache.getOrCreateSchema(clazz, SchemaType.PROTOBUF, 
+            cls -> DefaultImplementation.getDefaultImplementation()
+                .newProtobufSchema(SchemaDefinition.builder().withPojo(cls).build()));
     }
 
     /**
@@ -295,9 +296,8 @@ public interface Schema<T> extends Cloneable {
      * @return a Schema instance
      */
     static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF(SchemaDefinition<T> schemaDefinition) {
-        return DefaultImplementation.getDefaultImplementation().newProtobufSchema(schemaDefinition);
+        return DefaultImplementation.getDefaultImplementation().newProtobufNativeSchema(schemaDefinition);
     }
-
     /**
      * Create a Protobuf-Native schema type by extracting the fields of the specified class.
      *
@@ -305,8 +305,9 @@ public interface Schema<T> extends Cloneable {
      * @return a Schema instance
      */
     static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF_NATIVE(Class<T> clazz) {
-        return DefaultImplementation.getDefaultImplementation()
-                .newProtobufNativeSchema(SchemaDefinition.builder().withPojo(clazz).build());
+         return SchemaCache.getOrCreateSchema(clazz, SchemaType.JSON, 
+            cls -> DefaultImplementation.getDefaultImplementation()
+                .newJSONSchema(SchemaDefinition.builder().withPojo(cls).build()));
     }
 
     /**
@@ -327,8 +328,9 @@ public interface Schema<T> extends Cloneable {
      * @return a Schema instance
      */
     static <T> Schema<T> AVRO(Class<T> pojo) {
-        return DefaultImplementation.getDefaultImplementation()
-                .newAvroSchema(SchemaDefinition.builder().withPojo(pojo).build());
+        return SchemaCache.getOrCreateSchema(pojo, SchemaType.JSON, 
+            cls -> DefaultImplementation.getDefaultImplementation()
+                .newJSONSchema(SchemaDefinition.builder().withPojo(cls).build()));
     }
 
     /**
@@ -348,8 +350,9 @@ public interface Schema<T> extends Cloneable {
      * @return a Schema instance
      */
     static <T> Schema<T> JSON(Class<T> pojo) {
-        return DefaultImplementation.getDefaultImplementation()
-                .newJSONSchema(SchemaDefinition.builder().withPojo(pojo).build());
+        return SchemaCache.getOrCreateSchema(pojo, SchemaType.JSON, 
+            cls -> DefaultImplementation.getDefaultImplementation()
+                .newJSONSchema(SchemaDefinition.builder().withPojo(cls).build()));
     }
 
     /**
