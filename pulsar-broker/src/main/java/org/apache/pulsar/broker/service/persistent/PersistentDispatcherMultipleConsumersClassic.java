@@ -627,7 +627,7 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
         return SubType.Shared;
     }
 
-    protected synchronized void finishedRewindAfterPendingRead(){}
+    protected synchronized void finishedRewindAfterInProgressReading(){}
 
     @Override
     public final synchronized void readEntriesComplete(List<Entry> entries, Object ctx) {
@@ -654,7 +654,7 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
             entries.forEach(Entry::release);
             cursor.rewind();
             shouldRewindBeforeReadingOrReplaying = false;
-            finishedRewindAfterPendingRead();
+            finishedRewindAfterInProgressReading();
             readMoreEntries();
             return;
         }
@@ -938,7 +938,7 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
         if (shouldRewindBeforeReadingOrReplaying) {
             shouldRewindBeforeReadingOrReplaying = false;
             cursor.rewind();
-            finishedRewindAfterPendingRead();
+            finishedRewindAfterInProgressReading();
         }
 
         if (readType == ReadType.Normal) {
