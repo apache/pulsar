@@ -284,8 +284,8 @@ public interface Schema<T> extends Cloneable {
      * @return a Schema instance
      */
     static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF(Class<T> clazz) {
-        return DefaultImplementation.getDefaultImplementation()
-                .newProtobufSchema(SchemaDefinition.builder().withPojo(clazz).build());
+        return DefaultImplementation.getDefaultImplementation().newProtobufSchema(clazz);
+
     }
 
     /**
@@ -297,7 +297,6 @@ public interface Schema<T> extends Cloneable {
     static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF(SchemaDefinition<T> schemaDefinition) {
         return DefaultImplementation.getDefaultImplementation().newProtobufSchema(schemaDefinition);
     }
-
     /**
      * Create a Protobuf-Native schema type by extracting the fields of the specified class.
      *
@@ -305,8 +304,8 @@ public interface Schema<T> extends Cloneable {
      * @return a Schema instance
      */
     static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF_NATIVE(Class<T> clazz) {
-        return DefaultImplementation.getDefaultImplementation()
-                .newProtobufNativeSchema(SchemaDefinition.builder().withPojo(clazz).build());
+        return DefaultImplementation.getDefaultImplementation().newProtobufNativeSchema(clazz);
+
     }
 
     /**
@@ -327,8 +326,7 @@ public interface Schema<T> extends Cloneable {
      * @return a Schema instance
      */
     static <T> Schema<T> AVRO(Class<T> pojo) {
-        return DefaultImplementation.getDefaultImplementation()
-                .newAvroSchema(SchemaDefinition.builder().withPojo(pojo).build());
+        return DefaultImplementation.getDefaultImplementation().newAvroSchema(pojo);
     }
 
     /**
@@ -348,8 +346,7 @@ public interface Schema<T> extends Cloneable {
      * @return a Schema instance
      */
     static <T> Schema<T> JSON(Class<T> pojo) {
-        return DefaultImplementation.getDefaultImplementation()
-                .newJSONSchema(SchemaDefinition.builder().withPojo(pojo).build());
+        return DefaultImplementation.getDefaultImplementation().newJSONSchema(pojo);
     }
 
     /**
