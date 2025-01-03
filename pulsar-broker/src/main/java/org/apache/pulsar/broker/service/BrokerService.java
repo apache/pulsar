@@ -3563,10 +3563,9 @@ public class BrokerService implements Closeable {
     }
 
     public boolean isDefaultTopicTypePartitioned(final TopicName topicName, final Optional<Policies> policies) {
-        if (TopicType.NON_PARTITIONED.equals(pulsar.getConfiguration().getAllowAutoRetryOrDLQTopicCreationType())
-                && (topicName.getPartitionedTopicName().endsWith(DLQ_GROUP_TOPIC_SUFFIX)
-                || topicName.getPartitionedTopicName().endsWith(RETRY_GROUP_TOPIC_SUFFIX))) {
-            return false;
+        if (topicName.getPartitionedTopicName().endsWith(DLQ_GROUP_TOPIC_SUFFIX)
+                || topicName.getPartitionedTopicName().endsWith(RETRY_GROUP_TOPIC_SUFFIX)) {
+            return TopicType.PARTITIONED.equals(pulsar.getConfiguration().getAllowAutoTopicCreationType());
         }
         AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName, policies);
         if (autoTopicCreationOverride != null) {
