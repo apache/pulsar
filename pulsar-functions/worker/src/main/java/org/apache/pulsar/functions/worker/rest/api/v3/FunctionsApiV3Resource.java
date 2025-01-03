@@ -432,8 +432,13 @@ public class FunctionsApiV3Resource extends FunctionApiResource {
     }
 
     @GET
-    @Path("/live")
-    public Response checkLiveliness() {
+    @Path("/healthz")
+    @ApiOperation(value = "Run a healthCheck against the function worker")
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Everything is OK"),
+            @ApiResponse(code = 503, message = "Service not available")
+    })
+    public Response healthCheck() {
         boolean isAlive = functions().checkLiveliness();
         if (!isAlive) {
             return Response.status(Response.Status.SERVICE_UNAVAILABLE)
