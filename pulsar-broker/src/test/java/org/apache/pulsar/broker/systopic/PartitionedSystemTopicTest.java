@@ -338,9 +338,13 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
 
         FutureUtil.waitForAll(List.of(writer1, writer2, f1)).join();
         Assert.assertTrue(reader1.hasMoreEvents());
-        Assert.assertNotNull(reader1.readNext());
+        Message<?> message = reader1.readNext();
+        Assert.assertNotNull(message);
+        message.release();
         Assert.assertTrue(reader2.hasMoreEvents());
+        message = reader2.readNext();
         Assert.assertNotNull(reader2.readNext());
+        message.release();
         reader1.close();
         reader2.close();
         writer1.get().close();
