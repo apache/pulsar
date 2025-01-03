@@ -282,9 +282,9 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
-    public ConsumerBuilder<T> negativeAckPrecisionBitCnt(int negativeAckPrecisionBitCnt) {
-        checkArgument(negativeAckPrecisionBitCnt >= 0, "negativeAckPrecisionBitCnt needs to be >= 0");
-        conf.setNegativeAckPrecisionBitCnt(negativeAckPrecisionBitCnt);
+    public ConsumerBuilder<T> negativeAckRedeliveryDelayPrecision(int negativeAckPrecisionBitCount) {
+        checkArgument(negativeAckPrecisionBitCount >= 0, "negativeAckPrecisionBitCount needs to be >= 0");
+        conf.setNegativeAckPrecisionBitCnt(negativeAckPrecisionBitCount);
         return this;
     }
 

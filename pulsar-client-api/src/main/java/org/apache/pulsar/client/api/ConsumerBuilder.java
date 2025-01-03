@@ -254,7 +254,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *            The redelivery time precision bit count.
      * @return the consumer builder instance
      */
-    ConsumerBuilder<T> negativeAckPrecisionBitCnt(int negativeAckPrecisionBitCnt);
+    ConsumerBuilder<T> negativeAckRedeliveryDelayPrecision(int negativeAckPrecisionBitCount);
 
     /**
      * Select the subscription type to be used when subscribing to a topic.
