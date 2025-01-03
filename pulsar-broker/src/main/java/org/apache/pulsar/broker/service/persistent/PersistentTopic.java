@@ -328,7 +328,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      * 2. Namespace bundle transfer or unloading.
      *   a. The unloading topic triggered by unloading namespace bundles will not wait for clients disconnect. Relate
      *     to {@link CloseFutures#notWaitDisconnectClients}.
-     *   b. The unloading topic triggered by unloading namespace bundles was seperated to two steps when using
+     *   b. The unloading topic triggered by unloading namespace bundles was separated to two steps when using
      *     {@link ExtensibleLoadManagerImpl}.
      *     b-1. step-1: fence the topic on the original Broker, and do not trigger reconnections of clients. Relate
      *       to {@link CloseFutures#transferring}. This step is a half closing.
@@ -3145,7 +3145,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                  *   "replicator.producer" to a null value.
                  * Race condition: task 1 will get a NPE when it tries to send messages using the variable
                  * "replicator.producer", because task 2 will set this variable to "null".
-                 * TODO Create a seperated PR to fix it.
+                 * TODO Create a separate PR to fix it.
                  */
                 closeReplProducersIfNoBacklog().thenRun(() -> {
                     if (hasRemoteProducers()) {
