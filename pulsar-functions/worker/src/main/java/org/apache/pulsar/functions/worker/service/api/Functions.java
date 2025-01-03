@@ -102,6 +102,4 @@ public interface Functions<W extends WorkerService> extends Component<W> {
     void reloadBuiltinFunctions(AuthenticationParameters authParams) throws IOException;
 
     List<FunctionDefinition> getBuiltinFunctions(AuthenticationParameters authParams);
-
-    boolean checkLiveliness();
 }

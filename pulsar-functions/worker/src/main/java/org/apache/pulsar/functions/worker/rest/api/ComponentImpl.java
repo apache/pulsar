@@ -1885,4 +1885,10 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         }
         return null;
     }
+
+    @Override
+    public boolean checkLiveliness() {
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+        return functionMetaDataManager.checkLiveliness();
+    }
 }

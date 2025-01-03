@@ -69,8 +69,6 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 @Slf4j
 public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWorkerService> {
 
-    private boolean isFunctionWorkerAlive = true;
-
     public FunctionsImpl(Supplier<PulsarWorkerService> workerServiceSupplier) {
         super(workerServiceSupplier, Function.FunctionDetails.ComponentType.FUNCTION);
     }
@@ -695,8 +693,6 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         try {
             functionMetaDataManager.updateFunctionOnLeader(functionMetaData, delete);
         } catch (IllegalStateException e) {
-            log.error("Function worker status has been set to false due to ProducerFencedException.");
-            this.isFunctionWorkerAlive = false;
             throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
         } catch (IllegalArgumentException e) {
             throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
@@ -791,9 +787,5 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                 }
             }
         }
-    }
-
-    public boolean checkLiveliness() {
-        return this.isFunctionWorkerAlive;
     }
 }

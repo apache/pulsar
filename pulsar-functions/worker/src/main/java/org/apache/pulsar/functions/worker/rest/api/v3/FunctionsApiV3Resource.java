@@ -445,7 +445,8 @@ public class FunctionsApiV3Resource extends FunctionApiResource {
                     .entity("There is IllegalStateException, Service is not running. Need to restart.")
                     .build();
         } else {
-            return Response.ok("There is no IllegalStateException, Service is running.")
+            return Response.status(Response.Status.OK)
+                    .entity("There is no IllegalStateException, Service is running.")
                     .build();
         }
     }
