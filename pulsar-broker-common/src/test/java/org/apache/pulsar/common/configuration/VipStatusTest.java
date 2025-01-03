@@ -46,7 +46,6 @@ public class VipStatusTest {
     // Rate limit status checks to every 500ms to prevent DoS
     private static final long CHECK_STATUS_INTERVAL = 500L;
 
-    @Mock
     private ServletContext mockServletContext;
     private VipStatus vipStatus;
 
