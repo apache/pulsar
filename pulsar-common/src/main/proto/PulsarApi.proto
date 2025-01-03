@@ -302,6 +302,7 @@ message FeatureFlags {
   optional bool supports_partial_producer = 3 [default = false];
   optional bool supports_topic_watchers = 4 [default = false];
   optional bool supports_get_partitioned_metadata_without_auto_creation = 5 [default = false];
+  optional bool supports_repl_dedup_by_lid_and_eid = 6 [default = false];
 }
 
 message CommandConnected {

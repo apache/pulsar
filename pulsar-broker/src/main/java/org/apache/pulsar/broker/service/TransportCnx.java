@@ -25,6 +25,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
+import org.apache.pulsar.common.api.proto.FeatureFlags;
 
 public interface TransportCnx {
 
@@ -103,4 +104,11 @@ public interface TransportCnx {
      * previously called {@link #incrementThrottleCount()}.
      */
     void decrementThrottleCount();
+
+    FeatureFlags getFeatures();
+
+    default boolean isClientSupportsReplDedupByLidAndEid() {
+        return getFeatures() != null && getFeatures().hasSupportsReplDedupByLidAndEid()
+                && getFeatures().isSupportsReplDedupByLidAndEid();
+    }
 }
