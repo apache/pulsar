@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.configuration;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.File;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
@@ -32,7 +33,6 @@ import javax.ws.rs.Path;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response.Status;
-import com.google.common.annotations.VisibleForTesting;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.util.ThreadDumpUtil;
 
