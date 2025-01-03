@@ -34,6 +34,7 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import lombok.Setter;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
@@ -73,6 +74,15 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
      * messages, until the mark-delete position will move past this point.
      */
     private final LinkedHashMap<Consumer, PositionImpl> recentlyJoinedConsumers;
+
+    /**
+     * The method {@link #sortRecentlyJoinedConsumersIfNeeded} is a un-normal method, which used to fix the issue that
+     * was described at https://github.com/apache/pulsar/pull/23795.
+     * To cover the case that does not contain the hot fix that https://github.com/apache/pulsar/pull/23795 provided,
+     * we add this method to reproduce the issue in tests.
+     **/
+    @Setter
+    public boolean sortRecentlyJoinedConsumersIfNeeded = true;
 
     PersistentStickyKeyDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
             Subscription subscription, ServiceConfiguration conf, KeySharedMeta ksm) {
@@ -132,7 +142,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 if (!allowOutOfOrderDelivery
                         && recentlyJoinedConsumers != null
                         && consumerList.size() > 1
-                        && cursor.getNumberOfEntriesSinceFirstNotAckedMessage() > 1) {
+                        && cursor.getNumberOfEntriesSinceFirstNotAckedMessage() > 1
+                        // If there is a delayed "cursor.rewind" after the pending read, the consumers that will be
+                        // added before the "cursor.rewind" will have a same "recent joined position", which is the
+                        // same as "mark deleted position +1", so we can skip this adding.
+                        && !shouldRewindBeforeReadingOrReplaying) {
                     recentlyJoinedConsumers.put(consumer, readPositionWhenJoining);
                     sortRecentlyJoinedConsumersIfNeeded();
                 }
@@ -141,9 +155,13 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     private void sortRecentlyJoinedConsumersIfNeeded() {
+        if (!sortRecentlyJoinedConsumersIfNeeded) {
+            return;
+        }
         if (recentlyJoinedConsumers.size() == 1) {
             return;
         }
+        // Since we check the order of queue after each consumer joined, we can only check the last two items.
         boolean sortNeeded = false;
         PositionImpl posPre = null;
         PositionImpl posAfter = null;
@@ -151,18 +169,21 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             if (posPre == null) {
                 posPre = entry.getValue();
             } else {
+                posPre = posAfter;
                 posAfter = entry.getValue();
             }
-            if (posPre != null && posAfter != null) {
-                if (posPre.compareTo(posAfter) > 0) {
-                    sortNeeded = true;
-                    break;
-                }
-                posPre = posAfter;
+        }
+        if (posPre != null && posAfter != null) {
+            if (posPre.compareTo(posAfter) > 0) {
+                sortNeeded = true;
             }
         }
-
+        // Something went wrongly, sort the collection.
         if (sortNeeded) {
+            log.error("[{}] [{}] The items in recentlyJoinedConsumers are out-of-order. {}",
+                    topic.getName(), name, recentlyJoinedConsumers.entrySet().stream().map(entry ->
+                            String.format("%s-%s:%s", entry.getKey().consumerName(), entry.getValue().getLedgerId(),
+                                    entry.getValue().getEntryId())).collect(Collectors.toList()));
             List<Map.Entry<Consumer, PositionImpl>> sortedList = new ArrayList<>(recentlyJoinedConsumers.entrySet());
             Collections.sort(sortedList, Map.Entry.comparingByValue());
             recentlyJoinedConsumers.clear();
