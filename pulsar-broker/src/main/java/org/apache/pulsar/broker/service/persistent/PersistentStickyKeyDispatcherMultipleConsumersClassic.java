@@ -123,7 +123,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
     }
 
     @Override
-    protected synchronized void afterRewindAfterPendingRead() {
+    protected synchronized void finishedRewindAfterPendingRead() {
         recentlyJoinedConsumers.clear();
     }
 
