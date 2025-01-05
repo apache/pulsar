@@ -88,6 +88,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.EntryFilters;
@@ -961,7 +962,8 @@ public abstract class NamespacesBase extends AdminResource {
                         policies -> new LocalPolicies(policies.bundles,
                                 bookieAffinityGroup,
                                 policies.namespaceAntiAffinityGroup,
-                                policies.migrated))
+                                policies.migrated,
+                                policies.migratedClusterUrl))
                         .orElseGet(() -> new LocalPolicies(getBundles(config().getDefaultNumberOfNamespaceBundles()),
                                 bookieAffinityGroup,
                                 null));
@@ -1781,7 +1783,8 @@ public abstract class NamespacesBase extends AdminResource {
                 lp.map(policies -> new LocalPolicies(policies.bundles,
                         policies.bookieAffinityGroup,
                         antiAffinityGroup,
-                        policies.migrated))
+                        policies.migrated,
+                        policies.migratedClusterUrl))
                         .orElseGet(() -> new LocalPolicies(defaultBundle(),
                                 null, antiAffinityGroup))
             );
@@ -1819,7 +1822,8 @@ public abstract class NamespacesBase extends AdminResource {
                 new LocalPolicies(policies.bundles,
                         policies.bookieAffinityGroup,
                         null,
-                        policies.migrated));
+                        policies.migrated,
+                        policies.migratedClusterUrl));
             log.info("[{}] Successfully removed anti-affinity group for a namespace={}", clientAppId(), namespaceName);
         } catch (Exception e) {
             log.error("[{}] Failed to remove anti-affinity group for namespace {}", clientAppId(), namespaceName, e);
@@ -2772,12 +2776,33 @@ public abstract class NamespacesBase extends AdminResource {
                     policies -> new LocalPolicies(policies.bundles,
                             policies.bookieAffinityGroup,
                             policies.namespaceAntiAffinityGroup,
-                            migrated))
+                            migrated,
+                            policies.migratedClusterUrl))
                     .orElseGet(() -> new LocalPolicies(getBundles(config().getDefaultNumberOfNamespaceBundles()),
-                            null, null, migrated)));
+                            null, null, migrated, null)));
             log.info("Successfully updated migration on namespace {}", namespaceName);
         } catch (Exception e) {
             log.error("Failed to update migration on namespace {}", namespaceName, e);
+            throw new RestException(e);
+        }
+    }
+
+    protected void internalUpdateMigrationState(boolean migrated, ClusterUrl clusterUrl) {
+        validateSuperUserAccess();
+        try {
+            getLocalPolicies().setLocalPoliciesWithCreate(namespaceName, oldPolicies -> oldPolicies.map(
+                            policies -> new LocalPolicies(policies.bundles,
+                                    policies.bookieAffinityGroup,
+                                    policies.namespaceAntiAffinityGroup,
+                                    migrated,
+                                    clusterUrl))
+                    .orElseGet(() -> new LocalPolicies(getBundles(config().getDefaultNumberOfNamespaceBundles()),
+                            null, null, migrated, clusterUrl)));
+            log.info("Successfully updated migration state on namespace {}, migrated={}, clusterUrl={}",
+                    namespaceName, migrated, clusterUrl);
+        } catch (Exception e) {
+            log.error("Failed to update migration state on namespace {}, migrated={}, clusterUrl={}",
+                    namespaceName, migrated, clusterUrl, e);
             throw new RestException(e);
         }
     }
