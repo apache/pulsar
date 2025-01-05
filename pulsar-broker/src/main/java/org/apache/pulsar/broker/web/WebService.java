@@ -360,12 +360,37 @@ public class WebService implements AutoCloseable {
     public void addStaticResources(String basePath, String resourcePath) {
         ContextHandler capHandler = new ContextHandler();
         capHandler.setContextPath(basePath);
-        ResourceHandler resHandler = new ResourceHandler();
-        resHandler.setBaseResource(Resource.newClassPathResource(resourcePath));
-        resHandler.setEtags(true);
-        resHandler.setCacheControl(WebService.HANDLER_CACHE_CONTROL);
-        capHandler.setHandler(resHandler);
-        handlers.add(capHandler);
+        if (resourcePath != null && !resourcePath.isEmpty()) {
+            ResourceHandler resHandler = new ResourceHandler();
+            resHandler.setBaseResource(Resource.newClassPathResource(resourcePath));
+            resHandler.setEtags(true);
+            resHandler.setCacheControl(WebService.HANDLER_CACHE_CONTROL);
+            capHandler.setHandler(resHandler);
+            handlers.add(capHandler);
+         } else {
+            // If statusFilePath is not set, return OK when the broker is ready, or 404 if not.
+            capHandler.setHandler(new DefaultHandler() {
+                @Override
+                public void handle(String target, org.eclipse.jetty.server.Request baseRequest,
+                                   javax.servlet.http.HttpServletRequest request,
+                                   javax.servlet.http.HttpServletResponse response) throws IOException {
+                     if (target.equals("/status.html") ) {
+                        if(pulsar.getState() == PulsarService.State.Started) {
+                            response.setContentType("text/plain");
+                            response.setStatus(HttpServletResponse.SC_OK);
+                            response.getWriter().write("OK");
+                            baseRequest.setHandled(true);
+                         } else {
+                             response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                             baseRequest.setHandled(true);
+                         }
+                      } else {
+                         super.handle(target, baseRequest, request, response);
+                      }
+                }
+            });
+           handlers.add(capHandler);
+        }
     }
 
     public void start() throws PulsarServerException {
