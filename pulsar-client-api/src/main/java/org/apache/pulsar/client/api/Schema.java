@@ -284,9 +284,8 @@ public interface Schema<T> extends Cloneable {
      * @return a Schema instance
      */
     static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF(Class<T> clazz) {
-        return SchemaCache.getOrCreateSchema(clazz, SchemaType.PROTOBUF, 
-            cls -> DefaultImplementation.getDefaultImplementation()
-                .newProtobufSchema(SchemaDefinition.builder().withPojo(cls).build()));
+        return DefaultImplementation.getDefaultImplementation().newProtobufSchema(clazz);
+
     }
 
     /**
@@ -305,9 +304,8 @@ public interface Schema<T> extends Cloneable {
      * @return a Schema instance
      */
     static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF_NATIVE(Class<T> clazz) {
-         return SchemaCache.getOrCreateSchema(clazz, SchemaType.JSON, 
-            cls -> DefaultImplementation.getDefaultImplementation()
-                .newJSONSchema(SchemaDefinition.builder().withPojo(cls).build()));
+        return DefaultImplementation.getDefaultImplementation().newProtobufNativeSchema(clazz);
+
     }
 
     /**
@@ -328,9 +326,7 @@ public interface Schema<T> extends Cloneable {
      * @return a Schema instance
      */
     static <T> Schema<T> AVRO(Class<T> pojo) {
-        return SchemaCache.getOrCreateSchema(pojo, SchemaType.JSON, 
-            cls -> DefaultImplementation.getDefaultImplementation()
-                .newJSONSchema(SchemaDefinition.builder().withPojo(cls).build()));
+        return DefaultImplementation.getDefaultImplementation().newAvroSchema(pojo);
     }
 
     /**
@@ -350,9 +346,7 @@ public interface Schema<T> extends Cloneable {
      * @return a Schema instance
      */
     static <T> Schema<T> JSON(Class<T> pojo) {
-        return SchemaCache.getOrCreateSchema(pojo, SchemaType.JSON, 
-            cls -> DefaultImplementation.getDefaultImplementation()
-                .newJSONSchema(SchemaDefinition.builder().withPojo(cls).build()));
+        return DefaultImplementation.getDefaultImplementation().newJSONSchema(pojo);
     }
 
     /**

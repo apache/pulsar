@@ -84,12 +84,23 @@ import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
 import org.apache.pulsar.common.schema.SchemaType;
-
+import com.google.common.collect.MapMaker;
+import java.util.concurrent.ConcurrentMap;
 /**
  * Helper class for class instantiations and it also contains methods to work with schemas.
  */
 @SuppressWarnings("unchecked")
 public final class PulsarClientImplementationBindingImpl implements PulsarClientImplementationBinding {
+
+    private static final PulsarClientImplementationBinding IMPLEMENTATION;
+
+    private static final ConcurrentMap<Class<?>, Schema<?>> PROTOBUF_CACHE = new MapMaker().weakKeys().makeMap();
+
+    private static final ConcurrentMap<Class<?>, Schema<?>> PROTOBUF_NATIVE_CACHE = new MapMaker().weakKeys().makeMap();
+
+    private static final ConcurrentMap<Class<?>, Schema<?>> AVRO_CACHE = new MapMaker().weakKeys().makeMap();
+
+    private static final ConcurrentMap<Class<?>, Schema<?>> JSON_CACHE = new MapMaker().weakKeys().makeMap();
 
     public <T> SchemaDefinitionBuilder<T> newSchemaDefinitionBuilder() {
         return new SchemaDefinitionBuilderImpl();
@@ -208,19 +219,40 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
     public <T> Schema<T> newAvroSchema(SchemaDefinition schemaDefinition) {
         return AvroSchema.of(schemaDefinition);
     }
+    
+    public <T> Schema<T> newAvroSchema(Class<T> pojo) {
+        return (Schema<T>) AVRO_CACHE.computeIfAbsent(pojo, 
+            k -> AvroSchema.of(SchemaDefinition.builder().withPojo(pojo).build())).clone();
+    }
 
     public <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufSchema(
             SchemaDefinition schemaDefinition) {
         return ProtobufSchema.of(schemaDefinition);
     }
 
+    public <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufSchema(Class<T> clazz) {
+        return (Schema<T>) PROTOBUF_CACHE.computeIfAbsent(clazz,
+            k -> ProtobufSchema.of(SchemaDefinition.builder().withPojo(clazz).build())).clone();
+    }
+
+    
     public <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufNativeSchema(
             SchemaDefinition schemaDefinition) {
         return ProtobufNativeSchema.of(schemaDefinition);
     }
 
+    public <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufNativeSchema(Class<T> clazz) {
+        return (Schema<T>) PROTOBUF_NATIVE_CACHE.computeIfAbsent(clazz, 
+            k -> ProtobufNativeSchema.of(SchemaDefinition.builder().withPojo(clazz).build())).clone();
+    }
+
     public <T> Schema<T> newJSONSchema(SchemaDefinition schemaDefinition) {
         return JSONSchema.of(schemaDefinition);
+    }
+
+    public <T> Schema<T> newJSONSchema(Class<T> pojo) {
+         return (Schema<T>) JSON_CACHE.computeIfAbsent(pojo, 
+            k -> JsonSchema.of(SchemaDefinition.builder().withPojo(pojo).build())).clone();
     }
 
     public Schema<GenericRecord> newAutoConsumeSchema() {

@@ -17,7 +17,6 @@
  * under the License.
  */
 package org.apache.pulsar.client.internal;
-
 /**
  * This class loads the implementation for {@link PulsarClientImplementationBinding}
  * and allows you to decouple the API from the actual implementation.
@@ -25,7 +24,6 @@ package org.apache.pulsar.client.internal;
  * it is not meant to be used by client applications.</b>
  */
 public class DefaultImplementation {
-    private static final PulsarClientImplementationBinding IMPLEMENTATION;
     static {
         PulsarClientImplementationBinding impl;
         try {
