@@ -31,7 +31,9 @@ public class SinkStatsManager extends ComponentStatsManager {
 
     public static final String PULSAR_SINK_METRICS_PREFIX = "pulsar_sink_";
 
-    /** Declare metric names. **/
+    /**
+     * Declare metric names.
+     **/
     public static final String SYSTEM_EXCEPTIONS_TOTAL = "system_exceptions_total";
     public static final String SINK_EXCEPTIONS_TOTAL = "sink_exceptions_total";
     public static final String LAST_INVOCATION = "last_invocation";
@@ -43,7 +45,9 @@ public class SinkStatsManager extends ComponentStatsManager {
     public static final String RECEIVED_TOTAL_1min = "received_1min";
     public static final String WRITTEN_TOTAL_1min = "written_1min";
 
-    /** Declare Prometheus stats. **/
+    /**
+     * Declare Prometheus stats.
+     **/
 
     private final Counter statTotalRecordsReceived;
 
@@ -101,99 +105,99 @@ public class SinkStatsManager extends ComponentStatsManager {
         statTotalRecordsReceived = collectorRegistry.registerIfNotExist(
                 PULSAR_SINK_METRICS_PREFIX + RECEIVED_TOTAL,
                 Counter.build()
-                .name(PULSAR_SINK_METRICS_PREFIX + RECEIVED_TOTAL)
-                .help("Total number of records sink has received from Pulsar topic(s).")
-                .labelNames(METRICS_LABEL_NAMES)
-                .create());
+                        .name(PULSAR_SINK_METRICS_PREFIX + RECEIVED_TOTAL)
+                        .help("Total number of records sink has received from Pulsar topic(s).")
+                        .labelNames(METRICS_LABEL_NAMES)
+                        .create());
         statTotalRecordsReceivedChild = statTotalRecordsReceived.labels(metricsLabels);
 
         statTotalSysExceptions = collectorRegistry.registerIfNotExist(
                 PULSAR_SINK_METRICS_PREFIX + SYSTEM_EXCEPTIONS_TOTAL,
                 Counter.build()
-                .name(PULSAR_SINK_METRICS_PREFIX + SYSTEM_EXCEPTIONS_TOTAL)
-                .help("Total number of system exceptions.")
-                .labelNames(METRICS_LABEL_NAMES)
-                .create());
+                        .name(PULSAR_SINK_METRICS_PREFIX + SYSTEM_EXCEPTIONS_TOTAL)
+                        .help("Total number of system exceptions.")
+                        .labelNames(METRICS_LABEL_NAMES)
+                        .create());
         statTotalSysExceptionsChild = statTotalSysExceptions.labels(metricsLabels);
 
         statTotalSinkExceptions = collectorRegistry.registerIfNotExist(
                 PULSAR_SINK_METRICS_PREFIX + SINK_EXCEPTIONS_TOTAL,
                 Counter.build()
-                .name(PULSAR_SINK_METRICS_PREFIX + SINK_EXCEPTIONS_TOTAL)
-                .help("Total number of sink exceptions.")
-                .labelNames(METRICS_LABEL_NAMES)
-                .create());
+                        .name(PULSAR_SINK_METRICS_PREFIX + SINK_EXCEPTIONS_TOTAL)
+                        .help("Total number of sink exceptions.")
+                        .labelNames(METRICS_LABEL_NAMES)
+                        .create());
         statTotalSinkExceptionsChild = statTotalSinkExceptions.labels(metricsLabels);
 
         statTotalWritten = collectorRegistry.registerIfNotExist(
                 PULSAR_SINK_METRICS_PREFIX + WRITTEN_TOTAL,
                 Counter.build()
-                .name(PULSAR_SINK_METRICS_PREFIX + WRITTEN_TOTAL)
-                .help("Total number of records processed by sink.")
-                .labelNames(METRICS_LABEL_NAMES)
-                .create());
+                        .name(PULSAR_SINK_METRICS_PREFIX + WRITTEN_TOTAL)
+                        .help("Total number of records processed by sink.")
+                        .labelNames(METRICS_LABEL_NAMES)
+                        .create());
         statTotalWrittenChild = statTotalWritten.labels(metricsLabels);
 
         statlastInvocation = collectorRegistry.registerIfNotExist(
                 PULSAR_SINK_METRICS_PREFIX + LAST_INVOCATION,
                 Gauge.build()
-                .name(PULSAR_SINK_METRICS_PREFIX + LAST_INVOCATION)
-                .help("The timestamp of the last invocation of the sink.")
-                .labelNames(METRICS_LABEL_NAMES)
-                .create());
+                        .name(PULSAR_SINK_METRICS_PREFIX + LAST_INVOCATION)
+                        .help("The timestamp of the last invocation of the sink.")
+                        .labelNames(METRICS_LABEL_NAMES)
+                        .create());
         statlastInvocationChild = statlastInvocation.labels(metricsLabels);
 
         statTotalRecordsReceived1min = collectorRegistry.registerIfNotExist(
                 PULSAR_SINK_METRICS_PREFIX + RECEIVED_TOTAL_1min,
                 Counter.build()
-                .name(PULSAR_SINK_METRICS_PREFIX + RECEIVED_TOTAL_1min)
-                .help("Total number of messages sink has received from Pulsar topic(s) in the last 1 minute.")
-                .labelNames(METRICS_LABEL_NAMES)
-                .create());
+                        .name(PULSAR_SINK_METRICS_PREFIX + RECEIVED_TOTAL_1min)
+                        .help("Total number of messages sink has received from Pulsar topic(s) in the last 1 minute.")
+                        .labelNames(METRICS_LABEL_NAMES)
+                        .create());
         statTotalRecordsReceivedChild1min = statTotalRecordsReceived1min.labels(metricsLabels);
 
         statTotalSysExceptions1min = collectorRegistry.registerIfNotExist(
                 PULSAR_SINK_METRICS_PREFIX + SYSTEM_EXCEPTIONS_TOTAL_1min,
                 Counter.build()
-                .name(PULSAR_SINK_METRICS_PREFIX + SYSTEM_EXCEPTIONS_TOTAL_1min)
-                .help("Total number of system exceptions in the last 1 minute.")
-                .labelNames(METRICS_LABEL_NAMES)
-                .create());
+                        .name(PULSAR_SINK_METRICS_PREFIX + SYSTEM_EXCEPTIONS_TOTAL_1min)
+                        .help("Total number of system exceptions in the last 1 minute.")
+                        .labelNames(METRICS_LABEL_NAMES)
+                        .create());
         statTotalSysExceptions1minChild = statTotalSysExceptions1min.labels(metricsLabels);
 
         statTotalSinkExceptions1min = collectorRegistry.registerIfNotExist(
                 PULSAR_SINK_METRICS_PREFIX + SINK_EXCEPTIONS_TOTAL_1min,
                 Counter.build()
-                .name(PULSAR_SINK_METRICS_PREFIX + SINK_EXCEPTIONS_TOTAL_1min)
-                .help("Total number of sink exceptions in the last 1 minute.")
-                .labelNames(METRICS_LABEL_NAMES)
-                .create());
+                        .name(PULSAR_SINK_METRICS_PREFIX + SINK_EXCEPTIONS_TOTAL_1min)
+                        .help("Total number of sink exceptions in the last 1 minute.")
+                        .labelNames(METRICS_LABEL_NAMES)
+                        .create());
         statTotalSinkExceptionsChild1min = statTotalSinkExceptions1min.labels(metricsLabels);
 
         statTotalWritten1min = collectorRegistry.registerIfNotExist(
                 PULSAR_SINK_METRICS_PREFIX + WRITTEN_TOTAL_1min,
                 Counter.build()
-                .name(PULSAR_SINK_METRICS_PREFIX + WRITTEN_TOTAL_1min)
-                .help("Total number of records processed by sink the last 1 minute.")
-                .labelNames(METRICS_LABEL_NAMES)
-                .create());
+                        .name(PULSAR_SINK_METRICS_PREFIX + WRITTEN_TOTAL_1min)
+                        .help("Total number of records processed by sink the last 1 minute.")
+                        .labelNames(METRICS_LABEL_NAMES)
+                        .create());
         statTotalWrittenChild1min = statTotalWritten1min.labels(metricsLabels);
 
         sysExceptions = collectorRegistry.registerIfNotExist(
                 PULSAR_SINK_METRICS_PREFIX + "system_exception",
                 Gauge.build()
-                .name(PULSAR_SINK_METRICS_PREFIX + "system_exception")
-                .labelNames(EXCEPTION_METRICS_LABEL_NAMES)
-                .help("Exception from system code.")
-                .create());
+                        .name(PULSAR_SINK_METRICS_PREFIX + "system_exception")
+                        .labelNames(EXCEPTION_METRICS_LABEL_NAMES)
+                        .help("Exception from system code.")
+                        .create());
 
         sinkExceptions = collectorRegistry.registerIfNotExist(
                 PULSAR_SINK_METRICS_PREFIX + "sink_exception",
                 Gauge.build()
-                .name(PULSAR_SINK_METRICS_PREFIX + "sink_exception")
-                .labelNames(EXCEPTION_METRICS_LABEL_NAMES)
-                .help("Exception from sink.")
-                .create());
+                        .name(PULSAR_SINK_METRICS_PREFIX + "sink_exception")
+                        .labelNames(EXCEPTION_METRICS_LABEL_NAMES)
+                        .help("Exception from sink.")
+                        .create());
 
         sysExceptionRateLimiter = RateLimiter.create(5.0d / 60.0d);
         sinkExceptionRateLimiter = RateLimiter.create(5.0d / 60.0d);
@@ -279,10 +283,6 @@ public class SinkStatsManager extends ComponentStatsManager {
         statlastInvocationChild.set(ts);
     }
 
-    @Override
-    public void processTimeStart() {
-        //no-op
-    }
 
     @Override
     public void processTimeEnd() {

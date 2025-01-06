@@ -336,20 +336,15 @@ public class FunctionStatsManager extends ComponentStatsManager {
         statlastInvocationChild.set(ts);
     }
 
-    private Long processTimeStart;
 
-    @Override
-    public void processTimeStart() {
-        processTimeStart = System.nanoTime();
-    }
 
     @Override
     public void processTimeEnd() {
-        if (processTimeStart != null) {
-            double endTimeMs = ((double) System.nanoTime() - processTimeStart) / 1.0E6D;
-            statProcessLatencyChild.observe(endTimeMs);
-            statProcessLatency1minChild.observe(endTimeMs);
-        }
+//        if (processTimeStart != null) {
+//            double endTimeMs = ((double) System.nanoTime() - processTimeStart) / 1.0E6D;
+//            statProcessLatencyChild.observe(endTimeMs);
+//            statProcessLatency1minChild.observe(endTimeMs);
+//        }
     }
 
     @Override

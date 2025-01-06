@@ -189,8 +189,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         this.secretsProvider = secretsProvider;
         this.componentClassLoader = componentClassLoader;
         this.functionClassLoader = transformFunctionClassLoader != null
-            ? transformFunctionClassLoader
-            : componentClassLoader;
+                ? transformFunctionClassLoader
+                : componentClassLoader;
         this.metricsLabels = new String[]{
                 instanceConfig.getFunctionDetails().getTenant(),
                 String.format("%s/%s", instanceConfig.getFunctionDetails().getTenant(),
@@ -235,7 +235,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         ThreadContext.put("instance", instanceConfig.getInstanceName());
 
         log.info("Starting Java Instance {} : \n Details = {}",
-            instanceConfig.getFunctionDetails().getName(), instanceConfig.getFunctionDetails());
+                instanceConfig.getFunctionDetails().getName(), instanceConfig.getFunctionDetails());
 
         Object object;
         if (instanceConfig.getFunctionDetails().getClassName()
@@ -293,8 +293,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         try {
             Thread.currentThread().setContextClassLoader(functionClassLoader);
             return new ContextImpl(instanceConfig, instanceLog, client, secretsProvider,
-                collectorRegistry, metricsLabels, this.componentType, this.stats, stateManager,
-                pulsarAdmin, clientBuilder, fatalHandler, producerCache);
+                    collectorRegistry, metricsLabels, this.componentType, this.stats, stateManager,
+                    pulsarAdmin, clientBuilder, fatalHandler, producerCache);
         } finally {
             Thread.currentThread().setContextClassLoader(clsLoader);
         }
@@ -334,8 +334,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 // set last invocation time
                 stats.setLastInvocation(System.currentTimeMillis());
 
-                // start time for process latency stat
-                stats.processTimeStart();
 
                 // process the message
                 Thread.currentThread().setContextClassLoader(functionClassLoader);
@@ -401,9 +399,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             stateStoreProvider.init(stateStoreProviderConfig);
 
             StateStore store = stateStoreProvider.getStateStore(
-                instanceConfig.getFunctionDetails().getTenant(),
-                instanceConfig.getFunctionDetails().getNamespace(),
-                instanceConfig.getFunctionDetails().getName()
+                    instanceConfig.getFunctionDetails().getTenant(),
+                    instanceConfig.getFunctionDetails().getNamespace(),
+                    instanceConfig.getFunctionDetails().getName()
             );
             StateStoreContext context = new StateStoreContextImpl();
             store.init(context);
@@ -513,7 +511,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         if (isKeyValueSeparated && schema instanceof KeyValueSchema) {
             KeyValueSchema<?, ?> kvSchema = (KeyValueSchema<?, ?>) schema;
             finalSchema = KeyValueSchemaImpl.of(kvSchema.getKeySchema(), kvSchema.getValueSchema(),
-                KeyValueEncodingType.SEPARATED);
+                    KeyValueEncodingType.SEPARATED);
         } else {
             finalSchema = schema;
         }
@@ -548,7 +546,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     /**
      * NOTE: this method is be synchronized because it is potentially called by two different places
-     *       one inside the run/finally clause and one inside the ThreadRuntime::stop.
+     * one inside the run/finally clause and one inside the ThreadRuntime::stop.
      */
     @Override
     public synchronized void close() {
@@ -678,8 +676,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     private void internalResetMetrics() {
-            stats.reset();
-            javaInstance.resetMetrics();
+        stats.reset();
+        javaInstance.resetMetrics();
     }
 
     private Builder createMetricsDataBuilder() {
@@ -834,7 +832,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             );
 
             pulsarSourceConfig.setSkipToLatest(
-                sourceSpec.getSkipToLatest()
+                    sourceSpec.getSkipToLatest()
             );
 
             Objects.requireNonNull(contextImpl.getSubscriptionType());
@@ -874,12 +872,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             // check if source is a batch source
             if (sourceSpec.getClassName().equals(BatchSourceExecutor.class.getName())) {
                 object = Reflections.createInstance(
-                  sourceSpec.getClassName(),
-                  this.instanceClassLoader);
+                        sourceSpec.getClassName(),
+                        this.instanceClassLoader);
             } else {
                 object = Reflections.createInstance(
-                  sourceSpec.getClassName(),
-                  this.componentClassLoader);
+                        sourceSpec.getClassName(),
+                        this.componentClassLoader);
             }
         }
 
@@ -911,8 +909,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     /**
      * Recursively interpolate configured secrets into the config map by calling
      * {@link SecretsProvider#interpolateSecretForValue(String)}.
+     *
      * @param secretsProvider - the secrets provider that will convert secret's values into config values.
-     * @param configs - the connector configuration map, which will be mutated.
+     * @param configs         - the connector configuration map, which will be mutated.
      */
     private static void interpolateSecretsIntoConfigs(SecretsProvider secretsProvider,
                                                       Map<String, Object> configs) {
@@ -939,12 +938,13 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                                                                SecretsProvider secretsProvider,
                                                                ClassLoader componentClassLoader,
                                                                org.apache.pulsar.functions.proto.Function
-                                                            .FunctionDetails.ComponentType componentType)
+                                                                       .FunctionDetails.ComponentType componentType)
             throws IOException {
         final Map<String, Object> config = connectorConfigs.isEmpty() ? new HashMap<>() : ObjectMapperFactory
                 .getMapper()
                 .reader()
-                .forType(new TypeReference<Map<String, Object>>() {})
+                .forType(new TypeReference<Map<String, Object>>() {
+                })
                 .readValue(connectorConfigs);
         if (componentType != org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SINK
                 && componentType != org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SOURCE) {
@@ -959,7 +959,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 configClassName = ConnectorUtils
                         .getConnectorDefinition((NarClassLoader) componentClassLoader).getSourceConfigClass();
             } else {
-                configClassName =  ConnectorUtils
+                configClassName = ConnectorUtils
                         .getConnectorDefinition((NarClassLoader) componentClassLoader).getSinkConfigClass();
             }
             if (configClassName != null) {
@@ -1105,7 +1105,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
             case AVRO:
                 return AvroSchema.of(SchemaDefinition.<T>builder()
-                    .withPojo(clazz).build());
+                        .withPojo(clazz).build());
 
             case JSON:
                 return JSONSchema.of(SchemaDefinition.<T>builder().withPojo(clazz).build());
@@ -1131,8 +1131,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         if (GenericObject.class.isAssignableFrom(clazz)) {
             return SchemaType.AUTO_CONSUME;
         } else if (byte[].class.equals(clazz)
-            || ByteBuf.class.equals(clazz)
-            || ByteBuffer.class.equals(clazz)) {
+                || ByteBuf.class.equals(clazz)
+                || ByteBuffer.class.equals(clazz)) {
             // if sink uses bytes, we should ignore
             return SchemaType.NONE;
         } else {
@@ -1151,8 +1151,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private static SchemaType getDefaultSchemaType(Class<?> clazz) {
         if (byte[].class.equals(clazz)
-            || ByteBuf.class.equals(clazz)
-            || ByteBuffer.class.equals(clazz)) {
+                || ByteBuf.class.equals(clazz)
+                || ByteBuffer.class.equals(clazz)) {
             return SchemaType.NONE;
         } else if (GenericObject.class.isAssignableFrom(clazz)) {
             // the sink is taking generic record/object, so we do auto schema detection
