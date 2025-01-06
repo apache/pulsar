@@ -54,6 +54,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.annotation.Nullable;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
@@ -659,7 +660,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 }
             });
 
-        return closeFuture;
+        return closeFuture.whenCompleteAsync((nil, ex) -> {
+            if (interceptors != null) {
+                interceptors.close();
+            }
+            if (ex != null) {
+                ExceptionUtils.rethrow(ex);
+            }
+        }, client.getInternalExecutorService());
     }
 
     private void cleanupMultiConsumer() {
@@ -1650,8 +1658,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             }
 
             @Override
-            public void close() throws IOException {
-                multiTopicInterceptors.close();
+            public void close() {
             }
         };
     }

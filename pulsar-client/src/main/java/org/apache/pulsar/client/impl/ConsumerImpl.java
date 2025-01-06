@@ -72,6 +72,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
@@ -1142,7 +1143,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         ArrayList<CompletableFuture<Void>> closeFutures = new ArrayList<>(4);
-        closeFutures.add(closeFuture);
+        closeFutures.add(closeFuture.whenCompleteAsync((nil, ex) -> {
+            if (interceptors != null) {
+                interceptors.close();
+            }
+            if (ex != null) {
+                ExceptionUtils.rethrow(ex);
+            }
+        }, internalPinnedExecutor));
         if (retryLetterProducer != null) {
             closeFutures.add(retryLetterProducer.thenCompose(p -> p.closeAsync()).whenComplete((ignore, ex) -> {
                 if (ex != null) {

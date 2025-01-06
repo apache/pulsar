@@ -64,6 +64,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.function.Consumer;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Message;
@@ -1192,7 +1193,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return null;
         });
 
-        return closeFuture;
+        return closeFuture.whenCompleteAsync((nil, ex) -> {
+            if (interceptors != null) {
+                interceptors.close();
+            }
+            if (ex != null) {
+                ExceptionUtils.rethrow(ex);
+            }
+        }, client.getInternalExecutorService());
     }
 
     @VisibleForTesting
