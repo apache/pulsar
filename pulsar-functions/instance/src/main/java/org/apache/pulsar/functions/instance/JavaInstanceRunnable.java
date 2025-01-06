@@ -443,6 +443,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             // increment total successfully processed
             stats.incrTotalProcessedSuccessfully();
         }
+        // handle endTime here
+        stats.processTimeEnd(result.getStartTime());
     }
 
     private void sendOutputMessage(Record srcRecord, Object output) throws Exception {
