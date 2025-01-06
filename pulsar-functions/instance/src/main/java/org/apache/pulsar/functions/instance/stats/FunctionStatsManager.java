@@ -339,12 +339,10 @@ public class FunctionStatsManager extends ComponentStatsManager {
 
 
     @Override
-    public void processTimeEnd() {
-//        if (processTimeStart != null) {
-//            double endTimeMs = ((double) System.nanoTime() - processTimeStart) / 1.0E6D;
-//            statProcessLatencyChild.observe(endTimeMs);
-//            statProcessLatency1minChild.observe(endTimeMs);
-//        }
+    public void processTimeEnd(long startTime) {
+            double endTimeMs = ((double) System.nanoTime() - startTime) / 1.0E6D;
+            statProcessLatencyChild.observe(endTimeMs);
+            statProcessLatency1minChild.observe(endTimeMs);
     }
 
     @Override

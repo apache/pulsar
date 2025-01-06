@@ -285,7 +285,7 @@ public class SinkStatsManager extends ComponentStatsManager {
 
 
     @Override
-    public void processTimeEnd() {
+    public void processTimeEnd(long startTime) {
         //no-op
     }
 
