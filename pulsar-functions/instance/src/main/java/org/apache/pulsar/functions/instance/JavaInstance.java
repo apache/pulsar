@@ -149,13 +149,12 @@ public class JavaInstance implements AutoCloseable {
                             processAsyncResultsInInputOrder(asyncResultConsumer);
                         } else {
                             try {
-                                JavaExecutionResult execResult = new JavaExecutionResult();
                                 if (cause != null) {
-                                    execResult.setUserException(FutureUtil.unwrapCompletionException(cause));
+                                    executionResult.setUserException(FutureUtil.unwrapCompletionException(cause));
                                 } else {
-                                    execResult.setResult(res);
+                                    executionResult.setResult(res);
                                 }
-                                asyncResultConsumer.accept(record, execResult);
+                                asyncResultConsumer.accept(record, executionResult);
                             } finally {
                                 asyncRequestsConcurrencyLimiter.release();
                             }
