@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.intercept;
 
-import static org.testng.Assert.fail;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -26,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -63,8 +63,8 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 
 @Test(groups = "broker")
-public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
-    private static final Logger log = LoggerFactory.getLogger(MangedLedgerInterceptorImplTest.class);
+public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
+    private static final Logger log = LoggerFactory.getLogger(ManagedLedgerInterceptorImplTest.class);
 
     public static class TestPayloadProcessor implements ManagedLedgerPayloadProcessor {
         @Override
@@ -451,26 +451,32 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
                 return new Processor() {
                     @Override
                     public ByteBuf process(Object contextObj, ByteBuf inputPayload) {
-                        throw new RuntimeException(failureMsg);
+                        if (inputPayload.readBoolean()) {
+                            throw new RuntimeException(failureMsg);
+                        }
+                        return inputPayload;
                     }
 
                     @Override
                     public void release(ByteBuf processedPayload) {
                         // no-op
-                        fail("the release method can't be reached");
                     }
                 };
             }
         })));
 
         var ledger = factory.open("testManagedLedgerPayloadProcessorFailure", config);
-        var countDownLatch = new CountDownLatch(1);
+        int count = 10;
+        var countDownLatch = new CountDownLatch(count);
+        var successCount = new AtomicInteger(0);
         var expectedException = new ArrayList<Exception>();
-        ledger.asyncAddEntry("test".getBytes(), 1, 1, new AsyncCallbacks.AddEntryCallback() {
+
+        var addEntryCallback = new AsyncCallbacks.AddEntryCallback() {
             @Override
             public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                 entryData.release();
                 countDownLatch.countDown();
+                successCount.incrementAndGet();
             }
 
             @Override
@@ -479,10 +485,23 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
                 expectedException.add(exception);
                 countDownLatch.countDown();
             }
-        }, null);
+        };
+
+        for (int i = 0; i < count; i++) {
+            if (i % 2 == 0) {
+                ledger.asyncAddEntry(Unpooled.buffer().writeBoolean(true), addEntryCallback, null);
+            } else {
+                ledger.asyncAddEntry(Unpooled.buffer().writeBoolean(false), addEntryCallback, null);
+            }
+        }
+
         countDownLatch.await();
-        assertEquals(expectedException.size(), 1);
-        assertEquals(expectedException.get(0).getCause().getMessage(), failureMsg);
+        assertEquals(expectedException.size(), count / 2);
+        assertEquals(successCount.get(), count / 2);
+        for (Exception e : expectedException) {
+            assertEquals(e.getCause().getMessage(), failureMsg);
+        }
+        ledger.close();
     }
 
 }
