@@ -30,6 +30,7 @@ import java.time.LocalTime;
 import java.util.Date;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.concurrent.ConcurrentMap;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -85,7 +86,6 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import com.google.common.collect.MapMaker;
-import java.util.concurrent.ConcurrentMap;
 /**
  * Helper class for class instantiations and it also contains methods to work with schemas.
  */
@@ -217,7 +217,7 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
     public <T> Schema<T> newAvroSchema(SchemaDefinition schemaDefinition) {
         return AvroSchema.of(schemaDefinition);
     }
-    
+
     public <T> Schema<T> newAvroSchema(Class<T> pojo) {
         return (Schema<T>) AVRO_CACHE.computeIfAbsent(pojo, 
             k -> newAvroSchema(SchemaDefinition.builder().withPojo(pojo).build())).clone();
@@ -233,7 +233,6 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
             k -> newProtobufSchema(SchemaDefinition.builder().withPojo(clazz).build())).clone();
     }
 
-    
     public <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufNativeSchema(
             SchemaDefinition schemaDefinition) {
         return ProtobufNativeSchema.of(schemaDefinition);
