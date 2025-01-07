@@ -188,9 +188,13 @@ public class JavaInstance implements AutoCloseable {
             pendingAsyncRequests.remove(asyncResult);
 
             JavaExecutionResult execResult = asyncResult.getResult();
-            execResult.setResult(asyncResult.getProcessResult().get());
+            try {
+                Object result = asyncResult.getProcessResult().get();
+                execResult.setResult(result);
+            } catch (ExecutionException e) {
+                execResult.setUserException(FutureUtil.unwrapCompletionException(e));
+            }
             resultConsumer.accept(asyncResult.getRecord(), execResult);
-
             // peek the next result
             asyncResult = pendingAsyncRequests.peek();
         }
