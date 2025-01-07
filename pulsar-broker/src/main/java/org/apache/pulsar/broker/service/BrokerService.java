@@ -3291,14 +3291,12 @@ public class BrokerService implements Closeable {
                                                                                         Optional<Policies> policies) {
         final int defaultNumPartitions = pulsar.getBrokerService().getDefaultNumPartitions(topicName, policies);
         final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
-        final int systemTopicDefaultNumPartitions = pulsar.getConfiguration().getSystemTopicDefaultNumPartitions();
         checkArgument(defaultNumPartitions > 0,
                 "Default number of partitions should be more than 0");
         checkArgument(maxPartitions <= 0 || defaultNumPartitions <= maxPartitions,
                 "Number of partitions should be less than or equal to " + maxPartitions);
 
-        PartitionedTopicMetadata configMetadata = new PartitionedTopicMetadata(
-                isSystemTopic(topicName) ? systemTopicDefaultNumPartitions : defaultNumPartitions);
+        PartitionedTopicMetadata configMetadata = new PartitionedTopicMetadata(defaultNumPartitions);
 
         return checkMaxTopicsPerNamespace(topicName, defaultNumPartitions)
                 .thenCompose(__ -> {
@@ -3573,9 +3571,11 @@ public class BrokerService implements Closeable {
     public int getDefaultNumPartitions(final TopicName topicName, final Optional<Policies> policies) {
         AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName, policies);
         if (autoTopicCreationOverride != null) {
-            return autoTopicCreationOverride.getDefaultNumPartitions();
+            return isSystemTopic(topicName) ? autoTopicCreationOverride.getSystemTopicDefaultNumPartitions()
+                    : autoTopicCreationOverride.getDefaultNumPartitions();
         } else {
-            return pulsar.getConfiguration().getDefaultNumPartitions();
+            return isSystemTopic(topicName) ? pulsar.getConfiguration().getSystemTopicDefaultNumPartitions()
+                    : pulsar.getConfiguration().getDefaultNumPartitions();
         }
     }
 
