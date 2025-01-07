@@ -30,6 +30,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.function.LongSupplier;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Function;
@@ -43,6 +44,7 @@ public class JavaInstanceTest {
 
     /**
      * Verify that be able to run lambda functions.
+     *
      * @throws Exception
      */
     @Test
@@ -59,32 +61,32 @@ public class JavaInstanceTest {
     }
 
     @Test
-    public void testNullReturningFunction() throws Exception  {
-    	JavaInstance instance = new JavaInstance(
+    public void testNullReturningFunction() throws Exception {
+        JavaInstance instance = new JavaInstance(
                 mock(ContextImpl.class),
                 (Function<String, String>) (input, context) -> null,
                 new InstanceConfig());
-    	String testString = "ABC123";
-    	JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString);
-    	assertNull(result.getResult());
-    	instance.close();
+        String testString = "ABC123";
+        JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString);
+        assertNull(result.getResult());
+        instance.close();
     }
 
     @Test
-    public void testUserExceptionThrowingFunction() throws Exception  {
-    	final UserException userException = new UserException("Boom");
-    	Function<String, String> func = (input, context) -> {
-    		throw userException;
-    	};
+    public void testUserExceptionThrowingFunction() throws Exception {
+        final UserException userException = new UserException("Boom");
+        Function<String, String> func = (input, context) -> {
+            throw userException;
+        };
 
-    	JavaInstance instance = new JavaInstance(
+        JavaInstance instance = new JavaInstance(
                 mock(ContextImpl.class),
                 func,
                 new InstanceConfig());
-    	String testString = "ABC123";
-    	JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString);
-    	assertSame(userException, result.getUserException());
-    	instance.close();
+        String testString = "ABC123";
+        JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString);
+        assertSame(userException, result.getUserException());
+        instance.close();
     }
 
     @Test
@@ -95,7 +97,7 @@ public class JavaInstanceTest {
 
         Function<String, CompletableFuture<String>> function = (input, context) -> {
             log.info("input string: {}", input);
-            CompletableFuture<String> result  = new CompletableFuture<>();
+            CompletableFuture<String> result = new CompletableFuture<>();
             executor.submit(() -> {
                 try {
                     Thread.sleep(500);
@@ -115,8 +117,9 @@ public class JavaInstanceTest {
         String testString = "ABC123";
         CompletableFuture<JavaExecutionResult> resultHolder = new CompletableFuture<>();
         JavaExecutionResult result = instance.handleMessage(
-            mock(Record.class), testString,
-            (record, javaResult) -> resultHolder.complete(javaResult), cause -> {});
+                mock(Record.class), testString,
+                (record, javaResult) -> resultHolder.complete(javaResult), cause -> {
+                });
         assertNull(result);
         assertNotNull(resultHolder.get());
         assertEquals(testString + "-lambda", resultHolder.get().getResult());
@@ -131,7 +134,7 @@ public class JavaInstanceTest {
 
         Function<String, CompletableFuture<String>> function = (input, context) -> {
             log.info("input string: {}", input);
-            CompletableFuture<String> result  = new CompletableFuture<>();
+            CompletableFuture<String> result = new CompletableFuture<>();
             executor.submit(() -> {
                 try {
                     Thread.sleep(500);
@@ -151,7 +154,8 @@ public class JavaInstanceTest {
         String testString = "ABC123";
         CompletableFuture<JavaExecutionResult> resultHolder = new CompletableFuture<>();
         JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString,
-            (record, javaResult) -> resultHolder.complete(javaResult), cause -> {});
+                (record, javaResult) -> resultHolder.complete(javaResult), cause -> {
+                });
         assertNull(result);
         assertNotNull(resultHolder.get());
         instance.close();
@@ -159,16 +163,16 @@ public class JavaInstanceTest {
 
     @Test
     public void testUserExceptionThrowingAsyncFunction() throws Exception {
-    	final UserException userException = new UserException("Boom");
+        final UserException userException = new UserException("Boom");
         InstanceConfig instanceConfig = new InstanceConfig();
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         Function<String, CompletableFuture<String>> function = (input, context) -> {
             log.info("input string: {}", input);
-            CompletableFuture<String> result  = new CompletableFuture<>();
+            CompletableFuture<String> result = new CompletableFuture<>();
             executor.submit(() -> {
-            	result.completeExceptionally(userException);
+                result.completeExceptionally(userException);
             });
 
             return result;
@@ -181,7 +185,8 @@ public class JavaInstanceTest {
         String testString = "ABC123";
         CompletableFuture<JavaExecutionResult> resultHolder = new CompletableFuture<>();
         JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString,
-            (record, javaResult) -> resultHolder.complete(javaResult), cause -> {});
+                (record, javaResult) -> resultHolder.complete(javaResult), cause -> {
+                });
         assertNull(result);
         assertSame(userException, resultHolder.get().getUserException());
         instance.close();
@@ -198,7 +203,7 @@ public class JavaInstanceTest {
 
         Function<String, CompletableFuture<String>> function = (input, context) -> {
             log.info("input string: {}", input);
-            CompletableFuture<String> result  = new CompletableFuture<>();
+            CompletableFuture<String> result = new CompletableFuture<>();
             executor.submit(() -> {
                 try {
                     count.await();
@@ -243,10 +248,10 @@ public class JavaInstanceTest {
         instance.close();
     }
 
-	private static class UserException extends Exception {
-    	public UserException(String msg) {
-    		super(msg);
-    	}
+    private static class UserException extends Exception {
+        public UserException(String msg) {
+            super(msg);
+        }
     }
 
     @Test
@@ -264,7 +269,7 @@ public class JavaInstanceTest {
         ExecutorService executor = Executors.newCachedThreadPool();
 
         Function<String, CompletableFuture<Void>> function = (input, context) -> {
-            CompletableFuture<Void> result  = new CompletableFuture<>();
+            CompletableFuture<Void> result = new CompletableFuture<>();
             executor.submit(() -> {
                 try {
                     count.await();
@@ -307,6 +312,24 @@ public class JavaInstanceTest {
         long endTime = System.currentTimeMillis();
 
         log.info("start:{} end:{} during:{}", startTime, endTime, endTime - startTime);
+        instance.close();
+    }
+
+    @Test
+    public void testAsyncFunctionTime() {
+        JavaInstance instance = new JavaInstance(
+                mock(ContextImpl.class),
+                (Function<String, String>) (input, context) -> {
+                    Thread.sleep(500);
+                    return input;
+                },
+                new InstanceConfig());
+        String testString = "ABC123";
+        JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString);
+        LongSupplier timeSupplier = () -> System.nanoTime() - 500_000_000L;
+        assertNotNull(result.getResult());
+        long beforeTime = timeSupplier.getAsLong();
+        assertTrue(Math.abs(beforeTime - result.getStartTime()) <= 20_000_000);
         instance.close();
     }
 }
