@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.collect.MapMaker;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
@@ -27,10 +28,10 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.concurrent.ConcurrentMap;
 import java.util.Date;
 import java.util.Map;
 import java.util.function.Supplier;
-import java.util.concurrent.ConcurrentMap;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -85,7 +86,6 @@ import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
 import org.apache.pulsar.common.schema.SchemaType;
-import com.google.common.collect.MapMaker;
 /**
  * Helper class for class instantiations and it also contains methods to work with schemas.
  */
@@ -219,7 +219,7 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
     }
 
     public <T> Schema<T> newAvroSchema(Class<T> pojo) {
-        return (Schema<T>) AVRO_CACHE.computeIfAbsent(pojo, 
+        return (Schema<T>) AVRO_CACHE.computeIfAbsent(pojo,
             k -> newAvroSchema(SchemaDefinition.builder().withPojo(pojo).build())).clone();
     }
 
@@ -239,7 +239,7 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
     }
 
     public <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufNativeSchema(Class<T> clazz) {
-        return (Schema<T>) PROTOBUF_NATIVE_CACHE.computeIfAbsent(clazz, 
+        return (Schema<T>) PROTOBUF_NATIVE_CACHE.computeIfAbsent(clazz,
             k -> newProtobufNativeSchema(SchemaDefinition.builder().withPojo(clazz).build())).clone();
     }
 
@@ -248,7 +248,7 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
     }
 
     public <T> Schema<T> newJSONSchema(Class<T> pojo) {
-         return (Schema<T>) JSON_CACHE.computeIfAbsent(pojo, 
+         return (Schema<T>) JSON_CACHE.computeIfAbsent(pojo,
             k -> newJSONSchema(SchemaDefinition.builder().withPojo(pojo).build())).clone();
     }
 
