@@ -39,7 +39,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker")
+@Test(groups = "flaky")
 public class ZkSessionExpireTest extends NetworkErrorTestBase {
 
     private java.util.function.Consumer<ServiceConfiguration> settings;
