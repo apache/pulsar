@@ -67,6 +67,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -202,8 +203,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final DeadLetterPolicy deadLetterPolicy;
 
     private volatile CompletableFuture<Producer<byte[]>> deadLetterProducer;
-
+    private volatile int deadLetterProducerFailureCount;
     private volatile CompletableFuture<Producer<byte[]>> retryLetterProducer;
+    private volatile int retryLetterProducerFailureCount;
     private final ReadWriteLock createProducerLock = new ReentrantReadWriteLock();
 
     protected volatile boolean paused;
@@ -715,6 +717,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                         .properties(propertiesMap);
                         copyMessageKeysIfNeeded(message, typedMessageBuilderNew);
                         typedMessageBuilderNew.sendAsync().thenAccept(msgId -> {
+                            deadLetterProducerFailureCount = 0;
                             consumerDlqMessagesCounter.increment();
 
                             doAcknowledge(finalMessageId, ackType, Collections.emptyMap(), null).thenAccept(v -> {
@@ -728,7 +731,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             return null;
                         });
                     }, internalPinnedExecutor).exceptionally(ex -> {
-                        closeDeadLetterProducer();
+                        closeDeadLetterProducerAfterException();
                         result.completeExceptionally(ex);
                         return null;
                     });
@@ -745,13 +748,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         copyMessageKeysIfNeeded(message, typedMessageBuilderNew);
                         typedMessageBuilderNew.sendAsync()
                                 .thenCompose(__ -> doAcknowledge(finalMessageId, ackType, Collections.emptyMap(), null))
-                                .thenAccept(v -> result.complete(null))
+                                .thenAccept(v -> {
+                                    retryLetterProducerFailureCount = 0;
+                                    result.complete(null);
+                                })
                                 .exceptionally(ex -> {
                                     result.completeExceptionally(ex);
                                     return null;
                                 });
                     }, internalPinnedExecutor).exceptionally(ex -> {
-                        closeRetryLetterProducer();
+                        closeRetryLetterProducerAfterException();
                         result.completeExceptionally(ex);
                         return null;
                     });
@@ -2229,6 +2235,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     copyMessageKeysIfNeeded(message, typedMessageBuilderNew);
                     typedMessageBuilderNew.sendAsync()
                             .thenAccept(messageIdInDLQ -> {
+                                deadLetterProducerFailureCount = 0;
                                 possibleSendToDeadLetterTopicMessages.remove(messageId);
                                 acknowledgeAsync(messageId).whenComplete((v, ex) -> {
                                     if (ex != null) {
@@ -2256,7 +2263,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
             }, internalPinnedExecutor).exceptionally(ex -> {
                 log.error("Dead letter producer exception with topic: {}", deadLetterPolicy.getDeadLetterTopic(), ex);
-                closeDeadLetterProducer();
+                closeDeadLetterProducerAfterException();
                 result.complete(false);
                 return null;
             });
@@ -2271,19 +2278,24 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             createProducerLock.writeLock().lock();
             try {
                 if (deadLetterProducer == null) {
-                    deadLetterProducer =
-                            ((ProducerBuilderImpl<byte[]>) client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema)))
-                                    .initialSubscriptionName(this.deadLetterPolicy.getInitialSubscriptionName())
-                                    .topic(this.deadLetterPolicy.getDeadLetterTopic())
-                                    .producerName(String.format("%s-%s-%s-%s-DLQ", this.topicName, this.subscription,
-                                            this.consumerName, RandomStringUtils.randomAlphanumeric(5)))
-                                    .blockIfQueueFull(false)
-                                    .enableBatching(false)
-                                    .enableChunking(true)
-                                    .createAsync();
-                    deadLetterProducer.thenAccept(dlqProducer -> {
-                        stats.setDeadLetterProducerStats(dlqProducer.getStats());
-                    });
+                    deadLetterProducer = createProducerWithBackOff(() -> {
+                        CompletableFuture<Producer<byte[]>> newProducer =
+                                ((ProducerBuilderImpl<byte[]>) client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema)))
+                                        .initialSubscriptionName(this.deadLetterPolicy.getInitialSubscriptionName())
+                                        .topic(this.deadLetterPolicy.getDeadLetterTopic())
+                                        .producerName(
+                                                String.format("%s-%s-%s-%s-DLQ", this.topicName, this.subscription,
+                                                        this.consumerName, RandomStringUtils.randomAlphanumeric(5)))
+                                        .blockIfQueueFull(false)
+                                        .enableBatching(false)
+                                        .enableChunking(true)
+                                        .createAsync();
+                        newProducer.thenAccept(dlqProducer -> {
+                            stats.setDeadLetterProducerStats(dlqProducer.getStats());
+                        });
+                        return newProducer;
+                    }, deadLetterProducerFailureCount, () -> "dead letter producer (topic: "
+                            + deadLetterPolicy.getDeadLetterTopic() + ")");
                 }
             } finally {
                 createProducerLock.writeLock().unlock();
@@ -2291,11 +2303,40 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
-    private void closeDeadLetterProducer() {
+    private CompletableFuture<Producer<byte[]>> createProducerWithBackOff(
+            Supplier<CompletableFuture<Producer<byte[]>>> producerSupplier, int failureCount,
+            Supplier<String> logDescription) {
+        if (failureCount == 0) {
+            return producerSupplier.get();
+        } else {
+            // calculate backoff time for given failure count
+            Backoff backoff = new BackoffBuilder()
+                    .setInitialTime(100, TimeUnit.MILLISECONDS)
+                    .setMandatoryStop(client.getConfiguration().getOperationTimeoutMs() * 2,
+                            TimeUnit.MILLISECONDS)
+                    .setMax(1, TimeUnit.MINUTES)
+                    .create();
+            long backoffTimeMillis = 0;
+            for (int i = 0; i < failureCount; i++) {
+                backoffTimeMillis = backoff.next();
+            }
+            CompletableFuture<Producer<byte[]>> newProducer = new CompletableFuture<>();
+            ScheduledExecutorService executor =
+                    (ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor(this);
+            log.info("Creating {} with backoff time of {} ms", logDescription.get(), backoffTimeMillis);
+            executor.schedule(() -> {
+                FutureUtil.completeAfter(newProducer, producerSupplier.get());
+            }, backoffTimeMillis, TimeUnit.MILLISECONDS);
+            return newProducer;
+        }
+    }
+
+    private void closeDeadLetterProducerAfterException() {
         createProducerLock.writeLock().lock();
         try {
             CompletableFuture<Producer<byte[]>> previousDeadLetterProducer = deadLetterProducer;
             deadLetterProducer = null;
+            deadLetterProducerFailureCount++;
             previousDeadLetterProducer.whenComplete((producer, throwable) -> {
                 if (producer != null) {
                     producer.closeAsync().whenComplete((v, t) -> {
@@ -2315,16 +2356,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             createProducerLock.writeLock().lock();
             try {
                 if (retryLetterProducer == null) {
-                    retryLetterProducer = client
-                            .newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
-                            .topic(this.deadLetterPolicy.getRetryLetterTopic())
-                            .enableBatching(false)
-                            .enableChunking(true)
-                            .blockIfQueueFull(false)
-                            .createAsync();
-                    retryLetterProducer.thenAccept(rtlProducer -> {
-                        stats.setRetryLetterProducerStats(rtlProducer.getStats());
-                    });
+                    retryLetterProducer = createProducerWithBackOff(() -> {
+                        CompletableFuture<Producer<byte[]>> newProducer = client
+                                .newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
+                                .topic(this.deadLetterPolicy.getRetryLetterTopic())
+                                .enableBatching(false)
+                                .enableChunking(true)
+                                .blockIfQueueFull(false)
+                                .createAsync();
+                        newProducer.thenAccept(rtlProducer -> {
+                            stats.setRetryLetterProducerStats(rtlProducer.getStats());
+                        });
+                        return newProducer;
+                    }, retryLetterProducerFailureCount, () -> "retry letter producer (topic: "
+                            + deadLetterPolicy.getRetryLetterTopic() + ")");
                 }
             } finally {
                 createProducerLock.writeLock().unlock();
@@ -2332,11 +2377,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
-    private void closeRetryLetterProducer() {
+    private void closeRetryLetterProducerAfterException() {
         createProducerLock.writeLock().lock();
         try {
             CompletableFuture<Producer<byte[]>> previousRetryLetterProducer = retryLetterProducer;
             retryLetterProducer = null;
+            retryLetterProducerFailureCount++;
             previousRetryLetterProducer.whenComplete((producer, throwable) -> {
                 if (producer != null) {
                     producer.closeAsync().whenComplete((v, t) -> {
