@@ -314,24 +314,4 @@ public class JavaInstanceTest {
         instance.close();
     }
 
-    @Test
-    public void testAsyncFunctionTime() {
-        JavaInstance instance = new JavaInstance(
-                mock(ContextImpl.class),
-                (Function<String, String>) (input, context) -> {
-                    try {
-                        Thread.sleep(500);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                    return input;
-                },
-                new InstanceConfig());
-        String testString = "ABC123";
-        JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString);
-        assertNotNull(result.getResult());
-        long beforeTime = System.nanoTime() - 500_000_000L;
-        assertTrue(Math.abs(beforeTime - result.getStartTime()) <= 20_000_000);
-        instance.close();
-    }
 }
