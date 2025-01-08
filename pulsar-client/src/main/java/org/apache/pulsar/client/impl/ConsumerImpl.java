@@ -728,8 +728,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             return null;
                         });
                     }, internalPinnedExecutor).exceptionally(ex -> {
+                        closeDeadLetterProducer();
                         result.completeExceptionally(ex);
-                        deadLetterProducer = null;
                         return null;
                     });
                 } else {
@@ -751,8 +751,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                     return null;
                                 });
                     }, internalPinnedExecutor).exceptionally(ex -> {
+                        closeRetryLetterProducer();
                         result.completeExceptionally(ex);
-                        retryLetterProducer = null;
                         return null;
                     });
                 }
@@ -2256,7 +2256,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
             }, internalPinnedExecutor).exceptionally(ex -> {
                 log.error("Dead letter producer exception with topic: {}", deadLetterPolicy.getDeadLetterTopic(), ex);
-                deadLetterProducer = null;
+                closeDeadLetterProducer();
                 result.complete(false);
                 return null;
             });
@@ -2291,6 +2291,25 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
+    private void closeDeadLetterProducer() {
+        createProducerLock.writeLock().lock();
+        try {
+            CompletableFuture<Producer<byte[]>> previousDeadLetterProducer = deadLetterProducer;
+            deadLetterProducer = null;
+            previousDeadLetterProducer.whenComplete((producer, throwable) -> {
+                if (producer != null) {
+                    producer.closeAsync().whenComplete((v, t) -> {
+                        if (t != null) {
+                            log.error("Failed to close dead letter producer", t);
+                        }
+                    });
+                }
+            });
+        } finally {
+            createProducerLock.writeLock().unlock();
+        }
+    }
+
     private void initRetryLetterProducerIfNeeded() {
         if (retryLetterProducer == null) {
             createProducerLock.writeLock().lock();
@@ -2310,6 +2329,25 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             } finally {
                 createProducerLock.writeLock().unlock();
             }
+        }
+    }
+
+    private void closeRetryLetterProducer() {
+        createProducerLock.writeLock().lock();
+        try {
+            CompletableFuture<Producer<byte[]>> previousRetryLetterProducer = retryLetterProducer;
+            retryLetterProducer = null;
+            previousRetryLetterProducer.whenComplete((producer, throwable) -> {
+                if (producer != null) {
+                    producer.closeAsync().whenComplete((v, t) -> {
+                        if (t != null) {
+                            log.error("Failed to close retry letter producer", t);
+                        }
+                    });
+                }
+            });
+        } finally {
+            createProducerLock.writeLock().unlock();
         }
     }
 
