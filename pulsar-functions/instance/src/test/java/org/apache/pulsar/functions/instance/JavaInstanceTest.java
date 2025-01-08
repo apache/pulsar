@@ -24,6 +24,9 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -320,15 +323,18 @@ public class JavaInstanceTest {
         JavaInstance instance = new JavaInstance(
                 mock(ContextImpl.class),
                 (Function<String, String>) (input, context) -> {
-                    Thread.sleep(500);
+                    try {
+                        Thread.sleep(500);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                     return input;
                 },
                 new InstanceConfig());
         String testString = "ABC123";
         JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString);
-        LongSupplier timeSupplier = () -> System.nanoTime() - 500_000_000L;
         assertNotNull(result.getResult());
-        long beforeTime = timeSupplier.getAsLong();
+        long beforeTime = System.nanoTime() - 500_000_000L;
         assertTrue(Math.abs(beforeTime - result.getStartTime()) <= 20_000_000);
         instance.close();
     }
