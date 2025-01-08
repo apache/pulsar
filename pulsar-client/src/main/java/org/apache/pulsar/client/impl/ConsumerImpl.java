@@ -2337,19 +2337,23 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             CompletableFuture<Producer<byte[]>> previousDeadLetterProducer = deadLetterProducer;
             deadLetterProducer = null;
             deadLetterProducerFailureCount++;
-            if (previousDeadLetterProducer != null) {
-                previousDeadLetterProducer.whenComplete((producer, throwable) -> {
-                    if (producer != null) {
-                        producer.closeAsync().whenComplete((v, t) -> {
-                            if (t != null) {
-                                log.error("Failed to close dead letter producer", t);
-                            }
-                        });
-                    }
-                });
-            }
+            closeProducerFuture(previousDeadLetterProducer);
         } finally {
             createProducerLock.writeLock().unlock();
+        }
+    }
+
+    private static void closeProducerFuture(CompletableFuture<Producer<byte[]>> producerFuture) {
+        if (producerFuture != null) {
+            producerFuture.whenComplete((producer, throwable) -> {
+                if (producer != null) {
+                    producer.closeAsync().whenComplete((v, t) -> {
+                        if (t != null) {
+                            log.error("Failed to close producer", t);
+                        }
+                    });
+                }
+            });
         }
     }
 
@@ -2385,17 +2389,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             CompletableFuture<Producer<byte[]>> previousRetryLetterProducer = retryLetterProducer;
             retryLetterProducer = null;
             retryLetterProducerFailureCount++;
-            if (previousRetryLetterProducer != null) {
-                previousRetryLetterProducer.whenComplete((producer, throwable) -> {
-                    if (producer != null) {
-                        producer.closeAsync().whenComplete((v, t) -> {
-                            if (t != null) {
-                                log.error("Failed to close retry letter producer", t);
-                            }
-                        });
-                    }
-                });
-            }
+            closeProducerFuture(previousRetryLetterProducer);
         } finally {
             createProducerLock.writeLock().unlock();
         }
