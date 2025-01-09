@@ -25,6 +25,9 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.Codec;
@@ -37,6 +40,7 @@ import org.slf4j.LoggerFactory;
 public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback {
     private final ManagedCursor cursor;
     private final String subName;
+    private final int ledgerCloseTimestampMaxClockSkewMillis;
     private final String topicName;
     private long timestamp = 0;
 
@@ -48,19 +52,23 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
             AtomicIntegerFieldUpdater
                     .newUpdater(PersistentMessageFinder.class, "messageFindInProgress");
 
-    public PersistentMessageFinder(String topicName, ManagedCursor cursor) {
+    public PersistentMessageFinder(String topicName, ManagedCursor cursor, int ledgerCloseTimestampMaxClockSkewMillis) {
         this.topicName = topicName;
         this.cursor = cursor;
         this.subName = Codec.decode(cursor.getName());
+        this.ledgerCloseTimestampMaxClockSkewMillis = ledgerCloseTimestampMaxClockSkewMillis;
     }
 
     public void findMessages(final long timestamp, AsyncCallbacks.FindEntryCallback callback) {
-        this.timestamp = timestamp;
         if (messageFindInProgressUpdater.compareAndSet(this, FALSE, TRUE)) {
+            this.timestamp = timestamp;
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Starting message position find at timestamp {}", subName, timestamp);
             }
-
+            Pair<Position, Position> range =
+                    getFindPositionRange(cursor.getManagedLedger().getLedgersInfo().values(),
+                            cursor.getManagedLedger().getLastConfirmedEntry(), timestamp,
+                            ledgerCloseTimestampMaxClockSkewMillis);
             cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, entry -> {
                 try {
                     long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
@@ -71,7 +79,7 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
                     entry.release();
                 }
                 return false;
-            }, this, callback, true);
+            }, range.getLeft(), range.getRight(), this, callback, true);
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Ignore message position find scheduled task, last find is still running", topicName,
@@ -81,6 +89,59 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
                     new ManagedLedgerException.ConcurrentFindCursorPositionException("last find is still running"),
                     Optional.empty(), null);
         }
+    }
+
+    public static Pair<Position, Position> getFindPositionRange(Iterable<LedgerInfo> ledgerInfos,
+                                                                Position lastConfirmedEntry, long targetTimestamp,
+                                                                int ledgerCloseTimestampMaxClockSkewMillis) {
+        if (ledgerCloseTimestampMaxClockSkewMillis < 0) {
+            // this feature is disabled when the value is negative
+            return Pair.of(null, null);
+        }
+
+        long targetTimestampMin = targetTimestamp - ledgerCloseTimestampMaxClockSkewMillis;
+        long targetTimestampMax = targetTimestamp + ledgerCloseTimestampMaxClockSkewMillis;
+
+        Position start = null;
+        Position end = null;
+
+        LedgerInfo secondToLastLedgerInfo = null;
+        LedgerInfo lastLedgerInfo = null;
+        for (LedgerInfo info : ledgerInfos) {
+            if (!info.hasTimestamp()) {
+                // unexpected case, don't set start and end
+                return Pair.of(null, null);
+            }
+            secondToLastLedgerInfo = lastLedgerInfo;
+            lastLedgerInfo = info;
+            long closeTimestamp = info.getTimestamp();
+            // For an open ledger, closeTimestamp is 0
+            if (closeTimestamp == 0) {
+                end = null;
+                break;
+            }
+            if (closeTimestamp <= targetTimestampMin) {
+                start = PositionFactory.create(info.getLedgerId(), 0);
+            } else if (closeTimestamp > targetTimestampMax) {
+                // If the close timestamp is greater than the timestamp
+                end = PositionFactory.create(info.getLedgerId(), info.getEntries() - 1);
+                break;
+            }
+        }
+        // If the second-to-last ledger's close timestamp is less than the target timestamp, then start from the
+        // first entry of the last ledger when there are confirmed entries in the ledger
+        if (lastLedgerInfo != null && secondToLastLedgerInfo != null
+                && secondToLastLedgerInfo.getTimestamp() > 0
+                && secondToLastLedgerInfo.getTimestamp() < targetTimestampMin) {
+            Position firstPositionInLedger = PositionFactory.create(lastLedgerInfo.getLedgerId(), 0);
+            if (lastConfirmedEntry != null
+                    && lastConfirmedEntry.compareTo(firstPositionInLedger) >= 0) {
+                start = firstPositionInLedger;
+            } else {
+                start = lastConfirmedEntry;
+            }
+        }
+        return Pair.of(start, end);
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentMessageFinder.class);
