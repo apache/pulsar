@@ -117,7 +117,7 @@ public class JavaInstanceTest {
         CompletableFuture<JavaExecutionResult> resultHolder = new CompletableFuture<>();
         JavaExecutionResult result = instance.handleMessage(
                 mock(Record.class), testString,
-                (record, javaResult) -> resultHolder.complete(javaResult), cause -> {
+                (record, javaResult,t) -> resultHolder.complete(javaResult), cause -> {
                 });
         assertNull(result);
         assertNotNull(resultHolder.get());
@@ -153,7 +153,7 @@ public class JavaInstanceTest {
         String testString = "ABC123";
         CompletableFuture<JavaExecutionResult> resultHolder = new CompletableFuture<>();
         JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString,
-                (record, javaResult) -> resultHolder.complete(javaResult), cause -> {
+                (record, javaResult,t) -> resultHolder.complete(javaResult), cause -> {
                 });
         assertNull(result);
         assertNotNull(resultHolder.get());
@@ -184,7 +184,7 @@ public class JavaInstanceTest {
         String testString = "ABC123";
         CompletableFuture<JavaExecutionResult> resultHolder = new CompletableFuture<>();
         JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString,
-                (record, javaResult) -> resultHolder.complete(javaResult), cause -> {
+                (record, javaResult,t) -> resultHolder.complete(javaResult), cause -> {
                 });
         assertNull(result);
         assertSame(userException, resultHolder.get().getUserException());
@@ -291,7 +291,7 @@ public class JavaInstanceTest {
 
         long startTime = System.currentTimeMillis();
         assertEquals(pendingQueueSize, instance.getAsyncRequestsConcurrencyLimiter().availablePermits());
-        JavaInstanceRunnable.AsyncResultConsumer asyncResultConsumer = (rec, result) -> {
+        JavaInstanceRunnable.AsyncResultConsumer asyncResultConsumer = (rec, result , t) -> {
             resultsLatch.countDown();
         };
         Consumer<Throwable> asyncFailureHandler = cause -> {
