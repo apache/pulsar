@@ -737,6 +737,48 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testGetFindPositionRange_ClockSkewCase2() {
+        List<LedgerInfo> ledgerInfos = new ArrayList<>();
+        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(1).setEntries(10).setTimestamp(1000).build());
+        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(2).setEntries(10).setTimestamp(2000).build());
+        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(3).setEntries(10).setTimestamp(3000).build());
+        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(4).setEntries(10).setTimestamp(4000).build());
+        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(5).setTimestamp(0).build());
+        Position lastConfirmedEntry = PositionFactory.create(5, 5);
+
+        long targetTimestamp = 2995;
+        Pair<Position, Position> range = PersistentMessageFinder.getFindPositionRange(ledgerInfos,
+                lastConfirmedEntry, targetTimestamp, 10);
+
+        assertNotNull(range);
+        assertNotNull(range.getLeft());
+        assertNotNull(range.getRight());
+        assertEquals(range.getLeft(), PositionFactory.create(2, 0));
+        assertEquals(range.getRight(), PositionFactory.create(4, 9));
+    }
+
+    @Test
+    public void testGetFindPositionRange_ClockSkewCase3() {
+        List<LedgerInfo> ledgerInfos = new ArrayList<>();
+        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(1).setEntries(10).setTimestamp(1000).build());
+        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(2).setEntries(10).setTimestamp(2000).build());
+        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(3).setEntries(10).setTimestamp(3000).build());
+        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(4).setEntries(10).setTimestamp(4000).build());
+        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(5).setTimestamp(0).build());
+        Position lastConfirmedEntry = PositionFactory.create(5, 5);
+
+        long targetTimestamp = 3005;
+        Pair<Position, Position> range = PersistentMessageFinder.getFindPositionRange(ledgerInfos,
+                lastConfirmedEntry, targetTimestamp, 10);
+
+        assertNotNull(range);
+        assertNotNull(range.getLeft());
+        assertNotNull(range.getRight());
+        assertEquals(range.getLeft(), PositionFactory.create(2, 0));
+        assertEquals(range.getRight(), PositionFactory.create(4, 9));
+    }
+
+    @Test
     public void testGetFindPositionRange_FeatureDisabledWithNegativeClockSkew() {
         List<LedgerInfo> ledgerInfos = new ArrayList<>();
         ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(1).setEntries(10).setTimestamp(1000).build());
