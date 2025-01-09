@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar;
 
+import com.google.common.base.Throwables;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.List;
 import java.util.Optional;
@@ -31,6 +32,7 @@ import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TenantResources;
@@ -222,9 +224,18 @@ public class PulsarClusterMetadataTeardown {
             if (log.isDebugEnabled()) {
                 log.debug("Delete ledger id: {}", ledgerId);
             }
-        } catch (InterruptedException | BKException e) {
-            log.error("Failed to delete ledger {}: {}", ledgerId, e);
-            throw new RuntimeException(e);
+        } catch (InterruptedException | BKException ex) {
+            if (ex instanceof BKException bkException) {
+                switch (bkException.getCode()) {
+                    case BKException.Code.NoSuchLedgerExistsException:
+                    case BKException.Code.NoSuchLedgerExistsOnMetadataServerException:
+                    case BKException.Code.NoSuchEntryException:
+                        log.warn("Failed to delete ledger.{}", ledgerId, Throwables.getRootCause(ex));
+                        return;
+                }
+            }
+            log.error("Failed to delete ledger {}: {}", ledgerId, ex);
+            throw new RuntimeException(ex);
         }
     }
 
