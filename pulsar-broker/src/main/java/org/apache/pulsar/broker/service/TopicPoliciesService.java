@@ -22,7 +22,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nonnull;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicPoliciesCacheNotInitException;
 import org.apache.pulsar.client.util.RetryUtil;
 import org.apache.pulsar.common.classification.InterfaceStability;
@@ -32,7 +31,7 @@ import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.BackoffBuilder;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Topic policies service.
@@ -121,8 +120,8 @@ public interface TopicPoliciesService extends AutoCloseable {
      * @return A CompletableFuture containing an Optional of TopicPolicies.
      * @throws NullPointerException If the topicName is null.
      */
-    @Nonnull
-    CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@Nonnull TopicName topicName, boolean isGlobal);
+    @NonNull
+    CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@NonNull TopicName topicName, boolean isGlobal);
 
     /**
      * Asynchronously retrieves topic policies.
@@ -134,8 +133,8 @@ public interface TopicPoliciesService extends AutoCloseable {
      * @return A CompletableFuture containing an Optional of TopicPolicies.
      * @throws NullPointerException If the topicName is null.
      */
-    @Nonnull
-    CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@Nonnull TopicName topicName);
+    @NonNull
+    CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@NonNull TopicName topicName);
 
     /**
      * Get policies for a topic without cache async.
@@ -190,16 +189,16 @@ public interface TopicPoliciesService extends AutoCloseable {
             return null;
         }
 
-        @NotNull
+        @NonNull
         @Override
-        public CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@NotNull TopicName topicName,
+        public CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@NonNull TopicName topicName,
                                                                                 boolean isGlobal) {
             return CompletableFuture.completedFuture(Optional.empty());
         }
 
-        @NotNull
+        @NonNull
         @Override
-        public CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@NotNull TopicName topicName) {
+        public CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@NonNull TopicName topicName) {
             return CompletableFuture.completedFuture(Optional.empty());
         }
 

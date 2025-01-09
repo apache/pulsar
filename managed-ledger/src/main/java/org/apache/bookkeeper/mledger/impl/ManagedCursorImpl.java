@@ -1288,28 +1288,56 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
-            FindEntryCallback callback, Object ctx, boolean isFindFromLedger) {
-        OpFindNewest op;
-        PositionImpl startPosition = null;
-        long max = 0;
+                                        FindEntryCallback callback, Object ctx, boolean isFindFromLedger) {
+        asyncFindNewestMatching(constraint, condition, null, null, callback, ctx,
+                isFindFromLedger);
+    }
+
+
+    @Override
+    public void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
+                                        PositionImpl start, PositionImpl end, FindEntryCallback callback,
+                                        Object ctx, boolean isFindFromLedger) {
+        PositionImpl startPosition;
         switch (constraint) {
-        case SearchAllAvailableEntries:
-            startPosition = (PositionImpl) getFirstPosition();
-            max = ledger.getNumberOfEntries() - 1;
-            break;
-        case SearchActiveEntries:
-            startPosition = ledger.getNextValidPosition(markDeletePosition);
-            max = getNumberOfEntriesInStorage();
-            break;
-        default:
-            callback.findEntryFailed(new ManagedLedgerException("Unknown position constraint"), Optional.empty(), ctx);
-            return;
+            case SearchAllAvailableEntries ->
+                    startPosition = start == null ?  (PositionImpl) getFirstPosition() : start;
+            case SearchActiveEntries -> {
+                if (start == null) {
+                    startPosition = ledger.getNextValidPosition(markDeletePosition);
+                } else {
+                    startPosition = start;
+                    startPosition = startPosition.compareTo(markDeletePosition) <= 0
+                            ? ledger.getNextValidPosition(startPosition) : startPosition;
+                }
+            }
+            default -> {
+                callback.findEntryFailed(
+                        new ManagedLedgerException("Unknown position constraint"), Optional.empty(), ctx);
+                return;
+            }
         }
+        // startPosition can't be null, should never go here.
         if (startPosition == null) {
             callback.findEntryFailed(new ManagedLedgerException("Couldn't find start position"),
                     Optional.empty(), ctx);
             return;
         }
+        // Calculate the end position
+        PositionImpl endPosition = end == null ? ledger.lastConfirmedEntry : end;
+        endPosition = endPosition.compareTo(ledger.lastConfirmedEntry) > 0 ? ledger.lastConfirmedEntry : endPosition;
+        // Calculate the number of entries between the startPosition and endPosition
+        long max = 0;
+        if (startPosition.compareTo(endPosition) <= 0) {
+            max = ledger.getNumberOfEntries(Range.closed(startPosition, endPosition));
+        }
+
+        if (max <= 0) {
+            callback.findEntryComplete(null, ctx);
+            return;
+        }
+
+        OpFindNewest op;
         if (isFindFromLedger) {
             op = new OpFindNewest(this.ledger, startPosition, condition, max, callback, ctx);
         } else {
