@@ -679,9 +679,11 @@ public interface ManagedCursor {
      * @param isFindFromLedger
      *            find the newest entry from ledger
      */
-    void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
+    default void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
                                  Position startPosition, Position endPosition, FindEntryCallback callback,
-                                 Object ctx, boolean isFindFromLedger);
+                                 Object ctx, boolean isFindFromLedger) {
+        asyncFindNewestMatching(constraint, condition, callback, ctx, isFindFromLedger);
+    }
 
     /**
      * reset the cursor to specified position to enable replay of messages.
