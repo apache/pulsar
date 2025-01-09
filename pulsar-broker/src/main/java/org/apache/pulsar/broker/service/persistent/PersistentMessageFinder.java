@@ -26,7 +26,6 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -59,12 +58,14 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
     }
 
     public void findMessages(final long timestamp, AsyncCallbacks.FindEntryCallback callback) {
-        this.timestamp = timestamp;
         if (messageFindInProgressUpdater.compareAndSet(this, FALSE, TRUE)) {
+            this.timestamp = timestamp;
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Starting message position find at timestamp {}", subName, timestamp);
             }
-            Pair<Position, Position> range = getFindPositionRange((ManagedLedgerImpl) cursor.getManagedLedger());
+            Pair<Position, Position> range =
+                    getFindPositionRange(cursor.getManagedLedger().getLedgersInfo().values(),
+                            cursor.getManagedLedger().getLastConfirmedEntry(), timestamp);
             cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, entry -> {
                 try {
                     long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
@@ -87,16 +88,32 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
         }
     }
 
-    private Pair<Position, Position> getFindPositionRange(ManagedLedgerImpl ledger) {
+    public static Pair<Position, Position> getFindPositionRange(
+            Iterable<MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgerInfos, Position lastConfirmedEntry,
+            long timestamp) {
         Position start = null;
         Position end = null;
 
-        for (MLDataFormats.ManagedLedgerInfo.LedgerInfo info : ledger.getLedgersInfo().values()) {
+        long previousCloseTimestamp = -1;
+        for (MLDataFormats.ManagedLedgerInfo.LedgerInfo info : ledgerInfos) {
             if (!info.hasTimestamp()) {
+                // unexpected case, don't set start and end
                 return Pair.of(null, null);
             }
             long closeTimestamp = info.getTimestamp();
+            // For an open ledger, closeTimestamp is 0
             if (closeTimestamp == 0) {
+                // if the previous ledger close timestamp is less than the timestamp, then start from the first entry
+                // when there are confirmed entries in the ledger
+                if (previousCloseTimestamp < timestamp) {
+                    Position firstPositionInLedger = PositionFactory.create(info.getLedgerId(), 0);
+                    if (lastConfirmedEntry != null
+                            && lastConfirmedEntry.compareTo(firstPositionInLedger) >= 0) {
+                        start = firstPositionInLedger;
+                    } else {
+                        start = lastConfirmedEntry;
+                    }
+                }
                 return Pair.of(start, null);
             }
             if (closeTimestamp <= timestamp) {
@@ -106,6 +123,7 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
                 end = PositionFactory.create(info.getLedgerId(), info.getEntries() - 1);
                 break;
             }
+            previousCloseTimestamp = closeTimestamp;
         }
         return Pair.of(start, end);
     }
