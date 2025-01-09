@@ -633,7 +633,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
         List<CompletableFuture<Void>> futureList = consumers.values().stream()
-            .map(ConsumerImpl::closeAsync).collect(Collectors.toList());
+            .map(consumer -> consumer.closeAsync().exceptionally(t -> {
+                Throwable cause = FutureUtil.unwrapCompletionException(t);
+                if (!(cause instanceof PulsarClientException.AlreadyClosedException)) {
+                    log.warn("[{}] [{}] Error closing individual consumer", consumer.getTopic(),
+                            consumer.getSubscription(), cause);
+                }
+                return null;
+            })).collect(Collectors.toList());
 
         FutureUtil.waitForAll(futureList)
             .thenComposeAsync((r) -> {
