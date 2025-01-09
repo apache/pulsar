@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger;
 
 import io.netty.buffer.ByteBuf;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
@@ -691,4 +692,9 @@ public interface ManagedLedger {
      * Check if managed ledger should cache backlog reads.
      */
     void checkCursorsToCacheEntries();
+
+    /**
+     * Get all the managed ledgers.
+     */
+    NavigableMap<Long, LedgerInfo> getLedgersInfo();
 }

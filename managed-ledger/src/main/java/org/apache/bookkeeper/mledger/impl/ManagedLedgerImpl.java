@@ -3883,6 +3883,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return Lists.newArrayList(ledgers.values());
     }
 
+    @Override
     public NavigableMap<Long, LedgerInfo> getLedgersInfo() {
         return ledgers;
     }

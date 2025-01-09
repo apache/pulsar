@@ -132,6 +132,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     private volatile Map<String, String> subscriptionProperties;
     private volatile CompletableFuture<Void> fenceFuture;
     private volatile CompletableFuture<Void> inProgressResetCursorFuture;
+    private final ServiceConfiguration config;
 
     static {
         REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES.put(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
@@ -155,6 +156,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     public PersistentSubscription(PersistentTopic topic, String subscriptionName, ManagedCursor cursor,
                                   Boolean replicated, Map<String, String> subscriptionProperties) {
         this.topic = topic;
+        this.config = topic.getBrokerService().getPulsar().getConfig();
         this.cursor = cursor;
         this.topicName = topic.getName();
         this.subName = subscriptionName;
@@ -163,7 +165,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         this.setReplicated(replicated);
         this.subscriptionProperties = MapUtils.isEmpty(subscriptionProperties)
                 ? Collections.emptyMap() : Collections.unmodifiableMap(subscriptionProperties);
-        if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
+        if (config.isTransactionCoordinatorEnabled()
                 && !isEventSystemTopic(TopicName.get(topicName))
                 && !ExtensibleLoadManagerImpl.isInternalTopic(topicName)) {
             this.pendingAckHandle = new PendingAckHandleImpl(this);
@@ -424,7 +426,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                 log.debug("[{}][{}] Individual acks on {}", topicName, subName, positions);
             }
             cursor.asyncDelete(positions, deleteCallback, previousMarkDeletePosition);
-            if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
+            if (config.isTransactionCoordinatorEnabled()) {
                 positions.forEach(position -> {
                     if (((ManagedCursorImpl) cursor).isMessageDeleted(position)) {
                         pendingAckHandle.clearIndividualPosition(position);
@@ -584,10 +586,9 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         final EntryFilterSupport entryFilterSupport = dispatcher != null
                 ? (EntryFilterSupport) dispatcher : new EntryFilterSupport(this);
         // we put some hard limits on the scan, in order to prevent denial of services
-        ServiceConfiguration configuration = topic.getBrokerService().getPulsar().getConfiguration();
-        long maxEntries = configuration.getSubscriptionBacklogScanMaxEntries();
-        long timeOutMs = configuration.getSubscriptionBacklogScanMaxTimeMs();
-        int batchSize = configuration.getDispatcherMaxReadBatchSize();
+        long maxEntries = config.getSubscriptionBacklogScanMaxEntries();
+        long timeOutMs = config.getSubscriptionBacklogScanMaxTimeMs();
+        int batchSize = config.getDispatcherMaxReadBatchSize();
         AtomicReference<Position> firstPosition = new AtomicReference<>();
         AtomicReference<Position> lastPosition = new AtomicReference<>();
         final Predicate<Entry> condition = entry -> {
@@ -752,7 +753,8 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     @Override
     public CompletableFuture<Void> resetCursor(long timestamp) {
         CompletableFuture<Void> future = new CompletableFuture<>();
-        PersistentMessageFinder persistentMessageFinder = new PersistentMessageFinder(topicName, cursor);
+        PersistentMessageFinder persistentMessageFinder = new PersistentMessageFinder(topicName, cursor,
+                config.getManagedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis());
 
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Resetting subscription to timestamp {}", topicName, subName, timestamp);

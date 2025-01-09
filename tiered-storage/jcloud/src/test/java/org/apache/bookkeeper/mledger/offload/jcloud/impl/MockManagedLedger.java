@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import io.netty.buffer.ByteBuf;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
@@ -379,6 +380,11 @@ public class MockManagedLedger implements ManagedLedger {
     @Override
     public void checkCursorsToCacheEntries() {
         // no-op
+    }
+
+    @Override
+    public NavigableMap<Long, LedgerInfo> getLedgersInfo() {
+        return null;
     }
 
     @Override
