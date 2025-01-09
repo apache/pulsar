@@ -470,7 +470,6 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
         var addEntryCallback = new AsyncCallbacks.AddEntryCallback() {
             @Override
             public void addComplete(Position position, ByteBuf entryData, Object ctx) {
-                entryData.release();
                 countDownLatch.countDown();
                 successCount.incrementAndGet();
             }
