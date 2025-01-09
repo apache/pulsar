@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
@@ -39,9 +40,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import lombok.Data;
 import org.apache.avro.reflect.Nullable;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
 import org.apache.pulsar.client.util.RetryMessageUtil;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1018,5 +1021,95 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         Map<String, Object> config = new HashMap<>();
         consumerBuilder.loadConf(config);
         assertEquals(((ConsumerBuilderImpl)consumerBuilder).getConf().getDeadLetterPolicy(), policy);
+    }
+
+    @Data
+    static class Payload {
+        String number;
+
+        public Payload() {
+
+        }
+
+        public Payload(String number) {
+            this.number = number;
+        }
+    }
+
+    @Data
+    static class PayloadIncompatible {
+        long number;
+
+        public PayloadIncompatible() {
+
+        }
+
+        public PayloadIncompatible(long number) {
+            this.number = number;
+        }
+    }
+
+    // reproduce issue reported in https://github.com/apache/pulsar/issues/20635#issuecomment-1709616321
+    @Test
+    public void testCloseDeadLetterTopicProducerOnExceptionToPreventProducerLeak() throws Exception {
+        String namespace = BrokerTestUtil.newUniqueName("my-property/my-ns");
+        admin.namespaces().createNamespace(namespace);
+        // don't enforce schema validation
+        admin.namespaces().setSchemaValidationEnforced(namespace, false);
+        // set schema compatibility strategy to always compatible
+        admin.namespaces().setSchemaCompatibilityStrategy(namespace, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+
+        Schema<Payload> schema = Schema.AVRO(Payload.class);
+        Schema<PayloadIncompatible> schemaIncompatible = Schema.AVRO(PayloadIncompatible.class);
+        String topic = BrokerTestUtil.newUniqueName("persistent://" + namespace
+                        + "/testCloseDeadLetterTopicProducerOnExceptionToPreventProducerLeak");
+        String dlqTopic = topic + "-DLQ";
+
+        // create topics
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().createNonPartitionedTopic(dlqTopic);
+
+        AtomicInteger nackCounter = new AtomicInteger(0);
+        Consumer<Payload> payloadConsumer = null;
+        try {
+            payloadConsumer = pulsarClient.newConsumer(schema).topic(topic)
+                    .subscriptionType(SubscriptionType.Shared).subscriptionName("sub")
+                    .ackTimeout(1, TimeUnit.SECONDS)
+                    .negativeAckRedeliveryDelay(1, TimeUnit.MILLISECONDS)
+                    .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(3).deadLetterTopic(dlqTopic).build())
+                    .messageListener((c, msg) -> {
+                        if (nackCounter.incrementAndGet() < 10) {
+                            c.negativeAcknowledge(msg);
+                        }
+                    }).subscribe();
+
+            // send a message to the topic with the incompatible schema
+            PayloadIncompatible payloadIncompatible = new PayloadIncompatible(123);
+            try (Producer<PayloadIncompatible> producer = pulsarClient.newProducer(schemaIncompatible).topic(topic)
+                    .create()) {
+                producer.send(payloadIncompatible);
+            }
+
+            Thread.sleep(2000L);
+
+            assertThat(pulsar.getBrokerService().getTopicReference(dlqTopic).get().getProducers().size())
+                    .describedAs("producer count of dlq topic %s should be <= 1 so that it doesn't leak producers",
+                            dlqTopic)
+                    .isLessThanOrEqualTo(1);
+
+        } finally {
+            if (payloadConsumer != null) {
+                try {
+                    payloadConsumer.close();
+                } catch (PulsarClientException e) {
+                    // ignore
+                }
+            }
+        }
+
+        assertThat(pulsar.getBrokerService().getTopicReference(dlqTopic).get().getProducers().size())
+                .describedAs("producer count of dlq topic %s should be 0 here",
+                        dlqTopic)
+                .isEqualTo(0);
     }
 }
