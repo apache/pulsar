@@ -90,4 +90,6 @@ public interface Component<W extends WorkerService> {
     List<ConnectorDefinition> getListOfConnectors();
 
     void reloadConnectors(AuthenticationParameters authParams);
+
+    boolean checkLiveliness();
 }
