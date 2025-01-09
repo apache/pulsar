@@ -684,9 +684,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return FutureUtil.failedFuture(exception);
         }
 
-        initRetryLetterProducerIfNeeded();
         CompletableFuture<Void> result = new CompletableFuture<>();
-        if (retryLetterProducer != null) {
+        if (initRetryLetterProducerIfNeeded() != null) {
             try {
                 MessageImpl<T> retryMessage = (MessageImpl<T>) getMessageImpl(message);
                 String originMessageIdStr = message.getMessageId().toString();
@@ -709,55 +708,60 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 MessageId finalMessageId = messageId;
                 if (reconsumeTimes > this.deadLetterPolicy.getMaxRedeliverCount()
                         && StringUtils.isNotBlank(deadLetterPolicy.getDeadLetterTopic())) {
-                    initDeadLetterProducerIfNeeded();
-                    deadLetterProducer.thenAcceptAsync(dlqProducer -> {
-                        TypedMessageBuilder<byte[]> typedMessageBuilderNew =
-                                dlqProducer.newMessage(Schema.AUTO_PRODUCE_BYTES(retryMessage.getReaderSchema().get()))
-                                        .value(retryMessage.getData())
-                                        .properties(propertiesMap);
-                        copyMessageKeysIfNeeded(message, typedMessageBuilderNew);
-                        typedMessageBuilderNew.sendAsync().thenAccept(msgId -> {
-                            deadLetterProducerFailureCount = 0;
-                            consumerDlqMessagesCounter.increment();
+                    initDeadLetterProducerIfNeeded().thenAcceptAsync(dlqProducer -> {
+                        try {
+                            TypedMessageBuilder<byte[]> typedMessageBuilderNew =
+                                    dlqProducer.newMessage(
+                                                    Schema.AUTO_PRODUCE_BYTES(retryMessage.getReaderSchema().get()))
+                                            .value(retryMessage.getData())
+                                            .properties(propertiesMap);
+                            copyMessageKeysIfNeeded(message, typedMessageBuilderNew);
+                            typedMessageBuilderNew.sendAsync().thenAccept(msgId -> {
+                                consumerDlqMessagesCounter.increment();
 
-                            doAcknowledge(finalMessageId, ackType, Collections.emptyMap(), null).thenAccept(v -> {
-                                result.complete(null);
+                                doAcknowledge(finalMessageId, ackType, Collections.emptyMap(), null).thenAccept(v -> {
+                                    result.complete(null);
+                                }).exceptionally(ex -> {
+                                    result.completeExceptionally(ex);
+                                    return null;
+                                });
                             }).exceptionally(ex -> {
                                 result.completeExceptionally(ex);
                                 return null;
                             });
-                        }).exceptionally(ex -> {
-                            result.completeExceptionally(ex);
-                            return null;
-                        });
+                        } catch (Exception e) {
+                            result.completeExceptionally(e);
+                        }
                     }, internalPinnedExecutor).exceptionally(ex -> {
-                        closeDeadLetterProducerAfterException();
                         result.completeExceptionally(ex);
                         return null;
                     });
                 } else {
                     assert retryMessage != null;
-                    retryLetterProducer.thenAcceptAsync(rtlProducer -> {
-                        TypedMessageBuilder<byte[]> typedMessageBuilderNew = rtlProducer
-                                .newMessage(Schema.AUTO_PRODUCE_BYTES(message.getReaderSchema().get()))
-                                .value(retryMessage.getData())
-                                .properties(propertiesMap);
-                        if (delayTime > 0) {
-                            typedMessageBuilderNew.deliverAfter(delayTime, unit);
+                    initRetryLetterProducerIfNeeded().thenAcceptAsync(rtlProducer -> {
+                        try {
+                            TypedMessageBuilder<byte[]> typedMessageBuilderNew = rtlProducer
+                                    .newMessage(Schema.AUTO_PRODUCE_BYTES(message.getReaderSchema().get()))
+                                    .value(retryMessage.getData())
+                                    .properties(propertiesMap);
+                            if (delayTime > 0) {
+                                typedMessageBuilderNew.deliverAfter(delayTime, unit);
+                            }
+                            copyMessageKeysIfNeeded(message, typedMessageBuilderNew);
+                            typedMessageBuilderNew.sendAsync()
+                                    .thenCompose(
+                                            __ -> doAcknowledge(finalMessageId, ackType, Collections.emptyMap(), null))
+                                    .thenAccept(v -> {
+                                        result.complete(null);
+                                    })
+                                    .exceptionally(ex -> {
+                                        result.completeExceptionally(ex);
+                                        return null;
+                                    });
+                        } catch (Exception e) {
+                            result.completeExceptionally(e);
                         }
-                        copyMessageKeysIfNeeded(message, typedMessageBuilderNew);
-                        typedMessageBuilderNew.sendAsync()
-                                .thenCompose(__ -> doAcknowledge(finalMessageId, ackType, Collections.emptyMap(), null))
-                                .thenAccept(v -> {
-                                    retryLetterProducerFailureCount = 0;
-                                    result.complete(null);
-                                })
-                                .exceptionally(ex -> {
-                                    result.completeExceptionally(ex);
-                                    return null;
-                                });
                     }, internalPinnedExecutor).exceptionally(ex -> {
-                        closeRetryLetterProducerAfterException();
                         result.completeExceptionally(ex);
                         return null;
                     });
@@ -2222,48 +2226,54 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
         CompletableFuture<Boolean> result = new CompletableFuture<>();
         if (deadLetterMessages != null) {
-            initDeadLetterProducerIfNeeded();
             List<MessageImpl<T>> finalDeadLetterMessages = deadLetterMessages;
-            deadLetterProducer.thenAcceptAsync(producerDLQ -> {
+            initDeadLetterProducerIfNeeded().thenAcceptAsync(producerDLQ -> {
                 for (MessageImpl<T> message : finalDeadLetterMessages) {
-                    String originMessageIdStr = message.getMessageId().toString();
-                    String originTopicNameStr = getOriginTopicNameStr(message);
-                    TypedMessageBuilder<byte[]> typedMessageBuilderNew =
-                            producerDLQ.newMessage(Schema.AUTO_PRODUCE_BYTES(message.getReaderSchema().get()))
-                            .value(message.getData())
-                            .properties(getPropertiesMap(message, originMessageIdStr, originTopicNameStr));
-                    copyMessageKeysIfNeeded(message, typedMessageBuilderNew);
-                    typedMessageBuilderNew.sendAsync()
-                            .thenAccept(messageIdInDLQ -> {
-                                deadLetterProducerFailureCount = 0;
-                                possibleSendToDeadLetterTopicMessages.remove(messageId);
-                                acknowledgeAsync(messageId).whenComplete((v, ex) -> {
-                                    if (ex != null) {
-                                        log.warn("[{}] [{}] [{}] Failed to acknowledge the message {} of the original"
-                                                        + " topic but send to the DLQ successfully.",
-                                                topicName, subscription, consumerName, messageId, ex);
-                                        result.complete(false);
+                    try {
+                        String originMessageIdStr = message.getMessageId().toString();
+                        String originTopicNameStr = getOriginTopicNameStr(message);
+                        TypedMessageBuilder<byte[]> typedMessageBuilderNew =
+                                producerDLQ.newMessage(Schema.AUTO_PRODUCE_BYTES(message.getReaderSchema().get()))
+                                        .value(message.getData())
+                                        .properties(getPropertiesMap(message, originMessageIdStr, originTopicNameStr));
+                        copyMessageKeysIfNeeded(message, typedMessageBuilderNew);
+                        typedMessageBuilderNew.sendAsync()
+                                .thenAccept(messageIdInDLQ -> {
+                                    possibleSendToDeadLetterTopicMessages.remove(messageId);
+                                    acknowledgeAsync(messageId).whenComplete((v, ex) -> {
+                                        if (ex != null) {
+                                            log.warn(
+                                                    "[{}] [{}] [{}] Failed to acknowledge the message {} of the "
+                                                            + "original topic but send to the DLQ successfully.",
+                                                    topicName, subscription, consumerName, messageId, ex);
+                                            result.complete(false);
+                                        } else {
+                                            result.complete(true);
+                                        }
+                                    });
+                                }).exceptionally(ex -> {
+                                    if (ex instanceof PulsarClientException.ProducerQueueIsFullError) {
+                                        log.warn(
+                                                "[{}] [{}] [{}] Failed to send DLQ message to {} for message id {}: {}",
+                                                topicName, subscription, consumerName,
+                                                deadLetterPolicy.getDeadLetterTopic(), messageId, ex.getMessage());
                                     } else {
-                                        result.complete(true);
+                                        log.warn("[{}] [{}] [{}] Failed to send DLQ message to {} for message id {}",
+                                                topicName, subscription, consumerName,
+                                                deadLetterPolicy.getDeadLetterTopic(), messageId, ex);
                                     }
+                                    result.complete(false);
+                                    return null;
                                 });
-                            }).exceptionally(ex -> {
-                                if (ex instanceof PulsarClientException.ProducerQueueIsFullError) {
-                                    log.warn("[{}] [{}] [{}] Failed to send DLQ message to {} for message id {}: {}",
-                                            topicName, subscription, consumerName,
-                                            deadLetterPolicy.getDeadLetterTopic(), messageId, ex.getMessage());
-                                } else {
-                                    log.warn("[{}] [{}] [{}] Failed to send DLQ message to {} for message id {}",
-                                            topicName, subscription, consumerName,
-                                            deadLetterPolicy.getDeadLetterTopic(), messageId, ex);
-                                }
-                                result.complete(false);
-                                return null;
-                    });
+                    } catch (Exception e) {
+                        log.warn("[{}] [{}] [{}] Failed to send DLQ message to {} for message id {}",
+                                topicName, subscription, consumerName, deadLetterPolicy.getDeadLetterTopic(), messageId,
+                                e);
+                        result.complete(false);
+                    }
                 }
             }, internalPinnedExecutor).exceptionally(ex -> {
                 log.error("Dead letter producer exception with topic: {}", deadLetterPolicy.getDeadLetterTopic(), ex);
-                closeDeadLetterProducerAfterException();
                 result.complete(false);
                 return null;
             });
@@ -2273,12 +2283,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return result;
     }
 
-    private void initDeadLetterProducerIfNeeded() {
-        if (deadLetterProducer == null) {
+    private CompletableFuture<Producer<byte[]>> initDeadLetterProducerIfNeeded() {
+        CompletableFuture<Producer<byte[]>> p = deadLetterProducer;
+        if (p == null || p.isCompletedExceptionally()) {
             createProducerLock.writeLock().lock();
             try {
-                if (deadLetterProducer == null) {
-                    deadLetterProducer = createProducerWithBackOff(() -> {
+                p = deadLetterProducer;
+                if (p == null || p.isCompletedExceptionally()) {
+                    p = createProducerWithBackOff(() -> {
                         CompletableFuture<Producer<byte[]>> newProducer =
                                 ((ProducerBuilderImpl<byte[]>) client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema)))
                                         .initialSubscriptionName(this.deadLetterPolicy.getInitialSubscriptionName())
@@ -2290,17 +2302,27 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                         .enableBatching(false)
                                         .enableChunking(true)
                                         .createAsync();
-                        newProducer.thenAccept(dlqProducer -> {
-                            stats.setDeadLetterProducerStats(dlqProducer.getStats());
+                        newProducer.whenComplete((producer, ex) -> {
+                            if (ex != null) {
+                                log.error("[{}] [{}] [{}] Failed to create dead letter producer for topic {}",
+                                        topicName, subscription, consumerName, deadLetterPolicy.getDeadLetterTopic(),
+                                        ex);
+                                deadLetterProducerFailureCount++;
+                            } else {
+                                deadLetterProducerFailureCount = 0;
+                                stats.setDeadLetterProducerStats(producer.getStats());
+                            }
                         });
                         return newProducer;
                     }, deadLetterProducerFailureCount, () -> "dead letter producer (topic: "
                             + deadLetterPolicy.getDeadLetterTopic() + ")");
+                    deadLetterProducer = p;
                 }
             } finally {
                 createProducerLock.writeLock().unlock();
             }
         }
+        return p;
     }
 
     private CompletableFuture<Producer<byte[]>> createProducerWithBackOff(
@@ -2331,38 +2353,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
-    private void closeDeadLetterProducerAfterException() {
-        createProducerLock.writeLock().lock();
-        try {
-            CompletableFuture<Producer<byte[]>> previousDeadLetterProducer = deadLetterProducer;
-            deadLetterProducer = null;
-            deadLetterProducerFailureCount++;
-            closeProducerFuture(previousDeadLetterProducer);
-        } finally {
-            createProducerLock.writeLock().unlock();
-        }
-    }
-
-    private static void closeProducerFuture(CompletableFuture<Producer<byte[]>> producerFuture) {
-        if (producerFuture != null) {
-            producerFuture.whenComplete((producer, throwable) -> {
-                if (producer != null) {
-                    producer.closeAsync().whenComplete((v, t) -> {
-                        if (t != null) {
-                            log.error("Failed to close producer", t);
-                        }
-                    });
-                }
-            });
-        }
-    }
-
-    private void initRetryLetterProducerIfNeeded() {
-        if (retryLetterProducer == null) {
+    private CompletableFuture<Producer<byte[]>> initRetryLetterProducerIfNeeded() {
+        CompletableFuture<Producer<byte[]>> p = retryLetterProducer;
+        if (p == null || p.isCompletedExceptionally()) {
             createProducerLock.writeLock().lock();
             try {
-                if (retryLetterProducer == null) {
-                    retryLetterProducer = createProducerWithBackOff(() -> {
+                p = retryLetterProducer;
+                if (p == null || p.isCompletedExceptionally()) {
+                    p = createProducerWithBackOff(() -> {
                         CompletableFuture<Producer<byte[]>> newProducer = client
                                 .newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
                                 .topic(this.deadLetterPolicy.getRetryLetterTopic())
@@ -2370,29 +2368,27 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                 .enableChunking(true)
                                 .blockIfQueueFull(false)
                                 .createAsync();
-                        newProducer.thenAccept(rtlProducer -> {
-                            stats.setRetryLetterProducerStats(rtlProducer.getStats());
+                        newProducer.whenComplete((producer, ex) -> {
+                            if (ex != null) {
+                                log.error("[{}] [{}] [{}] Failed to create retry letter producer for topic {}",
+                                        topicName, subscription, consumerName, deadLetterPolicy.getRetryLetterTopic(),
+                                        ex);
+                                retryLetterProducerFailureCount++;
+                            } else {
+                                retryLetterProducerFailureCount = 0;
+                                stats.setRetryLetterProducerStats(producer.getStats());
+                            }
                         });
                         return newProducer;
                     }, retryLetterProducerFailureCount, () -> "retry letter producer (topic: "
                             + deadLetterPolicy.getRetryLetterTopic() + ")");
+                    retryLetterProducer = p;
                 }
             } finally {
                 createProducerLock.writeLock().unlock();
             }
         }
-    }
-
-    private void closeRetryLetterProducerAfterException() {
-        createProducerLock.writeLock().lock();
-        try {
-            CompletableFuture<Producer<byte[]>> previousRetryLetterProducer = retryLetterProducer;
-            retryLetterProducer = null;
-            retryLetterProducerFailureCount++;
-            closeProducerFuture(previousRetryLetterProducer);
-        } finally {
-            createProducerLock.writeLock().unlock();
-        }
+        return p;
     }
 
     @Override
