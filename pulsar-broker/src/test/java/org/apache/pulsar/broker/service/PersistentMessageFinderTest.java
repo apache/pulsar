@@ -689,7 +689,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertNotNull(range);
         assertNotNull(range.getLeft());
         assertNotNull(range.getRight());
-        assertEquals(range.getLeft(), PositionFactory.create(2, 0));
+        assertEquals(range.getLeft(), PositionFactory.create(3, 0));
         assertEquals(range.getRight(), PositionFactory.create(3, 9));
     }
 
@@ -753,5 +753,36 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertNotNull(range);
         assertNull(range.getLeft());
         assertNull(range.getRight());
+    }
+
+    @Test
+    public void testGetFindPositionRange_SingleLedger() {
+        List<LedgerInfo> ledgerInfos = new ArrayList<>();
+        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(1).setTimestamp(0).build());
+        Position lastConfirmedEntry = PositionFactory.create(1, 5);
+
+        long targetTimestamp = 2500;
+        Pair<Position, Position> range = PersistentMessageFinder.getFindPositionRange(ledgerInfos,
+                lastConfirmedEntry, targetTimestamp, 0);
+
+        assertNotNull(range);
+        assertNull(range.getLeft());
+        assertNull(range.getRight());
+    }
+
+    @Test
+    public void testGetFindPositionRange_SingleClosedLedger() {
+        List<LedgerInfo> ledgerInfos = new ArrayList<>();
+        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(1).setEntries(10).setTimestamp(1000).build());
+        Position lastConfirmedEntry = PositionFactory.create(1, 9);
+
+        long targetTimestamp = 2500;
+        Pair<Position, Position> range = PersistentMessageFinder.getFindPositionRange(ledgerInfos,
+                lastConfirmedEntry, targetTimestamp, 0);
+
+        assertNotNull(range);
+        assertNotNull(range.getLeft());
+        assertNull(range.getRight());
+        assertEquals(range.getLeft(), PositionFactory.create(1, 0));
     }
 }

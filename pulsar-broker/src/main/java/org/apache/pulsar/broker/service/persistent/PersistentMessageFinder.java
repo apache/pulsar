@@ -26,7 +26,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.protocol.Commands;
@@ -91,40 +91,34 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
         }
     }
 
-    public static Pair<Position, Position> getFindPositionRange(
-            Iterable<MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgerInfos, Position lastConfirmedEntry,
-            long targetTimestamp, int ledgerCloseTimestampMaxClockSkewMillis) {
+    public static Pair<Position, Position> getFindPositionRange(Iterable<LedgerInfo> ledgerInfos,
+                                                                Position lastConfirmedEntry, long targetTimestamp,
+                                                                int ledgerCloseTimestampMaxClockSkewMillis) {
         if (ledgerCloseTimestampMaxClockSkewMillis < 0) {
             // this feature is disabled when the value is negative
             return Pair.of(null, null);
         }
 
+        long targetTimestampMin = targetTimestamp - ledgerCloseTimestampMaxClockSkewMillis;
+        long targetTimestampMax = targetTimestamp + ledgerCloseTimestampMaxClockSkewMillis;
+
         Position start = null;
         Position end = null;
 
-        long previousCloseTimestamp = -1;
-        long targetTimestampMin = targetTimestamp - ledgerCloseTimestampMaxClockSkewMillis;
-        long targetTimestampMax = targetTimestamp + ledgerCloseTimestampMaxClockSkewMillis;
-        for (MLDataFormats.ManagedLedgerInfo.LedgerInfo info : ledgerInfos) {
+        LedgerInfo secondToLastLedgerInfo = null;
+        LedgerInfo lastLedgerInfo = null;
+        for (LedgerInfo info : ledgerInfos) {
             if (!info.hasTimestamp()) {
                 // unexpected case, don't set start and end
                 return Pair.of(null, null);
             }
+            secondToLastLedgerInfo = lastLedgerInfo;
+            lastLedgerInfo = info;
             long closeTimestamp = info.getTimestamp();
             // For an open ledger, closeTimestamp is 0
             if (closeTimestamp == 0) {
-                // if the previous ledger close timestamp is less than the timestamp, then start from the first entry
-                // when there are confirmed entries in the ledger
-                if (previousCloseTimestamp < targetTimestampMin) {
-                    Position firstPositionInLedger = PositionFactory.create(info.getLedgerId(), 0);
-                    if (lastConfirmedEntry != null
-                            && lastConfirmedEntry.compareTo(firstPositionInLedger) >= 0) {
-                        start = firstPositionInLedger;
-                    } else {
-                        start = lastConfirmedEntry;
-                    }
-                }
-                return Pair.of(start, null);
+                end = null;
+                break;
             }
             if (closeTimestamp <= targetTimestampMin) {
                 start = PositionFactory.create(info.getLedgerId(), 0);
@@ -133,7 +127,19 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
                 end = PositionFactory.create(info.getLedgerId(), info.getEntries() - 1);
                 break;
             }
-            previousCloseTimestamp = closeTimestamp;
+        }
+        // If the second-to-last ledger's close timestamp is less than the target timestamp, then start from the
+        // first entry of the last ledger when there are confirmed entries in the ledger
+        if (lastLedgerInfo != null && secondToLastLedgerInfo != null
+                && secondToLastLedgerInfo.getTimestamp() > 0
+                && secondToLastLedgerInfo.getTimestamp() < targetTimestampMin) {
+            Position firstPositionInLedger = PositionFactory.create(lastLedgerInfo.getLedgerId(), 0);
+            if (lastConfirmedEntry != null
+                    && lastConfirmedEntry.compareTo(firstPositionInLedger) >= 0) {
+                start = firstPositionInLedger;
+            } else {
+                start = lastConfirmedEntry;
+            }
         }
         return Pair.of(start, end);
     }
