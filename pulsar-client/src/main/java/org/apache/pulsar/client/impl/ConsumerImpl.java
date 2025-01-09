@@ -1109,10 +1109,29 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     public synchronized CompletableFuture<Void> closeAsync() {
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
+        ArrayList<CompletableFuture<Void>> closeFutures = new ArrayList<>(4);
+        closeFutures.add(closeFuture);
+        if (retryLetterProducer != null) {
+            closeFutures.add(retryLetterProducer.thenCompose(p -> p.closeAsync()).whenComplete((ignore, ex) -> {
+                if (ex != null) {
+                    log.warn("Exception ignored in closing retryLetterProducer of consumer", ex);
+                }
+            }));
+        }
+        if (deadLetterProducer != null) {
+            closeFutures.add(deadLetterProducer.thenCompose(p -> p.closeAsync()).whenComplete((ignore, ex) -> {
+                if (ex != null) {
+                    log.warn("Exception ignored in closing deadLetterProducer of consumer", ex);
+                }
+            }));
+        }
+        CompletableFuture<Void> compositeCloseFuture = FutureUtil.waitForAll(closeFutures);
+
+
         if (getState() == State.Closing || getState() == State.Closed) {
             closeConsumerTasks();
             failPendingReceive().whenComplete((r, t) -> closeFuture.complete(null));
-            return closeFuture;
+            return compositeCloseFuture;
         }
 
         consumersClosedCounter.increment();
@@ -1124,7 +1143,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             deregisterFromClientCnx();
             client.cleanupConsumer(this);
             failPendingReceive().whenComplete((r, t) -> closeFuture.complete(null));
-            return closeFuture;
+            return compositeCloseFuture;
         }
 
         stats.getStatTimeout().ifPresent(Timeout::cancel);
@@ -1151,23 +1170,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             });
         }
 
-        ArrayList<CompletableFuture<Void>> closeFutures = new ArrayList<>(4);
-        closeFutures.add(closeFuture);
-        if (retryLetterProducer != null) {
-            closeFutures.add(retryLetterProducer.thenCompose(p -> p.closeAsync()).whenComplete((ignore, ex) -> {
-                if (ex != null) {
-                    log.warn("Exception ignored in closing retryLetterProducer of consumer", ex);
-                }
-            }));
-        }
-        if (deadLetterProducer != null) {
-            closeFutures.add(deadLetterProducer.thenCompose(p -> p.closeAsync()).whenComplete((ignore, ex) -> {
-                if (ex != null) {
-                    log.warn("Exception ignored in closing deadLetterProducer of consumer", ex);
-                }
-            }));
-        }
-        return FutureUtil.waitForAll(closeFutures);
+        return compositeCloseFuture;
     }
 
     private void cleanupAtClose(CompletableFuture<Void> closeFuture, Throwable exception) {
