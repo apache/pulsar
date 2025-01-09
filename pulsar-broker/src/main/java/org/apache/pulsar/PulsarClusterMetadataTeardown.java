@@ -230,7 +230,8 @@ public class PulsarClusterMetadataTeardown {
                     case BKException.Code.NoSuchLedgerExistsException:
                     case BKException.Code.NoSuchLedgerExistsOnMetadataServerException:
                     case BKException.Code.NoSuchEntryException:
-                        log.warn("Failed to delete ledger.{}", ledgerId, Throwables.getRootCause(ex));
+                        log.warn("Failed to delete deleted ledger. ledgerId={} errorCode={}",
+                                ledgerId, bkException.getCode());
                         return;
                 }
             }
