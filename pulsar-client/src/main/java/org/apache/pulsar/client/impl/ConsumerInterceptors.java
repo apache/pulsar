@@ -211,10 +211,10 @@ public class ConsumerInterceptors<T> implements Closeable {
     }
 
     @Override
-    public void close() throws IOException {
-        for (int i = 0, interceptorsSize = interceptors.size(); i < interceptorsSize; i++) {
+    public void close() {
+        for (ConsumerInterceptor<T> interceptor : interceptors) {
             try {
-                interceptors.get(i).close();
+                interceptor.close();
             } catch (Throwable e) {
                 log.error("Fail to close consumer interceptor ", e);
             }

@@ -115,7 +115,7 @@ public class ProducerInterceptors implements Closeable {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         for (ProducerInterceptor interceptor : interceptors) {
             try {
                 interceptor.close();
