@@ -1045,12 +1045,6 @@
     </Match>
     <Match>
         <Class name="org.apache.pulsar.client.impl.ConsumerImpl"/>
-        <Method name="closeDeadLetterProducerAfterException"/>
-        <Bug pattern="VO_VOLATILE_INCREMENT"/>
-    </Match>
-    <Match>
-        <Class name="org.apache.pulsar.client.impl.ConsumerImpl"/>
-        <Method name="closeRetryLetterProducerAfterException"/>
         <Bug pattern="VO_VOLATILE_INCREMENT"/>
     </Match>
 </FindBugsFilter>
