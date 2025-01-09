@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
 public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback {
     private final ManagedCursor cursor;
     private final String subName;
+    private final int ledgerCloseTimestampMaxClockSkewMillis;
     private final String topicName;
     private long timestamp = 0;
 
@@ -51,10 +52,11 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
             AtomicIntegerFieldUpdater
                     .newUpdater(PersistentMessageFinder.class, "messageFindInProgress");
 
-    public PersistentMessageFinder(String topicName, ManagedCursor cursor) {
+    public PersistentMessageFinder(String topicName, ManagedCursor cursor, int ledgerCloseTimestampMaxClockSkewMillis) {
         this.topicName = topicName;
         this.cursor = cursor;
         this.subName = Codec.decode(cursor.getName());
+        this.ledgerCloseTimestampMaxClockSkewMillis = ledgerCloseTimestampMaxClockSkewMillis;
     }
 
     public void findMessages(final long timestamp, AsyncCallbacks.FindEntryCallback callback) {
@@ -65,7 +67,8 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
             }
             Pair<Position, Position> range =
                     getFindPositionRange(cursor.getManagedLedger().getLedgersInfo().values(),
-                            cursor.getManagedLedger().getLastConfirmedEntry(), timestamp);
+                            cursor.getManagedLedger().getLastConfirmedEntry(), timestamp,
+                            ledgerCloseTimestampMaxClockSkewMillis);
             cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, entry -> {
                 try {
                     long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
@@ -90,11 +93,18 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
 
     public static Pair<Position, Position> getFindPositionRange(
             Iterable<MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgerInfos, Position lastConfirmedEntry,
-            long timestamp) {
+            long targetTimestamp, int ledgerCloseTimestampMaxClockSkewMillis) {
+        if (ledgerCloseTimestampMaxClockSkewMillis < 0) {
+            // this feature is disabled when the value is negative
+            return Pair.of(null, null);
+        }
+
         Position start = null;
         Position end = null;
 
         long previousCloseTimestamp = -1;
+        long targetTimestampMin = targetTimestamp - ledgerCloseTimestampMaxClockSkewMillis;
+        long targetTimestampMax = targetTimestamp + ledgerCloseTimestampMaxClockSkewMillis;
         for (MLDataFormats.ManagedLedgerInfo.LedgerInfo info : ledgerInfos) {
             if (!info.hasTimestamp()) {
                 // unexpected case, don't set start and end
@@ -105,7 +115,7 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
             if (closeTimestamp == 0) {
                 // if the previous ledger close timestamp is less than the timestamp, then start from the first entry
                 // when there are confirmed entries in the ledger
-                if (previousCloseTimestamp < timestamp) {
+                if (previousCloseTimestamp < targetTimestampMin) {
                     Position firstPositionInLedger = PositionFactory.create(info.getLedgerId(), 0);
                     if (lastConfirmedEntry != null
                             && lastConfirmedEntry.compareTo(firstPositionInLedger) >= 0) {
@@ -116,9 +126,9 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
                 }
                 return Pair.of(start, null);
             }
-            if (closeTimestamp <= timestamp) {
+            if (closeTimestamp <= targetTimestampMin) {
                 start = PositionFactory.create(info.getLedgerId(), 0);
-            } else {
+            } else if (closeTimestamp > targetTimestampMax) {
                 // If the close timestamp is greater than the timestamp
                 end = PositionFactory.create(info.getLedgerId(), info.getEntries() - 1);
                 break;
