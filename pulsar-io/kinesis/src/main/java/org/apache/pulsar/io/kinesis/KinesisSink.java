@@ -88,7 +88,6 @@ import org.slf4j.LoggerFactory;
     configClass = KinesisSinkConfig.class
 )
 public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObject> {
-
     private static final Logger LOG = LoggerFactory.getLogger(KinesisSink.class);
 
     private KinesisProducer kinesisProducer;
@@ -166,6 +165,12 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObj
         if (kinesisSinkConfig.getAwsEndpointPort() != null) {
             kinesisConfig.setKinesisPort(kinesisSinkConfig.getAwsEndpointPort());
         }
+        if (kinesisSinkConfig.getAwsStsEndpoint() != null) {
+            kinesisConfig.setStsEndpoint(kinesisSinkConfig.getAwsStsEndpoint());
+        }
+        if (kinesisSinkConfig.getAwsStsPort() != null) {
+            kinesisConfig.setStsPort(kinesisSinkConfig.getAwsStsPort());
+        }
         kinesisConfig.setRegion(kinesisSinkConfig.getAwsRegion());
         kinesisConfig.setThreadingModel(ThreadingModel.POOLED);
         kinesisConfig.setThreadPoolSize(4);
@@ -179,6 +184,7 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObj
                 kinesisSinkConfig.getAwsCredentialPluginParam())
             .getCredentialProvider();
         kinesisConfig.setCredentialsProvider(credentialsProvider);
+        kinesisConfig.setNativeExecutable(StringUtils.trimToEmpty(kinesisSinkConfig.getNativeExecutable()));
 
         this.streamName = kinesisSinkConfig.getAwsKinesisStreamName();
         this.kinesisProducer = new KinesisProducer(kinesisConfig);

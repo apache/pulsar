@@ -154,10 +154,10 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         if (conf.isRetryEnable() && conf.getTopicNames().size() > 0) {
             TopicName topicFirst = TopicName.get(conf.getTopicNames().iterator().next());
             //Issue 9327: do compatibility check in case of the default retry and dead letter topic name changed
-            String oldRetryLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName()
-                    + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
-            String oldDeadLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName()
-                    + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
+            String oldRetryLetterTopic = TopicName.get(topicFirst.getDomain().value(), topicFirst.getNamespaceObject(),
+                    conf.getSubscriptionName() + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX).toString();
+            String oldDeadLetterTopic = TopicName.get(topicFirst.getDomain().value(), topicFirst.getNamespaceObject(),
+                    conf.getSubscriptionName() + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX).toString();
             DeadLetterPolicy deadLetterPolicy = conf.getDeadLetterPolicy();
             if (deadLetterPolicy == null || StringUtils.isBlank(deadLetterPolicy.getRetryLetterTopic())
                     || StringUtils.isBlank(deadLetterPolicy.getDeadLetterTopic())) {
@@ -278,6 +278,13 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     public ConsumerBuilder<T> negativeAckRedeliveryDelay(long redeliveryDelay, TimeUnit timeUnit) {
         checkArgument(redeliveryDelay >= 0, "redeliveryDelay needs to be >= 0");
         conf.setNegativeAckRedeliveryDelayMicros(timeUnit.toMicros(redeliveryDelay));
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> negativeAckRedeliveryDelayPrecision(int negativeAckPrecisionBitCount) {
+        checkArgument(negativeAckPrecisionBitCount >= 0, "negativeAckPrecisionBitCount needs to be >= 0");
+        conf.setNegativeAckPrecisionBitCnt(negativeAckPrecisionBitCount);
         return this;
     }
 

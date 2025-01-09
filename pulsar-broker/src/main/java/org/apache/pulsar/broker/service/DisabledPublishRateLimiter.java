@@ -16,13 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.util;
+package org.apache.pulsar.broker.service;
 
-import java.util.UUID;
-import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PublishRate;
 
-public class ConsumerName {
-    public static String generateRandomName() {
-        return DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 5);
+public class DisabledPublishRateLimiter implements PublishRateLimiter {
+
+    public static final DisabledPublishRateLimiter INSTANCE = new DisabledPublishRateLimiter();
+
+    private DisabledPublishRateLimiter() {}
+
+    @Override
+    public void handlePublishThrottling(Producer producer, int numOfMessages, long msgSizeInBytes) {
+
+    }
+
+    @Override
+    public void update(Policies policies, String clusterName) {
+
+    }
+
+    @Override
+    public void update(PublishRate maxPublishRate) {
+
     }
 }

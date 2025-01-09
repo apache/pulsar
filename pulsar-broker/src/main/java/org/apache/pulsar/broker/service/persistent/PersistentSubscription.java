@@ -118,7 +118,7 @@ public class PersistentSubscription extends AbstractSubscription {
     // for connected subscriptions, message expiry will be checked if the backlog is greater than this threshold
     private static final int MINIMUM_BACKLOG_FOR_EXPIRY_CHECK = 1000;
 
-    private static final String REPLICATED_SUBSCRIPTION_PROPERTY = "pulsar.replicated.subscription";
+    protected static final String REPLICATED_SUBSCRIPTION_PROPERTY = "pulsar.replicated.subscription";
 
     // Map of properties that is used to mark this subscription as "replicated".
     // Since this is the only field at this point, we can just keep a static
@@ -133,29 +133,37 @@ public class PersistentSubscription extends AbstractSubscription {
     private volatile Map<String, String> subscriptionProperties;
     private volatile CompletableFuture<Void> fenceFuture;
     private volatile CompletableFuture<Void> inProgressResetCursorFuture;
+    private volatile Boolean replicatedControlled;
 
-    static Map<String, Long> getBaseCursorProperties(boolean isReplicated) {
-        return isReplicated ? REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES : NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES;
+    static Map<String, Long> getBaseCursorProperties(Boolean isReplicated) {
+        return isReplicated != null && isReplicated ? REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES :
+                NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES;
     }
 
-    static boolean isCursorFromReplicatedSubscription(ManagedCursor cursor) {
-        return cursor.getProperties().containsKey(REPLICATED_SUBSCRIPTION_PROPERTY);
+    static Optional<Boolean> getReplicatedSubscriptionConfiguration(ManagedCursor cursor) {
+        Long v = cursor.getProperties().get(REPLICATED_SUBSCRIPTION_PROPERTY);
+        if (v == null || (v < 0L || v > 1L)) {
+            return Optional.empty();
+        }
+        return Optional.of(v == 1L);
     }
 
     public PersistentSubscription(PersistentTopic topic, String subscriptionName, ManagedCursor cursor,
-                                  boolean replicated) {
+                                  Boolean replicated) {
         this(topic, subscriptionName, cursor, replicated, Collections.emptyMap());
     }
 
     public PersistentSubscription(PersistentTopic topic, String subscriptionName, ManagedCursor cursor,
-                                  boolean replicated, Map<String, String> subscriptionProperties) {
+                                  Boolean replicated, Map<String, String> subscriptionProperties) {
         this.topic = topic;
         this.cursor = cursor;
         this.topicName = topic.getName();
         this.subName = subscriptionName;
         this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topic, subscriptionName, cursor, this);
-        this.setReplicated(replicated);
+        if (replicated != null) {
+            this.setReplicated(replicated);
+        }
         this.subscriptionProperties = MapUtils.isEmpty(subscriptionProperties)
                 ? Collections.emptyMap() : Collections.unmodifiableMap(subscriptionProperties);
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
@@ -194,6 +202,7 @@ public class PersistentSubscription extends AbstractSubscription {
     }
 
     public boolean setReplicated(boolean replicated) {
+        replicatedControlled = replicated;
         ServiceConfiguration config = topic.getBrokerService().getPulsar().getConfig();
 
         if (!replicated || !config.isEnableReplicatedSubscriptions()) {
@@ -307,9 +316,10 @@ public class PersistentSubscription extends AbstractSubscription {
                         });
                     }
                 } else {
-                    if (consumer.subType() != dispatcher.getType()) {
-                        return FutureUtil.failedFuture(
-                                new SubscriptionBusyException("Subscription is of different type"));
+                    Optional<CompletableFuture<Void>> compatibilityError =
+                            checkForConsumerCompatibilityErrorWithDispatcher(dispatcher, consumer);
+                    if (compatibilityError.isPresent()) {
+                        return compatibilityError.get();
                     }
                 }
 
@@ -1556,4 +1566,8 @@ public class PersistentSubscription extends AbstractSubscription {
 
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);
 
+    @VisibleForTesting
+    public Boolean getReplicatedControlled() {
+        return replicatedControlled;
+    }
 }

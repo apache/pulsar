@@ -85,6 +85,7 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
 
     private AsyncHttpClient buildHttpClient() {
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
+        confBuilder.setCookieStore(null);
         confBuilder.setUseProxyProperties(true);
         confBuilder.setFollowRedirect(true);
         confBuilder.setMaxRedirects(DEFAULT_MAX_REDIRECTS);

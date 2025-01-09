@@ -1875,7 +1875,10 @@ public class BrokerService implements Closeable {
                     }, () -> isTopicNsOwnedByBrokerAsync(topicName), null);
 
         }).exceptionally((exception) -> {
-            log.warn("[{}] Failed to get topic configuration: {}", topic, exception.getMessage(), exception);
+            boolean migrationFailure = exception.getCause() instanceof TopicMigratedException;
+            String msg = migrationFailure ? "Topic is already migrated" :
+                "Failed to get topic configuration:";
+            log.warn("[{}] {} {}", topic, msg, exception.getMessage(), exception);
             // remove topic from topics-map in different thread to avoid possible deadlock if
             // createPersistentTopic-thread only tries to handle this future-result
             pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
@@ -1885,7 +1888,9 @@ public class BrokerService implements Closeable {
     }
 
     private CompletableFuture<Void> checkTopicAlreadyMigrated(TopicName topicName) {
-        if (ExtensibleLoadManagerImpl.isInternalTopic(topicName.toString())) {
+        if (ExtensibleLoadManagerImpl.isInternalTopic(topicName.toString())
+                || SystemTopicNames.isEventSystemTopic(topicName)
+                || NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject())) {
             return CompletableFuture.completedFuture(null);
         }
         CompletableFuture<Void> result = new CompletableFuture<>();
@@ -2242,29 +2247,31 @@ public class BrokerService implements Closeable {
     public void monitorBacklogQuota() {
         long startTimeMillis = System.currentTimeMillis();
         forEachPersistentTopic(topic -> {
-            if (topic.isSizeBacklogExceeded()) {
-                getBacklogQuotaManager().handleExceededBacklogQuota(topic,
-                        BacklogQuota.BacklogQuotaType.destination_storage, false);
-            } else {
-                topic.checkTimeBacklogExceeded().thenAccept(isExceeded -> {
-                    if (isExceeded) {
-                        getBacklogQuotaManager().handleExceededBacklogQuota(topic,
-                                BacklogQuota.BacklogQuotaType.message_age,
-                                pulsar.getConfiguration().isPreciseTimeBasedBacklogQuotaCheck());
-                    } else {
-                        if (log.isDebugEnabled()) {
-                            log.debug("quota not exceeded for [{}]", topic.getName());
+            topic.updateOldPositionInfo().thenAccept(__ -> {
+                if (topic.isSizeBacklogExceeded()) {
+                    getBacklogQuotaManager().handleExceededBacklogQuota(topic,
+                            BacklogQuota.BacklogQuotaType.destination_storage, false);
+                } else {
+                    topic.checkTimeBacklogExceeded(false).thenAccept(isExceeded -> {
+                        if (isExceeded) {
+                            getBacklogQuotaManager().handleExceededBacklogQuota(topic,
+                                    BacklogQuota.BacklogQuotaType.message_age,
+                                    pulsar.getConfiguration().isPreciseTimeBasedBacklogQuotaCheck());
+                        } else {
+                            if (log.isDebugEnabled()) {
+                                log.debug("quota not exceeded for [{}]", topic.getName());
+                            }
                         }
-                    }
-                }).exceptionally(throwable -> {
-                    log.error("Error when checkTimeBacklogExceeded({}) in monitorBacklogQuota",
+                    });
+                }
+            }).whenComplete((unused, throwable) -> {
+                if (throwable != null) {
+                    log.error("Error when checkBacklogQuota({}) in monitorBacklogQuota",
                             topic.getName(), throwable);
-                    return null;
-                }).whenComplete((unused, throwable) -> {
-                    backlogQuotaCheckDuration.observe(
-                            MILLISECONDS.toSeconds(System.currentTimeMillis() - startTimeMillis));
-                });
-            }
+                }
+                backlogQuotaCheckDuration.observe(
+                        MILLISECONDS.toSeconds(System.currentTimeMillis() - startTimeMillis));
+            });
         });
     }
 
@@ -3527,6 +3534,13 @@ public class BrokerService implements Closeable {
         //Other system topics can be created automatically
         if (pulsar.getConfiguration().isSystemTopicEnabled() && isSystemTopic(topicName)) {
             return CompletableFuture.completedFuture(true);
+        }
+
+        //If 'allowAutoTopicCreation' is true, and the name of the topic contains 'cluster',
+        //the topic cannot be automatically created.
+        if (!pulsar.getConfiguration().isAllowAutoTopicCreationWithLegacyNamingScheme()
+                && StringUtils.isNotBlank(topicName.getCluster())) {
+            return CompletableFuture.completedFuture(false);
         }
 
         final boolean allowed;

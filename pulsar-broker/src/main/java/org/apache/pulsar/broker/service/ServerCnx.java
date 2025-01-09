@@ -713,7 +713,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 Throwable actEx = FutureUtil.unwrapCompletionException(ex);
                 if (actEx instanceof WebApplicationException restException) {
                     if (restException.getResponse().getStatus() == Response.Status.NOT_FOUND.getStatusCode()) {
-                        writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.MetadataError,
+                        writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.TopicNotFound,
                         "Tenant or namespace or topic does not exist: " + topicName.getNamespace() ,
                                 requestId));
                         lookupSemaphore.release();
@@ -1241,8 +1241,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 ? subscribe.getStartMessageRollbackDurationSec()
                 : -1;
         final SchemaData schema = subscribe.hasSchema() ? getSchema(subscribe.getSchema()) : null;
-        final boolean isReplicated = subscribe.hasReplicateSubscriptionState()
-                && subscribe.isReplicateSubscriptionState();
+        final Boolean isReplicated =
+                subscribe.hasReplicateSubscriptionState() ? subscribe.isReplicateSubscriptionState() : null;
         final boolean forceTopicCreation = subscribe.isForceTopicCreation();
         final KeySharedMeta keySharedMeta = subscribe.hasKeySharedMeta()
               ? new KeySharedMeta().copyFrom(subscribe.getKeySharedMeta())

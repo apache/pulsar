@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.metadata;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotSame;
@@ -26,7 +29,9 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -36,6 +41,8 @@ import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.AllArgsConstructor;
@@ -44,6 +51,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.util.BackoffBuilder;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.CacheGetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
@@ -51,6 +60,7 @@ import org.apache.pulsar.metadata.api.MetadataCacheConfig;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.ContentDeserializationException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
@@ -60,6 +70,7 @@ import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
 import org.awaitility.Awaitility;
+import org.mockito.stubbing.Answer;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -488,32 +499,74 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
     public void readModifyUpdateBadVersionRetry() throws Exception {
         String url = zks.getConnectionString();
         @Cleanup
-        MetadataStore sourceStore1 = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
-        @Cleanup
-        MetadataStore sourceStore2 = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
 
-        MetadataCache<MyClass> objCache1 = sourceStore1.getMetadataCache(MyClass.class);
-        MetadataCache<MyClass> objCache2 = sourceStore2.getMetadataCache(MyClass.class);
+        MetadataCache<MyClass> cache = store.getMetadataCache(MyClass.class);
 
         String key1 = newKey();
 
         MyClass value1 = new MyClass("a", 1);
-        objCache1.create(key1, value1).join();
-        assertEquals(objCache1.get(key1).join().get().b, 1);
+        cache.create(key1, value1).join();
+        assertEquals(cache.get(key1).join().get().b, 1);
 
-        CompletableFuture<MyClass> future1 = objCache1.readModifyUpdate(key1, v -> {
-            return new MyClass(v.a, v.b + 1);
-        });
+        final var futures = new ArrayList<CompletableFuture<MyClass>>();
+        final var sourceStores = new ArrayList<MetadataStore>();
 
-        CompletableFuture<MyClass> future2 = objCache2.readModifyUpdate(key1, v -> {
-            return new MyClass(v.a, v.b + 1);
-        });
+        for (int i = 0; i < 20; i++) {
+            final var sourceStore = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+            sourceStores.add(sourceStore);
+            final var objCache = sourceStore.getMetadataCache(MyClass.class);
+            futures.add(objCache.readModifyUpdate(key1, v -> new MyClass(v.a, v.b + 1)));
+        }
+        FutureUtil.waitForAll(futures).join();
+        for (var sourceStore : sourceStores) {
+            sourceStore.close();
+        }
+    }
 
-        MyClass myClass1 = future1.join();
-        assertEquals(myClass1.b, 2);
+    @Test
+    public void readModifyUpdateOrCreateRetryTimeout() throws Exception {
+        String url = zks.getConnectionString();
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
 
-        MyClass myClass2 = future2.join();
-        assertEquals(myClass2.b, 3);
+        MetadataCache<MyClass> cache = store.getMetadataCache(MyClass.class, MetadataCacheConfig.builder()
+                .retryBackoff(new BackoffBuilder()
+                        .setInitialTime(5, TimeUnit.MILLISECONDS)
+                        .setMax(1, TimeUnit.SECONDS)
+                        .setMandatoryStop(3, TimeUnit.SECONDS)).build());
+
+        Field metadataCacheField = cache.getClass().getDeclaredField("objCache");
+        metadataCacheField.setAccessible(true);
+        var objCache = metadataCacheField.get(cache);
+        var spyObjCache = (AsyncLoadingCache<?, ?>) spy(objCache);
+        doAnswer((Answer<CompletableFuture<MyClass>>) invocation -> CompletableFuture.failedFuture(
+                new MetadataStoreException.BadVersionException(""))).when(spyObjCache).get(any());
+        metadataCacheField.set(cache, spyObjCache);
+
+        // Test three times to ensure that the retry works each time.
+        for (int i = 0; i < 3; i++) {
+            var start = System.currentTimeMillis();
+            boolean timeouted = false;
+            try {
+                cache.readModifyUpdateOrCreate(newKey(), Optional::get).join();
+            } catch (CompletionException e) {
+                if (e.getCause() instanceof TimeoutException) {
+                    var elapsed = System.currentTimeMillis() - start;
+                    // Since we reduce the wait time by a random amount for each retry, the total elapsed time should be
+                    // mandatoryStopTime - maxTime * 0.9, which is 2900ms.
+                    assertTrue(elapsed >= 2900L,
+                            "The elapsed time should be greater than the timeout. But now it's " + elapsed);
+                    // The elapsed time should be less than the timeout. The 1.5 factor allows for some extra time.
+                    assertTrue(elapsed < 3000L * 1.5,
+                            "The retry should have been stopped after the timeout. But now it's " + elapsed);
+                    timeouted = true;
+                } else {
+                    fail("Should have failed with TimeoutException, but failed with " + e.getCause());
+                }
+            }
+            assertTrue(timeouted, "Should have failed with TimeoutException, but succeeded");
+        }
     }
 
     @Test(dataProvider = "impl")
@@ -646,5 +699,16 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         Awaitility.await().untilAsserted(() -> {
             refreshed.contains(value2);
         });
+    }
+
+    @Test
+    public void testDefaultMetadataCacheConfig() {
+        final var config = MetadataCacheConfig.builder().build();
+        assertEquals(config.getRefreshAfterWriteMillis(), TimeUnit.MINUTES.toMillis(5));
+        assertEquals(config.getExpireAfterWriteMillis(), TimeUnit.MINUTES.toMillis(10));
+        final var backoff = config.getRetryBackoff().create();
+        assertEquals(backoff.getInitial(), 5);
+        assertEquals(backoff.getMax(), 3000);
+        assertEquals(backoff.getMandatoryStop(), 30_000);
     }
 }

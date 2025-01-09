@@ -260,7 +260,7 @@ public class CmdConsume extends AbstractCmdConsume {
         try {
             if (authentication != null) {
                 authentication.start();
-                AuthenticationDataProvider authData = authentication.getAuthData();
+                AuthenticationDataProvider authData = authentication.getAuthData(consumerUri.getHost());
                 if (authData.hasDataForHttp()) {
                     for (Map.Entry<String, String> kv : authData.getHttpHeaders()) {
                         consumeRequest.setHeader(kv.getKey(), kv.getValue());

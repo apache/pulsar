@@ -45,6 +45,10 @@
           <groupId>io.netty</groupId>
           <artifactId>*</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>javax.annotation</groupId>
+          <artifactId>javax.annotation-api</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
     <dependency>
@@ -74,6 +78,7 @@
     </dependency>
   </dependencies>
   <build>
+    <finalName>${project.artifactId}-${project.version}</finalName>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -93,6 +98,10 @@
                   <include>io.etcd:*</include>
                   <include>io.vertx:*</include>
                 </includes>
+                <excludes>
+                  <!-- This is required for execute shade multiple times without clean -->
+                  <exclude>org.apache.pulsar:jetcd-core-shaded</exclude>
+                </excludes>
               </artifactSet>
               <relocations>
                 <!-- relocate vertx packages since they will be transformed to use grpc-netty-shaded packages -->
@@ -141,54 +150,6 @@
                   <file>${project.basedir}/dependency-reduced-pom.xml</file>
                 </transformer>
               </transformers>
-              <!-- required for IntelliJ support -->
-              <shadedArtifactAttached>true</shadedArtifactAttached>
-              <shadedClassifierName>shaded</shadedClassifierName>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <!-- required for IntelliJ support, for some reason shadedArtifactAttached isn't sufficient alone -->
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>attach-shaded-jar</id>
-            <phase>package</phase>
-            <goals>
-              <goal>attach-artifact</goal>
-            </goals>
-            <configuration>
-              <artifacts>
-                <artifact>
-                  <file>${project.build.directory}/${project.artifactId}-${project.version}-shaded.jar</file>
-                  <type>jar</type>
-                  <classifier>shaded</classifier>
-                </artifact>
-              </artifacts>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <!-- required for running tests in subproject -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-antrun-plugin</artifactId>
-        <version>${maven-antrun-plugin.version}</version>
-        <executions>
-          <execution>
-            <id>unpack-shaded-jar</id>
-            <phase>package</phase>
-            <goals>
-              <goal>run</goal>
-            </goals>
-            <configuration>
-              <target>
-                <unzip src="${project.build.directory}/${project.artifactId}-${project.version}-shaded.jar"
-                       dest="${project.build.outputDirectory}"
-                       overwrite="true" />
-              </target>
             </configuration>
           </execution>
         </executions>

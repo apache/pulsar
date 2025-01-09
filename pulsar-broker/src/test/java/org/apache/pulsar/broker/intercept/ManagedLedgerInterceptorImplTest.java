@@ -21,14 +21,18 @@ package org.apache.pulsar.broker.intercept;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -55,8 +59,8 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
-    private static final Logger log = LoggerFactory.getLogger(MangedLedgerInterceptorImplTest.class);
+public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
+    private static final Logger log = LoggerFactory.getLogger(ManagedLedgerInterceptorImplTest.class);
 
     public static class TestPayloadProcessor implements ManagedLedgerPayloadProcessor {
         @Override
@@ -429,6 +433,70 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
             }
             return false;
         }
+    }
+
+    @Test(timeOut = 3000)
+    public void testManagedLedgerPayloadInputProcessorFailure() throws Exception {
+        var config = new ManagedLedgerConfig();
+        final String failureMsg = "failed to process input payload";
+        config.setManagedLedgerInterceptor(new ManagedLedgerInterceptorImpl(
+                Collections.emptySet(), Set.of(new ManagedLedgerPayloadProcessor() {
+            @Override
+            public Processor inputProcessor() {
+                return new Processor() {
+                    @Override
+                    public ByteBuf process(Object contextObj, ByteBuf inputPayload) {
+                        Commands.skipBrokerEntryMetadataIfExist(inputPayload);
+                        if (inputPayload.readBoolean()) {
+                            throw new RuntimeException(failureMsg);
+                        }
+                        return inputPayload;
+                    }
+
+                    @Override
+                    public void release(ByteBuf processedPayload) {
+                        // no-op
+                    }
+                };
+            }
+        })));
+
+        var ledger = factory.open("testManagedLedgerPayloadProcessorFailure", config);
+        int count = 10;
+        var countDownLatch = new CountDownLatch(count);
+        var successCount = new AtomicInteger(0);
+        var expectedException = new ArrayList<Exception>();
+
+        var addEntryCallback = new AsyncCallbacks.AddEntryCallback() {
+            @Override
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                countDownLatch.countDown();
+                successCount.incrementAndGet();
+            }
+
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                // expected
+                expectedException.add(exception);
+                countDownLatch.countDown();
+            }
+        };
+
+        for (int i = 0; i < count; i++) {
+            if (i % 2 == 0) {
+                ledger.asyncAddEntry(Unpooled.buffer().writeBoolean(true), addEntryCallback, null);
+            } else {
+                ledger.asyncAddEntry(Unpooled.buffer().writeBoolean(false), addEntryCallback, null);
+            }
+        }
+
+        countDownLatch.await();
+        assertEquals(expectedException.size(), count / 2);
+        assertEquals(successCount.get(), count / 2);
+        for (Exception e : expectedException) {
+            assertEquals(e.getCause().getMessage(), failureMsg);
+        }
+        ledger.close();
     }
 
 }

@@ -20,6 +20,7 @@ package org.apache.bookkeeper.client;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.collect.Lists;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -35,6 +36,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -70,6 +72,7 @@ public class PulsarMockBookKeeper extends BookKeeper {
 
     final OrderedExecutor orderedExecutor;
     final ExecutorService executor;
+    final ScheduledExecutorService scheduler;
 
     @Override
     public ClientConfiguration getConf() {
@@ -97,6 +100,7 @@ public class PulsarMockBookKeeper extends BookKeeper {
     public PulsarMockBookKeeper(OrderedExecutor orderedExecutor) throws Exception {
         this.orderedExecutor = orderedExecutor;
         this.executor = orderedExecutor.chooseThread();
+        scheduler = Executors.newScheduledThreadPool(1, new DefaultThreadFactory("mock-bk-scheduler"));
     }
 
     @Override
@@ -105,13 +109,13 @@ public class PulsarMockBookKeeper extends BookKeeper {
     }
 
     @Override
-    public LedgerHandle createLedger(DigestType digestType, byte passwd[])
+    public LedgerHandle createLedger(DigestType digestType, byte[] passwd)
             throws BKException, InterruptedException {
         return createLedger(3, 2, digestType, passwd);
     }
 
     @Override
-    public LedgerHandle createLedger(int ensSize, int qSize, DigestType digestType, byte passwd[])
+    public LedgerHandle createLedger(int ensSize, int qSize, DigestType digestType, byte[] passwd)
             throws BKException, InterruptedException {
         return createLedger(ensSize, qSize, qSize, digestType, passwd);
     }
@@ -290,7 +294,7 @@ public class PulsarMockBookKeeper extends BookKeeper {
         for (PulsarMockLedgerHandle ledger : ledgers.values()) {
             ledger.entries.clear();
         }
-
+        scheduler.shutdown();
         ledgers.clear();
     }
 
@@ -330,6 +334,15 @@ public class PulsarMockBookKeeper extends BookKeeper {
     synchronized CompletableFuture<Void> getProgrammedFailure() {
         return failures.isEmpty() ? defaultResponse : failures.remove(0);
     }
+
+    public void delay(long millis) {
+        CompletableFuture<Void> delayFuture = new CompletableFuture<>();
+        scheduler.schedule(() -> {
+            delayFuture.complete(null);
+        }, millis, TimeUnit.MILLISECONDS);
+        failures.add(delayFuture);
+    }
+
 
     public void failNow(int rc) {
         failAfter(0, rc);

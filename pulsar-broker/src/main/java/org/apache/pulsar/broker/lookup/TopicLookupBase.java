@@ -318,6 +318,7 @@ public class TopicLookupBase extends PulsarWebResource {
                             }
 
                             LookupData lookupData = lookupResult.get().getLookupData();
+                            printWarnLogIfLookupResUnexpected(topicName, lookupData, options, pulsarService);
                             if (lookupResult.get().isRedirect()) {
                                 boolean newAuthoritative = lookupResult.get().isAuthoritativeRedirect();
                                 lookupfuture.complete(
@@ -340,6 +341,24 @@ public class TopicLookupBase extends PulsarWebResource {
         });
 
         return lookupfuture;
+    }
+
+    /**
+     * Check if a internal client will get a null lookup result.
+     */
+    private static void printWarnLogIfLookupResUnexpected(TopicName topic, LookupData lookupData, LookupOptions options,
+                                                          PulsarService pulsar) {
+        if (!pulsar.getBrokerService().isSystemTopic(topic)) {
+            return;
+        }
+        boolean tlsEnabled = pulsar.getConfig().isBrokerClientTlsEnabled();
+        if (!tlsEnabled && StringUtils.isBlank(lookupData.getBrokerUrl())) {
+            log.warn("[{}] Unexpected lookup result: brokerUrl is required when TLS isn't enabled. options: {},"
+                + " result {}", topic, options, lookupData);
+        } else if (tlsEnabled && StringUtils.isBlank(lookupData.getBrokerUrlTls())) {
+            log.warn("[{}] Unexpected lookup result: brokerUrlTls is required when TLS is enabled. options: {},"
+                    + " result {}", topic, options, lookupData);
+        }
     }
 
     private static void handleLookupError(CompletableFuture<ByteBuf> lookupFuture, String topicName, String clientAppId,

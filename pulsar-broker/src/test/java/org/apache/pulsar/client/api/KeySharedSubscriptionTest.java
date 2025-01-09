@@ -391,13 +391,14 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         @Cleanup
         Producer<Integer> producer = createProducer(topic, enableBatch);
 
-        for (int i = 0; i < 100; i++) {
+        int totalMessages = 300;
+        for (int i = 0; i < totalMessages; i++) {
             producer.newMessage()
                     .value(i)
                     .send();
         }
 
-        receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3), 100);
+        receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3), totalMessages);
     }
 
     @Test(dataProvider = "batch")
