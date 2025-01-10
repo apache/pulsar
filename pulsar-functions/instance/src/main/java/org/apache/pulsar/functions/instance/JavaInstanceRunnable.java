@@ -301,7 +301,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     public interface AsyncResultConsumer {
-        void accept(Record record, JavaExecutionResult javaExecutionResult, Long startTime) throws Exception;
+        void accept(Record record, JavaExecutionResult javaExecutionResult) throws Exception;
     }
 
     /**
@@ -346,7 +346,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 if (result != null) {
                     // process the synchronous results
-                    handleResult(currentRecord, result, result.getStartTime());
+                    handleResult(currentRecord, result);
                 }
 
                 if (deathException != null) {
@@ -416,7 +416,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     @VisibleForTesting
-    void handleResult(Record srcRecord, JavaExecutionResult result, Long startTime) throws Exception {
+    void handleResult(Record srcRecord, JavaExecutionResult result) throws Exception {
         if (result.getUserException() != null) {
             Throwable t = result.getUserException();
             log.warn("Encountered exception when processing message {}",
@@ -444,7 +444,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             stats.incrTotalProcessedSuccessfully();
         }
         // handle endTime here
-        stats.processTimeEnd(startTime);
+        stats.processTimeEnd(result.getStartTime());
     }
 
     private void sendOutputMessage(Record srcRecord, Object output) throws Exception {

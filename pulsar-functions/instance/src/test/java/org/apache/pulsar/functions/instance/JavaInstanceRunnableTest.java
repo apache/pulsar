@@ -180,23 +180,23 @@ public class JavaInstanceRunnableTest {
         // ProcessingGuarantees == MANUAL, not need ack.
         Record record = mock(Record.class);
         getJavaInstanceRunnable(true, org.apache.pulsar.functions.proto.Function.ProcessingGuarantees.MANUAL)
-                .handleResult(record, javaExecutionResult,null);
+                .handleResult(record, javaExecutionResult);
         verify(record, times(0)).ack();
 
         // ProcessingGuarantees == ATMOST_ONCE and autoAck == true, not need ack
         clearInvocations(record);
         getJavaInstanceRunnable(true, org.apache.pulsar.functions.proto.Function.ProcessingGuarantees.ATMOST_ONCE)
-                .handleResult(record, javaExecutionResult,null);
+                .handleResult(record, javaExecutionResult);
         verify(record, times(0)).ack();
 
         // other case, need ack
         clearInvocations(record);
         getJavaInstanceRunnable(true, org.apache.pulsar.functions.proto.Function.ProcessingGuarantees.ATLEAST_ONCE)
-                .handleResult(record, javaExecutionResult,null);
+                .handleResult(record, javaExecutionResult);
         verify(record, times(1)).ack();
         clearInvocations(record);
         getJavaInstanceRunnable(true, org.apache.pulsar.functions.proto.Function.ProcessingGuarantees.EFFECTIVELY_ONCE)
-                .handleResult(record, javaExecutionResult,null);
+                .handleResult(record, javaExecutionResult);
         verify(record, times(1)).ack();
     }
 

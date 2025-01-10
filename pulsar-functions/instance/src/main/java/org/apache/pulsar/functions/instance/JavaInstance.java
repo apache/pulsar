@@ -47,6 +47,7 @@ public class JavaInstance implements AutoCloseable {
     public static class AsyncFuncRequest {
         private final Record record;
         private final CompletableFuture processResult;
+        private final JavaExecutionResult result;
     }
 
     @Getter(AccessLevel.PACKAGE)
@@ -104,7 +105,7 @@ public class JavaInstance implements AutoCloseable {
 
     @VisibleForTesting
     public JavaExecutionResult handleMessage(Record<?> record, Object input) {
-        return handleMessage(record, input, (rec, result, t) -> {
+        return handleMessage(record, input, (rec, result) -> {
         }, cause -> {
         });
     }
@@ -136,7 +137,7 @@ public class JavaInstance implements AutoCloseable {
                 if (asyncPreserveInputOrderForOutputMessages) {
                     // Function is in format: Function<I, CompletableFuture<O>>
                     AsyncFuncRequest request = new AsyncFuncRequest(
-                            record, (CompletableFuture) output
+                            record, (CompletableFuture) output, executionResult
                     );
                     pendingAsyncRequests.put(request);
                 } else {
@@ -145,7 +146,7 @@ public class JavaInstance implements AutoCloseable {
                 ((CompletableFuture<Object>) output).whenCompleteAsync((Object res, Throwable cause) -> {
                     try {
                         if (asyncPreserveInputOrderForOutputMessages) {
-                            processAsyncResultsInInputOrder(asyncResultConsumer, executionResult.getStartTime());
+                            processAsyncResultsInInputOrder(asyncResultConsumer);
                         } else {
                             try {
                                 if (cause != null) {
@@ -153,7 +154,7 @@ public class JavaInstance implements AutoCloseable {
                                 } else {
                                     executionResult.setResult(res);
                                 }
-                                asyncResultConsumer.accept(record, executionResult, executionResult.getStartTime());
+                                asyncResultConsumer.accept(record, executionResult);
                             } finally {
                                 asyncRequestsConcurrencyLimiter.release();
                             }
@@ -180,21 +181,20 @@ public class JavaInstance implements AutoCloseable {
 
     // processes the async results in the input order so that the order of the result messages in the output topic
     // are in the same order as the input
-    private void processAsyncResultsInInputOrder(JavaInstanceRunnable.AsyncResultConsumer resultConsumer,
-                                                 Long startTime)
+    private void processAsyncResultsInInputOrder(JavaInstanceRunnable.AsyncResultConsumer resultConsumer)
             throws Exception {
         AsyncFuncRequest asyncResult = pendingAsyncRequests.peek();
         while (asyncResult != null && asyncResult.getProcessResult().isDone()) {
             pendingAsyncRequests.remove(asyncResult);
 
-            JavaExecutionResult execResult = new JavaExecutionResult();
+            JavaExecutionResult execResult = asyncResult.getResult();
             try {
                 Object result = asyncResult.getProcessResult().get();
                 execResult.setResult(result);
             } catch (ExecutionException e) {
                 execResult.setUserException(FutureUtil.unwrapCompletionException(e));
             }
-            resultConsumer.accept(asyncResult.getRecord(), execResult, startTime);
+            resultConsumer.accept(asyncResult.getRecord(), execResult);
             // peek the next result
             asyncResult = pendingAsyncRequests.peek();
         }
