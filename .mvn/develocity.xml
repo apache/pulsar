@@ -25,7 +25,7 @@
        a pull request from a branch or forked repository with a name that indicates it's a work in progress. -->
   <enabled>#{(env['GRADLE_ENTERPRISE_ACCESS_KEY']?.trim() > '' or env['DEVELOCITY_ACCESS_KEY']?.trim() > '') and !(env['GITHUB_HEAD_REF']?.matches('(?i).*(experiment|wip|private).*') or env['GITHUB_REPOSITORY']?.matches('(?i).*(experiment|wip|private).*'))}</enabled>
   <server>
-    <url>https://ge.apache.org</url>
+    <url>https://develocity.apache.org</url>
     <allowUntrusted>false</allowUntrusted>
   </server>
   <buildScan>
