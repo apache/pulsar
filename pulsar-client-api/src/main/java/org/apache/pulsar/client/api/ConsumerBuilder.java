@@ -415,8 +415,12 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> maxAcknowledgmentGroupSize(int messageNum);
 
     /**
+     * Configures initial replicated subscription state for a new subscription.
+     * This setting does not affect existing subscription. Default is `null`.
      *
-     * @param replicateSubscriptionState
+     * @param replicateSubscriptionState If true, the subscription state will be replicated
+     *                                   across GEO-replicated clusters. If false, replication
+     *                                   is disabled.
      */
     ConsumerBuilder<T> replicateSubscriptionState(boolean replicateSubscriptionState);
 

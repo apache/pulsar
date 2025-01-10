@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.apache.pulsar.broker.service.persistent.PersistentSubscription.REPLICATED_SUBSCRIPTION_PROPERTY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.testng.Assert.assertEquals;
@@ -31,6 +32,7 @@ import lombok.Cleanup;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -96,7 +98,7 @@ public class ReplicateSubscriptionTest extends ProducerConsumerBase {
                     assertTrue(subscription instanceof PersistentSubscription);
                     PersistentSubscription persistentSubscription = (PersistentSubscription) subscription;
                     Long replicatedSubcriptionLong = persistentSubscription.getCursor()
-                            .getProperties().get(PersistentSubscription.REPLICATED_SUBSCRIPTION_PROPERTY);
+                            .getProperties().get(REPLICATED_SUBSCRIPTION_PROPERTY);
                     if (replicateSubscriptionState == null) {
                         assertNull(replicatedSubcriptionLong);
                     } else {
@@ -241,7 +243,7 @@ public class ReplicateSubscriptionTest extends ProducerConsumerBase {
 
             assertEquals(persistentSubscription.getReplicatedControlled(), replicatedSubscriptionStatus);
             Long replicatedSubcriptionLong = persistentSubscription.getCursor()
-                    .getProperties().get(PersistentSubscription.REPLICATED_SUBSCRIPTION_PROPERTY);
+                    .getProperties().get(REPLICATED_SUBSCRIPTION_PROPERTY);
             if (replicatedSubscriptionStatus == null) {
                 assertNull(replicatedSubcriptionLong);
             } else {
@@ -280,5 +282,49 @@ public class ReplicateSubscriptionTest extends ProducerConsumerBase {
                         return true;
                     });
         });
+    }
+
+    @Test(dataProvider = "replicateSubscriptionState")
+    public void testExistingSubscriptionWithReplicateSubscriptionState(Boolean replicateSubscriptionState)
+            throws Exception {
+        String subName = "my-sub-" + System.nanoTime();
+        String topic = "persistent://my-property/my-ns/" + System.nanoTime();
+
+        ConsumerBuilder<byte[]> consumer1Builder = pulsarClient.newConsumer().topic(topic).subscriptionName(subName);
+        if (replicateSubscriptionState != null) {
+            consumer1Builder.replicateSubscriptionState(replicateSubscriptionState);
+        }
+        @Cleanup
+        Consumer<byte[]> consumer1 = consumer1Builder.subscribe();
+        assertReplicatedSubscriptionStatus(topic, subName, replicateSubscriptionState);
+        consumer1.close();
+
+        admin.topics().unload(topic);
+
+        ConsumerBuilder<byte[]> consumer2Builder = pulsarClient.newConsumer().topic(topic).subscriptionName(subName);
+        if (replicateSubscriptionState != null) {
+            // Reverse
+            consumer2Builder.replicateSubscriptionState(!replicateSubscriptionState);
+        }
+        @Cleanup
+        Consumer<byte[]> consumer2 = consumer2Builder.subscribe();
+        assertReplicatedSubscriptionStatus(topic, subName, replicateSubscriptionState);
+        consumer2.close();
+    }
+
+    private void assertReplicatedSubscriptionStatus(String topic, String subName, Boolean expected)
+            throws PulsarAdminException {
+        assertThat(admin.topics().getInternalStats(topic).cursors.get(subName))
+                .isNotNull().matches(n -> {
+                    Long property = n.properties.get(REPLICATED_SUBSCRIPTION_PROPERTY);
+                    if (expected == null) {
+                        assertThat(property).isNull();
+                    } else {
+                        assertThat(property).isEqualTo(expected ? 1L : 0L);
+                    }
+                    return true;
+                });
+        assertThat(admin.topics().getReplicatedSubscriptionStatus(topic, subName)).containsEntry(topic,
+                expected != null && expected);
     }
 }
