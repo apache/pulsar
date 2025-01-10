@@ -60,11 +60,13 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
+import io.prometheus.client.Gauge;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -250,6 +252,26 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     private final long connectionLivenessCheckTimeoutMillis;
 
+    private static final LongAdder totalPendingBytes = new LongAdder();
+    private static volatile Gauge pendingPublishBufferUsage;
+
+    private static void initializePendingPublishBufferUsageGauge(PulsarService pulsar) {
+        if (pendingPublishBufferUsage == null) {
+            pendingPublishBufferUsage = Gauge.build()
+                    .name("pulsar_pending_publish_buffer_usage")
+                    .help("The usage of pending publish buffer")
+                    .unit("bytes")
+                    .labelNames("cluster")
+                    .register()
+                    .setChild(new Gauge.Child() {
+                        @Override
+                        public double get() {
+                            return totalPendingBytes.longValue();
+                        }
+                    }, pulsar.getConfiguration().getClusterName());
+        }
+    }
+
     // Tracks and limits number of bytes pending to be published from a single specific IO thread.
     static final class PendingBytesPerThreadTracker {
         private static final FastThreadLocal<PendingBytesPerThreadTracker> pendingBytesPerThread =
@@ -269,6 +291,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         public void incrementPublishBytes(long bytes, long maxPendingBytesPerThread) {
             pendingBytes += bytes;
+            totalPendingBytes.add(bytes);
             // when the limit is exceeded we throttle all connections that are sharing the same thread
             if (maxPendingBytesPerThread > 0 && pendingBytes > maxPendingBytesPerThread
                     && !limitExceeded) {
@@ -279,6 +302,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         public void decrementPublishBytes(long bytes, long resumeThresholdPendingBytesPerThread) {
             pendingBytes -= bytes;
+            totalPendingBytes.add(-bytes);
             // when the limit has been exceeded, and we are below the resume threshold
             // we resume all connections sharing the same thread
             if (limitExceeded && pendingBytes <= resumeThresholdPendingBytesPerThread) {
@@ -312,6 +336,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         // the null check is a workaround for #13620
         super(pulsar.getBrokerService() != null ? pulsar.getBrokerService().getKeepAliveIntervalSeconds() : 0,
                 TimeUnit.SECONDS);
+        initializePendingPublishBufferUsageGauge(pulsar);
         this.service = pulsar.getBrokerService();
         this.schemaService = pulsar.getSchemaRegistryService();
         this.listenerName = listenerName;
