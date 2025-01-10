@@ -29,11 +29,10 @@
     <allowUntrusted>false</allowUntrusted>
   </server>
   <buildScan>
-    <capture>
-      <buildLogging>true</buildLogging>
-      <testLogging>true</testLogging>
-    </capture>
     <backgroundBuildScanUpload>#{isFalse(env['GITHUB_ACTIONS'])}</backgroundBuildScanUpload>
+    <publishing>
+      <onlyIf>authenticated</onlyIf>
+    </publishing>
     <obfuscation>
       <ipAddresses>#{{'0.0.0.0'}}</ipAddresses>
     </obfuscation>
