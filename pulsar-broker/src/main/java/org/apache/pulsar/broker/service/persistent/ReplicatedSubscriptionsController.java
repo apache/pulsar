@@ -228,9 +228,9 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
             // 2. This approach prevents sending additional SNAPSHOT_REQUEST to both local_topic and remote_topic.
             // 3. Since it's uncertain when the remote cluster will enable subscription replication,
             //    the timeout mechanism of pendingSnapshots is used to ensure retries.
-            
-            // In other words, when hit this case, The frequency of sending SNAPSHOT_REQUEST has changed from 
-            // `replicatedSubscriptionsSnapshotFrequencyMillis` to `replicatedSubscriptionsSnapshotTimeoutSeconds`.
+            //
+            // In other words, when hit this case, The frequency of sending SNAPSHOT_REQUEST
+            // will use `replicatedSubscriptionsSnapshotTimeoutSeconds`.
             if (log.isDebugEnabled()) {
                 log.debug("[{}] PendingSnapshot exists but has never succeeded. "
                         + "Skipping snapshot creation until pending snapshot timeout.", topic.getName());

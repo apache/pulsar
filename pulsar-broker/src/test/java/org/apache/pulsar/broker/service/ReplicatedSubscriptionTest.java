@@ -1010,6 +1010,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
     public void testReplicatedSubscriptionOneWay() throws Exception {
         final String namespace = BrokerTestUtil.newUniqueName("pulsar-r4/replicatedsubscription");
         final String topicName = "persistent://" + namespace + "/one-way";
+        config1.setReplicatedSubscriptionsSnapshotTimeoutSeconds(10);
         
         // cluster4 disabled ReplicatedSubscriptions
         admin1.tenants().createTenant("pulsar-r4",
@@ -1069,6 +1070,19 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
             }
         }
         Assert.assertEquals(numSnapshotRequest, 1);
+
+        // Wait pending snapshot timeout
+        Thread.sleep(config1.getReplicatedSubscriptionsSnapshotTimeoutSeconds() * 1000);
+        numSnapshotRequest = 0;
+        r4Messages = admin4.topics()
+                .peekMessages(topicName, subscriptionName, 100, true, TransactionIsolationLevel.READ_UNCOMMITTED);
+        for (Message<byte[]> r4Message : r4Messages) {
+            MessageMetadata msgMetadata = ((MessageImpl<byte[]>) r4Message).getMessageBuilder();
+            if (msgMetadata.hasMarkerType() && msgMetadata.getMarkerType() == MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST_VALUE) {
+                numSnapshotRequest++;
+            }
+        }
+        Assert.assertEquals(numSnapshotRequest, 2);
     }
 
     /**
