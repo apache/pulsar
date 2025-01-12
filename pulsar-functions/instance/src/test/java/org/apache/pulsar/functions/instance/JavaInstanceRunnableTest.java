@@ -18,13 +18,18 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.time.Instant;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.time.Duration;
@@ -36,6 +41,7 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
+
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -66,7 +72,6 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
 @Slf4j
 public class JavaInstanceRunnableTest {
     private final List<AutoCloseable> closeables = new ArrayList<>();
@@ -174,6 +179,20 @@ public class JavaInstanceRunnableTest {
     }
 
     @Test
+    public void testFunctionAsyncTime() throws Exception {
+        JavaInstanceRunnable runnable =
+                createRunnable(FunctionDetails.newBuilder().setClassName(TestFunction.class.getName()).build());
+        Instant before = Instant.now();
+        Instant join = CompletableFuture.supplyAsync(() -> {
+            new Thread(runnable).start();
+            return Instant.now();
+        }).join();
+        assertThat(join).isNotNull();
+        Duration duration = Duration.between(before, join);
+        assertThat(duration.toMillis()).isLessThan(20);
+    }
+
+    @Test
     public void testFunctionResultNull() throws Exception {
         JavaExecutionResult javaExecutionResult = new JavaExecutionResult();
 
@@ -202,7 +221,8 @@ public class JavaInstanceRunnableTest {
 
     @NotNull
     private JavaInstanceRunnable getJavaInstanceRunnable(boolean autoAck,
-                                                         org.apache.pulsar.functions.proto.Function.ProcessingGuarantees processingGuarantees) throws Exception {
+                                                         org.apache.pulsar.functions.proto.Function.ProcessingGuarantees processingGuarantees)
+            throws Exception {
         FunctionDetails functionDetails = FunctionDetails.newBuilder()
                 .setAutoAck(autoAck)
                 .setProcessingGuarantees(processingGuarantees).build();
@@ -255,10 +275,10 @@ public class JavaInstanceRunnableTest {
     public Object[][] component() {
         return new Object[][]{
                 // Schema: component type, whether to map in secrets
-                { FunctionDetails.ComponentType.SINK },
-                { FunctionDetails.ComponentType.SOURCE },
-                { FunctionDetails.ComponentType.FUNCTION },
-                { FunctionDetails.ComponentType.UNKNOWN },
+                {FunctionDetails.ComponentType.SINK},
+                {FunctionDetails.ComponentType.SOURCE},
+                {FunctionDetails.ComponentType.FUNCTION},
+                {FunctionDetails.ComponentType.UNKNOWN},
         };
     }
 
@@ -410,6 +430,21 @@ public class JavaInstanceRunnableTest {
                     future.complete(input);
                 }
             }).start();
+            return future;
+        }
+    }
+
+    public static class TestFunctionAsync implements Function<String, CompletableFuture<String>> {
+        @Override
+        public CompletableFuture<String> process(String input, Context context) throws Exception {
+            CompletableFuture<String> future = CompletableFuture.supplyAsync(() -> {
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                return "hello world";
+            });
             return future;
         }
     }
