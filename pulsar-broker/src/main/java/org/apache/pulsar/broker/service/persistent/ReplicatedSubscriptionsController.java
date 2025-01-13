@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.prometheus.client.Gauge;
 import java.io.IOException;
@@ -206,6 +207,23 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     private void startNewSnapshot() {
         cleanupTimedOutSnapshots();
 
+        if (lastCompletedSnapshotStartTime == 0 && !pendingSnapshots.isEmpty()) {
+            // 1. If the remote cluster has disabled subscription replication or there's an incorrect config,
+            //    it will not respond to SNAPSHOT_REQUEST. Therefore, lastCompletedSnapshotStartTime will remain 0,
+            //    making it unnecessary to resend the request.
+            // 2. This approach prevents sending additional SNAPSHOT_REQUEST to both local_topic and remote_topic.
+            // 3. Since it's uncertain when the remote cluster will enable subscription replication,
+            //    the timeout mechanism of pendingSnapshots is used to ensure retries.
+            //
+            // In other words, when hit this case, The frequency of sending SNAPSHOT_REQUEST
+            // will use `replicatedSubscriptionsSnapshotTimeoutSeconds`.
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] PendingSnapshot exists but has never succeeded. "
+                        + "Skipping snapshot creation until pending snapshot timeout.", topic.getName());
+            }
+            return;
+        }
+
         if (topic.getLastMaxReadPositionMovedForwardTimestamp() < lastCompletedSnapshotStartTime
                 || topic.getLastMaxReadPositionMovedForwardTimestamp() == 0) {
             // There was no message written since the last snapshot, we can skip creating a new snapshot
@@ -300,6 +318,11 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
 
     String localCluster() {
         return localCluster;
+    }
+
+    @VisibleForTesting
+    public ConcurrentMap<String, ReplicatedSubscriptionsSnapshotBuilder> pendingSnapshots() {
+        return pendingSnapshots;
     }
 
     @Override
