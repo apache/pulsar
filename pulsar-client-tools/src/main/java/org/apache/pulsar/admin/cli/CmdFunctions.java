@@ -228,7 +228,7 @@ public class CmdFunctions extends CmdBase {
                 + " #Java, Python, Go")
         protected String logTopic;
 
-        @Option(names = "--logLevel", description = "Log level at which the logs of a Pulsar Function are produced"
+        @Option(names = "--log-level", description = "Log level at which the logs of a Pulsar Function are produced"
                 + " #Java")
         protected String logLevel;
 

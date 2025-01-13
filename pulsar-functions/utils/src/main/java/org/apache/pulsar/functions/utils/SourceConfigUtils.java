@@ -58,7 +58,7 @@ import org.apache.pulsar.io.core.Source;
 @Slf4j
 public class SourceConfigUtils {
 
-    private static final List<String> VALID_LOG_LEVELS = Arrays.asList("INFO", "DEBUG", "WARN", "ERROR");
+    private static final List<String> VALID_LOG_LEVELS = Arrays.asList("OFF", "FATAL", "ERROR", "WARN", "INFO", "DEBUG", "TRACE", "ALL");
 
     @Getter
     @Setter

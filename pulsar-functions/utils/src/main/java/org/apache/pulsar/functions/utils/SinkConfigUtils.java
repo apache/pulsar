@@ -63,7 +63,7 @@ import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 @Slf4j
 public class SinkConfigUtils {
 
-    private static final List<String> VALID_LOG_LEVELS = Arrays.asList("INFO", "DEBUG", "WARN", "ERROR");
+    private static final List<String> VALID_LOG_LEVELS = Arrays.asList("OFF", "FATAL", "ERROR", "WARN", "INFO", "DEBUG", "TRACE", "ALL");
 
     @Getter
     @Setter

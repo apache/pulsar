@@ -71,7 +71,7 @@ public class FunctionConfigUtils {
 
     static final Integer MAX_PENDING_ASYNC_REQUESTS_DEFAULT = 1000;
     static final Boolean FORWARD_SOURCE_MESSAGE_PROPERTY_DEFAULT = Boolean.TRUE;
-    private static final List<String> VALID_LOG_LEVELS = Arrays.asList("INFO", "DEBUG", "WARN", "ERROR");
+    private static final List<String> VALID_LOG_LEVELS = Arrays.asList("OFF", "FATAL", "ERROR", "WARN", "INFO", "DEBUG", "TRACE", "ALL");
 
     private static final ObjectMapper OBJECT_MAPPER = ObjectMapperFactory.create();
 

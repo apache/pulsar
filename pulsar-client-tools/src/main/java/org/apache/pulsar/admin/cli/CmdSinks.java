@@ -410,7 +410,7 @@ public class CmdSinks extends CmdBase {
         protected String transformFunctionConfig;
         @Option(names = "--log-topic", description = "The topic to which the logs of a Pulsar Sink are produced")
         protected String logTopic;
-        @Option(names = "--logLevel", description = "Log level at which the logs of a Pulsar Sink are produced")
+        @Option(names = "--log-level", description = "Log level at which the logs of a Pulsar Sink are produced")
         protected String logLevel;
         @Option(names = "--runtime-flags", description = "Any flags that you want to pass to a runtime"
                 + " (for process & Kubernetes runtime only).")
