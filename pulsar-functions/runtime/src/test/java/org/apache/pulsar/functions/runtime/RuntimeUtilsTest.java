@@ -213,6 +213,7 @@ public class RuntimeUtilsTest {
                 23,
                 1234L,
                 "logConfigFile",
+                "info",
                 "secretsProviderClassName",
                 "secretsProviderConfig",
                 false,
