@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.instance;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.rmi.registry.Registry;
 import java.time.Instant;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.clearInvocations;
@@ -40,6 +41,7 @@ import java.util.Map;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 
 import lombok.Getter;
@@ -56,6 +58,8 @@ import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
+import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
+import org.apache.pulsar.functions.instance.stats.FunctionStatsManager;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
@@ -67,11 +71,13 @@ import org.apache.pulsar.io.core.Source;
 import org.apache.pulsar.io.core.SourceContext;
 import org.awaitility.Awaitility;
 import org.jetbrains.annotations.NotNull;
+import org.mockito.ArgumentCaptor;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+
 @Slf4j
 public class JavaInstanceRunnableTest {
     private final List<AutoCloseable> closeables = new ArrayList<>();
@@ -180,16 +186,23 @@ public class JavaInstanceRunnableTest {
 
     @Test
     public void testFunctionAsyncTime() throws Exception {
-        JavaInstanceRunnable runnable =
-                createRunnable(FunctionDetails.newBuilder().setClassName(TestFunction.class.getName()).build());
-        Instant before = Instant.now();
-        Instant join = CompletableFuture.supplyAsync(() -> {
-            new Thread(runnable).start();
-            return Instant.now();
-        }).join();
-        assertThat(join).isNotNull();
-        Duration duration = Duration.between(before, join);
-        assertThat(duration.toMillis()).isLessThan(20);
+        FunctionDetails functionDetails = FunctionDetails.newBuilder()
+                .setAutoAck(true)
+                .setProcessingGuarantees(org.apache.pulsar.functions.proto.Function.ProcessingGuarantees.MANUAL)
+                .build();
+        JavaInstanceRunnable javaInstanceRunnable = createRunnable(functionDetails);
+        Field stats = JavaInstanceRunnable.class.getDeclaredField("stats");
+        FunctionStatsManager manager = mock(FunctionStatsManager.class);
+        stats.setAccessible(true);
+        stats.set(javaInstanceRunnable, manager);
+        stats.setAccessible(false);
+        JavaExecutionResult javaExecutionResult = new JavaExecutionResult();
+        Thread.sleep(500);
+        Record record = mock(Record.class);
+        javaInstanceRunnable.handleResult(record, javaExecutionResult);
+        ArgumentCaptor<Long> timeCaptor = ArgumentCaptor.forClass(Long.class);
+        verify(manager).processTimeEnd(timeCaptor.capture());
+        Assert.assertEquals(timeCaptor.getValue(), javaExecutionResult.getStartTime() + 500, 100);
     }
 
     @Test
@@ -430,21 +443,6 @@ public class JavaInstanceRunnableTest {
                     future.complete(input);
                 }
             }).start();
-            return future;
-        }
-    }
-
-    public static class TestFunctionAsync implements Function<String, CompletableFuture<String>> {
-        @Override
-        public CompletableFuture<String> process(String input, Context context) throws Exception {
-            CompletableFuture<String> future = CompletableFuture.supplyAsync(() -> {
-                try {
-                    Thread.sleep(500);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                return "hello world";
-            });
             return future;
         }
     }
