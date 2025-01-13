@@ -59,6 +59,10 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TransactionIsolationLevel;
+import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.common.api.proto.MarkerType;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -985,6 +989,92 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         }
 
         Assert.assertEquals(result, List.of("V2"));
+    }
+
+    @Test
+    public void testReplicatedSubscriptionOneWay() throws Exception {
+        final String namespace = BrokerTestUtil.newUniqueName("pulsar-r4/replicatedsubscription");
+        final String topicName = "persistent://" + namespace + "/one-way";
+        int defaultSubscriptionsSnapshotFrequency = config1.getReplicatedSubscriptionsSnapshotFrequencyMillis();
+        int defaultSubscriptionsSnapshotTimeout = config1.getReplicatedSubscriptionsSnapshotTimeoutSeconds();
+        config1.setReplicatedSubscriptionsSnapshotTimeoutSeconds(2);
+        config1.setReplicatedSubscriptionsSnapshotFrequencyMillis(100);
+        
+        // cluster4 disabled ReplicatedSubscriptions
+        admin1.tenants().createTenant("pulsar-r4",
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid4"), Sets.newHashSet(cluster1, cluster4)));
+        admin1.namespaces().createNamespace(namespace);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster4));
+        
+        String subscriptionName = "cluster-subscription";
+        boolean replicateSubscriptionState = true;
+
+        @Cleanup
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
+
+        @Cleanup
+        final PulsarClient client4 = PulsarClient.builder().serviceUrl(url4.toString())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
+
+        // create subscription in cluster4
+        createReplicatedSubscription(client1, topicName, subscriptionName, replicateSubscriptionState);
+        // create subscription in cluster4
+        createReplicatedSubscription(client4, topicName, subscriptionName, replicateSubscriptionState);
+
+        // send messages in cluster1
+        @Cleanup
+        Producer<byte[]> producer = client1.newProducer().topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+        int numMessages = 6;
+        for (int i = 0; i < numMessages; i++) {
+            String body = "message" + i;
+            producer.send(body.getBytes(StandardCharsets.UTF_8));
+        }
+        producer.close();
+
+        // wait for snapshot marker request to be replicated
+        Thread.sleep(3 * config1.getReplicatedSubscriptionsSnapshotFrequencyMillis());
+
+        // Assert just have 1 pending snapshot in cluster1
+        final PersistentTopic topic1 =
+                (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
+        ReplicatedSubscriptionsController r1Controller =
+                topic1.getReplicatedSubscriptionController().get();
+        assertEquals(r1Controller.pendingSnapshots().size(), 1);
+        
+        // Assert cluster4 just receive 1 snapshot request msg
+        int numSnapshotRequest = 0;
+        List<Message<byte[]>> r4Messages = admin4.topics()
+                .peekMessages(topicName, subscriptionName, 100, true, TransactionIsolationLevel.READ_UNCOMMITTED);
+        for (Message<byte[]> r4Message : r4Messages) {
+            MessageMetadata msgMetadata = ((MessageImpl<byte[]>) r4Message).getMessageBuilder();
+            if (msgMetadata.hasMarkerType() && msgMetadata.getMarkerType() == MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST_VALUE) {
+                numSnapshotRequest++;
+            }
+        }
+        Assert.assertEquals(numSnapshotRequest, 1);
+
+        // Wait pending snapshot timeout
+        Thread.sleep(config1.getReplicatedSubscriptionsSnapshotTimeoutSeconds() * 1000);
+        numSnapshotRequest = 0;
+        r4Messages = admin4.topics()
+                .peekMessages(topicName, subscriptionName, 100, true, TransactionIsolationLevel.READ_UNCOMMITTED);
+        for (Message<byte[]> r4Message : r4Messages) {
+            MessageMetadata msgMetadata = ((MessageImpl<byte[]>) r4Message).getMessageBuilder();
+            if (msgMetadata.hasMarkerType() && msgMetadata.getMarkerType() == MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST_VALUE) {
+                numSnapshotRequest++;
+            }
+        }
+        Assert.assertEquals(numSnapshotRequest, 2);
+
+        // Set back to default config.
+        config1.setReplicatedSubscriptionsSnapshotTimeoutSeconds(defaultSubscriptionsSnapshotTimeout);
+        config1.setReplicatedSubscriptionsSnapshotFrequencyMillis(defaultSubscriptionsSnapshotFrequency);
     }
 
     /**
