@@ -81,7 +81,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
     @Getter
     private CompletableFuture<Void> isInitialized = new CompletableFuture<>();
 
-    private boolean isFunctionWorkerAlive = true;
+    private boolean isProducerFenced = true;
 
     public FunctionMetaDataManager(WorkerConfig workerConfig,
                                    SchedulerManager schedulerManager,
@@ -247,7 +247,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
         } catch (Exception e) {
             if (e.getCause() instanceof PulsarClientException.ProducerFencedException) {
                 log.error("Function worker status has been set to false due to ProducerFencedException.");
-                this.isFunctionWorkerAlive = false;
+                this.isProducerFenced = false;
             }
             log.error("Could not write into Function Metadata topic", e);
             throw new IllegalStateException("Internal Error updating function at the leader", e);
@@ -508,6 +508,6 @@ public class FunctionMetaDataManager implements AutoCloseable {
     }
 
     public boolean checkLiveliness() {
-        return this.isFunctionWorkerAlive;
+        return this.isProducerFenced;
     }
 }
