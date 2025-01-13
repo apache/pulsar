@@ -41,6 +41,7 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.functions.BatchingConfig;
 import org.apache.pulsar.common.functions.CryptoConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.mockito.internal.util.MockUtil;
@@ -139,6 +140,12 @@ public class ProducerBuilderFactoryTest {
         cryptoConfig.setCryptoKeyReaderConfig(Map.of("key", "value"));
         cryptoConfig.setCryptoKeyReaderClassName(TestCryptoKeyReader.class.getName());
         producerConfig.setCryptoConfig(cryptoConfig);
+        BatchingConfig batchingConfig = new BatchingConfig();
+        batchingConfig.setEnabled(true);
+        batchingConfig.setBatchingMaxPublishDelayMs(20);
+        batchingConfig.setBatchingMaxMessages(100);
+        batchingConfig.setBatchingMaxBytes(-1);
+        producerConfig.setBatchingConfig(batchingConfig);
         ProducerBuilderFactory builderFactory = new ProducerBuilderFactory(pulsarClient, producerConfig, null, null);
         builderFactory.createProducerBuilder("topic", Schema.STRING, "producerName");
         verifyCommon();
@@ -153,12 +160,16 @@ public class ProducerBuilderFactoryTest {
         verify(producerBuilder).cryptoFailureAction(ProducerCryptoFailureAction.FAIL);
         verify(producerBuilder).addEncryptionKey("key1");
         verify(producerBuilder).addEncryptionKey("key2");
+        verify(producerBuilder).enableBatching(true);
+        verify(producerBuilder).batchingMaxPublishDelay(20, TimeUnit.MILLISECONDS);
+        verify(producerBuilder).batchingMaxMessages(100);
         verifyNoMoreInteractions(producerBuilder);
     }
 
     public static class TestCryptoKeyReader implements CryptoKeyReader {
         static TestCryptoKeyReader LAST_INSTANCE;
         Map<String, Object> configs;
+
         public TestCryptoKeyReader(Map<String, Object> configs) {
             this.configs = configs;
             assert LAST_INSTANCE == null;
