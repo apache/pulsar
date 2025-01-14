@@ -341,7 +341,7 @@ class TopicStats {
             writeSubscriptionMetric(stream, "pulsar_subscription_filter_rescheduled_msg_count",
                     subsStats.filterRescheduledMsgCount, cluster, namespace, topic, sub,
                     splitTopicAndPartitionIndexLabel);
-            writeSubscriptionMetric(stream, "pulsar_delayed_message_index_size_bytes",
+            writeSubscriptionMetric(stream, "pulsar_subscription_delayed_message_index_size_bytes",
                     subsStats.delayedMessageIndexSizeInBytes, cluster, namespace, topic, sub,
                     splitTopicAndPartitionIndexLabel);
 
