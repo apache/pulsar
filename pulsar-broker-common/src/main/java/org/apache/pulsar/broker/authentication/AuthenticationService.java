@@ -23,7 +23,7 @@ import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedRol
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -47,13 +47,13 @@ public class AuthenticationService implements Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(AuthenticationService.class);
     private final String anonymousUserRole;
 
-    private final Map<String, AuthenticationProvider> providers = new HashMap<>();
+    private final Map<String, AuthenticationProvider> providers = new LinkedHashMap<>();
 
     public AuthenticationService(ServiceConfiguration conf) throws PulsarServerException {
         anonymousUserRole = conf.getAnonymousUserRole();
         if (conf.isAuthenticationEnabled()) {
             try {
-                Map<String, List<AuthenticationProvider>> providerMap = new HashMap<>();
+                Map<String, List<AuthenticationProvider>> providerMap = new LinkedHashMap<>();
                 for (String className : conf.getAuthenticationProviders()) {
                     if (className.isEmpty()) {
                         continue;
@@ -120,7 +120,7 @@ public class AuthenticationService implements Closeable {
             AuthenticationProvider providerToUse = getAuthProvider(authMethodName);
             try {
                 return providerToUse.authenticateHttpRequest(request, response);
-            } catch (AuthenticationException e) {
+            } catch (Exception e) {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Authentication failed for provider " + providerToUse.getAuthMethodName() + " : "
                             + e.getMessage(), e);
@@ -131,7 +131,7 @@ public class AuthenticationService implements Closeable {
             for (AuthenticationProvider provider : providers.values()) {
                 try {
                     return provider.authenticateHttpRequest(request, response);
-                } catch (AuthenticationException e) {
+                } catch (Exception e) {
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("Authentication failed for provider " + provider.getAuthMethodName() + ": "
                                 + e.getMessage(), e);
@@ -171,20 +171,19 @@ public class AuthenticationService implements Closeable {
                     authData = authenticationState.getAuthDataSource();
                 }
                 // Backward compatible, the authData value was null in the previous implementation
-                return providerToUse.authenticate(authData);
-            } catch (AuthenticationException e) {
+                return providerToUse.authenticateAsync(authData).get();
+            } catch (Exception e) {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Authentication failed for provider " + providerToUse.getAuthMethodName() + " : "
                             + e.getMessage(), e);
                 }
-                throw e;
             }
         } else {
             for (AuthenticationProvider provider : providers.values()) {
                 try {
                     AuthenticationState authenticationState = provider.newHttpAuthState(request);
-                    return provider.authenticate(authenticationState.getAuthDataSource());
-                } catch (AuthenticationException e) {
+                    return provider.authenticateAsync(authenticationState.getAuthDataSource()).get();
+                } catch (Exception e) {
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("Authentication failed for provider " + provider.getAuthMethodName() + ": "
                                 + e.getMessage(), e);
