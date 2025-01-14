@@ -60,7 +60,7 @@ for %%a in ("%PULSAR_LOG_CONF%") do SET "PULSAR_LOG_CONF_BASENAME=%%~nxa"
 set "PULSAR_CLASSPATH=%PULSAR_CLASSPATH%;%PULSAR_LOG_CONF_DIR%"
 
 set "OPTS=%OPTS% -Dlog4j.configurationFile="%PULSAR_LOG_CONF_BASENAME%""
-set "OPTS=%OPTS% -Djava.net.preferIPv4Stack=true"
+set "OPTS=-Djava.net.preferIPv4Stack=true %OPTS%"
 
 REM Allow Netty to use reflection access
 set "OPTS=%OPTS% -Dio.netty.tryReflectionSetAccessible=true"
