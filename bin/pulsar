@@ -285,7 +285,7 @@ OPTS="$OPTS -Dlog4j.configurationFile=`basename $PULSAR_LOG_CONF`"
 # Ensure we can read bigger content from ZK. (It might be
 # rarely needed when trying to list many z-nodes under a
 # directory)
-OPTS="$OPTS -Djute.maxbuffer=10485760 -Djava.net.preferIPv4Stack=true"
+OPTS="-Djava.net.preferIPv4Stack=true $OPTS -Djute.maxbuffer=10485760"
 # Enable TCP keepalive for all Zookeeper client connections
 OPTS="$OPTS -Dzookeeper.clientTcpKeepAlive=true"
 

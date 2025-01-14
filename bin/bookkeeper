@@ -183,7 +183,7 @@ fi
 OPTS="-cp $BOOKIE_CLASSPATH $OPTS"
 
 # Disable ipv6 as it can cause issues
-OPTS="$OPTS -Djava.net.preferIPv4Stack=true"
+OPTS="-Djava.net.preferIPv4Stack=true $OPTS"
 
 OPTS="$OPTS $BOOKIE_MEM $BOOKIE_GC $BOOKIE_GC_LOG $BOOKIE_EXTRA_OPTS"
 
