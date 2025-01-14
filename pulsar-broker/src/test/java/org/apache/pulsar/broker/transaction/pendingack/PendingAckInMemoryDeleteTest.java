@@ -26,7 +26,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -46,7 +45,6 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -233,10 +231,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                                 (LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>>) field.get(pendingAckHandle);
                         assertTrue(individualAckOfTransaction.isEmpty());
                         managedCursor = (ManagedCursorImpl) testPersistentSubscription.getCursor();
-                        field = ManagedCursorImpl.class.getDeclaredField("batchDeletedIndexes");
-                        field.setAccessible(true);
-                        final ConcurrentSkipListMap<PositionImpl, BitSetRecyclable> batchDeletedIndexes =
-                                (ConcurrentSkipListMap<PositionImpl, BitSetRecyclable>) field.get(managedCursor);
+                        final var batchDeletedIndexes = managedCursor.getBatchDeletedIndexes();
                         if (retryCnt == 0) {
                             //one message are not ack
                             Awaitility.await().until(() -> {
