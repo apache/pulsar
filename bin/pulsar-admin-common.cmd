@@ -68,15 +68,19 @@ set "OPTS=%OPTS% %PULSAR_EXTRA_OPTS%"
 
 if "%PULSAR_LOG_DIR%" == "" set "PULSAR_LOG_DIR=%PULSAR_HOME%\logs"
 if "%PULSAR_LOG_APPENDER%" == "" set "PULSAR_LOG_APPENDER=RoutingAppender"
-if "%PULSAR_LOG_LEVEL%" == "" set "PULSAR_LOG_LEVEL=info"
-if "%PULSAR_LOG_ROOT_LEVEL%" == "" set "PULSAR_LOG_ROOT_LEVEL=%PULSAR_LOG_LEVEL%"
 if "%PULSAR_ROUTING_APPENDER_DEFAULT%" == "" set "PULSAR_ROUTING_APPENDER_DEFAULT=Console"
 if "%PULSAR_LOG_IMMEDIATE_FLUSH%" == "" set "PULSAR_LOG_IMMEDIATE_FLUSH=false"
 
 set "OPTS=%OPTS% -Dpulsar.log.appender=%PULSAR_LOG_APPENDER%"
 set "OPTS=%OPTS% -Dpulsar.log.dir=%PULSAR_LOG_DIR%"
-set "OPTS=%OPTS% -Dpulsar.log.level=%PULSAR_LOG_LEVEL%"
-set "OPTS=%OPTS% -Dpulsar.log.root.level=%PULSAR_LOG_ROOT_LEVEL%"
+if not "%PULSAR_LOG_LEVEL%" == "" set "OPTS=%OPTS% -Dpulsar.log.level=%PULSAR_LOG_LEVEL%"
+if not "%PULSAR_LOG_ROOT_LEVEL%" == "" (
+    set "OPTS=%OPTS% -Dpulsar.log.root.level=%PULSAR_LOG_ROOT_LEVEL%"
+) else (
+    if not "%PULSAR_LOG_LEVEL%" == "" (
+        set "OPTS=%OPTS% -Dpulsar.log.root.level=%PULSAR_LOG_LEVEL%"
+    )
+)
 set "OPTS=%OPTS% -Dpulsar.log.immediateFlush=%PULSAR_LOG_IMMEDIATE_FLUSH%"
 set "OPTS=%OPTS% -Dpulsar.routing.appender.default=%PULSAR_ROUTING_APPENDER_DEFAULT%"
 
