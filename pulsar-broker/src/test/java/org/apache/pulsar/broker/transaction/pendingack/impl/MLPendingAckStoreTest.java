@@ -69,6 +69,7 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
+        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
         setUpBase(1, 1, NAMESPACE1 + "/test", 0);
     }
 
