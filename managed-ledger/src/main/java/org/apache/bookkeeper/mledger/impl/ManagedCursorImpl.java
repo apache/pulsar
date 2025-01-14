@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC;
@@ -43,6 +42,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -711,7 +711,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     private void recoverBatchDeletedIndexes (
             List<MLDataFormats.BatchedEntryDeletionIndexInfo> batchDeletedIndexInfoList) {
-        checkNotNull(batchDeletedIndexes);
+        Objects.requireNonNull(batchDeletedIndexes);
         lock.writeLock().lock();
         try {
             this.batchDeletedIndexes.clear();
@@ -3844,7 +3844,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             lock.readLock().unlock();
         }
         if (batchDeletedIndexes != null) {
-            checkNotNull(newNonDurableCursor.batchDeletedIndexes);
+            Objects.requireNonNull(newNonDurableCursor.batchDeletedIndexes);
             for (Map.Entry<Position, BitSetRecyclable> entry : this.batchDeletedIndexes.entrySet()) {
                 BitSetRecyclable copiedBitSet = BitSetRecyclable.valueOf(entry.getValue());
                 newNonDurableCursor.batchDeletedIndexes.put(entry.getKey(), copiedBitSet);

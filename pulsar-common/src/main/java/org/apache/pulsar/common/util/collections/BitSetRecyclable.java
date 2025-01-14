@@ -1211,9 +1211,6 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
         if (recyclerHandle != null) {
             this.clear();
             recyclerHandle.recycle(this);
-            // Reset with null so that recycle() can be called many times but only the 1st time takes effect.
-            // It's used when recycle() is called in ConcurrentSkipListMap's callback
-            recyclerHandle = null;
         }
     }
 }
