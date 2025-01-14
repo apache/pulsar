@@ -48,7 +48,7 @@ for %%a in ("%PULSAR_LOG_CONF%") do SET "PULSAR_LOG_CONF_BASENAME=%%~nxa"
 set "PULSAR_CLASSPATH=%PULSAR_CLASSPATH%;%PULSAR_LOG_CONF_DIR%"
 
 set "OPTS=%OPTS% -Dlog4j.configurationFile="%PULSAR_LOG_CONF_BASENAME%""
-set "OPTS=%OPTS% -Djava.net.preferIPv4Stack=true"
+set "OPTS=-Djava.net.preferIPv4Stack=true %OPTS%"
 
 set "isjava8=false"
 FOR /F "tokens=*" %%g IN ('"java -version 2>&1"') do (
