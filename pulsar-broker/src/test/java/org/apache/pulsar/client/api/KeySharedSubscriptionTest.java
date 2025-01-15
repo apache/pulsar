@@ -94,6 +94,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
+import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
@@ -104,7 +105,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     private final KeySharedImplementationType implementationType;
 
     // Comment out the next line (Factory annotation) to run tests manually in IntelliJ, one-by-one
-    //@Factory
+    @Factory
     public static Object[] createTestInstances() {
         return KeySharedImplementationType.generateTestInstances(KeySharedSubscriptionTest::new);
     }
@@ -2362,11 +2363,16 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "currentImplementationType")
     public void testDeliveryOfRemainingMessagesWithoutDeadlock(KeySharedImplementationType impl) throws Exception {
+        // don't set the unblock stuck subscription flag which is set to false by default, but for this test class
+        // it is enabled in the setup method
         conf.setUnblockStuckSubscriptionEnabled(false);
+
+        // this was the way how reproduce the deadlock issue https://github.com/apache/pulsar/issues/23848
         @Cleanup("interrupt")
         Thread updateRatesThread = new Thread(() -> {
             int count = 0;
-            while (!Thread.currentThread().isInterrupted() && count++ < 1_000_000) {
+            // the deadlock issue typically reproduced before 100000 iterations
+            while (!Thread.currentThread().isInterrupted() && count++ < 200_000) {
                 pulsar.getBrokerService().updateRates();
                 Thread.yield();
                 if (count % 10000 == 0) {
@@ -2376,7 +2382,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         }, "update-rates-thread");
         updateRatesThread.start();
 
-        String topic = newUniqueName("testDeliveryOfRemainingMessages");
+        String topic = newUniqueName("testDeliveryOfRemainingMessagesWithoutDeadlock");
         int numberOfKeys = 100;
         long pauseTime = 100L;
 
