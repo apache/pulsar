@@ -192,13 +192,12 @@ public class ConnectionHandler {
         duringConnect.set(false);
         state.client.getCnxPool().releaseConnection(cnx);
         if (CLIENT_CNX_UPDATER.compareAndSet(this, cnx, null)) {
-            if (!isValidStateForReconnection()) {
+            if (!state.changeToConnecting()) {
                 log.info("[{}] [{}] Ignoring reconnection request (state: {})",
                         state.topic, state.getHandlerName(), state.getState());
                 return;
             }
             long delayMs = initialConnectionDelayMs.orElse(backoff.next());
-            state.setState(State.Connecting);
             log.info("[{}] [{}] Closed connection {} -- Will try again in {} s, hostUrl: {}",
                     state.topic, state.getHandlerName(), cnx.channel(), delayMs / 1000.0, hostUrl.orElse(null));
             state.client.timer().newTimeout(timeout -> {
