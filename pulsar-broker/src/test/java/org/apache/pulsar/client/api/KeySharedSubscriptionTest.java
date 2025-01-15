@@ -2366,8 +2366,13 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Thread updateRatesThread = new Thread(() -> {
             while (!Thread.currentThread().isInterrupted()) {
                 pulsar.getBrokerService().updateRates();
+                try {
+                    Thread.sleep(1);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
             }
-        });
+        }, "update-rates-thread");
         updateRatesThread.start();
 
         String topic = newUniqueName("testDeliveryOfRemainingMessages");
