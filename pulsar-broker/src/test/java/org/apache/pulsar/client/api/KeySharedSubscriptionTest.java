@@ -2362,15 +2362,12 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "currentImplementationType")
     public void testDeliveryOfRemainingMessagesWithoutDeadlock(KeySharedImplementationType impl) throws Exception {
+        conf.setUnblockStuckSubscriptionEnabled(false);
         @Cleanup("interrupt")
         Thread updateRatesThread = new Thread(() -> {
             while (!Thread.currentThread().isInterrupted()) {
                 pulsar.getBrokerService().updateRates();
-                try {
-                    Thread.sleep(1);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
+                Thread.yield();
             }
         }, "update-rates-thread");
         updateRatesThread.start();
