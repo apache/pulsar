@@ -2365,9 +2365,13 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         conf.setUnblockStuckSubscriptionEnabled(false);
         @Cleanup("interrupt")
         Thread updateRatesThread = new Thread(() -> {
-            while (!Thread.currentThread().isInterrupted()) {
+            int count = 0;
+            while (!Thread.currentThread().isInterrupted() && count++ < 1_000_000) {
                 pulsar.getBrokerService().updateRates();
                 Thread.yield();
+                if (count % 10000 == 0) {
+                    log.info("updateRatesThread count: {}", count);
+                }
             }
         }, "update-rates-thread");
         updateRatesThread.start();
