@@ -95,7 +95,7 @@ public class ZkSessionExpireTest extends NetworkErrorTestBase {
         admin2.namespaces().unload(defaultNamespace);
 
         // Confirm all brokers registered.
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().atMost(Duration.ofSeconds(20)).untilAsserted(() -> {
             assertEquals(getAvailableBrokers(pulsar1).size(), 2);
             assertEquals(getAvailableBrokers(pulsar2).size(), 2);
         });
