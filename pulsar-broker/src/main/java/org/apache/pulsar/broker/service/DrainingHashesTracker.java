@@ -226,9 +226,11 @@ public class DrainingHashesTracker {
             throw new IllegalArgumentException("Sticky hash cannot be 0");
         }
 
+        DrainingHashEntry entry;
+        ConsumerDrainingHashesStats addedStats = null;
         lock.writeLock().lock();
         try {
-            DrainingHashEntry entry = drainingHashes.get(stickyHash);
+            entry = drainingHashes.get(stickyHash);
             if (entry == null) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Adding and incrementing draining hash {} for consumer id:{} name:{}",
@@ -236,9 +238,9 @@ public class DrainingHashesTracker {
                 }
                 entry = new DrainingHashEntry(consumer);
                 drainingHashes.put(stickyHash, entry);
-                // update the consumer specific stats
-                consumerDrainingHashesStatsMap.computeIfAbsent(new ConsumerIdentityWrapper(consumer),
-                        k -> new ConsumerDrainingHashesStats()).addHash(stickyHash);
+                // add the consumer specific stats
+                addedStats = consumerDrainingHashesStatsMap.computeIfAbsent(new ConsumerIdentityWrapper(consumer),
+                        k -> new ConsumerDrainingHashesStats());
             } else if (entry.getConsumer() != consumer) {
                 throw new IllegalStateException(
                         "Consumer " + entry.getConsumer() + " is already draining hash " + stickyHash
@@ -250,10 +252,14 @@ public class DrainingHashesTracker {
                             stickyHash, entry.getRefCount() + 1, consumer.consumerId(), consumer.consumerName());
                 }
             }
-            entry.incrementRefCount();
         } finally {
             lock.writeLock().unlock();
         }
+        if (addedStats != null) {
+            // add hash to added stats
+            addedStats.addHash(stickyHash);
+        }
+        entry.incrementRefCount();
     }
 
     /**
@@ -273,14 +279,19 @@ public class DrainingHashesTracker {
      * End a batch operation.
      */
     public void endBatch() {
+        boolean unblock = false;
         lock.writeLock().lock();
         try {
             if (--batchLevel == 0 && unblockedWhileBatching) {
                 unblockedWhileBatching = false;
-                unblockingHandler.stickyKeyHashUnblocked(-1);
+                unblock = true;
             }
         } finally {
             lock.writeLock().unlock();
+        }
+        // unblock outside the lock
+        if (unblock) {
+            unblockingHandler.stickyKeyHashUnblocked(-1);
         }
     }
 
@@ -296,45 +307,56 @@ public class DrainingHashesTracker {
             return;
         }
 
-        lock.writeLock().lock();
-        try {
-            DrainingHashEntry entry = drainingHashes.get(stickyHash);
-            if (entry == null) {
-                return;
+        DrainingHashEntry entry = getEntry(stickyHash);
+        if (entry == null) {
+            return;
+        }
+        if (entry.getConsumer() != consumer) {
+            throw new IllegalStateException(
+                    "Consumer " + entry.getConsumer() + " is already draining hash " + stickyHash
+                            + " in dispatcher " + dispatcherName + ". Same hash being used for consumer " + consumer
+                            + ".");
+        }
+        if (entry.decrementRefCount()) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Draining hash {} removing consumer id:{} name:{}", dispatcherName, stickyHash,
+                        consumer.consumerId(), consumer.consumerName());
             }
-            if (entry.getConsumer() != consumer) {
-                throw new IllegalStateException(
-                        "Consumer " + entry.getConsumer() + " is already draining hash " + stickyHash
-                                + " in dispatcher " + dispatcherName + ". Same hash being used for consumer " + consumer
-                                + ".");
+            DrainingHashEntry removed;
+            lock.writeLock().lock();
+            try {
+                removed = drainingHashes.remove(stickyHash);
+            } finally {
+                lock.writeLock().unlock();
             }
-            if (entry.decrementRefCount()) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Draining hash {} removing consumer id:{} name:{}", dispatcherName, stickyHash,
-                            consumer.consumerId(), consumer.consumerName());
-                }
-                DrainingHashEntry removed = drainingHashes.remove(stickyHash);
-                // update the consumer specific stats
-                ConsumerDrainingHashesStats drainingHashesStats =
-                        consumerDrainingHashesStatsMap.get(new ConsumerIdentityWrapper(consumer));
-                if (drainingHashesStats != null) {
-                    drainingHashesStats.clearHash(stickyHash);
-                }
+            // update the consumer specific stats
+            ConsumerDrainingHashesStats drainingHashesStats =
+                    consumerDrainingHashesStatsMap.get(new ConsumerIdentityWrapper(consumer));
+            if (drainingHashesStats != null) {
+                drainingHashesStats.clearHash(stickyHash);
+            }
+            boolean unblock = false;
+            lock.writeLock().lock();
+            try {
                 if (!closing && removed.isBlocking()) {
                     if (batchLevel > 0) {
                         unblockedWhileBatching = true;
                     } else {
-                        unblockingHandler.stickyKeyHashUnblocked(stickyHash);
+                        unblock = true;
                     }
                 }
-            } else {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Draining hash {} decrementing {} consumer id:{} name:{}", dispatcherName,
-                            stickyHash, entry.getRefCount(), consumer.consumerId(), consumer.consumerName());
-                }
+            } finally {
+                lock.writeLock().unlock();
             }
-        } finally {
-            lock.writeLock().unlock();
+            // unblock the hash outside the lock
+            if (unblock) {
+                unblockingHandler.stickyKeyHashUnblocked(stickyHash);
+            }
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Draining hash {} decrementing {} consumer id:{} name:{}", dispatcherName,
+                        stickyHash, entry.getRefCount(), consumer.consumerId(), consumer.consumerName());
+            }
         }
     }
 
