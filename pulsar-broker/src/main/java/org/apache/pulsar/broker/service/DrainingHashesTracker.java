@@ -165,6 +165,10 @@ public class DrainingHashesTracker {
                     log.debug("[{}] Cleared hash {} in stats. empty={} totalCleared={} hashes={}",
                             dispatcherName, hash, empty, drainingHashesClearedTotal, drainingHashes.getCardinality());
                 }
+                if (empty) {
+                    // reduce memory usage by trimming the bitmap when the RoaringBitmap instance is empty
+                    drainingHashes.trim();
+                }
                 return empty;
             } finally {
                 statsLock.writeLock().unlock();
