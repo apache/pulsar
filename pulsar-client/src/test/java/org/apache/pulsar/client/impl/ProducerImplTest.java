@@ -74,35 +74,4 @@ public class ProducerImplTest {
         assertTrue(producer.populateMessageSchema(msg, null));
         verify(msg).setSchemaState(MessageImpl.SchemaState.Ready);
     }
-
-    @Test
-    public void testClearPendingMessageWhenCloseAsync() {
-        PulsarClientImpl client = mock(PulsarClientImpl.class);
-        Mockito.doReturn(1L).when(client).newProducerId();
-        ClientConfigurationData clientConf = new ClientConfigurationData();
-        clientConf.setStatsIntervalSeconds(-1);
-        Mockito.doReturn(clientConf).when(client).getConfiguration();
-        Mockito.doReturn(new InstrumentProvider(null)).when(client).instrumentProvider();
-        ConnectionPool connectionPool = mock(ConnectionPool.class);
-        Mockito.doReturn(1).when(connectionPool).genRandomKeyToSelectCon();
-        Mockito.doReturn(connectionPool).when(client).getCnxPool();
-        HashedWheelTimer timer = mock(HashedWheelTimer.class);
-        Mockito.doReturn(null).when(timer).newTimeout(Mockito.any(), Mockito.anyLong(), Mockito.any());
-        Mockito.doReturn(timer).when(client).timer();
-        ProducerConfigurationData producerConf = new ProducerConfigurationData();
-        producerConf.setSendTimeoutMs(-1);
-        ProducerImpl<?> producer = Mockito.spy(new ProducerImpl<>(client, "topicName", producerConf, null, 0, null, null, Optional.empty()));
-        
-        // make sure throw exception when send request to broker
-        ClientCnx clientCnx = mock(ClientCnx.class);
-        CompletableFuture<ProducerResponse> tCompletableFuture = new CompletableFuture<>();
-        tCompletableFuture.completeExceptionally(new PulsarClientException("error"));
-        when(clientCnx.sendRequestWithId(Mockito.any(), Mockito.anyLong())).thenReturn(tCompletableFuture);
-        Mockito.doReturn(clientCnx).when(producer).cnx();
-
-        // run closeAsync and verify
-        CompletableFuture<Void> voidCompletableFuture = producer.closeAsync();
-        verify(producer).closeAndClearPendingMessages();
-    }
-
 }

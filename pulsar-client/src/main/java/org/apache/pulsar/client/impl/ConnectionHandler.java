@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.Optional;
@@ -231,7 +232,8 @@ public class ConnectionHandler {
         return EPOCH_UPDATER.incrementAndGet(this);
     }
 
-    private boolean isValidStateForReconnection() {
+    @VisibleForTesting
+    public boolean isValidStateForReconnection() {
         State state = this.state.getState();
         switch (state) {
             case Uninitialized:
