@@ -34,7 +34,7 @@ jobs:
     name: Check ${{ matrix.branch }}
     env:
       JOB_NAME: Check ${{ matrix.branch }}
-      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
     runs-on: ubuntu-22.04
     timeout-minutes: 75
     strategy:

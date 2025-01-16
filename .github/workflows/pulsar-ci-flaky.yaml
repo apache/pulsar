@@ -95,7 +95,7 @@ jobs:
     env:
       JOB_NAME: Flaky tests suite
       COLLECT_COVERAGE: "${{ needs.preconditions.outputs.collect_coverage }}"
-      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
     runs-on: ubuntu-20.04
     timeout-minutes: 100
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
