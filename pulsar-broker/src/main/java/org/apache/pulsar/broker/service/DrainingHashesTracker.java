@@ -36,7 +36,12 @@ import org.apache.pulsar.common.policies.data.stats.DrainingHashImpl;
 import org.roaringbitmap.RoaringBitmap;
 
 /**
- * A thread-safe map to store draining hashes in the consumer using read-write locks for improved concurrency.
+ * A thread-safe map to store draining hashes in the consumer.
+ * The implementation uses read-write locks for ensuring thread-safe access. The high-level strategy to prevent
+ * deadlocks is to perform side-effects (calls to other collaborators which could have other exclusive locks)
+ * outside of the write lock. Early versions of this class had a problem where deadlocks could occur when
+ * a consumer operations happened at the same time as another thread requested topic stats which include
+ * the draining hashes state. This problem is avoided with the current implementation.
  */
 @Slf4j
 public class DrainingHashesTracker {
@@ -227,7 +232,7 @@ public class DrainingHashesTracker {
         }
 
         DrainingHashEntry entry;
-        ConsumerDrainingHashesStats addedStats = null;
+        ConsumerDrainingHashesStats addedStatsForNewEntry = null;
         lock.writeLock().lock();
         try {
             entry = drainingHashes.get(stickyHash);
@@ -239,8 +244,8 @@ public class DrainingHashesTracker {
                 entry = new DrainingHashEntry(consumer);
                 drainingHashes.put(stickyHash, entry);
                 // add the consumer specific stats
-                addedStats = consumerDrainingHashesStatsMap.computeIfAbsent(new ConsumerIdentityWrapper(consumer),
-                        k -> new ConsumerDrainingHashesStats());
+                addedStatsForNewEntry = consumerDrainingHashesStatsMap
+                        .computeIfAbsent(new ConsumerIdentityWrapper(consumer), k -> new ConsumerDrainingHashesStats());
             } else if (entry.getConsumer() != consumer) {
                 throw new IllegalStateException(
                         "Consumer " + entry.getConsumer() + " is already draining hash " + stickyHash
@@ -255,11 +260,14 @@ public class DrainingHashesTracker {
         } finally {
             lock.writeLock().unlock();
         }
-        if (addedStats != null) {
-            // add hash to added stats
-            addedStats.addHash(stickyHash);
-        }
+        // increment the reference count of the entry (applies to both new and existing entries)
         entry.incrementRefCount();
+
+        // perform side-effects outside of the lock to reduce chances for deadlocks
+        if (addedStatsForNewEntry != null) {
+            // add hash to added stats
+            addedStatsForNewEntry.addHash(stickyHash);
+        }
     }
 
     /**
@@ -279,18 +287,18 @@ public class DrainingHashesTracker {
      * End a batch operation.
      */
     public void endBatch() {
-        boolean unblock = false;
+        boolean notifyUnblocking = false;
         lock.writeLock().lock();
         try {
             if (--batchLevel == 0 && unblockedWhileBatching) {
                 unblockedWhileBatching = false;
-                unblock = true;
+                notifyUnblocking = true;
             }
         } finally {
             lock.writeLock().unlock();
         }
-        // unblock outside the lock
-        if (unblock) {
+        // notify unblocking of the hash outside the lock
+        if (notifyUnblocking) {
             unblockingHandler.stickyKeyHashUnblocked(-1);
         }
     }
@@ -322,34 +330,34 @@ public class DrainingHashesTracker {
                 log.debug("[{}] Draining hash {} removing consumer id:{} name:{}", dispatcherName, stickyHash,
                         consumer.consumerId(), consumer.consumerName());
             }
+
             DrainingHashEntry removed;
+            boolean notifyUnblocking = false;
             lock.writeLock().lock();
             try {
                 removed = drainingHashes.remove(stickyHash);
+                if (!closing && removed.isBlocking()) {
+                    if (batchLevel > 0) {
+                        unblockedWhileBatching = true;
+                    } else {
+                        notifyUnblocking = true;
+                    }
+                }
             } finally {
                 lock.writeLock().unlock();
             }
+
+            // perform side-effects outside of the lock to reduce chances for deadlocks
+
             // update the consumer specific stats
             ConsumerDrainingHashesStats drainingHashesStats =
                     consumerDrainingHashesStatsMap.get(new ConsumerIdentityWrapper(consumer));
             if (drainingHashesStats != null) {
                 drainingHashesStats.clearHash(stickyHash);
             }
-            boolean unblock = false;
-            lock.writeLock().lock();
-            try {
-                if (!closing && removed.isBlocking()) {
-                    if (batchLevel > 0) {
-                        unblockedWhileBatching = true;
-                    } else {
-                        unblock = true;
-                    }
-                }
-            } finally {
-                lock.writeLock().unlock();
-            }
-            // unblock the hash outside the lock
-            if (unblock) {
+
+            // notify unblocking of the hash outside the lock
+            if (notifyUnblocking) {
                 unblockingHandler.stickyKeyHashUnblocked(stickyHash);
             }
         } else {
