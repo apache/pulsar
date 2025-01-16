@@ -1115,10 +1115,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         return;
                     }
                 }
-                if (replicated != null && replicated && !subscription.isReplicated()) {
-                    // Flip the subscription state
-                    subscription.setReplicated(replicated);
-                }
 
                 if (startMessageRollbackDurationSec > 0) {
                     resetSubscriptionCursor(subscription, subscriptionFuture, startMessageRollbackDurationSec);
