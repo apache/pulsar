@@ -311,12 +311,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     ConnectionHandler initConnectionHandler() {
         return new ConnectionHandler(this,
-                new BackoffBuilder()
-                        .setInitialTime(client.getConfiguration().getInitialBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
-                        .setMax(client.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
-                        .setMandatoryStop(Math.max(100, conf.getSendTimeoutMs() - 100), TimeUnit.MILLISECONDS)
-                        .create(),
-                this);
+            new BackoffBuilder()
+                .setInitialTime(client.getConfiguration().getInitialBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
+                .setMax(client.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
+                .setMandatoryStop(Math.max(100, conf.getSendTimeoutMs() - 100), TimeUnit.MILLISECONDS)
+                .create(),
+        this);
     }
 
     private void setChunkMaxMessageSize() {
