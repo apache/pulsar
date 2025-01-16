@@ -25,16 +25,8 @@ import static org.mockito.Mockito.withSettings;
 import static org.testng.Assert.*;
 
 import java.nio.ByteBuffer;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-
-import io.netty.util.HashedWheelTimer;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
-import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
