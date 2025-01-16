@@ -224,7 +224,22 @@ public class BrokerTestUtil {
     public static <T> void receiveMessages(BiFunction<Consumer<T>, Message<T>, Boolean> messageHandler,
                                        Duration quietTimeout,
                                        Consumer<T>... consumers) {
-        FutureUtil.waitForAll(Arrays.stream(consumers)
+        receiveMessages(messageHandler, quietTimeout, Arrays.stream(consumers));
+    }
+
+    /**
+     * Receive messages concurrently from multiple consumers and handles them using the provided message handler.
+     * The message handler should return true if it wants to continue receiving more messages, false otherwise.
+     *
+     * @param messageHandler the message handler
+     * @param quietTimeout the duration of quiet time after which the method will stop waiting for more messages
+     * @param consumers the consumers to receive messages from
+     * @param <T> the message value type
+     */
+    public static <T> void receiveMessages(BiFunction<Consumer<T>, Message<T>, Boolean> messageHandler,
+                                           Duration quietTimeout,
+                                           Stream<Consumer<T>> consumers) {
+        FutureUtil.waitForAll(consumers
                 .map(consumer -> receiveMessagesAsync(consumer, quietTimeout, messageHandler)).toList()).join();
     }
 
