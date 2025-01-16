@@ -49,7 +49,7 @@ jobs:
     name: Update Maven dependency cache for ${{ matrix.name }}
     env:
       JOB_NAME: Update Maven dependency cache for ${{ matrix.name }}
-      DEVELOCITY_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
     runs-on: ${{ matrix.runs-on }}
     timeout-minutes: 45
 
