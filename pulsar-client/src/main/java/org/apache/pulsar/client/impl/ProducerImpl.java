@@ -1864,9 +1864,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     // Producer was closed while reconnecting, close the connection to make sure the broker
                     // drops the producer on its side
                     cnx.removeProducer(producerId);
-                    cnx.channel().close();
                     failPendingMessages(cnx,
                             new PulsarClientException.ProducerFencedException("producer has been closed"));
+                    cnx.channel().close();
                     future.complete(null);
                     return;
                 }
