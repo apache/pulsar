@@ -29,14 +29,14 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.tests.integration.messaging.TopicMessagingBase;
+import org.apache.pulsar.tests.integration.messaging.MessagingBase;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.testng.annotations.Test;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 
-public class TestBrokerInterceptors extends TopicMessagingBase {
+public class TestBrokerInterceptors extends MessagingBase {
 
     private static final String PREFIX = "PULSAR_PREFIX_";
 
