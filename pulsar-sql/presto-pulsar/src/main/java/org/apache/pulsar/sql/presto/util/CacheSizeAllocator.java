@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.sql.presto.util;
 
-import javax.annotation.Nullable;
-
 /**
  * Cache size allocator.
  */
@@ -30,7 +28,7 @@ public interface CacheSizeAllocator {
      *
      * @return available cache size
      */
-    @Nullable long[] getAckSet();
+    long getAvailableCacheSize();
 
     /**
      * Cost available cache.
