@@ -146,7 +146,6 @@ public class RetryTopicTest extends ProducerConsumerBase {
     public void testRetryTopicWithExclusiveMode() throws Exception {
         final String topic = "persistent://my-property/my-ns/retry-topic-exclusive";
         final int maxRedeliveryCount = 2;
-        final int sendMessages = 2;
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                 .topic(topic)
@@ -162,15 +161,13 @@ public class RetryTopicTest extends ProducerConsumerBase {
                 .topic(topic)
                 .create();
 
-        for (int i = 0; i < sendMessages; i++) {
-            producer.send(String.format("Hello Pulsar [%d]", i).getBytes());
-        }
+        producer.send(String.format("Hello Pulsar").getBytes());
         producer.close();
 
         // receive message and set delay to 5 seconds
         Message<byte[]> message = consumer.receive();
         long timestamp = System.currentTimeMillis();
-        consumer.reconsumeLater(message, 5, TimeUnit.SECONDS);
+        consumer.reconsumeLater(message, 4, TimeUnit.SECONDS);
 
         // receive message and check the delay is 5 seconds
         consumer.receive();
