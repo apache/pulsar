@@ -48,6 +48,7 @@ import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerEventListener;
+import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
@@ -792,6 +793,13 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     protected SubType getSubType() {
+        // For retry topic, we always use Shared subscription
+        // Because we will produce delayed messages to retry topic.
+        DeadLetterPolicy deadLetterPolicy = conf.getDeadLetterPolicy();
+        if (deadLetterPolicy != null && topic.equals(deadLetterPolicy.getRetryLetterTopic())) {
+            return SubType.Shared;
+        }
+
         SubscriptionType type = conf.getSubscriptionType();
         switch (type) {
         case Exclusive:
