@@ -161,7 +161,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
                 .topic(topic)
                 .create();
 
-        producer.send(String.format("Hello Pulsar").getBytes());
+        producer.send("Hello Pulsar".getBytes());
         producer.close();
 
         // receive message and set delay to 5 seconds
