@@ -1187,6 +1187,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 // Either we've received the success response for the close producer command from the broker, or the
                 // connection did break in the meantime. In any case, the producer is gone.
                 log.info("[{}] [{}] Closed Producer", topic, producerName);
+                closeAndClearPendingMessages();
                 closeFuture.complete(null);
             } else {
                 closeFuture.completeExceptionally(exception);
