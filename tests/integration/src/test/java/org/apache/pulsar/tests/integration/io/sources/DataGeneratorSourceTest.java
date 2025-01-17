@@ -98,6 +98,8 @@ public class DataGeneratorSourceTest extends PulsarStandaloneTestSuite {
             String info = getSourceInfoSuccess(container, sourceName);
             SourceConfig sourceConfig =
                     ObjectMapperFactory.getMapper().getObjectMapper().readValue(info, SourceConfig.class);
+            // checking batching config is applied
+            checkBatchingConfig(sourceName, config, sourceConfig);
 
             // get source status
             getSourceStatus(container, sourceName);
@@ -118,9 +120,6 @@ public class DataGeneratorSourceTest extends PulsarStandaloneTestSuite {
                 assertEquals(status.getInstances().size(), 1);
                 assertTrue(status.getInstances().get(0).getStatus().numWritten >= 10);
             }
-
-            // checking batching config is applied
-            checkBatchingConfig(sourceName, config, sourceConfig);
 
             // delete source
             deleteSource(container, sourceName);

@@ -743,6 +743,16 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // get function info
         final String info = getFunctionInfoSuccess(functionName);
+        FunctionConfig config = ObjectMapperFactory.getMapper().getObjectMapper().readValue(info, FunctionConfig.class);
+
+        // check batching config
+        if (runtime == Runtime.JAVA) {
+            BatchingConfig batchingConfig = null;
+            if (producerConfig != null && producerConfig.getBatchingConfig() != null) {
+                batchingConfig = producerConfig.getBatchingConfig();
+            }
+            checkBatchingConfig(functionName, batchingConfig, config);
+        }
 
         // get function stats
         getFunctionStatsEmpty(functionName);
@@ -770,17 +780,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         //get function status
         getFunctionStatus(functionName, 0, true, 2);
-
-        FunctionConfig config = ObjectMapperFactory.getMapper().getObjectMapper().readValue(info, FunctionConfig.class);
-
-        // check batching config
-        if (runtime == Runtime.JAVA) {
-            BatchingConfig batchingConfig = null;
-            if (producerConfig != null && producerConfig.getBatchingConfig() != null) {
-                batchingConfig = producerConfig.getBatchingConfig();
-            }
-            checkBatchingConfig(functionName, batchingConfig, config);
-        }
 
         // update code file
         switch (runtime) {
