@@ -464,7 +464,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
     }
 
     /**
-     * The test is disabled {@link https://github.com/apache/pulsar/issues/2647}.
+     * Test retry topic with multiple topics
      * @throws Exception
      */
     @Test
@@ -482,7 +482,6 @@ public class RetryTopicTest extends ProducerConsumerBase {
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
                 .enableRetry(true)
-                .ackTimeout(1, TimeUnit.SECONDS)
                 .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
                 .receiverQueueSize(100)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
@@ -518,6 +517,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
             Message<byte[]> message = consumer.receive();
             log.info("consumer received message : {} {} - total = {}",
                 message.getMessageId(), new String(message.getData()), ++totalReceived);
+            consumer.reconsumeLater(message, 1, TimeUnit.SECONDS);
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
 
         int totalInDeadLetter = 0;
