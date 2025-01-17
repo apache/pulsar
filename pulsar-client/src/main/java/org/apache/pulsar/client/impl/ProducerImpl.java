@@ -268,15 +268,19 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             metadata = Collections.unmodifiableMap(new HashMap<>(conf.getProperties()));
         }
 
-        this.connectionHandler = new ConnectionHandler(this,
+        this.connectionHandler = initConnectionHandler();
+        setChunkMaxMessageSize();
+        grabCnx();
+    }
+
+    ConnectionHandler initConnectionHandler() {
+        return new ConnectionHandler(this,
             new BackoffBuilder()
                 .setInitialTime(client.getConfiguration().getInitialBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
                 .setMax(client.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
                 .setMandatoryStop(Math.max(100, conf.getSendTimeoutMs() - 100), TimeUnit.MILLISECONDS)
                 .create(),
-            this);
-        setChunkMaxMessageSize();
-        grabCnx();
+        this);
     }
 
     private void setChunkMaxMessageSize() {
@@ -1097,7 +1101,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
 
     @Override
-    public CompletableFuture<Void> closeAsync() {
+    public synchronized CompletableFuture<Void> closeAsync() {
         final State currentState = getAndUpdateState(state -> {
             if (state == State.Closed) {
                 return state;
@@ -1124,11 +1128,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
         cnx.sendRequestWithId(cmd, requestId).handle((v, exception) -> {
             cnx.removeProducer(producerId);
-            closeAndClearPendingMessages();
             if (exception == null || !cnx.ctx().channel().isActive()) {
                 // Either we've received the success response for the close producer command from the broker, or the
                 // connection did break in the meantime. In any case, the producer is gone.
                 log.info("[{}] [{}] Closed Producer", topic, producerName);
+                closeAndClearPendingMessages();
                 closeFuture.complete(null);
             } else {
                 closeFuture.completeExceptionally(exception);
@@ -1714,6 +1718,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             // Because the state could have been updated while retrieving the connection, we set it back to connecting,
             // as long as the change from current state to connecting is a valid state change.
             if (!changeToConnecting()) {
+                if (getState() == State.Closing || getState() == State.Closed) {
+                    // Producer was closed while reconnecting, close the connection to make sure the broker
+                    // drops the producer on its side
+                    failPendingMessages(cnx,
+                            new PulsarClientException.ProducerFencedException("producer has been closed"));
+                }
                 return CompletableFuture.completedFuture(null);
             }
             // We set the cnx reference before registering the producer on the cnx, so if the cnx breaks before creating
@@ -1774,6 +1784,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             // Producer was closed while reconnecting, close the connection to make sure the broker
                             // drops the producer on its side
                             cnx.removeProducer(producerId);
+                    failPendingMessages(cnx,
+                            new PulsarClientException.ProducerFencedException("producer has been closed"));
                             cnx.channel().close();
                             future.complete(null);
                             return;
@@ -1942,7 +1954,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private void resendMessages(ClientCnx cnx, long expectedEpoch) {
         cnx.ctx().channel().eventLoop().execute(() -> {
-            synchronized (this) {
+            synchronized (ProducerImpl.this) {
                 if (getState() == State.Closing || getState() == State.Closed) {
                     // Producer was closed while reconnecting, close the connection to make sure the broker
                     // drops the producer on its side
@@ -2098,7 +2110,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
      * This fails and clears the pending messages with the given exception. This method should be called from within the
      * ProducerImpl object mutex.
      */
-    private void failPendingMessages(ClientCnx cnx, PulsarClientException ex) {
+    private synchronized void failPendingMessages(ClientCnx cnx, PulsarClientException ex) {
         if (cnx == null) {
             final AtomicInteger releaseCount = new AtomicInteger();
             final boolean batchMessagingEnabled = isBatchMessagingEnabled();
@@ -2250,7 +2262,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
     }
 
-    protected void processOpSendMsg(OpSendMsg op) {
+    protected synchronized void processOpSendMsg(OpSendMsg op) {
         if (op == null) {
             return;
         }
