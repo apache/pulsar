@@ -557,4 +557,9 @@
     <Method name="setSourceInputSpecs"/>
     <Bug pattern="EI_EXPOSE_REP2"/>
   </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.JavaInstance$AsyncFuncRequest"/>
+    <Method name="getResult"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
 </FindBugsFilter>

@@ -18,13 +18,19 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.rmi.registry.Registry;
+import java.time.Instant;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.time.Duration;
@@ -35,7 +41,9 @@ import java.util.Map;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
+
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -50,6 +58,8 @@ import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
+import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
+import org.apache.pulsar.functions.instance.stats.FunctionStatsManager;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
@@ -61,6 +71,7 @@ import org.apache.pulsar.io.core.Source;
 import org.apache.pulsar.io.core.SourceContext;
 import org.awaitility.Awaitility;
 import org.jetbrains.annotations.NotNull;
+import org.mockito.ArgumentCaptor;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
@@ -174,6 +185,27 @@ public class JavaInstanceRunnableTest {
     }
 
     @Test
+    public void testFunctionAsyncTime() throws Exception {
+        FunctionDetails functionDetails = FunctionDetails.newBuilder()
+                .setAutoAck(true)
+                .setProcessingGuarantees(org.apache.pulsar.functions.proto.Function.ProcessingGuarantees.MANUAL)
+                .build();
+        JavaInstanceRunnable javaInstanceRunnable = createRunnable(functionDetails);
+        Field stats = JavaInstanceRunnable.class.getDeclaredField("stats");
+        FunctionStatsManager manager = mock(FunctionStatsManager.class);
+        stats.setAccessible(true);
+        stats.set(javaInstanceRunnable, manager);
+        stats.setAccessible(false);
+        JavaExecutionResult javaExecutionResult = new JavaExecutionResult();
+        Thread.sleep(500);
+        Record record = mock(Record.class);
+        javaInstanceRunnable.handleResult(record, javaExecutionResult);
+        ArgumentCaptor<Long> timeCaptor = ArgumentCaptor.forClass(Long.class);
+        verify(manager).processTimeEnd(timeCaptor.capture());
+        Assert.assertEquals(timeCaptor.getValue(), javaExecutionResult.getStartTime() + 500, 100);
+    }
+
+    @Test
     public void testFunctionResultNull() throws Exception {
         JavaExecutionResult javaExecutionResult = new JavaExecutionResult();
 
@@ -202,7 +234,8 @@ public class JavaInstanceRunnableTest {
 
     @NotNull
     private JavaInstanceRunnable getJavaInstanceRunnable(boolean autoAck,
-                                                         org.apache.pulsar.functions.proto.Function.ProcessingGuarantees processingGuarantees) throws Exception {
+                                                         org.apache.pulsar.functions.proto.Function.ProcessingGuarantees processingGuarantees)
+            throws Exception {
         FunctionDetails functionDetails = FunctionDetails.newBuilder()
                 .setAutoAck(autoAck)
                 .setProcessingGuarantees(processingGuarantees).build();
@@ -255,10 +288,10 @@ public class JavaInstanceRunnableTest {
     public Object[][] component() {
         return new Object[][]{
                 // Schema: component type, whether to map in secrets
-                { FunctionDetails.ComponentType.SINK },
-                { FunctionDetails.ComponentType.SOURCE },
-                { FunctionDetails.ComponentType.FUNCTION },
-                { FunctionDetails.ComponentType.UNKNOWN },
+                {FunctionDetails.ComponentType.SINK},
+                {FunctionDetails.ComponentType.SOURCE},
+                {FunctionDetails.ComponentType.FUNCTION},
+                {FunctionDetails.ComponentType.UNKNOWN},
         };
     }
 
