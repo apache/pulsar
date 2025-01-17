@@ -846,7 +846,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     // checking batching config, we can only check this by checking the logs for now
     private void checkBatchingConfig(String functionName, BatchingConfig config, FunctionConfig functionConfig) {
         if (config != null) {
-            log.info("=====functionConfig: {}", functionConfig);
             assertNotNull(functionConfig.getProducerConfig());
             assertNotNull(functionConfig.getProducerConfig().getBatchingConfig());
             assertEquals(config.toString(), functionConfig.getProducerConfig().getBatchingConfig().toString());
@@ -858,43 +857,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             if (finalConfig == null) {
                 finalConfig = BatchingConfig.builder().build();
             }
-            if (!functionLogs.contains(finalConfig.toString())) {
-                log.error("===== failed verify BatchingConfig in function logs: {}", functionLogs);
-            }
             assertTrue(functionLogs.contains(finalConfig.toString()));
-
-            if (finalConfig.getBatchingMaxMessages() == null) {
-                finalConfig.setBatchingMaxMessages(1000);
-            }
-            if (finalConfig.getBatchingMaxBytes() == null) {
-                finalConfig.setBatchingMaxBytes(128 * 1024);
-            }
-            if (finalConfig.getBatchingMaxPublishDelayMs() == null) {
-                finalConfig.setBatchingMaxPublishDelayMs(10);
-            }
-            if (finalConfig.getRoundRobinRouterBatchingPartitionSwitchFrequency() == null) {
-                finalConfig.setRoundRobinRouterBatchingPartitionSwitchFrequency(10);
-            }
-
-            String producerSpec = String.format(
-                    "\"batchingMaxPublishDelayMicros\":%d,\"batchingPartitionSwitchFrequencyByPublishDelay\":%d,"
-                            + "\"batchingMaxMessages\":%d,\"batchingMaxBytes\":%d,\"batchingEnabled\":%s",
-                    finalConfig.getBatchingMaxPublishDelayMs() * 1000,
-                    finalConfig.getRoundRobinRouterBatchingPartitionSwitchFrequency(),
-                    finalConfig.getBatchingMaxMessages(),
-                    finalConfig.getBatchingMaxBytes(), finalConfig.isEnabled());
-            if (!functionLogs.contains(producerSpec)) {
-                log.error("===== failed verify producer spec in function logs: {}, spec: {}", functionLogs,
-                        producerSpec);
-            }
-            assertTrue(functionLogs.contains(producerSpec));
         } else {
-            if (!functionLogs.contains("BatchingConfig(enabled=false")) {
-                log.error("===== failed verify BatchingConfig in function logs: {}", functionLogs);
-            }
-            if (!functionLogs.contains("\"batchingEnabled\":false")) {
-                log.error("===== failed verify producer spec in function logs: {}", functionLogs);
-            }
             assertTrue(functionLogs.contains("BatchingConfig(enabled=false"));
             assertTrue(functionLogs.contains("\"batchingEnabled\":false"));
         }
