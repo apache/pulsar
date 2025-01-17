@@ -169,7 +169,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
         long timestamp = System.currentTimeMillis();
         consumer.reconsumeLater(message, 4, TimeUnit.SECONDS);
 
-        // receive message and check the delay is 5 seconds
+        // receive message and check the delay is at least 4 seconds
         consumer.receive();
         long delay = System.currentTimeMillis() - timestamp;
         assertTrue(delay >= 2000);
