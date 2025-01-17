@@ -122,7 +122,7 @@ public abstract class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
                 .roundRobinRouterBatchingPartitionSwitchFrequency(5)
                 .batchBuilder("KEY_BASED")
                 .build());
-        testExclamationFunction(Runtime.JAVA, true, false, false, false,
+        testExclamationFunction(Runtime.JAVA, false, false, false, false,
                 producerConfig, commandGenerator -> {
                     commandGenerator.setProducerConfig(producerConfig);
                 });
@@ -134,7 +134,7 @@ public abstract class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
         producerConfig.setBatchingConfig(BatchingConfig.builder()
                 .enabled(false)
                 .build());
-        testExclamationFunction(Runtime.JAVA, true, false, false, false,
+        testExclamationFunction(Runtime.JAVA, false, false, false, false,
                 producerConfig, commandGenerator -> {
                     commandGenerator.setProducerConfig(producerConfig);
                 });
