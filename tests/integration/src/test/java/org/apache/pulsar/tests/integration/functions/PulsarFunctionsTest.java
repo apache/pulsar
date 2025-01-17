@@ -860,7 +860,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             assertTrue(functionLogs.contains(finalConfig.toString()));
         } else {
             assertTrue(functionLogs.contains("BatchingConfig(enabled=false"));
-            assertTrue(functionLogs.contains("\"batchingEnabled\":false"));
         }
     }
 

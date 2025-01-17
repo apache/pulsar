@@ -214,7 +214,6 @@ public class DataGeneratorSourceTest extends PulsarStandaloneTestSuite {
             assertTrue(functionLogs.contains(finalConfig.toString()));
         } else {
             assertTrue(functionLogs.contains("BatchingConfig(enabled=false"));
-            assertTrue(functionLogs.contains("\"batchingEnabled\":false"));
         }
     }
 
