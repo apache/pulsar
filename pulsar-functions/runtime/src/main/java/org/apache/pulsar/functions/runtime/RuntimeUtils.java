@@ -430,6 +430,8 @@ public class RuntimeUtils {
             // set logging config file
             args.add("--logging_config_file");
             args.add(logConfigFile);
+            args.add("--logging_level");
+            args.add(logLevel);
             // `installUserCodeDependencies` is only valid for python runtime
             if (installUserCodeDependencies != null && installUserCodeDependencies) {
                 args.add("--install_usercode_dependencies");
