@@ -201,6 +201,7 @@ public class DataGeneratorSourceTest extends PulsarStandaloneTestSuite {
     // checking batching config, we can only check this by checking the logs for now
     private void checkBatchingConfig(String functionName, BatchingConfig config, SourceConfig sourceConfig) {
         if (config != null) {
+            log.info("=====sourceConfig: {}", sourceConfig);
             assertNotNull(sourceConfig.getProducerConfig());
             assertNotNull(sourceConfig.getProducerConfig().getBatchingConfig());
             assertEquals(config.toString(), sourceConfig.getProducerConfig().getBatchingConfig().toString());
@@ -211,6 +212,9 @@ public class DataGeneratorSourceTest extends PulsarStandaloneTestSuite {
             BatchingConfig finalConfig = config;
             if (finalConfig == null) {
                 finalConfig = BatchingConfig.builder().build();
+            }
+            if (!functionLogs.contains(finalConfig.toString())) {
+                log.error("===== failed verify BatchingConfig in function logs: {}", functionLogs);
             }
             assertTrue(functionLogs.contains(finalConfig.toString()));
 
@@ -234,8 +238,18 @@ public class DataGeneratorSourceTest extends PulsarStandaloneTestSuite {
                     finalConfig.getRoundRobinRouterBatchingPartitionSwitchFrequency(),
                     finalConfig.getBatchingMaxMessages(),
                     finalConfig.getBatchingMaxBytes(), finalConfig.isEnabled());
+            if (!functionLogs.contains(producerSpec)) {
+                log.error("===== failed verify producer spec in function logs: {}, spec: {}", functionLogs,
+                        producerSpec);
+            }
             assertTrue(functionLogs.contains(producerSpec));
         } else {
+            if (!functionLogs.contains("BatchingConfig(enabled=false")) {
+                log.error("===== failed verify BatchingConfig in function logs: {}", functionLogs);
+            }
+            if (!functionLogs.contains("\"batchingEnabled\":false")) {
+                log.error("===== failed verify producer spec in function logs: {}", functionLogs);
+            }
             assertTrue(functionLogs.contains("BatchingConfig(enabled=false"));
             assertTrue(functionLogs.contains("\"batchingEnabled\":false"));
         }
