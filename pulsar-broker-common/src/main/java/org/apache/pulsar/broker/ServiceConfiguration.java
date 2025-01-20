@@ -2147,6 +2147,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " crashes.")
     private int managedLedgerMaxUnackedRangesToPersist = 10000;
     @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Whether persist cursor ack stats as long arrays, which will compress the data and reduce GC rate")
+    private boolean managedLedgerPersistIndividualAckAsLongArray = false;
+    @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "If enabled, the maximum \"acknowledgment holes\" will not be limited and \"acknowledgment holes\" "
                 + "are stored in multiple entries.")
