@@ -3237,8 +3237,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         TopicName topicName = TopicName.get(getName());
 
         if (!(ledger.getCursors() instanceof ManagedCursorContainer managedCursorContainer)) {
-            return CompletableFuture.failedFuture(new IllegalStateException(
-                    String.format("[%s] No valid cursors found. Skip update old position info.", topicName)));
+            // TODO: support this method with a customized managed ledger implementation
+            return CompletableFuture.completedFuture(null);
         }
 
         if (!hasBacklogs(brokerService.pulsar().getConfiguration().isPreciseTimeBasedBacklogQuotaCheck())) {
