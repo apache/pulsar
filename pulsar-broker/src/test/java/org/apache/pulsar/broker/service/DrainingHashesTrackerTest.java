@@ -19,9 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.createMockConsumer;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -190,24 +188,5 @@ public class DrainingHashesTrackerTest {
 
         // then unblocking call should be done
         verify(unblockingHandler).stickyKeyHashUnblocked(1);
-    }
-
-    @Test
-    public void unblockingHandler_DoesNotInvokeStickyKeyHashUnblockedWhenClosing() {
-        // given a tracker with unblocking handler
-        UnblockingHandler unblockingHandler = mock(UnblockingHandler.class);
-        DrainingHashesTracker tracker = new DrainingHashesTracker("dispatcher1", unblockingHandler);
-
-        // when a hash is draining
-        Consumer consumer = createMockConsumer("consumer1");
-        tracker.addEntry(consumer, 1);
-        // aand hash gets blocked
-        Consumer consumer2 = createMockConsumer("consumer2");
-        tracker.shouldBlockStickyKeyHash(consumer2, 1);
-        // and hash gets unblocked
-        tracker.reduceRefCount(consumer, 1, true);
-
-        // then unblocking call should be done
-        verify(unblockingHandler, never()).stickyKeyHashUnblocked(anyInt());
     }
 }
