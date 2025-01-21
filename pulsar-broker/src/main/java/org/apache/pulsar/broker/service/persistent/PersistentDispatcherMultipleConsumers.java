@@ -397,6 +397,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 cancelPendingRead();
                 if (havePendingRead) {
                     // skip read since a pending read is already in progress which cannot be cancelled
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] [{}] Skipping replay read for the topic, Due to pending read in-progress.",
+                                topic.getName(), getSubscriptionName());
+                    }
                     return;
                 }
                 if (log.isDebugEnabled()) {
