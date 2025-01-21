@@ -272,11 +272,11 @@ public class KeySharedSubscriptionDisabledBrokerCacheTest extends ProducerConsum
         for (int i = 0; i < 1000; i++) {
             String key = String.valueOf(random.nextInt(numberOfKeys));
             //log.info("Producing message with key: {} value: {}", key, i);
+            remainingMessageValues.add(i);
             producer.newMessage()
                     .key(key)
                     .value(i)
                     .send();
-            remainingMessageValues.add(i);
         }
 
         // reconnect c2
@@ -296,11 +296,11 @@ public class KeySharedSubscriptionDisabledBrokerCacheTest extends ProducerConsum
         for (int i = 1000; i < 1100; i++) {
             String key = keysForC2List.get(random.nextInt(keysForC2List.size()));
             log.info("Producing message with key: {} value: {}", key, i);
+            remainingMessageValues.add(i);
             producer.newMessage()
                     .key(key)
                     .value(i)
                     .send();
-            remainingMessageValues.add(i);
         }
 
         Thread.sleep(2 * pauseTime);
