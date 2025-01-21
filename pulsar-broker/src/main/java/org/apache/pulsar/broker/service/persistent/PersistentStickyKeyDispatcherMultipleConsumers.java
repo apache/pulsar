@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -47,6 +48,7 @@ import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.HashRangeExclusiveStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.ImpactedConsumersResult;
+import org.apache.pulsar.broker.service.OutsideCriticalSectionsExecutor;
 import org.apache.pulsar.broker.service.PendingAcksMap;
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
@@ -74,6 +76,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     private final DrainingHashesTracker drainingHashesTracker;
 
     private final RescheduleReadHandler rescheduleReadHandler;
+    private final OutsideCriticalSectionsExecutor outsideCriticalSectionsExecutor =
+            new OutsideCriticalSectionsExecutor();
 
     PersistentStickyKeyDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
             Subscription subscription, ServiceConfiguration conf, KeySharedMeta ksm) {
@@ -85,7 +89,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         this.drainingHashesRequired =
                 keySharedMode == KeySharedMode.AUTO_SPLIT && !allowOutOfOrderDelivery;
         this.drainingHashesTracker =
-                drainingHashesRequired ? new DrainingHashesTracker(this.getName(), this::stickyKeyHashUnblocked) : null;
+                drainingHashesRequired ? new DrainingHashesTracker(this.getName(), this::stickyKeyHashUnblocked,
+                        outsideCriticalSectionsExecutor) : null;
         this.rescheduleReadHandler = new RescheduleReadHandler(conf::getKeySharedUnblockingIntervalMs,
                 topic.getBrokerService().executor(), this::cancelPendingRead, () -> reScheduleReadInMs(0),
                 () -> havePendingRead, this::getReadMoreEntriesCallCount, () -> !redeliveryMessages.isEmpty());
@@ -149,12 +154,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
                     @Override
                     public void startBatch() {
-                        drainingHashesTracker.startBatch();
+                        outsideCriticalSectionsExecutor.enterCriticalSection();
                     }
 
                     @Override
                     public void endBatch() {
-                        drainingHashesTracker.endBatch();
+                        outsideCriticalSectionsExecutor.exitCriticalSection();
                     }
                 });
                 consumer.setDrainingHashesConsumerStatsUpdater(drainingHashesTracker::updateConsumerStats);
@@ -207,7 +212,19 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     @Override
+    protected synchronized NavigableSet<Position> getMessagesToReplayNow(int maxMessagesToRead) {
+        return outsideCriticalSectionsExecutor.runCriticalSectionCallable(
+                () -> super.getMessagesToReplayNow(maxMessagesToRead));
+    }
+
+    @Override
     protected synchronized boolean trySendMessagesToConsumers(ReadType readType, List<Entry> entries) {
+        return outsideCriticalSectionsExecutor.runCriticalSectionCallable(() -> {
+            return internalTrySendMessagesToConsumers(readType, entries);
+        });
+    }
+
+    private synchronized boolean internalTrySendMessagesToConsumers(ReadType readType, List<Entry> entries) {
         lastNumberOfEntriesProcessed = 0;
         long totalMessagesSent = 0;
         long totalBytesSent = 0;

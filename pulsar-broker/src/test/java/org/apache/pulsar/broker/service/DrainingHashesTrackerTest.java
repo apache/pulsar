@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service;
 import static org.apache.pulsar.broker.BrokerTestUtil.createMockConsumer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
@@ -107,57 +106,6 @@ public class DrainingHashesTrackerTest {
         boolean result = tracker.shouldBlockStickyKeyHash(consumer, 1);
 
         assertFalse(result);
-    }
-
-    @Test
-    public void startBatch_IncrementsBatchLevel() {
-        DrainingHashesTracker tracker = new DrainingHashesTracker("dispatcher1", mock(UnblockingHandler.class));
-
-        tracker.startBatch();
-        assertEquals(tracker.batchLevel, 1);
-
-        tracker.startBatch();
-        assertEquals(tracker.batchLevel, 2);
-
-        tracker.startBatch();
-        assertEquals(tracker.batchLevel, 3);
-    }
-
-    @Test
-    public void endBatch_DecrementsBatchLevel() {
-        DrainingHashesTracker tracker = new DrainingHashesTracker("dispatcher1", mock(UnblockingHandler.class));
-        tracker.startBatch();
-
-        tracker.endBatch();
-
-        assertEquals(tracker.batchLevel, 0);
-    }
-
-    @Test
-    public void endBatch_InvokesUnblockingHandlerWhenUnblockedWhileBatching() {
-        // given a tracker with unblocking handler
-        UnblockingHandler unblockingHandler = mock(UnblockingHandler.class);
-        DrainingHashesTracker tracker = new DrainingHashesTracker("dispatcher1", unblockingHandler);
-
-        // when a hash is draining
-        Consumer consumer1 = createMockConsumer("consumer1");
-        tracker.addEntry(consumer1, 1);
-        // and batch starts
-        tracker.startBatch();
-
-        // when hash gets blocked
-        Consumer consumer2 = createMockConsumer("consumer2");
-        tracker.shouldBlockStickyKeyHash(consumer2, 1);
-        // and it gets unblocked
-        tracker.reduceRefCount(consumer1, 1, false);
-
-        // then no unblocking call should be done
-        verify(unblockingHandler, never()).stickyKeyHashUnblocked(anyInt());
-
-        // when batch ends
-        tracker.endBatch();
-        // then unblocking call should be done
-        verify(unblockingHandler).stickyKeyHashUnblocked(-1);
     }
 
     @Test
