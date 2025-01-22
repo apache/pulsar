@@ -44,6 +44,7 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -243,7 +244,7 @@ public class BrokerTestUtil {
         long quietTimeoutNanos = quietTimeout.toNanos();
         AtomicLong lastMessageReceivedNanos = new AtomicLong(System.nanoTime());
         FutureUtil.waitForAll(consumers
-                .map(consumer -> receiveMessagesAsync(consumer, quietTimeoutNanos, messageHandler,
+                .map(consumer -> receiveMessagesAsync(consumer, quietTimeoutNanos, quietTimeoutNanos, messageHandler,
                         lastMessageReceivedNanos)).toList()).join();
     }
 
@@ -252,30 +253,34 @@ public class BrokerTestUtil {
     // this is useful in tests where multiple consumers are needed to test the functionality
     private static <T> CompletableFuture<Void> receiveMessagesAsync(Consumer<T> consumer,
                                                                     long quietTimeoutNanos,
+                                                                    long receiveTimeoutNanos,
                                                                     BiFunction<Consumer<T>, Message<T>, Boolean>
                                                                             messageHandler,
                                                                     AtomicLong lastMessageReceivedNanos) {
         return consumer.receiveAsync()
-                .orTimeout(quietTimeoutNanos, TimeUnit.NANOSECONDS)
+                .orTimeout(receiveTimeoutNanos, TimeUnit.NANOSECONDS)
                 .handle((msg, t) -> {
                     long currentNanos = System.nanoTime();
                     if (t != null) {
                         if (t instanceof TimeoutException) {
-                            if (currentNanos - lastMessageReceivedNanos.get() > quietTimeoutNanos) {
-                                return false;
+                            long sinceLastMessageReceivedNanos = currentNanos - lastMessageReceivedNanos.get();
+                            if (sinceLastMessageReceivedNanos > quietTimeoutNanos) {
+                                return Pair.of(false, 0L);
                             } else {
-                                return true;
+                                return Pair.of(true, quietTimeoutNanos - sinceLastMessageReceivedNanos);
                             }
                         } else {
                             throw FutureUtil.wrapToCompletionException(t);
                         }
                     }
                     lastMessageReceivedNanos.set(currentNanos);
-                    return messageHandler.apply(consumer, msg);
-                }).thenComposeAsync(receiveMore -> {
+                    return Pair.of(messageHandler.apply(consumer, msg), quietTimeoutNanos);
+                }).thenComposeAsync(receiveMoreAndNextTimeout -> {
+                    boolean receiveMore = receiveMoreAndNextTimeout.getLeft();
                     if (receiveMore) {
-                        return receiveMessagesAsync(consumer, quietTimeoutNanos, messageHandler,
-                                lastMessageReceivedNanos);
+                        Long nextReceiveTimeoutNanos = receiveMoreAndNextTimeout.getRight();
+                        return receiveMessagesAsync(consumer, quietTimeoutNanos, nextReceiveTimeoutNanos,
+                                messageHandler, lastMessageReceivedNanos);
                     } else {
                         return CompletableFuture.completedFuture(null);
                     }
