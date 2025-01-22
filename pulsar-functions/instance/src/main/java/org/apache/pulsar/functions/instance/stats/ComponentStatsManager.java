@@ -53,9 +53,9 @@ public abstract class ComponentStatsManager implements AutoCloseable {
     }
 
     public static ComponentStatsManager getStatsManager(FunctionCollectorRegistry collectorRegistry,
-                                                        String[] metricsLabels,
-                                                        ScheduledExecutorService scheduledExecutorService,
-                                                        Function.FunctionDetails.ComponentType componentType) {
+                                  String[] metricsLabels,
+                                  ScheduledExecutorService scheduledExecutorService,
+                                  Function.FunctionDetails.ComponentType componentType) {
         switch (componentType) {
             case FUNCTION:
                 return new FunctionStatsManager(collectorRegistry, metricsLabels, scheduledExecutorService);
