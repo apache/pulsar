@@ -26,7 +26,7 @@
     <parent>
         <groupId>org.apache.pulsar.tests</groupId>
         <artifactId>tests-parent</artifactId>
-        <version>3.0.9</version>
+        <version>3.0.10-SNAPSHOT</version>
     </parent>
 
     <artifactId>pulsar-client-all-shade-test</artifactId>
