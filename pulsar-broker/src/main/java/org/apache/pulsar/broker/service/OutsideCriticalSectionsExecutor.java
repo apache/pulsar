@@ -29,21 +29,12 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 /**
  * Executor that runs tasks in the current thread when
  * there aren't any critical sections in execution.
- * If there's a critical section in execution, the tasks are queued
- * and postponed until all critical sections have been exited.
- * The tasks are run on the thread that exited the last critical section.
  */
 public class OutsideCriticalSectionsExecutor implements Executor {
     private final AtomicInteger criticalSectionsCount = new AtomicInteger();
     private final Queue<Runnable> queuedTasks = new ConcurrentLinkedQueue<>();
     private final ReadWriteLock executionLock = new ReentrantReadWriteLock();
 
-    /**
-     * Executes the given command at some time in the future.
-     * If there are no critical sections in execution, the command is executed immediately.
-     * If there are critical sections in execution, the command is queued and executed after all critical sections have
-     * been exited.
-     */
     @Override
     public void execute(Runnable command) {
         executionLock.writeLock().lock();
@@ -58,9 +49,6 @@ public class OutsideCriticalSectionsExecutor implements Executor {
         }
     }
 
-    /**
-     * Enters a critical section. This method should be called before entering a critical section.
-     */
     public void enterCriticalSection() {
         executionLock.readLock().lock();
         try {
@@ -70,19 +58,12 @@ public class OutsideCriticalSectionsExecutor implements Executor {
         }
     }
 
-    /**
-     * Exits a critical section. This method should be called after exiting a critical section.
-     */
     public void exitCriticalSection() {
         if (criticalSectionsCount.decrementAndGet() == 0) {
             runQueuedTasks();
         }
     }
 
-    /**
-     * Runs a callable which is a critical section. This method should be used when
-     * the result of the callable is needed and it should run as a critical section.
-     */
     public <T> T runCriticalSectionCallable(Callable<T> callable) {
         executionLock.readLock().lock();
         try {
