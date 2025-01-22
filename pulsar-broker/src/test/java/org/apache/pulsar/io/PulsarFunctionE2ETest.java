@@ -93,8 +93,6 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         functionConfig.setAutoAck(true);
         if (!isBuiltin) {
             functionConfig.setClassName("org.apache.pulsar.functions.api.examples.ExclamationFunction");
-        } else {
-            functionConfig.setClassName(functionName);
         }
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
         functionConfig.setOutput(sinkTopic);
@@ -1287,14 +1285,6 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         public ByteBuffer process(ByteBuffer input, Context context) throws Exception {
             // make sure we are using pooled memory
             assertTrue(input.isDirect());
-            return input;
-        }
-    }
-
-    public static class SpendTimeFunction implements org.apache.pulsar.functions.api.Function<String, String> {
-        @Override
-        public String process(String input, Context context) throws Exception {
-            Thread.sleep(500);
             return input;
         }
     }
