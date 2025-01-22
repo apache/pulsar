@@ -31,6 +31,10 @@ import org.apache.pulsar.common.util.collections.LongPairSet;
 import org.roaringbitmap.PeekableIntIterator;
 import org.roaringbitmap.RoaringBitmap;
 
+/**
+ * A concurrent set of pairs of longs.
+ * The right side of the value supports unsigned values up to 2^32.
+ */
 public class ConcurrentBitmapSortedLongPairSet {
 
     private final NavigableMap<Long, RoaringBitmap> map = new TreeMap<>();
@@ -142,7 +146,9 @@ public class ConcurrentBitmapSortedLongPairSet {
                 PeekableIntIterator intIterator = entry.getValue().getIntIterator();
                 boolean continueProcessing = true;
                 while (continueProcessing && intIterator.hasNext()) {
-                    T item = longPairConverter.apply(entry.getKey(), intIterator.next());
+                    // RoaringBitmap encodes values as unsigned 32-bit integers internally, it's necessary to use
+                    // Integer.toUnsignedLong to convert them to unsigned long values
+                    T item = longPairConverter.apply(entry.getKey(), Integer.toUnsignedLong(intIterator.next()));
                     continueProcessing = itemProcessor.process(item);
                 }
                 if (!continueProcessing) {
