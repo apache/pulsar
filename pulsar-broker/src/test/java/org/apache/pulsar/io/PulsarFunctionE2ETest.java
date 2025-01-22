@@ -271,8 +271,8 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
                 null, sinkTopic, subscriptionName);
         Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
         ConsumerConfig consumerConfig = new ConsumerConfig();
-        Map<String, String> consumerProperties = new HashMap<>();
-        consumerProperties.put("readCompacted", "true");
+        Map<String,String> consumerProperties = new HashMap<>();
+        consumerProperties.put("readCompacted","true");
         consumerConfig.setConsumerProperties(consumerProperties);
         inputSpecs.put(sourceTopic, consumerConfig);
         functionConfig.setInputSpecs(inputSpecs);
