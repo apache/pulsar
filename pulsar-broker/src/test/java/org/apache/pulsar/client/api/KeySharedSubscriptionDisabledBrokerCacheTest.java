@@ -125,11 +125,6 @@ public class KeySharedSubscriptionDisabledBrokerCacheTest extends ProducerConsum
                 defaultConf.getKeySharedLookAheadMsgInReplayThresholdPerConsumer());
     }
 
-    @AfterMethod(alwaysRun = true)
-    public void resetInterceptor() {
-        pulsarTestContext.getMockBookKeeper().setReadHandleInterceptor(null);
-    }
-
     // Use a fixed seed to make the tests using random values deterministic
     // When a test fails, it's possible to re-run it to reproduce the issue
     private static final Random random = new Random(1);
