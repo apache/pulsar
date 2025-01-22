@@ -288,10 +288,10 @@ public class JavaInstanceRunnableTest {
     public Object[][] component() {
         return new Object[][]{
                 // Schema: component type, whether to map in secrets
-                {FunctionDetails.ComponentType.SINK},
-                {FunctionDetails.ComponentType.SOURCE},
-                {FunctionDetails.ComponentType.FUNCTION},
-                {FunctionDetails.ComponentType.UNKNOWN},
+                { FunctionDetails.ComponentType.SINK },
+                { FunctionDetails.ComponentType.SOURCE },
+                { FunctionDetails.ComponentType.FUNCTION },
+                { FunctionDetails.ComponentType.UNKNOWN },
         };
     }
 
