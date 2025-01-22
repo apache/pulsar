@@ -43,7 +43,6 @@ public class JavaInstanceTest {
 
     /**
      * Verify that be able to run lambda functions.
-     *
      * @throws Exception
      */
     @Test
@@ -75,7 +74,7 @@ public class JavaInstanceTest {
     public void testUserExceptionThrowingFunction() throws Exception  {
         final UserException userException = new UserException("Boom");
         Function<String, String> func = (input, context) -> {
-            throw userException;
+                throw userException;
         };
 
         JavaInstance instance = new JavaInstance(
@@ -132,7 +131,7 @@ public class JavaInstanceTest {
 
         Function<String, CompletableFuture<String>> function = (input, context) -> {
             log.info("input string: {}", input);
-            CompletableFuture<String> result =  new CompletableFuture<>();
+            CompletableFuture<String> result  = new CompletableFuture<>();
             executor.submit(() -> {
                 try {
                     Thread.sleep(500);
