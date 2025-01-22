@@ -313,7 +313,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         final String sinkTopic = "persistent://" + replNamespace + "/output";
         final String propertyKey = "key";
         final String propertyValue = "value";
-        final String functionName = SpendTimeFunction.class.getName();
+        final String functionName = "org.apache.pulsar.functions.api.examples.JavaNativeAsyncExclamationFunction";
         final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
