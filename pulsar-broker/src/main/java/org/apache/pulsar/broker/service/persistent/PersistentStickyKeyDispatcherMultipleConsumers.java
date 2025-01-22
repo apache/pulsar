@@ -536,6 +536,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         // tracks the available permits for each consumer for the duration of the filter usage
         // the filter is stateful and shouldn't be shared or reused later
         private final Map<Consumer, MutableInt> availablePermitsMap = new HashMap<>();
+        // tracks the hashes that have been blocked during the filtering
+        // it is necessary to block all later messages after a hash gets blocked so that ordering is preserved
+        private final Set<Long> alreadyBlockedHashes = new HashSet<>();
 
         @Override
         public boolean test(Position position) {
@@ -553,25 +556,34 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 }
                 return true;
             }
+            // check if the hash is already blocked, if so, then replaying of the position should be skipped
+            // to preserve ordering
+            if (alreadyBlockedHashes.contains(stickyKeyHash)) {
+                return false;
+            }
 
             // find the consumer for the sticky key hash
             Consumer consumer = selector.select(stickyKeyHash.intValue());
             // skip replaying the message position if there's no assigned consumer
             if (consumer == null) {
+                alreadyBlockedHashes.add(stickyKeyHash);
                 return false;
             }
+
             // lookup the available permits for the consumer
             MutableInt availablePermits =
                     availablePermitsMap.computeIfAbsent(consumer,
                             k -> new MutableInt(getAvailablePermits(consumer)));
             // skip replaying the message position if the consumer has no available permits
             if (availablePermits.intValue() <= 0) {
+                alreadyBlockedHashes.add(stickyKeyHash);
                 return false;
             }
 
             if (drainingHashesRequired
                     && drainingHashesTracker.shouldBlockStickyKeyHash(consumer, stickyKeyHash.intValue())) {
                 // the hash is draining and the consumer is not the draining consumer
+                alreadyBlockedHashes.add(stickyKeyHash);
                 return false;
             }
 
