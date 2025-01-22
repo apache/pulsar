@@ -194,7 +194,9 @@ public class JavaInstance implements AutoCloseable {
             } catch (ExecutionException e) {
                 execResult.setUserException(FutureUtil.unwrapCompletionException(e));
             }
+
             resultConsumer.accept(asyncResult.getRecord(), execResult);
+
             // peek the next result
             asyncResult = pendingAsyncRequests.peek();
         }
