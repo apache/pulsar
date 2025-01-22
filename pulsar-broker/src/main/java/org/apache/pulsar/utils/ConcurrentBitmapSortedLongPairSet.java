@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.utils;
 
-import java.util.Iterator;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.NavigableSet;
@@ -29,6 +28,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.pulsar.common.util.collections.LongPairSet;
+import org.roaringbitmap.PeekableIntIterator;
 import org.roaringbitmap.RoaringBitmap;
 
 public class ConcurrentBitmapSortedLongPairSet {
@@ -139,10 +139,10 @@ public class ConcurrentBitmapSortedLongPairSet {
         lock.readLock().lock();
         try {
             for (Map.Entry<Long, RoaringBitmap> entry : map.entrySet()) {
-                Iterator<Integer> iterator = entry.getValue().stream().iterator();
+                PeekableIntIterator intIterator = entry.getValue().getIntIterator();
                 boolean continueProcessing = true;
-                while (continueProcessing && iterator.hasNext()) {
-                    T item = longPairConverter.apply(entry.getKey(), iterator.next());
+                while (continueProcessing && intIterator.hasNext()) {
+                    T item = longPairConverter.apply(entry.getKey(), intIterator.next());
                     continueProcessing = itemProcessor.process(item);
                 }
                 if (!continueProcessing) {
