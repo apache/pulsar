@@ -60,7 +60,7 @@ public class JavaInstanceTest {
     }
 
     @Test
-    public void testNullReturningFunction() throws Exception {
+    public void testNullReturningFunction() throws Exception  {
         JavaInstance instance = new JavaInstance(
                 mock(ContextImpl.class),
                 (Function<String, String>) (input, context) -> null,
@@ -72,7 +72,7 @@ public class JavaInstanceTest {
     }
 
     @Test
-    public void testUserExceptionThrowingFunction() throws Exception {
+    public void testUserExceptionThrowingFunction() throws Exception  {
         final UserException userException = new UserException("Boom");
         Function<String, String> func = (input, context) -> {
             throw userException;
@@ -96,7 +96,7 @@ public class JavaInstanceTest {
 
         Function<String, CompletableFuture<String>> function = (input, context) -> {
             log.info("input string: {}", input);
-            CompletableFuture<String> result = new CompletableFuture<>();
+            CompletableFuture<String> result  = new CompletableFuture<>();
             executor.submit(() -> {
                 try {
                     Thread.sleep(500);
@@ -116,9 +116,8 @@ public class JavaInstanceTest {
         String testString = "ABC123";
         CompletableFuture<JavaExecutionResult> resultHolder = new CompletableFuture<>();
         JavaExecutionResult result = instance.handleMessage(
-                mock(Record.class), testString,
-                (record, javaResult) -> resultHolder.complete(javaResult), cause -> {
-                });
+            mock(Record.class), testString,
+            (record, javaResult) -> resultHolder.complete(javaResult), cause -> {});
         assertNull(result);
         assertNotNull(resultHolder.get());
         assertEquals(testString + "-lambda", resultHolder.get().getResult());
@@ -133,7 +132,7 @@ public class JavaInstanceTest {
 
         Function<String, CompletableFuture<String>> function = (input, context) -> {
             log.info("input string: {}", input);
-            CompletableFuture<String> result = new CompletableFuture<>();
+            CompletableFuture<String> result =  new CompletableFuture<>();
             executor.submit(() -> {
                 try {
                     Thread.sleep(500);
@@ -153,8 +152,7 @@ public class JavaInstanceTest {
         String testString = "ABC123";
         CompletableFuture<JavaExecutionResult> resultHolder = new CompletableFuture<>();
         JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString,
-                (record, javaResult) -> resultHolder.complete(javaResult), cause -> {
-                });
+            (record, javaResult) -> resultHolder.complete(javaResult), cause -> {});
         assertNull(result);
         assertNotNull(resultHolder.get());
         instance.close();
@@ -169,7 +167,7 @@ public class JavaInstanceTest {
 
         Function<String, CompletableFuture<String>> function = (input, context) -> {
             log.info("input string: {}", input);
-            CompletableFuture<String> result = new CompletableFuture<>();
+            CompletableFuture<String> result  = new CompletableFuture<>();
             executor.submit(() -> {
                 result.completeExceptionally(userException);
             });
@@ -184,8 +182,7 @@ public class JavaInstanceTest {
         String testString = "ABC123";
         CompletableFuture<JavaExecutionResult> resultHolder = new CompletableFuture<>();
         JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString,
-                (record, javaResult) -> resultHolder.complete(javaResult), cause -> {
-                });
+            (record, javaResult) -> resultHolder.complete(javaResult), cause -> {});
         assertNull(result);
         assertSame(userException, resultHolder.get().getUserException());
         instance.close();
@@ -202,7 +199,7 @@ public class JavaInstanceTest {
 
         Function<String, CompletableFuture<String>> function = (input, context) -> {
             log.info("input string: {}", input);
-            CompletableFuture<String> result = new CompletableFuture<>();
+            CompletableFuture<String> result  = new CompletableFuture<>();
             executor.submit(() -> {
                 try {
                     count.await();
@@ -247,9 +244,9 @@ public class JavaInstanceTest {
         instance.close();
     }
 
-    private static class UserException extends Exception {
+        private static class UserException extends Exception {
         public UserException(String msg) {
-            super(msg);
+                super(msg);
         }
     }
 
@@ -268,7 +265,7 @@ public class JavaInstanceTest {
         ExecutorService executor = Executors.newCachedThreadPool();
 
         Function<String, CompletableFuture<Void>> function = (input, context) -> {
-            CompletableFuture<Void> result = new CompletableFuture<>();
+            CompletableFuture<Void> result  = new CompletableFuture<>();
             executor.submit(() -> {
                 try {
                     count.await();
@@ -313,5 +310,4 @@ public class JavaInstanceTest {
         log.info("start:{} end:{} during:{}", startTime, endTime, endTime - startTime);
         instance.close();
     }
-
 }
