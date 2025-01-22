@@ -628,6 +628,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         return "";
     }
 
+    @VisibleForTesting
+    void setStats(ComponentStatsManager stats) {
+        this.stats = stats;
+    }
+
     public InstanceCommunication.MetricsData getAndResetMetrics() {
         if (isInitialized) {
             statsLock.writeLock().lock();

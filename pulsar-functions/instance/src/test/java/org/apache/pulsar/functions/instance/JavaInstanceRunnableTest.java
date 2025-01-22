@@ -191,11 +191,8 @@ public class JavaInstanceRunnableTest {
                 .setProcessingGuarantees(org.apache.pulsar.functions.proto.Function.ProcessingGuarantees.MANUAL)
                 .build();
         JavaInstanceRunnable javaInstanceRunnable = createRunnable(functionDetails);
-        Field stats = JavaInstanceRunnable.class.getDeclaredField("stats");
         FunctionStatsManager manager = mock(FunctionStatsManager.class);
-        stats.setAccessible(true);
-        stats.set(javaInstanceRunnable, manager);
-        stats.setAccessible(false);
+        javaInstanceRunnable.setStats(manager);
         JavaExecutionResult javaExecutionResult = new JavaExecutionResult();
         Thread.sleep(500);
         Record record = mock(Record.class);
