@@ -19,7 +19,9 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.createMockConsumer;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
