@@ -202,7 +202,7 @@ public class JavaInstanceRunnableTest {
         javaInstanceRunnable.handleResult(record, javaExecutionResult);
         ArgumentCaptor<Long> timeCaptor = ArgumentCaptor.forClass(Long.class);
         verify(manager).processTimeEnd(timeCaptor.capture());
-        Assert.assertEquals(timeCaptor.getValue(), javaExecutionResult.getStartTime() + 500, 100);
+        Assert.assertEquals(timeCaptor.getValue(), javaExecutionResult.getStartTime());
     }
 
     @Test
