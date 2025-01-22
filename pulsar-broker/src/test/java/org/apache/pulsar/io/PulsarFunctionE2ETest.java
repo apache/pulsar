@@ -311,8 +311,6 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         final String replNamespace = tenant + "/" + namespacePortion;
         final String sourceTopic = "persistent://" + replNamespace + "/my-topic1";
         final String sinkTopic = "persistent://" + replNamespace + "/output";
-        final String propertyKey = "key";
-        final String propertyValue = "value";
         final String functionName = "org.apache.pulsar.functions.api.examples.JavaNativeAsyncExclamationFunction";
         final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
