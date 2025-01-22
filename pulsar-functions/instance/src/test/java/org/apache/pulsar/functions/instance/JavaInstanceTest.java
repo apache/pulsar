@@ -168,7 +168,7 @@ public class JavaInstanceTest {
             log.info("input string: {}", input);
             CompletableFuture<String> result  = new CompletableFuture<>();
             executor.submit(() -> {
-                    result.completeExceptionally(userException);
+                result.completeExceptionally(userException);
             });
 
             return result;
