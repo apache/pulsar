@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.PrimitiveIterator;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import lombok.ToString;
@@ -51,9 +50,10 @@ public class DrainingHashesTracker {
     // optimize the memory consumption of the map by using primitive int keys
     private final Int2ObjectOpenHashMap<DrainingHashEntry> drainingHashes = new Int2ObjectOpenHashMap<>();
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+    int batchLevel;
+    boolean unblockedWhileBatching;
     private final Map<ConsumerIdentityWrapper, ConsumerDrainingHashesStats> consumerDrainingHashesStatsMap =
             new ConcurrentHashMap<>();
-    private final Executor removalExecutor;
 
     /**
      * Represents an entry in the draining hashes tracker.
@@ -220,13 +220,8 @@ public class DrainingHashesTracker {
     }
 
     public DrainingHashesTracker(String dispatcherName, UnblockingHandler unblockingHandler) {
-        this(dispatcherName, unblockingHandler, Runnable::run);
-    }
-
-    public DrainingHashesTracker(String dispatcherName, UnblockingHandler unblockingHandler, Executor removalExecutor) {
         this.dispatcherName = dispatcherName;
         this.unblockingHandler = unblockingHandler;
-        this.removalExecutor = removalExecutor;
     }
 
     /**
@@ -280,6 +275,39 @@ public class DrainingHashesTracker {
     }
 
     /**
+     * Start a batch operation. There could be multiple nested batch operations.
+     * The unblocking of sticky key hashes will be done only when the last batch operation ends.
+     */
+    public void startBatch() {
+        lock.writeLock().lock();
+        try {
+            batchLevel++;
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    /**
+     * End a batch operation.
+     */
+    public void endBatch() {
+        boolean notifyUnblocking = false;
+        lock.writeLock().lock();
+        try {
+            if (--batchLevel == 0 && unblockedWhileBatching) {
+                unblockedWhileBatching = false;
+                notifyUnblocking = true;
+            }
+        } finally {
+            lock.writeLock().unlock();
+        }
+        // notify unblocking of the hash outside the lock
+        if (notifyUnblocking) {
+            unblockingHandler.stickyKeyHashUnblocked(-1);
+        }
+    }
+
+    /**
      * Reduce the reference count for a given sticky hash.
      *
      * @param consumer   the consumer
@@ -302,38 +330,40 @@ public class DrainingHashesTracker {
                             + ".");
         }
         if (entry.decrementRefCount()) {
-            removalExecutor.execute(() -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Draining hash {} removing consumer id:{} name:{}", dispatcherName, stickyHash,
-                            consumer.consumerId(), consumer.consumerName());
-                }
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Draining hash {} removing consumer id:{} name:{}", dispatcherName, stickyHash,
+                        consumer.consumerId(), consumer.consumerName());
+            }
 
-                DrainingHashEntry removed;
-                boolean notifyUnblocking = false;
-                lock.writeLock().lock();
-                try {
-                    removed = drainingHashes.remove(stickyHash);
-                    if (removed.isBlocking()) {
+            DrainingHashEntry removed;
+            boolean notifyUnblocking = false;
+            lock.writeLock().lock();
+            try {
+                removed = drainingHashes.remove(stickyHash);
+                if (removed.isBlocking()) {
+                    if (batchLevel > 0) {
+                        unblockedWhileBatching = true;
+                    } else {
                         notifyUnblocking = true;
                     }
-                } finally {
-                    lock.writeLock().unlock();
                 }
+            } finally {
+                lock.writeLock().unlock();
+            }
 
-                // perform side-effects outside of the lock to reduce chances for deadlocks
+            // perform side-effects outside of the lock to reduce chances for deadlocks
 
-                // update the consumer specific stats
-                ConsumerDrainingHashesStats drainingHashesStats =
-                        consumerDrainingHashesStatsMap.get(new ConsumerIdentityWrapper(consumer));
-                if (drainingHashesStats != null) {
-                    drainingHashesStats.clearHash(stickyHash);
-                }
+            // update the consumer specific stats
+            ConsumerDrainingHashesStats drainingHashesStats =
+                    consumerDrainingHashesStatsMap.get(new ConsumerIdentityWrapper(consumer));
+            if (drainingHashesStats != null) {
+                drainingHashesStats.clearHash(stickyHash);
+            }
 
-                // notify unblocking of the hash outside the lock
-                if (notifyUnblocking) {
-                    unblockingHandler.stickyKeyHashUnblocked(stickyHash);
-                }
-            });
+            // notify unblocking of the hash outside the lock
+            if (notifyUnblocking) {
+                unblockingHandler.stickyKeyHashUnblocked(stickyHash);
+            }
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Draining hash {} decrementing {} consumer id:{} name:{}", dispatcherName,
