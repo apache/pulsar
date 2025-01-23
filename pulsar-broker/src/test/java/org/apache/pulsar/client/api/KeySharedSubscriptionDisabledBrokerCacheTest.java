@@ -20,7 +20,6 @@ package org.apache.pulsar.client.api;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.broker.BrokerTestUtil.newUniqueName;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.testng.Assert.fail;
 import java.time.Duration;
