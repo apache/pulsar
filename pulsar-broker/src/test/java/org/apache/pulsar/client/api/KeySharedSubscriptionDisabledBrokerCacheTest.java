@@ -213,11 +213,14 @@ public class KeySharedSubscriptionDisabledBrokerCacheTest extends ProducerConsum
                     Pair<Position, String> prevPair = keyPositions.get(key);
                     if (prevPair != null && prevPair.getLeft().compareTo(currentPosition) > 0) {
                         boolean isDuplicate = !remainingMessageValues.contains(msg.getValue());
-                        log.error("key: {} value: {} prev: {}/{} current: {}/{} duplicate: {}", key, msg.getValue(),
-                                prevPair.getLeft(),
-                                prevPair.getRight(), currentPosition, consumer.getConsumerName(), isDuplicate);
+                        String errorMessage = String.format(
+                                        "out of order: key: %s value: %s prev: %s/%s current: %s/%s duplicate: %s",
+                                        key, msg.getValue(),
+                                        prevPair.getLeft(), prevPair.getRight(),
+                                        currentPosition, consumer.getConsumerName(), isDuplicate);
+                        log.error(errorMessage);
                         if (!isDuplicate || failOnDuplicatesOutOfOrder) {
-                            fail("out of order");
+                            fail(errorMessage);
                         }
                     }
                     keyPositions.put(key, Pair.of(currentPosition, consumer.getConsumerName()));
