@@ -335,13 +335,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             }
             return;
         }
-        if (havePendingReplayRead) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] Skipping read for the topic, Due to replay in-progress.", topic.getName(),
-                        getSubscriptionName());
-            }
-            return;
-        }
         if (isSendInProgress()) {
             // we cannot read more entries while sending the previous batch
             // otherwise we could re-read the same entries and send duplicates
@@ -386,23 +379,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             long bytesToRead = calculateResult.getRight();
 
             if (messagesToRead == -1 || bytesToRead == -1) {
-                // Skip read as topic/dispatcher has exceed the dispatch rate
+                // Skip read as topic/dispatcher has exceed the dispatch rate or previous pending read hasn't complete.
                 return;
             }
 
             Set<Position> messagesToReplayNow =
                     canReplayMessages() ? getMessagesToReplayNow(messagesToRead) : Collections.emptySet();
             if (!messagesToReplayNow.isEmpty()) {
-                // before replaying, cancel possible pending read that is waiting for more entries
-                cancelPendingRead();
-                if (havePendingRead) {
-                    // skip read since a pending read is already in progress which cannot be cancelled
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] [{}] Skipping replay read for the topic, Due to pending read in-progress.",
-                                topic.getName(), getSubscriptionName());
-                    }
-                    return;
-                }
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule replay of {} messages for {} consumers", name,
                             messagesToReplayNow.size(), consumerList.size());
@@ -632,6 +615,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             }
         }
 
+        if (havePendingReplayRead) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Skipping replay while awaiting previous read to complete", name);
+            }
+            return Pair.of(-1, -1L);
+        }
+
         // If messagesToRead is 0 or less, correct it to 1 to prevent IllegalArgumentException
         messagesToRead = Math.max(messagesToRead, 1);
         bytesToRead = Math.max(bytesToRead, 1);
@@ -727,12 +717,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     public final synchronized void readEntriesComplete(List<Entry> entries, Object ctx) {
         ReadType readType = (ReadType) ctx;
         if (readType == ReadType.Normal) {
-            if (!havePendingRead) {
-                log.debug("Discarding read entries as there is no pending read");
-                entries.forEach(Entry::release);
-                readMoreEntriesAsync();
-                return;
-            }
             havePendingRead = false;
         } else {
             havePendingReplayRead = false;
