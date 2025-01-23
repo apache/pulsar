@@ -40,6 +40,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.AsyncCallback.DeleteCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
@@ -96,6 +98,9 @@ public class PulsarMockBookKeeper extends BookKeeper {
     final Queue<Long> addEntryResponseDelaysMillis = new ConcurrentLinkedQueue<>();
     final List<CompletableFuture<Void>> failures = new ArrayList<>();
     final List<CompletableFuture<Void>> addEntryFailures = new ArrayList<>();
+    @Setter
+    @Getter
+    private volatile PulsarMockReadHandleInterceptor readHandleInterceptor;
 
     public PulsarMockBookKeeper(OrderedExecutor orderedExecutor) throws Exception {
         this.orderedExecutor = orderedExecutor;
@@ -250,7 +255,8 @@ public class PulsarMockBookKeeper extends BookKeeper {
                                 return FutureUtils.exception(new BKException.BKUnauthorizedAccessException());
                             } else {
                                 return FutureUtils.value(new PulsarMockReadHandle(PulsarMockBookKeeper.this, ledgerId,
-                                                                                  lh.getLedgerMetadata(), lh.entries));
+                                        lh.getLedgerMetadata(), lh.entries,
+                                        PulsarMockBookKeeper.this::getReadHandleInterceptor));
                             }
                         });
             }
