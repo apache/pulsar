@@ -40,12 +40,18 @@
     <Logger name="org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers" level="DEBUG" additivity="false">
       <AppenderRef ref="CONSOLE"/>
     </Logger>
+    <Logger name="org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers" level="DEBUG" additivity="false">
+      <AppenderRef ref="CONSOLE"/>
+    </Logger>
+    <Logger name="org.apache.pulsar.broker.service.Consumer" level="DEBUG" additivity="false">
+      <AppenderRef ref="CONSOLE"/>
+    </Logger>
     <Logger name="org.apache.pulsar.broker.service.DrainingHashesTracker" level="DEBUG" additivity="false">
       <AppenderRef ref="CONSOLE"/>
     </Logger>
     <Logger name="org.apache.pulsar.broker.service.persistent.RescheduleReadHandler" level="DEBUG" additivity="false">
       <AppenderRef ref="CONSOLE"/>
     </Logger>
-    -->
+     -->
   </Loggers>
 </Configuration>
