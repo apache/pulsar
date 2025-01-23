@@ -632,6 +632,19 @@ public class CmdFunctionsTest {
     }
 
     @Test
+    public void testListFunctionsWithDefaultValue() throws Exception {
+        cmd.run(new String[] {
+                "list",
+        });
+
+        ListFunctions lister = cmd.getLister();
+        assertEquals("public", lister.getTenant());
+        assertEquals("default", lister.getNamespace());
+
+        verify(functions, times(1)).getFunctions(eq("public"), eq("default"));
+    }
+
+    @Test
     public void testStateGetter() throws Exception {
         String key = TEST_NAME + "-key";
 
