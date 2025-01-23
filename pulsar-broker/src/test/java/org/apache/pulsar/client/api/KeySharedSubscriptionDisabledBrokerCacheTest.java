@@ -163,6 +163,9 @@ public class KeySharedSubscriptionDisabledBrokerCacheTest extends ProducerConsum
         String topic = newUniqueName("testMessageOrderInSingleConsumerReconnect");
         int numberOfKeys = 100;
         long pauseTime = 100L;
+        // don't fail if duplicates are out-of-order
+        // it's possible to change this setting while experimenting
+        boolean failOnDuplicatesOutOfOrder = false;
 
         @Cleanup
         PulsarClient pulsarClient2 = PulsarClient.builder()
@@ -213,7 +216,9 @@ public class KeySharedSubscriptionDisabledBrokerCacheTest extends ProducerConsum
                         log.error("key: {} value: {} prev: {}/{} current: {}/{} duplicate: {}", key, msg.getValue(),
                                 prevPair.getLeft(),
                                 prevPair.getRight(), currentPosition, consumer.getConsumerName(), isDuplicate);
-                        fail("out of order");
+                        if (!isDuplicate || failOnDuplicatesOutOfOrder) {
+                            fail("out of order");
+                        }
                     }
                     keyPositions.put(key, Pair.of(currentPosition, consumer.getConsumerName()));
                     boolean removed = remainingMessageValues.remove(msg.getValue());
