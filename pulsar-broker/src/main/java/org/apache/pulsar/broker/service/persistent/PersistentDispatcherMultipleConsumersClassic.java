@@ -639,6 +639,7 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
             havePendingReplayRead = false;
             if (shouldSkipNextReplaying && readType == ReadType.Replay) {
                 shouldSkipNextReplaying = false;
+                readMoreEntriesAsync();
                 return;
             }
         }
