@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.broker.BrokerTestUtil.newUniqueName;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.testng.Assert.fail;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -189,33 +190,42 @@ public class KeySharedSubscriptionDisabledBrokerCacheTest extends ProducerConsum
         AtomicBoolean c2MessagesShouldBeUnacked = new AtomicBoolean(true);
         Set<String> keysForC2 = new HashSet<>();
         AtomicLong lastMessageTimestamp = new AtomicLong(System.currentTimeMillis());
+        List<Throwable> exceptionsInHandler = Collections.synchronizedList(new ArrayList<>());
 
         Map<String, Pair<Position, String>> keyPositions = new HashMap<>();
         MessageListener<Integer> messageHandler = (consumer, msg) -> {
             lastMessageTimestamp.set(System.currentTimeMillis());
             synchronized (this) {
-                String key = msg.getKey();
-                if (c2MessagesShouldBeUnacked.get() && keysForC2.contains(key)) {
-                    unackedMessages.add(Pair.of(consumer, msg));
-                    return;
-                }
-                long delayMillis = ThreadLocalRandom.current().nextLong(25, 50);
-                CompletableFuture.delayedExecutor(delayMillis, TimeUnit.MILLISECONDS).execute(() ->
-                        consumer.acknowledgeAsync(msg));
-                MessageIdAdv msgId = (MessageIdAdv) msg.getMessageId();
-                Position currentPosition = PositionFactory.create(msgId.getLedgerId(), msgId.getEntryId());
-                Pair<Position, String> prevPair = keyPositions.get(key);
-                if (prevPair != null && prevPair.getLeft().compareTo(currentPosition) > 0) {
-                    boolean isDuplicate = !remainingMessageValues.contains(msg.getValue());
-                    log.error("key: {} value: {} prev: {}/{} current: {}/{} duplicate: {}", key, msg.getValue(), prevPair.getLeft(),
-                            prevPair.getRight(), currentPosition, consumer.getConsumerName(), isDuplicate);
-                    fail("out of order");
-                }
-                keyPositions.put(key, Pair.of(currentPosition, consumer.getConsumerName()));
-                boolean removed = remainingMessageValues.remove(msg.getValue());
-                if (!removed) {
-                    // duplicates are possible during reconnects, this is not an error
-                    log.warn("Duplicate message: {} value: {}", msg.getMessageId(), msg.getValue());
+                try {
+                    String key = msg.getKey();
+                    if (c2MessagesShouldBeUnacked.get() && keysForC2.contains(key)) {
+                        unackedMessages.add(Pair.of(consumer, msg));
+                        return;
+                    }
+                    long delayMillis = ThreadLocalRandom.current().nextLong(25, 50);
+                    CompletableFuture.delayedExecutor(delayMillis, TimeUnit.MILLISECONDS).execute(() ->
+                            consumer.acknowledgeAsync(msg));
+                    MessageIdAdv msgId = (MessageIdAdv) msg.getMessageId();
+                    Position currentPosition = PositionFactory.create(msgId.getLedgerId(), msgId.getEntryId());
+                    Pair<Position, String> prevPair = keyPositions.get(key);
+                    if (prevPair != null && prevPair.getLeft().compareTo(currentPosition) > 0) {
+                        boolean isDuplicate = !remainingMessageValues.contains(msg.getValue());
+                        log.error("key: {} value: {} prev: {}/{} current: {}/{} duplicate: {}", key, msg.getValue(),
+                                prevPair.getLeft(),
+                                prevPair.getRight(), currentPosition, consumer.getConsumerName(), isDuplicate);
+                        fail("out of order");
+                    }
+                    keyPositions.put(key, Pair.of(currentPosition, consumer.getConsumerName()));
+                    boolean removed = remainingMessageValues.remove(msg.getValue());
+                    if (!removed) {
+                        // duplicates are possible during reconnects, this is not an error
+                        log.warn("Duplicate message: {} value: {}", msg.getMessageId(), msg.getValue());
+                    }
+                } catch (Throwable t) {
+                    exceptionsInHandler.add(t);
+                    if (!(t instanceof AssertionError)) {
+                        log.error("Error in message handler", t);
+                    }
                 }
             }
         };
@@ -320,7 +330,10 @@ public class KeySharedSubscriptionDisabledBrokerCacheTest extends ProducerConsum
         });
 
         try {
-            assertThat(remainingMessageValues).isEmpty();
+            assertSoftly(softly -> {
+                softly.assertThat(remainingMessageValues).as("remainingMessageValues").isEmpty();
+                softly.assertThat(exceptionsInHandler).as("exceptionsInHandler").isEmpty();
+            });
         } finally {
             logTopicStats(topic);
         }
