@@ -64,6 +64,7 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.compaction.PublishingOrderCompactor;
 import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.examples.JavaNativeAsyncExclamationFunction;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
@@ -302,23 +303,34 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         final String replNamespace = tenant + "/" + namespacePortion;
         final String sourceTopic = "persistent://" + replNamespace + "/my-topic1";
         final String sinkTopic = "persistent://" + replNamespace + "/output";
-        final String functionName = "org.apache.pulsar.functions.api.examples.JavaNativeAsyncExclamationFunction";
+        final String functionName = "JavaNativeAsyncExclamationFunction";
         final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
 
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setTenant(tenant);
+        functionConfig.setNamespace(namespacePortion);
+        functionConfig.setName(functionName);
+        functionConfig.setParallelism(1);
+        functionConfig.setSubName(subscriptionName);
+        functionConfig.setInputSpecs(Collections.singletonMap(sourceTopic,
+                ConsumerConfig.builder().poolMessages(true).build()));
+        functionConfig.setAutoAck(true);
+        functionConfig.setClassName(JavaNativeAsyncExclamationFunction.class.getName());
+        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+        functionConfig.setOutput(sinkTopic);
+        functionConfig.setCleanupSubscription(true);
+        functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+
+        admin.functions().createFunctionWithUrl(functionConfig,
+                PulsarFunctionE2ETest.class.getProtectionDomain().getCodeSource().getLocation().toURI().toString());
+
         // create a producer that creates a topic at broker
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
         Consumer<String> consumer =
                 pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic).subscriptionName(subscriptionName).subscribe();
-        String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
-        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName, false,
-                "my.*", sinkTopic, subscriptionName);
-        admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
-
-        // try to update function to test: update-function functionality
-        admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
 
         retryStrategically((test) -> {
             try {
@@ -362,8 +374,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         Map<String, TestPulsarFunctionUtils.Metric> statsMetrics =
                 TestPulsarFunctionUtils.parseMetrics(prometheusMetrics);
 
-        assertEquals(statsMetrics.get("pulsar_function_worker_schedule_execution_time_total_ms_sum").value, 500.0,
-                100.0);
+        assertEquals(statsMetrics.get("pulsar_function_process_latency_ms").value, 500.0, 100.0);
         admin.functions().deleteFunction(tenant, namespacePortion, functionName);
 
         retryStrategically((test) -> {
