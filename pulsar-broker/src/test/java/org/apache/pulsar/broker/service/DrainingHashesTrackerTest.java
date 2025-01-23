@@ -191,4 +191,23 @@ public class DrainingHashesTrackerTest {
         // then unblocking call should be done
         verify(unblockingHandler).stickyKeyHashUnblocked(1);
     }
+
+    @Test
+    public void unblockingHandler_DoesNotInvokeStickyKeyHashUnblockedWhenClosing() {
+        // given a tracker with unblocking handler
+        UnblockingHandler unblockingHandler = mock(UnblockingHandler.class);
+        DrainingHashesTracker tracker = new DrainingHashesTracker("dispatcher1", unblockingHandler);
+
+        // when a hash is draining
+        Consumer consumer = createMockConsumer("consumer1");
+        tracker.addEntry(consumer, 1);
+        // aand hash gets blocked
+        Consumer consumer2 = createMockConsumer("consumer2");
+        tracker.shouldBlockStickyKeyHash(consumer2, 1);
+        // and hash gets unblocked
+        tracker.reduceRefCount(consumer, 1, true);
+
+        // then unblocking call should be done
+        verify(unblockingHandler, never()).stickyKeyHashUnblocked(anyInt());
+    }
 }

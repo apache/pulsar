@@ -340,7 +340,7 @@ public class DrainingHashesTracker {
             lock.writeLock().lock();
             try {
                 removed = drainingHashes.remove(stickyHash);
-                if (removed.isBlocking()) {
+                if (!closing && removed.isBlocking()) {
                     if (batchLevel > 0) {
                         unblockedWhileBatching = true;
                     } else {
