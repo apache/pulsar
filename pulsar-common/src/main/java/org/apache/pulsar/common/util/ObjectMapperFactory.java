@@ -32,7 +32,6 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.ClassUtils;
 import org.apache.pulsar.client.admin.internal.data.AuthPoliciesImpl;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
@@ -260,15 +259,7 @@ public class ObjectMapperFactory {
         mapper.addMixIn(FunctionState.class, JsonIgnorePropertiesMixIn.class);
         mapper.addMixIn(Metrics.class, MetricsMixIn.class);
 
-        try {
-            // We look for LoadManagerReport first, then add deserializer to the module
-            // With shaded client, org.apache.pulsar.policies is relocated to
-            // org.apache.pulsar.shade.org.apache.pulsar.policies
-            ClassUtils.getClass("org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport");
-            module.addDeserializer(LoadManagerReport.class, new LoadReportDeserializer());
-        } catch (ClassNotFoundException e) {
-            log.debug("Add LoadManagerReport deserializer failed because LoadManagerReport.class has been shaded", e);
-        }
+        module.addDeserializer(LoadManagerReport.class, new LoadReportDeserializer());
 
         module.setAbstractTypes(resolver);
 
