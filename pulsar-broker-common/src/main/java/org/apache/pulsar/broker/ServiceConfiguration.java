@@ -2269,7 +2269,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_STORAGE_ML,
             doc = "Whether persist cursor ack stats as long arrays, which will compress the data and reduce GC rate")
-    private boolean managedLedgerPersistIndividualAckAsLongArray = false;
+    private boolean managedLedgerPersistIndividualAckAsLongArray = true;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "If enabled, the maximum \"acknowledgment holes\" will not be limited and \"acknowledgment holes\" "
