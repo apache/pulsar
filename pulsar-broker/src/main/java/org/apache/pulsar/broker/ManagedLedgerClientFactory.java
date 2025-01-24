@@ -116,8 +116,8 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
 
         try {
             this.managedLedgerFactory =
-                    new ManagedLedgerFactoryImpl(metadataStore, bkFactory, managedLedgerFactoryConfig, statsLogger,
-                            openTelemetry);
+                    createManagedLedgerFactory(metadataStore, openTelemetry, bkFactory, managedLedgerFactoryConfig,
+                            statsLogger);
         } catch (Exception e) {
             statsProvider.stop();
             defaultBkClient.close();
@@ -145,6 +145,16 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
                 return defaultBkClient;
             }
         };
+    }
+
+    protected ManagedLedgerFactoryImpl createManagedLedgerFactory(MetadataStoreExtended metadataStore,
+                                                                  OpenTelemetry openTelemetry,
+                                                                  BookkeeperFactoryForCustomEnsemblePlacementPolicy
+                                                                          bkFactory,
+                                                                  ManagedLedgerFactoryConfig managedLedgerFactoryConfig,
+                                                                  StatsLogger statsLogger) throws Exception {
+        return new ManagedLedgerFactoryImpl(metadataStore, bkFactory, managedLedgerFactoryConfig, statsLogger,
+                openTelemetry);
     }
 
     @Override

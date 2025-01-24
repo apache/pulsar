@@ -18,13 +18,26 @@
  */
 package org.apache.pulsar.broker.testinterceptor;
 
+import io.opentelemetry.api.OpenTelemetry;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.MetaStore;
+import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.ManagedLedgerClientFactory;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Consumer;
@@ -33,9 +46,11 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicFactory;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 /**
- * A test interceptor for broker tests that allows to decorate persistent topics, subscriptions and dispatchers.
+ * A test interceptor for broker tests that allows to decorate persistent topics, subscriptions, dispatchers
+ * managed ledger factory, managed ledger and managed cursor instances.
  */
 public class BrokerTestInterceptor {
     public static final BrokerTestInterceptor INSTANCE = new BrokerTestInterceptor();
@@ -91,6 +106,50 @@ public class BrokerTestInterceptor {
         }
     }
 
+    public static class TestManagedLedgerStorage extends ManagedLedgerClientFactory {
+        @Override
+        protected ManagedLedgerFactoryImpl createManagedLedgerFactory(MetadataStoreExtended metadataStore,
+                                                                      OpenTelemetry openTelemetry,
+                                                                      ManagedLedgerFactoryImpl.BookkeeperFactoryForCustomEnsemblePlacementPolicy bkFactory,
+                                                                      ManagedLedgerFactoryConfig managedLedgerFactoryConfig,
+                                                                      StatsLogger statsLogger) throws Exception {
+            return INSTANCE.managedLedgerFactoryDecorator.apply(
+                    new TestManagedLedgerFactoryImpl(metadataStore, bkFactory, managedLedgerFactoryConfig, statsLogger,
+                            openTelemetry));
+        }
+    }
+
+    static class TestManagedLedgerFactoryImpl extends ManagedLedgerFactoryImpl {
+        public TestManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore,
+                                            BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory,
+                                            ManagedLedgerFactoryConfig config, StatsLogger statsLogger,
+                                            OpenTelemetry openTelemetry) throws Exception {
+            super(metadataStore, bookKeeperGroupFactory, config, statsLogger, openTelemetry);
+        }
+
+        @Override
+        protected ManagedLedgerImpl createManagedLedger(BookKeeper bk, MetaStore store, String name,
+                                                        ManagedLedgerConfig config,
+                                                        Supplier<CompletableFuture<Boolean>> mlOwnershipChecker) {
+            return INSTANCE.managedLedgerDecorator.apply(
+                    new TestManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name, mlOwnershipChecker));
+        }
+    }
+
+    static class TestManagedLedgerImpl extends ManagedLedgerImpl {
+        public TestManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
+                                     ManagedLedgerConfig config,
+                                     OrderedScheduler scheduledExecutor, String name,
+                                     Supplier<CompletableFuture<Boolean>> mlOwnershipChecker) {
+            super(factory, bookKeeper, store, config, scheduledExecutor, name, mlOwnershipChecker);
+        }
+
+        @Override
+        protected ManagedCursorImpl createCursor(BookKeeper bookKeeper, String cursorName) {
+            return INSTANCE.managedCursorDecorator.apply(super.createCursor(bookKeeper, cursorName));
+        }
+    }
+
     @Getter
     @Setter
     private Function<PersistentTopic, PersistentTopic> persistentTopicDecorator = Function.identity();
@@ -103,14 +162,30 @@ public class BrokerTestInterceptor {
     @Setter
     private Function<Dispatcher, Dispatcher> dispatcherDecorator = Function.identity();
 
+    @Getter
+    @Setter
+    private Function<ManagedLedgerFactoryImpl, ManagedLedgerFactoryImpl> managedLedgerFactoryDecorator = Function.identity();
+
+    @Getter
+    @Setter
+    private Function<ManagedLedgerImpl, ManagedLedgerImpl> managedLedgerDecorator = Function.identity();
+
+    @Getter
+    @Setter
+    private Function<ManagedCursorImpl, ManagedCursorImpl> managedCursorDecorator = Function.identity();
+
     public void reset() {
         persistentTopicDecorator = Function.identity();
         persistentSubscriptionDecorator = Function.identity();
         dispatcherDecorator = Function.identity();
+        managedLedgerFactoryDecorator = Function.identity();
+        managedLedgerDecorator = Function.identity();
+        managedCursorDecorator = Function.identity();
     }
 
     public void configure(ServiceConfiguration conf) {
         conf.setTopicFactoryClassName(TestTopicFactory.class.getName());
+        conf.setManagedLedgerStorageClassName(TestManagedLedgerStorage.class.getName());
     }
 
     public  <T extends Dispatcher> void applyDispatcherSpyDecorator(Class<T> dispatcherClass,
@@ -125,5 +200,13 @@ public class BrokerTestInterceptor {
             spyCustomizer.accept(dispatcherClass.cast(spy));
             return spy;
         };
+    }
+
+    public void applyCursorSpyDecorator(java.util.function.Consumer<ManagedCursorImpl> spyCustomizer) {
+        setManagedCursorDecorator(cursor -> {
+            ManagedCursorImpl spy = BrokerTestUtil.spyWithoutRecordingInvocations(cursor);
+            spyCustomizer.accept(spy);
+            return spy;
+        });
     }
 }
