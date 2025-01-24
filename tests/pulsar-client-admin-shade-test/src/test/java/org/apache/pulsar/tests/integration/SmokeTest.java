@@ -86,6 +86,7 @@ public class SmokeTest extends TestRetrySupport {
         expectedNamespacesList.add("public/default");
         expectedNamespacesList.add("public/functions");
         Assert.assertEquals(admin.namespaces().getNamespaces("public"), expectedNamespacesList);
+        admin.brokerStats().getLoadReport();
     }
 
     @Override
