@@ -410,11 +410,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                             new EnsemblePlacementPolicyConfig(config.getBookKeeperEnsemblePlacementPolicyClassName(),
                                     config.getBookKeeperEnsemblePlacementPolicyProperties()))
                     .thenAccept(bk -> {
-                        final ManagedLedgerImpl newledger = config.getShadowSource() == null
-                                ? new ManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name,
-                                mlOwnershipChecker)
-                                : new ShadowManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name,
-                                mlOwnershipChecker);
+                        final ManagedLedgerImpl newledger =
+                                createManagedLedger(bk, store, name, config, mlOwnershipChecker);
                         PendingInitializeManagedLedger pendingLedger = new PendingInitializeManagedLedger(newledger);
                         pendingInitializeLedgers.put(name, pendingLedger);
                         newledger.initialize(new ManagedLedgerInitializeLedgerCallback() {
@@ -470,6 +467,14 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     .getManagedLedgerException(FutureUtil.unwrapCompletionException(exception)), ctx);
             return null;
         });
+    }
+
+    protected ManagedLedgerImpl createManagedLedger(BookKeeper bk, MetaStore store, String name,
+                                                    ManagedLedgerConfig config,
+                                                    Supplier<CompletableFuture<Boolean>> mlOwnershipChecker) {
+        return config.getShadowSource() == null
+                ? new ManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name, mlOwnershipChecker) :
+                new ShadowManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name, mlOwnershipChecker);
     }
 
     @Override

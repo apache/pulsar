@@ -586,7 +586,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
     }
 
-    private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,
+
+    /**
+     * Create a new subscription instance for the topic.
+     * This protected method can be overridden in tests to return a special test implementation instance.
+     * @param subscriptionName the name of the subscription
+     * @param cursor the cursor to use for the subscription
+     * @param replicated the subscription replication flag
+     * @param subscriptionProperties the subscription properties
+     * @return the subscription instance
+     */
+    protected PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,
             Boolean replicated, Map<String, String> subscriptionProperties) {
         requireNonNull(topicCompactionService);
         if (isCompactionSubscription(subscriptionName)
