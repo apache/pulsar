@@ -632,7 +632,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     for (final String cursorName : consumers) {
                         log.info("[{}] Loading cursor {}", name, cursorName);
                         final ManagedCursorImpl cursor;
-                        cursor = new ManagedCursorImpl(bookKeeper, ManagedLedgerImpl.this, cursorName);
+                        cursor = createCursor(ManagedLedgerImpl.this.bookKeeper, cursorName);
 
                         cursor.recover(new VoidCallback() {
                             @Override
@@ -663,7 +663,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             log.debug("[{}] Recovering cursor {} lazily", name, cursorName);
                         }
                         final ManagedCursorImpl cursor;
-                        cursor = new ManagedCursorImpl(bookKeeper, ManagedLedgerImpl.this, cursorName);
+                        cursor = createCursor(ManagedLedgerImpl.this.bookKeeper, cursorName);
                         CompletableFuture<ManagedCursor> cursorRecoveryFuture = new CompletableFuture<>();
                         uninitializedCursors.put(cursorName, cursorRecoveryFuture);
 
@@ -1007,7 +1007,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Creating new cursor: {}", name, cursorName);
         }
-        final ManagedCursorImpl cursor = new ManagedCursorImpl(bookKeeper, this, cursorName);
+        final ManagedCursorImpl cursor = createCursor(bookKeeper, cursorName);
         CompletableFuture<ManagedCursor> cursorFuture = new CompletableFuture<>();
         uninitializedCursors.put(cursorName, cursorFuture);
         Position position = InitialPosition.Earliest == initialPosition ? getFirstPosition() : getLastPosition();
@@ -1037,6 +1037,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 callback.openCursorFailed(exception, ctx);
             }
         });
+    }
+
+    protected ManagedCursorImpl createCursor(BookKeeper bookKeeper, String cursorName) {
+        return new ManagedCursorImpl(bookKeeper, this, cursorName);
     }
 
     @Override
