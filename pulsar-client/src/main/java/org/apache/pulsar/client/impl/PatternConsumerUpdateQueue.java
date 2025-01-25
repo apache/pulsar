@@ -55,7 +55,7 @@ public class PatternConsumerUpdateQueue {
 
     private final PatternMultiTopicsConsumerImpl patternConsumer;
 
-    private final PatternMultiTopicsConsumerImpl.TopicsChangedListener topicsChangeListener;
+    private final TopicsChangedListener topicsChangeListener;
 
     /**
      * Whether there is a task is in progress, this variable is used to confirm whether a next-task triggering is
@@ -82,7 +82,7 @@ public class PatternConsumerUpdateQueue {
     /** This constructor is only for test. **/
     @VisibleForTesting
     public PatternConsumerUpdateQueue(PatternMultiTopicsConsumerImpl patternConsumer,
-                                      PatternMultiTopicsConsumerImpl.TopicsChangedListener topicsChangeListener) {
+                                      TopicsChangedListener topicsChangeListener) {
         this.patternConsumer = patternConsumer;
         this.topicsChangeListener = topicsChangeListener;
         this.pendingTasks = new LinkedBlockingQueue<>();

@@ -36,14 +36,14 @@ import java.util.function.Consumer;
 
 public class PatternMultiTopicsConsumerImplTest {
 
-    private PatternMultiTopicsConsumerImpl.TopicsChangedListener mockListener;
+    private TopicsChangedListener mockListener;
 
     private Consumer<String> mockTopicsHashSetter;
 
 
     @BeforeMethod(alwaysRun = true)
     public void setUp() {
-        mockListener = mock(PatternMultiTopicsConsumerImpl.TopicsChangedListener.class);
+        mockListener = mock(TopicsChangedListener.class);
         when(mockListener.onTopicsAdded(any())).thenReturn(CompletableFuture.completedFuture(null));
         when(mockListener.onTopicsRemoved(any())).thenReturn(CompletableFuture.completedFuture(null));
         mockTopicsHashSetter = mock(Consumer.class);

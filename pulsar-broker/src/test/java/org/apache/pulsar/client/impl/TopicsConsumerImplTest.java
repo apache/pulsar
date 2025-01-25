@@ -43,6 +43,7 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SelectiveConsumerHandler;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TopicMessageId;
@@ -80,6 +81,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -1521,5 +1523,124 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         valuesInReceiveAsync.add(consumer4.receiveAsync().get().getValue());
         valuesInReceiveAsync.add(consumer4.receiveAsync().get().getValue());
         assertEquals(valuesInReceiveAsync.stream().sorted().toList(), Arrays.asList("1-1", "2-1"));
+    }
+
+    @Test(timeOut = 20000)
+    public void testCloseAndAddGivenTopicConsumers() throws Exception {
+        String baseTopicName = "persistent://my-property/my-ns/testCloseAndAddGivenTopicConsumers-" + System.currentTimeMillis();
+        List<String> topics = new ArrayList<>();
+        topics.add(baseTopicName + "-1");
+        topics.add(baseTopicName + "-2");
+        topics.add(baseTopicName + "-3");
+
+        // create 3 topics.
+        Producer<String> producer1 = pulsarClient.newProducer(Schema.STRING)
+                .topic(baseTopicName + "-1")
+                .create();
+        Producer<String> producer2 = pulsarClient.newProducer(Schema.STRING)
+                .topic(baseTopicName + "-2")
+                .create();
+        Producer<String> producer3 = pulsarClient.newProducer(Schema.STRING)
+                .topic(baseTopicName + "-3")
+                .create();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topics(topics)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Failover)
+                .subscribe();
+        Optional<SelectiveConsumerHandler> extensionHandler = consumer.getExtension(SelectiveConsumerHandler.class);
+        assertTrue(extensionHandler.isPresent());
+
+        sendMessage(producer1, "msg1-1", consumer);
+        sendMessage(producer2, "msg2-1", consumer);
+        sendMessage(producer3, "msg3-1", consumer);
+
+        Set<String> blockTopics = new HashSet<>();
+        blockTopics.add(baseTopicName + "-2");
+        blockTopics.add(baseTopicName + "-3");
+
+        extensionHandler.ifPresent(handler -> {
+            handler.closeTopicConsumer(blockTopics);
+        });
+
+        // waiting for consumers to be closed.
+        Thread.sleep(2000);
+        sendMessage(producer1, "msg1-2", consumer);
+        producer2.send("msg2-2");
+        producer3.send("msg3-2");
+
+        // await to check if msg2-2 and msg3-2 is not received in 5 seconds.
+        Awaitility.await().during(5, TimeUnit.SECONDS).until(() -> {
+            Message<String> receivedMessage = consumer.receive(100, TimeUnit.MILLISECONDS);
+            if (receivedMessage != null
+                    && (receivedMessage.getValue().equals("msg2-2") || receivedMessage.getValue().equals("msg3-2"))) {
+                throw new AssertionError("Received message which was supposed to be blocked");
+            }
+            return receivedMessage == null
+                    || (!receivedMessage.getValue().equals("msg2-2") && !receivedMessage.getValue().equals("msg3-2"));
+        });
+
+        extensionHandler.ifPresent(handler -> {
+            handler.addTopicConsumer(blockTopics);
+        });
+
+        Thread.sleep(2000);
+
+        receivedAndAckedMessage(consumer);
+        receivedAndAckedMessage(consumer);
+        producer2.send("msg2-3");
+        receivedAndAckedMessage(consumer, "msg2-3");
+        producer3.send("msg3-3");
+        receivedAndAckedMessage(consumer, "msg3-3");
+    }
+
+    @Test(timeOut = 20000)
+    public void testCloseUnExistsTopicConsumer() throws Exception {
+        String baseTopicName = "persistent://my-property/my-ns/testCloseUnExistsTopicConsumer-"
+                + System.currentTimeMillis();
+        Pattern pattern = Pattern.compile(baseTopicName + ".*");
+        Producer<String> producer1 = pulsarClient.newProducer(Schema.STRING)
+                .topic(baseTopicName + "-1")
+                .create();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topicsPattern(pattern)
+                .patternAutoDiscoveryPeriod(1, TimeUnit.SECONDS)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Failover)
+                .subscribe();
+        Optional<SelectiveConsumerHandler> extensionHandler = consumer.getExtension(SelectiveConsumerHandler.class);
+        assertTrue(extensionHandler.isPresent());
+
+        sendMessage(producer1, "msg1-1", consumer);
+
+        Set<String> blockTopics = new HashSet<>();
+        blockTopics.add(baseTopicName + "-2");
+        extensionHandler.ifPresent(handler -> {
+            handler.closeTopicConsumer(blockTopics);
+        });
+
+        Producer<String> producer2 = pulsarClient.newProducer(Schema.STRING)
+                .topic(baseTopicName + "-2")
+                .create();
+        Thread.sleep(2000);
+        // Will ignore the closed request. At this time, messages can still be consumed.
+        sendMessage(producer2, "msg2-1", consumer);
+    }
+
+    private <T> void sendMessage(Producer<T> producer, T sendMessage,
+                                 Consumer<T> consumer) throws PulsarClientException {
+        producer.send(sendMessage);
+        receivedAndAckedMessage(consumer, sendMessage);
+    }
+
+    private <T> void receivedAndAckedMessage(Consumer<T> consumer, T sendMessage) throws PulsarClientException {
+        Message<T> message = consumer.receive();
+        assertEquals(message.getValue(), sendMessage);
+        consumer.acknowledge(message);
+    }
+
+    private <T> void receivedAndAckedMessage(Consumer<T> consumer) throws PulsarClientException {
+        Message<T> message = consumer.receive();
+        consumer.acknowledge(message);
     }
 }
