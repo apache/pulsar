@@ -74,7 +74,7 @@ public class TransactionPersistentTopicTest extends ProducerConsumerBase {
 
         BrokerService brokerService = pulsar.getBrokerService();
 
-        // 2. Mock close topic when create transactionBuffer
+        // 1. Mock close topic when create transactionBuffer
         TransactionBufferProvider mockTransactionBufferProvider = originTopic -> {
             AbortedTxnProcessor abortedTxnProcessor = mock(AbortedTxnProcessor.class);
             doAnswer(invocation -> {
@@ -88,7 +88,7 @@ public class TransactionPersistentTopicTest extends ProducerConsumerBase {
         TransactionBufferProvider originalTransactionBufferProvider = pulsar.getTransactionBufferProvider();
         pulsar.setTransactionBufferProvider(mockTransactionBufferProvider);
 
-        // 3. Trigger create topic and assert topic load success.
+        // 2. Trigger create topic and assert topic load success.
         CompletableFuture<Optional<Topic>> firstLoad = brokerService.getTopic(tpName, true);
         Awaitility.await().ignoreExceptions().atMost(10, TimeUnit.SECONDS)
                 .pollInterval(200, TimeUnit.MILLISECONDS)
@@ -97,14 +97,14 @@ public class TransactionPersistentTopicTest extends ProducerConsumerBase {
                     assertFalse(firstLoad.isCompletedExceptionally());
                 });
 
-        // 4. Assert topic removed from cache
+        // 3. Assert topic removed from cache
         Awaitility.await().ignoreExceptions().atMost(10, TimeUnit.SECONDS)
                 .pollInterval(500, TimeUnit.MILLISECONDS)
                 .untilAsserted(() -> {
                     assertFalse(brokerService.getTopics().containsKey(tpName));
                 });
 
-        // 5. Set txn provider to back
+        // 4. Set txn provider to back
         pulsar.setTransactionBufferProvider(originalTransactionBufferProvider);
     }
 
