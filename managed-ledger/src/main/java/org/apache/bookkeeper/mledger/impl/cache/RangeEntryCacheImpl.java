@@ -420,7 +420,8 @@ public class RangeEntryCacheImpl implements EntryCache {
         }
     }
 
-    private long getEstimatedEntrySize() {
+    @VisibleForTesting
+    public long getEstimatedEntrySize() {
         long estimatedEntrySize = getAvgEntrySize();
         if (estimatedEntrySize == 0) {
             estimatedEntrySize = DEFAULT_ESTIMATED_ENTRY_SIZE;
