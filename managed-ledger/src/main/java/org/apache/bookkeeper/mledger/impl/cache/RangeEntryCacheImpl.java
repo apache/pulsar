@@ -56,7 +56,7 @@ public class RangeEntryCacheImpl implements EntryCache {
     /**
      * Overhead per-entry to take into account the envelope.
      */
-    private static final long BOOKKEEPER_READ_OVERHEAD_PER_ENTRY = 64;
+    public static final long BOOKKEEPER_READ_OVERHEAD_PER_ENTRY = 64;
 
     private final RangeEntryCacheManagerImpl manager;
     final ManagedLedgerImpl ml;
@@ -101,7 +101,7 @@ public class RangeEntryCacheImpl implements EntryCache {
     }
 
     @VisibleForTesting
-    InflightReadsLimiter getPendingReadsLimiter() {
+    public InflightReadsLimiter getPendingReadsLimiter() {
         return manager.getInflightReadsLimiter();
     }
 
@@ -281,7 +281,7 @@ public class RangeEntryCacheImpl implements EntryCache {
     public void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, boolean shouldCacheEntry,
             final ReadEntriesCallback callback, Object ctx) {
         try {
-            asyncReadEntry0(lh, firstEntry, lastEntry, shouldCacheEntry, callback, ctx);
+            asyncReadEntry0(lh, firstEntry, lastEntry, shouldCacheEntry, callback, ctx, true);
         } catch (Throwable t) {
             log.warn("failed to read entries for {}--{}-{}", lh.getId(), firstEntry, lastEntry, t);
             // invalidate all entries related to ledger from the cache (it might happen if entry gets corrupt
@@ -294,16 +294,20 @@ public class RangeEntryCacheImpl implements EntryCache {
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
     void asyncReadEntry0(ReadHandle lh, long firstEntry, long lastEntry, boolean shouldCacheEntry,
-            final ReadEntriesCallback callback, Object ctx) {
-        asyncReadEntry0WithLimits(lh, firstEntry, lastEntry, shouldCacheEntry, callback, ctx, null);
+            final ReadEntriesCallback callback, Object ctx, boolean withLimits) {
+        asyncReadEntry0WithLimits(lh, firstEntry, lastEntry, shouldCacheEntry, callback, ctx, null, withLimits);
     }
 
     void asyncReadEntry0WithLimits(ReadHandle lh, long firstEntry, long lastEntry, boolean shouldCacheEntry,
-        final ReadEntriesCallback originalCallback, Object ctx, InflightReadsLimiter.Handle handle) {
-
-        final AsyncCallbacks.ReadEntriesCallback callback =
-                handlePendingReadsLimits(lh, firstEntry, lastEntry, shouldCacheEntry,
-                        originalCallback, ctx, handle);
+        final ReadEntriesCallback originalCallback, Object ctx, InflightReadsLimiter.Handle handle,
+                                   boolean withLimits) {
+        AsyncCallbacks.ReadEntriesCallback callback;
+        if (withLimits) {
+            callback = handlePendingReadsLimits(lh, firstEntry, lastEntry, shouldCacheEntry, originalCallback, ctx,
+                    handle);
+        } else {
+            callback = originalCallback;
+        }
         if (callback == null) {
             return;
         }
@@ -381,7 +385,7 @@ public class RangeEntryCacheImpl implements EntryCache {
             }
             ml.getExecutor().execute(() -> {
                 asyncReadEntry0WithLimits(lh, firstEntry, lastEntry, shouldCacheEntry,
-                        originalCallback, ctx, newHandle);
+                        originalCallback, ctx, newHandle, true);
             });
             return null;
         } else {
