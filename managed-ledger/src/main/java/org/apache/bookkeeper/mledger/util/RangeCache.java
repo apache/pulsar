@@ -106,7 +106,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
             return localKey;
         }
 
-        V getValue(K key) {
+        V getValue(K key, boolean requireSameKeyInstance) {
             long stamp = lock.tryOptimisticRead();
             K localKey = this.key;
             V localValue = this.value;
@@ -116,7 +116,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
                 localValue = this.value;
                 lock.unlockRead(stamp);
             }
-            if (localKey != key) {
+            if (localKey != key && (requireSameKeyInstance || localKey == null || !localKey.equals(key))) {
                 return null;
             }
             return localValue;
@@ -236,14 +236,14 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
      * The caller is responsible for releasing the reference.
      */
     public Value get(Key key) {
-        return getValue(key, entries.get(key));
+        return getValue(key, entries.get(key), false);
     }
 
-    private  Value getValue(Key key, EntryWrapper<Key, Value> valueWrapper) {
+    private  Value getValue(Key key, EntryWrapper<Key, Value> valueWrapper, boolean requireSameKeyInstance) {
         if (valueWrapper == null) {
             return null;
         } else {
-            Value value = valueWrapper.getValue(key);
+            Value value = valueWrapper.getValue(key, requireSameKeyInstance);
             if (value == null) {
                 // the wrapper has been recycled and contains another key
                 return null;
@@ -280,7 +280,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
 
         // Return the values of the entries found in cache
         for (Map.Entry<Key, EntryWrapper<Key, Value>> entry : entries.subMap(first, true, last, true).entrySet()) {
-            Value value = getValue(entry.getKey(), entry.getValue());
+            Value value = getValue(entry.getKey(), entry.getValue(), true);
             if (value != null) {
                 values.add(value);
             }
@@ -320,7 +320,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
                                           boolean skipInvalid, Predicate<Value> removeCondition) {
         Key key = entry.getKey();
         EntryWrapper<Key, Value> entryWrapper = entry.getValue();
-        Value value = entryWrapper.getValue(key);
+        Value value = entryWrapper.getValue(key, true);
         if (value == null) {
             // the wrapper has already been recycled and contains another key
             if (!skipInvalid) {
