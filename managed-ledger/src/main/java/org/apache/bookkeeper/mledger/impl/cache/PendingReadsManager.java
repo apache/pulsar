@@ -232,8 +232,66 @@ public class PendingReadsManager {
             this.ledgerCache = ledgerCache;
         }
 
-        private List<EntryImpl> keepEntries(List<EntryImpl> list, long startEntry, long endEntry) {
-            List<EntryImpl> result = new ArrayList<>((int) (endEntry - startEntry));
+        public void attach(CompletableFuture<List<EntryImpl>> handle) {
+            handle.whenComplete((entriesToReturn, error) -> {
+                // execute in the completing thread
+                completeAndRemoveFromCache();
+                // execute the callbacks in the managed ledger executor
+                rangeEntryCache.getManagedLedger().getExecutor().execute(() -> {
+                    if (error != null) {
+                        readEntriesFailed(error);
+                    } else {
+                        readEntriesComplete(entriesToReturn);
+                    }
+                });
+            });
+        }
+
+        private synchronized void completeAndRemoveFromCache() {
+            completed = true;
+            // When the read has completed, remove the instance from the ledgerCache map
+            // so that new reads will go to a new instance.
+            // this is required because we are going to do refcount management
+            // on the results of the callback
+            synchronized (ledgerCache) {
+                ledgerCache.remove(key, this);
+            }
+        }
+
+        private synchronized void readEntriesComplete(List<EntryImpl> entriesToReturn) {
+            if (callbacks.size() == 1) {
+                ReadEntriesCallbackWithContext first = callbacks.get(0);
+                if (first.startEntry == key.startEntry
+                        && first.endEntry == key.endEntry) {
+                    // perfect match, no copy, this is the most common case
+                    first.callback.readEntriesComplete((List) entriesToReturn,
+                            first.ctx);
+                } else {
+                    first.callback.readEntriesComplete(
+                            keepEntries(entriesToReturn, first.startEntry, first.endEntry),
+                            first.ctx);
+                }
+            } else {
+                for (ReadEntriesCallbackWithContext callback : callbacks) {
+                    callback.callback.readEntriesComplete(
+                            copyEntries(entriesToReturn, callback.startEntry, callback.endEntry),
+                            callback.ctx);
+                }
+                for (EntryImpl entry : entriesToReturn) {
+                    entry.release();
+                }
+            }
+        }
+
+        private synchronized void readEntriesFailed(Throwable error) {
+            for (ReadEntriesCallbackWithContext callback : callbacks) {
+                ManagedLedgerException mlException = createManagedLedgerException(error);
+                callback.callback.readEntriesFailed(mlException, callback.ctx);
+            }
+        }
+
+        private List<Entry> keepEntries(List<EntryImpl> list, long startEntry, long endEntry) {
+            List<Entry> result = new ArrayList<>((int) (endEntry - startEntry));
             for (EntryImpl entry : list) {
                 long entryId = entry.getEntryId();
                 if (startEntry <= entryId && entryId <= endEntry) {
@@ -245,62 +303,16 @@ public class PendingReadsManager {
             return result;
         }
 
-        public void attach(CompletableFuture<List<EntryImpl>> handle) {
-            // when the future is done remove this from the map
-            // new reads will go to a new instance
-            // this is required because we are going to do refcount management
-            // on the results of the callback
-            handle.whenComplete((___, error) -> {
-                synchronized (PendingRead.this) {
-                    completed = true;
-                    synchronized (ledgerCache) {
-                        ledgerCache.remove(key, this);
-                    }
+        private List<Entry> copyEntries(List<EntryImpl> entriesToReturn, long startEntry, long endEntry) {
+            List<Entry> result = new ArrayList<>((int) (endEntry - startEntry + 1));
+            for (EntryImpl entry : entriesToReturn) {
+                long entryId = entry.getEntryId();
+                if (startEntry <= entryId && entryId <= endEntry) {
+                    EntryImpl entryCopy = EntryImpl.create(entry);
+                    result.add(entryCopy);
                 }
-            });
-
-            handle.thenAcceptAsync(entriesToReturn -> {
-                synchronized (PendingRead.this) {
-                    if (callbacks.size() == 1) {
-                        ReadEntriesCallbackWithContext first = callbacks.get(0);
-                        if (first.startEntry == key.startEntry
-                                && first.endEntry == key.endEntry) {
-                            // perfect match, no copy, this is the most common case
-                            first.callback.readEntriesComplete((List) entriesToReturn,
-                                    first.ctx);
-                        } else {
-                            first.callback.readEntriesComplete(
-                                    (List) keepEntries(entriesToReturn, first.startEntry, first.endEntry),
-                                    first.ctx);
-                        }
-                    } else {
-                        for (ReadEntriesCallbackWithContext callback : callbacks) {
-                            long callbackStartEntry = callback.startEntry;
-                            long callbackEndEntry = callback.endEntry;
-                            List<EntryImpl> copy = new ArrayList<>((int) (callbackEndEntry - callbackStartEntry + 1));
-                            for (EntryImpl entry : entriesToReturn) {
-                                long entryId = entry.getEntryId();
-                                if (callbackStartEntry <= entryId && entryId <= callbackEndEntry) {
-                                    EntryImpl entryCopy = EntryImpl.create(entry);
-                                    copy.add(entryCopy);
-                                }
-                            }
-                            callback.callback.readEntriesComplete((List) copy, callback.ctx);
-                        }
-                        for (EntryImpl entry : entriesToReturn) {
-                            entry.release();
-                        }
-                    }
-                }
-            }, rangeEntryCache.getManagedLedger().getExecutor()).exceptionally(exception -> {
-                synchronized (PendingRead.this) {
-                    for (ReadEntriesCallbackWithContext callback : callbacks) {
-                        ManagedLedgerException mlException = createManagedLedgerException(exception);
-                        callback.callback.readEntriesFailed(mlException, callback.ctx);
-                    }
-                }
-                return null;
-            });
+            }
+            return result;
         }
 
         synchronized boolean addListener(AsyncCallbacks.ReadEntriesCallback callback,
