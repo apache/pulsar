@@ -2114,6 +2114,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " Consumer Netty channel. Use O to disable")
     private long managedLedgerMaxReadsInFlightSizeInMB = 0;
 
+    @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum time to wait for acquiring permits for max reads in "
+            + "flight when managedLedgerMaxReadsInFlightSizeInMB is set (>0) and the limit is reached.")
+    private long managedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis = 60000;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum number of reads that can be queued for acquiring "
+            + "permits for max reads in flight when managedLedgerMaxReadsInFlightSizeInMB is set (>0) and the limit "
+            + "is reached.")
+    private int managedLedgerMaxReadsInFlightPermitsAcquireQueueSize = 50000;
+
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         dynamic = true,

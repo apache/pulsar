@@ -21,22 +21,30 @@ package org.apache.bookkeeper.mledger.impl.cache;
 import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
 import static org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.InflightReadLimiterUtilization.FREE;
 import static org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.InflightReadLimiterUtilization.USED;
+import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.tuple.Pair;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
 public class InflightReadsLimiterTest {
+    private static final int ACQUIRE_QUEUE_SIZE = 1000;
+    private static final int ACQUIRE_TIMEOUT_MILLIS = 500;
 
     @DataProvider
     private static Object[][] isDisabled() {
@@ -53,7 +61,8 @@ public class InflightReadsLimiterTest {
         @Cleanup var openTelemetry = otel.getLeft();
         @Cleanup var metricReader = otel.getRight();
 
-        var limiter = new InflightReadsLimiter(maxReadsInFlightSize, openTelemetry);
+        var limiter = new InflightReadsLimiter(maxReadsInFlightSize, ACQUIRE_QUEUE_SIZE, ACQUIRE_TIMEOUT_MILLIS,
+                mock(ScheduledExecutorService.class), openTelemetry);
         assertEquals(limiter.isDisabled(), shouldBeDisabled);
 
         if (shouldBeDisabled) {
@@ -72,15 +81,18 @@ public class InflightReadsLimiterTest {
         @Cleanup var openTelemetry = otel.getLeft();
         @Cleanup var metricReader = otel.getRight();
 
-        InflightReadsLimiter limiter = new InflightReadsLimiter(100, openTelemetry);
+        InflightReadsLimiter limiter =
+                new InflightReadsLimiter(100, ACQUIRE_QUEUE_SIZE, ACQUIRE_TIMEOUT_MILLIS,
+                        mock(ScheduledExecutorService.class), openTelemetry);
         assertEquals(100, limiter.getRemainingBytes());
         assertLimiterMetrics(metricReader, 100, 0, 100);
 
-        InflightReadsLimiter.Handle handle = limiter.acquire(100, null);
+        Optional<InflightReadsLimiter.Handle> optionalHandle = limiter.acquire(100, null);
         assertEquals(0, limiter.getRemainingBytes());
+        assertTrue(optionalHandle.isPresent());
+        InflightReadsLimiter.Handle handle = optionalHandle.get();
         assertTrue(handle.success);
-        assertEquals(handle.acquiredPermits, 100);
-        assertEquals(1, handle.trials);
+        assertEquals(handle.permits, 100);
         assertLimiterMetrics(metricReader, 100, 100, 0);
 
         limiter.release(handle);
@@ -91,117 +103,48 @@ public class InflightReadsLimiterTest {
 
     @Test
     public void testNotEnoughPermits() throws Exception {
-        InflightReadsLimiter limiter = new InflightReadsLimiter(100, OpenTelemetry.noop());
+        InflightReadsLimiter limiter =
+                new InflightReadsLimiter(100, ACQUIRE_QUEUE_SIZE, ACQUIRE_TIMEOUT_MILLIS,
+                        mock(ScheduledExecutorService.class), OpenTelemetry.noop());
         assertEquals(100, limiter.getRemainingBytes());
-        InflightReadsLimiter.Handle handle = limiter.acquire(100, null);
+        Optional<InflightReadsLimiter.Handle> optionalHandle = limiter.acquire(100, null);
         assertEquals(0, limiter.getRemainingBytes());
+        assertTrue(optionalHandle.isPresent());
+        InflightReadsLimiter.Handle handle = optionalHandle.get();
         assertTrue(handle.success);
-        assertEquals(handle.acquiredPermits, 100);
-        assertEquals(1, handle.trials);
+        assertEquals(handle.permits, 100);
 
-        InflightReadsLimiter.Handle handle2 = limiter.acquire(100, null);
+        MutableObject<InflightReadsLimiter.Handle> handle2Reference = new MutableObject<>();
+        Optional<InflightReadsLimiter.Handle> optionalHandle2 = limiter.acquire(100, handle2Reference::setValue);
         assertEquals(0, limiter.getRemainingBytes());
-        assertFalse(handle2.success);
-        assertEquals(handle2.acquiredPermits, 0);
-        assertEquals(1, handle2.trials);
+        assertFalse(optionalHandle2.isPresent());
 
         limiter.release(handle);
+        assertNotNull(handle2Reference.getValue());
+        assertTrue(handle2Reference.getValue().success);
+
+        limiter.release(handle2Reference.getValue());
         assertEquals(100, limiter.getRemainingBytes());
-
-        handle2 = limiter.acquire(100, handle2);
-        assertEquals(0, limiter.getRemainingBytes());
-        assertTrue(handle2.success);
-        assertEquals(handle2.acquiredPermits, 100);
-        assertEquals(2, handle2.trials);
-
-        limiter.release(handle2);
-        assertEquals(100, limiter.getRemainingBytes());
-
     }
 
     @Test
-    public void testPartialAcquire() throws Exception {
-        InflightReadsLimiter limiter = new InflightReadsLimiter(100, OpenTelemetry.noop());
+    public void testAcquireTimeout() throws Exception {
+        @Cleanup("shutdownNow")
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+        InflightReadsLimiter limiter =
+                new InflightReadsLimiter(100, ACQUIRE_QUEUE_SIZE, ACQUIRE_TIMEOUT_MILLIS,
+                        executor, OpenTelemetry.noop());
         assertEquals(100, limiter.getRemainingBytes());
+        limiter.acquire(100, null);
 
-        InflightReadsLimiter.Handle handle = limiter.acquire(30, null);
-        assertEquals(70, limiter.getRemainingBytes());
-        assertTrue(handle.success);
-        assertEquals(handle.acquiredPermits, 30);
-        assertEquals(1, handle.trials);
+        MutableObject<InflightReadsLimiter.Handle> handle2Reference = new MutableObject<>();
+        Optional<InflightReadsLimiter.Handle> optionalHandle2 = limiter.acquire(100, handle2Reference::setValue);
+        assertFalse(optionalHandle2.isPresent());
 
-        InflightReadsLimiter.Handle handle2 = limiter.acquire(100, null);
-        assertEquals(0, limiter.getRemainingBytes());
-        assertFalse(handle2.success);
-        assertEquals(handle2.acquiredPermits, 70);
-        assertEquals(1, handle2.trials);
+        Thread.sleep(ACQUIRE_TIMEOUT_MILLIS + 100);
 
-        limiter.release(handle);
-
-        handle2 = limiter.acquire(100, handle2);
-        assertEquals(0, limiter.getRemainingBytes());
-        assertTrue(handle2.success);
-        assertEquals(handle2.acquiredPermits, 100);
-        assertEquals(2, handle2.trials);
-
-        limiter.release(handle2);
-        assertEquals(100, limiter.getRemainingBytes());
-
-    }
-
-    @Test
-    public void testTooManyTrials() throws Exception {
-        InflightReadsLimiter limiter = new InflightReadsLimiter(100, OpenTelemetry.noop());
-        assertEquals(100, limiter.getRemainingBytes());
-
-        InflightReadsLimiter.Handle handle = limiter.acquire(30, null);
-        assertEquals(70, limiter.getRemainingBytes());
-        assertTrue(handle.success);
-        assertEquals(handle.acquiredPermits, 30);
-        assertEquals(1, handle.trials);
-
-        InflightReadsLimiter.Handle handle2 = limiter.acquire(100, null);
-        assertEquals(0, limiter.getRemainingBytes());
-        assertFalse(handle2.success);
-        assertEquals(handle2.acquiredPermits, 70);
-        assertEquals(1, handle2.trials);
-
-        handle2 = limiter.acquire(100, handle2);
-        assertEquals(0, limiter.getRemainingBytes());
-        assertFalse(handle2.success);
-        assertEquals(handle2.acquiredPermits, 70);
-        assertEquals(2, handle2.trials);
-
-        handle2 = limiter.acquire(100, handle2);
-        assertEquals(0, limiter.getRemainingBytes());
-        assertFalse(handle2.success);
-        assertEquals(handle2.acquiredPermits, 70);
-        assertEquals(3, handle2.trials);
-
-        handle2 = limiter.acquire(100, handle2);
-        assertEquals(0, limiter.getRemainingBytes());
-        assertFalse(handle2.success);
-        assertEquals(handle2.acquiredPermits, 70);
-        assertEquals(4, handle2.trials);
-
-        // too many trials, start from scratch
-        handle2 = limiter.acquire(100, handle2);
-        assertEquals(70, limiter.getRemainingBytes());
-        assertFalse(handle2.success);
-        assertEquals(handle2.acquiredPermits, 0);
-        assertEquals(1, handle2.trials);
-
-        limiter.release(handle);
-
-        handle2 = limiter.acquire(100, handle2);
-        assertEquals(0, limiter.getRemainingBytes());
-        assertTrue(handle2.success);
-        assertEquals(handle2.acquiredPermits, 100);
-        assertEquals(2, handle2.trials);
-
-        limiter.release(handle2);
-        assertEquals(100, limiter.getRemainingBytes());
-
+        assertNotNull(handle2Reference.getValue());
+        assertFalse(handle2Reference.getValue().success);
     }
 
     private Pair<OpenTelemetrySdk, InMemoryMetricReader> buildOpenTelemetryAndReader() {
