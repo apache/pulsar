@@ -483,7 +483,8 @@ public class ClientCnx extends PulsarHandler {
         ProducerImpl<?> producer = producers.get(producerId);
         if (ledgerId == -1 && entryId == -1) {
             log.warn("{} Message with sequence-id {}-{} published by producer [id:{}, name:{}] has been dropped",
-                    ctx.channel(), sequenceId, highestSequenceId, producerId, producer.getProducerName());
+                    ctx.channel(), sequenceId, highestSequenceId, producerId,
+                    producer != null ? producer.getProducerName() : "null");
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("{} Got receipt for producer: [id:{}, name:{}] -- sequence-id: {}-{} -- entry-id: {}:{}",
