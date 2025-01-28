@@ -80,7 +80,8 @@ public abstract class PerformanceBaseArguments extends CmdBase {
     @Option(names = {"--keystore-path"}, description = "Path to the keystore.", descriptionKey = "tlsKeyStorePath")
     public String tlsKeyStorePath = "";
 
-    @Option(names = {"--keystore-pass"}, description = "Password to the keystore.", descriptionKey = "tlsKeyStorePassword")
+    @Option(names = {"--keystore-pass"}, description = "Password to the keystore.",
+            descriptionKey = "tlsKeyStorePassword")
     public String tlsKeyStorePassword = "";
 
     @Option(names = {
