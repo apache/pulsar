@@ -297,6 +297,9 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
      * @return an pair of ints, containing the number of removed entries and the total size
      */
     public Pair<Integer, Long> removeRange(Key first, Key last, boolean lastInclusive) {
+        if (log.isDebugEnabled()) {
+            log.debug("Removing entries in range [{}, {}], lastInclusive: {}", first, last, lastInclusive);
+        }
         RemovalCounters counters = RemovalCounters.create();
         Map<Key, EntryWrapper<Key, Value>> subMap = entries.subMap(first, true, last, lastInclusive);
         for (Map.Entry<Key, EntryWrapper<Key, Value>> entry : subMap.entrySet()) {
@@ -404,6 +407,9 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
      * @return a pair containing the number of entries evicted and their total size
      */
     public Pair<Integer, Long> evictLeastAccessedEntries(long minSize) {
+        if (log.isDebugEnabled()) {
+            log.debug("Evicting entries to reach a minimum size of {}", minSize);
+        }
         checkArgument(minSize > 0);
         RemovalCounters counters = RemovalCounters.create();
         while (counters.removedSize < minSize && !Thread.currentThread().isInterrupted()) {
@@ -422,6 +428,9 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
     * @return the tota
     */
    public Pair<Integer, Long> evictLEntriesBeforeTimestamp(long maxTimestamp) {
+       if (log.isDebugEnabled()) {
+              log.debug("Evicting entries with timestamp <= {}", maxTimestamp);
+       }
        RemovalCounters counters = RemovalCounters.create();
        while (!Thread.currentThread().isInterrupted()) {
            Map.Entry<Key, EntryWrapper<Key, Value>> entry = entries.firstEntry();
@@ -453,6 +462,9 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
      * @return size of removed entries
      */
     public Pair<Integer, Long> clear() {
+        if (log.isDebugEnabled()) {
+            log.debug("Clearing the cache with {} entries and size {}", entries.size(), size.get());
+        }
         RemovalCounters counters = RemovalCounters.create();
         while (!Thread.currentThread().isInterrupted()) {
             Map.Entry<Key, EntryWrapper<Key, Value>> entry = entries.firstEntry();
