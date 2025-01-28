@@ -27,6 +27,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import javax.ws.rs.client.WebTarget;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.NotFoundException;
@@ -46,7 +47,6 @@ import org.apache.pulsar.common.protocol.schema.GetSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -98,11 +98,14 @@ public class HttpLookupService implements LookupService {
     public CompletableFuture<LookupTopicResult> getBroker(TopicName topicName) {
         String basePath = topicName.isV2() ? BasePathV2 : BasePathV1;
         String path = basePath + topicName.getLookupName();
-        path = StringUtils.isBlank(listenerName) ? path : path + "?listenerName=" + Codec.encode(listenerName);
-
         long startTime = System.nanoTime();
-        CompletableFuture<LookupData> httpFuture = httpClient.get(path, LookupData.class);
-
+        CompletableFuture<LookupData> httpFuture = httpClient.get(n -> {
+            WebTarget webTarget = n.path(path);
+            if (!StringUtils.isBlank(listenerName)) {
+                webTarget = webTarget.queryParam("listenerName", listenerName);
+            }
+            return webTarget;
+        }, LookupData.class);
         httpFuture.thenRun(() -> {
             histoGetBroker.recordSuccess(System.nanoTime() - startTime);
         }).exceptionally(x -> {
@@ -145,11 +148,10 @@ public class HttpLookupService implements LookupService {
         long startTime = System.nanoTime();
 
         String format = topicName.isV2() ? "admin/v2/%s/partitions" : "admin/%s/partitions";
-        CompletableFuture<PartitionedTopicMetadata> httpFuture =  httpClient.get(
-                String.format(format, topicName.getLookupName()) + "?checkAllowAutoCreation="
-                        + metadataAutoCreationEnabled,
-                PartitionedTopicMetadata.class);
-
+        CompletableFuture<PartitionedTopicMetadata> httpFuture =
+                httpClient.get(n -> n.path(String.format(format, topicName.getLookupName()))
+                                .queryParam("checkAllowAutoCreation", metadataAutoCreationEnabled),
+                        PartitionedTopicMetadata.class);
         httpFuture.thenRun(() -> {
             histoGetTopicMetadata.recordSuccess(System.nanoTime() - startTime);
         }).exceptionally(x -> {
@@ -177,18 +179,17 @@ public class HttpLookupService implements LookupService {
 
         CompletableFuture<GetTopicsResult> future = new CompletableFuture<>();
 
-        String format = namespace.isV2()
-            ? "admin/v2/namespaces/%s/topics?mode=%s" : "admin/namespaces/%s/destinations?mode=%s";
-        httpClient
-            .get(String.format(format, namespace, mode.toString()), String[].class)
-            .thenAccept(topics -> {
-                future.complete(new GetTopicsResult(topics));
-            }).exceptionally(ex -> {
-                Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                log.warn("Failed to getTopicsUnderNamespace namespace {} {}.", namespace, cause.getMessage());
-                future.completeExceptionally(cause);
-                return null;
-            });
+        String format = namespace.isV2() ? "admin/v2/namespaces/%s/topics" : "admin/namespaces/%s/destinations";
+        httpClient.get(n -> n.path(String.format(format, namespace)).queryParam("mode", mode),
+                        String[].class)
+                .thenAccept(topics -> {
+                    future.complete(new GetTopicsResult(topics));
+                }).exceptionally(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    log.warn("Failed to getTopicsUnderNamespace namespace {} {}.", namespace, cause.getMessage());
+                    future.completeExceptionally(cause);
+                    return null;
+                });
 
         future.thenRun(() -> {
             histoListTopics.recordSuccess(System.nanoTime() - startTime);
@@ -211,7 +212,7 @@ public class HttpLookupService implements LookupService {
         CompletableFuture<Optional<SchemaInfo>> future = new CompletableFuture<>();
 
         String schemaName = topicName.getSchemaName();
-        String path = String.format("admin/v2/schemas/%s/schema", schemaName);
+        String path;
         if (version != null) {
             if (version.length == 0) {
                 future.completeExceptionally(new SchemaSerializationException("Empty schema version"));
@@ -220,8 +221,10 @@ public class HttpLookupService implements LookupService {
             path = String.format("admin/v2/schemas/%s/schema/%s",
                     schemaName,
                     ByteBuffer.wrap(version).getLong());
+        } else {
+            path = String.format("admin/v2/schemas/%s/schema", schemaName);
         }
-        httpClient.get(path, GetSchemaResponse.class).thenAccept(response -> {
+        httpClient.get(n -> n.path(path), GetSchemaResponse.class).thenAccept(response -> {
             if (response.getType() == SchemaType.KEY_VALUE) {
                 SchemaData data = SchemaData
                         .builder()

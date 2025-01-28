@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.admin.internal.http;
+package org.apache.pulsar.client.internal.http;
 
 import static org.asynchttpclient.util.HttpConstants.Methods.GET;
 import static org.asynchttpclient.util.HttpConstants.Methods.HEAD;
@@ -58,9 +58,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.Validate;
 import org.apache.pulsar.PulsarVersion;
-import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.ServiceNameResolver;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.util.PulsarHttpAsyncSslEngineFactory;
@@ -105,25 +103,25 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
     private final boolean acceptGzipCompression;
     private final Map<String, ConcurrencyReducer<Response>> concurrencyReducers = new ConcurrentHashMap<>();
     private PulsarSslFactory sslFactory;
+    public static final int DEFAULT_REQUEST_TIMEOUT_SECONDS = 300;
 
     public AsyncHttpConnector(Client client, ClientConfigurationData conf, int autoCertRefreshTimeSeconds,
-                              boolean acceptGzipCompression) {
+                              boolean acceptGzipCompression, ServiceNameResolver serviceNameResolver) {
         this((int) client.getConfiguration().getProperty(ClientProperties.CONNECT_TIMEOUT),
                 (int) client.getConfiguration().getProperty(ClientProperties.READ_TIMEOUT),
-                PulsarAdminImpl.DEFAULT_REQUEST_TIMEOUT_SECONDS * 1000,
+                DEFAULT_REQUEST_TIMEOUT_SECONDS * 1000,
                 autoCertRefreshTimeSeconds,
-                conf, acceptGzipCompression);
+                conf, acceptGzipCompression, serviceNameResolver);
     }
 
     @SneakyThrows
     public AsyncHttpConnector(int connectTimeoutMs, int readTimeoutMs,
                               int requestTimeoutMs,
                               int autoCertRefreshTimeSeconds, ClientConfigurationData conf,
-                              boolean acceptGzipCompression) {
+                              boolean acceptGzipCompression,
+                              ServiceNameResolver serviceNameResolver) {
         Validate.notEmpty(conf.getServiceUrl(), "Service URL is not provided");
-        serviceNameResolver = new PulsarServiceNameResolver();
-        String serviceUrl = conf.getServiceUrl();
-        serviceNameResolver.updateServiceUrl(serviceUrl);
+        this.serviceNameResolver = serviceNameResolver;
         this.acceptGzipCompression = acceptGzipCompression;
         AsyncHttpClientConfig asyncHttpClientConfig =
                 createAsyncHttpClientConfig(conf, connectTimeoutMs, readTimeoutMs, requestTimeoutMs,
