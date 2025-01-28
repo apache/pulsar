@@ -30,9 +30,4 @@ public class JavaExecutionResult {
     private Throwable userException;
     private Object result;
     private final long startTime = System.nanoTime();
-
-    public void reset() {
-        setUserException(null);
-        setResult(null);
-    }
 }
