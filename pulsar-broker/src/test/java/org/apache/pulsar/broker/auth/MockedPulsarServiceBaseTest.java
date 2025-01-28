@@ -41,6 +41,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.TimeoutHandler;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -686,6 +687,10 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected void reconnectAllConnections() throws Exception {
         reconnectAllConnections((PulsarClientImpl) pulsarClient);
+    }
+
+    protected void logTopicStats(String topic) {
+        BrokerTestUtil.logTopicStats(log, admin, topic);
     }
 
     private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);
