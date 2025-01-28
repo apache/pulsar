@@ -36,5 +36,14 @@
     <Root level="INFO">
       <AppenderRef ref="CONSOLE"/>
     </Root>
+
+    <!-- Uncomment the following loggers for debugging broker cache related classes
+    <Logger name="org.apache.bookkeeper.mledger.impl.cache" level="DEBUG" additivity="false">
+      <AppenderRef ref="CONSOLE"/>
+    </Logger>
+    <Logger name="org.apache.bookkeeper.mledger.util.RangeCache" level="DEBUG" additivity="false">
+      <AppenderRef ref="CONSOLE"/>
+    </Logger>
+     -->
   </Loggers>
 </Configuration>

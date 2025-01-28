@@ -24,24 +24,28 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.netty.buffer.ByteBuf;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Future;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeperTestClient;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.api.DigestType;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -58,12 +62,10 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.util.ThrowableToStringUtil;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import io.netty.buffer.ByteBuf;
-import lombok.Cleanup;
 
 @Slf4j
 public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
@@ -234,6 +236,109 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         }
 
         factory.getMbean().refreshStats(1, TimeUnit.SECONDS);
+
+        assertTrue(factory.getMbean().getCacheHitsRate() > 0.0);
+        assertEquals(factory.getMbean().getCacheMissesRate(), 0.0);
+        assertTrue(factory.getMbean().getCacheHitsThroughput() > 0.0);
+        assertEquals(factory.getMbean().getNumberOfCacheEvictions(), 0);
+    }
+
+    @Test
+    public void verifyAsyncReadEntryUsingCache() throws Exception {
+        ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
+
+        config.setMaxCacheSize(100 * 1024 * 1024);
+        config.setCacheEvictionTimeThresholdMillis(10000);
+        config.setCacheEvictionIntervalMs(10000);
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
+
+        ManagedLedgerConfig conf = new ManagedLedgerConfig();
+        conf.setEnsembleSize(2).setAckQuorumSize(2).setMetadataEnsembleSize(2)
+                .setRetentionSizeInMB(-1).setRetentionTime(-1, TimeUnit.MILLISECONDS);
+        final ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my-ledger" + testName, conf);
+
+        int NumProducers = 5;
+        int NumConsumers = 10;
+
+        final AtomicBoolean done = new AtomicBoolean();
+        final CyclicBarrier barrier = new CyclicBarrier(NumProducers + NumConsumers + 1);
+
+        List<Future<?>> futures = new ArrayList();
+        List<PositionImpl> positions = new CopyOnWriteArrayList<>();
+
+        for (int i = 0; i < NumProducers; i++) {
+            futures.add(executor.submit(() -> {
+                try {
+                    // wait for all threads to be ready to start at once
+                    barrier.await();
+                    while (!done.get()) {
+                        PositionImpl position = (PositionImpl) ledger.addEntry("entry".getBytes());
+                        positions.add(position);
+                        Thread.sleep(1);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    throw FutureUtil.wrapToCompletionException(e);
+                }
+            }));
+        }
+
+        // create a dummy cursor since caching happens only when there are active consumers
+        ManagedCursor cursor = ledger.openCursor("dummy");
+
+        for (int i = 0; i < NumConsumers; i++) {
+            futures.add(executor.submit(() -> {
+                try {
+                    // wait for all threads to be ready to start at once
+                    barrier.await();
+                    while (!done.get()) {
+                        if (positions.isEmpty()) {
+                            Thread.sleep(1);
+                            continue;
+                        }
+                        // Simulate a replay queue read pattern where individual entries are read
+                        PositionImpl randomPosition =
+                                positions.get(ThreadLocalRandom.current().nextInt(positions.size()));
+                        // Clone the original instance so that another instance is used in the asyncReadEntry call
+                        // This is to test that keys are compared by .equals and not by reference under the covers
+                        randomPosition = PositionImpl.get(randomPosition);
+                        CompletableFuture<Void> future = new CompletableFuture<>();
+                        ledger.asyncReadEntry(randomPosition, new AsyncCallbacks.ReadEntryCallback() {
+                            @Override
+                            public void readEntryComplete(Entry entry, Object ctx) {
+                                entry.release();
+                                future.complete(null);
+                            }
+
+                            @Override
+                            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                                future.completeExceptionally(exception);
+                            }
+                        }, null);
+                        future.get();
+                        Thread.sleep(2);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    throw FutureUtil.wrapToCompletionException(e);
+                }
+            }));
+        }
+
+        // trigger all worker threads at once to continue from the barrier
+        barrier.await();
+
+        int testDurationSeconds = 3;
+        Thread.sleep(testDurationSeconds * 1000);
+
+        done.set(true);
+        for (Future<?> future : futures) {
+            future.get();
+        }
+
+        factory.getMbean().refreshStats(testDurationSeconds, TimeUnit.SECONDS);
 
         assertTrue(factory.getMbean().getCacheHitsRate() > 0.0);
         assertEquals(factory.getMbean().getCacheMissesRate(), 0.0);
