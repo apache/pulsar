@@ -106,6 +106,17 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
             return localKey;
         }
 
+        /**
+         * Get the value associated with the key. Returns null if the key does not match the key associated with the
+         * value.
+         *
+         * @param key                    the key to match
+         * @param requireSameKeyInstance when true, the matching will be restricted to exactly the same instance of the
+         *                               key as the one stored in the wrapper. This is used to avoid any races
+         *                               when retrieving or removing the entries from the cache when the key and value
+         *                               instances are available.
+         * @return the value associated with the key, or null if the key does not match
+         */
         V getValue(K key, boolean requireSameKeyInstance) {
             long stamp = lock.tryOptimisticRead();
             K localKey = this.key;
