@@ -457,10 +457,10 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
                 break;
             }
         }
-        producer.newMessage().value("long-tick-msg").deliverAfter(2, TimeUnit.SECONDS).send();
+        producer.newMessage().value("long-tick-msg").deliverAfter(3, TimeUnit.SECONDS).send();
         msg = consumer.receive(1, TimeUnit.SECONDS);
         assertNull(msg);
-        msg = consumer.receive(3, TimeUnit.SECONDS);
+        msg = consumer.receive(4, TimeUnit.SECONDS);
         assertNotNull(msg);
     }
 
