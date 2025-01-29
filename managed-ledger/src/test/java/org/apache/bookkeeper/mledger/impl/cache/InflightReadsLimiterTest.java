@@ -52,6 +52,11 @@ public class InflightReadsLimiterTest {
         };
     }
 
+    @DataProvider
+    private static Object[] booleanValues() {
+        return new Object[]{ true, false };
+    }
+
     @Test(dataProvider = "isDisabled")
     public void testDisabled(long maxReadsInFlightSize, boolean shouldBeDisabled) throws Exception {
         var otel = buildOpenTelemetryAndReader();
@@ -426,6 +431,111 @@ public class InflightReadsLimiterTest {
         assertThat(handle6)
                 .as("The sixth handle should not be successfull since the queue is full")
                 .hasValueSatisfying(handle -> assertThat(handle.success()).isFalse());
+    }
+
+    @Test(dataProvider = "booleanValues")
+    public void testAcquireExceedingMaxReadsInFlightSize(boolean firstInQueue) throws Exception {
+        @Cleanup("shutdownNow")
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+
+        long maxReadsInFlightSize = 100;
+        InflightReadsLimiter limiter =
+                new InflightReadsLimiter(maxReadsInFlightSize, ACQUIRE_QUEUE_SIZE, ACQUIRE_TIMEOUT_MILLIS, executor,
+                        OpenTelemetry.noop());
+
+        // Initial state
+        assertThat(limiter.getRemainingBytes())
+                .as("Initial remaining bytes should match maxReadsInFlightSize")
+                .isEqualTo(maxReadsInFlightSize);
+
+        // Acquire all permits (consume 100 bytes)
+        Optional<InflightReadsLimiter.Handle> handle1 = limiter.acquire(100, null);
+        assertThat(handle1)
+                .as("The first handle should be present")
+                .isPresent();
+        assertThat(limiter.getRemainingBytes())
+                .as("Remaining bytes should be zero after acquiring all permits")
+                .isEqualTo(0);
+
+
+        AtomicReference<InflightReadsLimiter.Handle> handle2Reference = new AtomicReference<>();
+
+        if (!firstInQueue) {
+            Optional<InflightReadsLimiter.Handle> handle2 = limiter.acquire(50, handle2Reference::set);
+            assertThat(handle2)
+                    .as("The second handle should not be present as remaining permits are zero")
+                    .isNotPresent();
+        }
+
+        // Attempt to acquire more than maxReadsInFlightSize while all permits are in use
+        AtomicReference<InflightReadsLimiter.Handle> handleExceedingMaxReference = new AtomicReference<>();
+        Optional<InflightReadsLimiter.Handle> handleExceedingMaxOptional =
+                limiter.acquire(200, handleExceedingMaxReference::set);
+        assertThat(handleExceedingMaxOptional)
+                .as("The second handle should not be present as remaining permits are zero")
+                .isNotPresent();
+
+        // Release handle1 permits
+        limiter.release(handle1.get());
+
+        if (!firstInQueue) {
+            assertThat(handle2Reference)
+                    .as("Handle2 should have been set in the callback and marked successful")
+                    .hasValueSatisfying(handle -> {
+                        assertThat(handle.success()).isTrue();
+                        assertThat(handle.permits()).isEqualTo(50);
+                    });
+            limiter.release(handle2Reference.get());
+        }
+
+        assertThat(handleExceedingMaxReference)
+                .as("Handle2 should have been set in the callback and marked successful")
+                .hasValueSatisfying(handle -> {
+                    assertThat(handle.success()).isTrue();
+                    assertThat(handle.permits()).isEqualTo(maxReadsInFlightSize);
+                });
+
+        limiter.release(handleExceedingMaxReference.get());
+
+        assertThat(limiter.getRemainingBytes())
+                .as("Remaining bytes should be fully replenished after releasing all permits")
+                .isEqualTo(maxReadsInFlightSize);
+    }
+
+    @Test
+    public void testAcquireExceedingMaxReadsWhenAllPermitsAvailable() throws Exception {
+        @Cleanup("shutdownNow")
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+
+        long maxReadsInFlightSize = 100;
+        InflightReadsLimiter limiter =
+                new InflightReadsLimiter(maxReadsInFlightSize, ACQUIRE_QUEUE_SIZE, ACQUIRE_TIMEOUT_MILLIS, executor,
+                        OpenTelemetry.noop());
+
+        // Initial state
+        assertThat(limiter.getRemainingBytes())
+                .as("Initial remaining bytes should match maxReadsInFlightSize")
+                .isEqualTo(maxReadsInFlightSize);
+
+        // Acquire permits > maxReadsInFlightSize
+        Optional<InflightReadsLimiter.Handle> handleExceedingMaxOptional =
+                limiter.acquire(2 * maxReadsInFlightSize, null);
+        assertThat(handleExceedingMaxOptional)
+                .as("The handle for exceeding max permits should be present")
+                .hasValueSatisfying(handle -> {
+                    assertThat(handle.success()).isTrue();
+                    assertThat(handle.permits()).isEqualTo(maxReadsInFlightSize);
+                });
+        assertThat(limiter.getRemainingBytes())
+                .as("Remaining bytes should be zero after acquiring all permits")
+                .isEqualTo(0);
+
+        // Release permits
+        limiter.release(handleExceedingMaxOptional.get());
+
+        assertThat(limiter.getRemainingBytes())
+                .as("Remaining bytes should be fully replenished after releasing all permits")
+                .isEqualTo(maxReadsInFlightSize);
     }
 
     private Pair<OpenTelemetrySdk, InMemoryMetricReader> buildOpenTelemetryAndReader() {

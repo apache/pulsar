@@ -164,6 +164,15 @@ public class InflightReadsLimiter implements AutoCloseable {
             }
             updateMetrics();
             return Optional.of(handle);
+        } else if (permits > maxReadsInFlightSize && remainingBytes == maxReadsInFlightSize) {
+            remainingBytes = 0;
+            if (log.isInfoEnabled()) {
+                log.info("Requested permits {} exceeded maxReadsInFlightSize {}, creationTime: {}, remainingBytes:{}. "
+                                + "Allowing request with permits set to maxReadsInFlightSize.",
+                        permits, maxReadsInFlightSize, handle.creationTime, remainingBytes);
+            }
+            updateMetrics();
+            return Optional.of(new Handle(maxReadsInFlightSize, handle.creationTime, true));
         } else {
             if (queuedHandles.offer(new QueuedHandle(handle, callback))) {
                 scheduleTimeOutCheck(acquireTimeoutMillis);
@@ -250,7 +259,9 @@ public class InflightReadsLimiter implements AutoCloseable {
                     // remove the peeked handle from the queue
                     queuedHandles.poll();
                     handleTimeout(queuedHandle);
-                } else if (remainingBytes >= queuedHandle.handle.permits) {
+                } else if (remainingBytes >= queuedHandle.handle.permits
+                        || queuedHandle.handle.permits > maxReadsInFlightSize
+                        && remainingBytes == maxReadsInFlightSize) {
                     // remove the peeked handle from the queue
                     queuedHandles.poll();
                     handleQueuedHandle(queuedHandle);
@@ -265,16 +276,28 @@ public class InflightReadsLimiter implements AutoCloseable {
     }
 
     private void handleQueuedHandle(QueuedHandle queuedHandle) {
-        remainingBytes -= queuedHandle.handle.permits;
-        if (log.isDebugEnabled()) {
-            log.debug("acquired queued permits: {}, creationTime: {}, remainingBytes:{}",
-                    queuedHandle.handle.permits, queuedHandle.handle.creationTime, remainingBytes);
+        long permits = queuedHandle.handle.permits;
+        Handle handleForCallback = queuedHandle.handle;
+        if (permits > maxReadsInFlightSize && remainingBytes == maxReadsInFlightSize) {
+            remainingBytes = 0;
+            if (log.isInfoEnabled()) {
+                log.info("Requested permits {} exceeded maxReadsInFlightSize {}, creationTime: {}, remainingBytes:{}. "
+                                + "Allowing request with permits set to maxReadsInFlightSize.",
+                        permits, maxReadsInFlightSize, queuedHandle.handle.creationTime, remainingBytes);
+            }
+            handleForCallback = new Handle(maxReadsInFlightSize, queuedHandle.handle.creationTime, true);
+        } else {
+            remainingBytes -= permits;
+            if (log.isDebugEnabled()) {
+                log.debug("acquired queued permits: {}, creationTime: {}, remainingBytes:{}",
+                        permits, queuedHandle.handle.creationTime, remainingBytes);
+            }
         }
         try {
-            queuedHandle.callback.accept(queuedHandle.handle);
+            queuedHandle.callback.accept(handleForCallback);
         } catch (Exception e) {
             log.error("Error in callback of acquired queued permits: {}, creationTime: {}, remainingBytes:{}",
-                    queuedHandle.handle.permits, queuedHandle.handle.creationTime, remainingBytes, e);
+                    handleForCallback.permits, handleForCallback.creationTime, remainingBytes, e);
         }
     }
 
