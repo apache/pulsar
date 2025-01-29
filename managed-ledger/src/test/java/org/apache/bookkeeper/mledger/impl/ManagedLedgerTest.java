@@ -3804,10 +3804,16 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < entries; i++) {
             ledger.addEntry(String.valueOf(i).getBytes(Encoding));
         }
-        List<Entry> entryList = cursor.readEntries(3);
-        assertEquals(entryList.size(), 3);
-        assertEquals(ledger.ledgers.size(), 4);
-        assertEquals(ledger.ledgerCache.size(), 3);
+
+        // clear the cache to avoid flakiness
+        factory.getEntryCacheManager().clear();
+
+        final List<Entry> entryList = cursor.readEntries(3);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(entryList.size(), 3);
+            assertEquals(ledger.ledgers.size(), 4);
+            assertEquals(ledger.ledgerCache.size(), 3);
+        });
         cursor.clearBacklog();
         cursor2.clearBacklog();
         ledger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
@@ -3816,18 +3822,23 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             assertEquals(ledger.ledgerCache.size(), 0);
         });
 
+        // clear the cache to avoid flakiness
+        factory.getEntryCacheManager().clear();
+
         // Verify the ReadHandle can be reopened.
         ManagedCursor cursor3 = ledger.openCursor("test-cursor3", InitialPosition.Earliest);
-        entryList = cursor3.readEntries(3);
-        assertEquals(entryList.size(), 3);
-        assertEquals(ledger.ledgerCache.size(), 3);
+        final List<Entry> entryList2 = cursor3.readEntries(3);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(entryList2.size(), 3);
+            assertEquals(ledger.ledgerCache.size(), 3);
+        });
+
         cursor3.clearBacklog();
         ledger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
         Awaitility.await().untilAsserted(() -> {
             assertEquals(ledger.ledgers.size(), 4);
             assertEquals(ledger.ledgerCache.size(), 0);
         });
-
 
         cursor.close();
         cursor2.close();
