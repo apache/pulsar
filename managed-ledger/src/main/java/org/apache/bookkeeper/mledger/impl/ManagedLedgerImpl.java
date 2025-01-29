@@ -371,7 +371,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.entryCache = factory.getEntryCacheManager().getEntryCache(this);
         this.waitingCursors = Queues.newConcurrentLinkedQueue();
         this.waitingEntryCallBacks = Queues.newConcurrentLinkedQueue();
-        this.uninitializedCursors = new HashMap();
+        this.uninitializedCursors = new ConcurrentHashMap<>();
         this.clock = config.getClock();
 
         // Get the next rollover time. Add a random value upto 5% to avoid rollover multiple ledgers at the same time
@@ -673,18 +673,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 log.info("[{}] Lazy recovery for cursor {} completed. pos={} -- todo={}", name,
                                         cursorName, cursor.getMarkDeletedPosition(), cursorCount.get() - 1);
                                 cursor.setActive();
-                                synchronized (ManagedLedgerImpl.this) {
-                                    addCursor(cursor);
-                                    uninitializedCursors.remove(cursor.getName()).complete(cursor);
-                                }
+                                addCursor(cursor);
+                                uninitializedCursors.remove(cursor.getName()).complete(cursor);
                             }
 
                             @Override
                             public void operationFailed(ManagedLedgerException exception) {
                                 log.warn("[{}] Lazy recovery for cursor {} failed", name, cursorName, exception);
-                                synchronized (ManagedLedgerImpl.this) {
-                                    uninitializedCursors.remove(cursor.getName()).completeExceptionally(exception);
-                                }
+                                uninitializedCursors.remove(cursor.getName()).completeExceptionally(exception);
                             }
                         });
                     }
@@ -1016,24 +1012,25 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             public void operationComplete() {
                 log.info("[{}] Opened new cursor: {}", name, cursor);
                 cursor.setActive();
+
                 synchronized (ManagedLedgerImpl.this) {
                     // Update the ack position (ignoring entries that were written while the cursor was being created)
                     cursor.initializeCursorPosition(InitialPosition.Earliest == initialPosition
                             ? getFirstPositionAndCounter()
                             : getLastPositionAndCounter());
-                    addCursor(cursor);
-                    uninitializedCursors.remove(cursorName).complete(cursor);
                 }
+
+                addCursor(cursor);
+                uninitializedCursors.remove(cursorName).complete(cursor);
+
                 callback.openCursorComplete(cursor, ctx);
             }
 
             @Override
             public void operationFailed(ManagedLedgerException exception) {
                 log.warn("[{}] Failed to open cursor: {}", name, cursor);
+                uninitializedCursors.remove(cursorName).completeExceptionally(exception);
 
-                synchronized (ManagedLedgerImpl.this) {
-                    uninitializedCursors.remove(cursorName).completeExceptionally(exception);
-                }
                 callback.openCursorFailed(exception, ctx);
             }
         });
@@ -1116,6 +1113,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
+    @VisibleForTesting
     public ManagedCursor newNonDurableCursor(Position startCursorPosition) throws ManagedLedgerException {
         return newNonDurableCursor(
             startCursorPosition,
@@ -1148,10 +1146,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 startCursorPosition, initialPosition, isReadCompacted);
         cursor.setActive();
 
-        log.info("[{}] Opened new cursor: {}", name, cursor);
-        synchronized (this) {
-            addCursor(cursor);
-        }
+        log.info("[{}] Opened new non durable cursor: {}", name, cursor);
+
+        addCursor(cursor);
 
         return cursor;
     }
@@ -1212,17 +1209,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             long size = 0;
             final long slowestConsumerLedgerId = pos.getLedgerId();
 
+            LedgerInfo ledgerInfo;
             // Subtract size of ledgers that were already fully consumed but not trimmed yet
             synchronized (this) {
                 size = getTotalSize();
-                size -= ledgers.values().stream().filter(li -> li.getLedgerId() < slowestConsumerLedgerId)
+                size -= ledgers.values().stream().takeWhile(li -> li.getLedgerId() < slowestConsumerLedgerId)
                         .mapToLong(LedgerInfo::getSize).sum();
-            }
-
-            LedgerInfo ledgerInfo = null;
-            synchronized (this) {
                 ledgerInfo = ledgers.get(pos.getLedgerId());
             }
+
             if (ledgerInfo == null) {
                 // ledger was removed
                 if (pos.compareTo(getMarkDeletePositionOfSlowestConsumer()) == 0) {
