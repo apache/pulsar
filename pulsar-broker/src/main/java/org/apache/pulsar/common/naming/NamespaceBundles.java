@@ -198,6 +198,7 @@ public class NamespaceBundles {
         return new LocalPolicies(this.getBundlesData(),
                 localPolicies.map(lp -> lp.getLeft().bookieAffinityGroup).orElse(null),
                 localPolicies.map(lp -> lp.getLeft().namespaceAntiAffinityGroup).orElse(null),
-                localPolicies.map(lp -> lp.getLeft().migrated).orElse(false));
+                localPolicies.map(lp -> lp.getLeft().migrated).orElse(false),
+                localPolicies.map(lp -> lp.getLeft().migratedClusterUrl).orElse(null));
     }
 }
