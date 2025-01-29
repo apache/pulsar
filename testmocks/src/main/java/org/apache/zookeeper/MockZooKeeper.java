@@ -93,7 +93,7 @@ public class MockZooKeeper extends ZooKeeper {
     private ReentrantLock mutex;
 
     private AtomicLong sequentialIdGenerator;
-    private ThreadLocal<Long> epheralOwnerThreadLocal;
+    private ThreadLocal<Long> ephemeralOwnerThreadLocal;
 
     //see details of Objenesis caching - http://objenesis.org/details.html
     //see supported jvms - https://github.com/easymock/objenesis/blob/master/SupportedJVMs.md
@@ -159,7 +159,7 @@ public class MockZooKeeper extends ZooKeeper {
         ObjectInstantiator<MockZooKeeper> mockZooKeeperInstantiator =
                 objenesis.getInstantiatorOf(MockZooKeeper.class);
         MockZooKeeper zk = mockZooKeeperInstantiator.newInstance();
-        zk.epheralOwnerThreadLocal = new ThreadLocal<>();
+        zk.ephemeralOwnerThreadLocal = new ThreadLocal<>();
         zk.init(executor);
         zk.readOpDelayMs = readOpDelayMs;
         zk.mutex = new ReentrantLock();
@@ -313,19 +313,19 @@ public class MockZooKeeper extends ZooKeeper {
     }
 
     protected long getEphemeralOwner() {
-        Long epheralOwner = epheralOwnerThreadLocal.get();
-        if (epheralOwner != null) {
-            return epheralOwner;
+        Long ephemeralOwner = ephemeralOwnerThreadLocal.get();
+        if (ephemeralOwner != null) {
+            return ephemeralOwner;
         }
         return getSessionId();
     }
 
-    public void overrideEpheralOwner(long epheralOwner) {
-        epheralOwnerThreadLocal.set(epheralOwner);
+    public void overrideEphemeralOwner(long ephemeralOwner) {
+        ephemeralOwnerThreadLocal.set(ephemeralOwner);
     }
 
-    public void removeEpheralOwnerOverride() {
-        epheralOwnerThreadLocal.remove();
+    public void removeEphemeralOwnerOverride() {
+        ephemeralOwnerThreadLocal.remove();
     }
 
     @Override

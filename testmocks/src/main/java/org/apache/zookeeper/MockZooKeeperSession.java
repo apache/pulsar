@@ -88,10 +88,10 @@ public class MockZooKeeperSession extends ZooKeeper {
     public String create(String path, byte[] data, List<ACL> acl, CreateMode createMode)
             throws KeeperException, InterruptedException {
         try {
-            mockZooKeeper.overrideEpheralOwner(getSessionId());
+            mockZooKeeper.overrideEphemeralOwner(getSessionId());
             return mockZooKeeper.create(path, data, acl, createMode);
         } finally {
-            mockZooKeeper.removeEpheralOwnerOverride();
+            mockZooKeeper.removeEphemeralOwnerOverride();
         }
     }
 
@@ -99,10 +99,10 @@ public class MockZooKeeperSession extends ZooKeeper {
     public void create(final String path, final byte[] data, final List<ACL> acl, CreateMode createMode,
                        final AsyncCallback.StringCallback cb, final Object ctx) {
         try {
-            mockZooKeeper.overrideEpheralOwner(getSessionId());
+            mockZooKeeper.overrideEphemeralOwner(getSessionId());
             mockZooKeeper.create(path, data, acl, createMode, cb, ctx);
         } finally {
-            mockZooKeeper.removeEpheralOwnerOverride();
+            mockZooKeeper.removeEphemeralOwnerOverride();
         }
     }
 
@@ -189,20 +189,20 @@ public class MockZooKeeperSession extends ZooKeeper {
     @Override
     public void multi(Iterable<org.apache.zookeeper.Op> ops, AsyncCallback.MultiCallback cb, Object ctx) {
         try {
-            mockZooKeeper.overrideEpheralOwner(getSessionId());
+            mockZooKeeper.overrideEphemeralOwner(getSessionId());
             mockZooKeeper.multi(ops, cb, ctx);
         } finally {
-            mockZooKeeper.removeEpheralOwnerOverride();
+            mockZooKeeper.removeEphemeralOwnerOverride();
         }
     }
 
     @Override
     public List<OpResult> multi(Iterable<org.apache.zookeeper.Op> ops) throws InterruptedException, KeeperException {
         try {
-            mockZooKeeper.overrideEpheralOwner(getSessionId());
+            mockZooKeeper.overrideEphemeralOwner(getSessionId());
             return mockZooKeeper.multi(ops);
         } finally {
-            mockZooKeeper.removeEpheralOwnerOverride();
+            mockZooKeeper.removeEphemeralOwnerOverride();
         }
     }
 
