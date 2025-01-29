@@ -24,10 +24,14 @@ import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.UnpooledByteBufAllocator;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.MessageDeduplication;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.common.api.proto.MarkerType;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.testng.annotations.Test;
 
 public class BrokerMessageDeduplicationTest {
@@ -42,7 +46,18 @@ public class BrokerMessageDeduplicationTest {
         doReturn(true).when(deduplication).isEnabled();
         Topic.PublishContext context = mock(Topic.PublishContext.class);
         doReturn(true).when(context).isMarkerMessage();
-        MessageDeduplication.MessageDupStatus status = deduplication.isDuplicate(context, null);
+
+        MessageMetadata msgMetadata = new MessageMetadata();
+        msgMetadata.setMarkerType(MarkerType.TXN_ABORT_VALUE);
+        msgMetadata.setProducerName("p1");
+        msgMetadata.setSequenceId(0);
+        msgMetadata.setPublishTime(System.currentTimeMillis());
+        byte[] metadataData = msgMetadata.toByteArray();
+        ByteBuf byteBuf = UnpooledByteBufAllocator.DEFAULT.heapBuffer(metadataData.length + 4);
+        byteBuf.writeInt(metadataData.length);
+        byteBuf.writeBytes(metadataData);
+
+        MessageDeduplication.MessageDupStatus status = deduplication.isDuplicate(context, byteBuf);
         assertEquals(status, MessageDeduplication.MessageDupStatus.NotDup);
     }
 
