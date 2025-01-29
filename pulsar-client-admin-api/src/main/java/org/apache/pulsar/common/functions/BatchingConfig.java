@@ -23,22 +23,19 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-import org.apache.pulsar.client.api.CompressionType;
 
-/**
- * Configuration of the producer inside the function.
- */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode
-public class ProducerConfig {
-    private Integer maxPendingMessages;
-    private Integer maxPendingMessagesAcrossPartitions;
-    private Boolean useThreadLocalProducers;
-    private CryptoConfig cryptoConfig;
+public class BatchingConfig {
+    @Builder.Default
+    private boolean enabled = true;
+    @Builder.Default
+    private Integer batchingMaxPublishDelayMs = 10;
+    private Integer roundRobinRouterBatchingPartitionSwitchFrequency;
+    private Integer batchingMaxMessages;
+    private Integer batchingMaxBytes;
     private String batchBuilder;
-    private CompressionType compressionType;
-    private BatchingConfig batchingConfig;
 }
