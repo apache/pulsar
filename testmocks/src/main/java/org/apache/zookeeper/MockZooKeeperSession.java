@@ -188,12 +188,22 @@ public class MockZooKeeperSession extends ZooKeeper {
 
     @Override
     public void multi(Iterable<org.apache.zookeeper.Op> ops, AsyncCallback.MultiCallback cb, Object ctx) {
-        mockZooKeeper.multi(ops, cb, ctx);
+        try {
+            mockZooKeeper.overrideEpheralOwner(getSessionId());
+            mockZooKeeper.multi(ops, cb, ctx);
+        } finally {
+            mockZooKeeper.removeEpheralOwnerOverride();
+        }
     }
 
     @Override
     public List<OpResult> multi(Iterable<org.apache.zookeeper.Op> ops) throws InterruptedException, KeeperException {
-        return mockZooKeeper.multi(ops);
+        try {
+            mockZooKeeper.overrideEpheralOwner(getSessionId());
+            return mockZooKeeper.multi(ops);
+        } finally {
+            mockZooKeeper.removeEpheralOwnerOverride();
+        }
     }
 
     @Override
