@@ -151,7 +151,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
                     Math.max(conf.getBatchReceivePolicy().getMaxNumMessages(), conf.getReceiverQueueSize()));
         }
         CompletableFuture<Void> applyDLQConfig;
-        if (conf.isRetryEnable() && conf.getTopicNames().size() > 0) {
+        if (conf.isRetryEnable() && !conf.getTopicNames().isEmpty()) {
             TopicName topicFirst = TopicName.get(conf.getTopicNames().iterator().next());
             //Issue 9327: do compatibility check in case of the default retry and dead letter topic name changed
             String oldRetryLetterTopic = TopicName.get(topicFirst.getDomain().value(), topicFirst.getNamespaceObject(),
