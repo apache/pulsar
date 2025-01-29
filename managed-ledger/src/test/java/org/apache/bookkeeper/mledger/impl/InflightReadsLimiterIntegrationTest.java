@@ -40,7 +40,6 @@ import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl;
 import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.awaitility.Awaitility;
-import org.awaitility.reflect.WhiteboxImpl;
 import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 import org.testng.Assert;
@@ -142,8 +141,8 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         SimpleReadEntriesCallback cb0 = new SimpleReadEntriesCallback();
         entryCache.asyncReadEntry(spyCurrentLedger, 125, 125, true, cb0, ctx);
         cb0.entries.join();
-        Long sizePerEntry1 = WhiteboxImpl.getInternalState(entryCache, "estimatedEntrySize");
-        Assert.assertEquals(sizePerEntry1, 1);
+        Long sizePerEntry1 = entryCache.getEstimatedEntrySize();
+        Assert.assertEquals(sizePerEntry1, 1 + RangeEntryCacheImpl.BOOKKEEPER_READ_OVERHEAD_PER_ENTRY);
         Awaitility.await().untilAsserted(() -> {
             long remainingBytes =limiter.getRemainingBytes();
             Assert.assertEquals(remainingBytes, totalCapacity);
@@ -179,8 +178,8 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         Thread.sleep(3000);
         readCompleteSignal1.countDown();
         cb1.entries.join();
-        Long sizePerEntry2 = WhiteboxImpl.getInternalState(entryCache, "estimatedEntrySize");
-        Assert.assertEquals(sizePerEntry2, 1);
+        Long sizePerEntry2 = entryCache.getEstimatedEntrySize();
+        Assert.assertEquals(sizePerEntry2, 1 + RangeEntryCacheImpl.BOOKKEEPER_READ_OVERHEAD_PER_ENTRY);
         long bytesAcquired2 = calculateBytesSizeBeforeFirstReading(readCount2, 1);
         long remainingBytesExpected2 = totalCapacity - bytesAcquired2;
         log.info("acquired : {}", bytesAcquired2);
@@ -192,8 +191,8 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
 
         readCompleteSignal2.countDown();
         cb2.entries.join();
-        Long sizePerEntry3 = WhiteboxImpl.getInternalState(entryCache, "estimatedEntrySize");
-        Assert.assertEquals(sizePerEntry3, 1);
+        Long sizePerEntry3 = entryCache.getEstimatedEntrySize();
+        Assert.assertEquals(sizePerEntry3, 1 + RangeEntryCacheImpl.BOOKKEEPER_READ_OVERHEAD_PER_ENTRY);
         Awaitility.await().untilAsserted(() -> {
             long remainingBytes = limiter.getRemainingBytes();
             log.info("remainingBytes 2: {}", remainingBytes);
