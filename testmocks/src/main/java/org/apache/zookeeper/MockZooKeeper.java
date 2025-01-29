@@ -87,7 +87,7 @@ public class MockZooKeeper extends ZooKeeper {
     private ExecutorService executor;
 
     private Watcher sessionWatcher;
-    private long sessionId = 0L;
+    private long sessionId = 1L;
     private int readOpDelayMs;
 
     private ReentrantLock mutex;
