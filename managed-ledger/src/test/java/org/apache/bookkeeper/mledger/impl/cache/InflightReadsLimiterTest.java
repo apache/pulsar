@@ -384,6 +384,50 @@ public class InflightReadsLimiterTest {
                 .isEqualTo(100);
     }
 
+    @Test
+    public void testQueueSizeLimitReached() throws Exception {
+        @Cleanup("shutdownNow")
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+
+        // Minimum queue size is 4.
+        final int queueSizeLimit = 4;
+        InflightReadsLimiter limiter =
+                new InflightReadsLimiter(100, queueSizeLimit, ACQUIRE_TIMEOUT_MILLIS, executor, OpenTelemetry.noop());
+
+        assertThat(limiter.getRemainingBytes())
+                .as("Initial remaining bytes should be 100")
+                .isEqualTo(100);
+
+        // Acquire all available permits (consume 100 bytes)
+        Optional<InflightReadsLimiter.Handle> handle1 = limiter.acquire(100, null);
+        assertThat(handle1)
+                .as("The first handle should be present after acquiring all available permits")
+                .isPresent()
+                .hasValueSatisfying(handle -> assertThat(handle.success()).isTrue());
+        assertThat(limiter.getRemainingBytes())
+                .as("Remaining bytes should be zero after acquiring all permits")
+                .isEqualTo(0);
+
+        // Queue up to the limit (4 requests)
+        AtomicReference<InflightReadsLimiter.Handle> handle2Reference = new AtomicReference<>();
+        assertThat(limiter.acquire(50, handle2Reference::set)).isNotPresent();
+
+        AtomicReference<InflightReadsLimiter.Handle> handle3Reference = new AtomicReference<>();
+        assertThat(limiter.acquire(50, handle3Reference::set)).isNotPresent();
+
+        AtomicReference<InflightReadsLimiter.Handle> handle4Reference = new AtomicReference<>();
+        assertThat(limiter.acquire(50, handle4Reference::set)).isNotPresent();
+
+        AtomicReference<InflightReadsLimiter.Handle> handle5Reference = new AtomicReference<>();
+        assertThat(limiter.acquire(50, handle5Reference::set)).isNotPresent();
+
+        // Attempt to add one more request, which should fail as the queue is full
+        Optional<InflightReadsLimiter.Handle> handle6 = limiter.acquire(50, null);
+        assertThat(handle6)
+                .as("The sixth handle should not be successfull since the queue is full")
+                .hasValueSatisfying(handle -> assertThat(handle.success()).isFalse());
+    }
+
     private Pair<OpenTelemetrySdk, InMemoryMetricReader> buildOpenTelemetryAndReader() {
         var metricReader = InMemoryMetricReader.create();
         var openTelemetry = AutoConfiguredOpenTelemetrySdk.builder()
