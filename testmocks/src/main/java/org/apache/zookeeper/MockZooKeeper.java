@@ -64,6 +64,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class MockZooKeeper extends ZooKeeper {
+    // ephemeralOwner value for persistent nodes
+    private static final long NOT_EPHEMERAL = 0L;
+
     @Data
     @AllArgsConstructor
     private static class MockZNode {
@@ -278,7 +281,7 @@ public class MockZooKeeper extends ZooKeeper {
                         MockZNode.of(parentNode.getContent(), parentVersion + 1, parentNode.getEphemeralOwner()));
             }
 
-            tree.put(path, MockZNode.of(data, 0, createMode.isEphemeral() ? getEphemeralOwner() : -1L));
+            tree.put(path, MockZNode.of(data, 0, createMode.isEphemeral() ? getEphemeralOwner() : NOT_EPHEMERAL));
 
             toNotifyCreate.addAll(watchers.get(path));
 
@@ -373,7 +376,7 @@ public class MockZooKeeper extends ZooKeeper {
                     cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
                 } else {
                     tree.put(name, MockZNode.of(data, 0,
-                            createMode != null && createMode.isEphemeral() ? getEphemeralOwner() : -1L));
+                            createMode != null && createMode.isEphemeral() ? getEphemeralOwner() : NOT_EPHEMERAL));
                     watchers.removeAll(name);
                     unlockIfLocked();
                     cb.processResult(0, path, ctx, name);
@@ -678,9 +681,7 @@ public class MockZooKeeper extends ZooKeeper {
 
     private static Stat applyToStat(MockZNode zNode, Stat stat) {
         stat.setVersion(zNode.getVersion());
-        if (zNode.getEphemeralOwner() != -1L) {
-            stat.setEphemeralOwner(zNode.getEphemeralOwner());
-        }
+        stat.setEphemeralOwner(zNode.getEphemeralOwner());
         return stat;
     }
 
