@@ -27,8 +27,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import lombok.AllArgsConstructor;
-import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -96,14 +94,10 @@ public class PendingReadsManager {
         this.rangeEntryCache = rangeEntryCache;
     }
 
-    @Value
-    private static class PendingReadKey {
-        private final long startEntry;
-        private final long endEntry;
+    private record PendingReadKey(long startEntry, long endEntry) {
         long size() {
             return endEntry - startEntry + 1;
         }
-
 
         boolean includes(PendingReadKey other) {
             return startEntry <= other.startEntry && other.endEntry <= endEntry;
@@ -136,19 +130,12 @@ public class PendingReadsManager {
 
     }
 
-    @AllArgsConstructor
-    private static final class ReadEntriesCallbackWithContext {
-        final AsyncCallbacks.ReadEntriesCallback callback;
-        final Object ctx;
-        final long startEntry;
-        final long endEntry;
+    private record ReadEntriesCallbackWithContext(AsyncCallbacks.ReadEntriesCallback callback, Object ctx,
+                                                  long startEntry, long endEntry) {
     }
 
-    @AllArgsConstructor
-    private static final class FindPendingReadOutcome {
-        final PendingRead pendingRead;
-        final PendingReadKey missingOnLeft;
-        final PendingReadKey missingOnRight;
+    private record FindPendingReadOutcome(PendingRead pendingRead,
+                                          PendingReadKey missingOnLeft, PendingReadKey missingOnRight) {
         boolean needsAdditionalReads() {
             return missingOnLeft != null || missingOnRight != null;
         }
