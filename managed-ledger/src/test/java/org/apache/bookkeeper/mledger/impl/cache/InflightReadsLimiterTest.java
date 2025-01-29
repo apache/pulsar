@@ -217,6 +217,9 @@ public class InflightReadsLimiterTest {
         assertFalse(handle2.isPresent());
         assertEquals(limiter.getRemainingBytes(), 0);
 
+        // Introduce a delay to differentiate operations between queued entries
+        Thread.sleep(50);
+
         // Queue the second handle with a successful callback
         MutableObject<InflightReadsLimiter.Handle> handle3Reference = new MutableObject<>();
         Optional<InflightReadsLimiter.Handle> handle3 = limiter.acquire(50, handle3Reference::setValue);
@@ -237,6 +240,7 @@ public class InflightReadsLimiterTest {
         limiter.release(handle1.get());
         assertEquals(limiter.getRemainingBytes(), 100);
     }
+
     private Pair<OpenTelemetrySdk, InMemoryMetricReader> buildOpenTelemetryAndReader() {
         var metricReader = InMemoryMetricReader.create();
         var openTelemetry = AutoConfiguredOpenTelemetrySdk.builder()
