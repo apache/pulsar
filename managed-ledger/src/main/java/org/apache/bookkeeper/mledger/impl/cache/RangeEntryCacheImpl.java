@@ -331,7 +331,7 @@ public class RangeEntryCacheImpl implements EntryCache {
                                                int numberOfEntries, boolean shouldCacheEntry,
                                                final ReadEntriesCallback originalCallback, Object ctx,
                                                InflightReadsLimiter.Handle handle, long estimatedReadSize) {
-        if (!handle.success) {
+        if (!handle.success()) {
             String message = String.format(
                     "Couldn't acquire enough permits on the max reads in flight limiter to read from ledger "
                             + "%d, %s, estimated read size %d bytes for %d entries (check "

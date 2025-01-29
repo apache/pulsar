@@ -91,8 +91,8 @@ public class InflightReadsLimiterTest {
         assertEquals(0, limiter.getRemainingBytes());
         assertTrue(optionalHandle.isPresent());
         InflightReadsLimiter.Handle handle = optionalHandle.get();
-        assertTrue(handle.success);
-        assertEquals(handle.permits, 100);
+        assertTrue(handle.success());
+        assertEquals(handle.permits(), 100);
         assertLimiterMetrics(metricReader, 100, 100, 0);
 
         limiter.release(handle);
@@ -111,8 +111,8 @@ public class InflightReadsLimiterTest {
         assertEquals(0, limiter.getRemainingBytes());
         assertTrue(optionalHandle.isPresent());
         InflightReadsLimiter.Handle handle = optionalHandle.get();
-        assertTrue(handle.success);
-        assertEquals(handle.permits, 100);
+        assertTrue(handle.success());
+        assertEquals(handle.permits(), 100);
 
         MutableObject<InflightReadsLimiter.Handle> handle2Reference = new MutableObject<>();
         Optional<InflightReadsLimiter.Handle> optionalHandle2 = limiter.acquire(100, handle2Reference::setValue);
@@ -121,7 +121,7 @@ public class InflightReadsLimiterTest {
 
         limiter.release(handle);
         assertNotNull(handle2Reference.getValue());
-        assertTrue(handle2Reference.getValue().success);
+        assertTrue(handle2Reference.getValue().success());
 
         limiter.release(handle2Reference.getValue());
         assertEquals(100, limiter.getRemainingBytes());
@@ -144,7 +144,7 @@ public class InflightReadsLimiterTest {
         Thread.sleep(ACQUIRE_TIMEOUT_MILLIS + 100);
 
         assertNotNull(handle2Reference.getValue());
-        assertFalse(handle2Reference.getValue().success);
+        assertFalse(handle2Reference.getValue().success());
     }
 
     private Pair<OpenTelemetrySdk, InMemoryMetricReader> buildOpenTelemetryAndReader() {

@@ -27,8 +27,6 @@ import java.util.Queue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import lombok.AllArgsConstructor;
-import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.opentelemetry.Constants;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.InflightReadLimiterUtilization;
@@ -68,12 +66,7 @@ public class InflightReadsLimiter implements AutoCloseable {
     private final ScheduledExecutorService timeOutExecutor;
     private final boolean enabled;
 
-    @AllArgsConstructor
-    @ToString
-    static class Handle {
-        final long permits;
-        final long creationTime;
-        final boolean success;
+    record Handle(long permits, long creationTime, boolean success) {
     }
 
     record QueuedHandle(Handle handle, Consumer<Handle> callback) {
