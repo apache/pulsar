@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.impl.cache;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.ReadHandle;
@@ -93,7 +94,8 @@ public class PendingReadsManagerTest  {
         config.setReadEntryTimeoutSeconds(10000);
         when(rangeEntryCache.getName()).thenReturn("my-topic");
         when(rangeEntryCache.getManagedLedgerConfig()).thenReturn(config);
-        inflighReadsLimiter = new InflightReadsLimiter(0);
+        inflighReadsLimiter = new InflightReadsLimiter(0, 0, 0,
+                mock(ScheduledExecutorService.class));
         when(rangeEntryCache.getPendingReadsLimiter()).thenReturn(inflighReadsLimiter);
         pendingReadsManager = new PendingReadsManager(rangeEntryCache);
         doAnswer(new Answer() {
