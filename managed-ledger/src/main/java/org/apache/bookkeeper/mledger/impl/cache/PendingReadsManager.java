@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.AllArgsConstructor;
 import lombok.Value;
@@ -153,7 +154,7 @@ public class PendingReadsManager {
         }
     }
 
-    private FindPendingReadOutcome findPendingRead(PendingReadKey key, Map<PendingReadKey,
+    private FindPendingReadOutcome findPendingRead(PendingReadKey key, ConcurrentMap<PendingReadKey,
             PendingRead> ledgerCache, AtomicBoolean created) {
         synchronized (ledgerCache) {
             PendingRead existing = ledgerCache.get(key);
@@ -222,12 +223,12 @@ public class PendingReadsManager {
 
     private class PendingRead {
         final PendingReadKey key;
-        final Map<PendingReadKey, PendingRead> ledgerCache;
+        final ConcurrentMap<PendingReadKey, PendingRead> ledgerCache;
         final List<ReadEntriesCallbackWithContext> callbacks = new ArrayList<>(1);
         boolean completed = false;
 
         public PendingRead(PendingReadKey key,
-                           Map<PendingReadKey, PendingRead> ledgerCache) {
+                           ConcurrentMap<PendingReadKey, PendingRead> ledgerCache) {
             this.key = key;
             this.ledgerCache = ledgerCache;
         }
@@ -253,9 +254,7 @@ public class PendingReadsManager {
             // so that new reads will go to a new instance.
             // this is required because we are going to do refcount management
             // on the results of the callback
-            synchronized (ledgerCache) {
-                ledgerCache.remove(key, this);
-            }
+            ledgerCache.remove(key, this);
         }
 
         private synchronized void readEntriesComplete(List<EntryImpl> entriesToReturn) {
@@ -330,7 +329,7 @@ public class PendingReadsManager {
                      final AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
         final PendingReadKey key = new PendingReadKey(firstEntry, lastEntry);
 
-        Map<PendingReadKey, PendingRead> pendingReadsForLedger =
+        ConcurrentMap<PendingReadKey, PendingRead> pendingReadsForLedger =
                 cachedPendingReads.computeIfAbsent(lh.getId(), (l) -> new ConcurrentHashMap<>());
 
         boolean listenerAdded = false;
