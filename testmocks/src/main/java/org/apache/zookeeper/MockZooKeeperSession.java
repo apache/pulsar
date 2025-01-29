@@ -232,7 +232,7 @@ public class MockZooKeeperSession extends ZooKeeper {
         if (closeMockZooKeeperOnClose) {
             mockZooKeeper.close();
         } else {
-            mockZooKeeper.deleteEmpheralNodes(getSessionId());
+            mockZooKeeper.deleteEphemeralNodes(getSessionId());
         }
     }
 
@@ -240,7 +240,7 @@ public class MockZooKeeperSession extends ZooKeeper {
         if (closeMockZooKeeperOnClose) {
             mockZooKeeper.shutdown();
         } else {
-            mockZooKeeper.deleteEmpheralNodes(getSessionId());
+            mockZooKeeper.deleteEphemeralNodes(getSessionId());
         }
     }
 

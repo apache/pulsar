@@ -1200,7 +1200,7 @@ public class MockZooKeeper extends ZooKeeper {
         });
     }
 
-    public void deleteEmpheralNodes(long sessionId) {
+    public void deleteEphemeralNodes(long sessionId) {
         if (sessionId != NOT_EPHEMERAL) {
             lock();
             try {
