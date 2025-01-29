@@ -32,7 +32,7 @@ import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
  * It reads binlog from MySQL, and store the debezium output into Pulsar.
  * This test verify that the target topic contains wanted number messages.
  *
- * Debezium MySQL Container is "debezium/example-mysql:0.8",
+ * Debezium MySQL Container is "debezium/example-mysql:2.6.1.Final",
  * which is a MySQL database server preconfigured with an inventory database.
  */
 @Slf4j
@@ -53,6 +53,7 @@ public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContain
         this.pulsarCluster = cluster;
         pulsarServiceUrl = "pulsar://pulsar-proxy:" + PulsarContainer.BROKER_PORT;
 
+        sourceConfig.put("connector.class", "io.debezium.connector.mysql.MySqlConnector");
         sourceConfig.put("database.hostname", DebeziumMySQLContainer.NAME);
         sourceConfig.put("database.port", "3306");
         sourceConfig.put("database.user", "debezium");
@@ -60,13 +61,15 @@ public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContain
         sourceConfig.put("database.server.id", "184054");
         sourceConfig.put("database.server.name", "dbserver1");
         sourceConfig.put("database.whitelist", "inventory");
+        sourceConfig.put("database.include.list", "inventory");
         if (!testWithClientBuilder) {
-            sourceConfig.put("database.history.pulsar.service.url", pulsarServiceUrl);
+            sourceConfig.put("schema.history.internal.pulsar.service.url", pulsarServiceUrl);
         }
         sourceConfig.put("key.converter", converterClassName);
         sourceConfig.put("value.converter", converterClassName);
         sourceConfig.put("topic.namespace", "debezium/mysql-" +
                 (converterClassName.endsWith("AvroConverter") ? "avro" : "json"));
+        sourceConfig.put("topic.prefix", "dbserver1");
     }
 
     @Override
