@@ -1200,5 +1200,16 @@ public class MockZooKeeper extends ZooKeeper {
         });
     }
 
+    public void deleteEmpheralNodes(long sessionId) {
+        if (sessionId != NOT_EPHEMERAL) {
+            lock();
+            try {
+                tree.values().removeIf(zNode -> zNode.getEphemeralOwner() == sessionId);
+            } finally {
+                unlockIfLocked();
+            }
+        }
+    }
+
     private static final Logger log = LoggerFactory.getLogger(MockZooKeeper.class);
 }

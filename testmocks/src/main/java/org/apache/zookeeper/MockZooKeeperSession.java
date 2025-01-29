@@ -221,12 +221,16 @@ public class MockZooKeeperSession extends ZooKeeper {
     public void close() throws InterruptedException {
         if (closeMockZooKeeperOnClose) {
             mockZooKeeper.close();
+        } else {
+            mockZooKeeper.deleteEmpheralNodes(getSessionId());
         }
     }
 
     public void shutdown() throws InterruptedException {
         if (closeMockZooKeeperOnClose) {
             mockZooKeeper.shutdown();
+        } else {
+            mockZooKeeper.deleteEmpheralNodes(getSessionId());
         }
     }
 
