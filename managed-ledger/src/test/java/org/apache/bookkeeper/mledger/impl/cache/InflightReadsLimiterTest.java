@@ -147,6 +147,98 @@ public class InflightReadsLimiterTest {
         assertFalse(handle2Reference.getValue().success());
     }
 
+    @Test
+    public void testMultipleQueuedEntriesWithExceptionInFirstCallback() throws Exception {
+        @Cleanup("shutdownNow")
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+        InflightReadsLimiter limiter =
+                new InflightReadsLimiter(100, ACQUIRE_QUEUE_SIZE, ACQUIRE_TIMEOUT_MILLIS,
+                        executor, OpenTelemetry.noop());
+        assertEquals(100, limiter.getRemainingBytes());
+
+        // Acquire the initial permits
+        Optional<InflightReadsLimiter.Handle> handle1 = limiter.acquire(100, null);
+        assertTrue(handle1.isPresent());
+        assertEquals(0, limiter.getRemainingBytes());
+
+        // Queue the first handle with a callback that throws an exception
+        MutableObject<InflightReadsLimiter.Handle> handle2Reference = new MutableObject<>();
+        Optional<InflightReadsLimiter.Handle> handle2 = limiter.acquire(50, handle -> {
+            handle2Reference.setValue(handle);
+            throw new RuntimeException("Callback exception");
+        });
+        assertFalse(handle2.isPresent());
+        assertEquals(0, limiter.getRemainingBytes());
+
+        // Queue the second handle with a successful callback
+        MutableObject<InflightReadsLimiter.Handle> handle3Reference = new MutableObject<>();
+        Optional<InflightReadsLimiter.Handle> handle3 = limiter.acquire(50, handle3Reference::setValue);
+        assertFalse(handle3.isPresent());
+        assertEquals(0, limiter.getRemainingBytes());
+
+        // Release the initial handle to trigger the queued callbacks
+        limiter.release(handle1.get());
+
+        // Verify the first callback threw an exception but the second callback was handled successfully
+        assertNotNull(handle2Reference.getValue());
+        assertTrue(handle2Reference.getValue().success());
+        assertNotNull(handle3Reference.getValue());
+        assertTrue(handle3Reference.getValue().success());
+        assertEquals(0, limiter.getRemainingBytes());
+
+        // Release the second handle
+        limiter.release(handle3Reference.getValue());
+        assertEquals(50, limiter.getRemainingBytes());
+
+        // Release the third handle
+        limiter.release(handle3Reference.getValue());
+        assertEquals(100, limiter.getRemainingBytes());
+    }
+
+    @Test
+    public void testMultipleQueuedEntriesWithTimeoutAndExceptionInFirstCallback() throws Exception {
+        @Cleanup("shutdownNow")
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+        InflightReadsLimiter limiter =
+                new InflightReadsLimiter(100, ACQUIRE_QUEUE_SIZE, ACQUIRE_TIMEOUT_MILLIS,
+                        executor, OpenTelemetry.noop());
+        assertEquals(100, limiter.getRemainingBytes());
+
+        // Acquire the initial permits
+        Optional<InflightReadsLimiter.Handle> handle1 = limiter.acquire(100, null);
+        assertTrue(handle1.isPresent());
+        assertEquals(0, limiter.getRemainingBytes());
+
+        // Queue the first handle with a callback that times out and throws an exception
+        MutableObject<InflightReadsLimiter.Handle> handle2Reference = new MutableObject<>();
+        Optional<InflightReadsLimiter.Handle> handle2 = limiter.acquire(50, handle -> {
+            handle2Reference.setValue(handle);
+            throw new RuntimeException("Callback exception on timeout");
+        });
+        assertFalse(handle2.isPresent());
+        assertEquals(0, limiter.getRemainingBytes());
+
+        // Queue the second handle with a successful callback
+        MutableObject<InflightReadsLimiter.Handle> handle3Reference = new MutableObject<>();
+        Optional<InflightReadsLimiter.Handle> handle3 = limiter.acquire(50, handle3Reference::setValue);
+        assertFalse(handle3.isPresent());
+        assertEquals(0, limiter.getRemainingBytes());
+
+        // Wait for the timeout to occur
+        Thread.sleep(ACQUIRE_TIMEOUT_MILLIS + 100);
+
+        // Verify the first callback timed out and threw an exception, and the second callback was handled
+        assertNotNull(handle2Reference.getValue());
+        assertFalse(handle2Reference.getValue().success());
+        assertNotNull(handle3Reference.getValue());
+        assertFalse(handle3Reference.getValue().success());
+        assertEquals(0, limiter.getRemainingBytes());
+
+        // Release the first handle
+        limiter.release(handle1.get());
+        assertEquals(100, limiter.getRemainingBytes());
+    }
+
     private Pair<OpenTelemetrySdk, InMemoryMetricReader> buildOpenTelemetryAndReader() {
         var metricReader = InMemoryMetricReader.create();
         var openTelemetry = AutoConfiguredOpenTelemetrySdk.builder()

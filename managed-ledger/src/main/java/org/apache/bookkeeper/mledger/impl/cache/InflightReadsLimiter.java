@@ -215,7 +215,12 @@ public class InflightReadsLimiter implements AutoCloseable {
             log.debug("timed out queued permits: {}, creationTime: {}, remainingBytes:{}",
                     queuedHandle.handle.permits, queuedHandle.handle.creationTime, remainingBytes);
         }
-        queuedHandle.callback.accept(new Handle(0, queuedHandle.handle.creationTime, false));
+        try {
+            queuedHandle.callback.accept(new Handle(0, queuedHandle.handle.creationTime, false));
+        } catch (Exception e) {
+            log.error("Error in callback of timed out queued permits: {}, creationTime: {}, remainingBytes:{}",
+                    queuedHandle.handle.permits, queuedHandle.handle.creationTime, remainingBytes, e);
+        }
     }
 
     /**
@@ -264,7 +269,12 @@ public class InflightReadsLimiter implements AutoCloseable {
             log.debug("acquired queued permits: {}, creationTime: {}, remainingBytes:{}",
                     queuedHandle.handle.permits, queuedHandle.handle.creationTime, remainingBytes);
         }
-        queuedHandle.callback.accept(queuedHandle.handle);
+        try {
+            queuedHandle.callback.accept(queuedHandle.handle);
+        } catch (Exception e) {
+            log.error("Error in callback of acquired queued permits: {}, creationTime: {}, remainingBytes:{}",
+                    queuedHandle.handle.permits, queuedHandle.handle.creationTime, remainingBytes, e);
+        }
     }
 
     private synchronized void updateMetrics() {
