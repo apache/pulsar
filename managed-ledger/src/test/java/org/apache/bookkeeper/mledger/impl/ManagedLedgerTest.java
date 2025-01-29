@@ -3732,6 +3732,10 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < entries; i++) {
             ledger.addEntry(String.valueOf(i).getBytes(Encoding));
         }
+
+        // clear the cache to avoid flakiness
+        factory.getEntryCacheManager().clear();
+
         List<Entry> entryList = cursor.readEntries(3);
         assertEquals(entryList.size(), 3);
         Awaitility.await().untilAsserted(() -> {
