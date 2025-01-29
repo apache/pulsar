@@ -84,11 +84,11 @@ public class InflightReadsLimiterTest {
         InflightReadsLimiter limiter =
                 new InflightReadsLimiter(100, ACQUIRE_QUEUE_SIZE, ACQUIRE_TIMEOUT_MILLIS,
                         mock(ScheduledExecutorService.class), openTelemetry);
-        assertEquals(100, limiter.getRemainingBytes());
+        assertEquals(limiter.getRemainingBytes(), 100);
         assertLimiterMetrics(metricReader, 100, 0, 100);
 
         Optional<InflightReadsLimiter.Handle> optionalHandle = limiter.acquire(100, null);
-        assertEquals(0, limiter.getRemainingBytes());
+        assertEquals(limiter.getRemainingBytes(), 0);
         assertTrue(optionalHandle.isPresent());
         InflightReadsLimiter.Handle handle = optionalHandle.get();
         assertTrue(handle.success());
@@ -96,19 +96,18 @@ public class InflightReadsLimiterTest {
         assertLimiterMetrics(metricReader, 100, 100, 0);
 
         limiter.release(handle);
-        assertEquals(100, limiter.getRemainingBytes());
+        assertEquals(limiter.getRemainingBytes(), 100);
         assertLimiterMetrics(metricReader, 100, 0, 100);
     }
-
 
     @Test
     public void testNotEnoughPermits() throws Exception {
         InflightReadsLimiter limiter =
                 new InflightReadsLimiter(100, ACQUIRE_QUEUE_SIZE, ACQUIRE_TIMEOUT_MILLIS,
                         mock(ScheduledExecutorService.class), OpenTelemetry.noop());
-        assertEquals(100, limiter.getRemainingBytes());
+        assertEquals(limiter.getRemainingBytes(), 100);
         Optional<InflightReadsLimiter.Handle> optionalHandle = limiter.acquire(100, null);
-        assertEquals(0, limiter.getRemainingBytes());
+        assertEquals(limiter.getRemainingBytes(), 0);
         assertTrue(optionalHandle.isPresent());
         InflightReadsLimiter.Handle handle = optionalHandle.get();
         assertTrue(handle.success());
@@ -116,7 +115,7 @@ public class InflightReadsLimiterTest {
 
         MutableObject<InflightReadsLimiter.Handle> handle2Reference = new MutableObject<>();
         Optional<InflightReadsLimiter.Handle> optionalHandle2 = limiter.acquire(100, handle2Reference::setValue);
-        assertEquals(0, limiter.getRemainingBytes());
+        assertEquals(limiter.getRemainingBytes(), 0);
         assertFalse(optionalHandle2.isPresent());
 
         limiter.release(handle);
@@ -124,7 +123,7 @@ public class InflightReadsLimiterTest {
         assertTrue(handle2Reference.getValue().success());
 
         limiter.release(handle2Reference.getValue());
-        assertEquals(100, limiter.getRemainingBytes());
+        assertEquals(limiter.getRemainingBytes(), 100);
     }
 
     @Test
@@ -134,7 +133,7 @@ public class InflightReadsLimiterTest {
         InflightReadsLimiter limiter =
                 new InflightReadsLimiter(100, ACQUIRE_QUEUE_SIZE, ACQUIRE_TIMEOUT_MILLIS,
                         executor, OpenTelemetry.noop());
-        assertEquals(100, limiter.getRemainingBytes());
+        assertEquals(limiter.getRemainingBytes(), 100);
         limiter.acquire(100, null);
 
         MutableObject<InflightReadsLimiter.Handle> handle2Reference = new MutableObject<>();
@@ -154,12 +153,12 @@ public class InflightReadsLimiterTest {
         InflightReadsLimiter limiter =
                 new InflightReadsLimiter(100, ACQUIRE_QUEUE_SIZE, ACQUIRE_TIMEOUT_MILLIS,
                         executor, OpenTelemetry.noop());
-        assertEquals(100, limiter.getRemainingBytes());
+        assertEquals(limiter.getRemainingBytes(), 100);
 
         // Acquire the initial permits
         Optional<InflightReadsLimiter.Handle> handle1 = limiter.acquire(100, null);
         assertTrue(handle1.isPresent());
-        assertEquals(0, limiter.getRemainingBytes());
+        assertEquals(limiter.getRemainingBytes(), 0);
 
         // Queue the first handle with a callback that throws an exception
         MutableObject<InflightReadsLimiter.Handle> handle2Reference = new MutableObject<>();
@@ -168,13 +167,13 @@ public class InflightReadsLimiterTest {
             throw new RuntimeException("Callback exception");
         });
         assertFalse(handle2.isPresent());
-        assertEquals(0, limiter.getRemainingBytes());
+        assertEquals(limiter.getRemainingBytes(), 0);
 
         // Queue the second handle with a successful callback
         MutableObject<InflightReadsLimiter.Handle> handle3Reference = new MutableObject<>();
         Optional<InflightReadsLimiter.Handle> handle3 = limiter.acquire(50, handle3Reference::setValue);
         assertFalse(handle3.isPresent());
-        assertEquals(0, limiter.getRemainingBytes());
+        assertEquals(limiter.getRemainingBytes(), 0);
 
         // Release the initial handle to trigger the queued callbacks
         limiter.release(handle1.get());
@@ -184,15 +183,15 @@ public class InflightReadsLimiterTest {
         assertTrue(handle2Reference.getValue().success());
         assertNotNull(handle3Reference.getValue());
         assertTrue(handle3Reference.getValue().success());
-        assertEquals(0, limiter.getRemainingBytes());
+        assertEquals(limiter.getRemainingBytes(), 0);
 
         // Release the second handle
         limiter.release(handle3Reference.getValue());
-        assertEquals(50, limiter.getRemainingBytes());
+        assertEquals(limiter.getRemainingBytes(), 50);
 
         // Release the third handle
         limiter.release(handle3Reference.getValue());
-        assertEquals(100, limiter.getRemainingBytes());
+        assertEquals(limiter.getRemainingBytes(), 100);
     }
 
     @Test
@@ -202,12 +201,12 @@ public class InflightReadsLimiterTest {
         InflightReadsLimiter limiter =
                 new InflightReadsLimiter(100, ACQUIRE_QUEUE_SIZE, ACQUIRE_TIMEOUT_MILLIS,
                         executor, OpenTelemetry.noop());
-        assertEquals(100, limiter.getRemainingBytes());
+        assertEquals(limiter.getRemainingBytes(), 100);
 
         // Acquire the initial permits
         Optional<InflightReadsLimiter.Handle> handle1 = limiter.acquire(100, null);
         assertTrue(handle1.isPresent());
-        assertEquals(0, limiter.getRemainingBytes());
+        assertEquals(limiter.getRemainingBytes(), 0);
 
         // Queue the first handle with a callback that times out and throws an exception
         MutableObject<InflightReadsLimiter.Handle> handle2Reference = new MutableObject<>();
@@ -216,13 +215,13 @@ public class InflightReadsLimiterTest {
             throw new RuntimeException("Callback exception on timeout");
         });
         assertFalse(handle2.isPresent());
-        assertEquals(0, limiter.getRemainingBytes());
+        assertEquals(limiter.getRemainingBytes(), 0);
 
         // Queue the second handle with a successful callback
         MutableObject<InflightReadsLimiter.Handle> handle3Reference = new MutableObject<>();
         Optional<InflightReadsLimiter.Handle> handle3 = limiter.acquire(50, handle3Reference::setValue);
         assertFalse(handle3.isPresent());
-        assertEquals(0, limiter.getRemainingBytes());
+        assertEquals(limiter.getRemainingBytes(), 0);
 
         // Wait for the timeout to occur
         Thread.sleep(ACQUIRE_TIMEOUT_MILLIS + 100);
@@ -232,13 +231,12 @@ public class InflightReadsLimiterTest {
         assertFalse(handle2Reference.getValue().success());
         assertNotNull(handle3Reference.getValue());
         assertFalse(handle3Reference.getValue().success());
-        assertEquals(0, limiter.getRemainingBytes());
+        assertEquals(limiter.getRemainingBytes(), 0);
 
         // Release the first handle
         limiter.release(handle1.get());
-        assertEquals(100, limiter.getRemainingBytes());
+        assertEquals(limiter.getRemainingBytes(), 100);
     }
-
     private Pair<OpenTelemetrySdk, InMemoryMetricReader> buildOpenTelemetryAndReader() {
         var metricReader = InMemoryMetricReader.create();
         var openTelemetry = AutoConfiguredOpenTelemetrySdk.builder()
