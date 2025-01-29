@@ -244,15 +244,16 @@ public class InflightReadsLimiter implements AutoCloseable {
         while (true) {
             QueuedHandle queuedHandle = queuedHandles.peek();
             if (queuedHandle != null) {
-                if (remainingBytes >= queuedHandle.handle.permits) {
-                    // remove the peeked handle from the queue
-                    queuedHandles.poll();
-                    handleQueuedHandle(queuedHandle);
-                } else if (acquireTimeoutMillis > 0
-                        && System.currentTimeMillis() - queuedHandle.handle.creationTime > acquireTimeoutMillis) {
+                boolean timedOut = acquireTimeoutMillis > 0
+                        && System.currentTimeMillis() - queuedHandle.handle.creationTime > acquireTimeoutMillis;
+                if (timedOut) {
                     // remove the peeked handle from the queue
                     queuedHandles.poll();
                     handleTimeout(queuedHandle);
+                } else if (remainingBytes >= queuedHandle.handle.permits) {
+                    // remove the peeked handle from the queue
+                    queuedHandles.poll();
+                    handleQueuedHandle(queuedHandle);
                 } else {
                     break;
                 }

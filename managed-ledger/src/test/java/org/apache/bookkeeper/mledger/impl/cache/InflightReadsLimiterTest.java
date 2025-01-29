@@ -241,6 +241,66 @@ public class InflightReadsLimiterTest {
         assertEquals(limiter.getRemainingBytes(), 100);
     }
 
+    @Test
+    public void testMultipleQueuedEntriesWithTimeoutsThatAreTimedOutWhenPermitsAreAvailable() throws Exception {
+        // Use a mock executor to simulate scenarios where timed out queued handles are processed when permits become
+        // available
+        ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
+        InflightReadsLimiter limiter =
+                new InflightReadsLimiter(100, ACQUIRE_QUEUE_SIZE, ACQUIRE_TIMEOUT_MILLIS,
+                        executor, OpenTelemetry.noop());
+        assertEquals(limiter.getRemainingBytes(), 100);
+
+        // Acquire the initial permits
+        Optional<InflightReadsLimiter.Handle> handle1 = limiter.acquire(100, null);
+        assertTrue(handle1.isPresent());
+        assertEquals(limiter.getRemainingBytes(), 0);
+
+        // Queue the first handle
+        MutableObject<InflightReadsLimiter.Handle> handle2Reference = new MutableObject<>();
+        Optional<InflightReadsLimiter.Handle> handle2 = limiter.acquire(50, handle2Reference::setValue);
+        assertFalse(handle2.isPresent());
+        assertEquals(limiter.getRemainingBytes(), 0);
+
+        // Queue the second handle
+        MutableObject<InflightReadsLimiter.Handle> handle3Reference = new MutableObject<>();
+        Optional<InflightReadsLimiter.Handle> handle3 = limiter.acquire(50, handle3Reference::setValue);
+        assertFalse(handle3.isPresent());
+        assertEquals(limiter.getRemainingBytes(), 0);
+
+        // Wait for the timeout to occur
+        Thread.sleep(ACQUIRE_TIMEOUT_MILLIS + 100);
+
+        // Queue another handle
+        MutableObject<InflightReadsLimiter.Handle> handle4Reference = new MutableObject<>();
+        Optional<InflightReadsLimiter.Handle> handle4 = limiter.acquire(50, handle4Reference::setValue);
+        assertFalse(handle4.isPresent());
+        assertEquals(limiter.getRemainingBytes(), 0);
+
+        // Queue another handle
+        MutableObject<InflightReadsLimiter.Handle> handle5Reference = new MutableObject<>();
+        Optional<InflightReadsLimiter.Handle> handle5 = limiter.acquire(100, handle5Reference::setValue);
+        assertFalse(handle5.isPresent());
+        assertEquals(limiter.getRemainingBytes(), 0);
+
+        // Release the first handle
+        limiter.release(handle1.get());
+
+        assertNotNull(handle2Reference.getValue());
+        assertFalse(handle2Reference.getValue().success());
+        assertNotNull(handle3Reference.getValue());
+        assertFalse(handle3Reference.getValue().success());
+        assertNotNull(handle4Reference.getValue());
+        assertTrue(handle4Reference.getValue().success());
+
+        assertEquals(limiter.getRemainingBytes(), 50);
+        limiter.release(handle4Reference.getValue());
+        assertNotNull(handle5Reference.getValue());
+        assertTrue(handle5Reference.getValue().success());
+        limiter.release(handle5Reference.getValue());
+        assertEquals(limiter.getRemainingBytes(), 100);
+    }
+
     private Pair<OpenTelemetrySdk, InMemoryMetricReader> buildOpenTelemetryAndReader() {
         var metricReader = InMemoryMetricReader.create();
         var openTelemetry = AutoConfiguredOpenTelemetrySdk.builder()
