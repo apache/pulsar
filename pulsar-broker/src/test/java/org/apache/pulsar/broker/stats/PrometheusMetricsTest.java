@@ -1970,6 +1970,26 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     }
 
     @Test
+    public void testPendingPublishBufferUsageMetric() throws Exception {
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic("persistent://my-property/use/my-ns/testPendingPublishBufferUsageMetric")
+                .create();
+        for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, false, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        List<Metric> cm = (List<Metric>) metrics.get("pulsar_pending_publish_buffer_usage_bytes");
+        assertEquals(cm.size(), 1);
+        assertEquals(cm.get(0).tags.get("cluster"), pulsar.getConfiguration().getClusterName());
+        assertTrue(cm.get(0).value >= 0);
+    }
+
+    @Test
     public void testMetricsGroupedByTypeDefinitions() throws Exception {
         Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
         Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
