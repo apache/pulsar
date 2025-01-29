@@ -1395,6 +1395,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
     @Override
+    public boolean isAllWaitingReadMessagesAreFixedDelayed() {
+        return shouldPauseDeliveryForDelayTracker();
+    }
+
+    @Override
     public long getNumberOfDelayedMessages() {
         return delayedDeliveryTracker.map(DelayedDeliveryTracker::getNumberOfDelayedMessages).orElse(0L);
     }
