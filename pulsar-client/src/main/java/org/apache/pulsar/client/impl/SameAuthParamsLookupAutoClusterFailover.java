@@ -107,11 +107,21 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
 
     @Override
     public void close() throws Exception {
+        if (closed) {
+            return;
+        }
+
         log.info("Closing service url provider. Current pulsar service: [{}] {}", currentPulsarServiceIndex,
                 pulsarServiceUrlArray[currentPulsarServiceIndex]);
+        if (scheduledCheckTask != null) {
+            scheduledCheckTask.cancel(false);
+        }
+
+        if (executor != null) {
+            executor.shutdownNow();
+        }
+
         closed = true;
-        scheduledCheckTask.cancel(false);
-        executor.shutdownNow();
     }
 
     private int firstHealthyPulsarService() {
