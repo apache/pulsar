@@ -253,6 +253,9 @@ public class PulsarClientImpl implements PulsarClient {
                     this::reduceConsumerReceiverQueueSize);
             state.set(State.Open);
         } catch (Throwable t) {
+            // Log the exception first, or it could be missed if there are any subsequent exceptions in the
+            // shutdown sequence
+            log.error("Failed to create Pulsar client instance.", t);
             shutdown();
             shutdownEventLoopGroup(eventLoopGroupReference);
             closeCnxPool(connectionPoolReference);
