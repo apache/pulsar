@@ -109,7 +109,25 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     private final AbortedTxnProcessor.SnapshotType snapshotType;
     private final MaxReadPositionCallBack maxReadPositionCallBack;
 
+    private static AbortedTxnProcessor createSnapshotProcessor(PersistentTopic topic) {
+        return topic.getBrokerService().getPulsar().getConfiguration().isTransactionBufferSegmentedSnapshotEnabled()
+                ? new SnapshotSegmentAbortedTxnProcessorImpl(topic)
+                : new SingleSnapshotAbortedTxnProcessorImpl(topic);
+    }
+
+    private static AbortedTxnProcessor.SnapshotType determineSnapshotType(PersistentTopic topic) {
+        return topic.getBrokerService().getPulsar().getConfiguration().isTransactionBufferSegmentedSnapshotEnabled()
+                ? AbortedTxnProcessor.SnapshotType.Segment
+                : AbortedTxnProcessor.SnapshotType.Single;
+    }
+
     public TopicTransactionBuffer(PersistentTopic topic) {
+        this(topic, createSnapshotProcessor(topic), determineSnapshotType(topic));
+    }
+
+    @VisibleForTesting
+    TopicTransactionBuffer(PersistentTopic topic, AbortedTxnProcessor snapshotAbortedTxnProcessor,
+                           AbortedTxnProcessor.SnapshotType snapshotType) {
         super(State.None);
         this.topic = topic;
         this.timer = topic.getBrokerService().getPulsar().getTransactionTimer();
@@ -118,13 +136,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         this.takeSnapshotIntervalTime = topic.getBrokerService().getPulsar()
                 .getConfiguration().getTransactionBufferSnapshotMinTimeInMillis();
         this.maxReadPosition = topic.getManagedLedger().getLastConfirmedEntry();
-        if (topic.getBrokerService().getPulsar().getConfiguration().isTransactionBufferSegmentedSnapshotEnabled()) {
-            snapshotAbortedTxnProcessor = new SnapshotSegmentAbortedTxnProcessorImpl(topic);
-            snapshotType = AbortedTxnProcessor.SnapshotType.Segment;
-        } else {
-            snapshotAbortedTxnProcessor = new SingleSnapshotAbortedTxnProcessorImpl(topic);
-            snapshotType = AbortedTxnProcessor.SnapshotType.Single;
-        }
+        this.snapshotAbortedTxnProcessor = snapshotAbortedTxnProcessor;
+        this.snapshotType = snapshotType;
         this.maxReadPositionCallBack = topic.getMaxReadPositionCallBack();
         this.recover();
     }
