@@ -439,12 +439,17 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                             permitsForConsumer.computeIfAbsent(consumer,
                                     k -> new MutableInt(getAvailablePermits(k)));
                     // a consumer was found for the sticky key hash and the entry can be dispatched
-                    if (permits.intValue() > 0
-                            && canDispatchEntry(consumer, entry, readType, stickyKeyHash, blockedByHash)) {
-                        // decrement the permits for the consumer
-                        permits.decrement();
-                        // allow the entry to be dispatched
-                        dispatchEntry = true;
+                    if (permits.intValue() > 0) {
+                        boolean canDispatchEntry = canDispatchEntry(consumer, entry, readType, stickyKeyHash);
+                        if (!canDispatchEntry) {
+                            if(blockedByHash != null){
+                                blockedByHash.setTrue();
+                            }
+                            // decrement the permits for the consumer
+                            permits.decrement();
+                            // allow the entry to be dispatched
+                            dispatchEntry = true;
+                        }
                     }
                 }
             }
@@ -507,27 +512,18 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
     // checks if the entry can be dispatched to the consumer
     private boolean canDispatchEntry(Consumer consumer, Entry entry,
-                                     ReadType readType, int stickyKeyHash,
-                                     MutableBoolean blockedByHash) {
+                                     ReadType readType, int stickyKeyHash) {
         // If redeliveryMessages contains messages that correspond to the same hash as the entry to be dispatched
         // do not send those messages for order guarantee
         if (readType == ReadType.Normal && redeliveryMessages.containsStickyKeyHash(stickyKeyHash)) {
-            if (blockedByHash != null) {
-                blockedByHash.setTrue();
-            }
             return false;
         }
-
         if (drainingHashesRequired) {
             // If the hash is draining, do not send the message
             if (drainingHashesTracker.shouldBlockStickyKeyHash(consumer, stickyKeyHash)) {
-                if (blockedByHash != null) {
-                    blockedByHash.setTrue();
-                }
                 return false;
             }
         }
-
         return true;
     }
 
