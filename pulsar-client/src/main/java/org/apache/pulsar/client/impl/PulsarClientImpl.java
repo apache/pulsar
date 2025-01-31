@@ -247,6 +247,10 @@ public class PulsarClientImpl implements PulsarClient {
                 this.timer = timer;
             }
 
+            if (conf.getServiceUrlProvider() != null) {
+                conf.getServiceUrlProvider().initialize(this);
+            }
+
             if (conf.isEnableTransaction()) {
                 tcClient = new TransactionCoordinatorClientImpl(this);
                 try {
