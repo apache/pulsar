@@ -24,6 +24,8 @@ package org.apache.pulsar.common.naming;
 public class Constants {
 
     public static final String GLOBAL_CLUSTER = "global";
+    public static final String DELAY_CANCELED_MESSAGE_POSITION = "delayCanceledMsgPosition";
+    public static final String IS_MARK_DELETE_DELAY_MESSAGE = "isMarkDeleteDelayMessage";
 
     private Constants() {}
 }
