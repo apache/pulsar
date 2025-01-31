@@ -64,11 +64,7 @@ public class ClientBuilderImpl implements ClientBuilder {
         if (conf.getAuthentication() == null || conf.getAuthentication() == AuthenticationDisabled.INSTANCE) {
             setAuthenticationFromPropsIfAvailable(conf);
         }
-        PulsarClient client = new PulsarClientImpl(conf);
-        if (conf.getServiceUrlProvider() != null) {
-            conf.getServiceUrlProvider().initialize(client);
-        }
-        return client;
+        return new PulsarClientImpl(conf);
     }
 
     @Override
