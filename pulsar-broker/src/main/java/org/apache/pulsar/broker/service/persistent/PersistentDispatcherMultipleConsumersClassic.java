@@ -600,9 +600,8 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
 
     @Override
     protected void cancelPendingRead() {
-        if ((havePendingRead || havePendingReplayRead) && cursor.cancelPendingReadRequest()) {
+        if (havePendingRead && cursor.cancelPendingReadRequest()) {
             havePendingRead = false;
-            havePendingReplayRead = false;
         }
     }
 

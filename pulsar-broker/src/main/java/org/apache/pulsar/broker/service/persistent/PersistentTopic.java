@@ -586,7 +586,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
     }
 
-    private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,
+
+    /**
+     * Create a new subscription instance for the topic.
+     * This protected method can be overridden in tests to return a special test implementation instance.
+     * @param subscriptionName the name of the subscription
+     * @param cursor the cursor to use for the subscription
+     * @param replicated the subscription replication flag
+     * @param subscriptionProperties the subscription properties
+     * @return the subscription instance
+     */
+    protected PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,
             Boolean replicated, Map<String, String> subscriptionProperties) {
         requireNonNull(topicCompactionService);
         if (isCompactionSubscription(subscriptionName)
@@ -3497,8 +3507,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         TopicName topicName = TopicName.get(getName());
 
         if (!(ledger.getCursors() instanceof ManagedCursorContainer managedCursorContainer)) {
-            return CompletableFuture.failedFuture(new IllegalStateException(
-                    String.format("[%s] No valid cursors found. Skip update old position info.", topicName)));
+            // TODO: support this method with a customized managed ledger implementation
+            return CompletableFuture.completedFuture(null);
         }
 
         if (!hasBacklogs(brokerService.pulsar().getConfiguration().isPreciseTimeBasedBacklogQuotaCheck())) {

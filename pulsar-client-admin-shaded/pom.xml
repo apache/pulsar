@@ -367,6 +367,13 @@
                 <relocation>
                   <pattern>org.apache.pulsar.policies</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.apache.pulsar.policies</shadedPattern>
+                  <!-- exclude references to unshaded classes and interfaces in https://github.com/apache/pulsar/tree/master/pulsar-client-admin-api/src/main/java/org/apache/pulsar/policies/data/loadbalancer -->
+                  <excludes>
+                    <exclude>org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport</exclude>
+                    <exclude>org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats</exclude>
+                    <exclude>org.apache.pulsar.policies.data.loadbalancer.ResourceUsage</exclude>
+                    <exclude>org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData</exclude>
+                  </excludes>
                 </relocation>
                 <relocation>
                   <pattern>org.asynchttpclient</pattern>

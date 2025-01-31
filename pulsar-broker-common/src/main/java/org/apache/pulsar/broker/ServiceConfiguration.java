@@ -2114,6 +2114,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " Consumer Netty channel. Use O to disable")
     private long managedLedgerMaxReadsInFlightSizeInMB = 0;
 
+    @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum time to wait for acquiring permits for max reads in "
+            + "flight when managedLedgerMaxReadsInFlightSizeInMB is set (>0) and the limit is reached.")
+    private long managedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis = 60000;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum number of reads that can be queued for acquiring "
+            + "permits for max reads in flight when managedLedgerMaxReadsInFlightSizeInMB is set (>0) and the limit "
+            + "is reached.")
+    private int managedLedgerMaxReadsInFlightPermitsAcquireQueueSize = 50000;
+
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         dynamic = true,
@@ -2238,6 +2247,24 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Max time before triggering a rollover on a cursor ledger"
     )
     private int managedLedgerCursorRolloverTimeInSeconds = 14400;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            dynamic = true,
+            doc = "When resetting a subscription by timestamp, the broker will use the"
+                    + " ledger closing timestamp metadata to determine the range of ledgers"
+                    + " to search for the message where the subscription position is reset to. "
+                    + " Since by default, the search condition is based on the message publish time provided by the "
+                    + " client at the publish time, there will be some clock skew between the ledger closing timestamp "
+                    + " metadata and the publish time."
+                    + " This configuration is used to set the max clock skew between the ledger closing"
+                    + " timestamp and the message publish time for finding the range of ledgers to open for searching."
+                    + " The default value is 60000 milliseconds (60 seconds). When set to -1, the broker will not"
+                    + " use the ledger closing timestamp metadata to determine the range of ledgers to search for the"
+                    + " message."
+    )
+    private int managedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis = 60000;
+
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Max number of `acknowledgment holes` that are going to be persistently stored.\n\n"
@@ -2248,6 +2275,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " will only be tracked in memory and messages will be redelivered in case of"
             + " crashes.")
     private int managedLedgerMaxUnackedRangesToPersist = 10000;
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Whether persist cursor ack stats as long arrays, which will compress the data and reduce GC rate")
+    private boolean managedLedgerPersistIndividualAckAsLongArray = true;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "If enabled, the maximum \"acknowledgment holes\" will not be limited and \"acknowledgment holes\" "

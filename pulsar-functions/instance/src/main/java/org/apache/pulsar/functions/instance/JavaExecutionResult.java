@@ -29,9 +29,5 @@ import lombok.Data;
 public class JavaExecutionResult {
     private Throwable userException;
     private Object result;
-
-    public void reset() {
-        setUserException(null);
-        setResult(null);
-    }
+    private final long startTime = System.nanoTime();
 }

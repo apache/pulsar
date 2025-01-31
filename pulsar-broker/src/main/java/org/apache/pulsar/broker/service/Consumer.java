@@ -1049,6 +1049,9 @@ public class Consumer {
 
     @Override
     public boolean equals(Object obj) {
+        if (this == obj)  {
+            return true;
+        }
         if (obj instanceof Consumer) {
             Consumer other = (Consumer) obj;
             return consumerId == other.consumerId && Objects.equals(cnx.clientAddress(), other.cnx.clientAddress());

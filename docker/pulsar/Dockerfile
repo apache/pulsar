@@ -55,7 +55,7 @@ RUN chmod -R o+rx /pulsar
 RUN echo 'OPTS="$OPTS -Dorg.xerial.snappy.use.systemlib=true"' >> /pulsar/conf/bkenv.sh
 
 ###  Create one stage to include JVM distribution
-FROM amazoncorretto:${IMAGE_JDK_MAJOR_VERSION}-alpine AS jvm
+FROM amazoncorretto:${IMAGE_JDK_MAJOR_VERSION}-alpine${ALPINE_VERSION} AS jvm
 
 RUN apk add --no-cache binutils
 
@@ -134,8 +134,6 @@ COPY --from=snappy-java /tmp/libsnappyjava.so /usr/lib/libsnappyjava.so
 
 # The default is /pulsat/bin and cannot be written.
 ENV PULSAR_PID_DIR=/pulsar/logs
-
-ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
 
 COPY --from=pulsar /pulsar /pulsar
 
