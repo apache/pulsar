@@ -439,8 +439,8 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                                 future.completeExceptionally(getException(Code.BADVERSION, opPut.getPath()));
                             } else {
                                 // The z-node does not exist, let's create it first
-                                put(opPut.getPath(), opPut.getData(), Optional.of(-1L)).thenAccept(
-                                                s -> future.complete(s))
+                                put(opPut.getPath(), opPut.getData(), Optional.of(-1L), opPut.getOptions())
+                                        .thenAccept(s -> future.complete(s))
                                         .exceptionally(ex -> {
                                             if (ex.getCause() instanceof BadVersionException) {
                                                 // The z-node exist now, let's overwrite it
@@ -478,7 +478,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
 
     private Stat getStat(String path, org.apache.zookeeper.data.Stat zkStat) {
         return new Stat(path, zkStat.getVersion(), zkStat.getCtime(), zkStat.getMtime(),
-                zkStat.getEphemeralOwner() != -1,
+                zkStat.getEphemeralOwner() != 0,
                 zkStat.getEphemeralOwner() == zkc.getSessionId());
     }
 
