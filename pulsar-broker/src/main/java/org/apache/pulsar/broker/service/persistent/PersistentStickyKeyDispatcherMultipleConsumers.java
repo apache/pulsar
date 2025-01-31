@@ -442,7 +442,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     if (permits.intValue() > 0) {
                         boolean canDispatchEntry = canDispatchEntry(consumer, entry, readType, stickyKeyHash);
                         if (!canDispatchEntry) {
-                            if(blockedByHash != null){
+                            if (blockedByHash != null) {
                                 blockedByHash.setTrue();
                             }
                             // decrement the permits for the consumer
