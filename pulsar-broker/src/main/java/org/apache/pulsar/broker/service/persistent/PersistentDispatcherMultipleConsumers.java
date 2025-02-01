@@ -97,7 +97,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     protected volatile boolean havePendingRead = false;
     protected volatile boolean havePendingReplayRead = false;
     protected volatile Position minReplayedPosition = null;
-    protected boolean shouldRewindBeforeReadingOrReplaying = false;
+    protected boolean shouldRewindBeforeReading = false;
+    protected boolean shouldSkipNextReplaying = false;
     protected final String name;
     private boolean sendInProgress = false;
     protected static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers>
@@ -185,12 +186,15 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             return CompletableFuture.completedFuture(null);
         }
         if (consumerList.isEmpty()) {
-            if (havePendingRead || havePendingReplayRead) {
+            if (havePendingReplayRead) {
+                shouldSkipNextReplaying = true;
+            }
+            if (havePendingRead) {
                 // There is a pending read from previous run. We must wait for it to complete and then rewind
-                shouldRewindBeforeReadingOrReplaying = true;
+                shouldRewindBeforeReading = true;
             } else {
                 cursor.rewind();
-                shouldRewindBeforeReadingOrReplaying = false;
+                shouldRewindBeforeReading = false;
             }
             redeliveryMessages.clear();
             delayedDeliveryTracker.ifPresent(tracker -> {
@@ -720,6 +724,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             havePendingRead = false;
         } else {
             havePendingReplayRead = false;
+            if (shouldSkipNextReplaying && readType == ReadType.Replay) {
+                shouldSkipNextReplaying = false;
+                return;
+            }
         }
 
         if (readBatchSize < serviceConfig.getDispatcherMaxReadBatchSize()) {
@@ -733,11 +741,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
         readFailureBackoff.reduceToHalf();
 
-        if (shouldRewindBeforeReadingOrReplaying && readType == ReadType.Normal) {
+        if (shouldRewindBeforeReading && readType == ReadType.Normal) {
             // All consumers got disconnected before the completion of the read operation
             entries.forEach(Entry::release);
             cursor.rewind();
-            shouldRewindBeforeReadingOrReplaying = false;
+            shouldRewindBeforeReading = false;
             readMoreEntriesAsync();
             return;
         }
@@ -1061,8 +1069,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             }
         }
 
-        if (shouldRewindBeforeReadingOrReplaying) {
-            shouldRewindBeforeReadingOrReplaying = false;
+        if (shouldSkipNextReplaying && readType == ReadType.Replay) {
+            shouldSkipNextReplaying = false;
+        } else if (shouldRewindBeforeReading && readType == ReadType.Normal) {
+            shouldRewindBeforeReading = false;
             cursor.rewind();
         }
 
