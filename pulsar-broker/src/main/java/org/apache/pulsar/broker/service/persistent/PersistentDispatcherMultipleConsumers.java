@@ -193,12 +193,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 shouldRewindBeforeReadingOrReplaying = false;
             }
             redeliveryMessages.clear();
-            delayedDeliveryTracker.ifPresent(tracker -> {
-                // Don't clean up BucketDelayedDeliveryTracker, otherwise we will lose the bucket snapshot
-                if (tracker instanceof InMemoryDelayedDeliveryTracker) {
-                    tracker.clear();
-                }
-            });
         }
 
         if (isConsumersExceededOnSubscription()) {
@@ -448,7 +442,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         // Filter out and skip read delayed messages exist in DelayedDeliveryTracker
         if (delayedDeliveryTracker.isPresent()) {
             final DelayedDeliveryTracker deliveryTracker = delayedDeliveryTracker.get();
-            if (deliveryTracker instanceof BucketDelayedDeliveryTracker) {
+            if (deliveryTracker instanceof InMemoryDelayedDeliveryTracker) {
+                skipCondition = position -> ((InMemoryDelayedDeliveryTracker) deliveryTracker)
+                        .shouldSkipMessage(position.getLedgerId(), position.getEntryId());
+            } else if (deliveryTracker instanceof BucketDelayedDeliveryTracker) {
                 skipCondition = position -> ((BucketDelayedDeliveryTracker) deliveryTracker)
                         .containsMessage(position.getLedgerId(), position.getEntryId());
             }

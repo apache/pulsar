@@ -218,9 +218,26 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
         return positions;
     }
 
+    public boolean shouldSkipMessage(long ledgerId, long entryId) {
+        for (Long2ObjectMap<Roaring64Bitmap> ledgerMap : delayedMessageMap.values()) {
+            Roaring64Bitmap entryIds = ledgerMap.get(ledgerId);
+            if (entryIds != null && entryIds.contains(entryId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     public CompletableFuture<Void> clear() {
-        this.delayedMessageMap.clear();
+        long cutoffTime = getCutoffTime();
+        delayedMessageMap.headMap(cutoffTime).clear();
+
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Cleared expired delayed messages before {}, remaining messages: {}",
+                    dispatcher.getName(), cutoffTime, getNumberOfDelayedMessages());
+        }
+
         return CompletableFuture.completedFuture(null);
     }
 
