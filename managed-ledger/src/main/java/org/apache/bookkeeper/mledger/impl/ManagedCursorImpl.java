@@ -1336,7 +1336,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         if (max <= 0) {
-            callback.findEntryFailed(new ManagedLedgerException("No entries available"), Optional.empty(), ctx);
+            callback.findEntryComplete(null, ctx);
             return;
         }
 
