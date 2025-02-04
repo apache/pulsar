@@ -96,6 +96,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
     protected static final long POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS = 60;
 
     protected final String topic;
+
+    // createFuture associated with the topic to ensure safe removal from the cache of brokerService
     @Getter
     @Setter
     protected volatile CompletableFuture<Optional<Topic>> createFuture;

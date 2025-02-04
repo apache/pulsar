@@ -1530,7 +1530,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                             ledger.asyncDelete(new AsyncCallbacks.DeleteLedgerCallback() {
                                                 @Override
                                                 public void deleteLedgerComplete(Object ctx) {
-                                                    brokerService.removeTopicFutureFromCache(topic, createFuture);
+                                                    brokerService.removeTopicFromCache(PersistentTopic.this);
 
                                                     dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
 
@@ -1807,7 +1807,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private void disposeTopic(CompletableFuture<?> closeFuture) {
-        brokerService.removeTopicFutureFromCache(topic, createFuture)
+        brokerService.removeTopicFromCache(this)
                 .thenRun(() -> {
                     replicatedSubscriptionsController.ifPresent(ReplicatedSubscriptionsController::close);
 

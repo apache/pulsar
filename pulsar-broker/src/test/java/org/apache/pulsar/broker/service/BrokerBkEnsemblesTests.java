@@ -126,7 +126,7 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
         // (3) remove topic and managed-ledger from broker which means topic is not closed gracefully
         consumer.close();
         producer.close();
-        pulsar.getBrokerService().removeTopicFutureFromCache(topic.getName(), topic.getCreateFuture());
+        pulsar.getBrokerService().removeTopicFromCache(topic);
         ManagedLedgerFactoryImpl factory = (ManagedLedgerFactoryImpl) pulsar.getDefaultManagedLedgerFactory();
         Field field = ManagedLedgerFactoryImpl.class.getDeclaredField("ledgers");
         field.setAccessible(true);
@@ -249,7 +249,7 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
 
         // clean managed-ledger and recreate topic to clean any data from the cache
         producer.close();
-        pulsar.getBrokerService().removeTopicFutureFromCache(topic.getName(), topic.getCreateFuture());
+        pulsar.getBrokerService().removeTopicFromCache(topic);
         ManagedLedgerFactoryImpl factory = (ManagedLedgerFactoryImpl) pulsar.getDefaultManagedLedgerFactory();
         Field field = ManagedLedgerFactoryImpl.class.getDeclaredField("ledgers");
         field.setAccessible(true);

@@ -2411,12 +2411,18 @@ public class BrokerService implements Closeable {
         return authorizationService;
     }
 
-    public CompletableFuture<Void> removeTopicFutureFromCache(String topic,
-                                                        CompletableFuture<Optional<Topic>> createTopicFuture) {
-        TopicName topicName = TopicName.get(topic);
+    /**
+     * Removes the topic from the cache only if the topicName and associated createFuture match exactly.
+     * The TopicEvent.UNLOAD event will be triggered before and after removal.
+     *
+     * @param topic The topic to be removed.
+     * @return A CompletableFuture that completes when the operation is done.
+     */
+    public CompletableFuture<Void> removeTopicFromCache(AbstractTopic topic) {
+        TopicName topicName = TopicName.get(topic.getName());
         return pulsar.getNamespaceService().getBundleAsync(topicName)
                 .thenAccept(namespaceBundle -> {
-                    removeTopicFromCache(topic, namespaceBundle, createTopicFuture);
+                    removeTopicFromCache(topic.getName(), namespaceBundle, topic.getCreateFuture());
                 });
     }
 
