@@ -55,11 +55,6 @@ import org.slf4j.LoggerFactory;
  */
 public class RangeEntryCacheImpl implements EntryCache {
 
-    /**
-     * Overhead per-entry to take into account the envelope.
-     */
-    public static final long BOOKKEEPER_READ_OVERHEAD_PER_ENTRY = 64;
-    private static final int DEFAULT_ESTIMATED_ENTRY_SIZE = 10 * 1024;
     private static final boolean DEFAULT_CACHE_INDIVIDUAL_READ_ENTRY = false;
 
     private final RangeEntryCacheManagerImpl manager;
@@ -407,7 +402,7 @@ public class RangeEntryCacheImpl implements EntryCache {
                 cachedEntries.forEach(entry -> entry.release());
             }
 
-            // Read all the entries from bookkeeper TODO 优化为只读部分。
+            // Read all the entries from bookkeeper
             pendingReadsManager.readEntries(lh, firstPosition.getEntryId(), lastPosition.getEntryId(),
                     shouldCacheEntry, callback, ctx);
         }
@@ -415,7 +410,11 @@ public class RangeEntryCacheImpl implements EntryCache {
 
     @VisibleForTesting
     public long getEstimatedEntrySize(ReadHandle lh) {
-        return Math.max(1, lh.getLength() / lh.getLastAddConfirmed());
+        if (lh.getLength() == 0 || lh.getLastAddConfirmed() < 0) {
+            // No entries stored.
+            return 1;
+        }
+        return Math.max(1, lh.getLength() / (lh.getLastAddConfirmed() + 1));
     }
 
     /**

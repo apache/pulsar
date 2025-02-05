@@ -3853,7 +3853,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 posToRead = ml.getNextValidPosition(PositionFactory.create(posToRead.getLedgerId(), Long.MAX_VALUE));
             }
         }
-        return Math.max(result, 1); // TODO 告诉 RangeEntryCache 这次申请的预估出来的 permits。
+        return Math.max(result, 1);
     }
 
     @Override
