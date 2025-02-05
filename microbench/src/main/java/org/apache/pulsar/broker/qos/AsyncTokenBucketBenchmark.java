@@ -33,6 +33,7 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.Blackhole;
 
 @Fork(3)
 @BenchmarkMode(Mode.Throughput)
@@ -59,23 +60,26 @@ public class AsyncTokenBucketBenchmark {
     @Benchmark
     @Measurement(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
     @Warmup(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
-    public void consumeTokensBenchmark001Threads() {
+    public void consumeTokensBenchmark001Threads(Blackhole blackhole) {
         asyncTokenBucket.consumeTokens(1);
+        blackhole.consume(asyncTokenBucket.getTokens());
     }
 
     @Threads(10)
     @Benchmark
     @Measurement(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
     @Warmup(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
-    public void consumeTokensBenchmark010Threads() {
+    public void consumeTokensBenchmark010Threads(Blackhole blackhole) {
         asyncTokenBucket.consumeTokens(1);
+        blackhole.consume(asyncTokenBucket.getTokens());
     }
 
     @Threads(100)
     @Benchmark
     @Measurement(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
     @Warmup(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
-    public void consumeTokensBenchmark100Threads() {
+    public void consumeTokensBenchmark100Threads(Blackhole blackhole) {
         asyncTokenBucket.consumeTokens(1);
+        blackhole.consume(asyncTokenBucket.getTokens());
     }
 }
