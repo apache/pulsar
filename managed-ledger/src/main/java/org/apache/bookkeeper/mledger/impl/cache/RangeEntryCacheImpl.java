@@ -55,6 +55,11 @@ import org.slf4j.LoggerFactory;
  */
 public class RangeEntryCacheImpl implements EntryCache {
 
+    /**
+     * Overhead per-entry to take into account the envelope.
+     */
+    public static final long BOOKKEEPER_READ_OVERHEAD_PER_ENTRY = 64;
+    private static final int DEFAULT_ESTIMATED_ENTRY_SIZE = 10 * 1024;
     private static final boolean DEFAULT_CACHE_INDIVIDUAL_READ_ENTRY = false;
 
     private final RangeEntryCacheManagerImpl manager;
@@ -65,6 +70,9 @@ public class RangeEntryCacheImpl implements EntryCache {
     private final PendingReadsManager pendingReadsManager;
 
     private static final double MB = 1024 * 1024;
+
+    private final LongAdder totalAddedEntriesSize = new LongAdder();
+    private final LongAdder totalAddedEntriesCount = new LongAdder();
 
     public RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml, boolean copyEntries) {
         this.manager = manager;
@@ -144,6 +152,8 @@ public class RangeEntryCacheImpl implements EntryCache {
         EntryImpl cacheEntry = EntryImpl.create(position, cachedData);
         cachedData.release();
         if (entries.put(position, cacheEntry)) {
+            totalAddedEntriesSize.add(entryLength);
+            totalAddedEntriesCount.increment();
             manager.entryAdded(entryLength);
             return true;
         } else {
@@ -410,11 +420,17 @@ public class RangeEntryCacheImpl implements EntryCache {
 
     @VisibleForTesting
     public long getEstimatedEntrySize(ReadHandle lh) {
-        if (lh.getLength() == 0 || lh.getLastAddConfirmed() < 0) {
+        if (!lh.isClosed() || lh.getLength() == 0 || lh.getLastAddConfirmed() < 0) {
             // No entries stored.
-            return 1;
+            return Math.max(getAvgEntrySize(), DEFAULT_ESTIMATED_ENTRY_SIZE) + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
         }
         return Math.max(1, lh.getLength() / (lh.getLastAddConfirmed() + 1));
+    }
+
+    private long getAvgEntrySize() {
+        long totalAddedEntriesCount = this.totalAddedEntriesCount.sum();
+        long totalAddedEntriesSize = this.totalAddedEntriesSize.sum();
+        return totalAddedEntriesCount != 0 ? totalAddedEntriesSize / totalAddedEntriesCount : 0;
     }
 
     /**
