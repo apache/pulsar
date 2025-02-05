@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.broker.qos;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -100,4 +101,100 @@ public class AsyncTokenBucketTest {
         assertEquals(asyncTokenBucket.getTokens(), 3);
     }
 
+    @Test
+    void shouldSupportFractionsAndRetainLeftoverWhenUpdatingTokens2() {
+        asyncTokenBucket =
+                AsyncTokenBucket.builder().capacity(100).rate(1).initialTokens(0).clock(clockSource).build();
+        for (int i = 0; i < 150; i++) {
+            incrementMillis(1);
+            assertEquals(asyncTokenBucket.tokens((i + 1) % 31 == 0), 0);
+        }
+        incrementMillis(150);
+        assertEquals(asyncTokenBucket.tokens(true), 0);
+        incrementMillis(699);
+        assertEquals(asyncTokenBucket.tokens(true), 0);
+        incrementMillis(2);
+        assertEquals(asyncTokenBucket.tokens(true), 1);
+        incrementMillis(999);
+        assertEquals(asyncTokenBucket.tokens(true), 2);
+    }
+
+    @Test
+    void shouldHandleNegativeBalanceWithEventuallyConsistentTokenUpdates() {
+        asyncTokenBucket =
+                AsyncTokenBucket.builder()
+                        // intentionally pick a coarse resolution
+                        .resolutionNanos(TimeUnit.SECONDS.toNanos(51))
+                        .capacity(100).rate(10).initialTokens(0).clock(clockSource).build();
+        // assert that the token balance is 0 initially
+        assertThat(asyncTokenBucket.tokens(true)).isEqualTo(0);
+
+        // consume tokens without exceeding the rate
+        for (int i = 0; i < 10000; i++) {
+            asyncTokenBucket.consumeTokens(500);
+            incrementSeconds(50);
+        }
+
+        // let 9 seconds pass
+        incrementSeconds(9);
+
+        // there should be 90 tokens available
+        assertThat(asyncTokenBucket.tokens(true)).isEqualTo(90);
+    }
+
+    @Test
+    void shouldNotExceedTokenBucketSizeWithNegativeTokens() {
+        asyncTokenBucket =
+                AsyncTokenBucket.builder()
+                        // intentionally pick a coarse resolution
+                        .resolutionNanos(TimeUnit.SECONDS.toNanos(51))
+                        .capacity(100).rate(10).initialTokens(0).clock(clockSource).build();
+        // assert that the token balance is 0 initially
+        assertThat(asyncTokenBucket.tokens(true)).isEqualTo(0);
+
+        // consume tokens without exceeding the rate
+        for (int i = 0; i < 100; i++) {
+            asyncTokenBucket.consumeTokens(600);
+            incrementSeconds(50);
+            // let tokens accumulate back to 0 every 10 seconds
+            if ((i + 1) % 10 == 0) {
+                incrementSeconds(100);
+            }
+        }
+
+        // let 9 seconds pass
+        incrementSeconds(9);
+
+        // there should be 90 tokens available
+        assertThat(asyncTokenBucket.tokens(true)).isEqualTo(90);
+    }
+
+    @Test
+    void shouldAccuratelyCalculateTokensWhenTimeIsLaggingBehindInInconsistentUpdates() {
+        clockSource = requestSnapshot -> {
+          if (requestSnapshot) {
+              return manualClockSource.get();
+          } else {
+              // let the clock lag behind
+              return manualClockSource.get() - TimeUnit.SECONDS.toNanos(52);
+          }
+        };
+        incrementSeconds(1);
+        asyncTokenBucket =
+                AsyncTokenBucket.builder().resolutionNanos(TimeUnit.SECONDS.toNanos(51))
+                        .capacity(100).rate(10).initialTokens(100).clock(clockSource).build();
+        assertThat(asyncTokenBucket.tokens(true)).isEqualTo(100);
+
+        // consume tokens without exceeding the rate
+        for (int i = 0; i < 10000; i++) {
+            asyncTokenBucket.consumeTokens(500);
+            incrementSeconds(i == 0 ? 40 : 50);
+        }
+
+        // let 9 seconds pass
+        incrementSeconds(9);
+
+        // there should be 90 tokens available
+        assertThat(asyncTokenBucket.tokens(true)).isEqualTo(90);
+    }
 }
