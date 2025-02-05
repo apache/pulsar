@@ -420,7 +420,8 @@ public class RangeEntryCacheImpl implements EntryCache {
 
     @VisibleForTesting
     public long getEstimatedEntrySize(ReadHandle lh) {
-        if (!lh.isClosed() || lh.getLength() == 0 || lh.getLastAddConfirmed() < 0) {
+        if ((!lh.isClosed() && lh.getLastAddConfirmed() < 1000)
+                || lh.getLength() == 0 || lh.getLastAddConfirmed() < 0) {
             // No entries stored.
             return Math.max(getAvgEntrySize(), DEFAULT_ESTIMATED_ENTRY_SIZE) + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
         }
