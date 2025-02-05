@@ -18,11 +18,13 @@
  */
 package org.apache.pulsar.common.lookup.data;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.google.common.base.MoreObjects;
 
 /**
  * This class encapsulates lookup data.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class LookupData {
     private String brokerUrl;
     private String brokerUrlTls;
