@@ -21,8 +21,10 @@ package org.apache.pulsar.broker.qos;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import org.assertj.core.data.Offset;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -196,5 +198,33 @@ public class AsyncTokenBucketTest {
 
         // there should be 90 tokens available
         assertThat(asyncTokenBucket.tokens(true)).isEqualTo(90);
+    }
+
+    @Test
+    void shouldTolerateInstableClockSourceWhenUpdatingTokens() {
+        AtomicLong offset = new AtomicLong(0);
+        long resolutionNanos = TimeUnit.MILLISECONDS.toNanos(100);
+        DefaultMonotonicSnapshotClock monotonicSnapshotClock =
+                new DefaultMonotonicSnapshotClock(resolutionNanos,
+                        () -> offset.get() + manualClockSource.get());
+        asyncTokenBucket =
+                AsyncTokenBucket.builder().resolutionNanos(resolutionNanos)
+                        .capacity(100000).rate(1000).initialTokens(500).clock(monotonicSnapshotClock).build();
+        Random random = new Random(0);
+        int randomOffsetCount = 0;
+        for (int i = 0; i < 100000; i++) {
+            incrementMillis(1);
+            if (i % 39 == 0) {
+                // randomly offset the clock source
+                // update the tokens consistently before and after offsetting the clock source
+                asyncTokenBucket.tokens(true);
+                offset.set((random.nextBoolean() ? -1L : 1L) * random.nextLong(3L, 100L) * resolutionNanos);
+                asyncTokenBucket.tokens(true);
+                randomOffsetCount++;
+            }
+            asyncTokenBucket.consumeTokens(1);
+        }
+        assertThat(asyncTokenBucket.tokens(true))
+                .isGreaterThan(500L).isCloseTo(500L, Offset.offset(3L * randomOffsetCount));
     }
 }
