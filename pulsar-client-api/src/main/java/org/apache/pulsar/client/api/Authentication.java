@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import javax.ws.rs.client.WebTarget;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
@@ -85,12 +86,25 @@ public interface Authentication extends Closeable, Serializable {
     /**
      * An authentication Stage.
      * when authentication complete, passed-in authFuture will contains authentication related http request headers.
+     * @deprecated Use {@link #authenticationStage(WebTarget, AuthenticationDataProvider, Map, CompletableFuture)} instead.
      */
+    @Deprecated
     default void authenticationStage(String requestUrl,
                                      AuthenticationDataProvider authData,
                                      Map<String, String> previousResHeaders,
                                      CompletableFuture<Map<String, String>> authFuture) {
         authFuture.complete(null);
+    }
+
+    /**
+     * An authentication Stage.
+     * when authentication complete, passed-in authFuture will contains authentication related http request headers.
+     */
+    default void authenticationStage(WebTarget webTarget,
+                                     AuthenticationDataProvider authData,
+                                     Map<String, String> previousResHeaders,
+                                     CompletableFuture<Map<String, String>> authFuture) {
+        authenticationStage(webTarget.getUri().toString(), authData, previousResHeaders, authFuture);
     }
 
     /**

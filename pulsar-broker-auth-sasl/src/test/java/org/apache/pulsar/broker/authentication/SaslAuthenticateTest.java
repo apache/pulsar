@@ -38,6 +38,7 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -80,6 +81,18 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
 
     private static String localHostname = "localhost";
     private Authentication authSasl;
+    private Map<String, String> clientSaslConfig;
+
+
+    @Override
+    protected void doInitConf() throws Exception {
+        super.doInitConf();
+        conf.setWebServicePortTls(Optional.of(0));
+        conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
+        conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+    }
 
     @BeforeClass
     public static void startMiniKdc() throws Exception {
@@ -172,7 +185,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         isTcpLookup = false;
 
         // Client config
-        Map<String, String> clientSaslConfig = new HashMap<>();
+        clientSaslConfig = new HashMap<>();
         clientSaslConfig.put("saslJaasClientSectionName", "PulsarClient");
         clientSaslConfig.put("serverType", "broker");
         log.info("set client jaas section name: PulsarClient");
@@ -221,6 +234,46 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         FileUtils.deleteQuietly(secretKeyFile);
         Assert.assertFalse(secretKeyFile.exists());
         super.internalCleanup();
+    }
+
+    @Test
+    public void testClientWithTLSTransportAndSaslAuth() throws Exception {
+        @Cleanup
+        PulsarAdmin pulsarAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(pulsar.getWebServiceAddressTls())
+                .authentication(AuthenticationFactory.create(AuthenticationSasl.class.getName(), clientSaslConfig))
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).build();
+        pulsarAdmin.tenants().getTenants();
+
+        try (PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsar.getWebServiceAddressTls())
+                .authentication(AuthenticationFactory.create(AuthenticationSasl.class.getName(), clientSaslConfig))
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).build()) {
+            @Cleanup
+            Producer<byte[]> ignoredProducer =
+                    pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic-sasl")
+                            .create();
+
+            @Cleanup
+            Consumer<byte[]> ignoredConsumer =
+                    pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic-sasl")
+                            .subscriptionName("my-sub").subscribe();
+        }
+
+        try (PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrlTls())
+                .authentication(AuthenticationFactory.create(AuthenticationSasl.class.getName(), clientSaslConfig))
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).build()) {
+            @Cleanup
+            Producer<byte[]> ignoredProducer =
+                    pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic-sasl")
+                            .create();
+
+            @Cleanup
+            Consumer<byte[]> ignoredConsumer =
+                    pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic-sasl")
+                            .subscriptionName("my-sub").subscribe();
+        }
     }
 
     // Test could verify with kerberos configured.

@@ -118,7 +118,7 @@ public class HttpClient implements Closeable {
 
             // bring a authenticationStage for sasl auth.
             if (authData.hasDataForHttp()) {
-                authentication.authenticationStage(requestUrl, authData, null, authFuture);
+                authentication.authenticationStage(finalWebTarget, authData, null, authFuture);
             } else {
                 authFuture.complete(null);
             }

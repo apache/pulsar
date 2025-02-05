@@ -61,7 +61,7 @@ public class ComponentResource extends BaseResource {
         String targetUrl = target.getUri().toString();
         if (auth.getAuthMethodName().equalsIgnoreCase(SaslConstants.AUTH_METHOD_NAME)) {
             CompletableFuture<Map<String, String>> authFuture = new CompletableFuture<>();
-            auth.authenticationStage(targetUrl, authData, null, authFuture);
+            auth.authenticationStage(target, authData, null, authFuture);
             return auth.newRequestHeader(targetUrl, authData, authFuture.get());
         } else if (authData.hasDataForHttp()) {
             return auth.newRequestHeader(targetUrl, authData, null);
