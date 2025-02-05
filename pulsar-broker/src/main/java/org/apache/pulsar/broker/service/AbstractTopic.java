@@ -97,7 +97,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
 
     protected final String topic;
 
-    // createFuture associated with the topic to ensure safe removal from the cache of brokerService
+    // Reference to the CompletableFuture returned when creating this topic in BrokerService.
+    // Used to safely remove the topic from BrokerService's cache by ensuring we remove the exact
+    // topic instance that was created.
     @Getter
     @Setter
     protected volatile CompletableFuture<Optional<Topic>> createFuture;
