@@ -3810,26 +3810,50 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (maxSizeBytes == NO_MAX_SIZE_LIMIT) {
             return maxEntries;
         }
-
-        double avgEntrySize = ledger.getStats().getEntrySizeAverage();
-        if (!Double.isFinite(avgEntrySize)) {
-            // We don't have yet any stats on the topic entries. Let's try to use the cursor avg size stats
-            avgEntrySize = (double) entriesReadSize / (double) entriesReadCount;
-        }
-
-        if (!Double.isFinite(avgEntrySize)) {
-            // If we still don't have any information, it means this is the first time we attempt reading
-            // and there are no writes. Let's start with 1 to avoid any overflow and start the avg stats
-            return 1;
-        }
-
-        int maxEntriesBasedOnSize = (int) (maxSizeBytes / avgEntrySize);
-        if (maxEntriesBasedOnSize < 1) {
-            // We need to read at least one entry
-            return 1;
-        }
-
+        int maxEntriesBasedOnSize =
+                Long.valueOf(estimateEntryCountBySize(maxSizeBytes, readPosition, ledger)).intValue();
         return Math.min(maxEntriesBasedOnSize, maxEntries);
+    }
+
+    private static long estimateEntryCountBySize(long bytesSize, Position readPosition, ManagedLedgerImpl ml) {
+        Position posToRead = readPosition;
+        if (!ml.isValidPosition(readPosition)) {
+            posToRead = ml.getNextValidPosition(readPosition);
+        }
+        long result = 0;
+        long remainingBytesSize = bytesSize;
+
+        while (remainingBytesSize > 0) {
+            // Last ledger.
+            if (posToRead.getLedgerId() == ml.currentLedger.getId()) {
+                if (ml.currentLedgerSize == 0 ||  ml.currentLedgerEntries == 0) {
+                    // Only read 1 entry if no entries to read.
+                    return 1;
+                }
+                long avg = Math.max(1, ml.currentLedgerSize / ml.currentLedgerEntries);
+                result += remainingBytesSize / avg;
+                break;
+            }
+            // Skip empty ledger.
+            LedgerInfo ledgerInfo = ml.getLedgersInfo().get(posToRead.getLedgerId());
+            if (ledgerInfo.getSize() == 0 || ledgerInfo.getEntries() == 0) {
+                posToRead = ml.getNextValidPosition(PositionFactory.create(posToRead.getLedgerId(), Long.MAX_VALUE));
+                continue;
+            }
+            // Calculate entries by average of ledgers.
+            long avg = Math.max(1, ledgerInfo.getSize() / ledgerInfo.getEntries());
+            long remainEntriesOfLedger = ledgerInfo.getEntries() - posToRead.getEntryId() + 1;
+            if (remainEntriesOfLedger * avg >= remainingBytesSize) {
+                result += remainingBytesSize / avg;
+                break;
+            } else {
+                // Calculate for the next ledger.
+                result += remainEntriesOfLedger / avg;
+                remainingBytesSize -= remainEntriesOfLedger;
+                posToRead = ml.getNextValidPosition(PositionFactory.create(posToRead.getLedgerId(), Long.MAX_VALUE));
+            }
+        }
+        return Math.max(result, 1); // TODO 告诉 RangeEntryCache 这次申请的预估出来的 permits。
     }
 
     @Override
