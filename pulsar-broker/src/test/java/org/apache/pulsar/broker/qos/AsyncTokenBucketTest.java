@@ -218,7 +218,7 @@ public class AsyncTokenBucketTest {
                 // randomly offset the clock source
                 // update the tokens consistently before and after offsetting the clock source
                 asyncTokenBucket.tokens(true);
-                offset.set((random.nextBoolean() ? -1L : 1L) * random.nextLong(3L, 100L) * resolutionNanos);
+                offset.set((random.nextBoolean() ? -1L : 1L) * random.nextLong(0L, 100L) * resolutionNanos);
                 asyncTokenBucket.tokens(true);
                 randomOffsetCount++;
             }
