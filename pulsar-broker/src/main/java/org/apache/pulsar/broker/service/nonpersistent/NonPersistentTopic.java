@@ -454,7 +454,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                             // topic GC iterates over topics map and removing from the map with the same thread creates
                             // deadlock. so, execute it in different thread
                             brokerService.executor().execute(() -> {
-                                brokerService.removeTopicFromCache(this);
+                                brokerService.removeTopicFromCache(NonPersistentTopic.this);
                                 unregisterTopicPolicyListener();
                                 log.info("[{}] Topic deleted", topic);
                                 deleteFuture.complete(null);
@@ -555,7 +555,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             brokerService.executor().execute(() -> {
 
                 if (disconnectClients) {
-                    brokerService.removeTopicFromCache(this);
+                    brokerService.removeTopicFromCache(NonPersistentTopic.this);
                     unregisterTopicPolicyListener();
                 }
                 closeFuture.complete(null);
