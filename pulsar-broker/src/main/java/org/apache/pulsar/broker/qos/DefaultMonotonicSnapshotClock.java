@@ -79,8 +79,9 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
         private long referenceClockSourceValue;
         private long baseSnapshotTickNanos;
         private long previousSnapshotTickNanos;
-        private volatile boolean running = false;
-        private boolean tickUpdateDelayMonitorNotified = false;
+        private volatile boolean running;
+        private boolean tickUpdateDelayMonitorNotified;
+        private long requestCount;
 
         TickUpdaterThread() {
             super(DefaultMonotonicSnapshotClock.class.getSimpleName() + "-update-loop");
@@ -95,19 +96,21 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
         public void run() {
             try {
                 running = true;
-                // initially update the snapshot value and notify all threads that are waiting for the tick value
-                // the start method waits until the tick value has been updated
-                updateSnapshotTickNanos(false);
-                notifyAllTickUpdated();
+                long updatedForRequestCount = -1;
                 while (!isInterrupted()) {
                     try {
-                        boolean snapshotRequested;
+                        boolean snapshotRequested = false;
                         // sleep for the configured interval on a monitor that can be notified to stop the sleep
                         // and update the tick value immediately. This is used in requestUpdate method.
                         synchronized (tickUpdateDelayMonitor) {
                             tickUpdateDelayMonitorNotified = false;
-                            tickUpdateDelayMonitor.wait(sleepMillis, sleepNanos);
-                            snapshotRequested = tickUpdateDelayMonitorNotified;
+                            // only wait if no explicit request has been made since the last update
+                            if (requestCount == updatedForRequestCount) {
+                                // if no request has been made, sleep for the configured interval
+                                tickUpdateDelayMonitor.wait(sleepMillis, sleepNanos);
+                                snapshotRequested = tickUpdateDelayMonitorNotified;
+                            }
+                            updatedForRequestCount = requestCount;
                         }
                         updateSnapshotTickNanos(snapshotRequested);
                         notifyAllTickUpdated();
@@ -123,6 +126,7 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
             } finally {
                 LOG.info("DefaultMonotonicSnapshotClock's TickUpdaterThread stopped. {},tid={}", this, getId());
                 running = false;
+                notifyAllTickUpdated();
             }
         }
 
@@ -181,6 +185,7 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
                 // notify the thread to stop waiting and update the tick value
                 synchronized (tickUpdateDelayMonitor) {
                     tickUpdateDelayMonitorNotified = true;
+                    requestCount++;
                     tickUpdateDelayMonitor.notify();
                 }
                 // wait until the tick value has been updated
