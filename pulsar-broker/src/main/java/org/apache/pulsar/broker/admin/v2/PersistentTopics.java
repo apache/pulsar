@@ -346,7 +346,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalCreateNonPartitionedTopicAsync(authoritative, properties)
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
-                    if (isNot307And404Exception(ex)) {
+                    if (isNot307And404Exception(ex) && !isConflictException(ex)) {
                         log.error("[{}] Failed to create non-partitioned topic {}", clientAppId(), topicName, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -946,7 +946,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     Throwable t = FutureUtil.unwrapCompletionException(ex);
                     if (!isRedirectException(t)) {
                         if (AdminResource.isNotFoundException(t)) {
-                            log.error("[{}] Failed to get partitioned metadata topic {}: {}",
+                            log.warn("[{}] Failed to get partitioned metadata topic {}: {}",
                                     clientAppId(), topicName, ex.getMessage());
                         } else {
                             log.error("[{}] Failed to get partitioned metadata topic {}",

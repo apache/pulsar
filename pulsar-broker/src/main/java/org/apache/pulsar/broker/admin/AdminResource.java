@@ -885,11 +885,22 @@ public abstract class AdminResource extends PulsarWebResource {
                 == Status.TEMPORARY_REDIRECT.getStatusCode();
     }
 
+    protected static boolean isNotFoundOrConflictException(Throwable ex) {
+        return isNotFoundException(ex) || isConflictException(ex);
+    }
+
     protected static boolean isNotFoundException(Throwable ex) {
         Throwable realCause = FutureUtil.unwrapCompletionException(ex);
         return realCause instanceof WebApplicationException
                 && ((WebApplicationException) realCause).getResponse().getStatus()
                 == Status.NOT_FOUND.getStatusCode();
+    }
+
+    protected static boolean isConflictException(Throwable ex) {
+        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+        return realCause instanceof WebApplicationException
+                && ((WebApplicationException) realCause).getResponse().getStatus()
+                == Status.CONFLICT.getStatusCode();
     }
 
     protected static boolean isNot307And404Exception(Throwable ex) {
