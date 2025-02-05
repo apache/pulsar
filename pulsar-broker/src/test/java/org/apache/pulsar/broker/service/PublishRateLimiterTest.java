@@ -26,6 +26,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import io.netty.channel.EventLoop;
 import io.netty.channel.EventLoopGroup;
 import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
@@ -73,7 +74,9 @@ public class PublishRateLimiterTest {
         when(transportCnx.getBrokerService()).thenReturn(brokerService);
         EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
         when(brokerService.executor()).thenReturn(eventLoopGroup);
-        doReturn(null).when(eventLoopGroup).schedule(any(Runnable.class), anyLong(), any());
+        EventLoop eventLoop = mock(EventLoop.class);
+        when(eventLoopGroup.next()).thenReturn(eventLoop);
+        doReturn(null).when(eventLoop).schedule(any(Runnable.class), anyLong(), any());
         incrementSeconds(1);
     }
 
