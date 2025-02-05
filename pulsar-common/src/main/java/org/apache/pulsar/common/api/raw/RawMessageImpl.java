@@ -99,7 +99,8 @@ public class RawMessageImpl implements RawMessage {
                               (oldValue, newValue) -> newValue));
         } else if (msgMetadata.getMetadata().getPropertiesCount() > 0) {
             return msgMetadata.getMetadata().getPropertiesList().stream()
-                    .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue));
+                    .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue,
+                            (oldValue, newValue) -> newValue));
         } else {
             return Collections.emptyMap();
         }
