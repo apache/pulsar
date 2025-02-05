@@ -78,6 +78,7 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
             ackReceivedReplicatedMsg(cnx, op, seq, highSeq, ledgerId, entryId);
         }
     }
+
     private void ackReceivedReplicatedMsg(ClientCnx cnx, OpSendMsg op, long sourceLId, long sourceEId,
                                           long targetLId, long targetEid) {
         // Parse source cluster's entry position.

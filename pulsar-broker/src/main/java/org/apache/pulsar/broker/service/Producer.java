@@ -588,7 +588,8 @@ public class Producer {
             }
             // Case-2: is a repl message.
             Object positionPairObj = getProperty(MSG_PROP_REPL_SOURCE_POSITION);
-            if (positionPairObj == null || !(positionPairObj instanceof long[])) {
+            if (positionPairObj == null || !(positionPairObj instanceof long[])
+                    || ((long[]) positionPairObj).length < 2) {
                 log.error("[{}] Message can not determine whether the message is duplicated due to the acquired"
                                 + " messages props were are invalid. producer={}. supportsReplDedupByLidAndEid: {},"
                                 + " sequence-id {}, prop-{}: not in expected format",
