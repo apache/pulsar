@@ -44,14 +44,15 @@ public class DefaultMonotonicSnapshotClockTest {
         @Cleanup
         DefaultMonotonicSnapshotClock clock =
                 new DefaultMonotonicSnapshotClock(Duration.ofMillis(snapshotIntervalMillis).toNanos(),
-                        clockValue::get);
+                        clockValue::get, true);
 
 
         long previousTick = -1;
         boolean leapDirection = true;
         for (int i = 0; i < 10000; i++) {
             clockValue.addAndGet(TimeUnit.MILLISECONDS.toNanos(1));
-            if (i % 5 == 0) {
+            if (i % snapshotIntervalMillis == 0) {
+                // let the clock update by a background thread
                 clock.requestUpdate();
             }
             long tick = clock.getTickNanos(requestSnapshot);
@@ -67,7 +68,11 @@ public class DefaultMonotonicSnapshotClockTest {
                         .describedAs("i = %d, tick = %d, previousTick = %d", i, tick, previousTick)
                         .isGreaterThanOrEqualTo(previousTick)
                         .isCloseTo(previousTick,
-                                Offset.offset(TimeUnit.MILLISECONDS.toNanos(1)));
+                                // then snapshot is requested, the time difference between the two ticks is accurate
+                                // otherwise allow time difference at most 4 times the snapshot interval since the
+                                // clock is updated periodically by a background thread
+                                Offset.offset(TimeUnit.MILLISECONDS.toNanos(
+                                        requestSnapshot ? 1 : 4 * snapshotIntervalMillis)));
             }
             previousTick = tick;
         }
