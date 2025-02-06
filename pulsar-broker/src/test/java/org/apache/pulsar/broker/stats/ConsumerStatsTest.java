@@ -480,6 +480,10 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         metadataConsumer.put("matchValueReschedule", "producer2");
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic).properties(metadataConsumer)
+                // Since https://github.com/apache/pulsar/pull/23931 improved the performance of delivery, the consumer
+                // will get more messages than before(it only receives 1 messages at the first delivery), we set queue
+                // size to `1` to keep the test passing.
+                .receiverQueueSize(1)
                 .subscriptionName(subName).subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe();
 
         int counter = 0;
