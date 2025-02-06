@@ -507,16 +507,17 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
     public void testBeforeAddEntry() throws Exception {
         final var interceptor = new ManagedLedgerInterceptorImpl(getBrokerEntryMetadataInterceptors(), null);
         final var config = new ManagedLedgerConfig();
-        final var numEntries = 10;
+        final var numEntries = 100;
         config.setMaxEntriesPerLedger(numEntries);
         config.setManagedLedgerInterceptor(interceptor);
         @Cleanup final var ml = (ManagedLedgerImpl) factory.open("test_concurrent_add_entry", config);
 
-        final var indexesBeforeAdd = Collections.synchronizedList(new ArrayList<Long>());
-        final var batchSizes = Collections.synchronizedList(new ArrayList<Long>());
+        final var indexesBeforeAdd = new ArrayList<Long>();
+        final var batchSizes = new ArrayList<Long>();
         final var random = new Random();
         final var latch = new CountDownLatch(numEntries);
-        final var executor = Executors.newFixedThreadPool(2);
+        final var executor = Executors.newFixedThreadPool(3);
+        final var lock = new Object(); // make sure `asyncAddEntry` are called in order
         for (int i = 0; i < numEntries; i++) {
             final var batchSize = random.nextInt(0, 100);
             final var msg = "msg-" + i;
@@ -534,7 +535,7 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
                 }
             };
             executor.execute(() -> {
-                synchronized (ml) {
+                synchronized (lock) {
                     batchSizes.add((long) batchSize);
                     indexesBeforeAdd.add(interceptor.getIndex() + 1); // index is updated in each asyncAddEntry call
                     ml.asyncAddEntry(Unpooled.wrappedBuffer(msg.getBytes()), batchSize, callback, null);
@@ -542,11 +543,13 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
             });
         }
         assertTrue(latch.await(3, TimeUnit.SECONDS));
-        for (int i = 1; i < numEntries; i++) {
-            final var sum = batchSizes.get(i) + batchSizes.get(i - 1);
-            batchSizes.set(i, sum);
+        synchronized (lock) {
+            for (int i = 1; i < numEntries; i++) {
+                final var sum = batchSizes.get(i) + batchSizes.get(i - 1);
+                batchSizes.set(i, sum);
+            }
+            assertEquals(indexesBeforeAdd.subList(1, numEntries), batchSizes.subList(0, numEntries - 1));
         }
-        assertEquals(indexesBeforeAdd.subList(1, numEntries), batchSizes.subList(0, numEntries - 1));
         executor.shutdown();
     }
 }
