@@ -5165,6 +5165,80 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testEstimateEntryCountBySize() throws Exception {
+        final String mlName = "ml-" + UUID.randomUUID().toString().replaceAll("-", "");
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName);
+        // Verify: no entry to read
+        long entryCount0 =
+                ManagedCursorImpl.estimateEntryCountBySize(16, PositionFactory.create(ml.currentLedger.getId(), 0), ml);
+        assertEquals(entryCount0, 1);
+        // Avoid trimming ledgers.
+        ml.openCursor("c1");
+
+        // Build data.
+        for (int i = 0; i < 100; i++) {
+            ml.addEntry(new byte[]{1});
+        }
+        long ledger1 = ml.currentLedger.getId();
+        ml.currentLedger.close();
+        ml.ledgerClosed(ml.currentLedger);
+        for (int i = 0; i < 100; i++) {
+            ml.addEntry(new byte[]{1, 2});
+        }
+        long ledger2 = ml.currentLedger.getId();
+        ml.currentLedger.close();
+        ml.ledgerClosed(ml.currentLedger);
+        for (int i = 0; i < 100; i++) {
+            ml.addEntry(new byte[]{1, 2, 3, 4});
+        }
+        long ledger3 = ml.currentLedger.getId();
+        MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo1 = ml.getLedgersInfo().get(ledger1);
+        MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo2 = ml.getLedgersInfo().get(ledger2);
+        long average1 = ledgerInfo1.getSize() / ledgerInfo1.getEntries();
+        long average2 = ledgerInfo2.getSize() / ledgerInfo2.getEntries();
+        long average3 = ml.currentLedgerSize / ml.currentLedgerEntries;
+        assertEquals(average1, 1);
+        assertEquals(average2, 2);
+        assertEquals(average3, 4);
+
+        // Test: the individual ledgers.
+        long entryCount1 =
+                ManagedCursorImpl.estimateEntryCountBySize(16, PositionFactory.create(ledger1, 0), ml);
+        assertEquals(entryCount1, 16);
+        long entryCount2 =
+                ManagedCursorImpl.estimateEntryCountBySize(16, PositionFactory.create(ledger2, 0), ml);
+        assertEquals(entryCount2, 8);
+        long entryCount3 =
+                ManagedCursorImpl.estimateEntryCountBySize(16, PositionFactory.create(ledger3, 0), ml);
+        assertEquals(entryCount3, 4);
+
+        // Test: across ledgers.
+        long entryCount4 =
+                ManagedCursorImpl.estimateEntryCountBySize(116, PositionFactory.create(ledger1, 0), ml);
+        assertEquals(entryCount4, 108);
+        long entryCount5 =
+                ManagedCursorImpl.estimateEntryCountBySize(216, PositionFactory.create(ledger2, 0), ml);
+        assertEquals(entryCount5, 104);
+        long entryCount6 =
+                ManagedCursorImpl.estimateEntryCountBySize(316, PositionFactory.create(ledger1, 0), ml);
+        assertEquals(entryCount6, 204);
+
+        long entryCount7 =
+                ManagedCursorImpl.estimateEntryCountBySize(36, PositionFactory.create(ledger1, 80), ml);
+        assertEquals(entryCount7, 28);
+        long entryCount8 =
+                ManagedCursorImpl.estimateEntryCountBySize(56, PositionFactory.create(ledger2, 80), ml);
+        assertEquals(entryCount8, 24);
+        long entryCount9 =
+                ManagedCursorImpl.estimateEntryCountBySize(236, PositionFactory.create(ledger1, 80), ml);
+        assertEquals(entryCount9, 124);
+
+
+        // cleanup.
+        ml.delete();
+    }
+
+    @Test
     void testForceCursorRecovery() throws Exception {
         TestPulsarMockBookKeeper bk = new TestPulsarMockBookKeeper(executor);
         factory = new ManagedLedgerFactoryImpl(metadataStore, bk);
