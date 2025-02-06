@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.qos;
 
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.function.LongConsumer;
 import java.util.function.LongSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,8 +37,6 @@ import org.slf4j.LoggerFactory;
  */
 public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(DefaultMonotonicSnapshotClock.class);
-    private final long sleepMillis;
-    private final int sleepNanos;
     private final LongSupplier clockSource;
     private final TickUpdaterThread tickUpdaterThread;
     private final long snapshotIntervalNanos;
@@ -47,11 +46,9 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
         if (snapshotIntervalNanos < TimeUnit.MILLISECONDS.toNanos(1)) {
             throw new IllegalArgumentException("snapshotIntervalNanos must be at least 1 millisecond");
         }
-        this.sleepMillis = TimeUnit.NANOSECONDS.toMillis(snapshotIntervalNanos);
-        this.sleepNanos = (int) (snapshotIntervalNanos - TimeUnit.MILLISECONDS.toNanos(sleepMillis));
         this.clockSource = Objects.requireNonNull(clockSource, "clockSource must not be null");
         this.snapshotIntervalNanos = snapshotIntervalNanos;
-        tickUpdaterThread = new TickUpdaterThread();
+        tickUpdaterThread = new TickUpdaterThread(snapshotIntervalNanos, clockSource, this::setSnapshotTickNanos);
         tickUpdaterThread.start();
     }
 
@@ -64,6 +61,10 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
         return snapshotTickNanos;
     }
 
+    private void setSnapshotTickNanos(long snapshotTickNanos) {
+        this.snapshotTickNanos = snapshotTickNanos;
+    }
+
     /**
      * A thread that updates snapshotTickNanos value periodically with a configured interval.
      * The thread is started when the DefaultMonotonicSnapshotClock is created and runs until the close method is
@@ -73,24 +74,26 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
      * stability of the read value since a single thread is scheduled on a single CPU. If the thread is migrated
      * to another CPU, the clock source value might leap backward or forward, but logic in this class will handle it.
      */
-    private class TickUpdaterThread extends Thread {
+    private static class TickUpdaterThread extends Thread {
         private final Object tickUpdateDelayMonitor = new Object();
         private final Object tickUpdatedMonitor = new Object();
-        private final long maxDelta;
-        private long referenceClockSourceValue;
-        private long baseSnapshotTickNanos;
-        private long previousSnapshotTickNanos;
+        private final MonotonicLeapDetectingTickUpdater tickUpdater;
         private volatile boolean running;
         private boolean tickUpdateDelayMonitorNotified;
         private long requestCount;
+        private final long sleepMillis;
+        private final int sleepNanos;
 
-        TickUpdaterThread() {
+        TickUpdaterThread(long snapshotIntervalNanos, LongSupplier clockSource, LongConsumer setSnapshotTickNanos) {
             super(DefaultMonotonicSnapshotClock.class.getSimpleName() + "-update-loop");
             // set as daemon thread so that it doesn't prevent the JVM from exiting
             setDaemon(true);
             // set the highest priority
             setPriority(MAX_PRIORITY);
-            this.maxDelta = 2 * snapshotIntervalNanos;
+            this.sleepMillis = TimeUnit.NANOSECONDS.toMillis(snapshotIntervalNanos);
+            this.sleepNanos = (int) (snapshotIntervalNanos - TimeUnit.MILLISECONDS.toNanos(sleepMillis));
+            tickUpdater = new MonotonicLeapDetectingTickUpdater(clockSource, setSnapshotTickNanos,
+                    2 * snapshotIntervalNanos);
         }
 
         @Override
@@ -100,7 +103,9 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
                 long updatedForRequestCount = -1;
                 while (!isInterrupted()) {
                     try {
-                        boolean snapshotRequested = false;
+                        // track if the thread has waited for the whole duration of the snapshot interval
+                        // before updating the tick value
+                        boolean waitedSnapshotInterval = false;
                         // sleep for the configured interval on a monitor that can be notified to stop the sleep
                         // and update the tick value immediately. This is used in requestUpdate method.
                         synchronized (tickUpdateDelayMonitor) {
@@ -109,11 +114,12 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
                             if (requestCount == updatedForRequestCount) {
                                 // if no request has been made, sleep for the configured interval
                                 tickUpdateDelayMonitor.wait(sleepMillis, sleepNanos);
-                                snapshotRequested = tickUpdateDelayMonitorNotified;
+                                waitedSnapshotInterval = !tickUpdateDelayMonitorNotified;
                             }
                             updatedForRequestCount = requestCount;
                         }
-                        updateSnapshotTickNanos(snapshotRequested);
+                        // update the tick value using the tick updater which will tolerate leaps backward or forward
+                        tickUpdater.update(waitedSnapshotInterval);
                         notifyAllTickUpdated();
                     } catch (InterruptedException e) {
                         interrupt();
@@ -131,44 +137,6 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
             }
         }
 
-        private void updateSnapshotTickNanos(boolean snapshotRequested) {
-            long clockValue = clockSource.getAsLong();
-
-            // Initialization
-            if (referenceClockSourceValue == 0) {
-                referenceClockSourceValue = clockValue;
-                baseSnapshotTickNanos = clockValue;
-                snapshotTickNanos = clockValue;
-                previousSnapshotTickNanos = clockValue;
-                return;
-            }
-
-            // calculate the duration since the reference clock source value
-            // so that the snapshot value is always increasing and tolerates it when the clock source is not strictly
-            // monotonic across all CPUs and leaps backward or forward
-            long durationSinceReference = clockValue - referenceClockSourceValue;
-            long newSnapshotTickNanos = baseSnapshotTickNanos + durationSinceReference;
-
-            // reset the reference clock source value if the clock source value leaps backward or forward
-            if (newSnapshotTickNanos < previousSnapshotTickNanos - maxDelta
-                    || newSnapshotTickNanos > previousSnapshotTickNanos + maxDelta) {
-                referenceClockSourceValue = clockValue;
-                baseSnapshotTickNanos = previousSnapshotTickNanos;
-                if (!snapshotRequested) {
-                    // if the snapshot value is not requested, increment by the snapshot interval
-                    baseSnapshotTickNanos += snapshotIntervalNanos;
-                }
-                newSnapshotTickNanos = baseSnapshotTickNanos;
-            }
-
-            // update snapshotTickNanos value if the new value is greater than the previous value
-            if (newSnapshotTickNanos > previousSnapshotTickNanos) {
-                snapshotTickNanos = newSnapshotTickNanos;
-                // store into a field so that we don't need to do a volatile read to find out the previous value
-                previousSnapshotTickNanos = newSnapshotTickNanos;
-            }
-        }
-
         private void notifyAllTickUpdated() {
             synchronized (tickUpdatedMonitor) {
                 // notify all threads that are waiting for the tick value to be updated
@@ -178,8 +146,8 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
 
         public void requestUpdate() {
             if (!running) {
-                // thread has stopped running, fallback to update the value directly without any optimizations
-                snapshotTickNanos = clockSource.getAsLong();
+                // thread has stopped running, fallback to update the value directly without optimizations
+                tickUpdater.update(false);
                 return;
             }
             synchronized (tickUpdatedMonitor) {
@@ -208,6 +176,73 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
                 } catch (InterruptedException e) {
                     currentThread().interrupt();
                 }
+            }
+        }
+    }
+
+    /**
+     * Handles updating the tick value in a monotonic way so that the value is always increasing,
+     * regardless of leaps backward and forward in the clock source value.
+     */
+    private static class MonotonicLeapDetectingTickUpdater {
+        private final LongSupplier clockSource;
+        private final long snapshotInternalNanos;
+        private final long maxDeltaNanosForLeapDetection;
+        private final LongConsumer tickUpdatedCallback;
+        private long referenceClockSourceValue = Long.MIN_VALUE;
+        private long baseSnapshotTickNanos;
+        private long previousSnapshotTickNanos;
+
+        MonotonicLeapDetectingTickUpdater(LongSupplier clockSource, LongConsumer tickUpdatedCallback,
+                                          long snapshotInternalNanos) {
+            this.clockSource = clockSource;
+            this.snapshotInternalNanos = snapshotInternalNanos;
+            this.maxDeltaNanosForLeapDetection = 2 * snapshotInternalNanos;
+            this.tickUpdatedCallback = tickUpdatedCallback;
+        }
+
+        /**
+         * Updates the snapshot tick value. The tickUpdatedCallback is called if the value has changed.
+         * The value is updated in a monotonic way so that the value is always increasing, regardless of leaps backward
+         * and forward in the clock source value.
+         * Leap detection is done by comparing the new value with the previous value and the maximum delta value.
+         *
+         * @param waitedSnapshotInterval if true, the method has waited for the snapshot interval since the previous
+         *                               call.
+         */
+        public synchronized void update(boolean waitedSnapshotInterval) {
+            long clockValue = clockSource.getAsLong();
+
+            // Initialization
+            if (referenceClockSourceValue == Long.MIN_VALUE) {
+                referenceClockSourceValue = clockValue;
+                baseSnapshotTickNanos = clockValue;
+                previousSnapshotTickNanos = clockValue;
+                tickUpdatedCallback.accept(clockValue);
+                return;
+            }
+
+            // calculate the duration since the reference clock source value
+            // so that the snapshot value is always increasing and tolerates it when the clock source is not strictly
+            // monotonic across all CPUs and leaps backward or forward
+            long durationSinceReference = clockValue - referenceClockSourceValue;
+            long newSnapshotTickNanos = baseSnapshotTickNanos + durationSinceReference;
+
+            // reset the reference clock source value if the clock source value leaps backward or forward
+            // more than the maximum delta value
+            if (newSnapshotTickNanos < previousSnapshotTickNanos - maxDeltaNanosForLeapDetection
+                    || newSnapshotTickNanos > previousSnapshotTickNanos + maxDeltaNanosForLeapDetection) {
+                referenceClockSourceValue = clockValue;
+                long incrementWhenLeapDetected = waitedSnapshotInterval ? snapshotInternalNanos : 0;
+                baseSnapshotTickNanos = previousSnapshotTickNanos + incrementWhenLeapDetected;
+                newSnapshotTickNanos = baseSnapshotTickNanos;
+            }
+
+            // update snapshotTickNanos value if the new value is greater than the previous value
+            if (newSnapshotTickNanos > previousSnapshotTickNanos) {
+                // store the previous value
+                previousSnapshotTickNanos = newSnapshotTickNanos;
+                tickUpdatedCallback.accept(newSnapshotTickNanos);
             }
         }
     }
