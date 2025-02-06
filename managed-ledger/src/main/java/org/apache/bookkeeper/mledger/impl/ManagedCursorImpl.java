@@ -3815,7 +3815,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         return Math.min(maxEntriesBasedOnSize, maxEntries);
     }
 
-    private static long estimateEntryCountBySize(long bytesSize, Position readPosition, ManagedLedgerImpl ml) {
+    static long estimateEntryCountBySize(long bytesSize, Position readPosition, ManagedLedgerImpl ml) {
         Position posToRead = readPosition;
         if (!ml.isValidPosition(readPosition)) {
             posToRead = ml.getNextValidPosition(readPosition);
@@ -3825,12 +3825,12 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         while (remainingBytesSize > 0) {
             // Last ledger.
-            if (posToRead.getLedgerId() == ml.currentLedger.getId()) {
-                if (ml.currentLedgerSize == 0 ||  ml.currentLedgerEntries == 0) {
+            if (posToRead.getLedgerId() == ml.getCurrentLedger().getId()) {
+                if (ml.getCurrentLedgerSize() == 0 ||  ml.getCurrentLedgerEntries() == 0) {
                     // Only read 1 entry if no entries to read.
                     return 1;
                 }
-                long avg = Math.max(1, ml.currentLedgerSize / ml.currentLedgerEntries);
+                long avg = Math.max(1, ml.getCurrentLedgerSize() / ml.getCurrentLedgerEntries());
                 result += remainingBytesSize / avg;
                 break;
             }
@@ -3842,14 +3842,14 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
             // Calculate entries by average of ledgers.
             long avg = Math.max(1, ledgerInfo.getSize() / ledgerInfo.getEntries());
-            long remainEntriesOfLedger = ledgerInfo.getEntries() - posToRead.getEntryId() + 1;
+            long remainEntriesOfLedger = ledgerInfo.getEntries() - posToRead.getEntryId();
             if (remainEntriesOfLedger * avg >= remainingBytesSize) {
                 result += remainingBytesSize / avg;
                 break;
             } else {
                 // Calculate for the next ledger.
-                result += remainEntriesOfLedger / avg;
-                remainingBytesSize -= remainEntriesOfLedger;
+                result += remainEntriesOfLedger;
+                remainingBytesSize -= remainEntriesOfLedger * avg;
                 posToRead = ml.getNextValidPosition(PositionFactory.create(posToRead.getLedgerId(), Long.MAX_VALUE));
             }
         }

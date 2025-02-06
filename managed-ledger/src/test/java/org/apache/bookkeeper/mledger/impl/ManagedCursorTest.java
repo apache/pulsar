@@ -5169,8 +5169,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final String mlName = "ml-" + UUID.randomUUID().toString().replaceAll("-", "");
         ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName);
         // Verify: no entry to read
+
         long entryCount0 =
-                ManagedCursorImpl.estimateEntryCountBySize(16, PositionFactory.create(ml.currentLedger.getId(), 0), ml);
+                ManagedCursorImpl.estimateEntryCountBySize(16, PositionFactory.create(ml.getCurrentLedger().getId(), 0), ml);
         assertEquals(entryCount0, 1);
         // Avoid trimming ledgers.
         ml.openCursor("c1");
@@ -5179,19 +5180,19 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < 100; i++) {
             ml.addEntry(new byte[]{1});
         }
-        long ledger1 = ml.currentLedger.getId();
-        ml.currentLedger.close();
-        ml.ledgerClosed(ml.currentLedger);
+        long ledger1 = ml.getCurrentLedger().getId();
+        ml.getCurrentLedger().close();
+        ml.ledgerClosed(ml.getCurrentLedger());
         for (int i = 0; i < 100; i++) {
             ml.addEntry(new byte[]{1, 2});
         }
-        long ledger2 = ml.currentLedger.getId();
-        ml.currentLedger.close();
-        ml.ledgerClosed(ml.currentLedger);
+        long ledger2 = ml.getCurrentLedger().getId();
+        ml.getCurrentLedger().close();
+        ml.ledgerClosed(ml.getCurrentLedger());
         for (int i = 0; i < 100; i++) {
             ml.addEntry(new byte[]{1, 2, 3, 4});
         }
-        long ledger3 = ml.currentLedger.getId();
+        long ledger3 = ml.getCurrentLedger().getId();
         MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo1 = ml.getLedgersInfo().get(ledger1);
         MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo2 = ml.getLedgersInfo().get(ledger2);
         long average1 = ledgerInfo1.getSize() / ledgerInfo1.getEntries();
@@ -5232,7 +5233,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         long entryCount9 =
                 ManagedCursorImpl.estimateEntryCountBySize(236, PositionFactory.create(ledger1, 80), ml);
         assertEquals(entryCount9, 124);
-
 
         // cleanup.
         ml.delete();
