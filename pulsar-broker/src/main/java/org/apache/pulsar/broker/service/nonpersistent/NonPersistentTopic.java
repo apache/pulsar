@@ -352,7 +352,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                                 consumer.consumerName(), currentUsageCount());
                     }
                     future.completeExceptionally(
-                            new BrokerServiceException("Connection was closed while the opening the cursor "));
+                            new BrokerServiceException.ConnectionClosedException(
+                                    "Connection was closed while the opening the cursor "));
                 } else {
                     log.info("[{}][{}] Created new subscription for {}", topic, subscriptionName, consumerId);
                     future.complete(consumer);
