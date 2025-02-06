@@ -48,6 +48,7 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
+import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.impl.NamespacesBase;
 import org.apache.pulsar.broker.admin.impl.OffloaderObjectsScannerUtils;
 import org.apache.pulsar.broker.web.RestException;
@@ -153,7 +154,11 @@ public class Namespaces extends NamespacesBase {
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenAccept(response::resume)
                 .exceptionally(ex -> {
-                    log.error("Failed to get policies for namespace {}", namespaceName, ex);
+                    if (AdminResource.isNotFoundOrConflictException(ex)) {
+                        log.info("Failed to get policies for namespace {}: {}", namespaceName, ex.getMessage());
+                    } else {
+                        log.error("Failed to get policies for namespace {}", namespaceName, ex);
+                    }
                     resumeAsyncResponseExceptionally(response, ex);
                     return null;
                 });
