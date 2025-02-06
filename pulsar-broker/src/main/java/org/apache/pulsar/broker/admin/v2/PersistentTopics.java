@@ -946,7 +946,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     Throwable t = FutureUtil.unwrapCompletionException(ex);
                     if (!isRedirectException(t)) {
                         if (AdminResource.isNotFoundException(t)) {
-                            log.warn("[{}] Failed to get partitioned metadata topic {}: {}",
+                            log.info("[{}] Failed to get partitioned metadata topic {}: {}",
                                     clientAppId(), topicName, ex.getMessage());
                         } else {
                             log.error("[{}] Failed to get partitioned metadata topic {}",

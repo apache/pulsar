@@ -625,7 +625,7 @@ public abstract class AdminResource extends PulsarWebResource {
                 })
                 .exceptionally(ex -> {
                     if (AdminResource.isConflictException(ex)) {
-                        log.warn("[{}] Failed to create partitioned topic {}: {}", clientAppId(), topicName,
+                        log.info("[{}] Failed to create partitioned topic {}: {}", clientAppId(), topicName,
                                 ex.getMessage());
                     } else {
                         log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, ex);

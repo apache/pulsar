@@ -156,7 +156,7 @@ public class Namespaces extends NamespacesBase {
                 .thenAccept(response::resume)
                 .exceptionally(ex -> {
                     if (AdminResource.isNotFoundOrConflictException(ex)) {
-                        log.warn("Failed to get policies for namespace {}: {}", namespaceName, ex.getMessage());
+                        log.info("Failed to get policies for namespace {}: {}", namespaceName, ex.getMessage());
                     } else {
                         log.error("Failed to get policies for namespace {}", namespaceName, ex);
                     }
