@@ -1917,14 +1917,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 cnx.sendRequestWithId(cmd, closeRequestId);
             }
 
-            if (cause instanceof PulsarClientException.ProducerFencedException) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] [{}] Failed to create producer: {}",
-                            topic, producerName, cause.getMessage());
-                }
-            } else {
-                log.error("[{}] [{}] Failed to create producer: {}", topic, producerName, cause.getMessage());
-            }
             // Close the producer since topic does not exist.
             if (cause instanceof PulsarClientException.TopicDoesNotExistException) {
                 closeAsync().whenComplete((v, ex) -> {
@@ -1936,6 +1928,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 future.complete(null);
                 return null;
             }
+
             if (cause instanceof PulsarClientException.ProducerBlockedQuotaExceededException) {
                 synchronized (this) {
                     log.warn("[{}] [{}] Topic backlog quota exceeded. Throwing Exception on producer.", topic,
@@ -1954,6 +1947,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             } else if (cause instanceof PulsarClientException.ProducerBlockedQuotaExceededError) {
                 log.warn("[{}] [{}] Producer is blocked on creation because backlog exceeded on topic.",
                         producerName, topic);
+            } else if (PulsarClientException.isRetriableError(cause)) {
+                log.info("[{}] [{}] Temporary error in creating producer: {}", topic, producerName, cause.getMessage());
+            } else {
+                log.error("[{}] [{}] Failed to create producer: {}", topic, producerName, cause.getMessage());
             }
 
             if (cause instanceof PulsarClientException.TopicTerminatedException) {
