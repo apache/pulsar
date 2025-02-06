@@ -20,6 +20,7 @@
 package org.apache.pulsar.broker.qos;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -89,5 +90,42 @@ public class DefaultMonotonicSnapshotClockTest {
         long tick1 = clock.getTickNanos(false);
         long tick2 = clock.getTickNanos(true);
         assertThat(tick2).isGreaterThan(tick1);
+    }
+
+    @Test
+    void testRequestingSnapshotAfterClosed() throws InterruptedException {
+        DefaultMonotonicSnapshotClock clock =
+                new DefaultMonotonicSnapshotClock(Duration.ofSeconds(5).toNanos(), System::nanoTime);
+        clock.close();
+        long tick1 = clock.getTickNanos(true);
+        Thread.sleep(10);
+        long tick2 = clock.getTickNanos(true);
+        assertThat(tick2).isGreaterThan(tick1);
+    }
+
+    @Test
+    void testConstructorValidation() {
+        assertThatThrownBy(() -> new DefaultMonotonicSnapshotClock(0, System::nanoTime))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("snapshotIntervalNanos must be at least 1 millisecond");
+        assertThatThrownBy(() -> new DefaultMonotonicSnapshotClock(-1, System::nanoTime))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("snapshotIntervalNanos must be at least 1 millisecond");
+        assertThatThrownBy(() -> new DefaultMonotonicSnapshotClock(TimeUnit.MILLISECONDS.toNanos(1), null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("clockSource must not be null");
+    }
+
+    @Test
+    void testFailureHandlingInClockSource() {
+        @Cleanup
+        DefaultMonotonicSnapshotClock clock =
+                new DefaultMonotonicSnapshotClock(Duration.ofSeconds(5).toNanos(), () -> {
+                    throw new RuntimeException("Test clock failure");
+                });
+        // the exception should be propagated
+        assertThatThrownBy(() -> clock.getTickNanos(true))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("Test clock failure");
     }
 }

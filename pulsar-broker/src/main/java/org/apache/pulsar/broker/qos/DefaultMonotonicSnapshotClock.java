@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.broker.qos;
 
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
 import org.slf4j.Logger;
@@ -48,7 +49,7 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
         }
         this.sleepMillis = TimeUnit.NANOSECONDS.toMillis(snapshotIntervalNanos);
         this.sleepNanos = (int) (snapshotIntervalNanos - TimeUnit.MILLISECONDS.toNanos(sleepMillis));
-        this.clockSource = clockSource;
+        this.clockSource = Objects.requireNonNull(clockSource, "clockSource must not be null");
         this.snapshotIntervalNanos = snapshotIntervalNanos;
         tickUpdaterThread = new TickUpdaterThread();
         tickUpdaterThread.start();
