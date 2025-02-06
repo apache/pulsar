@@ -224,6 +224,12 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class ConnectionClosedException extends BrokerServiceException {
+        public ConnectionClosedException(String msg) {
+            super(msg);
+        }
+    }
+
     public static class TopicBacklogQuotaExceededException extends BrokerServiceException {
         @Getter
         private final BacklogQuota.RetentionPolicy retentionPolicy;
