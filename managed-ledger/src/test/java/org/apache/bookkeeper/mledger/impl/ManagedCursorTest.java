@@ -5197,7 +5197,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo2 = ml.getLedgersInfo().get(ledger2);
         long average1 = ledgerInfo1.getSize() / ledgerInfo1.getEntries();
         long average2 = ledgerInfo2.getSize() / ledgerInfo2.getEntries();
-        long average3 = ml.currentLedgerSize / ml.currentLedgerEntries;
+        long average3 = ml.getCurrentLedgerSize() / ml.getCurrentLedgerEntries();
         assertEquals(average1, 1);
         assertEquals(average2, 2);
         assertEquals(average3, 4);
