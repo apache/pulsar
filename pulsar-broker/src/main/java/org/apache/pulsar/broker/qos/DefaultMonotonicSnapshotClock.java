@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.broker.qos;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.function.LongConsumer;
@@ -59,13 +60,18 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
     @Override
     public long getTickNanos(boolean requestSnapshot) {
         if (requestSnapshot) {
-            tickUpdaterThread.requestUpdate();
+            tickUpdaterThread.requestUpdateAndWait();
         }
         return snapshotTickNanos;
     }
 
     private void setSnapshotTickNanos(long snapshotTickNanos) {
         this.snapshotTickNanos = snapshotTickNanos;
+    }
+
+    @VisibleForTesting
+    public void requestUpdate() {
+        tickUpdaterThread.requestUpdate();
     }
 
     /**
@@ -159,25 +165,29 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
             }
         }
 
-        public void requestUpdate() {
+        public void requestUpdateAndWait() {
             if (!running) {
                 // thread has stopped running, fallback to update the value directly without optimizations
                 tickUpdater.update(false);
                 return;
             }
             synchronized (tickUpdatedMonitor) {
-                // notify the thread to stop waiting and update the tick value
-                synchronized (tickUpdateDelayMonitor) {
-                    tickUpdateDelayMonitorNotified = true;
-                    requestCount++;
-                    tickUpdateDelayMonitor.notify();
-                }
+                requestUpdate();
                 // wait until the tick value has been updated
                 try {
                     tickUpdatedMonitor.wait();
                 } catch (InterruptedException e) {
                     currentThread().interrupt();
                 }
+            }
+        }
+
+        public void requestUpdate() {
+            // notify the thread to stop waiting and update the tick value
+            synchronized (tickUpdateDelayMonitor) {
+                tickUpdateDelayMonitorNotified = true;
+                requestCount++;
+                tickUpdateDelayMonitor.notify();
             }
         }
 
