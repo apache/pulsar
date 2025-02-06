@@ -40,43 +40,34 @@ public class DefaultMonotonicSnapshotClockTest {
     @Test(dataProvider = "booleanValues")
     void testClockHandlesTimeLeapsBackwardsOrForward(boolean requestSnapshot) throws InterruptedException {
         long snapshotIntervalMillis = 5;
-        AtomicLong offsetValue = new AtomicLong(0);
+        AtomicLong clockValue = new AtomicLong(1);
         @Cleanup
         DefaultMonotonicSnapshotClock clock =
                 new DefaultMonotonicSnapshotClock(Duration.ofMillis(snapshotIntervalMillis).toNanos(),
-                        () -> System.nanoTime() + offsetValue.get());
+                        clockValue::get);
+
 
         long previousTick = -1;
         boolean leapDirection = true;
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 10000; i++) {
+            clockValue.addAndGet(TimeUnit.MILLISECONDS.toNanos(1));
+            if (i % 5 == 0) {
+                clock.requestUpdate();
+            }
             long tick = clock.getTickNanos(requestSnapshot);
             log.info("i = {}, tick = {}", i, tick);
-            if ((i + 1) % 3 == 0) {
+            if ((i + 1) % 5 == 0) {
                 leapDirection = !leapDirection;
                 log.info("Time leap 5 minutes {}", leapDirection ? "forward" : "backwards");
                 // make the clock leap 5 minute forward or backwards
-                offsetValue.set((leapDirection ? 1L : -1L) * Duration.ofMinutes(5).toNanos());
-                Thread.sleep(2 * snapshotIntervalMillis);
-            } else {
-                Thread.sleep(snapshotIntervalMillis);
+                clockValue.addAndGet((leapDirection ? 1L : -1L) * Duration.ofMinutes(5).toNanos());
             }
-            try {
-                var assertion = assertThat(tick)
-                        .describedAs("i = %d, tick = %d, previousTick = %d", i, tick, previousTick);
-                if (requestSnapshot) {
-                    assertion = assertion.isGreaterThan(previousTick);
-                } else {
-                    assertion = assertion.isGreaterThanOrEqualTo(previousTick);
-                }
-                assertion.isCloseTo(previousTick,
-                                Offset.offset(5 * TimeUnit.MILLISECONDS.toNanos(snapshotIntervalMillis)));
-            } catch (AssertionError e) {
-                if (i < 3) {
-                    // ignore the assertion errors in first 3 rounds since classloading of AssertJ makes the timings
-                    // flaky
-                } else {
-                    throw e;
-                }
+            if (previousTick != -1) {
+                assertThat(tick)
+                        .describedAs("i = %d, tick = %d, previousTick = %d", i, tick, previousTick)
+                        .isGreaterThanOrEqualTo(previousTick)
+                        .isCloseTo(previousTick,
+                                Offset.offset(TimeUnit.MILLISECONDS.toNanos(1)));
             }
             previousTick = tick;
         }
