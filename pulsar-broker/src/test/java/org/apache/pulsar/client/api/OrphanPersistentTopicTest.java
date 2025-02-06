@@ -155,7 +155,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
             }
         };
         TransactionBufferProvider originalTransactionBufferProvider = pulsar.getTransactionBufferProvider();
-        pulsar.setTransactionExecutorProvider(mockTransactionBufferProvider);
+        pulsar.setTransactionBufferProvider(mockTransactionBufferProvider);
         CompletableFuture<Optional<Topic>> firstLoad = pulsar.getBrokerService().getTopic(tpName, true);
         Awaitility.await().ignoreExceptions().atMost(5, TimeUnit.SECONDS)
                 .pollInterval(100, TimeUnit.MILLISECONDS)
@@ -173,7 +173,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
         }
 
         // set to back
-        pulsar.setTransactionExecutorProvider(originalTransactionBufferProvider);
+        pulsar.setTransactionBufferProvider(originalTransactionBufferProvider);
         pulsar.getConfig().setTopicLoadTimeoutSeconds(originalTopicLoadTimeoutSeconds);
         pulsar.getConfig().setBrokerDeduplicationEnabled(false);
         pulsar.getConfig().setTransactionCoordinatorEnabled(false);

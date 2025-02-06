@@ -103,9 +103,20 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     private final AbortedTxnProcessor snapshotAbortedTxnProcessor;
 
     private final MaxReadPositionCallBack maxReadPositionCallBack;
-    private final AbortedTxnProcessor.SnapshotType snapshotType;
+
+    private static AbortedTxnProcessor createSnapshotProcessor(PersistentTopic topic) {
+        return topic.getBrokerService().getPulsar().getConfiguration().isTransactionBufferSegmentedSnapshotEnabled()
+                ? new SnapshotSegmentAbortedTxnProcessorImpl(topic)
+                : new SingleSnapshotAbortedTxnProcessorImpl(topic);
+    }
+
 
     public TopicTransactionBuffer(PersistentTopic topic) {
+        this(topic, createSnapshotProcessor(topic));
+    }
+
+    @VisibleForTesting
+    TopicTransactionBuffer(PersistentTopic topic, AbortedTxnProcessor snapshotAbortedTxnProcessor) {
         super(State.None);
         this.topic = topic;
         this.timer = topic.getBrokerService().getPulsar().getTransactionTimer();
@@ -114,13 +125,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         this.takeSnapshotIntervalTime = topic.getBrokerService().getPulsar()
                 .getConfiguration().getTransactionBufferSnapshotMinTimeInMillis();
         this.maxReadPosition = (PositionImpl) topic.getManagedLedger().getLastConfirmedEntry();
-        if (topic.getBrokerService().getPulsar().getConfiguration().isTransactionBufferSegmentedSnapshotEnabled()) {
-            snapshotAbortedTxnProcessor = new SnapshotSegmentAbortedTxnProcessorImpl(topic);
-            snapshotType = AbortedTxnProcessor.SnapshotType.Segment;
-        } else {
-            snapshotAbortedTxnProcessor = new SingleSnapshotAbortedTxnProcessorImpl(topic);
-            snapshotType = AbortedTxnProcessor.SnapshotType.Single;
-        }
+        this.snapshotAbortedTxnProcessor = snapshotAbortedTxnProcessor;
         this.maxReadPositionCallBack = topic.getMaxReadPositionCallBack();
         this.recover();
     }
