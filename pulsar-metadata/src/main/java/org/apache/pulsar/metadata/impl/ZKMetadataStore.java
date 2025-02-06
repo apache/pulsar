@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.zookeeper.BoundExponentialBackoffRetryPolicy;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -100,6 +101,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                     .allowReadOnlyMode(metadataStoreConfig.isAllowReadOnlyOperations())
                     .sessionTimeoutMs(metadataStoreConfig.getSessionTimeoutMillis())
                     .watchers(Collections.singleton(this::processSessionWatcher))
+                    .configPath(metadataStoreConfig.getConfigFilePath())
                     .build();
             if (enableSessionWatcher) {
                 sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent);
@@ -200,10 +202,15 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                                         Collectors.groupingBy(MetadataOp::getType, Collectors.summingInt(op -> 1)))
                                 .entrySet().stream().map(e -> e.getValue() + " " + e.getKey().name() + " entries")
                                 .collect(Collectors.joining(", "));
+                        List<Pair> opsForLog = ops.stream()
+                                .filter(item -> item.size() > 256 * 1024)
+                                .map(op -> Pair.of(op.getPath(), op.size()))
+                                .collect(Collectors.toList());
                         Long totalSize = ops.stream().collect(Collectors.summingLong(MetadataOp::size));
                         log.warn("Connection loss while executing batch operation of {} "
                                 + "of total data size of {}. "
-                                + "Retrying individual operations one-by-one.", countsByType, totalSize);
+                                + "Retrying individual operations one-by-one. ops whose size > 256KB: {}",
+                                countsByType, totalSize, opsForLog);
 
                         // Retry with the individual operations
                         executor.schedule(() -> {
@@ -577,6 +584,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                     .connectRetryPolicy(
                             new BoundExponentialBackoffRetryPolicy(metadataStoreConfig.getSessionTimeoutMillis(),
                                     metadataStoreConfig.getSessionTimeoutMillis(), 0))
+                    .configPath(metadataStoreConfig.getConfigFilePath())
                     .build()) {
                 if (chrootZk.exists(chrootPath, false) == null) {
                     createFullPathOptimistic(chrootZk, chrootPath, new byte[0], CreateMode.PERSISTENT);

@@ -704,6 +704,34 @@ public interface Namespaces {
     CompletableFuture<Void> grantPermissionOnNamespaceAsync(String namespace, String role, Set<AuthAction> actions);
 
     /**
+     * Grant permissions on topics asynchronously.
+     * @param options
+     * @return
+     */
+    CompletableFuture<Void> grantPermissionOnTopicsAsync(List<GrantTopicPermissionOptions> options);
+
+    /**
+     * Grant permissions on topics.
+     * @param options
+     * @throws PulsarAdminException
+     */
+    void grantPermissionOnTopics(List<GrantTopicPermissionOptions> options) throws PulsarAdminException;
+
+    /**
+     * Revoke permissions on topics asynchronously.
+     * @param options
+     * @return
+     */
+    CompletableFuture<Void> revokePermissionOnTopicsAsync(List<RevokeTopicPermissionOptions> options);
+
+    /**
+     * Revoke permissions on topics.
+     * @param options
+     * @throws PulsarAdminException
+     */
+    void revokePermissionOnTopics(List<RevokeTopicPermissionOptions> options) throws PulsarAdminException;
+
+    /**
      * Revoke permissions on a namespace.
      * <p/>
      * Revoke all permissions to a client role on a namespace.

@@ -82,8 +82,12 @@ public abstract class MockedBookKeeperTestCase {
             throw e;
         }
 
-        ManagedLedgerFactoryConfig conf = new ManagedLedgerFactoryConfig();
+        ManagedLedgerFactoryConfig conf = createManagedLedgerFactoryConfig();
         factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, conf);
+    }
+
+    protected ManagedLedgerFactoryConfig createManagedLedgerFactoryConfig() {
+        return new ManagedLedgerFactoryConfig();
     }
 
     @AfterMethod(alwaysRun = true)

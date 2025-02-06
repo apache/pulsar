@@ -62,8 +62,9 @@ import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.apache.pulsar.compaction.TwoPhaseCompactor;
+import org.apache.pulsar.compaction.PublishingOrderCompactor;
 import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.examples.JavaNativeAsyncExclamationFunction;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
@@ -259,7 +260,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         @Cleanup("shutdownNow")
         ScheduledExecutorService compactionScheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compactor").setDaemon(true).build());
-        TwoPhaseCompactor twoPhaseCompactor = new TwoPhaseCompactor(config,
+        PublishingOrderCompactor twoPhaseCompactor = new PublishingOrderCompactor(config,
                 pulsarClient, pulsar.getBookKeeperClient(), compactionScheduler);
         twoPhaseCompactor.compact(sourceTopic).get();
 
@@ -294,6 +295,100 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
 
         consumer.close();
         producer.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void testPulsarFunctionAsyncStatTime() throws Exception {
+        final String namespacePortion = "io";
+        final String replNamespace = tenant + "/" + namespacePortion;
+        final String sourceTopic = "persistent://" + replNamespace + "/my-topic1";
+        final String sinkTopic = "persistent://" + replNamespace + "/output";
+        final String functionName = "JavaNativeAsyncExclamationFunction";
+        final String subscriptionName = "test-sub";
+        admin.namespaces().createNamespace(replNamespace);
+        Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setTenant(tenant);
+        functionConfig.setNamespace(namespacePortion);
+        functionConfig.setName(functionName);
+        functionConfig.setParallelism(1);
+        functionConfig.setSubName(subscriptionName);
+        functionConfig.setInputSpecs(Collections.singletonMap(sourceTopic,
+                ConsumerConfig.builder().poolMessages(true).build()));
+        functionConfig.setAutoAck(true);
+        functionConfig.setClassName(JavaNativeAsyncExclamationFunction.class.getName());
+        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+        functionConfig.setOutput(sinkTopic);
+        functionConfig.setCleanupSubscription(true);
+        functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+
+        admin.functions().createFunctionWithUrl(functionConfig,
+                PulsarFunctionE2ETest.class.getProtectionDomain().getCodeSource().getLocation().toURI().toString());
+
+        // create a producer that creates a topic at broker
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
+        Consumer<String> consumer =
+                pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic).subscriptionName(subscriptionName).subscribe();
+
+        retryStrategically((test) -> {
+            try {
+                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 1;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150);
+        retryStrategically((test) -> {
+            try {
+                return admin.topics().getStats(sinkTopic).getSubscriptions().size() == 1;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150);
+        // validate pulsar sink consumer has started on the topic
+        assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 1);
+        assertEquals(admin.topics().getStats(sinkTopic).getSubscriptions().size(), 1);
+
+        int cntMsg = 5;
+        for (int i = 0; i < cntMsg; i++) {
+            producer.newMessage().value("it is the " + i + "th message , it will spend 500ms").send();
+        }
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
+            assertEquals(subStats.getUnackedMessages(), 0);
+        });
+        int count = 0;
+        while (true) {
+            Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            consumer.acknowledge(message);
+            count++;
+        }
+        Assert.assertEquals(count, cntMsg);
+
+        String prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
+        log.info("prometheus metrics: {}", prometheusMetrics);
+        Map<String, TestPulsarFunctionUtils.Metric> statsMetrics =
+                TestPulsarFunctionUtils.parseMetrics(prometheusMetrics);
+
+        assertEquals(statsMetrics.get("pulsar_function_process_latency_ms").value, 500.0, 100.0);
+        admin.functions().deleteFunction(tenant, namespacePortion, functionName);
+
+        retryStrategically((test) -> {
+            try {
+                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 0;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150);
+
+        // make sure subscriptions are cleanup
+        assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 0);
+
+        tempDirectory.assertThatFunctionDownloadTempFilesHaveBeenDeleted();
     }
 
     @Test(timeOut = 20000)

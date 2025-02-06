@@ -24,10 +24,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -71,6 +68,10 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
 
     public abstract boolean isConsumerAvailable(Consumer consumer);
 
+    /**
+     * Cancel a possible pending read that is a Managed Cursor waiting to be notified for more entries.
+     * This won't cancel any other pending reads that are currently in progress.
+     */
     protected void cancelPendingRead() {}
 
     /**
@@ -238,8 +239,5 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
         }
         return -1;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(PersistentStickyKeyDispatcherMultipleConsumers.class);
-
 
 }

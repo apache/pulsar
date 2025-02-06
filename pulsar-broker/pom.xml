@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>3.4.0-SNAPSHOT</version>
+    <version>4.1.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-broker</artifactId>
@@ -61,6 +61,11 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>it.unimi.dsi</groupId>
+      <artifactId>fastutil</artifactId>
     </dependency>
 
     <dependency>
@@ -146,12 +151,6 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-opentelemetry</artifactId>
       <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>io.opentelemetry</groupId>
-      <artifactId>opentelemetry-sdk-testing</artifactId>
-      <scope>test</scope>
     </dependency>
 
     <dependency>
@@ -447,8 +446,8 @@
     </dependency>
 
     <dependency>
-      <groupId>javax.xml.bind</groupId>
-      <artifactId>jaxb-api</artifactId>
+      <groupId>jakarta.xml.bind</groupId>
+      <artifactId>jakarta.xml.bind-api</artifactId>
       <exclusions>
         <exclusion>
           <groupId>javax.activation</groupId>
@@ -459,7 +458,7 @@
 
     <dependency>
       <groupId>com.sun.activation</groupId>
-      <artifactId>javax.activation</artifactId>
+      <artifactId>jakarta.activation</artifactId>
     </dependency>
 
     <dependency>
@@ -488,7 +487,6 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>jetcd-core-shaded</artifactId>
       <version>${project.version}</version>
-      <classifier>shaded</classifier>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -674,6 +672,25 @@
             <goals>
               <goal>generate</goal>
             </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>${build-helper-maven-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>add-source</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>add-source</goal>
+            </goals>
+            <configuration>
+              <sources>
+                <source>target/generated-sources/lightproto/java</source>
+              </sources>
+            </configuration>
           </execution>
         </executions>
       </plugin>

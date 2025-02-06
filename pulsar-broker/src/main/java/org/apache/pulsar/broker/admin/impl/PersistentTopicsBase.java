@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import static org.apache.pulsar.common.api.proto.CompressionType.NONE;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isSystemTopic;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionCoordinatorAssign;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
@@ -65,8 +66,6 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerOfflineBacklog;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
@@ -85,6 +84,7 @@ import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.service.MessageExpirer;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -206,8 +206,16 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected CompletableFuture<Map<String, Set<AuthAction>>> internalGetPermissionsOnTopic() {
         // This operation should be reading from zookeeper and it should be allowed without having admin privileges
-        return validateAdminAccessForTenantAsync(namespaceName.getTenant())
-                .thenCompose(__ -> internalCheckTopicExists(topicName))
+        CompletableFuture<Void> validateAccessForTenantCf =
+                validateAdminAccessForTenantAsync(namespaceName.getTenant());
+
+        var checkIfTopicExists = !pulsar().getConfiguration().isAllowAclChangesOnNonExistentTopics();
+        if (checkIfTopicExists) {
+            validateAccessForTenantCf = validateAccessForTenantCf
+                    .thenCompose(__ -> internalCheckTopicExists(topicName));
+        }
+
+        return validateAccessForTenantCf
                 .thenCompose(__ -> getAuthorizationService().getPermissionsAsync(topicName));
     }
 
@@ -258,9 +266,16 @@ public class PersistentTopicsBase extends AdminResource {
     protected void internalGrantPermissionsOnTopic(final AsyncResponse asyncResponse, String role,
                                                    Set<AuthAction> actions) {
         // This operation should be reading from zookeeper and it should be allowed without having admin privileges
-        validateAdminAccessForTenantAsync(namespaceName.getTenant())
-                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                .thenCompose(__ -> internalCheckTopicExists(topicName))
+        CompletableFuture<Void> validateAccessForTenantCf = validateAdminAccessForTenantAsync(namespaceName.getTenant())
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync());
+
+        var checkIfTopicExists = !pulsar().getConfiguration().isAllowAclChangesOnNonExistentTopics();
+        if (checkIfTopicExists) {
+            validateAccessForTenantCf = validateAccessForTenantCf
+                    .thenCompose(__ -> internalCheckTopicExists(topicName));
+        }
+
+        validateAccessForTenantCf
                 .thenCompose(unused1 -> grantPermissionsAsync(topicName, role, actions))
                 .thenAccept(unused -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
@@ -273,8 +288,17 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void internalRevokePermissionsOnTopic(AsyncResponse asyncResponse, String role) {
         // This operation should be reading from zookeeper and it should be allowed without having admin privileges
-        validateAdminAccessForTenantAsync(namespaceName.getTenant())
-                .thenCompose(__ -> internalCheckTopicExists(topicName))
+        CompletableFuture<Void> validateAccessForTenantCf =
+                validateAdminAccessForTenantAsync(namespaceName.getTenant())
+                        .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync());
+
+        var checkIfTopicExists = !pulsar().getConfiguration().isAllowAclChangesOnNonExistentTopics();
+        if (checkIfTopicExists) {
+            validateAccessForTenantCf = validateAccessForTenantCf
+                    .thenCompose(__ -> internalCheckTopicExists(topicName));
+        }
+
+        validateAccessForTenantCf
                 .thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, true, false)
                 .thenCompose(metadata -> {
                     int numPartitions = metadata.partitions;
@@ -448,20 +472,9 @@ public class PersistentTopicsBase extends AdminResource {
                         return CompletableFuture.completedFuture(null);
                     }
                     // update remote cluster
-                    return namespaceResources().getPoliciesAsync(namespaceName)
-                            .thenCompose(policies -> {
-                                if (!policies.isPresent()) {
-                                    return CompletableFuture.completedFuture(null);
-                                }
-                                // Combine namespace level policies and topic level policies.
-                                Set<String> replicationClusters = policies.get().replication_clusters;
-                                TopicPolicies topicPolicies =
-                                        pulsarService.getTopicPoliciesService().getTopicPoliciesIfExists(topicName);
-                                if (topicPolicies != null && topicPolicies.getReplicationClusters() != null) {
-                                    replicationClusters = topicPolicies.getReplicationClustersSet();
-                                }
-                                // Do check replicated clusters.
-                                if (replicationClusters.size() == 0) {
+                    return getReplicationClusters()
+                            .thenCompose(replicationClusters -> {
+                                if (replicationClusters == null || replicationClusters.isEmpty()) {
                                     return CompletableFuture.completedFuture(null);
                                 }
                                 boolean containsCurrentCluster =
@@ -494,6 +507,20 @@ public class PersistentTopicsBase extends AdminResource {
                             });
                 });
             });
+    }
+
+    private CompletableFuture<Set<String>> getReplicationClusters() {
+        return namespaceResources().getPoliciesAsync(namespaceName).thenCompose(optionalPolicies -> {
+            if (optionalPolicies.isEmpty()) {
+                return CompletableFuture.completedFuture(null);
+            }
+            // Query the topic-level policies only if the namespace-level policies exist
+            final var namespacePolicies = optionalPolicies.get();
+            return pulsar().getTopicPoliciesService().getTopicPoliciesAsync(topicName,
+                    TopicPoliciesService.GetType.DEFAULT
+            ).thenApply(optionalTopicPolicies -> optionalTopicPolicies.map(TopicPolicies::getReplicationClustersSet)
+                    .orElse(namespacePolicies.replication_clusters));
+        });
     }
 
     protected void internalCreateMissedPartitions(AsyncResponse asyncResponse) {
@@ -1262,14 +1289,14 @@ public class PersistentTopicsBase extends AdminResource {
                     return;
                 }
             } else {
-                asyncResponse.resume(new ArrayList<>(subscriptions));
+                asyncResponse.resume(subscriptions);
             }
         });
     }
 
     private void internalGetSubscriptionsForNonPartitionedTopic(AsyncResponse asyncResponse) {
         getTopicReferenceAsync(topicName)
-                .thenAccept(topic -> asyncResponse.resume(new ArrayList<>(topic.getSubscriptions().keys())))
+                .thenAccept(topic -> asyncResponse.resume(topic.getSubscriptions().keySet()))
                 .exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
                     if (isNot307And404Exception(ex)) {
@@ -1402,19 +1429,27 @@ public class PersistentTopicsBase extends AdminResource {
         validateTopicOperationAsync(topicName, TopicOperation.GET_STATS)
                 .thenAccept(__ -> {
                     String managedLedger = topicName.getPersistenceNamingEncoding();
-                    pulsar().getManagedLedgerFactory()
-                            .asyncGetManagedLedgerInfo(managedLedger, new ManagedLedgerInfoCallback() {
-                        @Override
-                        public void getInfoComplete(ManagedLedgerInfo info, Object ctx) {
-                            asyncResponse.resume((StreamingOutput) output -> {
-                                objectWriter().writeValue(output, info);
+                    pulsar().getBrokerService().getManagedLedgerFactoryForTopic(topicName)
+                            .thenAccept(managedLedgerFactory -> {
+                                managedLedgerFactory.asyncGetManagedLedgerInfo(managedLedger,
+                                        new ManagedLedgerInfoCallback() {
+                                            @Override
+                                            public void getInfoComplete(ManagedLedgerInfo info, Object ctx) {
+                                                asyncResponse.resume((StreamingOutput) output -> {
+                                                    objectWriter().writeValue(output, info);
+                                                });
+                                            }
+
+                                            @Override
+                                            public void getInfoFailed(ManagedLedgerException exception, Object ctx) {
+                                                asyncResponse.resume(exception);
+                                            }
+                                        }, null);
+                            })
+                            .exceptionally(ex -> {
+                                resumeAsyncResponseExceptionally(asyncResponse, ex);
+                                return null;
                             });
-                        }
-                        @Override
-                        public void getInfoFailed(ManagedLedgerException exception, Object ctx) {
-                            asyncResponse.resume(exception);
-                        }
-                    }, null);
                 }).exceptionally(ex -> {
                     log.error("[{}] Failed to get managed info for {}", clientAppId(), topicName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -1487,23 +1522,21 @@ public class PersistentTopicsBase extends AdminResource {
                     }
                 }
                 if (perPartition && stats.partitions.isEmpty()) {
-                    try {
-                        boolean pathExists = namespaceResources().getPartitionedTopicResources()
-                                .partitionedTopicExists(topicName);
-                        if (pathExists) {
-                            stats.partitions.put(topicName.toString(), new TopicStatsImpl());
-                        } else {
-                            asyncResponse.resume(
-                                    new RestException(Status.NOT_FOUND,
-                                            "Internal topics have not been generated yet"));
-                            return null;
-                        }
-                    } catch (Exception e) {
-                        asyncResponse.resume(new RestException(e));
-                        return null;
-                    }
+                    namespaceResources().getPartitionedTopicResources()
+                            .partitionedTopicExistsAsync(topicName)
+                            .thenAccept(exists -> {
+                                if (exists) {
+                                    stats.partitions.put(topicName.toString(), new TopicStatsImpl());
+                                    asyncResponse.resume(stats);
+                                } else {
+                                    asyncResponse.resume(
+                                            new RestException(Status.NOT_FOUND,
+                                                    "Internal topics have not been generated yet"));
+                                }
+                            });
+                } else {
+                    asyncResponse.resume(stats);
                 }
-                asyncResponse.resume(stats);
                 return null;
             });
         }).exceptionally(ex -> {
@@ -2021,7 +2054,7 @@ public class PersistentTopicsBase extends AdminResource {
                             new ArrayList<>((int) topic.getReplicators().size());
                     List<String> subNames =
                             new ArrayList<>((int) topic.getSubscriptions().size());
-                    subNames.addAll(topic.getSubscriptions().keys().stream().filter(
+                    subNames.addAll(topic.getSubscriptions().keySet().stream().filter(
                             subName -> !subName.equals(Compactor.COMPACTION_SUBSCRIPTION)).toList());
                     for (int i = 0; i < subNames.size(); i++) {
                         try {
@@ -2621,7 +2654,7 @@ public class PersistentTopicsBase extends AdminResource {
                                    MessageIdImpl messageId, int batchIndex) {
         if (batchIndex >= 0) {
             try {
-                ManagedLedgerImpl ledger = (ManagedLedgerImpl) topic.getManagedLedger();
+                ManagedLedger ledger = topic.getManagedLedger();
                 ledger.asyncReadEntry(PositionFactory.create(messageId.getLedgerId(),
                         messageId.getEntryId()), new AsyncCallbacks.ReadEntryCallback() {
                     @Override
@@ -2732,17 +2765,18 @@ public class PersistentTopicsBase extends AdminResource {
         .thenCompose(__ -> getTopicReferenceAsync(topicName))
         .thenCompose(topic -> {
             CompletableFuture<Response> results = new CompletableFuture<>();
-            ManagedLedgerImpl ledger =
-                    (ManagedLedgerImpl) ((PersistentTopic) topic).getManagedLedger();
+            ManagedLedger ledger = ((PersistentTopic) topic).getManagedLedger();
             ledger.asyncReadEntry(PositionFactory.create(ledgerId, entryId),
                     new AsyncCallbacks.ReadEntryCallback() {
                         @Override
                         public void readEntryFailed(ManagedLedgerException exception,
                                                     Object ctx) {
                             if (exception instanceof ManagedLedgerException.LedgerNotExistException) {
-                                throw new RestException(Status.NOT_FOUND, "Message id not found");
+                                results.completeExceptionally(
+                                        new RestException(Status.NOT_FOUND, "Message id not found"));
+                                return;
                             }
-                            throw new RestException(exception);
+                            results.completeExceptionally(new RestException(exception));
                         }
 
                         @Override
@@ -2750,7 +2784,7 @@ public class PersistentTopicsBase extends AdminResource {
                             try {
                                 results.complete(generateResponseWithEntry(entry, (PersistentTopic) topic));
                             } catch (IOException exception) {
-                                throw new RestException(exception);
+                                results.completeExceptionally(new RestException(exception));
                             } finally {
                                 if (entry != null) {
                                     entry.release();
@@ -2999,6 +3033,7 @@ public class PersistentTopicsBase extends AdminResource {
         checkNotNull(entry);
         Position pos = entry.getPosition();
         ByteBuf metadataAndPayload = entry.getDataBuffer();
+        boolean isEncrypted = false;
 
         long totalSize = metadataAndPayload.readableBytes();
         BrokerEntryMetadata brokerEntryMetadata = Commands.peekBrokerEntryMetadataIfExist(metadataAndPayload);
@@ -3070,6 +3105,7 @@ public class PersistentTopicsBase extends AdminResource {
         for (EncryptionKeys encryptionKeys : metadata.getEncryptionKeysList()) {
             responseBuilder.header("X-Pulsar-Base64-encryption-keys",
                     Base64.getEncoder().encodeToString(encryptionKeys.toByteArray()));
+            isEncrypted = true;
         }
         if (metadata.hasEncryptionParam()) {
             responseBuilder.header("X-Pulsar-Base64-encryption-param",
@@ -3123,7 +3159,8 @@ public class PersistentTopicsBase extends AdminResource {
         responseBuilder.header("X-Pulsar-txn-uncommitted", isTxnUncommitted);
 
         // Decode if needed
-        CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(metadata.getCompression());
+        CompressionCodec codec = CompressionCodecProvider
+                .getCompressionCodec(isEncrypted ? NONE : metadata.getCompression());
         ByteBuf uncompressedPayload = codec.decode(metadataAndPayload, metadata.getUncompressedSize());
 
         // Copy into a heap buffer for output stream compatibility
@@ -3169,7 +3206,9 @@ public class PersistentTopicsBase extends AdminResource {
                                 try {
                                     PersistentOfflineTopicStats estimateOfflineTopicStats =
                                             offlineTopicBacklog.estimateUnloadedTopicBacklog(
-                                                    (ManagedLedgerFactoryImpl) pulsar().getManagedLedgerFactory(),
+                                                    pulsar().getBrokerService()
+                                                            .getManagedLedgerFactoryForTopic(topicName,
+                                                                    config.getStorageClassName()),
                                                     topicName);
                                     pulsar().getBrokerService()
                                             .cacheOfflineTopicStats(topicName, estimateOfflineTopicStats);
@@ -3244,8 +3283,7 @@ public class PersistentTopicsBase extends AdminResource {
                         getTopicNotFoundErrorMessage(topicName.toString())));
                 return;
             }
-            ManagedLedgerImpl managedLedger =
-                    (ManagedLedgerImpl) topic.getManagedLedger();
+            ManagedLedger managedLedger = topic.getManagedLedger();
             if (messageId.getLedgerId() == -1) {
                 asyncResponse.resume(managedLedger.getTotalSize());
             } else {
@@ -3332,6 +3370,12 @@ public class PersistentTopicsBase extends AdminResource {
                     }
                     return FutureUtil.waitForAll(futures);
                 }).thenCompose(__ -> {
+                    if (!pulsar().getConfig().isCreateTopicToRemoteClusterForReplication()) {
+                        log.info("[{}] Skip creating partitioned for topic {} for the remote clusters {}",
+                                clientAppId(), topicName, replicationClusters.stream().filter(v ->
+                                        !pulsar().getConfig().getClusterName().equals(v)).collect(Collectors.toList()));
+                        return CompletableFuture.completedFuture(null);
+                    }
                     // Sync to create partitioned topic on the remote cluster if needed.
                     TopicName topicNameWithoutPartition = TopicName.get(topicName.getPartitionedTopicName());
                     return pulsar().getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
@@ -3649,7 +3693,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> preValidation(boolean authoritative) {
-        if (!config().isSystemTopicAndTopicLevelPoliciesEnabled()) {
+        if (!config().isTopicLevelPoliciesEnabled()) {
             return FutureUtil.failedFuture(new RestException(Status.METHOD_NOT_ALLOWED,
                     "Topic level policies is disabled, to enable the topic level policy and retry."));
         }

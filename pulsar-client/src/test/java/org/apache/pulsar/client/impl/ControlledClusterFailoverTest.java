@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -37,7 +36,7 @@ import static org.mockito.Mockito.when;
 @Test(groups = "broker-impl")
 public class ControlledClusterFailoverTest {
     @Test
-    public void testBuildControlledClusterFailoverInstance() throws IOException {
+    public void testBuildControlledClusterFailoverInstance() throws Exception {
         String defaultServiceUrl = "pulsar://localhost:6650";
         String urlProvider = "http://localhost:8080/test";
         String keyA = "key-a";
@@ -67,7 +66,7 @@ public class ControlledClusterFailoverTest {
     }
 
     @Test
-    public void testControlledClusterFailoverSwitch() throws IOException {
+    public void testControlledClusterFailoverSwitch() throws Exception {
         String defaultServiceUrl = "pulsar+ssl://localhost:6651";
         String backupServiceUrl = "pulsar+ssl://localhost:6661";
         String urlProvider = "http://localhost:8080";

@@ -259,12 +259,14 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
                 .subscribe();
 
         // Simulate race condition with high frequency of calls to dispatcher.readMoreEntries()
-        PersistentDispatcherMultipleConsumers d = (PersistentDispatcherMultipleConsumers) ((PersistentTopic) pulsar
-                .getBrokerService().getTopicReference(topic).get()).getSubscription("shared-sub").getDispatcher();
+        AbstractPersistentDispatcherMultipleConsumers d =
+                (AbstractPersistentDispatcherMultipleConsumers) ((PersistentTopic) pulsar
+                        .getBrokerService().getTopicReference(topic).get()).getSubscription("shared-sub")
+                        .getDispatcher();
         Thread t = new Thread(() -> {
             while (true) {
                 synchronized (d) {
-                    d.readMoreEntries();
+                    d.readMoreEntriesAsync();
                 }
 
                 try {
@@ -481,10 +483,10 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
                 break;
             }
         }
-        producer.newMessage().value("long-tick-msg").deliverAfter(2, TimeUnit.SECONDS).send();
+        producer.newMessage().value("long-tick-msg").deliverAfter(3, TimeUnit.SECONDS).send();
         msg = consumer.receive(1, TimeUnit.SECONDS);
         assertNull(msg);
-        msg = consumer.receive(3, TimeUnit.SECONDS);
+        msg = consumer.receive(4, TimeUnit.SECONDS);
         assertNotNull(msg);
     }
 

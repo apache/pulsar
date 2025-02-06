@@ -47,9 +47,12 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
+import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.impl.NamespacesBase;
 import org.apache.pulsar.broker.admin.impl.OffloaderObjectsScannerUtils;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.GrantTopicPermissionOptions;
+import org.apache.pulsar.client.admin.RevokeTopicPermissionOptions;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -152,7 +155,11 @@ public class Namespaces extends NamespacesBase {
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenAccept(response::resume)
                 .exceptionally(ex -> {
-                    log.error("Failed to get policies for namespace {}", namespaceName, ex);
+                    if (AdminResource.isNotFoundOrConflictException(ex)) {
+                        log.info("Failed to get policies for namespace {}: {}", namespaceName, ex.getMessage());
+                    } else {
+                        log.error("Failed to get policies for namespace {}", namespaceName, ex);
+                    }
                     resumeAsyncResponseExceptionally(response, ex);
                     return null;
                 });
@@ -309,6 +316,48 @@ public class Namespaces extends NamespacesBase {
                 .exceptionally(ex -> {
                     log.error("[{}] Failed to set permissions for namespace {}: {}",
                             clientAppId(), namespaceName, ex.getCause().getMessage(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @POST
+    @Path("/grantPermissionsOnTopics")
+    @ApiOperation(value = "Grant new permissions to a role on multi-topics.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
+            @ApiResponse(code = 500, message = "Internal server error") })
+    public void grantPermissionsOnTopics(@Suspended final AsyncResponse asyncResponse,
+                                 List<GrantTopicPermissionOptions> options) {
+        internalGrantPermissionOnTopicsAsync(options)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to grant permissions {}",
+                            clientAppId(), options, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @POST
+    @Path("/revokePermissionsOnTopics")
+    @ApiOperation(value = "Revoke new permissions to a role on multi-topics.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
+            @ApiResponse(code = 500, message = "Internal server error") })
+    public void revokePermissionsOnTopics(@Suspended final AsyncResponse asyncResponse,
+                                         List<RevokeTopicPermissionOptions> options) {
+        internalRevokePermissionOnTopicsAsync(options)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to revoke permissions {}",
+                            clientAppId(), options, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });

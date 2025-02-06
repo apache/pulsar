@@ -65,5 +65,6 @@ public class StandaloneTest {
         assertEquals(standalone.getConfig().isDispatcherPauseOnAckStatePersistentEnabled(), true);
         assertEquals(standalone.getConfig().getMaxSecondsToClearTopicNameCache(), 1);
         assertEquals(standalone.getConfig().getTopicNameCacheMaxCapacity(), 200);
+        assertEquals(standalone.getConfig().isCreateTopicToRemoteClusterForReplication(), true);
     }
 }

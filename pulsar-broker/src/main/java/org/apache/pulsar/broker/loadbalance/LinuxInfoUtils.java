@@ -30,6 +30,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.AllArgsConstructor;
@@ -54,7 +55,8 @@ public class LinuxInfoUtils {
     // NIC type
     private static final int ARPHRD_ETHER = 1;
     private static final String NIC_SPEED_TEMPLATE = "/sys/class/net/%s/speed";
-
+    private static final long errLogPrintedFrequencyInReadingNicLimits = 1000;
+    private static final AtomicLong failedCounterInReadingNicLimits = new AtomicLong(0);
     private static Object /*jdk.internal.platform.Metrics*/ metrics;
     private static Method getMetricsProviderMethod;
     private static Method getCpuQuotaMethod;
@@ -251,7 +253,15 @@ public class LinuxInfoUtils {
             try {
                 return readDoubleFromFile(getReplacedNICPath(NIC_SPEED_TEMPLATE, nicPath));
             } catch (IOException e) {
-                log.error("[LinuxInfo] Failed to get total nic limit.", e);
+                // ERROR-level logs about NIC rate limiting reading failures are periodically printed but not
+                // continuously printed
+                if (failedCounterInReadingNicLimits.getAndIncrement() % errLogPrintedFrequencyInReadingNicLimits == 0) {
+                    log.error("[LinuxInfo] Failed to get the nic limit of {}.", nicPath, e);
+                } else {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[LinuxInfo] Failed to get the nic limit of {}.", nicPath, e);
+                    }
+                }
                 return 0d;
             }
         }).sum(), BitRateUnit.Megabit);

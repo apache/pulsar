@@ -29,9 +29,9 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.bookkeeper.mledger.impl.OpenTelemetryManagedLedgerStats;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -105,8 +105,8 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
             producer.send(message.getBytes());
         }
 
-        var managedLedgerFactory = (ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory();
-        for (Entry<String, ManagedLedgerImpl> ledger : managedLedgerFactory.getManagedLedgers().entrySet()) {
+        var managedLedgerFactory = (ManagedLedgerFactoryImpl) pulsar.getDefaultManagedLedgerFactory();
+        for (Entry<String, ManagedLedger> ledger : managedLedgerFactory.getManagedLedgers().entrySet()) {
             ManagedLedgerMBeanImpl stats = (ManagedLedgerMBeanImpl) ledger.getValue().getStats();
             stats.refreshStats(1, TimeUnit.SECONDS);
         }
@@ -118,7 +118,7 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
         }
-        for (Entry<String, ManagedLedgerImpl> ledger : managedLedgerFactory.getManagedLedgers().entrySet()) {
+        for (Entry<String, ManagedLedger> ledger : managedLedgerFactory.getManagedLedgers().entrySet()) {
             ManagedLedgerMBeanImpl stats = (ManagedLedgerMBeanImpl) ledger.getValue().getStats();
             stats.refreshStats(1, TimeUnit.SECONDS);
         }
@@ -205,7 +205,7 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
         managedLedgerConfig.setMaxEntriesPerLedger(2);
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(TransactionCoordinatorID.get(0),
-                pulsar.getManagedLedgerFactory(), managedLedgerConfig, txnLogBufferedWriterConfig,
+                pulsar.getDefaultManagedLedgerFactory(), managedLedgerConfig, txnLogBufferedWriterConfig,
                 transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
         mlTransactionLog.initialize().get(2, TimeUnit.SECONDS);
         ManagedLedgerMetrics metrics = new ManagedLedgerMetrics(pulsar);

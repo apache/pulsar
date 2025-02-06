@@ -31,6 +31,8 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import io.netty.util.concurrent.FastThreadLocalThread;
 import java.lang.reflect.Field;
@@ -45,6 +47,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -67,6 +70,7 @@ import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -88,9 +92,10 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
+import org.glassfish.jersey.client.JerseyClient;
+import org.glassfish.jersey.client.JerseyClientBuilder;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -287,8 +292,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         });
 
         // Inject spy client.
-        ConcurrentOpenHashMap<String, PulsarClient>
-                replicationClients = WhiteboxImpl.getInternalState(brokerService, "replicationClients");
+        final var replicationClients = brokerService.getReplicationClients();
         PulsarClientImpl internalClient = (PulsarClientImpl) replicationClients.get(cluster2);
         PulsarClient spyClient = spy(internalClient);
         assertTrue(replicationClients.remove(cluster2, internalClient));
@@ -1019,9 +1023,9 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         disableReplication(topic1);
 
         // 2.Update config: start at "earliest".
-        admin1.brokers().updateDynamicConfiguration("replicationStartAt", MessageId.earliest.toString());
+        admin1.brokers().updateDynamicConfiguration("replicationStartAt", "earliest");
         Awaitility.await().untilAsserted(() -> {
-            pulsar1.getConfiguration().getReplicationStartAt().equalsIgnoreCase("earliest");
+            assertEquals(pulsar1.getConfiguration().getReplicationStartAt(), "earliest");
         });
 
         final String topic2 = BrokerTestUtil.newUniqueName("persistent://" + ns1 + "/tp_");
@@ -1104,7 +1108,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         Awaitility.await().untilAsserted(() -> {
             assertEquals(admin2.namespaces().getAutoTopicCreationAsync(ns).join().getDefaultNumPartitions(), 2);
             // Trigger system topic __change_event's initialize.
-            pulsar2.getTopicPoliciesService().getTopicPoliciesAsync(TopicName.get("persistent://" + ns + "/1"));
+            pulsar2.getTopicPoliciesService().getTopicPoliciesAsync(TopicName.get("persistent://" + ns + "/1"),
+                    TopicPoliciesService.GetType.DEFAULT);
         });
 
         // Create non-partitioned topic.
@@ -1134,9 +1139,9 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             return t.startsWith(tp);
         };
         Awaitility.await().untilAsserted(() -> {
-            List<String> topics1 = pulsar1.getBrokerService().getTopics().keys()
+            List<String> topics1 = pulsar1.getBrokerService().getTopics().keySet()
                     .stream().filter(topicNameFilter).collect(Collectors.toList());
-            List<String> topics2 = pulsar2.getBrokerService().getTopics().keys()
+            List<String> topics2 = pulsar2.getBrokerService().getTopics().keySet()
                     .stream().filter(topicNameFilter).collect(Collectors.toList());
             Collections.sort(topics1);
             Collections.sort(topics2);
@@ -1159,5 +1164,164 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         admin2.topics().delete(tp, false);
         admin1.namespaces().deleteNamespace(ns);
         admin2.namespaces().deleteNamespace(ns);
+    }
+
+    @Test
+    public void testReplicationCountMetrics() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + nonReplicatedNamespace + "/tp_");
+        // 1.Create topic, does not enable replication now.
+        admin1.topics().createNonPartitionedTopic(topicName);
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
+
+        // We inject an error to make the internal producer fail to connect.
+        final AtomicInteger createProducerCounter = new AtomicInteger();
+        final AtomicBoolean failedCreateProducer = new AtomicBoolean(true);
+        Runnable taskToClearInjection = injectMockReplicatorProducerBuilder((producerCnf, originalProducer) -> {
+            if (topicName.equals(producerCnf.getTopicName())) {
+                // There is a switch to determine create producer successfully or not.
+                if (failedCreateProducer.get()) {
+                    log.info("Retry create replicator.producer count: {}", createProducerCounter);
+                    // Release producer and fail callback.
+                    originalProducer.closeAsync();
+                    throw new RuntimeException("mock error");
+                }
+                return originalProducer;
+            }
+            return originalProducer;
+        });
+
+        // 2.Enable replication.
+        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
+
+        // Verify: metrics.
+        // Cluster level:
+        //   - pulsar_replication_connected_count
+        //   - pulsar_replication_disconnected_count
+        // Namespace level:
+        //   - pulsar_replication_connected_count
+        //   - pulsar_replication_disconnected_count
+        // Topic level:
+        //   - pulsar_replication_connected_count
+        //   - pulsar_replication_disconnected_count
+        JerseyClient httpClient = JerseyClientBuilder.createClient();
+        Awaitility.await().untilAsserted(() -> {
+            int topicConnected = 0;
+            int topicDisconnected = 0;
+
+            String response = httpClient.target(pulsar1.getWebServiceAddress()).path("/metrics/")
+                    .request().get(String.class);
+            Multimap<String, PrometheusMetricsClient.Metric> metricMap = PrometheusMetricsClient.parseMetrics(response);
+            if (!metricMap.containsKey("pulsar_replication_disconnected_count")) {
+                fail("Expected 1 disconnected replicator.");
+            }
+            for (PrometheusMetricsClient.Metric metric : metricMap.get("pulsar_replication_connected_count")) {
+                if (cluster1.equals(metric.tags.get("cluster"))
+                        && nonReplicatedNamespace.equals(metric.tags.get("namespace"))
+                        && topicName.equals(metric.tags.get("topic"))) {
+                    topicConnected += Double.valueOf(metric.value).intValue();
+                }
+            }
+            for (PrometheusMetricsClient.Metric metric : metricMap.get("pulsar_replication_disconnected_count")) {
+                if (cluster1.equals(metric.tags.get("cluster"))
+                        && nonReplicatedNamespace.equals(metric.tags.get("namespace"))
+                        && topicName.equals(metric.tags.get("topic"))) {
+                    topicDisconnected += Double.valueOf(metric.value).intValue();
+                }
+            }
+            log.info("{}, {},", topicConnected, topicDisconnected);
+            assertEquals(topicConnected, 0);
+            assertEquals(topicDisconnected, 1);
+        });
+
+        // Let replicator connect successfully.
+        failedCreateProducer.set(false);
+        // Verify: metrics.
+        // Cluster level:
+        //   - pulsar_replication_connected_count
+        //   - pulsar_replication_disconnected_count
+        // Namespace level:
+        //   - pulsar_replication_connected_count
+        //   - pulsar_replication_disconnected_count
+        // Topic level:
+        //   - pulsar_replication_connected_count
+        //   - pulsar_replication_disconnected_count
+        Awaitility.await().atMost(Duration.ofSeconds(130)).untilAsserted(() -> {
+            int topicConnected = 0;
+            int topicDisconnected = 0;
+
+            String response = httpClient.target(pulsar1.getWebServiceAddress()).path("/metrics/")
+                    .request().get(String.class);
+            Multimap<String, PrometheusMetricsClient.Metric> metricMap = PrometheusMetricsClient.parseMetrics(response);
+            if (!metricMap.containsKey("pulsar_replication_disconnected_count")) {
+                fail("Expected 1 disconnected replicator.");
+            }
+            for (PrometheusMetricsClient.Metric metric : metricMap.get("pulsar_replication_connected_count")) {
+                if (cluster1.equals(metric.tags.get("cluster"))
+                        && nonReplicatedNamespace.equals(metric.tags.get("namespace"))
+                        && topicName.equals(metric.tags.get("topic"))) {
+                    topicConnected += Double.valueOf(metric.value).intValue();
+                }
+            }
+            for (PrometheusMetricsClient.Metric metric : metricMap.get("pulsar_replication_disconnected_count")) {
+                if (cluster1.equals(metric.tags.get("cluster"))
+                        && nonReplicatedNamespace.equals(metric.tags.get("namespace"))
+                        && topicName.equals(metric.tags.get("topic"))) {
+                    topicDisconnected += Double.valueOf(metric.value).intValue();
+                }
+            }
+            log.info("{}, {}", topicConnected, topicDisconnected);
+            assertEquals(topicConnected, 1);
+            assertEquals(topicDisconnected, 0);
+        });
+
+        // cleanup.
+        taskToClearInjection.run();
+        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
+        waitReplicatorStopped(topicName);
+        admin1.topics().delete(topicName, false);
+        admin2.topics().delete(topicName, false);
+    }
+
+    /**
+     * This test used to confirm the "start replicator retry task" will be skipped after the topic is closed.
+     */
+    @Test
+    public void testCloseTopicAfterStartReplicationFailed() throws Exception {
+        Field fieldTopicNameCache = TopicName.class.getDeclaredField("cache");
+        fieldTopicNameCache.setAccessible(true);
+        ConcurrentHashMap<String, TopicName> topicNameCache =
+                (ConcurrentHashMap<String, TopicName>) fieldTopicNameCache.get(null);
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + nonReplicatedNamespace + "/tp_");
+        // 1.Create topic, does not enable replication now.
+        admin1.topics().createNonPartitionedTopic(topicName);
+        Producer<byte[]> producer1 = client1.newProducer().topic(topicName).create();
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
+
+        // We inject an error to make "start replicator" to fail.
+        AsyncLoadingCache<String, Boolean> existsCache =
+                WhiteboxImpl.getInternalState(pulsar1.getConfigurationMetadataStore(), "existsCache");
+        String path = "/admin/partitioned-topics/" + TopicName.get(topicName).getPersistenceNamingEncoding();
+        existsCache.put(path, CompletableFuture.completedFuture(true));
+
+        // 2.Enable replication and unload topic after failed to start replicator.
+        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
+        Thread.sleep(3000);
+        producer1.close();
+        existsCache.synchronous().invalidate(path);
+        admin1.topics().unload(topicName);
+        // Verify: the "start replicator retry task" will be skipped after the topic is closed.
+        // - Retry delay is "PersistentTopic.POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS": 60s, so wait for 70s.
+        // - Since the topic should not be touched anymore, we use "TopicName" to confirm whether it be used by
+        //   Replication again.
+        Thread.sleep(10 * 1000);
+        topicNameCache.remove(topicName);
+        Thread.sleep(60 * 1000);
+        assertTrue(!topicNameCache.containsKey(topicName));
+
+        // cleanup.
+        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
+        admin1.topics().delete(topicName, false);
     }
 }

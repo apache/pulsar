@@ -101,6 +101,7 @@ public class AggregatedNamespaceStatsTest {
         replStats2.msgThroughputOut = 1536.0;
         replStats2.replicationBacklog = 99;
         replStats2.connectedCount = 1;
+        replStats2.disconnectedCount = 2;
         replStats2.msgRateExpired = 3.0;
         replStats2.replicationDelayInSeconds = 20;
         topicStats2.replicationStats.put(namespace, replStats2);
@@ -148,6 +149,7 @@ public class AggregatedNamespaceStatsTest {
         assertEquals(nsReplStats.msgThroughputOut, 1792.0);
         assertEquals(nsReplStats.replicationBacklog, 100);
         assertEquals(nsReplStats.connectedCount, 1);
+        assertEquals(nsReplStats.disconnectedCount, 2);
         assertEquals(nsReplStats.msgRateExpired, 6.0);
         assertEquals(nsReplStats.replicationDelayInSeconds, 40);
 

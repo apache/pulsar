@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.stats;
 
 import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
+import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import io.opentelemetry.sdk.metrics.data.MetricData;
@@ -35,21 +36,31 @@ public class BrokerOpenTelemetryTestUtil {
         return sdkBuilder -> {
             sdkBuilder.addMeterProviderCustomizer(
                     (meterProviderBuilder, __) -> meterProviderBuilder.registerMetricReader(reader));
+            sdkBuilder.disableShutdownHook();
+            disableExporters(sdkBuilder);
             sdkBuilder.addPropertiesSupplier(
                     () -> Map.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false",
                             "otel.java.enabled.resource.providers", "none"));
         };
     }
 
+    public static void disableExporters(AutoConfiguredOpenTelemetrySdkBuilder sdkBuilder) {
+        sdkBuilder.addPropertiesSupplier(() ->
+                Map.of("otel.metrics.exporter", "none",
+                        "otel.traces.exporter", "none",
+                        "otel.logs.exporter", "none"));
+    }
+
     public static void assertMetricDoubleSumValue(Collection<MetricData> metrics, String metricName,
                                                   Attributes attributes, Consumer<Double> valueConsumer) {
+        Map<AttributeKey<?>, Object> attributesMap = attributes.asMap();
         assertThat(metrics)
                 .anySatisfy(metric -> assertThat(metric)
                         .hasName(metricName)
                         .hasDoubleSumSatisfying(sum -> sum.satisfies(
                                 sumData -> assertThat(sumData.getPoints()).anySatisfy(
                                         point -> {
-                                            assertThat(point.getAttributes()).isEqualTo(attributes);
+                                            assertThat(point.getAttributes().asMap()).isEqualTo(attributesMap);
                                             valueConsumer.accept(point.getValue());
                                         }))));
     }
@@ -61,13 +72,14 @@ public class BrokerOpenTelemetryTestUtil {
 
     public static void assertMetricLongSumValue(Collection<MetricData> metrics, String metricName,
                                                 Attributes attributes, Consumer<Long> valueConsumer) {
+        Map<AttributeKey<?>, Object> attributesMap = attributes.asMap();
         assertThat(metrics)
                 .anySatisfy(metric -> assertThat(metric)
                         .hasName(metricName)
                         .hasLongSumSatisfying(sum -> sum.satisfies(
                                 sumData -> assertThat(sumData.getPoints()).anySatisfy(
                                         point -> {
-                                            assertThat(point.getAttributes()).isEqualTo(attributes);
+                                            assertThat(point.getAttributes().asMap()).isEqualTo(attributesMap);
                                             valueConsumer.accept(point.getValue());
                                         }))));
     }
@@ -79,13 +91,14 @@ public class BrokerOpenTelemetryTestUtil {
 
     public static void assertMetricLongGaugeValue(Collection<MetricData> metrics, String metricName,
                                                   Attributes attributes, Consumer<Long> valueConsumer) {
+        Map<AttributeKey<?>, Object> attributesMap = attributes.asMap();
         assertThat(metrics)
                 .anySatisfy(metric -> assertThat(metric)
                         .hasName(metricName)
                         .hasLongGaugeSatisfying(gauge -> gauge.satisfies(
                                 pointData -> assertThat(pointData.getPoints()).anySatisfy(
                                         point -> {
-                                            assertThat(point.getAttributes()).isEqualTo(attributes);
+                                            assertThat(point.getAttributes().asMap()).isEqualTo(attributesMap);
                                             valueConsumer.accept(point.getValue());
                                         }))));
     }
@@ -97,13 +110,14 @@ public class BrokerOpenTelemetryTestUtil {
 
     public static void assertMetricDoubleGaugeValue(Collection<MetricData> metrics, String metricName,
                                                   Attributes attributes, Consumer<Double> valueConsumer) {
+        Map<AttributeKey<?>, Object> attributesMap = attributes.asMap();
         assertThat(metrics)
                 .anySatisfy(metric -> assertThat(metric)
                         .hasName(metricName)
                         .hasDoubleGaugeSatisfying(gauge -> gauge.satisfies(
                                 pointData -> assertThat(pointData.getPoints()).anySatisfy(
                                         point -> {
-                                            assertThat(point.getAttributes()).isEqualTo(attributes);
+                                            assertThat(point.getAttributes().asMap()).isEqualTo(attributesMap);
                                             valueConsumer.accept(point.getValue());
                                         }))));
     }

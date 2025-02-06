@@ -52,7 +52,14 @@ done
 PULSAR_MEM=${PULSAR_MEM:-"-Xmx128m -XX:MaxDirectMemorySize=128m"}
 
 # Garbage collection options
-PULSAR_GC=${PULSAR_GC:-"-XX:+UseZGC -XX:+PerfDisableSharedMem -XX:+AlwaysPreTouch"}
+if [ -z "$PULSAR_GC" ]; then
+  PULSAR_GC="-XX:+PerfDisableSharedMem -XX:+AlwaysPreTouch"
+  if [[ $JAVA_MAJOR_VERSION -ge 21 ]]; then
+    PULSAR_GC="-XX:+UseZGC -XX:+ZGenerational ${PULSAR_GC}"
+  else
+    PULSAR_GC="-XX:+UseZGC ${PULSAR_GC}"
+  fi
+fi
 
 # Garbage collection log.
 PULSAR_GC_LOG_DIR=${PULSAR_GC_LOG_DIR:-logs}
@@ -124,7 +131,7 @@ fi
 # Ensure we can read bigger content from ZK. (It might be
 # rarely needed when trying to list many z-nodes under a
 # directory)
-OPTS="$OPTS -Djute.maxbuffer=10485760 -Djava.net.preferIPv4Stack=true"
+OPTS="-Djava.net.preferIPv4Stack=true $OPTS -Djute.maxbuffer=10485760"
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
 

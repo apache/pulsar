@@ -34,6 +34,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 
 /**
  * A ManagedCursor is a persisted cursor inside a ManagedLedger.
@@ -44,6 +45,8 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
 @InterfaceAudience.LimitedPrivate
 @InterfaceStability.Stable
 public interface ManagedCursor {
+
+    String CURSOR_INTERNAL_PROPERTY_PREFIX = "#pulsar.internal.";
 
     @SuppressWarnings("checkstyle:javadoctype")
     enum FindPositionConstraint {
@@ -657,6 +660,31 @@ public interface ManagedCursor {
     void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
             FindEntryCallback callback, Object ctx, boolean isFindFromLedger);
 
+
+    /**
+     * Find the newest entry that matches the given predicate.
+     *
+     * @param constraint
+     *            search only active entries or all entries
+     * @param condition
+     *            predicate that reads an entry an applies a condition
+     * @param callback
+     *            callback object returning the resultant position
+     * @param startPosition
+     *           start position to search from.
+     * @param endPosition
+     *          end position to search to.
+     * @param ctx
+     *            opaque context
+     * @param isFindFromLedger
+     *            find the newest entry from ledger
+     */
+    default void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
+                                 Position startPosition, Position endPosition, FindEntryCallback callback,
+                                 Object ctx, boolean isFindFromLedger) {
+        asyncFindNewestMatching(constraint, condition, callback, ctx, isFindFromLedger);
+    }
+
     /**
      * reset the cursor to specified position to enable replay of messages.
      *
@@ -885,4 +913,16 @@ public interface ManagedCursor {
     default ManagedCursorAttributes getManagedCursorAttributes() {
         return new ManagedCursorAttributes(this);
     }
+
+    ManagedLedgerInternalStats.CursorStats getCursorStats();
+
+    boolean isMessageDeleted(Position position);
+
+    ManagedCursor duplicateNonDurableCursor(String nonDurableCursorName) throws ManagedLedgerException;
+
+    long[] getBatchPositionAckSet(Position position);
+
+    int applyMaxSizeCap(int maxEntries, long maxSizeBytes);
+
+    void updateReadStats(int readEntriesCount, long readEntriesSize);
 }

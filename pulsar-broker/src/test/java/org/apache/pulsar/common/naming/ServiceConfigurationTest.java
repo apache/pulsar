@@ -35,6 +35,7 @@ import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
@@ -76,6 +77,7 @@ public class ServiceConfigurationTest {
         assertEquals(config.isDispatcherPauseOnAckStatePersistentEnabled(), true);
         assertEquals(config.getMaxSecondsToClearTopicNameCache(), 1);
         assertEquals(config.getTopicNameCacheMaxCapacity(), 200);
+        assertEquals(config.isCreateTopicToRemoteClusterForReplication(), false);
         OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create(config.getProperties());
         assertEquals(offloadPolicies.getManagedLedgerOffloadedReadPriority().getValue(), "bookkeeper-first");
     }
@@ -293,6 +295,7 @@ public class ServiceConfigurationTest {
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxSize(), 1024 * 1024 * 4);
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxDelayInMillis(), 1);
             assertEquals(configuration.isDispatcherPauseOnAckStatePersistentEnabled(), false);
+            assertEquals(configuration.isCreateTopicToRemoteClusterForReplication(), true);
         }
         // pulsar_broker_test.conf.
         try (InputStream inputStream = this.getClass().getClassLoader().getResourceAsStream(fileName)) {
@@ -306,6 +309,7 @@ public class ServiceConfigurationTest {
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxSize(), 55);
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxDelayInMillis(), 66);
             assertEquals(configuration.isDispatcherPauseOnAckStatePersistentEnabled(), true);
+            assertEquals(configuration.isCreateTopicToRemoteClusterForReplication(), false);
         }
         // string input stream.
         StringBuilder stringBuilder = new StringBuilder();
@@ -318,6 +322,7 @@ public class ServiceConfigurationTest {
         stringBuilder.append("transactionPendingAckBatchedWriteMaxSize=1025").append(System.lineSeparator());
         stringBuilder.append("transactionPendingAckBatchedWriteMaxDelayInMillis=20").append(System.lineSeparator());
         stringBuilder.append("dispatcherPauseOnAckStatePersistentEnabled=true").append(System.lineSeparator());
+        stringBuilder.append("createTopicToRemoteClusterForReplication=false").append(System.lineSeparator());
         try(ByteArrayInputStream inputStream =
                     new ByteArrayInputStream(stringBuilder.toString().getBytes(StandardCharsets.UTF_8))){
             configuration = PulsarConfigurationLoader.create(inputStream, ServiceConfiguration.class);
@@ -330,6 +335,7 @@ public class ServiceConfigurationTest {
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxSize(), 1025);
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxDelayInMillis(), 20);
             assertEquals(configuration.isDispatcherPauseOnAckStatePersistentEnabled(), true);
+            assertEquals(configuration.isCreateTopicToRemoteClusterForReplication(), false);
         }
     }
 
@@ -387,5 +393,18 @@ public class ServiceConfigurationTest {
         conf = PulsarConfigurationLoader.create(properties, ServiceConfiguration.class);
         assertEquals(conf.getMaxSecondsToClearTopicNameCache(), 2);
         assertEquals(conf.getTopicNameCacheMaxCapacity(), 100);
+    }
+
+    @Test
+    public void testLookupProperties() throws Exception {
+        var confFile = "lookup.key1=value1\nkey=value\nlookup.key2=value2";
+        var conf = (ServiceConfiguration) PulsarConfigurationLoader.create(
+                new ByteArrayInputStream(confFile.getBytes()), ServiceConfiguration.class);
+        assertEquals(conf.lookupProperties(), Map.of("lookup.key1", "value1", "lookup.key2", "value2"));
+
+        confFile = confFile + "\nlookupPropertyPrefix=lookup.key2";
+        conf = PulsarConfigurationLoader.create(new ByteArrayInputStream(confFile.getBytes()),
+                ServiceConfiguration.class);
+        assertEquals(conf.lookupProperties(), Map.of("lookup.key2", "value2"));
     }
 }

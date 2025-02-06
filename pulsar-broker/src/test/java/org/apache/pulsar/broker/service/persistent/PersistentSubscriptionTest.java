@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doCallRealMethod;
@@ -26,17 +27,17 @@ import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import io.netty.channel.EventLoopGroup;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.Position;
@@ -60,8 +61,6 @@ import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -82,11 +81,6 @@ public class PersistentSubscriptionTest {
 
     final TxnID txnID1 = new TxnID(1,1);
     final TxnID txnID2 = new TxnID(1,2);
-
-    private static final Logger log = LoggerFactory.getLogger(PersistentTopicTest.class);
-
-    private OrderedExecutor executor;
-    private EventLoopGroup eventLoopGroup;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -233,6 +227,40 @@ public class PersistentSubscriptionTest {
 
         // `acknowledgeMessage` should update cursor last active
         assertTrue(persistentSubscription.cursor.getLastActive() > beforeAcknowledgeTimestamp);
+    }
+
+    @Test
+    public void testGetReplicatedSubscriptionConfiguration() {
+        Map<String, Long> properties = PersistentSubscription.getBaseCursorProperties(true);
+        assertThat(properties).containsEntry(PersistentSubscription.REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
+        ManagedCursor cursor = mock(ManagedCursor.class);
+        doReturn(properties).when(cursor).getProperties();
+        Optional<Boolean> replicatedSubscriptionConfiguration =
+                PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
+        assertThat(replicatedSubscriptionConfiguration).isNotEmpty().get().isEqualTo(Boolean.TRUE);
+
+        properties = Map.of(PersistentSubscription.REPLICATED_SUBSCRIPTION_PROPERTY, 10L);
+        doReturn(properties).when(cursor).getProperties();
+        replicatedSubscriptionConfiguration =
+                PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
+        assertThat(replicatedSubscriptionConfiguration).isEmpty();
+        properties = Map.of(PersistentSubscription.REPLICATED_SUBSCRIPTION_PROPERTY, -1L);
+        doReturn(properties).when(cursor).getProperties();
+        replicatedSubscriptionConfiguration =
+                PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
+        assertThat(replicatedSubscriptionConfiguration).isEmpty();
+
+        properties = PersistentSubscription.getBaseCursorProperties(false);
+        doReturn(properties).when(cursor).getProperties();
+        replicatedSubscriptionConfiguration =
+                PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
+        assertThat(replicatedSubscriptionConfiguration).isEmpty();
+
+        properties = PersistentSubscription.getBaseCursorProperties(null);
+        doReturn(properties).when(cursor).getProperties();
+        replicatedSubscriptionConfiguration =
+                PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
+        assertThat(replicatedSubscriptionConfiguration).isEmpty();
     }
 
     public static class CustomTransactionPendingAckStoreProvider implements TransactionPendingAckStoreProvider {

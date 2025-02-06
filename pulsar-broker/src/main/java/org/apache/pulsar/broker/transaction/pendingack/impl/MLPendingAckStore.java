@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
@@ -44,7 +45,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckReplyCallBack;
@@ -121,7 +121,7 @@ public class MLPendingAckStore implements PendingAckStore {
     public MLPendingAckStore(ManagedLedger managedLedger, ManagedCursor cursor,
                              ManagedCursor subManagedCursor, long transactionPendingAckLogIndexMinLag,
                              TxnLogBufferedWriterConfig bufferedWriterConfig,
-                             Timer timer, TxnLogBufferedWriterMetricsStats bufferedWriterMetrics) {
+                             Timer timer, TxnLogBufferedWriterMetricsStats bufferedWriterMetrics, Executor executor) {
         this.managedLedger = managedLedger;
         this.cursor = cursor;
         this.currentLoadPosition = this.cursor.getMarkDeletedPosition();
@@ -131,7 +131,7 @@ public class MLPendingAckStore implements PendingAckStore {
         this.subManagedCursor = subManagedCursor;
         this.logIndexBackoff = new LogIndexLagBackoff(transactionPendingAckLogIndexMinLag, Long.MAX_VALUE, 1);
         this.maxIndexLag = logIndexBackoff.next(0);
-        this.bufferedWriter = new TxnLogBufferedWriter(managedLedger, ((ManagedLedgerImpl) managedLedger).getExecutor(),
+        this.bufferedWriter = new TxnLogBufferedWriter(managedLedger, executor,
                 timer, PendingAckLogSerializer.INSTANCE,
                 bufferedWriterConfig.getBatchedWriteMaxRecords(), bufferedWriterConfig.getBatchedWriteMaxSize(),
                 bufferedWriterConfig.getBatchedWriteMaxDelayInMillis(), bufferedWriterConfig.isBatchEnabled(),

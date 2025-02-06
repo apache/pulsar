@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES;
+import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import io.netty.util.Timeout;
@@ -27,9 +29,11 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -52,7 +56,6 @@ import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,7 +63,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
 
     private static final Logger log = LoggerFactory.getLogger(PartitionedProducerImpl.class);
 
-    private final ConcurrentOpenHashMap<Integer, ProducerImpl<T>> producers;
+    private final Map<Integer, ProducerImpl<T>> producers = new ConcurrentHashMap<>();
     private final MessageRouter routerPolicy;
     private final PartitionedTopicProducerStatsRecorderImpl stats;
     private TopicMetadata topicMetadata;
@@ -76,8 +79,6 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                                    int numPartitions, CompletableFuture<Producer<T>> producerCreatedFuture,
                                    Schema<T> schema, ProducerInterceptors interceptors) {
         super(client, topic, conf, producerCreatedFuture, schema, interceptors);
-        this.producers =
-                ConcurrentOpenHashMap.<Integer, ProducerImpl<T>>newBuilder().build();
         this.topicMetadata = new TopicMetadataImpl(numPartitions);
         this.routerPolicy = getMessageRouter();
         stats = client.getConfiguration().getStatsIntervalSeconds() > 0
@@ -85,9 +86,16 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                 : null;
 
         // MaxPendingMessagesAcrossPartitions doesn't support partial partition such as SinglePartition correctly
-        int maxPendingMessages = Math.min(conf.getMaxPendingMessages(),
-                conf.getMaxPendingMessagesAcrossPartitions() / numPartitions);
-        conf.setMaxPendingMessages(maxPendingMessages);
+        int maxPendingMessages = conf.getMaxPendingMessages();
+        int maxPendingMessagesAcrossPartitions = conf.getMaxPendingMessagesAcrossPartitions();
+        if (maxPendingMessagesAcrossPartitions != DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS) {
+            int maxPendingMsgsForOnePartition = maxPendingMessagesAcrossPartitions / numPartitions;
+            maxPendingMessages = (maxPendingMessages == DEFAULT_MAX_PENDING_MESSAGES)
+                    ? maxPendingMsgsForOnePartition
+                    : Math.min(maxPendingMessages, maxPendingMsgsForOnePartition);
+            conf.setMaxPendingMessages(maxPendingMessages);
+        }
+
 
         final List<Integer> indexList;
         if (conf.isLazyStartPartitionedProducers()

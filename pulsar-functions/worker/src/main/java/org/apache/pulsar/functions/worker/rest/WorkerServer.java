@@ -24,6 +24,9 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import javax.servlet.DispatcherType;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -31,6 +34,10 @@ import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.broker.web.JettyRequestLogFactory;
 import org.apache.pulsar.broker.web.RateLimitingFilter;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
+import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
+import org.apache.pulsar.common.util.PulsarSslConfiguration;
+import org.apache.pulsar.common.util.PulsarSslFactory;
 import org.apache.pulsar.functions.worker.PulsarWorkerOpenTelemetry;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -75,6 +82,8 @@ public class WorkerServer {
     private ServerConnector httpsConnector;
 
     private final FilterInitializer filterInitializer;
+    private PulsarSslFactory sslFactory;
+    private ScheduledExecutorService scheduledExecutorService;
 
     public WorkerServer(WorkerService workerService, AuthenticationService authenticationService) {
         this.workerConfig = workerService.getWorkerConfig();
@@ -155,35 +164,22 @@ public class WorkerServer {
         if (this.workerConfig.getTlsEnabled()) {
             log.info("Configuring https server on port={}", this.workerConfig.getWorkerPortTls());
             try {
-                SslContextFactory sslCtxFactory;
-                if (workerConfig.isTlsEnabledWithKeyStore()) {
-                    sslCtxFactory = JettySslContextFactory.createServerSslContextWithKeystore(
-                            workerConfig.getTlsProvider(),
-                            workerConfig.getTlsKeyStoreType(),
-                            workerConfig.getTlsKeyStore(),
-                            workerConfig.getTlsKeyStorePassword(),
-                            workerConfig.isTlsAllowInsecureConnection(),
-                            workerConfig.getTlsTrustStoreType(),
-                            workerConfig.getTlsTrustStore(),
-                            workerConfig.getTlsTrustStorePassword(),
-                            workerConfig.isTlsRequireTrustedClientCertOnConnect(),
-                            workerConfig.getWebServiceTlsCiphers(),
-                            workerConfig.getWebServiceTlsProtocols(),
-                            workerConfig.getTlsCertRefreshCheckDurationSec()
-                    );
-                } else {
-                    sslCtxFactory = JettySslContextFactory.createServerSslContext(
-                            workerConfig.getTlsProvider(),
-                            workerConfig.isTlsAllowInsecureConnection(),
-                            workerConfig.getTlsTrustCertsFilePath(),
-                            workerConfig.getTlsCertificateFilePath(),
-                            workerConfig.getTlsKeyFilePath(),
-                            workerConfig.isTlsRequireTrustedClientCertOnConnect(),
-                            workerConfig.getWebServiceTlsCiphers(),
-                            workerConfig.getWebServiceTlsProtocols(),
-                            workerConfig.getTlsCertRefreshCheckDurationSec()
-                    );
-                }
+                PulsarSslConfiguration sslConfiguration = buildSslConfiguration(workerConfig);
+                this.sslFactory = new DefaultPulsarSslFactory();
+                this.sslFactory.initialize(sslConfiguration);
+                this.sslFactory.createInternalSslContext();
+                this.scheduledExecutorService = Executors
+                        .newSingleThreadScheduledExecutor(new ExecutorProvider
+                                .ExtendedThreadFactory("functions-worker-web-ssl-refresh"));
+                this.scheduledExecutorService.scheduleWithFixedDelay(this::refreshSslContext,
+                        workerConfig.getTlsCertRefreshCheckDurationSec(),
+                        workerConfig.getTlsCertRefreshCheckDurationSec(),
+                        TimeUnit.SECONDS);
+                SslContextFactory sslCtxFactory =
+                        JettySslContextFactory.createSslContextFactory(this.workerConfig.getTlsProvider(),
+                                this.sslFactory, this.workerConfig.isTlsRequireTrustedClientCertOnConnect(),
+                                this.workerConfig.getWebServiceTlsCiphers(),
+                                this.workerConfig.getWebServiceTlsProtocols());
                 List<ConnectionFactory> connectionFactories = new ArrayList<>();
                 if (workerConfig.isWebServiceHaProxyProtocolEnabled()) {
                     connectionFactories.add(new ProxyConnectionFactory());
@@ -288,6 +284,9 @@ public class WorkerServer {
                 log.warn("Error stopping function web-server executor", e);
             }
         }
+        if (this.scheduledExecutorService != null) {
+            this.scheduledExecutorService.shutdownNow();
+        }
     }
 
     public Optional<Integer> getListenPortHTTP() {
@@ -304,5 +303,34 @@ public class WorkerServer {
         } else {
             return Optional.empty();
         }
+    }
+
+    protected void refreshSslContext() {
+        try {
+            this.sslFactory.update();
+        } catch (Exception e) {
+            log.error("Failed to refresh SSL context", e);
+        }
+    }
+
+    protected PulsarSslConfiguration buildSslConfiguration(WorkerConfig config) {
+        return PulsarSslConfiguration.builder()
+                .tlsKeyStoreType(config.getTlsKeyStoreType())
+                .tlsKeyStorePath(config.getTlsKeyStore())
+                .tlsKeyStorePassword(config.getTlsKeyStorePassword())
+                .tlsTrustStoreType(config.getTlsTrustStoreType())
+                .tlsTrustStorePath(config.getTlsTrustStore())
+                .tlsTrustStorePassword(config.getTlsTrustStorePassword())
+                .tlsCiphers(config.getWebServiceTlsCiphers())
+                .tlsProtocols(config.getWebServiceTlsProtocols())
+                .tlsTrustCertsFilePath(config.getTlsTrustCertsFilePath())
+                .tlsCertificateFilePath(config.getTlsCertificateFilePath())
+                .tlsKeyFilePath(config.getTlsKeyFilePath())
+                .allowInsecureConnection(config.isTlsAllowInsecureConnection())
+                .requireTrustedClientCertOnConnect(config.isTlsRequireTrustedClientCertOnConnect())
+                .tlsEnabledWithKeystore(config.isTlsEnabledWithKeyStore())
+                .serverMode(true)
+                .isHttps(true)
+                .build();
     }
 }

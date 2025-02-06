@@ -44,7 +44,7 @@ public class InjectedClientCnxClientBuilder {
 
         // Inject into ClientCnx.
         ConnectionPool pool = new ConnectionPool(InstrumentProvider.NOOP, conf, eventLoopGroup,
-                () -> clientCnxFactory.generate(conf, eventLoopGroup));
+                () -> clientCnxFactory.generate(conf, eventLoopGroup), null);
 
         return new InjectedClientCnxPulsarClientImpl(conf, eventLoopGroup, pool);
     }

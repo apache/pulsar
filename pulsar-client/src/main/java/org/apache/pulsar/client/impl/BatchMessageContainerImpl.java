@@ -241,7 +241,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         try {
             // Need to protect ourselves from any exception being thrown in the future handler from the application
             if (firstCallback != null) {
-                firstCallback.sendComplete(ex);
+                firstCallback.sendComplete(ex, null);
             }
             if (batchedMessageMetadataAndPayload != null) {
                 ReferenceCountUtil.safeRelease(batchedMessageMetadataAndPayload);
@@ -304,8 +304,8 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             messages.forEach(msg -> producer.client.getMemoryLimitController()
                     .releaseMemory(msg.getUncompressedSize()));
             producer.client.getMemoryLimitController().releaseMemory(batchAllocatedSizeBytes);
-            discard(new PulsarClientException.InvalidMessageException(
-                    "Message size is bigger than " + getMaxMessageSize() + " bytes"));
+            discard(new PulsarClientException.InvalidMessageException("Message size "
+                    + encryptedPayload.readableBytes() + " is bigger than " + getMaxMessageSize() + " bytes"));
             return null;
         }
         messageMetadata.setNumMessagesInBatch(numMessagesInBatch);

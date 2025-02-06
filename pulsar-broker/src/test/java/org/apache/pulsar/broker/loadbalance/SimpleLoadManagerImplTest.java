@@ -77,6 +77,7 @@ import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUnitRanking;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
+import org.apache.pulsar.utils.ResourceUtils;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -86,6 +87,14 @@ import org.testng.annotations.Test;
 @Slf4j
 @Test(groups = "broker")
 public class SimpleLoadManagerImplTest {
+
+    public final static String CA_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
+    public final static String BROKER_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
+    public final static String BROKER_KEY_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
+
     LocalBookkeeperEnsemble bkEnsemble;
 
     URL url1;
@@ -129,6 +138,9 @@ public class SimpleLoadManagerImplTest {
         config1.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config1.setBrokerServicePortTls(Optional.of(0));
         config1.setAdvertisedAddress("localhost");
+        config1.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+        config1.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        config1.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         pulsar1 = new PulsarService(config1);
         pulsar1.start();
 
@@ -150,6 +162,9 @@ public class SimpleLoadManagerImplTest {
         config2.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config2.setBrokerServicePortTls(Optional.of(0));
         config2.setWebServicePortTls(Optional.of(0));
+        config2.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+        config2.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        config2.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         config2.setAdvertisedAddress("localhost");
         pulsar2 = new PulsarService(config2);
         pulsar2.start();

@@ -1142,6 +1142,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
     private AsyncHttpClient getHttpClient(String version) {
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
+        confBuilder.setCookieStore(null);
         confBuilder.setUseProxyProperties(true);
         confBuilder.setFollowRedirect(true);
         confBuilder.setUserAgent(version);

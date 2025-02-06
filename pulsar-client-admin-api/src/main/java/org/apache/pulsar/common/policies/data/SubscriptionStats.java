@@ -66,6 +66,9 @@ public interface SubscriptionStats {
     /** Number of delayed messages currently being tracked. */
     long getMsgDelayed();
 
+    /** Number of messages registered for replay. */
+    long getMsgInReplay();
+
     /**
      * Number of unacknowledged messages for the subscription, where an unacknowledged message is one that has been
      * sent to a consumer but not yet acknowledged. Calculated by summing all {@link ConsumerStats#getUnackedMessages()}
@@ -118,11 +121,29 @@ public interface SubscriptionStats {
     /** This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription. */
     Map<String, String> getConsumersAfterMarkDeletePosition();
 
-    /** The last sent position of the cursor. This is for Key_Shared subscription. */
-    String getLastSentPosition();
+    /**
+     * For Key_Shared subscription in AUTO_SPLIT ordered mode:
+     * Retrieves the current number of hashes in the draining state.
+     *
+     * @return the current number of hashes in the draining state
+     */
+    int getDrainingHashesCount();
 
-    /** Set of individually sent ranges. This is for Key_Shared subscription. */
-    String getIndividuallySentPositions();
+    /**
+     * For Key_Shared subscription in AUTO_SPLIT ordered mode:
+     * Retrieves the total number of hashes cleared from the draining state for the connected consumers.
+     *
+     * @return the total number of hashes cleared from the draining state for the connected consumers
+     */
+    long getDrainingHashesClearedTotal();
+
+    /**
+     * For Key_Shared subscription in AUTO_SPLIT ordered mode:
+     * Retrieves the total number of unacked messages for all draining hashes.
+     *
+     * @return the total number of unacked messages for all draining hashes
+     */
+    int getDrainingHashesUnackedMessages();
 
     /** SubscriptionProperties (key/value strings) associated with this subscribe. */
     Map<String, String> getSubscriptionProperties();

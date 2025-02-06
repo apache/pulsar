@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.util;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -337,5 +338,21 @@ public class RangeCacheTest {
         value.setMatchingKey(123);
         cache.clear();
         assertEquals(cache.getNumberOfEntries(), 0);
+    }
+
+    @Test
+    public void testGetKeyWithDifferentInstance() {
+        RangeCache<Integer, RefString> cache = new RangeCache<>();
+        Integer key = 129;
+        cache.put(key, new RefString("129"));
+        // create a different instance of the key
+        Integer key2 = Integer.valueOf(129);
+        // key and key2 are different instances but they are equal
+        assertNotSame(key, key2);
+        assertEquals(key, key2);
+        // get the value using key2
+        RefString s = cache.get(key2);
+        // the value should be found
+        assertEquals(s.s, "129");
     }
 }

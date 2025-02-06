@@ -20,14 +20,22 @@ package org.apache.pulsar.client.impl;
 
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -256,5 +264,59 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
         consumer.batchReceiveAsync();
         Awaitility.await().until(() -> consumer.getCurrentReceiverQueueSize() == currentSize * 2);
         log.info("getCurrentReceiverQueueSize={}", consumer.getCurrentReceiverQueueSize());
+    }
+
+    @Test
+    public void testNegativeClientMemory() throws Exception {
+        final String topicName = "persistent://public/default/testMemory-" +
+                UUID.randomUUID().toString();
+        final String subName = "my-sub";
+
+        admin.topics().createPartitionedTopic(topicName, 3);
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+
+        final int messages = 1000;
+        List<CompletableFuture<MessageId>> messageIds = new ArrayList<>(messages);
+        for (int i = 0; i < messages; i++) {
+            messageIds.add(producer.newMessage().key(i + "").value(("Message-" + i).getBytes()).sendAsync());
+        }
+        FutureUtil.waitForAll(messageIds).get();
+
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .autoScaledReceiverQueueSizeEnabled(true)
+                .subscribe();
+
+
+        Awaitility.await().untilAsserted(() -> {
+            long size = ((ConsumerBase<byte[]>) consumer).getIncomingMessageSize();
+            log.info("Check the incoming message size should greater that 0, current size is {}", size);
+            Assert.assertTrue(size > 0);
+        });
+
+
+        for (int i = 0; i < messages; i++) {
+            consumer.receive();
+        }
+
+        Awaitility.await().untilAsserted(() -> {
+            long size = ((ConsumerBase<byte[]>) consumer).getIncomingMessageSize();
+            log.info("Check the incoming message size should be 0, current size is {}", size);
+            Assert.assertEquals(size, 0);
+        });
+
+
+        MemoryLimitController controller = ((PulsarClientImpl)pulsarClient).getMemoryLimitController();
+        Assert.assertEquals(controller.currentUsage(), 0);
+        Assert.assertEquals(controller.currentUsagePercent(), 0);
     }
 }

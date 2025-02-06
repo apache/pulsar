@@ -42,6 +42,7 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
     private final LongAdder connectionTotalCreatedCount;
     private final LongAdder connectionTotalClosedCount;
     private final LongAdder connectionActive;
+    private volatile int healthCheckStatus; // 1=success, 0=failure, -1=unknown
 
     private final LongAdder connectionCreateSuccessCount;
     private final LongAdder connectionCreateFailCount;
@@ -61,7 +62,7 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
         this.connectionTotalCreatedCount = new LongAdder();
         this.connectionTotalClosedCount = new LongAdder();
         this.connectionActive = new LongAdder();
-
+        this.healthCheckStatus = -1;
         this.connectionCreateSuccessCount = new LongAdder();
         this.connectionCreateFailCount = new LongAdder();
 
@@ -103,6 +104,7 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
         reset();
         metricsList.add(getTopicLoadMetrics());
         metricsList.add(getConnectionMetrics());
+        metricsList.add(getHealthMetrics());
     }
 
     public Metrics generateConnectionMetrics() {
@@ -116,6 +118,12 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
         rMetrics.put("brk_connection_create_fail_count", connectionCreateFailCount.longValue());
         rMetrics.put("brk_connection_closed_total_count", connectionTotalClosedCount.longValue());
         rMetrics.put("brk_active_connections", connectionActive.longValue());
+        return rMetrics;
+    }
+
+    Metrics getHealthMetrics() {
+        Metrics rMetrics = Metrics.create(getDimensionMap("broker_health"));
+        rMetrics.put("brk_health", healthCheckStatus);
         return rMetrics;
     }
 
@@ -178,5 +186,13 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
 
     public void recordConnectionCreateFail() {
         this.connectionCreateFailCount.increment();
+    }
+
+    public void recordHealthCheckStatusSuccess() {
+        this.healthCheckStatus = 1;
+    }
+
+    public void recordHealthCheckStatusFail() {
+        this.healthCheckStatus = 0;
     }
 }

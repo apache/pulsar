@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.Optional;
@@ -192,13 +193,12 @@ public class ConnectionHandler {
         duringConnect.set(false);
         state.client.getCnxPool().releaseConnection(cnx);
         if (CLIENT_CNX_UPDATER.compareAndSet(this, cnx, null)) {
-            if (!isValidStateForReconnection()) {
+            if (!state.changeToConnecting()) {
                 log.info("[{}] [{}] Ignoring reconnection request (state: {})",
                         state.topic, state.getHandlerName(), state.getState());
                 return;
             }
             long delayMs = initialConnectionDelayMs.orElse(backoff.next());
-            state.setState(State.Connecting);
             log.info("[{}] [{}] Closed connection {} -- Will try again in {} s, hostUrl: {}",
                     state.topic, state.getHandlerName(), cnx.channel(), delayMs / 1000.0, hostUrl.orElse(null));
             state.client.timer().newTimeout(timeout -> {
@@ -232,7 +232,8 @@ public class ConnectionHandler {
         return EPOCH_UPDATER.incrementAndGet(this);
     }
 
-    private boolean isValidStateForReconnection() {
+    @VisibleForTesting
+    public boolean isValidStateForReconnection() {
         State state = this.state.getState();
         switch (state) {
             case Uninitialized:

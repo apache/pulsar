@@ -55,6 +55,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -125,6 +126,14 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                 {128, 1024 * 1024, 1, true, 512, 4, BookieErrorType.NO_ERROR, true},
                 {128, 1024 * 1024, 1, false, 512, 4, BookieErrorType.NO_ERROR, true}
         };
+    }
+
+    @Override
+    protected ManagedLedgerFactoryConfig createManagedLedgerFactoryConfig() {
+        ManagedLedgerFactoryConfig managedLedgerFactoryConfig = super.createManagedLedgerFactoryConfig();
+        // disable the broker cache so that assertAllByteBufHasBeenReleased can work correctly.
+        managedLedgerFactoryConfig.setMaxCacheSize(0);
+        return managedLedgerFactoryConfig;
     }
 
     /**

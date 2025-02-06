@@ -71,6 +71,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.util.Bytes;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
@@ -91,6 +92,7 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService;
 import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService.ReferenceCountedWriter;
+import org.apache.pulsar.broker.service.TopicPolicyTestUtils;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TransactionBufferSnapshotServiceFactory;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -141,10 +143,8 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
@@ -384,8 +384,7 @@ public class TransactionTest extends TransactionTestBase {
             return true;
         });
 
-        ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
-                getPulsarServiceList().get(0).getBrokerService().getTopics();
+        final var topics = getPulsarServiceList().get(0).getBrokerService().getTopics();
 
         Assert.assertNull(topics.get(TopicName.get(TopicDomain.persistent.value(),
                 NamespaceName.SYSTEM_NAMESPACE, TRANSACTION_LOG_PREFIX).toString() + 0));
@@ -511,7 +510,7 @@ public class TransactionTest extends TransactionTestBase {
         admin.topics().createNonPartitionedTopic(topic);
         PulsarService pulsarService = super.getPulsarServiceList().get(0);
         pulsarService.getBrokerService().getTopics().clear();
-        ManagedLedgerFactory managedLedgerFactory = pulsarService.getBrokerService().getManagedLedgerFactory();
+        ManagedLedgerFactory managedLedgerFactory = pulsarService.getDefaultManagedLedgerFactory();
         Field field = ManagedLedgerFactoryImpl.class.getDeclaredField("ledgers");
         field.setAccessible(true);
         ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers =
@@ -549,11 +548,7 @@ public class TransactionTest extends TransactionTestBase {
                     .getSubscription(subName);
             subscription.getPendingAckManageLedger().thenAccept(managedLedger -> {
                 long retentionSize = managedLedger.getConfig().getRetentionSizeInMB();
-                if (!originPersistentTopic.getTopicPolicies().isPresent()) {
-                    log.error("Failed to getTopicPolicies of :" + originPersistentTopic);
-                    Assert.fail();
-                }
-                TopicPolicies topicPolicies = originPersistentTopic.getTopicPolicies().get();
+                TopicPolicyTestUtils.getTopicPolicies(originPersistentTopic); // verify the topic policies exist
                 Assert.assertEquals(retentionSizeInMbSetTopic, retentionSize);
                 MLPendingAckStoreProvider mlPendingAckStoreProvider = new MLPendingAckStoreProvider();
                 CompletableFuture<PendingAckStore> future = mlPendingAckStoreProvider.newPendingAckStore(subscription);
@@ -594,6 +589,11 @@ public class TransactionTest extends TransactionTestBase {
                 .topic(topic).enableBatching(true)
                 .create();
 
+        Transaction transaction = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.SECONDS).build().get();
+        producer.newMessage(transaction).send();
+        transaction.abort().get();
+
         Awaitility.await().untilAsserted(() -> {
             Message<TransactionBufferSnapshot> message1 = reader.readNext();
             TransactionBufferSnapshot snapshot1 = message1.getValue();
@@ -607,7 +607,7 @@ public class TransactionTest extends TransactionTestBase {
         Awaitility.await().untilAsserted(() -> {
             Message<TransactionBufferSnapshot> message1 = reader.readNext();
             TransactionBufferSnapshot snapshot1 = message1.getValue();
-            Assert.assertEquals(snapshot1.getMaxReadPositionEntryId(), 1);
+            Assert.assertEquals(snapshot1.getMaxReadPositionEntryId(), 3);
         });
     }
 
@@ -715,7 +715,7 @@ public class TransactionTest extends TransactionTestBase {
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .create();
 
-        Awaitility.await().untilAsserted(() -> Assert.assertTrue(topicTransactionBuffer.checkIfReady()));
+        Awaitility.await().untilAsserted(() -> Assert.assertTrue(topicTransactionBuffer.checkIfNoSnapshot()));
         //test publishing txn messages will not change maxReadPosition if don`t commit or abort.
         Transaction transaction = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS).build().get();
@@ -858,7 +858,8 @@ public class TransactionTest extends TransactionTestBase {
         doReturn(CompletableFuture.completedFuture(
                 new MLPendingAckStore(persistentTopic.getManagedLedger(), managedCursor, null,
                         500, bufferedWriterConfig, transactionTimer,
-                        DISABLED_BUFFERED_WRITER_METRICS)))
+                        DISABLED_BUFFERED_WRITER_METRICS, persistentTopic.getBrokerService().getPulsar()
+                        .getOrderedExecutor().chooseThread())))
                 .when(pendingAckStoreProvider).newPendingAckStore(any());
         doReturn(CompletableFuture.completedFuture(true)).when(pendingAckStoreProvider).checkInitializedBefore(any());
 
@@ -1648,6 +1649,7 @@ public class TransactionTest extends TransactionTestBase {
         // Mock managedLedger.
         ManagedLedgerImpl managedLedger = mock(ManagedLedgerImpl.class);
         ManagedCursorContainer managedCursors = new ManagedCursorContainer();
+        when(managedLedger.getConfig()).thenReturn(new ManagedLedgerConfig());
         when(managedLedger.getCursors()).thenReturn(managedCursors);
         Position position = PositionFactory.EARLIEST;
         when(managedLedger.getLastConfirmedEntry()).thenReturn(position);
@@ -1655,7 +1657,7 @@ public class TransactionTest extends TransactionTestBase {
         persistentTopic.set(new PersistentTopic("topic-a", managedLedger, brokerService));
         try {
             // Do check.
-            persistentTopic.get().checkIfTransactionBufferRecoverCompletely(true).get(5, TimeUnit.SECONDS);
+            persistentTopic.get().checkIfTransactionBufferRecoverCompletely().get(5, TimeUnit.SECONDS);
             fail("Expect failure by TB closed, but it is finished.");
         } catch (ExecutionException executionException){
             Throwable t = executionException.getCause();
@@ -1813,8 +1815,6 @@ public class TransactionTest extends TransactionTestBase {
                 .createAsync();
         getTopic("persistent://" + topic + "-partition-0");
         Thread.sleep(3000);
-        // the producer shouldn't be created, because the transaction buffer snapshot writer future didn't finish.
-        assertFalse(producerFuture.isDone());
 
         // The topic will be closed, because the transaction buffer snapshot writer future is failed,
         // the failed writer future will be removed, the producer will be reconnected and work well.

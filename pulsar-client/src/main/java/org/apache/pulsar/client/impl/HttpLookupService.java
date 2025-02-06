@@ -135,9 +135,13 @@ public class HttpLookupService implements LookupService {
         });
     }
 
+    /**
+     * {@inheritDoc}
+     * @param useFallbackForNonPIP344Brokers HttpLookupService ignores this parameter
+     */
     @Override
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(
-            TopicName topicName, boolean metadataAutoCreationEnabled) {
+            TopicName topicName, boolean metadataAutoCreationEnabled, boolean useFallbackForNonPIP344Brokers) {
         long startTime = System.nanoTime();
 
         String format = topicName.isV2() ? "admin/v2/%s/partitions" : "admin/%s/partitions";

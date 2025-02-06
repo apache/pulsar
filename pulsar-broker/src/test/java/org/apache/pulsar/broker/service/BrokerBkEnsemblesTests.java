@@ -127,7 +127,7 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
         consumer.close();
         producer.close();
         pulsar.getBrokerService().removeTopicFromCache(topic);
-        ManagedLedgerFactoryImpl factory = (ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory();
+        ManagedLedgerFactoryImpl factory = (ManagedLedgerFactoryImpl) pulsar.getDefaultManagedLedgerFactory();
         Field field = ManagedLedgerFactoryImpl.class.getDeclaredField("ledgers");
         field.setAccessible(true);
         @SuppressWarnings("unchecked")
@@ -250,7 +250,7 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
         // clean managed-ledger and recreate topic to clean any data from the cache
         producer.close();
         pulsar.getBrokerService().removeTopicFromCache(topic);
-        ManagedLedgerFactoryImpl factory = (ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory();
+        ManagedLedgerFactoryImpl factory = (ManagedLedgerFactoryImpl) pulsar.getDefaultManagedLedgerFactory();
         Field field = ManagedLedgerFactoryImpl.class.getDeclaredField("ledgers");
         field.setAccessible(true);
         @SuppressWarnings("unchecked")
@@ -399,7 +399,7 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
 
     @Test
     public void testDeleteLedgerFactoryCorruptLedger() throws Exception {
-        ManagedLedgerFactoryImpl factory = (ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory();
+        ManagedLedgerFactoryImpl factory = (ManagedLedgerFactoryImpl) pulsar.getDefaultManagedLedgerFactory();
         ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("test");
 
         // bookkeeper client

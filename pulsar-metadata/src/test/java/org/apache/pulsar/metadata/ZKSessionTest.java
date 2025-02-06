@@ -27,6 +27,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.coordination.LeaderElection;
@@ -178,6 +179,60 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         assertEquals(e, SessionEvent.SessionReestablished);
         Awaitility.await().atMost(Duration.ofSeconds(15))
                 .untilAsserted(()-> assertEquals(le1.getState(),LeaderElectionState.Leading));
+        assertTrue(store.get(path).join().isPresent());
+    }
+
+
+    @Test
+    public void testElectAfterReconnected() throws Exception {
+        //  ---  init
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(zks.getConnectionString(),
+                MetadataStoreConfig.builder()
+                        .sessionTimeoutMillis(2_000)
+                        .build());
+
+
+        BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
+        store.registerSessionListener(sessionEvents::add);
+        BlockingQueue<LeaderElectionState> leaderElectionEvents = new LinkedBlockingQueue<>();
+        String path = newKey();
+
+        @Cleanup
+        CoordinationService coordinationService = new CoordinationServiceImpl(store);
+        @Cleanup
+        LeaderElection<String> le1 = coordinationService.getLeaderElection(String.class, path,
+                leaderElectionEvents::add);
+
+        // --- test manual elect
+        String proposed = "value-1";
+        le1.elect(proposed).join();
+        assertEquals(le1.getState(), LeaderElectionState.Leading);
+        LeaderElectionState les = leaderElectionEvents.poll(5, TimeUnit.SECONDS);
+        assertEquals(les, LeaderElectionState.Leading);
+
+
+        // simulate no leader state
+        FieldUtils.writeDeclaredField(le1, "leaderElectionState", LeaderElectionState.NoLeader, true);
+
+        // reconnect
+        zks.stop();
+
+        SessionEvent e = sessionEvents.poll(5, TimeUnit.SECONDS);
+        assertEquals(e, SessionEvent.ConnectionLost);
+
+        zks.start();
+
+
+        // --- test  le1 can be leader
+        e = sessionEvents.poll(10, TimeUnit.SECONDS);
+        assertEquals(e, SessionEvent.Reconnected);
+        Awaitility.await().atMost(Duration.ofSeconds(15))
+                .untilAsserted(()-> {
+                    assertEquals(le1.getState(),LeaderElectionState.Leading);
+                }); // reacquire leadership
+
+
         assertTrue(store.get(path).join().isPresent());
     }
 }
