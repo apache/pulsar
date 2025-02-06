@@ -1064,7 +1064,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                         decrementUsageCount();
                         return FutureUtil.failedFuture(
-                                new BrokerServiceException("Connection was closed while the opening the cursor "));
+                                new BrokerServiceException.ConnectionClosedException(
+                                        "Connection was closed while the opening the cursor "));
                     } else {
                         checkReplicatedSubscriptionControllerState();
                         if (log.isDebugEnabled()) {
@@ -1101,6 +1102,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     log.warn("[{}][{}] has been fenced. closing the topic {}", topic, subscriptionName,
                             ex.getMessage());
                     close();
+                } else if (ex.getCause() instanceof BrokerServiceException.ConnectionClosedException) {
+                    log.warn("[{}][{}] Connection was closed while the opening the cursor", topic, subscriptionName);
                 } else {
                     log.error("[{}] Failed to create subscription: {}", topic, subscriptionName, ex);
                 }
