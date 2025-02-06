@@ -3915,9 +3915,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             ledger.addEntry(new byte[1024]);
         }
 
-        // First time, since we don't have info, we'll get 1 single entry
+        // Since https://github.com/apache/pulsar/pull/23931 improved the performance of delivery, the consumer
+        // will get more messages than before(it only receives 1 messages at the first delivery),
         List<Entry> entries = c.readEntriesOrWait(10, 3 * 1024);
-        assertEquals(entries.size(), 1);
+        assertEquals(entries.size(), 3);
         entries.forEach(Entry::release);
 
         // We should only return 3 entries, based on the max size
@@ -5216,24 +5217,29 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         // Test: across ledgers.
         long entryCount4 =
-                ManagedCursorImpl.estimateEntryCountBySize(116, PositionFactory.create(ledger1, 0), ml);
+                ManagedCursorImpl.estimateEntryCountBySize(100 + 16, PositionFactory.create(ledger1, 0), ml);
         assertEquals(entryCount4, 108);
         long entryCount5 =
-                ManagedCursorImpl.estimateEntryCountBySize(216, PositionFactory.create(ledger2, 0), ml);
+                ManagedCursorImpl.estimateEntryCountBySize(200 + 16, PositionFactory.create(ledger2, 0), ml);
         assertEquals(entryCount5, 104);
         long entryCount6 =
-                ManagedCursorImpl.estimateEntryCountBySize(316, PositionFactory.create(ledger1, 0), ml);
+                ManagedCursorImpl.estimateEntryCountBySize(100 + 200 + 16, PositionFactory.create(ledger1, 0), ml);
         assertEquals(entryCount6, 204);
 
         long entryCount7 =
-                ManagedCursorImpl.estimateEntryCountBySize(36, PositionFactory.create(ledger1, 80), ml);
+                ManagedCursorImpl.estimateEntryCountBySize(20 + 16, PositionFactory.create(ledger1, 80), ml);
         assertEquals(entryCount7, 28);
         long entryCount8 =
-                ManagedCursorImpl.estimateEntryCountBySize(56, PositionFactory.create(ledger2, 80), ml);
+                ManagedCursorImpl.estimateEntryCountBySize(40 + 16, PositionFactory.create(ledger2, 80), ml);
         assertEquals(entryCount8, 24);
         long entryCount9 =
-                ManagedCursorImpl.estimateEntryCountBySize(236, PositionFactory.create(ledger1, 80), ml);
+                ManagedCursorImpl.estimateEntryCountBySize(20 + 200 + 16, PositionFactory.create(ledger1, 80), ml);
         assertEquals(entryCount9, 124);
+
+        // Test: read more than entries written.
+        long entryCount10 =
+                ManagedCursorImpl.estimateEntryCountBySize(100 + 200 + 400 + 16, PositionFactory.create(ledger1, 0), ml);
+        assertEquals(entryCount10, 304);
 
         // cleanup.
         ml.delete();
