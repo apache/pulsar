@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.qos;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
-import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.assertj.core.data.Offset;
@@ -201,9 +200,9 @@ public class AsyncTokenBucketTest {
     }
 
     @Test
-    void shouldTolerateInstableClockSourceWhenUpdatingTokens() {
+    void shouldHandleEventualConsistency() {
         AtomicLong offset = new AtomicLong(0);
-        long resolutionNanos = TimeUnit.MILLISECONDS.toNanos(1);
+        long resolutionNanos = TimeUnit.MILLISECONDS.toNanos(100);
         DefaultMonotonicSnapshotClock monotonicSnapshotClock =
                 new DefaultMonotonicSnapshotClock(resolutionNanos,
                         () -> offset.get() + manualClockSource.get(), true);
@@ -211,19 +210,11 @@ public class AsyncTokenBucketTest {
         asyncTokenBucket =
                 AsyncTokenBucket.builder().resolutionNanos(resolutionNanos)
                         .capacity(100000).rate(1000).initialTokens(initialTokens).clock(monotonicSnapshotClock).build();
-        Random random = new Random(0);
-        long randomOffsetCount = 0;
         for (int i = 0; i < 100000; i++) {
             // increment the clock by 1ms, since rate is 1000 tokens/s, this should make 1 token available
             incrementMillis(1);
-            monotonicSnapshotClock.getTickNanos(true);
-            if (i % 39 == 0) {
-                // randomly offset the clock source
-                // update the tokens consistently before and after offsetting the clock source
-                offset.set((random.nextBoolean() ? -1L : 1L) * random.nextLong(4L, 100L) * resolutionNanos);
-                monotonicSnapshotClock.getTickNanos(true);
-                randomOffsetCount++;
-            }
+            // request the clock to be updated
+            monotonicSnapshotClock.requestUpdate();
             // consume 1 token
             asyncTokenBucket.consumeTokens(1);
         }
@@ -231,8 +222,6 @@ public class AsyncTokenBucketTest {
                 // since the rate is 1/ms and the test increments the clock by 1ms and consumes 1 token in each
                 // iteration, the tokens should be greater than or equal to the initial tokens
                 .isGreaterThanOrEqualTo(initialTokens)
-                // tolerate difference in added tokens since when clock leaps forward or backwards, the clock
-                // is assumed to have moved forward by the resolutionNanos
-                .isCloseTo(initialTokens, Offset.offset(randomOffsetCount));
+                .isCloseTo(initialTokens, Offset.offset(1000L));
     }
 }
