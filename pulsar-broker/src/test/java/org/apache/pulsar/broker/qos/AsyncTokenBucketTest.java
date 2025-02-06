@@ -203,25 +203,25 @@ public class AsyncTokenBucketTest {
     @Test
     void shouldTolerateInstableClockSourceWhenUpdatingTokens() {
         AtomicLong offset = new AtomicLong(0);
-        long resolutionNanos = TimeUnit.MILLISECONDS.toNanos(100);
+        long resolutionNanos = TimeUnit.MILLISECONDS.toNanos(1);
         DefaultMonotonicSnapshotClock monotonicSnapshotClock =
                 new DefaultMonotonicSnapshotClock(resolutionNanos,
-                        () -> offset.get() + manualClockSource.get());
+                        () -> offset.get() + manualClockSource.get(), true);
         long initialTokens = 500L;
         asyncTokenBucket =
                 AsyncTokenBucket.builder().resolutionNanos(resolutionNanos)
                         .capacity(100000).rate(1000).initialTokens(initialTokens).clock(monotonicSnapshotClock).build();
         Random random = new Random(0);
-        int randomOffsetCount = 0;
+        long randomOffsetCount = 0;
         for (int i = 0; i < 100000; i++) {
             // increment the clock by 1ms, since rate is 1000 tokens/s, this should make 1 token available
             incrementMillis(1);
+            monotonicSnapshotClock.getTickNanos(true);
             if (i % 39 == 0) {
                 // randomly offset the clock source
                 // update the tokens consistently before and after offsetting the clock source
-                asyncTokenBucket.tokens(true);
-                offset.set((random.nextBoolean() ? -1L : 1L) * random.nextLong(0L, 100L) * resolutionNanos);
-                asyncTokenBucket.tokens(true);
+                offset.set((random.nextBoolean() ? -1L : 1L) * random.nextLong(4L, 100L) * resolutionNanos);
+                monotonicSnapshotClock.getTickNanos(true);
                 randomOffsetCount++;
             }
             // consume 1 token
@@ -233,6 +233,6 @@ public class AsyncTokenBucketTest {
                 .isGreaterThanOrEqualTo(initialTokens)
                 // tolerate difference in added tokens since when clock leaps forward or backwards, the clock
                 // is assumed to have moved forward by the resolutionNanos
-                .isCloseTo(initialTokens, Offset.offset(3L * randomOffsetCount));
+                .isCloseTo(initialTokens, Offset.offset(randomOffsetCount));
     }
 }
