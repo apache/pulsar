@@ -139,7 +139,7 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
                             }
                             updatedForRequestCount = requestCount;
                         }
-                        // update the tick value using the tick updater which will tolerate leaps backward or forward
+                        // update the tick value using the tick updater which will tolerate leaps backward
                         tickUpdater.update(waitedSnapshotInterval);
                         notifyAllTickUpdated();
                     } catch (InterruptedException e) {
@@ -207,7 +207,7 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
 
     /**
      * Handles updating the tick value in a monotonic way so that the value is always increasing,
-     * regardless of leaps backward and forward in the clock source value.
+     * regardless of leaps backward in the clock source value.
      */
     private static class MonotonicLeapDetectingTickUpdater {
         private final LongSupplier clockSource;
@@ -229,7 +229,7 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
         /**
          * Updates the snapshot tick value. The tickUpdatedCallback is called if the value has changed.
          * The value is updated in a monotonic way so that the value is always increasing, regardless of leaps backward
-         * and forward in the clock source value.
+         * in the clock source value.
          * Leap detection is done by comparing the new value with the previous value and the maximum delta value.
          *
          * @param waitedSnapshotInterval if true, the method has waited for the snapshot interval since the previous
@@ -249,14 +249,13 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
 
             // calculate the duration since the reference clock source value
             // so that the snapshot value is always increasing and tolerates it when the clock source is not strictly
-            // monotonic across all CPUs and leaps backward or forward
+            // monotonic across all CPUs and leaps backward
             long durationSinceReference = clockValue - referenceClockSourceValue;
             long newSnapshotTickNanos = baseSnapshotTickNanos + durationSinceReference;
 
-            // reset the reference clock source value if the clock source value leaps backward or forward
+            // reset the reference clock source value if the clock source value leaps backward
             // more than the maximum delta value
-            if (newSnapshotTickNanos < previousSnapshotTickNanos - maxDeltaNanosForLeapDetection
-                    || newSnapshotTickNanos > previousSnapshotTickNanos + maxDeltaNanosForLeapDetection) {
+            if (newSnapshotTickNanos < previousSnapshotTickNanos - maxDeltaNanosForLeapDetection) {
                 referenceClockSourceValue = clockValue;
                 long incrementWhenLeapDetected = waitedSnapshotInterval ? snapshotInternalNanos : 0;
                 baseSnapshotTickNanos = previousSnapshotTickNanos + incrementWhenLeapDetected;

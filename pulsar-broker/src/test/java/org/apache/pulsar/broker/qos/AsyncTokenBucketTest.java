@@ -205,7 +205,7 @@ public class AsyncTokenBucketTest {
         long resolutionNanos = TimeUnit.MILLISECONDS.toNanos(100);
         DefaultMonotonicSnapshotClock monotonicSnapshotClock =
                 new DefaultMonotonicSnapshotClock(resolutionNanos,
-                        () -> offset.get() + manualClockSource.get(), true);
+                        () -> offset.get() + manualClockSource.get());
         long initialTokens = 500L;
         asyncTokenBucket =
                 AsyncTokenBucket.builder().resolutionNanos(resolutionNanos)
@@ -213,8 +213,6 @@ public class AsyncTokenBucketTest {
         for (int i = 0; i < 100000; i++) {
             // increment the clock by 1ms, since rate is 1000 tokens/s, this should make 1 token available
             incrementMillis(1);
-            // request the clock to be updated
-            monotonicSnapshotClock.requestUpdate();
             // consume 1 token
             asyncTokenBucket.consumeTokens(1);
         }

@@ -38,30 +38,25 @@ public class DefaultMonotonicSnapshotClockTest {
     }
 
     @Test(dataProvider = "booleanValues")
-    void testClockHandlesTimeLeapsBackwardsOrForward(boolean requestSnapshot) throws InterruptedException {
+    void testClockHandlesTimeLeapsBackwards(boolean requestSnapshot) throws InterruptedException {
         long snapshotIntervalMillis = 5;
         AtomicLong clockValue = new AtomicLong(1);
         @Cleanup
         DefaultMonotonicSnapshotClock clock =
                 new DefaultMonotonicSnapshotClock(Duration.ofMillis(snapshotIntervalMillis).toNanos(),
-                        clockValue::get, true);
+                        clockValue::get);
 
 
         long previousTick = -1;
         boolean leapDirection = true;
         for (int i = 0; i < 10000; i++) {
             clockValue.addAndGet(TimeUnit.MILLISECONDS.toNanos(1));
-            if (i % snapshotIntervalMillis == 0) {
-                // let the clock update by a background thread
-                clock.requestUpdate();
-            }
             long tick = clock.getTickNanos(requestSnapshot);
             log.info("i = {}, tick = {}", i, tick);
             if ((i + 1) % 5 == 0) {
                 leapDirection = !leapDirection;
-                log.info("Time leap 5 minutes {}", leapDirection ? "forward" : "backwards");
-                // make the clock leap 5 minute forward or backwards
-                clockValue.addAndGet((leapDirection ? 1L : -1L) * Duration.ofMinutes(5).toNanos());
+                log.info("Time leap 5 minutes backwards");
+                clockValue.addAndGet(-Duration.ofMinutes(5).toNanos());
             }
             if (previousTick != -1) {
                 assertThat(tick)
