@@ -392,10 +392,10 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         URI newLookupUrl = resolveLookupUrl();
         if (lookupUrl == null || !newLookupUrl.equals(lookupUrl)) {
             lookupUrl = newLookupUrl;
-        }
-        if (pulsarClient != null) {
-            pulsarClient.shutdown();
-            pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+            if (pulsarClient != null) {
+                pulsarClient.shutdown();
+                pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+            }
         }
 
         closeAdmin();
