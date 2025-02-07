@@ -219,17 +219,19 @@ public abstract class AsyncTokenBucket {
      * @return the number of new tokens to add since the last update
      */
     private long calculateNewTokensSinceLastUpdate(long currentNanos) {
+        long previousLastNanos = lastNanos;
+        long newLastNanos;
+        // update lastNanos only if at least resolutionNanos/2 nanoseconds has passed since the last update
+        if (currentNanos >= previousLastNanos + resolutionNanos / 2) {
+            newLastNanos = currentNanos;
+        } else {
+            newLastNanos = previousLastNanos;
+        }
         long newTokens;
-        long previousLastNanos = LAST_NANOS_UPDATER.getAndUpdate(this,
-                currentLastNanos -> {
-                    // update lastNanos only if at least resolutionNanos/2 nanoseconds has passed since the last update
-                    if (currentNanos >= currentLastNanos + resolutionNanos / 2) {
-                        return currentNanos;
-                    } else {
-                        return currentLastNanos;
-                    }
-                });
-        if (previousLastNanos == Long.MIN_VALUE || currentNanos != lastNanos) {
+        if (newLastNanos == previousLastNanos
+                // prevent races with a CAS update of lastNanos
+                || !LAST_NANOS_UPDATER.compareAndSet(this, previousLastNanos, newLastNanos)
+                || previousLastNanos == Long.MIN_VALUE) {
             newTokens = 0;
         } else {
             long durationNanos = currentNanos - previousLastNanos + REMAINDER_NANOS_UPDATER.getAndSet(this, 0);
