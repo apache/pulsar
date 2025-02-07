@@ -63,7 +63,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Test(groups = "flaky")
+@Test(groups = "broker-api")
 public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(MessageDispatchThrottlingTest.class);
 

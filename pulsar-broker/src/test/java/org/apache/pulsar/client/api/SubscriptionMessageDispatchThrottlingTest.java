@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Test(groups = "flaky")
+@Test(groups = "broker-api")
 public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchThrottlingTest {
     private static final Logger log = LoggerFactory.getLogger(SubscriptionMessageDispatchThrottlingTest.class);
 
