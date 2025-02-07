@@ -2506,6 +2506,12 @@ public class BrokerService implements Closeable {
 
 
     private void handleMetadataChanges(Notification n) {
+        if (!pulsar.isRunning()) {
+            // Ignore metadata changes when broker is not running
+            log.info("Ignoring metadata change since broker is not running (id={}, state={}) {}", pulsar.getBrokerId(),
+                    pulsar.getState(), n);
+            return;
+        }
         if (n.getType() == NotificationType.Modified && NamespaceResources.pathIsFromNamespace(n.getPath())) {
             NamespaceName ns = NamespaceResources.namespaceFromPath(n.getPath());
             handlePoliciesUpdates(ns);
