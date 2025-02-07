@@ -42,17 +42,11 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
     private volatile long snapshotTickNanos;
 
     public DefaultMonotonicSnapshotClock(long snapshotIntervalNanos, LongSupplier clockSource) {
-        this(snapshotIntervalNanos, clockSource, false);
-    }
-
-    public DefaultMonotonicSnapshotClock(long snapshotIntervalNanos, LongSupplier clockSource,
-                                         boolean updateOnlyWhenRequested) {
         if (snapshotIntervalNanos < TimeUnit.MILLISECONDS.toNanos(1)) {
             throw new IllegalArgumentException("snapshotIntervalNanos must be at least 1 millisecond");
         }
         tickUpdaterThread = new TickUpdaterThread(snapshotIntervalNanos,
-                Objects.requireNonNull(clockSource, "clockSource must not be null"), this::setSnapshotTickNanos,
-                updateOnlyWhenRequested);
+                Objects.requireNonNull(clockSource, "clockSource must not be null"), this::setSnapshotTickNanos);
         tickUpdaterThread.start();
     }
 
@@ -93,20 +87,14 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
         private final long sleepMillis;
         private final int sleepNanos;
 
-        TickUpdaterThread(long snapshotIntervalNanos, LongSupplier clockSource, LongConsumer setSnapshotTickNanos,
-                          boolean updateOnlyWhenRequested) {
+        TickUpdaterThread(long snapshotIntervalNanos, LongSupplier clockSource, LongConsumer setSnapshotTickNanos) {
             super(DefaultMonotonicSnapshotClock.class.getSimpleName() + "-update-loop");
             // set as daemon thread so that it doesn't prevent the JVM from exiting
             setDaemon(true);
             // set the highest priority
             setPriority(MAX_PRIORITY);
-            if (updateOnlyWhenRequested) {
-                this.sleepMillis = -1;
-                this.sleepNanos = -1;
-            } else {
-                this.sleepMillis = TimeUnit.NANOSECONDS.toMillis(snapshotIntervalNanos);
-                this.sleepNanos = (int) (snapshotIntervalNanos - TimeUnit.MILLISECONDS.toNanos(sleepMillis));
-            }
+            this.sleepMillis = TimeUnit.NANOSECONDS.toMillis(snapshotIntervalNanos);
+            this.sleepNanos = (int) (snapshotIntervalNanos - TimeUnit.MILLISECONDS.toNanos(sleepMillis));
             tickUpdater = new MonotonicLeapDetectingTickUpdater(clockSource, setSnapshotTickNanos,
                     2 * snapshotIntervalNanos);
         }
@@ -127,14 +115,8 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
                             tickUpdateDelayMonitorNotified = false;
                             // only wait if no explicit request has been made since the last update
                             if (requestCount == updatedForRequestCount) {
-                                if (sleepMillis > 0 || sleepNanos > 0) {
-                                    // if no request has been made, sleep for the configured interval
-                                    tickUpdateDelayMonitor.wait(sleepMillis, sleepNanos);
-                                } else {
-                                    // when the sleepMillis is -1, the thread will wait indefinitely until notified.
-                                    // this is used only in testing with a test clock source that is manually updated.
-                                    tickUpdateDelayMonitor.wait();
-                                }
+                                // if no request has been made, sleep for the configured interval
+                                tickUpdateDelayMonitor.wait(sleepMillis, sleepNanos);
                                 waitedSnapshotInterval = !tickUpdateDelayMonitorNotified;
                             }
                             updatedForRequestCount = requestCount;
