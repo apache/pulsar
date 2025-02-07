@@ -23,7 +23,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import org.assertj.core.data.Offset;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -216,7 +215,7 @@ public class AsyncTokenBucketTest {
     @Test
     void shouldHandleEventualConsistency() {
         AtomicLong offset = new AtomicLong(0);
-        long resolutionNanos = TimeUnit.MILLISECONDS.toNanos(100);
+        long resolutionNanos = TimeUnit.MILLISECONDS.toNanos(1);
         DefaultMonotonicSnapshotClock monotonicSnapshotClock =
                 new DefaultMonotonicSnapshotClock(resolutionNanos,
                         () -> offset.get() + manualClockSource.get());
@@ -232,8 +231,7 @@ public class AsyncTokenBucketTest {
         }
         assertThat(asyncTokenBucket.tokens(true))
                 // since the rate is 1/ms and the test increments the clock by 1ms and consumes 1 token in each
-                // iteration, the tokens should be greater than or equal to the initial tokens
-                .isGreaterThanOrEqualTo(initialTokens)
-                .isCloseTo(initialTokens, Offset.offset(1000L));
+                // iteration, the tokens should be equal to the initial tokens
+                .isEqualTo(initialTokens);
     }
 }
