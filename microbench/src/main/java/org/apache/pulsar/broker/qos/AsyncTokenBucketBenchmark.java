@@ -61,8 +61,7 @@ public class AsyncTokenBucketBenchmark {
     @Measurement(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
     @Warmup(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
     public void consumeTokensBenchmark001Threads(Blackhole blackhole) {
-        asyncTokenBucket.consumeTokens(1);
-        blackhole.consume(asyncTokenBucket.getTokens());
+        consumeTokenAndGetTokens(blackhole);
     }
 
     @Threads(10)
@@ -70,8 +69,7 @@ public class AsyncTokenBucketBenchmark {
     @Measurement(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
     @Warmup(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
     public void consumeTokensBenchmark010Threads(Blackhole blackhole) {
-        asyncTokenBucket.consumeTokens(1);
-        blackhole.consume(asyncTokenBucket.getTokens());
+        consumeTokenAndGetTokens(blackhole);
     }
 
     @Threads(100)
@@ -79,7 +77,12 @@ public class AsyncTokenBucketBenchmark {
     @Measurement(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
     @Warmup(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
     public void consumeTokensBenchmark100Threads(Blackhole blackhole) {
+        consumeTokenAndGetTokens(blackhole);
+    }
+
+    private void consumeTokenAndGetTokens(Blackhole blackhole) {
         asyncTokenBucket.consumeTokens(1);
+        // blackhole is used to ensure that the compiler doesn't do dead code elimination
         blackhole.consume(asyncTokenBucket.getTokens());
     }
 }
