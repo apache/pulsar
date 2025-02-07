@@ -451,6 +451,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
 
         final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         final String topicName = "persistent://" + namespace + "/throttlingMultipleConsumers";
+        conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(true);
 
         final int messageRate = 5;
         DispatchRate dispatchRate = DispatchRate.builder()
@@ -515,6 +516,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
         assertThat(totalReceived.get()).isCloseTo(messageRate, Offset.offset(Math.max(messageRate / 10, 2)));
 
         log.info("-- Exiting {} test --", methodName);
+        conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(false);
     }
 
     @Test
