@@ -166,7 +166,8 @@ public abstract class AsyncTokenBucket {
             // calculate the number of new tokens since the last update
             newTokens = calculateNewTokensSinceLastUpdate(currentNanos);
         }
-        if (newTokens > 0) {
+        // update tokens if there are new tokens or if resolutionNanos is set to 0 which is currently used for testing
+        if (newTokens > 0 || resolutionNanos == 0) {
             // flush the pendingConsumedTokens by calling "sumThenReset"
             long currentPendingConsumedTokens = pendingConsumedTokens.sumThenReset();
             // calculate the token delta by subtracting the consumed tokens from the new tokens
