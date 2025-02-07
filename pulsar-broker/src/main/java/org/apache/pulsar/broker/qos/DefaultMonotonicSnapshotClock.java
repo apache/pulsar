@@ -144,8 +144,10 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
 
         public void requestUpdateAndWait() {
             if (!running) {
-                // thread has stopped running, fallback to update the value directly without optimizations
-                tickUpdater.update(false);
+                synchronized (tickUpdater) {
+                    // thread has stopped running, fallback to update the value directly without optimizations
+                    tickUpdater.update(false);
+                }
                 return;
             }
             synchronized (tickUpdatedMonitor) {
@@ -214,7 +216,7 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
          * @param waitedSnapshotInterval if true, the method has waited for the snapshot interval since the previous
          *                               call.
          */
-        public synchronized void update(boolean waitedSnapshotInterval) {
+        public void update(boolean waitedSnapshotInterval) {
             long clockValue = clockSource.getAsLong();
 
             // Initialization
