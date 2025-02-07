@@ -23,7 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.qos.AsyncTokenBucket;
-import org.apache.pulsar.broker.qos.MonotonicSnapshotClock;
+import org.apache.pulsar.broker.qos.AsyncTokenBucketBuilder;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -222,21 +222,18 @@ public class DispatchRateLimiter {
         long msgRate = dispatchRate.getDispatchThrottlingRateInMsg();
         long byteRate = dispatchRate.getDispatchThrottlingRateInByte();
         long ratePeriodNanos = TimeUnit.SECONDS.toNanos(Math.max(dispatchRate.getRatePeriodInSecond(), 1));
-        MonotonicSnapshotClock clock = brokerService.getPulsar().getMonotonicSnapshotClock();
 
         // update msg-rateLimiter
         if (msgRate > 0) {
             if (dispatchRate.isRelativeToPublishRate()) {
                 this.dispatchRateLimiterOnMessage =
-                        AsyncTokenBucket.builderForDynamicRate()
-                                .clock(clock)
+                        configureAsyncTokenBucket(AsyncTokenBucket.builderForDynamicRate())
                                 .rateFunction(() -> getRelativeDispatchRateInMsg(dispatchRate))
                                 .ratePeriodNanosFunction(() -> ratePeriodNanos)
                                 .build();
             } else {
                 this.dispatchRateLimiterOnMessage =
-                        AsyncTokenBucket.builder()
-                                .clock(clock)
+                        configureAsyncTokenBucket(AsyncTokenBucket.builder())
                                 .rate(msgRate).ratePeriodNanos(ratePeriodNanos)
                                 .build();
             }
@@ -248,21 +245,24 @@ public class DispatchRateLimiter {
         if (byteRate > 0) {
             if (dispatchRate.isRelativeToPublishRate()) {
                 this.dispatchRateLimiterOnByte =
-                        AsyncTokenBucket.builderForDynamicRate()
-                                .clock(clock)
+                        configureAsyncTokenBucket(AsyncTokenBucket.builderForDynamicRate())
                                 .rateFunction(() -> getRelativeDispatchRateInByte(dispatchRate))
                                 .ratePeriodNanosFunction(() -> ratePeriodNanos)
                                 .build();
             } else {
                 this.dispatchRateLimiterOnByte =
-                        AsyncTokenBucket.builder()
-                                .clock(clock)
+                        configureAsyncTokenBucket(AsyncTokenBucket.builder())
                                 .rate(byteRate).ratePeriodNanos(ratePeriodNanos)
                                 .build();
             }
         } else {
             this.dispatchRateLimiterOnByte = null;
         }
+    }
+
+    private <T extends AsyncTokenBucketBuilder<T>> T configureAsyncTokenBucket(T builder) {
+        builder.clock(brokerService.getPulsar().getMonotonicSnapshotClock());
+        return builder;
     }
 
     private long getRelativeDispatchRateInMsg(DispatchRate dispatchRate) {
