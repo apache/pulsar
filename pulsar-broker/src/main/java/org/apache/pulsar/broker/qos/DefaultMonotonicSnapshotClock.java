@@ -96,7 +96,7 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
             this.sleepMillis = TimeUnit.NANOSECONDS.toMillis(snapshotIntervalNanos);
             this.sleepNanos = (int) (snapshotIntervalNanos - TimeUnit.MILLISECONDS.toNanos(sleepMillis));
             tickUpdater = new MonotonicLeapDetectingTickUpdater(clockSource, setSnapshotTickNanos,
-                    2 * snapshotIntervalNanos);
+                    snapshotIntervalNanos);
         }
 
         @Override
