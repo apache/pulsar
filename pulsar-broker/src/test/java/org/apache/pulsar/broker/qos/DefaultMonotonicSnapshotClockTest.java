@@ -52,10 +52,10 @@ public class DefaultMonotonicSnapshotClockTest {
         for (int i = 0; i < 10000; i++) {
             clockValue.addAndGet(TimeUnit.MILLISECONDS.toNanos(1));
             long tick = clock.getTickNanos(requestSnapshot);
-            log.info("i = {}, tick = {}", i, tick);
+            //log.info("i = {}, tick = {}", i, tick);
             if ((i + 1) % 5 == 0) {
                 leapDirection = !leapDirection;
-                log.info("Time leap 5 minutes backwards");
+                //log.info("Time leap 5 minutes backwards");
                 clockValue.addAndGet(-Duration.ofMinutes(5).toNanos());
             }
             if (previousTick != -1) {
