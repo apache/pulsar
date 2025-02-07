@@ -28,13 +28,31 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Default implementation of {@link MonotonicSnapshotClock}.
+ * Default implementation of {@link MonotonicSnapshotClock} optimized for use with {@link AsyncTokenBucket}.
  *
- * Starts a daemon thread that updates the snapshot value periodically with a configured interval. The close method
- * should be called to stop the thread.
- * A single thread is used to update the monotonic clock value so that the snapshot value is always increasing,
- * even if the clock source is not strictly monotonic across all CPUs. This might be the case in some virtualized
- * environments.
+ * <p>
+ * This class provides a monotonic snapshot value that consistently increases, ensuring reliable behavior
+ * even in environments where the underlying clock source may not be strictly monotonic across all CPUs,
+ * such as certain virtualized platforms.
+ * </p>
+ *
+ * <p>
+ * Upon instantiation, a daemon thread is launched to periodically update the snapshot value at a configured
+ * interval. It is essential to invoke the {@link #close()} method to gracefully terminate this thread when it is
+ * no longer needed.
+ * </p>
+ *
+ * <p>
+ * The {@link AsyncTokenBucket} utilizes this clock to obtain tick values. It does not require a consistent value on
+ * every retrieval. However, when a consistent snapshot is necessary, the {@link #getTickNanos(boolean)} method
+ * is called with the {@code requestSnapshot} parameter set to {@code true}.
+ * </p>
+ *
+ * <p>
+ * By employing a single thread to update the monotonic clock value, this implementation ensures that the snapshot
+ * value remains strictly increasing. This approach mitigates potential inconsistencies that may arise from clock
+ * source discrepancies across different CPUs.
+ * </p>
  */
 public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(DefaultMonotonicSnapshotClock.class);
