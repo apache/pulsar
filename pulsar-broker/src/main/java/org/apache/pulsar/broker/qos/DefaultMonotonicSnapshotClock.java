@@ -19,7 +19,6 @@
 
 package org.apache.pulsar.broker.qos;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -62,11 +61,6 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
 
     private void setSnapshotTickNanos(long snapshotTickNanos) {
         this.snapshotTickNanos = snapshotTickNanos;
-    }
-
-    @VisibleForTesting
-    public void requestUpdate() {
-        tickUpdaterThread.requestUpdate();
     }
 
     /**
@@ -165,7 +159,7 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
             }
         }
 
-        public void requestUpdate() {
+        private void requestUpdate() {
             // increment the request count that ensures that the thread will update the tick value after this request
             // was made also when there's a race condition between the request and the update
             requestCount.incrementAndGet();
