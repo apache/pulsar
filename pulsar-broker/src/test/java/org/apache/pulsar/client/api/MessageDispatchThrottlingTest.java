@@ -462,7 +462,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         // create producer and topic
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        Producer<byte[]> producer = pulsarClient.newProducer().enableBatching(false).topic(topicName).create();
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
 
         Awaitility.await()
