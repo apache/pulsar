@@ -18,11 +18,14 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import com.google.common.collect.Sets;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
@@ -272,10 +275,21 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
             Assert.fail("Should only have PersistentDispatcher in this test");
         }
         final DispatchRateLimiter subDispatchRateLimiter = subRateLimiter;
-        Awaitility.await().untilAsserted(() -> {
+        MutableBoolean brokerConfigRetried = new MutableBoolean(false);
+        Awaitility.await().atMost(Duration.ofSeconds(15)).untilAsserted(() -> {
             DispatchRateLimiter brokerDispatchRateLimiter = pulsar.getBrokerService().getBrokerDispatchRateLimiter();
-            Assert.assertTrue(brokerDispatchRateLimiter != null
-                    && brokerDispatchRateLimiter.getDispatchRateOnByte() > 0);
+            try {
+                assertThat(brokerDispatchRateLimiter)
+                        .isNotNull()
+                        .satisfies(l -> assertThat(l.getDispatchRateOnByte()).isEqualTo(brokerRate));
+            } catch (AssertionError e) {
+                if (!brokerConfigRetried.booleanValue()) {
+                    brokerConfigRetried.setTrue();
+                    admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", "" + brokerRate);
+                    Thread.sleep(2000L);
+                }
+                throw e;
+            }
             DispatchRateLimiter topicDispatchRateLimiter = topic.getDispatchRateLimiter().orElse(null);
             Assert.assertTrue(topicDispatchRateLimiter != null
                     && topicDispatchRateLimiter.getDispatchRateOnByte() > 0);
@@ -450,10 +464,21 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
             Assert.fail("Should only have PersistentDispatcher in this test");
         }
         final DispatchRateLimiter subDispatchRateLimiter = subRateLimiter;
-        Awaitility.await().untilAsserted(() -> {
+        MutableBoolean brokerConfigRetried = new MutableBoolean(false);
+        Awaitility.await().atMost(Duration.ofSeconds(15)).untilAsserted(() -> {
             DispatchRateLimiter brokerDispatchRateLimiter = pulsar.getBrokerService().getBrokerDispatchRateLimiter();
-            Assert.assertTrue(brokerDispatchRateLimiter != null
-                    && brokerDispatchRateLimiter.getDispatchRateOnByte() > 0);
+            try {
+                assertThat(brokerDispatchRateLimiter)
+                        .isNotNull()
+                        .satisfies(l -> assertThat(l.getDispatchRateOnByte()).isEqualTo(brokerRate));
+            } catch (AssertionError e) {
+                if (!brokerConfigRetried.booleanValue()) {
+                    brokerConfigRetried.setTrue();
+                    admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", "" + brokerRate);
+                    Thread.sleep(2000L);
+                }
+                throw e;
+            }
             DispatchRateLimiter topicDispatchRateLimiter = topic.getDispatchRateLimiter().orElse(null);
             Assert.assertTrue(topicDispatchRateLimiter != null
                     && topicDispatchRateLimiter.getDispatchRateOnByte() > 0);
@@ -576,10 +601,21 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1).create();
         Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2).create();
 
-        Awaitility.await().untilAsserted(() -> {
-            DispatchRateLimiter rateLimiter = pulsar.getBrokerService().getBrokerDispatchRateLimiter();
-            Assert.assertTrue(rateLimiter != null
-                    && rateLimiter.getDispatchRateOnByte() > 0);
+        MutableBoolean brokerConfigRetried = new MutableBoolean(false);
+        Awaitility.await().atMost(Duration.ofSeconds(15)).untilAsserted(() -> {
+            DispatchRateLimiter brokerDispatchRateLimiter = pulsar.getBrokerService().getBrokerDispatchRateLimiter();
+            try {
+                assertThat(brokerDispatchRateLimiter)
+                        .isNotNull()
+                        .satisfies(l -> assertThat(l.getDispatchRateOnByte()).isEqualTo(byteRate));
+            } catch (AssertionError e) {
+                if (!brokerConfigRetried.booleanValue()) {
+                    brokerConfigRetried.setTrue();
+                    admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", "" + byteRate);
+                    Thread.sleep(2000L);
+                }
+                throw e;
+            }
         });
 
         long start = System.currentTimeMillis();
