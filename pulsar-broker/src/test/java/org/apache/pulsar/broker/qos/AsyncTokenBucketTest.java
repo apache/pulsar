@@ -93,19 +93,33 @@ public class AsyncTokenBucketTest {
     @Test
     void shouldSupportFractionsAndRetainLeftoverWhenUpdatingTokens() {
         asyncTokenBucket =
-                AsyncTokenBucket.builder().capacity(100).rate(10).initialTokens(0).clock(clockSource).build();
+                AsyncTokenBucket.builder().capacity(100)
+                        .resolutionNanos(TimeUnit.MILLISECONDS.toNanos(1))
+                        .rate(10)
+                        .initialTokens(0)
+                        .clock(clockSource)
+                        .build();
         for (int i = 0; i < 150; i++) {
             incrementMillis(1);
         }
         assertEquals(asyncTokenBucket.getTokens(), 1);
         incrementMillis(150);
         assertEquals(asyncTokenBucket.getTokens(), 3);
+        incrementMillis(1);
+        assertEquals(asyncTokenBucket.getTokens(), 3);
+        incrementMillis(99);
+        assertEquals(asyncTokenBucket.getTokens(), 4);
     }
 
     @Test
     void shouldSupportFractionsAndRetainLeftoverWhenUpdatingTokens2() {
         asyncTokenBucket =
-                AsyncTokenBucket.builder().capacity(100).rate(1).initialTokens(0).clock(clockSource).build();
+                AsyncTokenBucket.builder().capacity(100)
+                        .resolutionNanos(TimeUnit.MILLISECONDS.toNanos(1))
+                        .rate(1)
+                        .initialTokens(0)
+                        .clock(clockSource)
+                        .build();
         for (int i = 0; i < 150; i++) {
             incrementMillis(1);
             assertEquals(asyncTokenBucket.tokens((i + 1) % 31 == 0), 0);
@@ -114,9 +128,9 @@ public class AsyncTokenBucketTest {
         assertEquals(asyncTokenBucket.tokens(true), 0);
         incrementMillis(699);
         assertEquals(asyncTokenBucket.tokens(true), 0);
-        incrementMillis(2);
+        incrementMillis(1);
         assertEquals(asyncTokenBucket.tokens(true), 1);
-        incrementMillis(999);
+        incrementMillis(1000);
         assertEquals(asyncTokenBucket.tokens(true), 2);
     }
 

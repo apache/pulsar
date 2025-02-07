@@ -122,6 +122,7 @@ public abstract class AsyncTokenBucket {
     protected AsyncTokenBucket(MonotonicSnapshotClock clockSource, long resolutionNanos) {
         this.clockSource = clockSource;
         this.resolutionNanos = resolutionNanos;
+        this.lastNanos = Long.MIN_VALUE;
     }
 
     public static FinalRateAsyncTokenBucketBuilder builder() {
@@ -155,18 +156,22 @@ public abstract class AsyncTokenBucket {
             throw new IllegalArgumentException("consumeTokens must be >= 0");
         }
         long currentNanos = clockSource.getTickNanos(forceUpdateTokens);
+        long newTokens = 0;
         // check if the tokens should be updated immediately
         if (shouldUpdateTokensImmediately(currentNanos, forceUpdateTokens)) {
             // calculate the number of new tokens since the last update
-            long newTokens = calculateNewTokensSinceLastUpdate(currentNanos);
+            newTokens = calculateNewTokensSinceLastUpdate(currentNanos);
+        }
+        if (newTokens > 0) {
             // flush the pendingConsumedTokens by calling "sumThenReset"
             long currentPendingConsumedTokens = pendingConsumedTokens.sumThenReset();
+            // calculate the token delta by subtracting the consumed tokens from the new tokens
+            long tokenDelta = newTokens - currentPendingConsumedTokens;
             // update the tokens and return the current token value
             return TOKENS_UPDATER.updateAndGet(this,
-                    // after adding new tokens subtract the pending consumed tokens and
                     // limit the tokens to the capacity of the bucket
-                    currentTokens -> Math.min(currentTokens + newTokens - currentPendingConsumedTokens, getCapacity())
-                            // subtract the consumed tokens
+                    currentTokens -> Math.min(currentTokens + tokenDelta, getCapacity())
+                            // subtract the consumed tokens from the capped tokens
                             - consumeTokens);
         } else {
             // eventual consistent fast path, tokens are not updated immediately
@@ -176,8 +181,13 @@ public abstract class AsyncTokenBucket {
                 pendingConsumedTokens.add(consumeTokens);
             }
 
-            // return Long.MIN_VALUE if the current value of tokens is unknown due to the eventual consistency
-            return Long.MIN_VALUE;
+            if (forceUpdateTokens) {
+                // return the current tokens balance without updating the tokens and resetting the pendingConsumedTokens
+                return tokens - pendingConsumedTokens.sum();
+            } else {
+                // return Long.MIN_VALUE if the current value of tokens is unknown due to the eventual consistency
+                return Long.MIN_VALUE;
+            }
         }
     }
 
@@ -210,10 +220,16 @@ public abstract class AsyncTokenBucket {
      */
     private long calculateNewTokensSinceLastUpdate(long currentNanos) {
         long newTokens;
-        // update lastNanos if currentNanos is greater than the current lastNanos
         long previousLastNanos = LAST_NANOS_UPDATER.getAndUpdate(this,
-                currentLastNanos -> Math.max(currentNanos, currentLastNanos));
-        if (previousLastNanos == 0 || previousLastNanos >= currentNanos) {
+                currentLastNanos -> {
+                    // update lastNanos only if at least resolutionNanos/2 nanoseconds has passed since the last update
+                    if (currentNanos >= currentLastNanos + resolutionNanos / 2) {
+                        return currentNanos;
+                    } else {
+                        return currentLastNanos;
+                    }
+                });
+        if (previousLastNanos == Long.MIN_VALUE || previousLastNanos >= currentNanos) {
             newTokens = 0;
         } else {
             long durationNanos = currentNanos - previousLastNanos + REMAINDER_NANOS_UPDATER.getAndSet(this, 0);
