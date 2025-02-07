@@ -119,14 +119,14 @@ public abstract class AsyncTokenBucket {
      */
     private final LongAdder pendingConsumedTokens = new LongAdder();
 
-    private final boolean getTokensUpdatesTokens;
+    private final boolean consistentTokensView;
 
     protected AsyncTokenBucket(MonotonicSnapshotClock clockSource, long resolutionNanos,
-                               boolean getTokensUpdatesTokens) {
+                               boolean consistentTokensView) {
         this.clockSource = clockSource;
         this.resolutionNanos = resolutionNanos;
         this.lastNanos = Long.MIN_VALUE;
-        this.getTokensUpdatesTokens = getTokensUpdatesTokens;
+        this.consistentTokensView = consistentTokensView;
     }
 
     public static FinalRateAsyncTokenBucketBuilder builder() {
@@ -334,10 +334,10 @@ public abstract class AsyncTokenBucket {
     /**
      * Returns the current number of tokens in the bucket.
      * The token balance is updated if the configured resolutionNanos has passed since the last update unless
-     * getTokensUpdatesTokens is true.
+     * consistentTokensView is true.
      */
     public final long getTokens() {
-        return tokens(getTokensUpdatesTokens);
+        return tokens(consistentTokensView);
     }
 
     public abstract long getRate();
@@ -346,12 +346,12 @@ public abstract class AsyncTokenBucket {
      * Checks if the bucket contains tokens.
      * The token balance is updated before the comparison if the configured resolutionNanos has passed since the last
      * update. It's possible that the returned result is not definite since the token balance is eventually consistent
-     * if getTokensUpdatesTokens is false.
+     * if consistentTokensView is false.
      *
      * @return true if the bucket contains tokens, false otherwise
      */
     public boolean containsTokens() {
-        return containsTokens(getTokensUpdatesTokens);
+        return containsTokens(consistentTokensView);
     }
 
     /**

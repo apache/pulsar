@@ -34,9 +34,9 @@ public class DynamicRateAsyncTokenBucket extends AsyncTokenBucket {
 
     protected DynamicRateAsyncTokenBucket(double capacityFactor, LongSupplier rateFunction,
                                           MonotonicSnapshotClock clockSource, LongSupplier ratePeriodNanosFunction,
-                                          long resolutionNanos, boolean getTokensUpdatesTokens,
+                                          long resolutionNanos, boolean consistentTokensView,
                                           double initialTokensFactor, double targetFillFactorAfterThrottling) {
-        super(clockSource, resolutionNanos, getTokensUpdatesTokens);
+        super(clockSource, resolutionNanos, consistentTokensView);
         this.capacityFactor = capacityFactor;
         this.rateFunction = rateFunction;
         this.ratePeriodNanosFunction = ratePeriodNanosFunction;
