@@ -173,25 +173,21 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
                 }
                 return;
             }
+            // increment the request count that ensures that the thread will update the tick value after this request
+            // was made also when there's a race condition between the request and the update
+            requestCount.incrementAndGet();
             synchronized (tickUpdatedMonitor) {
-                requestUpdate();
+                // notify the thread to stop waiting and update the tick value
+                synchronized (tickUpdateDelayMonitor) {
+                    tickUpdateDelayMonitorNotified = true;
+                    tickUpdateDelayMonitor.notify();
+                }
                 // wait until the tick value has been updated
                 try {
                     tickUpdatedMonitor.wait();
                 } catch (InterruptedException e) {
                     currentThread().interrupt();
                 }
-            }
-        }
-
-        private void requestUpdate() {
-            // increment the request count that ensures that the thread will update the tick value after this request
-            // was made also when there's a race condition between the request and the update
-            requestCount.incrementAndGet();
-            // notify the thread to stop waiting and update the tick value
-            synchronized (tickUpdateDelayMonitor) {
-                tickUpdateDelayMonitorNotified = true;
-                tickUpdateDelayMonitor.notify();
             }
         }
 
