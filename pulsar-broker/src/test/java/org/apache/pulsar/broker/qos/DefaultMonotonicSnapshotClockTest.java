@@ -121,7 +121,7 @@ public class DefaultMonotonicSnapshotClockTest {
     }
 
     @Test
-    void testLeapDetectionIndepently() {
+    void testLeapDetectionIndependently() {
         AtomicLong clockValue = new AtomicLong(0);
         AtomicLong tickValue = new AtomicLong(0);
         long expectedTickValue = 0;

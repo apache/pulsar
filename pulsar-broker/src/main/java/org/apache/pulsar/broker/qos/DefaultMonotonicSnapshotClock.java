@@ -175,6 +175,9 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
             }
             // increment the request count that ensures that the thread will update the tick value after this request
             // was made also when there's a race condition between the request and the update
+            // this solution doesn't prevent all races, and it's not guaranteed that the tick value is always updated
+            // it will prevent the request having to wait for the delayed update cycle. This is sufficient for the
+            // use case.
             requestCount.incrementAndGet();
             synchronized (tickUpdatedMonitor) {
                 // notify the thread to stop waiting and update the tick value
