@@ -229,7 +229,7 @@ public abstract class AsyncTokenBucket {
                         return currentLastNanos;
                     }
                 });
-        if (previousLastNanos == Long.MIN_VALUE || previousLastNanos >= currentNanos) {
+        if (previousLastNanos == Long.MIN_VALUE || currentNanos != lastNanos) {
             newTokens = 0;
         } else {
             long durationNanos = currentNanos - previousLastNanos + REMAINDER_NANOS_UPDATER.getAndSet(this, 0);
