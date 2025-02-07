@@ -170,18 +170,22 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected final void internalSetup() throws Exception {
         init();
-        lookupUrl = new URI(brokerUrl.toString());
-        if (isTcpLookup) {
-            lookupUrl = new URI(pulsar.getBrokerServiceUrl());
-
+        lookupUrl = resolveLookupUrl();
+        if (isTcpLookup && enableBrokerGateway) {
             // setup port forwarding from the advertised port to the listen port
-            if (enableBrokerGateway) {
-                InetSocketAddress gatewayAddress = new InetSocketAddress(lookupUrl.getHost(), lookupUrl.getPort());
-                InetSocketAddress brokerAddress = new InetSocketAddress("127.0.0.1", pulsar.getBrokerListenPort().get());
-                brokerGateway = new PortForwarder(gatewayAddress, brokerAddress);
-            }
+            InetSocketAddress gatewayAddress = new InetSocketAddress(lookupUrl.getHost(), lookupUrl.getPort());
+            InetSocketAddress brokerAddress = new InetSocketAddress("127.0.0.1", pulsar.getBrokerListenPort().get());
+            brokerGateway = new PortForwarder(gatewayAddress, brokerAddress);
         }
         pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+    }
+
+    private URI resolveLookupUrl() {
+        if (isTcpLookup) {
+            return URI.create(pulsar.getBrokerServiceUrl());
+        } else {
+            return URI.create(brokerUrl.toString());
+        }
     }
 
     protected final void internalSetup(ServiceConfiguration serviceConfiguration) throws Exception {
@@ -384,12 +388,14 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         brokerUrl = pulsar.getWebServiceAddress() != null ? new URL(pulsar.getWebServiceAddress()) : null;
         brokerUrlTls = pulsar.getWebServiceAddressTls() != null ? new URL(pulsar.getWebServiceAddressTls()) : null;
 
-        if (admin != null) {
-            admin.close();
-            if (MockUtil.isMock(admin)) {
-                Mockito.reset(admin);
-            }
+        URI newLookupUrl = resolveLookupUrl();
+        if (pulsarClient != null && (lookupUrl == null || !newLookupUrl.equals(lookupUrl))) {
+            pulsarClient.shutdown();
+            lookupUrl = newLookupUrl;
+            pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
         }
+
+        closeAdmin();
         PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(brokerUrl != null
                 ? brokerUrl.toString()
                 : brokerUrlTls.toString());
