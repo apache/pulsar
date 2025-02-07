@@ -119,10 +119,14 @@ public abstract class AsyncTokenBucket {
      */
     private final LongAdder pendingConsumedTokens = new LongAdder();
 
-    protected AsyncTokenBucket(MonotonicSnapshotClock clockSource, long resolutionNanos) {
+    private final boolean getTokensUpdatesTokens;
+
+    protected AsyncTokenBucket(MonotonicSnapshotClock clockSource, long resolutionNanos,
+                               boolean getTokensUpdatesTokens) {
         this.clockSource = clockSource;
         this.resolutionNanos = resolutionNanos;
         this.lastNanos = Long.MIN_VALUE;
+        this.getTokensUpdatesTokens = getTokensUpdatesTokens;
     }
 
     public static FinalRateAsyncTokenBucketBuilder builder() {
@@ -328,10 +332,11 @@ public abstract class AsyncTokenBucket {
 
     /**
      * Returns the current number of tokens in the bucket.
-     * The token balance is updated if the configured resolutionNanos has passed since the last update.
+     * The token balance is updated if the configured resolutionNanos has passed since the last update unless
+     * getTokensUpdatesTokens is true.
      */
     public final long getTokens() {
-        return tokens(false);
+        return tokens(getTokensUpdatesTokens);
     }
 
     public abstract long getRate();
@@ -339,12 +344,13 @@ public abstract class AsyncTokenBucket {
     /**
      * Checks if the bucket contains tokens.
      * The token balance is updated before the comparison if the configured resolutionNanos has passed since the last
-     * update. It's possible that the returned result is not definite since the token balance is eventually consistent.
+     * update. It's possible that the returned result is not definite since the token balance is eventually consistent
+     * if getTokensUpdatesTokens is false.
      *
      * @return true if the bucket contains tokens, false otherwise
      */
     public boolean containsTokens() {
-        return containsTokens(false);
+        return containsTokens(getTokensUpdatesTokens);
     }
 
     /**
@@ -356,7 +362,7 @@ public abstract class AsyncTokenBucket {
      * @param forceUpdateTokens if true, the token balance is updated before the comparison
      * @return true if the bucket contains tokens, false otherwise
      */
-    public boolean containsTokens(boolean forceUpdateTokens) {
+    protected boolean containsTokens(boolean forceUpdateTokens) {
         return tokens(forceUpdateTokens) > 0;
     }
 

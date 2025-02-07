@@ -23,6 +23,7 @@ package org.apache.pulsar.broker.qos;
 public abstract class AsyncTokenBucketBuilder<SELF extends AsyncTokenBucketBuilder<SELF>> {
     protected MonotonicSnapshotClock clock = AsyncTokenBucket.DEFAULT_SNAPSHOT_CLOCK;
     protected long resolutionNanos = AsyncTokenBucket.defaultResolutionNanos;
+    protected boolean getTokensUpdatesTokens;
 
     protected AsyncTokenBucketBuilder() {
     }
@@ -38,6 +39,11 @@ public abstract class AsyncTokenBucketBuilder<SELF extends AsyncTokenBucketBuild
 
     public SELF resolutionNanos(long resolutionNanos) {
         this.resolutionNanos = resolutionNanos;
+        return self();
+    }
+
+    public SELF getTokensUpdatesTokens(boolean getTokensUpdatesTokens) {
+        this.getTokensUpdatesTokens = getTokensUpdatesTokens;
         return self();
     }
 

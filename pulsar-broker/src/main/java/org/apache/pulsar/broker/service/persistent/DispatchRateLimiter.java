@@ -224,6 +224,7 @@ public class DispatchRateLimiter {
             if (dispatchRate.isRelativeToPublishRate()) {
                 this.dispatchRateLimiterOnMessage =
                         AsyncTokenBucket.builderForDynamicRate()
+                                .getTokensUpdatesTokens(true)
                                 .clock(clock)
                                 .rateFunction(() -> getRelativeDispatchRateInMsg(dispatchRate))
                                 .ratePeriodNanosFunction(() -> ratePeriodNanos)
@@ -231,6 +232,7 @@ public class DispatchRateLimiter {
             } else {
                 this.dispatchRateLimiterOnMessage =
                         AsyncTokenBucket.builder()
+                                .getTokensUpdatesTokens(true)
                                 .clock(clock)
                                 .rate(msgRate).ratePeriodNanos(ratePeriodNanos)
                                 .build();
@@ -244,6 +246,7 @@ public class DispatchRateLimiter {
             if (dispatchRate.isRelativeToPublishRate()) {
                 this.dispatchRateLimiterOnByte =
                         AsyncTokenBucket.builderForDynamicRate()
+                                .getTokensUpdatesTokens(true)
                                 .clock(clock)
                                 .rateFunction(() -> getRelativeDispatchRateInByte(dispatchRate))
                                 .ratePeriodNanosFunction(() -> ratePeriodNanos)
@@ -251,6 +254,7 @@ public class DispatchRateLimiter {
             } else {
                 this.dispatchRateLimiterOnByte =
                         AsyncTokenBucket.builder()
+                                .getTokensUpdatesTokens(true)
                                 .clock(clock)
                                 .rate(byteRate).ratePeriodNanos(ratePeriodNanos)
                                 .build();

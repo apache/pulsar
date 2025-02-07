@@ -70,7 +70,7 @@ public class SubscribeRateLimiter {
         if (tokenBucket == null) {
             return true;
         }
-        if (!tokenBucket.containsTokens(true)) {
+        if (!tokenBucket.containsTokens()) {
             return false;
         }
         tokenBucket.consumeTokens(1);
@@ -118,6 +118,7 @@ public class SubscribeRateLimiter {
         if (ratePerConsumer > 0) {
             AsyncTokenBucket tokenBucket =
                     AsyncTokenBucket.builder()
+                            .getTokensUpdatesTokens(true)
                             .clock(brokerService.getPulsar().getMonotonicSnapshotClock())
                             .rate(ratePerConsumer).ratePeriodNanos(ratePeriodNanos).build();
             this.subscribeRateLimiter.put(consumerIdentifier, tokenBucket);
