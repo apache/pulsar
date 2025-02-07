@@ -41,7 +41,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchThrottlingTest {
+public class SubscriptionMessageDispatchThrottlingTest extends AbstractMessageDispatchThrottlingTest {
     private static final Logger log = LoggerFactory.getLogger(SubscriptionMessageDispatchThrottlingTest.class);
 
     /**

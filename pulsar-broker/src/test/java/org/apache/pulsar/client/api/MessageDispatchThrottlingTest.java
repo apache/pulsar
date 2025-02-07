@@ -28,15 +28,11 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
@@ -45,8 +41,6 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.cache.PendingReadsManager;
 import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
-import org.apache.pulsar.broker.qos.AsyncTokenBucket;
-import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -60,87 +54,11 @@ import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
+public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrottlingTest {
     private static final Logger log = LoggerFactory.getLogger(MessageDispatchThrottlingTest.class);
-
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        AsyncTokenBucket.switchToConsistentTokensView();
-        this.conf.setClusterName("test");
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-        AsyncTokenBucket.resetToDefaultEventualConsistentTokensView();
-    }
-
-    @AfterMethod(alwaysRun = true)
-    protected void reset() throws Exception {
-        pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
-        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
-
-        for (String tenant : admin.tenants().getTenants()) {
-            for (String namespace : admin.namespaces().getNamespaces(tenant)) {
-                admin.namespaces().deleteNamespace(namespace, true);
-            }
-            admin.tenants().deleteTenant(tenant, true);
-        }
-
-        for (String cluster : admin.clusters().getClusters()) {
-            admin.clusters().deleteCluster(cluster);
-        }
-
-        pulsar.getConfiguration().setForceDeleteTenantAllowed(false);
-        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
-
-        super.producerBaseSetup();
-    }
-
-
-    @DataProvider(name = "subscriptions")
-    public Object[][] subscriptionsProvider() {
-        return new Object[][] { new Object[] { SubscriptionType.Shared }, { SubscriptionType.Exclusive } };
-    }
-
-    @DataProvider(name = "dispatchRateType")
-    public Object[][] dispatchRateProvider() {
-        return new Object[][] { { DispatchRateType.messageRate }, { DispatchRateType.byteRate } };
-    }
-
-    @DataProvider(name = "subscriptionAndDispatchRateType")
-    public Object[][] subDisTypeProvider() {
-        List<Object[]> mergeList = new LinkedList<>();
-        for (Object[] sub : subscriptionsProvider()) {
-            for (Object[] dispatch : dispatchRateProvider()) {
-                mergeList.add(merge(sub, dispatch));
-            }
-        }
-        return mergeList.toArray(new Object[0][0]);
-    }
-
-    public static <T> T[] merge(T[] first, T[] last) {
-        int totalLength = first.length + last.length;
-        T[] result = Arrays.copyOf(first, totalLength);
-        int offset = first.length;
-        System.arraycopy(last, 0, result, offset, first.length);
-        return result;
-    }
-
-    enum DispatchRateType {
-        messageRate, byteRate;
-    }
 
     /**
      * verifies: message-rate change gets reflected immediately into topic at runtime
@@ -1113,17 +1031,6 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         producer.close();
         topic.close().get();
-    }
-
-    protected void deactiveCursors(ManagedLedgerImpl ledger) throws Exception {
-        Field statsUpdaterField = BrokerService.class.getDeclaredField("statsUpdater");
-        statsUpdaterField.setAccessible(true);
-        ScheduledExecutorService statsUpdater = (ScheduledExecutorService) statsUpdaterField
-                .get(pulsar.getBrokerService());
-        statsUpdater.shutdownNow();
-        ledger.getCursors().forEach(cursor -> {
-            ledger.deactivateCursor(cursor);
-        });
     }
 
     /**
