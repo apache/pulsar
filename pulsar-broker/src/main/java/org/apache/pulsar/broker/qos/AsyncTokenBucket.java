@@ -363,7 +363,7 @@ public abstract class AsyncTokenBucket {
      * @param forceUpdateTokens if true, the token balance is updated before the comparison
      * @return true if the bucket contains tokens, false otherwise
      */
-    public boolean containsTokens(boolean forceUpdateTokens) {
+    protected boolean containsTokens(boolean forceUpdateTokens) {
         return tokens(forceUpdateTokens) > 0;
     }
 
