@@ -390,9 +390,11 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         brokerUrlTls = pulsar.getWebServiceAddressTls() != null ? new URL(pulsar.getWebServiceAddressTls()) : null;
 
         URI newLookupUrl = resolveLookupUrl();
-        if (pulsarClient != null && (lookupUrl == null || !newLookupUrl.equals(lookupUrl))) {
-            pulsarClient.shutdown();
+        if (lookupUrl == null || !newLookupUrl.equals(lookupUrl)) {
             lookupUrl = newLookupUrl;
+        }
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
             pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
         }
 
