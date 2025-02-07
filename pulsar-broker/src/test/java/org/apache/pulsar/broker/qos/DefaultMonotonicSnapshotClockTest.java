@@ -119,4 +119,67 @@ public class DefaultMonotonicSnapshotClockTest {
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("Test clock failure");
     }
+
+    @Test
+    void testLeapDetectionIndepently() {
+        AtomicLong clockValue = new AtomicLong(0);
+        AtomicLong tickValue = new AtomicLong(0);
+        long expectedTickValue = 0;
+        long snapshotIntervalNanos = TimeUnit.MILLISECONDS.toNanos(1);
+        DefaultMonotonicSnapshotClock.MonotonicLeapDetectingTickUpdater updater =
+                new DefaultMonotonicSnapshotClock.MonotonicLeapDetectingTickUpdater(clockValue::get, tickValue::set,
+                        snapshotIntervalNanos);
+
+        updater.update(true);
+
+        // advance the clock
+        clockValue.addAndGet(snapshotIntervalNanos);
+        expectedTickValue += snapshotIntervalNanos;
+        updater.update(true);
+        assertThat(tickValue.get()).isEqualTo(expectedTickValue);
+
+        // simulate a leap backwards in time
+        clockValue.addAndGet(-10 * snapshotIntervalNanos);
+        expectedTickValue += snapshotIntervalNanos;
+        updater.update(true);
+        assertThat(tickValue.get()).isEqualTo(expectedTickValue);
+
+        // advance the clock
+        clockValue.addAndGet(snapshotIntervalNanos);
+        expectedTickValue += snapshotIntervalNanos;
+        updater.update(true);
+        assertThat(tickValue.get()).isEqualTo(expectedTickValue);
+
+        // simulate a leap backwards in time, without waiting a full snapshot interval
+        clockValue.addAndGet(-10 * snapshotIntervalNanos);
+        updater.update(false);
+        assertThat(tickValue.get()).isEqualTo(expectedTickValue);
+
+        // advance the clock
+        clockValue.addAndGet(snapshotIntervalNanos);
+        expectedTickValue += snapshotIntervalNanos;
+        updater.update(true);
+        assertThat(tickValue.get()).isEqualTo(expectedTickValue);
+
+        // simulate a small leap backwards in time which isn't detected, without waiting a full snapshot interval
+        clockValue.addAndGet(-1 * snapshotIntervalNanos);
+        updater.update(false);
+        assertThat(tickValue.get()).isEqualTo(expectedTickValue);
+        // clock doesn't advance for one snapshot interval
+        clockValue.addAndGet(snapshotIntervalNanos);
+        updater.update(false);
+        assertThat(tickValue.get()).isEqualTo(expectedTickValue);
+        // now the clock should advance again
+        clockValue.addAndGet(snapshotIntervalNanos);
+        expectedTickValue += snapshotIntervalNanos;
+        updater.update(false);
+        assertThat(tickValue.get()).isEqualTo(expectedTickValue);
+
+        // simulate a leap forward
+        clockValue.addAndGet(10 * snapshotIntervalNanos);
+        // no special handling for leap forward
+        expectedTickValue += 10 * snapshotIntervalNanos;
+        updater.update(true);
+        assertThat(tickValue.get()).isEqualTo(expectedTickValue);
+    }
 }

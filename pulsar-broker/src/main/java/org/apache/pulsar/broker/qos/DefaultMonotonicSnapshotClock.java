@@ -213,7 +213,7 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
      * Handles updating the tick value in a monotonic way so that the value is always increasing,
      * regardless of leaps backward in the clock source value.
      */
-    private static class MonotonicLeapDetectingTickUpdater {
+    static class MonotonicLeapDetectingTickUpdater {
         private final LongSupplier clockSource;
         private final long snapshotInternalNanos;
         private final long maxDeltaNanosForLeapDetection;
