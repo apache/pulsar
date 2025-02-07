@@ -1615,8 +1615,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     BrokerServiceException.getClientErrorCode(exception),
                                     message);
                         }
-                        log.error("Try add schema failed, remote address {}, topic {}, producerId {}", remoteAddress,
-                                topicName, producerId, exception);
+                        var cause = FutureUtil.unwrapCompletionException(exception);
+                        if (!(cause instanceof IncompatibleSchemaException)) {
+                            log.error("Try add schema failed, remote address {}, topic {}, producerId {}",
+                                    remoteAddress,
+                                    topicName, producerId, exception);
+                        }
                         producers.remove(producerId, producerFuture);
                         return null;
                     });
