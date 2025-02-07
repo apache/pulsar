@@ -316,9 +316,6 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         producer.close();
 
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", Long.toString(initBytes));
-
-        admin.topics().delete(topicName, true);
-        admin.namespaces().deleteNamespace(namespace);
     }
 
     /**
@@ -508,8 +505,6 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         consumer.close();
         producer.close();
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", Long.toString(initBytes));
-        admin.topics().delete(topicName, true);
-        admin.namespaces().deleteNamespace(namespace);
     }
 
     /**
