@@ -217,13 +217,15 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
          *                               call.
          */
         public void update(boolean waitedSnapshotInterval) {
+            // get the current clock source value
             long clockValue = clockSource.getAsLong();
 
-            // Initialization
+            // Initialization on first call
             if (referenceClockSourceValue == Long.MIN_VALUE) {
                 referenceClockSourceValue = clockValue;
                 baseSnapshotTickNanos = clockValue;
                 previousSnapshotTickNanos = clockValue;
+                // update the tick value using the callback
                 tickUpdatedCallback.accept(clockValue);
                 return;
             }
@@ -247,6 +249,7 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
             if (newSnapshotTickNanos > previousSnapshotTickNanos) {
                 // store the previous value
                 previousSnapshotTickNanos = newSnapshotTickNanos;
+                // update the tick value using the callback
                 tickUpdatedCallback.accept(newSnapshotTickNanos);
             }
         }
