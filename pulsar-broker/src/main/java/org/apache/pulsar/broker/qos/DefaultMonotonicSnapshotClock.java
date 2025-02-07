@@ -22,6 +22,7 @@ package org.apache.pulsar.broker.qos;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongConsumer;
 import java.util.function.LongSupplier;
 import org.slf4j.Logger;
@@ -83,7 +84,7 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
         private final MonotonicLeapDetectingTickUpdater tickUpdater;
         private volatile boolean running;
         private boolean tickUpdateDelayMonitorNotified;
-        private long requestCount;
+        private AtomicLong requestCount = new AtomicLong();
         private final long sleepMillis;
         private final int sleepNanos;
 
@@ -114,13 +115,13 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
                         synchronized (tickUpdateDelayMonitor) {
                             tickUpdateDelayMonitorNotified = false;
                             // only wait if no explicit request has been made since the last update
-                            if (requestCount == updatedForRequestCount) {
+                            if (requestCount.get() == updatedForRequestCount) {
                                 // if no request has been made, sleep for the configured interval
                                 tickUpdateDelayMonitor.wait(sleepMillis, sleepNanos);
                                 waitedSnapshotInterval = !tickUpdateDelayMonitorNotified;
                             }
-                            updatedForRequestCount = requestCount;
                         }
+                        updatedForRequestCount = requestCount.get();
                         // update the tick value using the tick updater which will tolerate leaps backward
                         tickUpdater.update(waitedSnapshotInterval);
                         notifyAllTickUpdated();
@@ -165,10 +166,12 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
         }
 
         public void requestUpdate() {
+            // increment the request count that ensures that the thread will update the tick value after this request
+            // was made also when there's a race condition between the request and the update
+            requestCount.incrementAndGet();
             // notify the thread to stop waiting and update the tick value
             synchronized (tickUpdateDelayMonitor) {
                 tickUpdateDelayMonitorNotified = true;
-                requestCount++;
                 tickUpdateDelayMonitor.notify();
             }
         }
