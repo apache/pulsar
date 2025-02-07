@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.spy;
@@ -43,6 +44,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.cache.PendingReadsManager;
 import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl;
+import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -52,7 +54,7 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
-import org.apache.pulsar.broker.qos.AsyncTokenBucket;
+import org.assertj.core.data.Offset;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -585,7 +587,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         Thread.sleep(1000);
 
         // rate limiter should have limited messages with at least 10% accuracy (or 2 messages if messageRate is low)
-        Assert.assertEquals(totalReceived.get(), messageRate, Math.max(messageRate / 10, 2));
+        assertThat(totalReceived.get()).isCloseTo(messageRate, Offset.offset(Math.max(messageRate / 10, 2)));
 
         consumer1.close();
         consumer2.close();
