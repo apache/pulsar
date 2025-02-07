@@ -44,6 +44,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.cache.PendingReadsManager;
 import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
@@ -152,7 +153,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/throttling_ns";
+        final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         final String topicName = "persistent://" + namespace + "/throttlingBlock";
 
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
@@ -222,7 +223,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     @SuppressWarnings("deprecation")
     @Test
     public void testSystemTopicDeliveryNonBlock() throws Exception {
-        final String namespace = "my-property/throttling_ns";
+        final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         final String topicName = "persistent://" + namespace + "/" + UUID.randomUUID().toString().replaceAll("-", "");
         admin.topics().createNonPartitionedTopic(topicName);
@@ -266,7 +267,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
             DispatchRateType dispatchRateType) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/throttling_ns";
+        final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         final String topicName = "persistent://" + namespace + "/throttlingBlock";
 
         final int messageRate = 100;
@@ -334,7 +335,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     public void testClusterMsgByteRateLimitingClusterConfig() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/throttling_ns";
+        final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         final String topicName = "persistent://" + namespace + "/throttlingBlock";
         final int messageRate = 5;
         final long byteRate = 1024 * 1024;// 1MB rate enough to let all msg to be delivered
@@ -409,7 +410,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
             throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/throttling_ns";
+        final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         final String topicName = "persistent://" + namespace + "/throttlingAll";
 
         final int messageRate = 10;
@@ -477,7 +478,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(true);
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/throttling_ns";
+        final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         final String topicName = "persistent://" + namespace + "/throttlingAll";
         final String subscriptionName = "my-subscriber-name";
 
@@ -530,7 +531,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     public void testRateLimitingMultipleConsumers() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/throttling_ns";
+        final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         final String topicName = "persistent://" + namespace + "/throttlingMultipleConsumers";
 
         final int messageRate = 5;
@@ -604,7 +605,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         conf.setDispatchThrottlingOnBatchMessageEnabled(true);
 
-        final String namespace = "my-property/throttling_ns";
+        final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         final String topicName = "persistent://" + namespace + "/throttlingMultipleConsumers";
 
         final int messageRate = 5;
@@ -672,7 +673,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     public void testClusterRateLimitingConfiguration(SubscriptionType subscription) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/throttling_ns";
+        final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         final String topicName = "persistent://" + namespace + "/throttlingBlock";
         final int messageRate = 5;
 
@@ -735,7 +736,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     public void testMessageByteRateThrottlingCombined(SubscriptionType subscription) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/throttling_ns";
+        final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         final String topicName = "persistent://" + namespace + "/throttlingAll";
 
         final int messageRate = 5; // 5 msgs per second
@@ -805,7 +806,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     public void testGlobalNamespaceThrottling() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/throttling_ns";
+        final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         final String topicName = "persistent://" + namespace + "/throttlingBlock";
 
         final int messageRate = 5;
@@ -871,7 +872,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     public void testNonBacklogConsumerWithThrottlingEnabled(SubscriptionType subscription) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/throttling_ns";
+        final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         final String topicName = "persistent://" + namespace + "/throttlingBlock";
 
         final int messageRate = 10;
@@ -950,7 +951,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     public void testClusterPolicyOverrideConfiguration() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/throttling_ns";
+        final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         final String topicName1 = "persistent://" + namespace + "/throttlingOverride1";
         final String topicName2 = "persistent://" + namespace + "/throttlingOverride2";
         final int clusterMessageRate = 100;
@@ -1020,7 +1021,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     public void testClosingRateLimiter(SubscriptionType subscription) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/throttling_ns";
+        final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         final String topicName = "persistent://" + namespace + "/closingRateLimiter" + subscription.name();
         final String subName = "mySubscription" + subscription.name();
 
@@ -1068,7 +1069,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     @SuppressWarnings("deprecation")
     @Test
     public void testDispatchRateCompatibility2() throws Exception {
-        final String namespace = "my-property/dispatch-rate-compatibility";
+        final String namespace = BrokerTestUtil.newUniqueName("my-property/dispatch-rate-compatibility");
         final String topicName = "persistent://" + namespace + "/t1";
         final String cluster = "test";
         admin.namespaces().createNamespace(namespace, Sets.newHashSet(cluster));
@@ -1135,7 +1136,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     public void testRelativeMessageRateLimitingThrottling(SubscriptionType subscription) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/relative_throttling_ns";
+        final String namespace = BrokerTestUtil.newUniqueName("my-property/relative_throttling_ns");
         final String topicName = "persistent://" + namespace + "/relative-throttle" + subscription;
 
         final int messageRate = 1;
