@@ -25,6 +25,7 @@ import io.confluent.kafka.schemaregistry.SchemaProvider;
 import io.confluent.kafka.schemaregistry.avro.AvroSchemaProvider;
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
+import io.confluent.kafka.schemaregistry.protobuf.MessageIndexes;
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchemaProvider;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import io.confluent.kafka.serializers.protobuf.KafkaProtobufDeserializer;
@@ -280,17 +281,8 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
                     buffer.get(); // magic number
                     int id = buffer.getInt();
                     // the kafka protobuf serializer encodes the MessageIndexes in the payload, we need to skip them
-                    // the indexes are encoded as varint like below:
-                    // ByteUtils.writeVarint(indexes.size(), buffer);
-                    //
-                    // for(Integer index : indexes) {
-                    //     ByteUtils.writeVarint(index, buffer);
-                    // }
                     if (schemaType == SchemaType.PROTOBUF_NATIVE) {
-                        int size = ByteUtils.readVarint(buffer);
-                        for (int i = 0; i < size; i++) {
-                            ByteUtils.readVarint(buffer);
-                        }
+                        MessageIndexes.readFrom(buffer);
                     }
                     return new BytesWithKafkaSchema(buffer, id, schemaType);
                 } catch (Exception err) {
