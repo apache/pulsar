@@ -130,6 +130,7 @@ flexible messaging model and an intuitive client API.</description>
     <docker.organization>apachepulsar</docker.organization>
     <skipSourceReleaseAssembly>false</skipSourceReleaseAssembly>
     <skipBuildDistribution>false</skipBuildDistribution>
+    <skipDeployConnector>false</skipDeployConnector>
     <shadePluginPhase>package</shadePluginPhase>
     <narPluginPhase>package</narPluginPhase>
 
