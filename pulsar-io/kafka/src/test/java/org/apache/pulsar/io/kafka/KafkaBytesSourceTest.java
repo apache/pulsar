@@ -27,6 +27,7 @@ import static org.testng.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableMap;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
+import io.confluent.kafka.serializers.protobuf.KafkaProtobufDeserializer;
 import java.nio.charset.StandardCharsets;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -88,6 +89,8 @@ public class KafkaBytesSourceTest {
         validateSchemaNoKeyValue(StringDeserializer.class.getName(), Schema.STRING,
                 KafkaAvroDeserializer.class.getName(), KafkaBytesSource.DeferredSchemaPlaceholder.INSTANCE);
 
+        validateSchemaNoKeyValue(StringDeserializer.class.getName(), Schema.STRING,
+                KafkaProtobufDeserializer.class.getName(), KafkaBytesSource.DeferredSchemaPlaceholder.PROTOBUF_INSTANCE);
     }
 
     private void validateSchemaNoKeyValue(String keyDeserializationClass, Schema<?> expectedKeySchema,
