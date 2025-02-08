@@ -2834,8 +2834,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         Message<T> message;
         while (true) {
             message = incomingMessages.pollIf(msg -> {
-                MessageId idPoled = NegativeAcksTracker.discardBatchAndPartitionIndex(msg.getMessageId());
-                return messageIds.contains(idPoled);
+                MessageId idPolled = NegativeAcksTracker.discardBatchAndPartitionIndex(msg.getMessageId());
+                return messageIds.contains(idPolled);
             });
             if (message == null) {
                 break;
