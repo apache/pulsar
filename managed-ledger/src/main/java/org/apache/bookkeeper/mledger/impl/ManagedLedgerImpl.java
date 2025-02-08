@@ -1144,16 +1144,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return cachedCursor;
         }
 
-        NonDurableCursorImpl cursor = new NonDurableCursorImpl(bookKeeper, this, cursorName,
-                startCursorPosition, initialPosition, isReadCompacted);
-        cursor.setActive();
-
-        log.info("[{}] Opened new cursor: {}", name, cursor);
         synchronized (this) {
+            NonDurableCursorImpl cursor = new NonDurableCursorImpl(bookKeeper, this, cursorName,
+                    startCursorPosition, initialPosition, isReadCompacted);
+            cursor.setActive();
+            log.info("[{}] Opened new cursor: {}", name, cursor);
             addCursor(cursor);
+            return cursor;
         }
-
-        return cursor;
     }
 
     @Override
