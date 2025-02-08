@@ -40,7 +40,7 @@ public abstract class AbstractMessageDispatchThrottlingTest extends ProducerCons
         return result;
     }
 
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         AsyncTokenBucket.switchToConsistentTokensView();

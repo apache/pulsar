@@ -365,6 +365,9 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     protected void restartBroker() throws Exception {
         stopBroker();
         startBroker();
+        if (pulsarClient == null) {
+            pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+        }
     }
 
     protected void stopBroker() throws Exception {
