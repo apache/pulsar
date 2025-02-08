@@ -118,7 +118,8 @@ public class SubscribeRateLimiter {
         if (ratePerConsumer > 0) {
             AsyncTokenBucket tokenBucket =
                     AsyncTokenBucket.builder()
-                            .consistentTokensView(true)
+                            .consistentAddedTokens(true)
+                            .consistentConsumedTokens(true)
                             .clock(brokerService.getPulsar().getMonotonicSnapshotClock())
                             .rate(ratePerConsumer).ratePeriodNanos(ratePeriodNanos).build();
             this.subscribeRateLimiter.put(consumerIdentifier, tokenBucket);
