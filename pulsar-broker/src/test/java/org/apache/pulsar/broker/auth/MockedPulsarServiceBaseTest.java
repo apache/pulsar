@@ -170,18 +170,24 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected final void internalSetup() throws Exception {
         init();
-        lookupUrl = new URI(brokerUrl.toString());
-        if (isTcpLookup) {
-            lookupUrl = new URI(pulsar.getBrokerServiceUrl());
-
+        lookupUrl = resolveLookupUrl();
+        if (isTcpLookup && enableBrokerGateway) {
             // setup port forwarding from the advertised port to the listen port
-            if (enableBrokerGateway) {
-                InetSocketAddress gatewayAddress = new InetSocketAddress(lookupUrl.getHost(), lookupUrl.getPort());
-                InetSocketAddress brokerAddress = new InetSocketAddress("127.0.0.1", pulsar.getBrokerListenPort().get());
-                brokerGateway = new PortForwarder(gatewayAddress, brokerAddress);
-            }
+            InetSocketAddress gatewayAddress = new InetSocketAddress(lookupUrl.getHost(), lookupUrl.getPort());
+            InetSocketAddress brokerAddress = new InetSocketAddress("127.0.0.1", pulsar.getBrokerListenPort().get());
+            brokerGateway = new PortForwarder(gatewayAddress, brokerAddress);
         }
         pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+    }
+
+    private URI resolveLookupUrl() {
+        if (isTcpLookup) {
+            return URI.create(pulsar.getBrokerServiceUrl());
+        } else {
+            return URI.create(brokerUrl != null
+                    ? brokerUrl.toString()
+                    : brokerUrlTls.toString());
+        }
     }
 
     protected final void internalSetup(ServiceConfiguration serviceConfiguration) throws Exception {
@@ -228,11 +234,10 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected final void internalSetupForStatsTest() throws Exception {
         init();
-        String lookupUrl = brokerUrl.toString();
-        if (isTcpLookup) {
-            lookupUrl = new URI(pulsar.getBrokerServiceUrl()).toString();
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
         }
-        pulsarClient = newPulsarClient(lookupUrl, 1);
+        pulsarClient = newPulsarClient(resolveLookupUrl().toString(), 1);
     }
 
     protected void doInitConf() throws Exception {
@@ -360,6 +365,9 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     protected void restartBroker() throws Exception {
         stopBroker();
         startBroker();
+        if (pulsarClient == null) {
+            pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+        }
     }
 
     protected void stopBroker() throws Exception {
@@ -384,12 +392,16 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         brokerUrl = pulsar.getWebServiceAddress() != null ? new URL(pulsar.getWebServiceAddress()) : null;
         brokerUrlTls = pulsar.getWebServiceAddressTls() != null ? new URL(pulsar.getWebServiceAddressTls()) : null;
 
-        if (admin != null) {
-            admin.close();
-            if (MockUtil.isMock(admin)) {
-                Mockito.reset(admin);
+        URI newLookupUrl = resolveLookupUrl();
+        if (lookupUrl == null || !newLookupUrl.equals(lookupUrl)) {
+            lookupUrl = newLookupUrl;
+            if (pulsarClient != null) {
+                pulsarClient.shutdown();
+                pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
             }
         }
+
+        closeAdmin();
         PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(brokerUrl != null
                 ? brokerUrl.toString()
                 : brokerUrlTls.toString());
