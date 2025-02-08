@@ -60,6 +60,7 @@ import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 import org.roaringbitmap.RoaringBitmap;
 
@@ -105,6 +106,8 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     private CompletableFuture<Void> pendingLoad = null;
 
+    private final ConcurrentLongPairSet canceledMessages;
+
     public BucketDelayedDeliveryTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher,
                                         Timer timer, long tickTimeMillis,
                                         boolean isDelayedDeliveryDeliverAtTimeStrict,
@@ -137,6 +140,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                         bucketSnapshotStorage);
         this.stats = new BucketDelayedMessageIndexStats();
 
+        this.canceledMessages = ConcurrentLongPairSet.newBuilder().autoShrink(true).build();
         // Close the tracker if failed to recover.
         try {
             this.numberDelayedMessages = recoverBucketSnapshot();
@@ -206,8 +210,14 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 this.snapshotSegmentLastIndexTable.put(lastDelayedIndex.getLedgerId(),
                         lastDelayedIndex.getEntryId(), immutableBucket);
                 for (DelayedIndex index : indexList) {
-                    this.sharedBucketPriorityQueue.add(index.getTimestamp(), index.getLedgerId(),
-                            index.getEntryId());
+                    long ledgerId = index.getLedgerId();
+                    long entryId = index.getEntryId();
+                    if (index.hasDelayedOperationType()
+                            && index.getDelayedOperationType() == DelayedIndex.DelayedOperationType.CANCEL) {
+                        this.canceledMessages.add(ledgerId, entryId);
+                    } else if (!canceledMessages.contains(ledgerId, entryId)) {
+                        this.sharedBucketPriorityQueue.add(index.getTimestamp(), ledgerId, entryId);
+                    }
                 }
             }
         }
@@ -315,7 +325,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                         immutableBucket.asyncUpdateSnapshotLength();
                         log.info("[{}] Create bucket snapshot finish, bucketKey: {}", dispatcher.getName(),
                                 immutableBucket.bucketKey());
-
+                        lastMutableBucket.clearCanceledOperations();
                         stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.create,
                                 System.currentTimeMillis() - startTime);
 
@@ -610,6 +620,11 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
             long ledgerId = sharedBucketPriorityQueue.peekN2();
             long entryId = sharedBucketPriorityQueue.peekN3();
+            if (canceledMessages.contains(ledgerId, entryId)) {
+                sharedBucketPriorityQueue.pop();
+                removeIndexBit(ledgerId, entryId);
+                continue;
+            }
 
             ImmutableBucket bucket = snapshotSegmentLastIndexTable.get(ledgerId, entryId);
             if (bucket != null && immutableBuckets.asMapOfRanges().containsValue(bucket)) {
@@ -708,6 +723,39 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     @Override
     public boolean shouldPauseAllDeliveries() {
         return false;
+    }
+
+    public synchronized boolean applyDelayOperation(long ledgerId, long entryId, long deliverAt,
+                                                    DelayedOperationType opType) {
+        switch (opType) {
+            case DELAY -> {
+                return addMessage(ledgerId, entryId, deliverAt);
+            }
+            case CANCEL -> {
+                return doCancelOperation(ledgerId, entryId, deliverAt);
+            }
+            default -> {
+                return false;
+            }
+        }
+    }
+
+    private synchronized boolean doCancelOperation(long ledgerId, long entryId, long deliverAt) {
+        if (containsMessage(ledgerId, entryId)) {
+            removeIndexBit(ledgerId, entryId);
+            --numberDelayedMessages;
+            return true;
+        }
+
+        if (deliverAt < 0 || deliverAt <= getCutoffTime()) {
+            return false;
+        }
+
+        long cancelAheadTime = 2 * tickTimeMillis;
+        long cancelTime = Math.max(clock.millis(), deliverAt - cancelAheadTime);
+
+        lastMutableBucket.addMessage(ledgerId, entryId, cancelTime, DelayedOperationType.CANCEL);
+        return true;
     }
 
     @Override

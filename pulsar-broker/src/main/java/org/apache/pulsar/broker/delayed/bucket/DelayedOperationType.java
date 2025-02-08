@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,24 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-syntax = "proto2";
+package org.apache.pulsar.broker.delayed.bucket;
 
-package pulsar.delay;
-option java_package = "org.apache.pulsar.broker.delayed.proto";
-option optimize_for = SPEED;
-option java_multiple_files = true;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
-message DelayedIndex {
-    enum DelayedOperationType {
-        DELAY = 0;
-        CANCEL = 1;
+@InterfaceAudience.Public
+@InterfaceStability.Stable
+public enum DelayedOperationType {
+    DELAY(0),
+    CANCEL(1);
+
+    final int value;
+
+    DelayedOperationType(int value) {
+        this.value = value;
     }
-    required uint64 timestamp = 1;
-    required uint64 ledger_id = 2;
-    required uint64 entry_id = 3;
-    optional DelayedOperationType delayed_operation_type = 4 [default = DELAY];
-}
 
-message SnapshotSegment {
-    repeated DelayedIndex indexes = 1;
+    public int getValue() {
+        return this.value;
+    }
+
+    public static DelayedOperationType valueOf(int value) {
+        return switch (value) {
+            case 0 -> DELAY;
+            case 1 -> CANCEL;
+            default -> throw new IllegalArgumentException("Invalid value for DelayedOperationType: " + value);
+        };
+    }
 }

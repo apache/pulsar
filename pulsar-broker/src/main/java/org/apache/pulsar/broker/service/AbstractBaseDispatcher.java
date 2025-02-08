@@ -20,8 +20,6 @@ package org.apache.pulsar.broker.service;
 
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.andAckSet;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetEmpty;
-import static org.apache.pulsar.common.naming.Constants.DELAY_CANCELED_MESSAGE_POSITION;
-import static org.apache.pulsar.common.naming.Constants.IS_MARK_DELETE_DELAY_MESSAGE;
 import io.netty.buffer.ByteBuf;
 import io.prometheus.client.Gauge;
 import java.util.ArrayList;
@@ -30,7 +28,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
-import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -49,12 +46,10 @@ import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
-import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.pulsar.compaction.Compactor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -74,13 +69,10 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
     private final LongAdder filterRejectedMsgs = new LongAdder();
     private final LongAdder filterRescheduledMsgs = new LongAdder();
 
-    protected final ConcurrentLongLongPairHashMap delayedMessageMarkDeleteMap;
-
     protected AbstractBaseDispatcher(Subscription subscription, ServiceConfiguration serviceConfig) {
         super(subscription);
         this.serviceConfig = serviceConfig;
         this.dispatchThrottlingOnBatchMessageEnabled = serviceConfig.isDispatchThrottlingOnBatchMessageEnabled();
-        this.delayedMessageMarkDeleteMap = ConcurrentLongLongPairHashMap.newBuilder().autoShrink(true).build();
     }
 
 
@@ -229,47 +221,6 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 entries.set(i, null);
                 entry.release();
                 continue;
-            } else if (delayedMessageMarkDeleteMap.containsKey(entry.getLedgerId(), entry.getEntryId())) {
-                // The delayed message is marked for delete.
-                ConcurrentLongLongPairHashMap.LongPair markMessageId = delayedMessageMarkDeleteMap
-                        .get(entry.getLedgerId(), entry.getEntryId());
-                List<Position> deleteDelayedMessageList = new ArrayList<>();
-                deleteDelayedMessageList.add(entry.getPosition());
-                deleteDelayedMessageList.add(PositionFactory.create(markMessageId.first, markMessageId.second));
-
-                delayedMessageMarkDeleteMap.remove(entry.getLedgerId(), entry.getEntryId());
-                individualAcknowledgeMessageIfNeeded(deleteDelayedMessageList, Collections.emptyMap());
-                entries.set(i, null);
-                entry.release();
-                continue;
-            }
-
-            List<KeyValue> propertiesList = msgMetadata.getPropertiesList();
-            if (!propertiesList.isEmpty()) {
-                Map<String, String> propertiesMap = propertiesList.stream()
-                        .filter(p -> p.getKey().equals(DELAY_CANCELED_MESSAGE_POSITION)
-                                || p.getKey().equals(IS_MARK_DELETE_DELAY_MESSAGE))
-                        .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue,
-                                (oldValue, newValue) -> newValue));
-
-                if (propertiesMap.containsKey(IS_MARK_DELETE_DELAY_MESSAGE)) {
-                    if (propertiesMap.containsKey(DELAY_CANCELED_MESSAGE_POSITION)) {
-                        String[] data = propertiesMap.get(DELAY_CANCELED_MESSAGE_POSITION).split(":");
-                        long ledgerId = Long.parseLong(data[0]);
-                        long entryId = Long.parseLong(data[1]);
-                        delayedMessageMarkDeleteMap.put(ledgerId, entryId,
-                                entry.getLedgerId(), entry.getEntryId());
-                        entries.set(i, null);
-                        entry.release();
-                        continue;
-                    } else {
-                        individualAcknowledgeMessageIfNeeded(Collections.singletonList(entry.getPosition()),
-                                Collections.emptyMap());
-                        entries.set(i, null);
-                        entry.release();
-                        continue;
-                    }
-                }
             }
 
             if (hasFilter) {
