@@ -93,28 +93,28 @@ public class KafkaSourceTest extends PulsarFunctionsTestBase {
         sourceConfig = new HashMap<>();
     }
 
-    @BeforeClass
-    public void setupKafka() throws Exception {
-        startKafkaContainers(pulsarCluster);
-    }
-
-    @AfterClass
-    public void tearDownKafka() {
-        stopKafkaContainers();
-    }
-
     @Test(groups = "source")
     public void testAvro() throws Exception {
-        sourceConfig.put("valueDeserializationClass", KafkaAvroDeserializer.class.getName());
-        sourceConfig.put("topic", kafkaProtoTopicName);
-        testSource("avro");
+        startKafkaContainers(pulsarCluster);
+        try {
+            sourceConfig.put("valueDeserializationClass", KafkaAvroDeserializer.class.getName());
+            sourceConfig.put("topic", kafkaProtoTopicName);
+            testSource("avro");
+        } finally {
+            stopKafkaContainers();
+        }
     }
 
     @Test(groups = "source")
     public void testProtobuf() throws Exception {
-        sourceConfig.put("valueDeserializationClass", KafkaProtobufDeserializer.class.getName());
-        sourceConfig.put("topic", kafkaAvroTopicName);
-        testSource("proto");
+        startKafkaContainers(pulsarCluster);
+        try {
+            sourceConfig.put("valueDeserializationClass", KafkaProtobufDeserializer.class.getName());
+            sourceConfig.put("topic", kafkaAvroTopicName);
+            testSource("proto");
+        } finally {
+            stopKafkaContainers();
+        }
     }
 
     private String getBootstrapServersOnDockerNetwork() {
