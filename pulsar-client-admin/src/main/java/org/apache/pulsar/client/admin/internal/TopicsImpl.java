@@ -2636,13 +2636,13 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public void setReplicatedSubscriptionStatus(String topic, String subName, Boolean enabled)
+    public void setReplicatedSubscriptionStatus(String topic, String subName, boolean enabled)
             throws PulsarAdminException {
         sync(() -> setReplicatedSubscriptionStatusAsync(topic, subName, enabled));
     }
 
     @Override
-    public CompletableFuture<Void> setReplicatedSubscriptionStatusAsync(String topic, String subName, Boolean enabled) {
+    public CompletableFuture<Void> setReplicatedSubscriptionStatusAsync(String topic, String subName, boolean enabled) {
         TopicName topicName = validateTopic(topic);
         String encodedSubName = Codec.encode(subName);
         WebTarget path = topicPath(topicName, "subscription", encodedSubName, "replicatedSubscriptionStatus");

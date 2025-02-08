@@ -39,7 +39,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import lombok.Getter;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -125,8 +124,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     // Map of properties that is used to mark this subscription as "replicated".
     // Since this is the only field at this point, we can just keep a static
     // instance of the map.
-    private static final Map<String, Long> REPLICATED_SUBSCRIPTION_WITH_TRUE_CURSOR_PROPERTIES = new TreeMap<>();
-    private static final Map<String, Long> REPLICATED_SUBSCRIPTION_WITH_FALSE_CURSOR_PROPERTIES = new TreeMap<>();
+    private static final Map<String, Long> REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES = new TreeMap<>();
     private static final Map<String, Long> NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES = Collections.emptyMap();
 
     private volatile ReplicatedSubscriptionSnapshotCache replicatedSubscriptionSnapshotCache;
@@ -134,36 +132,19 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     private volatile Map<String, String> subscriptionProperties;
     private volatile CompletableFuture<Void> fenceFuture;
     private volatile CompletableFuture<Void> inProgressResetCursorFuture;
-    @Getter
-    private volatile Boolean replicatedControlled;
 
     static {
-        REPLICATED_SUBSCRIPTION_WITH_TRUE_CURSOR_PROPERTIES.put(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
-        REPLICATED_SUBSCRIPTION_WITH_FALSE_CURSOR_PROPERTIES.put(REPLICATED_SUBSCRIPTION_PROPERTY, 0L);
+        REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES.put(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
     }
 
     static Map<String, Long> getBaseCursorProperties(Boolean isReplicated) {
-        if (isReplicated == null) {
-            return NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES;
-        }
-        return isReplicated ? REPLICATED_SUBSCRIPTION_WITH_TRUE_CURSOR_PROPERTIES :
-                REPLICATED_SUBSCRIPTION_WITH_FALSE_CURSOR_PROPERTIES;
+        return isReplicated != null && isReplicated ? REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES :
+                NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES;
     }
 
-    /**
-     * When consumer replicateSubscriptionState or admin.topcis
-     * .setReplicatedSubscriptionStatus() is set, return the value from the cursor, otherwise return null.
-     */
-    protected static Boolean isCursorFromReplicatedSubscription(ManagedCursor cursor) {
-        return getReplicatedSubscriptionConfiguration(cursor).orElse(null);
-    }
-
-    protected static Optional<Boolean> getReplicatedSubscriptionConfiguration(ManagedCursor cursor) {
+    public static boolean isCursorFromReplicatedSubscription(ManagedCursor cursor) {
         Long v = cursor.getProperties().get(REPLICATED_SUBSCRIPTION_PROPERTY);
-        if (v == null || (v < 0L || v > 1L)) {
-            return Optional.empty();
-        }
-        return Optional.of(v == 1L);
+        return v != null && v == 1L;
     }
 
     public PersistentSubscription(PersistentTopic topic, String subscriptionName, ManagedCursor cursor,
@@ -179,9 +160,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         this.subName = subscriptionName;
         this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor, this);
-        if (replicated != null) {
-            this.setReplicated(replicated);
-        }
+        this.setReplicated(replicated);
         this.subscriptionProperties = MapUtils.isEmpty(subscriptionProperties)
                 ? Collections.emptyMap() : Collections.unmodifiableMap(subscriptionProperties);
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
@@ -220,14 +199,18 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     }
 
     public boolean setReplicated(Boolean replicated) {
-        replicatedControlled = replicated;
         return setReplicated(replicated, true);
     }
 
-    public boolean setReplicated(Boolean replicated, boolean isPersistent) {
+    protected boolean setReplicated(Boolean replicated, boolean isPersistent) {
         ServiceConfiguration config = topic.getBrokerService().getPulsar().getConfig();
+        if (!config.isEnableReplicatedSubscriptions()) {
+            log.warn("[{}][{}] Failed set replicated subscription status to {}, please enable the "
+                    + "configuration enableReplicatedSubscriptions", topicName, subName, replicated);
+            return false;
+        }
 
-        if (replicated == null || !replicated || !config.isEnableReplicatedSubscriptions()) {
+        if (replicated == null || !replicated) {
             this.replicatedSubscriptionSnapshotCache = null;
         } else if (this.replicatedSubscriptionSnapshotCache == null) {
             this.replicatedSubscriptionSnapshotCache = new ReplicatedSubscriptionSnapshotCache(subName,
@@ -241,15 +224,8 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         if (this.cursor == null) {
             return false;
         }
-
-        if (!config.isEnableReplicatedSubscriptions()) {
-            log.warn("[{}][{}] Failed set replicated subscription status to {}, please enable the "
-                    + "configuration enableReplicatedSubscriptions", topicName, subName, replicated);
-            return false;
-        }
-
-        if (replicated != null) {
-            return this.cursor.putProperty(REPLICATED_SUBSCRIPTION_PROPERTY, Boolean.TRUE.equals(replicated) ? 1L : 0L);
+        if (replicated != null && replicated) {
+            return this.cursor.putProperty(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
         } else {
             return this.cursor.removeProperty(REPLICATED_SUBSCRIPTION_PROPERTY);
         }
@@ -1471,9 +1447,4 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);
-
-    @VisibleForTesting
-    public Boolean getReplicatedControlled() {
-        return replicatedControlled;
-    }
 }

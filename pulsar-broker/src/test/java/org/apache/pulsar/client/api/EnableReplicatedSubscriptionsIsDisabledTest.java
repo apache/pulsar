@@ -19,7 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import java.util.Optional;
@@ -28,7 +28,6 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.common.naming.TopicName;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -74,9 +73,7 @@ public class EnableReplicatedSubscriptionsIsDisabledTest extends ProducerConsume
                     Topic topicRef = optionalTopic.get();
                     Subscription subscription = topicRef.getSubscription(subName);
                     assertNotNull(subscription);
-                    assertTrue(subscription instanceof PersistentSubscription);
-                    PersistentSubscription persistentSubscription = (PersistentSubscription) subscription;
-                    assertEquals(persistentSubscription.getReplicatedControlled(), Boolean.FALSE);
+                    assertFalse(subscription.isReplicated());
                     return true;
                 });
     }

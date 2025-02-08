@@ -142,10 +142,6 @@ public class ReplicateSubscriptionStateTest extends PulsarCliTestSuite {
             assertEquals(r.getExitCode(), 0);
             assertEquals(r.getStdout().trim(), "null");
         });
-
-        result = pulsarCluster.runAdminCommandOnAnyBroker("topics",
-                "remove-replicated-subscription-status", "-s", subName, topicNameString);
-        assertEquals(result.getExitCode(), 0);
     }
 
     @Test

@@ -294,34 +294,22 @@ public class PersistentSubscriptionTest {
         assertThat(properties).containsEntry(PersistentSubscription.REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
         ManagedCursor cursor = mock(ManagedCursor.class);
         doReturn(properties).when(cursor).getProperties();
-        Optional<Boolean> replicatedSubscriptionConfiguration =
-                PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
-        assertThat(replicatedSubscriptionConfiguration).isNotEmpty().get().isEqualTo(Boolean.TRUE);
+        assertThat(PersistentSubscription.isCursorFromReplicatedSubscription(cursor)).isTrue();
 
         properties = new HashMap<>();
         properties.put(PersistentSubscription.REPLICATED_SUBSCRIPTION_PROPERTY, 10L);
         doReturn(properties).when(cursor).getProperties();
-        replicatedSubscriptionConfiguration =
-                PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
-        assertThat(replicatedSubscriptionConfiguration).isEmpty();
+        assertThat(PersistentSubscription.isCursorFromReplicatedSubscription(cursor)).isFalse();
+
         properties = new HashMap<>();
         properties.put(PersistentSubscription.REPLICATED_SUBSCRIPTION_PROPERTY, -1L);
         doReturn(properties).when(cursor).getProperties();
-        replicatedSubscriptionConfiguration =
-                PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
-        assertThat(replicatedSubscriptionConfiguration).isEmpty();
+        assertThat(PersistentSubscription.isCursorFromReplicatedSubscription(cursor)).isFalse();
 
         properties = PersistentSubscription.getBaseCursorProperties(false);
-        assertThat(properties).containsEntry(PersistentSubscription.REPLICATED_SUBSCRIPTION_PROPERTY, 0L);
-        doReturn(properties).when(cursor).getProperties();
-        replicatedSubscriptionConfiguration =
-                PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
-        assertThat(replicatedSubscriptionConfiguration).isNotEmpty().get().isEqualTo(Boolean.FALSE);
+        assertThat(properties).doesNotContainKey(PersistentSubscription.REPLICATED_SUBSCRIPTION_PROPERTY);
 
         properties = PersistentSubscription.getBaseCursorProperties(null);
-        doReturn(properties).when(cursor).getProperties();
-        replicatedSubscriptionConfiguration =
-                PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
-        assertThat(replicatedSubscriptionConfiguration).isEmpty();
+        assertThat(properties).doesNotContainKey(PersistentSubscription.REPLICATED_SUBSCRIPTION_PROPERTY);
     }
 }
