@@ -18,9 +18,6 @@
  */
 package org.apache.pulsar.io.kafka;
 
-import static io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_CONFIG;
-import static io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_DEFAULT;
-import static io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG;
 import io.confluent.kafka.schemaregistry.SchemaProvider;
 import io.confluent.kafka.schemaregistry.avro.AvroSchemaProvider;
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
@@ -28,6 +25,7 @@ import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.protobuf.MessageIndexes;
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchemaProvider;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
+import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig;
 import io.confluent.kafka.serializers.protobuf.KafkaProtobufDeserializer;
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -116,16 +114,9 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
     }
 
     private void initSchemaCache(Properties props) {
-        String urls = props.getProperty(SCHEMA_REGISTRY_URL_CONFIG);
-        int maxSchemaObject = MAX_SCHEMAS_PER_SUBJECT_DEFAULT;
-        String maxSchema = props.getProperty(MAX_SCHEMAS_PER_SUBJECT_CONFIG);
-        if (maxSchema != null) {
-            try {
-                maxSchemaObject = Integer.parseInt(maxSchema);
-            } catch (NumberFormatException e) {
-                log.warn("Invalid value for maxSchemasPerSubject, using default value: {}", maxSchemaObject);
-            }
-        }
+        KafkaAvroDeserializerConfig config = new KafkaAvroDeserializerConfig(props);
+        List<String> urls = config.getSchemaRegistryUrls();
+        int maxSchemaObject = config.getMaxSchemasPerSubject();
 
         List<SchemaProvider> providers = List.of(
                 new AvroSchemaProvider(),
