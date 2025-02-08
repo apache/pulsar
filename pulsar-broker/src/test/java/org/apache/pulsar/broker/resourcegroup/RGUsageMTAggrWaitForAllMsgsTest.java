@@ -25,6 +25,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCount;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.ResourceGroupMonitoringClass;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroupService.ResourceGroupUsageStatsType;
@@ -58,9 +59,10 @@ import org.testng.annotations.Test;
 @Slf4j
 @Test(groups = "flaky")
 public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
+        AsyncTokenBucket.switchToConsistentTokensView();
         super.internalSetup();
         this.prepareForOps();
 
@@ -91,6 +93,7 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+        AsyncTokenBucket.resetToDefaultEventualConsistentTokensView();
     }
 
     @Test
