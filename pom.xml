@@ -133,6 +133,7 @@ flexible messaging model and an intuitive client API.</description>
     <docker.tag>latest</docker.tag>
     <skipSourceReleaseAssembly>false</skipSourceReleaseAssembly>
     <skipBuildDistribution>false</skipBuildDistribution>
+    <skipDeployConnector>false</skipDeployConnector>
     <shadePluginPhase>package</shadePluginPhase>
     <narPluginPhase>package</narPluginPhase>
 
