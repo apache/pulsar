@@ -20,6 +20,8 @@ package org.apache.pulsar.tests.integration.io.sources;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.Gson;
+import io.confluent.kafka.serializers.KafkaAvroDeserializer;
+import io.confluent.kafka.serializers.protobuf.KafkaProtobufDeserializer;
 import lombok.Cleanup;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +49,8 @@ import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.images.builder.Transferable;
 import org.testcontainers.utility.DockerImageName;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -62,20 +66,21 @@ import org.apache.pulsar.common.policies.data.SourceStatus;
 import static org.testng.Assert.*;
 
 /**
- * A tester for testing kafka source with Avro Messages.
+ * A tester for testing kafka source with Avro/Protobuf Messages.
  * This test starts a PulsarCluster, a container with a Kafka Broker
  * and a container with the SchemaRegistry.
- * It populates a Kafka topic with Avro encoded messages with schema
+ * It populates a Kafka topic with Avro/Protobuf encoded messages with schema
  * and then it verifies that the records are correclty received
  * but a Pulsar Consumer
  */
 @Slf4j
-public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
+public class KafkaSourceTest extends PulsarFunctionsTestBase {
     public static final String CONFLUENT_PLATFORM_VERSION = System.getProperty("confluent.version", "6.2.8");
 
     private static final String SOURCE_TYPE = "kafka";
 
-    private final String kafkaTopicName = "kafkasourcetopic";
+    private final String kafkaAvroTopicName = "kafkaavrosourcetopic";
+    private final String kafkaProtoTopicName = "kafkaprotosourcetopic";
 
     private EnhancedKafkaContainer kafkaContainer;
     private SchemaRegistryContainer schemaRegistryContainer;
@@ -84,15 +89,37 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
     protected final String kafkaContainerName = "kafkacontainer";
     protected final String schemaRegistryContainerName = "schemaregistry";
 
-    public AvroKafkaSourceTest() {
+    public KafkaSourceTest() {
         sourceConfig = new HashMap<>();
     }
 
-    @Test(groups = "source")
-    public void test() throws Exception {
+    @BeforeClass
+    public void setupKafka() throws Exception {
         startKafkaContainers(pulsarCluster);
+    }
+
+    @AfterClass
+    public void tearDownKafka() {
+        stopKafkaContainers();
+    }
+
+    @Test(groups = "source")
+    public void testAvro() throws Exception {
         try {
-            testSource();
+            sourceConfig.put("valueDeserializationClass", KafkaAvroDeserializer.class.getName());
+            sourceConfig.put("topic", kafkaProtoTopicName);
+            testSource("avro");
+        } finally {
+            stopKafkaContainers();
+        }
+    }
+
+    @Test(groups = "source")
+    public void testProtobuf() throws Exception {
+        try {
+            sourceConfig.put("valueDeserializationClass", KafkaProtobufDeserializer.class.getName());
+            sourceConfig.put("topic", kafkaAvroTopicName);
+            testSource("proto");
         } finally {
             stopKafkaContainers();
         }
@@ -115,8 +142,6 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         sourceConfig.put("autoCommitIntervalMs", 10L);
         sourceConfig.put("sessionTimeoutMs", 10000L);
         sourceConfig.put("heartbeatIntervalMs", 5000L);
-        sourceConfig.put("topic", kafkaTopicName);
-        sourceConfig.put("valueDeserializationClass", "io.confluent.kafka.serializers.KafkaAvroDeserializer");
         sourceConfig.put("consumerConfigProperties",
                 ImmutableMap.of("schema.registry.url", getRegistryAddressInDockerNetwork())
         );
@@ -157,19 +182,19 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         }
     }
 
-    public void prepareSource() throws Exception {
+    public void prepareSource(String kafkaTopic) throws Exception {
         log.info("creating topic");
         ExecResult execResult = kafkaContainer.execInContainer(
             "/usr/bin/kafka-topics",
             "--create",
             "--zookeeper",
-                getZooKeeperAddressInDockerNetwork(),
+            getZooKeeperAddressInDockerNetwork(),
             "--partitions",
             "1",
             "--replication-factor",
             "1",
             "--topic",
-            kafkaTopicName);
+            kafkaTopic);
         assertTrue(
             execResult.getStdout().contains("Created topic"),
             execResult.getStdout());
@@ -180,13 +205,13 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         return kafkaContainerName +":2181";
     }
 
-    private void testSource()  throws Exception {
+    private void testSource(String type)  throws Exception {
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String outputTopicName = "test-source-connector-"
-                + functionRuntimeType + "-output-topic-" + randomName(8);
+                + functionRuntimeType + "-output-topic-" + type + randomName(8);
         final String sourceName = "test-source-connector-"
-                + functionRuntimeType + "-name-" + randomName(8);
+                + functionRuntimeType + "-name-" + type + randomName(8);
         final int numMessages = 10;
 
         @Cleanup
@@ -204,8 +229,13 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
                 .subscriptionName("sourcetester")
                 .subscribe();
 
+        String kafkaTopic = kafkaAvroTopicName;
+        if (type.equals("proto")) {
+            kafkaTopic = kafkaProtoTopicName;
+        }
+
         // prepare the testing environment for source
-        prepareSource();
+        prepareSource(kafkaTopic);
 
         // submit the source connector
         submitSourceConnector(tenant, namespace, sourceName, outputTopicName);
@@ -226,8 +256,23 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
                         return false;
                     }
                 });
+
+        if (type.equals("avro")) {
+            testAvroSource(numMessages, kafkaTopic, tenant, namespace, sourceName, consumer);
+        } else {
+            testProtoSource(numMessages, kafkaTopic, tenant, namespace, sourceName, consumer);
+        }
+
+        // delete the source
+        deleteSource(tenant, namespace, sourceName);
+
+        // get source info (source should be deleted)
+        getSourceInfoNotFound(tenant, namespace, sourceName);
+    }
+
+    private void testAvroSource(int numMessages, String kafkaTopic, String tenant, String namespace, String sourceName, Consumer<GenericRecord> consumer) throws Exception {
         // produce messages
-        List<MyBean> messages = produceSourceMessages(numMessages);
+        List<MyBean> messages = produceAvroMessages(numMessages, kafkaTopic);
 
         // wait for source to process messages
         Awaitility.with()
@@ -244,13 +289,29 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
                 });
 
         // validate the source result
-       validateSourceResultAvro(consumer, messages);
+        validateSourceResultAvro(consumer, messages);
+    }
 
-        // delete the source
-        deleteSource(tenant, namespace, sourceName);
+    private void testProtoSource(int numMessages, String kafkaTopic, String tenant, String namespace, String sourceName, Consumer<GenericRecord> consumer) throws Exception {
+        // produce messages
+        produceProtoMessages(numMessages, kafkaTopic);
 
-        // get source info (source should be deleted)
-        getSourceInfoNotFound(tenant, namespace, sourceName);
+        // wait for source to process messages
+        Awaitility.with()
+                .timeout(Duration.ofMinutes(1))
+                .pollInterval(Duration.ofSeconds(10))
+                .until(() -> {
+                    try {
+                        waitForProcessingSourceMessages(tenant, namespace, sourceName, numMessages);
+                        return true;
+                    } catch (Throwable ex) {
+                        log.error("Error while processing source messages, will retry", ex);
+                        return false;
+                    }
+                });
+
+        // validate the source result
+        validateSourceResultProto(consumer, numMessages);
     }
 
     public void validateSourceResultAvro(Consumer<GenericRecord> consumer,
@@ -271,6 +332,28 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         }
 
         Assert.assertEquals(recordsNumber, beans.size());
+        log.info("Stop {} server container. topic: {} has {} records.", kafkaContainerName, consumer.getTopic(), recordsNumber);
+    }
+
+    public void validateSourceResultProto(Consumer<GenericRecord> consumer,
+                                          int numMessages) throws Exception {
+        int recordsNumber = 0;
+        Message<GenericRecord> msg = consumer.receive(numMessages, TimeUnit.SECONDS);
+        while (msg != null) {
+            GenericRecord valueRecord = msg.getValue();
+            Assert.assertNotNull(valueRecord.getFields());
+            Assert.assertTrue(valueRecord.getFields().size() > 0);
+            for (Field field : valueRecord.getFields()) {
+                log.info("field {} value {}", field, valueRecord.getField(field));
+            }
+            assertEquals("pulsar_"+recordsNumber, valueRecord.getField("name"));
+            assertEquals(recordsNumber, valueRecord.getField("number"));
+            consumer.acknowledge(msg);
+            recordsNumber++;
+            msg = consumer.receive(10, TimeUnit.SECONDS);
+        }
+
+        Assert.assertEquals(recordsNumber, numMessages);
         log.info("Stop {} server container. topic: {} has {} records.", kafkaContainerName, consumer.getTopic(), recordsNumber);
     }
 
@@ -350,7 +433,7 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         private String field;
     }
 
-    public List<MyBean> produceSourceMessages(int numMessages) throws Exception{
+    public List<MyBean> produceAvroMessages(int numMessages, String topic) throws Exception{
         org.apache.avro.Schema schema = ReflectData.get().getSchema(MyBean.class);
         String schemaDef = schema.toString(false);
         log.info("schema {}", schemaDef);
@@ -378,25 +461,73 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
                 "--broker-list " + getBootstrapServersOnDockerNetwork() + " " +
                 "--property 'value.schema=" + schemaDef + "' " +
                 "--property schema.registry.url="+ getRegistryAddressInDockerNetwork() +" " +
-                "--topic "+kafkaTopicName;
+                "--topic "+ topic;
         String file = "/home/appuser/produceRecords.sh";
 
         schemaRegistryContainer.copyFileToContainer(Transferable
                         .of(bashFileTemplate.getBytes(StandardCharsets.UTF_8), 0777), file);
 
         ExecResult cat = schemaRegistryContainer.execInContainer("cat", file);
-        log.info("cat results: "+cat.getStdout());
-        log.info("cat stderr: "+cat.getStderr());
+        log.info("cat results: {}", cat.getStdout());
+        log.info("cat stderr: {}", cat.getStderr());
 
         ExecResult execResult = schemaRegistryContainer.execInContainer("/bin/bash", file);
 
-        log.info("script results: "+execResult.getStdout());
-        log.info("script stderr: "+execResult.getStderr());
+        log.info("script results: {}", execResult.getStdout());
+        log.info("script stderr: {}", execResult.getStderr());
         assertTrue(execResult.getStdout().contains("Closing the Kafka producer"), execResult.getStdout()+" "+execResult.getStderr());
         assertTrue(execResult.getStderr().isEmpty(), execResult.getStderr());
 
-        log.info("Successfully produced {} messages to kafka topic {}", numMessages, kafkaTopicName);
+        log.info("Successfully produced {} messages to kafka topic {}", numMessages, topic);
         return written;
+    }
+
+    public void produceProtoMessages(int numMessages, String topic) throws Exception{
+        String schemaDef = "syntax = \"proto3\";\n"
+                + "package com.example;\n"
+                + "\n"
+                + "message MyMessage {\n"
+                + "  string name = 1;\n"
+                + "  int32 number = 2;\n"
+                + "}";
+
+        StringBuilder payload = new StringBuilder();
+        for (int i = 0; i < numMessages; i++) {
+            String serialized = String.format("{\"name\":\"%s\",\"number\":%d}", "pulsar_" + i, i);
+            payload.append(serialized);
+            if (i != numMessages - 1) {
+                // do not add a newline in the end of the file
+                payload.append("\n");
+            }
+        }
+
+        // write messages to Kafka using kafka-protobuf-console-producer
+        // we are writing the serialized values to the stdin of kafka-avro-console-producer
+        // the only way to do it with TestContainers is actually to create a bash script
+        // and execute it
+        String bashFileTemplate = "echo '"+payload+"' " +
+                "| /usr/bin/kafka-protobuf-console-producer " +
+                "--broker-list " + getBootstrapServersOnDockerNetwork() + " " +
+                "--property 'value.schema=" + schemaDef + "' " +
+                "--property schema.registry.url="+ getRegistryAddressInDockerNetwork() +" " +
+                "--topic "+ topic;
+        String file = "/home/appuser/produceRecords.sh";
+
+        schemaRegistryContainer.copyFileToContainer(Transferable
+                .of(bashFileTemplate.getBytes(StandardCharsets.UTF_8), 0777), file);
+
+        ExecResult cat = schemaRegistryContainer.execInContainer("cat", file);
+        log.info("cat results: {}", cat.getStdout());
+        log.info("cat stderr: {}", cat.getStderr());
+
+        ExecResult execResult = schemaRegistryContainer.execInContainer("/bin/bash", file);
+
+        log.info("script results: {}", execResult.getStdout());
+        log.info("script stderr: {}", execResult.getStderr());
+        assertTrue(execResult.getStdout().contains("Closing the Kafka producer"), execResult.getStdout()+" "+execResult.getStderr());
+        assertTrue(execResult.getStderr().isEmpty(), execResult.getStderr());
+
+        log.info("Successfully produced {} messages to kafka topic {}", numMessages, topic);
     }
 
     private static String serializeBeanUsingAvro(org.apache.avro.Schema schema, MyBean bean) throws IOException {
