@@ -60,7 +60,8 @@ import org.apache.pulsar.io.core.annotations.IOType;
 /**
  *  Kafka Source that transfers the data from Kafka to Pulsar and sets the Schema type properly.
  *  We use the key and the value deserializer in order to decide the type of Schema to be set on the topic on Pulsar.
- *  In case of KafkaAvroDeserializer and KafkaProtobufDeserializer we use the Schema Registry to download the schema and apply it to the topic.
+ *  In case of KafkaAvroDeserializer and KafkaProtobufDeserializer we use the Schema Registry to download the schema
+ *  and apply it to the topic.
  *  Please refer to {@link #getSchemaFromDeserializerAndAdaptConfiguration(String, Properties, boolean)} for the list
  *  of supported Deserializers.
  *  If you set StringDeserializer for the key then we use the raw key as key for the Pulsar message.
@@ -310,7 +311,8 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
         }
 
         static final DeferredSchemaPlaceholder INSTANCE = new DeferredSchemaPlaceholder(SchemaType.AVRO);
-        static final DeferredSchemaPlaceholder PROTOBUF_INSTANCE = new DeferredSchemaPlaceholder(SchemaType.PROTOBUF_NATIVE);
+        static final DeferredSchemaPlaceholder PROTOBUF_INSTANCE =
+                new DeferredSchemaPlaceholder(SchemaType.PROTOBUF_NATIVE);
     }
 
 }
