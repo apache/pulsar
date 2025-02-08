@@ -20,11 +20,11 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
-import io.netty.channel.EventLoopGroup;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.apache.pulsar.broker.qos.MonotonicSnapshotClock;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -32,6 +32,7 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscUnboundedArrayQueue;
 
+@Slf4j
 public class PublishRateLimiterImpl implements PublishRateLimiter {
     private volatile AsyncTokenBucket tokenBucketOnMessage;
     private volatile AsyncTokenBucket tokenBucketOnByte;
@@ -80,7 +81,7 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
         // schedule unthrottling when the throttling count is incremented to 1
         // this is to avoid scheduling unthrottling multiple times for concurrent producers
         if (throttledProducersCount.incrementAndGet() == 1) {
-            EventLoopGroup executor = producer.getCnx().getBrokerService().executor();
+            ScheduledExecutorService executor = producer.getCnx().getBrokerService().executor().next();
             scheduleUnthrottling(executor, calculateThrottlingDurationNanos());
         }
     }
@@ -134,7 +135,11 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
             // unthrottle as many producers as possible while there are token available
             while ((throttlingDuration = calculateThrottlingDurationNanos()) == 0L
                     && (producer = unthrottlingQueue.poll()) != null) {
-                producer.decrementThrottleCount();
+                try {
+                    producer.decrementThrottleCount();
+                } catch (Exception e) {
+                    log.error("Failed to unthrottle producer {}", producer, e);
+                }
                 throttledProducersCount.decrementAndGet();
             }
             // if there are still producers to be unthrottled, schedule unthrottling again
