@@ -63,6 +63,7 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
     private transient KeyRefresher keyRefresher = null;
     private transient ZTSClient ztsClient = null;
     private String ztsUrl = null;
+    private String ztsProxyUrl = null;
     private String tenantDomain;
     private String tenantService;
     private String providerDomain;
@@ -193,6 +194,9 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
         if (isNotBlank(authParams.get("ztsUrl"))) {
             this.ztsUrl = authParams.get("ztsUrl");
         }
+        if (isNotBlank(authParams.get("ztsProxyUrl"))) {
+            this.ztsProxyUrl = authParams.get("ztsProxyUrl");
+        }
     }
 
     @Override
@@ -219,11 +223,11 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
                 }
                 final SSLContext sslContext = Utils.buildSSLContext(keyRefresher.getKeyManagerProxy(),
                         keyRefresher.getTrustManagerProxy());
-                ztsClient = new ZTSClient(ztsUrl, sslContext);
+                ztsClient = new ZTSClient(ztsUrl, ztsProxyUrl, sslContext);
             } else {
                 ServiceIdentityProvider siaProvider = new SimpleServiceIdentityProvider(tenantDomain, tenantService,
                         privateKey, keyId);
-                ztsClient = new ZTSClient(ztsUrl, tenantDomain, tenantService, siaProvider);
+                ztsClient = new ZTSClient(ztsUrl, ztsProxyUrl, tenantDomain, tenantService, siaProvider);
             }
             ztsClient.setPrefetchAutoEnable(this.autoPrefetchEnabled);
         }
