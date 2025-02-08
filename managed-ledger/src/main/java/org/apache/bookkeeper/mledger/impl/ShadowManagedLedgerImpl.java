@@ -240,7 +240,6 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
             log.debug("[{}] Add entry into shadow ledger lh={} entries={}, pos=({},{})",
                     name, currentLedger.getId(), currentLedgerEntries, position.getLedgerId(), position.getEntryId());
         }
-        pendingAddEntries.add(addOperation);
         if (position.getLedgerId() <= currentLedger.getId()) {
             // Write into lastLedger
             if (position.getLedgerId() == currentLedger.getId()) {
