@@ -441,14 +441,15 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     // a consumer was found for the sticky key hash and the entry can be dispatched
                     if (permits.intValue() > 0) {
                         boolean canDispatchEntry = canDispatchEntry(consumer, entry, readType, stickyKeyHash);
-                        if (!canDispatchEntry) {
-                            if (blockedByHash != null) {
-                                blockedByHash.setTrue();
-                            }
+                        if (canDispatchEntry) {
                             // decrement the permits for the consumer
                             permits.decrement();
                             // allow the entry to be dispatched
                             dispatchEntry = true;
+                        } else {
+                            if (blockedByHash != null) {
+                                blockedByHash.setTrue();
+                            }
                         }
                     }
                 }
