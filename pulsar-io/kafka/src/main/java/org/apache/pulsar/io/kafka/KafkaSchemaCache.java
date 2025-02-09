@@ -35,7 +35,6 @@ import java.util.concurrent.ExecutionException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.ProtobufNativeSchemaUtils;
-import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -82,7 +81,7 @@ final class KafkaSchemaCache {
                     break;
                 case PROTOBUF_NATIVE:
                     Descriptors.Descriptor descriptor = ((ProtobufSchema) schema).toDescriptor();
-                    schemaInfo = SchemaInfoImpl.builder()
+                    schemaInfo = SchemaInfo.builder()
                             .schema(ProtobufNativeSchemaUtils.serialize(descriptor))
                             .type(SchemaType.PROTOBUF_NATIVE)
                             .properties(Collections.emptyMap())
