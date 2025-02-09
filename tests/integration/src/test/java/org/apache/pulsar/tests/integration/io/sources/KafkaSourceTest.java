@@ -286,6 +286,11 @@ public class KafkaSourceTest extends PulsarFunctionsTestBase {
         // produce messages
         produceProtoMessages(numMessages, kafkaTopic);
 
+        Thread.sleep(5000);
+
+        // Print source logs
+        pulsarCluster.dumpFunctionLogs(sourceName);
+
         // wait for source to process messages
         Awaitility.with()
                 .timeout(Duration.ofMinutes(1))
