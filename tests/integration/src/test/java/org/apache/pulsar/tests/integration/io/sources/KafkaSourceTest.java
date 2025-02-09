@@ -96,7 +96,7 @@ public class KafkaSourceTest extends PulsarFunctionsTestBase {
         startKafkaContainers(pulsarCluster);
         try {
             sourceConfig.put("valueDeserializationClass", KafkaAvroDeserializer.class.getName());
-            sourceConfig.put("topic", kafkaProtoTopicName);
+            sourceConfig.put("topic", kafkaAvroTopicName);
             testSource("avro");
         } finally {
             stopKafkaContainers();
@@ -108,7 +108,7 @@ public class KafkaSourceTest extends PulsarFunctionsTestBase {
         startKafkaContainers(pulsarCluster);
         try {
             sourceConfig.put("valueDeserializationClass", KafkaProtobufDeserializer.class.getName());
-            sourceConfig.put("topic", kafkaAvroTopicName);
+            sourceConfig.put("topic", kafkaProtoTopicName);
             testSource("proto");
         } finally {
             stopKafkaContainers();
