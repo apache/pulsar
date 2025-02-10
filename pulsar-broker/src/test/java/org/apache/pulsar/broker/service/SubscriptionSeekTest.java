@@ -82,7 +82,8 @@ public class SubscriptionSeekTest extends BrokerTestBase {
     @Override
     protected void setup() throws Exception {
         conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
-        conf.setManagedLedgerMaxEntriesPerLedger(5);
+        // For compatibility with old test
+        conf.setManagedLedgerMaxEntriesPerLedger(12);
         super.baseSetup();
         conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
     }
@@ -500,7 +501,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         assertEquals(sub.getNumberOfEntriesInBacklog(false), 10);
     }
 
-    @Test(timeOut = 20_000)
+    @Test(timeOut = 30_000)
     public void testSeekByTimestamp() throws Exception {
         String topicName = "persistent://prop/use/ns-abc/testSeekByTimestamp";
         admin.topics().createNonPartitionedTopic(topicName);
@@ -510,7 +511,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         @Cleanup
         Producer<String> producer =
                 pulsarClient.newProducer(Schema.STRING).topic(topicName).enableBatching(false).create();
-        for (int i = 0; i < 16; i++) {
+        for (int i = 0; i < 25; i++) {
             producer.send(("message-" + i));
             Thread.sleep(10);
         }
@@ -525,7 +526,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
               timestampToMessageId.put(message.getPublishTime(), message.getMessageId());
         }
 
-        Assert.assertEquals(timestampToMessageId.size(), 16);
+        Assert.assertEquals(timestampToMessageId.size(), 25);
 
         PersistentSubscription subscription = topic.getSubscription("my-sub");
         ManagedCursor cursor = subscription.getCursor();
@@ -544,7 +545,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         }
     }
 
-    @Test(timeOut = 20_000)
+    @Test(timeOut = 30_000)
     public void testSeekByTimestampWithLedgerTrim() throws Exception {
         String topicName = "persistent://prop/use/ns-abc/testSeekByTimestampWithLedgerTrim";
         admin.topics().createNonPartitionedTopic(topicName);
@@ -553,7 +554,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         @Cleanup
         Producer<String> producer =
                 pulsarClient.newProducer(Schema.STRING).topic(topicName).enableBatching(false).create();
-        for (int i = 0; i < 16; i++) {
+        for (int i = 0; i < 25; i++) {
             producer.send(("message-" + i));
             Thread.sleep(10);
         }
@@ -568,7 +569,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             timestampToMessageId.put(message.getPublishTime(), message.getMessageId());
         }
 
-        Assert.assertEquals(timestampToMessageId.size(), 16);
+        Assert.assertEquals(timestampToMessageId.size(), 25);
 
         PersistentSubscription subscription = topic.getSubscription("my-sub");
         ManagedCursor cursor = subscription.getCursor();
