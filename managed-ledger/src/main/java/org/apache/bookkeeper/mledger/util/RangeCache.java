@@ -356,7 +356,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
         RemovalCounters counters = RemovalCounters.create();
         Map<Key, EntryWrapper<Key, Value>> subMap = entries.subMap(first, true, last, lastInclusive);
         for (Map.Entry<Key, EntryWrapper<Key, Value>> entry : subMap.entrySet()) {
-            removeEntry(entry, counters, true);
+            removeEntry(entry, counters);
         }
         return handleRemovalResult(counters);
     }
@@ -367,63 +367,40 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
         BREAK_LOOP;
     }
 
-    private RemoveEntryResult removeEntry(Map.Entry<Key, EntryWrapper<Key, Value>> entry, RemovalCounters counters,
-                                          boolean skipInvalid) {
-        return removeEntry(entry, counters, skipInvalid, x -> true);
+    private RemoveEntryResult removeEntry(Map.Entry<Key, EntryWrapper<Key, Value>> entry, RemovalCounters counters) {
+        return removeEntry(entry, counters, x -> true);
     }
 
     private RemoveEntryResult removeEntry(Map.Entry<Key, EntryWrapper<Key, Value>> entry, RemovalCounters counters,
-                                          boolean skipInvalid, Predicate<Value> removeCondition) {
+                                          Predicate<Value> removeCondition) {
         Key key = entry.getKey();
         EntryWrapper<Key, Value> entryWrapper = entry.getValue();
         Value value = getValueMatchingEntry(entry);
         if (value == null) {
-            // the wrapper has already been recycled and contains another key
-            if (!skipInvalid) {
-                EntryWrapper<Key, Value> removed = entries.remove(key);
-                if (removed != null) {
-                    // log and remove the entry without releasing the value
-                    log.info("Key {} does not match the entry's value wrapper's key {}, removed entry by key without "
-                            + "releasing the value", key, entryWrapper.getKey());
-                    counters.entryRemoved(removed.getSize());
-                    return RemoveEntryResult.ENTRY_REMOVED;
-                }
-            }
+            // the wrapper has already been recycled or contains another key
+            entries.remove(key, entryWrapper);
             return RemoveEntryResult.CONTINUE_LOOP;
-        }
-        if (!value.matchesKey(key)) {
-            // this is unexpected since the IdentityWrapper.getValue(key) already checked that the value matches the key
-            log.warn("Unexpected race condition. Value {} does not match the key {}. Removing entry.", value, key);
         }
         try {
             if (!removeCondition.test(value)) {
                 return RemoveEntryResult.BREAK_LOOP;
             }
-            if (!skipInvalid) {
-                // remove the specific entry
-                boolean entryRemoved = entries.remove(key, entryWrapper);
-                if (entryRemoved) {
-                    counters.entryRemoved(entryWrapper.getSize());
-                    // check that the value hasn't been recycled in between
-                    // there should be at least 2 references since this method adds one and the cache should have
-                    // one reference. it is valid that the value contains references even after the key has been
-                    // removed from the cache
-                    if (value.refCnt() > 1) {
-                        entryWrapper.recycle();
-                        // remove the cache reference
-                        value.release();
-                    } else {
-                        log.info("Unexpected refCnt {} for key {}, removed entry without releasing the value",
-                                value.refCnt(), key);
-                    }
-                }
-            } else if (skipInvalid && value.refCnt() > 1 && entries.remove(key, entryWrapper)) {
-                // when skipInvalid is true, we don't remove the entry if it doesn't match matches the key
-                // or the refCnt is invalid
+            // remove the specific entry
+            boolean entryRemoved = entries.remove(key, entryWrapper);
+            if (entryRemoved) {
                 counters.entryRemoved(entryWrapper.getSize());
-                entryWrapper.recycle();
-                // remove the cache reference
-                value.release();
+                // check that the value hasn't been recycled in between
+                // there should be at least 2 references since this method adds one and the cache should have
+                // one reference. it is valid that the value contains references even after the key has been
+                // removed from the cache
+                if (value.refCnt() > 1) {
+                    entryWrapper.recycle();
+                    // remove the cache reference
+                    value.release();
+                } else {
+                    log.info("Unexpected refCnt {} for key {}, removed entry without releasing the value",
+                            value.refCnt(), key);
+                }
             }
         } finally {
             // remove the extra retain
@@ -455,7 +432,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
             if (entry == null) {
                 break;
             }
-            removeEntry(entry, counters, false);
+            removeEntry(entry, counters);
         }
         return handleRemovalResult(counters);
     }
@@ -475,7 +452,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
            if (entry == null) {
                break;
            }
-           if (removeEntry(entry, counters, false, value -> timestampExtractor.getTimestamp(value) <= maxTimestamp)
+           if (removeEntry(entry, counters, value -> timestampExtractor.getTimestamp(value) <= maxTimestamp)
                    == RemoveEntryResult.BREAK_LOOP) {
                break;
            }
@@ -509,7 +486,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
             if (entry == null) {
                 break;
             }
-            removeEntry(entry, counters, false);
+            removeEntry(entry, counters);
         }
         return handleRemovalResult(counters);
     }
