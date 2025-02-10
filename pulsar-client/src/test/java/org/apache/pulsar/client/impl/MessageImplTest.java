@@ -18,13 +18,20 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.AssertJUnit.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -39,23 +46,25 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.tests.ExtendedNettyLeakDetector;
 import org.testng.Assert;
-
-import static org.mockito.Mockito.when;
-import static org.testng.AssertJUnit.fail;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
 
 /**
  * Unit test of {@link MessageImpl}.
  */
 public class MessageImplTest {
+    @BeforeClass(alwaysRun = true)
+    public void disableExitJVMOnLeak() {
+        ExtendedNettyLeakDetector.disableExitJVMOnLeak();
+    }
+
+    @AfterClass(alwaysRun = true)
+    public void restoreExitJVMOnLeak() {
+        ExtendedNettyLeakDetector.restoreExitJVMOnLeak();
+    }
 
     @Test
     public void testGetSequenceIdNotAssociated() {
