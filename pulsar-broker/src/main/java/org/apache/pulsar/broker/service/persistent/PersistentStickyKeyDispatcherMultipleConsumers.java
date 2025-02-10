@@ -424,7 +424,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             }
             int stickyKeyHash = getStickyKeyHash(entry);
             Consumer consumer = null;
-            MutableBoolean blockedByHash = null;
+            boolean blockedByHash = false;
             boolean dispatchEntry = false;
             // check if the hash is already blocked
             boolean hashIsAlreadyBlocked = alreadyBlockedHashes.contains(stickyKeyHash);
@@ -434,7 +434,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     if (lookAheadAllowed) {
                         consumersForEntriesForLookaheadCheck.add(consumer);
                     }
-                    blockedByHash = lookAheadAllowed && readType == ReadType.Normal ? new MutableBoolean(false) : null;
+                    final var canUpdateBlockedByHash = lookAheadAllowed && readType == ReadType.Normal;
                     MutableInt permits =
                             permitsForConsumer.computeIfAbsent(consumer,
                                     k -> new MutableInt(getAvailablePermits(k)));
@@ -446,10 +446,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                             permits.decrement();
                             // allow the entry to be dispatched
                             dispatchEntry = true;
-                        } else {
-                            if (blockedByHash != null) {
-                                blockedByHash.setTrue();
-                            }
+                        } else if (canUpdateBlockedByHash) {
+                            blockedByHash = true;
                         }
                     }
                 }
@@ -464,7 +462,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     // the hash is blocked, add it to the set of blocked hashes
                     alreadyBlockedHashes.add(stickyKeyHash);
                 }
-                if (blockedByHash != null && blockedByHash.isTrue()) {
+                if (blockedByHash) {
                     // the entry is blocked by hash, add the consumer to the blocked set
                     blockedByHashConsumers.add(consumer);
                 }
