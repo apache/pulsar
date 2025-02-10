@@ -59,6 +59,7 @@ import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -135,6 +136,67 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
         Awaitility.await().untilAsserted(() -> {
             assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 16);
         });
+    }
+
+    @DataProvider
+    public Object[][] enabledBatchSend() {
+        return new Object[][] {
+                {false},
+                {true}
+        };
+    }
+
+    @Test(dataProvider = "enabledBatchSend")
+    @SneakyThrows
+    public void testBatchMessageNAck(boolean enabledBatchSend) {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/tp");
+        final String subscriptionName = "s1";
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName(subscriptionName)
+                .receiverQueueSize(21)
+                .subscriptionType(SubscriptionType.Shared)
+                .enableBatchIndexAcknowledgment(true)
+                .negativeAckRedeliveryDelay(100, TimeUnit.MILLISECONDS)
+                .subscribe();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .batchingMaxMessages(20)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .enableBatching(enabledBatchSend)
+                .create();
+        final PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        final PersistentDispatcherMultipleConsumers dispatcher =
+                (PersistentDispatcherMultipleConsumers) topic.getSubscription(subscriptionName).getDispatcher();
+
+        // Send messages: 20 * 2.
+        for (int i = 0; i < 40; i++) {
+            byte[] message = ("batch-message-" + i).getBytes();
+            if (i == 19 || i == 39) {
+                producer.newMessage().value(message).send();
+            } else {
+                producer.newMessage().value(message).sendAsync();
+            }
+        }
+        Awaitility.await().untilAsserted(() -> {
+            if (enabledBatchSend) {
+                assertEquals(consumer.numMessagesInQueue(), 40);
+            } else {
+                assertEquals(consumer.numMessagesInQueue(), 21);
+            }
+        });
+
+        // Negative ack and verify result/
+        Message<byte[]> receive1 = consumer.receive();
+        consumer.pause();
+        consumer.negativeAcknowledge(receive1);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(consumer.numMessagesInQueue(), 20);
+            assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 20);
+        });
+
+        // cleanup.
+        producer.close();
+        consumer.close();
+        admin.topics().delete(topicName);
     }
 
     @Test
