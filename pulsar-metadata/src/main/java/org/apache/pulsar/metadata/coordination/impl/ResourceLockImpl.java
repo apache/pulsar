@@ -188,17 +188,6 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         CompletableFuture<Void> result = new CompletableFuture<>();
         store.put(path, payload, Optional.of(version), EnumSet.of(CreateOption.Ephemeral))
                 .thenAccept(stat -> {
-                    if (!stat.isEphemeral()) {
-                        log.warn("Found persistent lock at {}. Trying to delete it and acquire it", path);
-                        store.delete(path, Optional.of(stat.getVersion()))
-                                .thenRun(() ->
-                                        // Reset the expectation that the key is not there anymore
-                                        setVersion(-1L)
-                                )
-                                .thenCompose(__ -> acquireWithNoRevalidation(newValue))
-                                .thenRun(() -> log.info("Successfully recovered persistent lock at {}", path));
-                        return;
-                    }
                     synchronized (ResourceLockImpl.this) {
                         state = State.Valid;
                         version = stat.getVersion();
