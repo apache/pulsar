@@ -41,7 +41,10 @@ import java.util.function.Function;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -65,11 +68,13 @@ import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.proto.CommandError;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -540,6 +545,64 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             Assert.assertEquals(readPosition.getLedgerId(), messageId.getLedgerId());
             Assert.assertEquals(readPosition.getEntryId(), messageId.getEntryId());
         }
+    }
+
+    @Test(timeOut = 20_000)
+    public void testSeekByTimestampWithLedgerTrim() throws Exception {
+        String topicName = "persistent://prop/use/ns-abc/testSeekByTimestampWithLedgerTrim";
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topics().createSubscription(topicName, "my-sub", MessageId.earliest);
+
+        @Cleanup
+        Producer<String> producer =
+                pulsarClient.newProducer(Schema.STRING).topic(topicName).enableBatching(false).create();
+        for (int i = 0; i < 16; i++) {
+            producer.send(("message-" + i));
+            Thread.sleep(10);
+        }
+
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).get().get();
+
+        Map<Long, MessageId> timestampToMessageId = new HashMap<>();
+        @Cleanup
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING).topic(topicName).startMessageId(MessageId.earliest).create();
+        while (reader.hasMessageAvailable()) {
+            Message<String> message = reader.readNext();
+            timestampToMessageId.put(message.getPublishTime(), message.getMessageId());
+        }
+
+        Assert.assertEquals(timestampToMessageId.size(), 16);
+
+        PersistentSubscription subscription = topic.getSubscription("my-sub");
+        ManagedCursor cursor = subscription.getCursor();
+        ManagedLedger ledger = cursor.getManagedLedger();
+
+        @Cleanup
+        org.apache.pulsar.client.api.Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName).subscriptionName("my-sub").subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe();
+        long[] timestamps = timestampToMessageId.keySet().stream().mapToLong(Long::longValue).toArray();
+        ArrayUtils.shuffle(timestamps);
+        boolean enterLedgerTrimmedBranch = false;
+        for (long timestamp : timestamps) {
+            MessageIdImpl messageId = (MessageIdImpl) timestampToMessageId.get(timestamp);
+            consumer.seek(timestamp);
+            CompletableFuture<?> trimFuture = new CompletableFuture<>();
+            ledger.trimConsumedLedgersInBackground(trimFuture);
+            trimFuture.get();
+            Position readPosition = cursor.getReadPosition();
+            Map.Entry<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> firstLedger = ledger.getLedgersInfo().firstEntry();
+            Assert.assertNotNull(firstLedger);
+            if (firstLedger.getKey() > messageId.getLedgerId()) {
+                Assert.assertEquals(readPosition.getLedgerId(), firstLedger.getKey());
+                Assert.assertEquals(readPosition.getEntryId(), 0);
+                enterLedgerTrimmedBranch = true;
+            } else {
+                Assert.assertEquals(readPosition.getLedgerId(), messageId.getLedgerId());
+                Assert.assertEquals(readPosition.getEntryId(), messageId.getEntryId());
+            }
+        }
+        // May have a chance to cause flaky test, because the result of `ArrayUtils.shuffle(timestamps);` is random.
+        Assert.assertTrue(enterLedgerTrimmedBranch);
     }
 
     @Test
