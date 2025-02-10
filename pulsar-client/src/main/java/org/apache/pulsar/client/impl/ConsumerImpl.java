@@ -2812,27 +2812,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private int removeExpiredMessagesFromQueue(Set<MessageId> messageIds) {
         int messagesFromQueue = 0;
-        Message<T> peek = incomingMessages.peek();
-        if (peek != null) {
-            MessageIdAdv messageId = MessageIdAdvUtils.discardBatch(peek.getMessageId());
-            if (!messageIds.contains(messageId)) {
-                // first message is not expired, then no message is expired in queue.
-                return 0;
+        Message<T> message;
+        while (true) {
+            message = incomingMessages.pollIf(msg -> {
+                MessageId idPolled = MessageIdAdvUtils.discardBatch(msg.getMessageId());
+                return messageIds.contains(idPolled);
+            });
+            if (message == null) {
+                break;
             }
-
-            // try not to remove elements that are added while we remove
-            Message<T> message = incomingMessages.poll();
-            while (message != null) {
-                decreaseIncomingMessageSize(message);
-                messagesFromQueue++;
-                MessageIdAdv id = MessageIdAdvUtils.discardBatch(message.getMessageId());
-                if (!messageIds.contains(id)) {
-                    messageIds.add(id);
-                    break;
-                }
-                message.release();
-                message = incomingMessages.poll();
-            }
+            decreaseIncomingMessageSize(message);
+            messagesFromQueue++;
+            message.release();
         }
         return messagesFromQueue;
     }
