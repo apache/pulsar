@@ -19,12 +19,11 @@
 package org.apache.pulsar.tests.integration.containers;
 
 import com.github.dockerjava.api.DockerClient;
-
 import java.util.Base64;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.utils.DockerUtils;
 import org.testcontainers.containers.GenericContainer;
@@ -46,6 +45,26 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
     protected void configure() {
         super.configure();
         addEnv("MALLOC_ARENA_MAX", "1");
+    }
+
+    protected void appendToEnv(String key, String value) {
+        String existingValue = getEnvMap().get(key);
+        if (existingValue == null) {
+            addEnv(key, value);
+        } else {
+            addEnv(key, existingValue + " " + value);
+        }
+    }
+
+    protected void passSystemPropertyInEnv(String envKey, String systemPropertyName) {
+        String systemPropertyValue = System.getProperty(systemPropertyName);
+        if (systemPropertyValue != null) {
+            String entryValue = "-D" + systemPropertyName + "=" + systemPropertyValue;
+            if (StringUtils.containsWhitespace(systemPropertyValue)) {
+                entryValue = "\"" + entryValue + "\"";
+            }
+            appendToEnv(envKey, entryValue);
+        }
     }
 
     protected void beforeStop() {

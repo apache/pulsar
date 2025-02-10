@@ -94,6 +94,15 @@
                       <outputDirectory>${project.build.directory}/plugins</outputDirectory>
                       <destFileName>java-test-plugins.nar</destFileName>
                     </artifactItem>
+                    <artifactItem>
+                      <groupId>org.apache.pulsar</groupId>
+                      <artifactId>buildtools</artifactId>
+                      <version>${project.parent.version}</version>
+                      <type>jar</type>
+                      <overWrite>true</overWrite>
+                      <outputDirectory>${project.build.directory}</outputDirectory>
+                      <destFileName>buildtools.jar</destFileName>
+                    </artifactItem>
                   </artifactItems>
                 </configuration>
               </execution>
