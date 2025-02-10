@@ -1144,6 +1144,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return cachedCursor;
         }
 
+        // To avoid cursor initialization and "ML.trimLedgers" execute concurrency, we add this lock block.
+        // See details https://github.com/apache/pulsar/pull/23951.
         synchronized (this) {
             NonDurableCursorImpl cursor = new NonDurableCursorImpl(bookKeeper, this, cursorName,
                     startCursorPosition, initialPosition, isReadCompacted);
