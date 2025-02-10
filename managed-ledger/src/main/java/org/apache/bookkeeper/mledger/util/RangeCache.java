@@ -401,12 +401,14 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
                     log.info("Unexpected refCnt {} for key {}, removed entry without releasing the value",
                             value.refCnt(), key);
                 }
+                return RemoveEntryResult.ENTRY_REMOVED;
+            } else {
+                return RemoveEntryResult.CONTINUE_LOOP;
             }
         } finally {
             // remove the extra retain
             value.release();
         }
-        return RemoveEntryResult.ENTRY_REMOVED;
     }
 
     private Pair<Integer, Long> handleRemovalResult(RemovalCounters counters) {
