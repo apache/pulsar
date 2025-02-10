@@ -144,21 +144,29 @@ public class RangeCacheTest {
     @Test
     public void customTimeExtraction() {
         RangeCache<Integer, RefString> cache = new RangeCache<>(value -> value.s.length(), x -> x.s.length());
+        final Runnable assertRefCnt = () -> {
+            final var entries = cache.getRange(1, 4444);
+            for (var entry : entries) {
+                assertEquals(entry.refCnt(), 2);
+                entry.release();
+            }
+        };
 
         cache.put(1, new RefString("1"));
         cache.put(22, new RefString("22"));
         cache.put(333, new RefString("333"));
         cache.put(4444, new RefString("4444"));
 
+        assertRefCnt.run();
         assertEquals(cache.getSize(), 10);
         assertEquals(cache.getNumberOfEntries(), 4);
 
         Pair<Integer, Long> evictedSize = cache.evictLEntriesBeforeTimestamp(3);
         assertEquals(evictedSize.getRight().longValue(), 6);
         assertEquals(evictedSize.getLeft().longValue(), 3);
-
         assertEquals(cache.getSize(), 4);
         assertEquals(cache.getNumberOfEntries(), 1);
+        assertRefCnt.run();
     }
 
     @Test
