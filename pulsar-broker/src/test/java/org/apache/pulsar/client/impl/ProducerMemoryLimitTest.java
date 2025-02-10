@@ -34,17 +34,29 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.tests.ExtendedNettyLeakDetector;
 import org.mockito.Mockito;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
 public class ProducerMemoryLimitTest extends ProducerConsumerBase {
+    @BeforeClass(alwaysRun = true)
+    public void disableExitJVMOnLeak() {
+        ExtendedNettyLeakDetector.disableExitJVMOnLeak();
+    }
+
+    @AfterClass(alwaysRun = true)
+    public void restoreExitJVMOnLeak() {
+        ExtendedNettyLeakDetector.restoreExitJVMOnLeak();
+    }
 
     @Override
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
