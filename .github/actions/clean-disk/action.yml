@@ -49,7 +49,14 @@ runs:
           if [[ "${{ inputs.mode }}" == "full" ]]; then
             echo "::group::Moving /var/lib/docker to /mnt/docker"
             sudo systemctl stop docker
-            echo '{"data-root": "/mnt/docker"}' | sudo tee /etc/docker/daemon.json
+            if sudo test ! -f /etc/docker/daemon.json; then
+              # create daemon.json file
+              echo '{"data-root": "/mnt/docker"}' | sudo tee /etc/docker/daemon.json
+            else
+              # modify existing daemon.json file
+              sudo jq '.["data-root"]="/mnt/docker"' /etc/docker/daemon.json | sudo tee /tmp/daemon_temp.json$$
+              sudo mv /tmp/daemon_temp.json$$ /etc/docker/daemon.json
+            fi
             sudo mv /var/lib/docker /mnt/docker
             sudo systemctl start docker
             time df -BM / /mnt
