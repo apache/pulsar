@@ -232,6 +232,7 @@ jobs:
       TRACE_TEST_RESOURCE_CLEANUP_DIR: ${{ github.workspace }}/target/trace-test-resource-cleanup
       THREAD_LEAK_DETECTOR_WAIT_MILLIS: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.thread_leak_detector_wait_millis || 10000 }}
       THREAD_LEAK_DETECTOR_DIR: ${{ github.workspace }}/target/thread-leak-dumps
+      NETTY_LEAK_DUMP_DIR: ${{ github.workspace }}/target/netty-leak-dumps
     runs-on: ubuntu-22.04
     timeout-minutes: ${{ matrix.timeout || 60 }}
     needs: ['preconditions', 'build-and-license-check']
@@ -349,6 +350,10 @@ jobs:
             cat threadleak*.txt | awk '/^Summary:/ {print "::warning::" $0 "\n"; next} {print}'
           fi
 
+      - name: Report detected Netty leaks
+        if: ${{ always() }}
+        run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh report_netty_leaks
+
       - name: Upload Surefire reports
         uses: actions/upload-artifact@v4
         if: ${{ !success() || env.TRACE_TEST_RESOURCE_CLEANUP != 'off' }}
@@ -366,6 +371,7 @@ jobs:
             /tmp/*.hprof
             **/hs_err_*.log
             **/core.*
+            ${{ env.NETTY_LEAK_DUMP_DIR }}/*
             ${{ env.TRACE_TEST_RESOURCE_CLEANUP_DIR }}/*
             ${{ env.THREAD_LEAK_DETECTOR_DIR }}/*
           retention-days: 7
@@ -554,6 +560,7 @@ jobs:
       PULSAR_TEST_IMAGE_NAME: apachepulsar/java-test-image:latest
       DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
+      NETTY_LEAK_DUMP_DIR: ${{ github.workspace }}/target/netty-leak-dumps
     strategy:
       fail-fast: false
       matrix:
@@ -702,6 +709,10 @@ jobs:
           report_paths: 'test-reports/TEST-*.xml'
           annotate_only: 'true'
 
+      - name: Report detected Netty leaks
+        if: ${{ always() }}
+        run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh report_netty_leaks
+
       - name: Upload Surefire reports
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}
@@ -709,6 +720,19 @@ jobs:
           name: Integration-${{ matrix.upload_name || matrix.group }}-surefire-reports
           path: surefire-reports
           retention-days: 7
+
+      - name: Upload possible heap dump, core dump or crash files
+        uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: Integration-${{ matrix.group }}-dumps
+          path: |
+            /tmp/*.hprof
+            **/hs_err_*.log
+            **/core.*
+            ${{ env.NETTY_LEAK_DUMP_DIR }}/*
+          retention-days: 7
+          if-no-files-found: ignore
 
       - name: Upload container logs
         uses: actions/upload-artifact@v4
@@ -972,6 +996,7 @@ jobs:
       PULSAR_TEST_IMAGE_NAME: apachepulsar/pulsar-test-latest-version:latest
       DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
+      NETTY_LEAK_DUMP_DIR: ${{ github.workspace }}/target/netty-leak-dumps
     strategy:
       fail-fast: false
       matrix:
@@ -1079,6 +1104,10 @@ jobs:
           report_paths: 'test-reports/TEST-*.xml'
           annotate_only: 'true'
 
+      - name: Report detected Netty leaks
+        if: ${{ always() }}
+        run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh report_netty_leaks
+
       - name: Upload container logs
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}
@@ -1095,6 +1124,19 @@ jobs:
           name: System-${{ matrix.name }}-surefire-reports
           path: surefire-reports
           retention-days: 7
+
+      - name: Upload possible heap dump, core dump or crash files
+        uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: System-${{ matrix.group }}-dumps
+          path: |
+            /tmp/*.hprof
+            **/hs_err_*.log
+            **/core.*
+            ${{ env.NETTY_LEAK_DUMP_DIR }}/*
+          retention-days: 7
+          if-no-files-found: ignore
 
       - name: Wait for ssh connection when build fails
         # ssh access is enabled for builds in own forks
@@ -1202,6 +1244,7 @@ jobs:
       PULSAR_TEST_IMAGE_NAME: apachepulsar/pulsar-test-latest-version:latest
       DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
+      NETTY_LEAK_DUMP_DIR: ${{ github.workspace }}/target/netty-leak-dumps
     strategy:
       fail-fast: false
       matrix:
@@ -1286,12 +1329,16 @@ jobs:
           report_paths: 'test-reports/TEST-*.xml'
           annotate_only: 'true'
 
+      - name: Report detected Netty leaks
+        if: ${{ always() }}
+        run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh report_netty_leaks
+
       - name: Upload container logs
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}
         continue-on-error: true
         with:
-          name: System-${{ matrix.group }}-container-logs
+          name: Flaky-System-${{ matrix.group }}-container-logs
           path: tests/integration/target/container-logs
           retention-days: 7
 
@@ -1299,9 +1346,22 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}
         with:
-          name: System-${{ matrix.name }}-surefire-reports
+          name: Flaky-System-${{ matrix.name }}-surefire-reports
           path: surefire-reports
           retention-days: 7
+
+      - name: Upload possible heap dump, core dump or crash files
+        uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: Flaky-System-${{ matrix.group }}-dumps
+          path: |
+            /tmp/*.hprof
+            **/hs_err_*.log
+            **/core.*
+            ${{ env.NETTY_LEAK_DUMP_DIR }}/*
+          retention-days: 7
+          if-no-files-found: ignore
 
       - name: Wait for ssh connection when build fails
         # ssh access is enabled for builds in own forks

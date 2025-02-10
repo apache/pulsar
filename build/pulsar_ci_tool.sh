@@ -579,6 +579,37 @@ ci_create_inttest_coverage_report() {
   echo "::endgroup::"
 }
 
+ci_report_netty_leaks() {
+  if [ -z "$NETTY_LEAK_DUMP_DIR" ]; then
+    echo "NETTY_LEAK_DUMP_DIR isn't set"
+    return 0
+  fi
+  local temp_file=$(mktemp -t netty_leak.XXXX)
+  {
+    if [ -d "$NETTY_LEAK_DUMP_DIR" ]; then
+      find "$NETTY_LEAK_DUMP_DIR" -maxdepth 1 -type f -name "netty_leak_*.txt" -exec cat {} \;
+    fi
+    if [ -d tests/integration/target/container-logs ]; then
+      find tests/integration/target/container-logs -type f -name "*.tar.gz" -exec tar -Ozxvf {} --wildcards --wildcards-match-slash '*/netty_leak_*.txt' \;
+    fi
+  } > $temp_file
+  if [ -s $temp_file ]; then
+    {
+      echo "::warning::Netty leaks found"
+      echo "Test file locations in stack traces:"
+      grep -h -i test $temp_file | grep org.apache | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;s/^Hint: //' | sort -u
+      echo
+      echo "Details:"
+      cat $temp_file
+    } | tee $NETTY_LEAK_DUMP_DIR/leak_report.txt
+    touch target/netty_leaks_found
+  else
+    echo "No netty leaks found."
+    touch target/netty_leaks_not_found
+  fi
+  rm $temp_file
+}
+
 if [ -z "$1" ]; then
   echo "usage: $0 [ci_tool_function_name]"
   echo "Available ci tool functions:"

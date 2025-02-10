@@ -116,8 +116,37 @@ flexible messaging model and an intuitive client API.</description>
       --add-opens java.base/jdk.internal.platform=ALL-UNNAMED <!--LinuxInfoUtils-->
       -XX:+EnableDynamicAgentLoading <!-- byte-buddy-agent and mockito-core agent dynamic loading -->
       ${test.additional.args.jdk24}
+      ${test.netty.args}
     </test.additional.args>
     <test.additional.args.jdk24></test.additional.args.jdk24>
+    <!-- Netty related JVM args, including Netty leak detection enabled in tests -->
+    <test.netty.args>
+      <!-- required for triggering GC to trigger leak detection synchronously in tests -->
+      -XX:+UnlockExperimentalVMOptions -XX:ReferencesPerThread=0 -XX:+ParallelRefProcEnabled
+      <!--
+      enable optimized Netty direct memory buffer access
+      https://pulsar.apache.org/docs/4.0.x/client-libraries-java-setup/#enabling-optimized-netty-direct-memory-buffer-access
+      -->
+      --add-opens java.base/java.nio=ALL-UNNAMED
+      --add-opens java.base/jdk.internal.misc=ALL-UNNAMED
+      -Dio.netty.tryReflectionSetAccessible=true
+      -Dorg.apache.pulsar.shade.io.netty.tryReflectionSetAccessible=true
+      -Dpulsar.allocator.pooled=true
+      -Dpulsar.allocator.exit_on_oom=false
+      -Dpulsar.allocator.out_of_memory_policy=FallbackToHeap
+      <!-- use the custom resource leak detector in buildtools module -->
+      -Dio.netty.customResourceLeakDetector=org.apache.pulsar.tests.ExtendedNettyLeakDetector
+      -Dorg.apache.pulsar.tests.ExtendedNettyLeakDetector.exitJvmOnLeak=${testExitJvmOnLeak}
+      -Dorg.apache.pulsar.tests.ExtendedNettyLeakDetector.exitJvmDelayMillis=${testExitJvmOnLeakDelayMillis}
+      -Dio.netty.leakDetection.level=${testLeakDetectionLevel}
+      <!-- allows using paranoid leak detection with relatively low overhead -->
+      -Dio.netty.leakDetection.targetRecords=16
+      -Dio.netty.leakDetection.acquireAndReleaseOnly=true
+      -Dio.netty.leakDetection.samplingInterval=32
+    </test.netty.args>
+    <testExitJvmOnLeak>false</testExitJvmOnLeak>
+    <testExitJvmOnLeakDelayMillis>1000</testExitJvmOnLeakDelayMillis>
+    <testLeakDetectionLevel>paranoid</testLeakDetectionLevel>
     <testMaxHeapSize>1300M</testMaxHeapSize>
     <testReuseFork>true</testReuseFork>
     <testForkCount>4</testForkCount>
@@ -1829,12 +1858,8 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
-          <argLine>${testJacocoAgentArgument} -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${testHeapDumpPath} -XX:+ExitOnOutOfMemoryError -Xmx${testMaxHeapSize} -XX:+UseZGC
-            -Dpulsar.allocator.pooled=true
-            -Dpulsar.allocator.leak_detection=Advanced
-            -Dpulsar.allocator.exit_on_oom=false
-            -Dpulsar.allocator.out_of_memory_policy=FallbackToHeap
-            -Dio.netty.tryReflectionSetAccessible=true
+          <argLine>${testJacocoAgentArgument} -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${testHeapDumpPath}
+            -XX:+ExitOnOutOfMemoryError -Xmx${testMaxHeapSize} -XX:+UseZGC
             ${test.additional.args}
           </argLine>
           <reuseForks>${testReuseFork}</reuseForks>
