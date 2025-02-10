@@ -284,6 +284,9 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
         }
     }
 
+    /**
+     * @apiNote the returned value must be released if it's not null
+     */
     private Value getValueMatchingEntry(Map.Entry<Key, EntryWrapper<Key, Value>> entry) {
         Value valueMatchingEntry = EntryWrapper.getValueMatchingMapEntry(entry);
         return getRetainedValueMatchingKey(entry.getKey(), valueMatchingEntry);
@@ -291,6 +294,9 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
 
     // validates that the value matches the key and that the value has not been recycled
     // which are possible due to the lack of exclusive locks in the cache and the use of reference counted objects
+    /**
+     * @apiNote the returned value must be released if it's not null
+     */
     private Value getRetainedValueMatchingKey(Key key, Value value) {
         if (value == null) {
             // the wrapper has been recycled and contains another key
@@ -380,21 +386,6 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
                     log.info("Key {} does not match the entry's value wrapper's key {}, removed entry by key without "
                             + "releasing the value", key, entryWrapper.getKey());
                     counters.entryRemoved(removed.getSize());
-                    return RemoveEntryResult.ENTRY_REMOVED;
-                }
-            }
-            return RemoveEntryResult.CONTINUE_LOOP;
-        }
-        try {
-            // add extra retain to avoid value being released while we are removing it
-            value.retain();
-        } catch (IllegalReferenceCountException e) {
-            // Value was already released
-            if (!skipInvalid) {
-                // remove the specific entry without releasing the value
-                if (entries.remove(key, entryWrapper)) {
-                    log.info("Value was already released for key {}, removed entry without releasing the value", key);
-                    counters.entryRemoved(entryWrapper.getSize());
                     return RemoveEntryResult.ENTRY_REMOVED;
                 }
             }
