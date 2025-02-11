@@ -24,6 +24,7 @@ import lombok.Data;
 import lombok.Getter;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.common.functions.MemoryLimit;
 
 /**
  * This is the config passed to the Java Instance. Contains all the information
@@ -49,7 +50,7 @@ public class InstanceConfig {
     private int metricsPort;
     private List<String> additionalJavaRuntimeArguments = Collections.emptyList();
     private boolean ignoreUnknownConfigFields;
-
+    private MemoryLimit pulsarClientMemoryLimit;
     /**
      * Get the string representation of {@link #getInstanceId()}.
      *

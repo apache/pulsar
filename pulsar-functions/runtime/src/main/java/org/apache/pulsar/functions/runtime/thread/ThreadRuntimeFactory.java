@@ -27,6 +27,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
@@ -103,7 +104,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
                 Optional.empty(), fnCache);
     }
 
-    private void initialize(String threadGroupName, Optional<ThreadRuntimeFactoryConfig.MemoryLimit> memoryLimit,
+    private void initialize(String threadGroupName, Optional<MemoryLimit> memoryLimit,
                             String pulsarServiceUrl, AuthenticationConfig authConfig, String stateStorageImplClass,
                             String storageServiceUrl,
                             SecretsProviderConfigurator secretsProviderConfigurator, SecretsProvider secretsProvider,
@@ -139,7 +140,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
         this.functionsManager = functionsManager;
     }
 
-    private Optional<Long> calculateClientMemoryLimit(Optional<ThreadRuntimeFactoryConfig.MemoryLimit> memoryLimit) {
+    private Optional<Long> calculateClientMemoryLimit(Optional<MemoryLimit> memoryLimit) {
         if (memoryLimit.isPresent()) {
 
             Long absolute = memoryLimit.get().getAbsoluteValue();
