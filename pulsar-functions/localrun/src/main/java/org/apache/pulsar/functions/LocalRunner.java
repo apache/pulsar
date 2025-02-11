@@ -659,8 +659,9 @@ public class LocalRunner implements AutoCloseable {
                 Thread.currentThread().setContextClassLoader(userCodeClassLoader.getClassLoader());
             }
             Optional<MemoryLimit> pulsarClientMemoryLimit = Optional.empty();
-            if(functionConfig != null && functionConfig.getMemoryLimit() != null)
+            if (functionConfig != null && functionConfig.getMemoryLimit() != null) {
                 pulsarClientMemoryLimit = Optional.ofNullable(functionConfig.getMemoryLimit());
+            }
             runtimeFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup",
                     serviceUrl,
                     stateStorageImplClass,
