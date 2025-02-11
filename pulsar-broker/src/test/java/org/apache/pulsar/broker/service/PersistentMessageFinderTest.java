@@ -636,7 +636,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertNotNull(range);
         assertNotNull(range.getLeft());
         assertNull(range.getRight());
-        assertEquals(range.getLeft(), new PositionImpl(3, 0));
+        assertEquals(range.getLeft(), new PositionImpl(2, 0));
     }
 
     @Test
@@ -654,7 +654,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertNotNull(range);
         assertNotNull(range.getLeft());
         assertNull(range.getRight());
-        assertEquals(range.getLeft(), new PositionImpl(2, 9));
+        assertEquals(range.getLeft(), new PositionImpl(2, 0));
     }
 
     @Test
@@ -689,7 +689,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertNotNull(range);
         assertNotNull(range.getLeft());
         assertNotNull(range.getRight());
-        assertEquals(range.getLeft(), new PositionImpl(3, 0));
+        assertEquals(range.getLeft(), new PositionImpl(2, 0));
         assertEquals(range.getRight(), new PositionImpl(3, 9));
     }
 
