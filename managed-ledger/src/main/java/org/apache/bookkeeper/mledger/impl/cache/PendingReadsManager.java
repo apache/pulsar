@@ -299,7 +299,7 @@ public class PendingReadsManager {
         }
 
         private static List<Entry> keepEntries(List<EntryImpl> list, long startEntry, long endEntry) {
-            List<Entry> result = new ArrayList<>((int) (endEntry - startEntry));
+            List<Entry> result = new ArrayList<>((int) (endEntry - startEntry + 1));
             for (EntryImpl entry : list) {
                 long entryId = entry.getEntryId();
                 if (startEntry <= entryId && entryId <= endEntry) {
