@@ -24,8 +24,8 @@ import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.protobuf.MessageIndexes;
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchemaProvider;
+import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
-import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig;
 import io.confluent.kafka.serializers.protobuf.KafkaProtobufDeserializer;
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -114,7 +114,8 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
     }
 
     private void initSchemaCache(Properties props) {
-        KafkaAvroDeserializerConfig config = new KafkaAvroDeserializerConfig(props);
+        AbstractKafkaSchemaSerDeConfig config =
+                new AbstractKafkaSchemaSerDeConfig(AbstractKafkaSchemaSerDeConfig.baseConfigDef(), props);
         List<String> urls = config.getSchemaRegistryUrls();
         int maxSchemaObject = config.getMaxSchemasPerSubject();
 

@@ -69,12 +69,16 @@ final class KafkaSchemaCache {
             ParsedSchema schema = schemaRegistryClient.getSchemaById(schemaId);
             String definition = schema.canonicalString();
             log.info("Schema {} definition {}", schemaId, definition);
+            String name = schema.name();
+            if (name == null) {
+                name = "";
+            }
             SchemaInfo schemaInfo;
             switch (schemaType) {
                 case AVRO:
                     schemaInfo = SchemaInfo.builder()
                             .type(SchemaType.AVRO)
-                            .name(schema.name())
+                            .name(name)
                             .properties(Collections.emptyMap())
                             .schema(definition.getBytes(StandardCharsets.UTF_8))
                             .build();
@@ -82,10 +86,10 @@ final class KafkaSchemaCache {
                 case PROTOBUF_NATIVE:
                     Descriptors.Descriptor descriptor = ((ProtobufSchema) schema).toDescriptor();
                     schemaInfo = SchemaInfo.builder()
-                            .schema(ProtobufNativeSchemaUtils.serialize(descriptor))
                             .type(SchemaType.PROTOBUF_NATIVE)
+                            .name(name)
                             .properties(Collections.emptyMap())
-                            .name("")
+                            .schema(ProtobufNativeSchemaUtils.serialize(descriptor))
                             .build();
                     break;
                 default:
