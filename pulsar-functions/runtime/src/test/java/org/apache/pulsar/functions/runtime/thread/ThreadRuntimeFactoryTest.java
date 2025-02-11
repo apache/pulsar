@@ -22,7 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SizeUnit;
-import org.apache.pulsar.common.functions.MemoryLimit;
+import org.apache.pulsar.common.util.MemoryLimit;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.common.util.ObjectMapperFactory;

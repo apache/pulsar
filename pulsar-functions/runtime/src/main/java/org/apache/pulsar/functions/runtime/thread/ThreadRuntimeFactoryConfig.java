@@ -21,7 +21,7 @@ package org.apache.pulsar.functions.runtime.thread;
 import lombok.Data;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.common.configuration.FieldContext;
-import org.apache.pulsar.common.functions.MemoryLimit;
+import org.apache.pulsar.common.util.MemoryLimit;
 
 @Data
 @Accessors(chain = true)
