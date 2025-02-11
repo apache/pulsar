@@ -48,6 +48,7 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionDefinition;
+import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.WindowConfig;
@@ -508,7 +509,11 @@ public class FunctionConfigUtils {
         if (!isEmpty(functionDetails.getCustomRuntimeOptions())) {
             functionConfig.setCustomRuntimeOptions(functionDetails.getCustomRuntimeOptions());
         }
-
+        if (functionDetails.getMemoryLimit() != null) {
+            MemoryLimit memoryLimit = new MemoryLimit();
+            memoryLimit.setAbsoluteValue(functionDetails.getMemoryLimit().getAbsoluteValue());
+            memoryLimit.setPercentOfMaxDirectMemory(functionDetails.getMemoryLimit().getPercentOfMaxDirectMemory());
+        }
         return functionConfig;
     }
 

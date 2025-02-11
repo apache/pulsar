@@ -39,6 +39,7 @@ import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.pool.TypePool;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.Reflections;
@@ -158,6 +159,10 @@ public class JavaInstanceStarter implements AutoCloseable {
             required = false)
     public Boolean ignoreUnknownConfigFields = false;
 
+    @Option(names = "--memory_limit",
+            description = "The memory limit set for the pulsar client used by all instances",
+            required = false)
+    public MemoryLimit memoryLimit;
 
     private Server server;
     private RuntimeSpawner runtimeSpawner;
@@ -186,6 +191,7 @@ public class JavaInstanceStarter implements AutoCloseable {
         instanceConfig.setMaxPendingAsyncRequests(maxPendingAsyncRequests);
         instanceConfig.setExposePulsarAdminClientEnabled(exposePulsarAdminClientEnabled);
         instanceConfig.setIgnoreUnknownConfigFields(ignoreUnknownConfigFields);
+        instanceConfig.setPulsarClientMemoryLimit(memoryLimit);
         Function.FunctionDetails.Builder functionDetailsBuilder = Function.FunctionDetails.newBuilder();
         if (functionDetailsJsonString.charAt(0) == '\'') {
             functionDetailsJsonString = functionDetailsJsonString.substring(1);
