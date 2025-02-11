@@ -81,8 +81,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
                                 AuthenticationConfig authConfig, SecretsProvider secretsProvider,
                                 FunctionCollectorRegistry collectorRegistry, String narExtractionDirectory,
                                 ClassLoader rootClassLoader, boolean exposePulsarAdminClientEnabled,
-                                String pulsarWebServiceUrl, MemoryLimit memoryLimit) throws Exception {
-        initialize(threadGroupName, Optional.of(memoryLimit), pulsarServiceUrl, authConfig,
+                                String pulsarWebServiceUrl, Optional<MemoryLimit> memoryLimit) throws Exception {
+        initialize(threadGroupName, memoryLimit, pulsarServiceUrl, authConfig,
                 stateStorageImplClass, storageServiceUrl, null, secretsProvider, collectorRegistry,
                 narExtractionDirectory,
                 rootClassLoader, exposePulsarAdminClientEnabled, pulsarWebServiceUrl, Optional.empty(),
@@ -95,8 +95,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
                                 AuthenticationConfig authConfig, SecretsProvider secretsProvider,
                                 FunctionCollectorRegistry collectorRegistry, String narExtractionDirectory,
                                 ClassLoader rootClassLoader, boolean exposePulsarAdminClientEnabled,
-                                String pulsarWebServiceUrl, FunctionCacheManager fnCache, MemoryLimit memoryLimit) throws Exception {
-        initialize(threadGroupName, Optional.of(memoryLimit), pulsarServiceUrl
+                                String pulsarWebServiceUrl, FunctionCacheManager fnCache, Optional<MemoryLimit> memoryLimit) throws Exception {
+        initialize(threadGroupName, memoryLimit, pulsarServiceUrl
                 , authConfig, stateStorageImplClass, storageServiceUrl, null, secretsProvider, collectorRegistry,
                 narExtractionDirectory,
                 rootClassLoader, exposePulsarAdminClientEnabled, pulsarWebServiceUrl, Optional.empty(),

@@ -31,6 +31,7 @@ import io.prometheus.client.exporter.HTTPServer;
 import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -238,7 +239,7 @@ public class JavaInstanceStarter implements AutoCloseable {
         // Collector Registry for prometheus metrics
         FunctionCollectorRegistry collectorRegistry = FunctionCollectorRegistry.getDefaultImplementation();
         RuntimeUtils.registerDefaultCollectors(collectorRegistry);
-
+        Optional<MemoryLimit> memoryLimit = Optional.ofNullable(instanceConfig.getPulsarClientMemoryLimit());
         containerFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup", pulsarServiceUrl,
                 stateStorageImplClass,
                 stateStorageServiceUrl,
@@ -248,7 +249,7 @@ public class JavaInstanceStarter implements AutoCloseable {
                         .tlsHostnameVerificationEnable(isTrue(tlsHostNameVerificationEnabled))
                         .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
                 secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader,
-                exposePulsarAdminClientEnabled, webServiceUrl, fnCache, instanceConfig.getPulsarClientMemoryLimit());
+                exposePulsarAdminClientEnabled, webServiceUrl, fnCache, memoryLimit);
         runtimeSpawner = new RuntimeSpawner(
                 instanceConfig,
                 jarFile,
