@@ -37,7 +37,7 @@ import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.common.util.DirectMemoryUtils;
+import org.apache.pulsar.common.functions.DirectMemoryUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

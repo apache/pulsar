@@ -365,7 +365,12 @@ public class FunctionConfigUtils {
             String builtin = functionConfig.getJar().replaceFirst("^builtin://", "");
             functionDetailsBuilder.setBuiltin(builtin);
         }
-
+        if (functionConfig.getMemoryLimit() != null) {
+            Function.MemoryLimit.Builder mbdr = Function.MemoryLimit.newBuilder();
+            mbdr.setAbsoluteValue(functionConfig.getMemoryLimit().getAbsoluteValue());
+            mbdr.setPercentOfMaxDirectMemory(functionConfig.getMemoryLimit().getPercentOfMaxDirectMemory());
+            functionDetailsBuilder.setMemoryLimit(mbdr);
+        }
         return validateFunctionDetails(functionDetailsBuilder.build());
     }
 

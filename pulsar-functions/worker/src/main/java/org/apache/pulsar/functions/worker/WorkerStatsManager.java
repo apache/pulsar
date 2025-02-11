@@ -28,7 +28,7 @@ import java.io.StringWriter;
 import java.util.List;
 import java.util.function.Supplier;
 import lombok.Setter;
-import org.apache.pulsar.common.util.DirectMemoryUtils;
+import org.apache.pulsar.common.functions.DirectMemoryUtils;
 import org.apache.pulsar.functions.instance.stats.PrometheusTextFormat;
 import org.apache.pulsar.functions.proto.Function;
 

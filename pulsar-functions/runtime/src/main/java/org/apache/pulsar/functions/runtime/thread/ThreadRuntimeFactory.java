@@ -19,7 +19,7 @@
 package org.apache.pulsar.functions.runtime.thread;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.pulsar.common.util.MemoryLimit.calculateClientMemoryLimit;
+import static org.apache.pulsar.common.functions.MemoryLimit.calculateClientMemoryLimit;
 import java.util.Optional;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -28,7 +28,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.util.MemoryLimit;
+import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
@@ -82,8 +82,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
                                 AuthenticationConfig authConfig, SecretsProvider secretsProvider,
                                 FunctionCollectorRegistry collectorRegistry, String narExtractionDirectory,
                                 ClassLoader rootClassLoader, boolean exposePulsarAdminClientEnabled,
-                                String pulsarWebServiceUrl) throws Exception {
-        initialize(threadGroupName, Optional.empty(), pulsarServiceUrl, authConfig,
+                                String pulsarWebServiceUrl, MemoryLimit memoryLimit) throws Exception {
+        initialize(threadGroupName, Optional.of(memoryLimit), pulsarServiceUrl, authConfig,
                 stateStorageImplClass, storageServiceUrl, null, secretsProvider, collectorRegistry,
                 narExtractionDirectory,
                 rootClassLoader, exposePulsarAdminClientEnabled, pulsarWebServiceUrl, Optional.empty(),
@@ -96,8 +96,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
                                 AuthenticationConfig authConfig, SecretsProvider secretsProvider,
                                 FunctionCollectorRegistry collectorRegistry, String narExtractionDirectory,
                                 ClassLoader rootClassLoader, boolean exposePulsarAdminClientEnabled,
-                                String pulsarWebServiceUrl, FunctionCacheManager fnCache) throws Exception {
-        initialize(threadGroupName, Optional.empty(), pulsarServiceUrl, authConfig,
+                                String pulsarWebServiceUrl, FunctionCacheManager fnCache, MemoryLimit memoryLimit) throws Exception {
+        initialize(threadGroupName, Optional.of(memoryLimit), pulsarServiceUrl, authConfig,
                 stateStorageImplClass, storageServiceUrl, null, secretsProvider, collectorRegistry,
                 narExtractionDirectory,
                 rootClassLoader, exposePulsarAdminClientEnabled, pulsarWebServiceUrl, Optional.empty(),

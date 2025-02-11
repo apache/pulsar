@@ -23,7 +23,7 @@ import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.hotspot.DefaultExports;
 import org.apache.pulsar.PulsarVersion;
-import org.apache.pulsar.common.util.DirectMemoryUtils;
+import org.apache.pulsar.common.functions.DirectMemoryUtils;
 
 public class MetricsExports {
     private static boolean initialized = false;

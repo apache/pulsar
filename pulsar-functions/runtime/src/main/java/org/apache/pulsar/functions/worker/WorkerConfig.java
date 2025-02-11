@@ -46,7 +46,7 @@ import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
-import org.apache.pulsar.common.util.MemoryLimit;
+import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.sasl.SaslConstants;

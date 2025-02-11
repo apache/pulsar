@@ -33,7 +33,7 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SizeUnit;
-import org.apache.pulsar.common.util.DirectMemoryUtils;
+import org.apache.pulsar.common.functions.DirectMemoryUtils;
 import org.slf4j.Logger;
 
 /**

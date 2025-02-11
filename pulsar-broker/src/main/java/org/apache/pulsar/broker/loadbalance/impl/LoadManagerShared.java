@@ -44,7 +44,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
-import org.apache.pulsar.common.util.DirectMemoryUtils;
+import org.apache.pulsar.common.functions.DirectMemoryUtils;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.BrokerData;

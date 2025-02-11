@@ -1,4 +1,4 @@
-package org.apache.pulsar.common.util;
+package org.apache.pulsar.common.functions;
 
 import static org.apache.pulsar.common.policies.data.impl.BookieInfoImpl.BookieInfoImplBuilder.checkArgument;
 import java.util.Optional;

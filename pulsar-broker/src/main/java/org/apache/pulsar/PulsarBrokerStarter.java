@@ -52,7 +52,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.util.DirectMemoryUtils;
+import org.apache.pulsar.common.functions.DirectMemoryUtils;
 import org.apache.pulsar.common.util.ShutdownUtil;
 import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import org.apache.pulsar.functions.worker.WorkerConfig;
