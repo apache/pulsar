@@ -704,7 +704,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}
         with:
-          name: Integration-${{ matrix.group }}-surefire-reports
+          name: Integration-${{ matrix.name }}-surefire-reports
           path: surefire-reports
           retention-days: 7
 
@@ -712,7 +712,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: Integration-${{ matrix.group }}-dumps
+          name: Integration-${{ matrix.name }}-dumps
           path: |
             /tmp/*.hprof
             **/hs_err_*.log
@@ -726,7 +726,7 @@ jobs:
         if: ${{ !success() }}
         continue-on-error: true
         with:
-          name: Integration-${{ matrix.group }}-container-logs
+          name: Integration-${{ matrix.name }}-container-logs
           path: tests/integration/target/container-logs
           retention-days: 7
 
