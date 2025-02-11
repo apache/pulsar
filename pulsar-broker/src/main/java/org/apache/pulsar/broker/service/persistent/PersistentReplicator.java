@@ -630,8 +630,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     public boolean expireMessages(int messageTTLInSeconds) {
-        if ((cursor.getNumberOfEntriesInBacklog(false) == 0)
-                || (cursor.getNumberOfEntriesInBacklog(false) < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
+        long backlog = cursor.getNumberOfEntriesInBacklog(false);
+        if ((backlog == 0) || (backlog < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
                         && !topic.isOldestMessageExpired(cursor, messageTTLInSeconds))) {
             // don't do anything for almost caught-up connected subscriptions
             return false;
