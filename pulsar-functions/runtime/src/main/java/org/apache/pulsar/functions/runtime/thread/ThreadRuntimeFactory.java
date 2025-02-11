@@ -95,7 +95,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
                                 AuthenticationConfig authConfig, SecretsProvider secretsProvider,
                                 FunctionCollectorRegistry collectorRegistry, String narExtractionDirectory,
                                 ClassLoader rootClassLoader, boolean exposePulsarAdminClientEnabled,
-                                String pulsarWebServiceUrl, FunctionCacheManager fnCache, Optional<MemoryLimit> memoryLimit) throws Exception {
+                                String pulsarWebServiceUrl, FunctionCacheManager fnCache,
+                                Optional<MemoryLimit> memoryLimit) throws Exception {
         initialize(threadGroupName, memoryLimit, pulsarServiceUrl
                 , authConfig, stateStorageImplClass, storageServiceUrl, null, secretsProvider, collectorRegistry,
                 narExtractionDirectory,
