@@ -456,8 +456,13 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
             try {
                 MLDataFormats.ManagedLedgerInfoMetadata metadata =
                         MLDataFormats.ManagedLedgerInfoMetadata.parseFrom(metadataBytes);
-                return ManagedLedgerInfo.parseFrom(getCompressionCodec(metadata.getCompressionType())
-                        .decode(byteBuf, metadata.getUncompressedSize()).nioBuffer());
+                ByteBuf uncompressed = getCompressionCodec(metadata.getCompressionType())
+                        .decode(byteBuf, metadata.getUncompressedSize());
+                try {
+                    return ManagedLedgerInfo.parseFrom(uncompressed.nioBuffer());
+                } finally {
+                    uncompressed.release();
+                }
             } catch (Exception e) {
                 log.error("Failed to parse managedLedgerInfo metadata, "
                         + "fall back to parse managedLedgerInfo directly.", e);
