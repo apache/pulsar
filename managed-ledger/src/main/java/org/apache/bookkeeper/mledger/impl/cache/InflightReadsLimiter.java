@@ -22,6 +22,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.ObservableLongCounter;
 import io.prometheus.client.Gauge;
+import java.util.ArrayDeque;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ScheduledExecutorService;
@@ -31,7 +32,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.opentelemetry.Constants;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.InflightReadLimiterUtilization;
 import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
-import org.jctools.queues.SpscArrayQueue;
 
 @Slf4j
 public class InflightReadsLimiter implements AutoCloseable {
@@ -84,7 +84,7 @@ public class InflightReadsLimiter implements AutoCloseable {
         this.timeOutExecutor = timeOutExecutor;
         if (maxReadsInFlightSize > 0) {
             enabled = true;
-            this.queuedHandles = new SpscArrayQueue<>(maxReadsInFlightAcquireQueueSize);
+            this.queuedHandles = new ArrayDeque<>(maxReadsInFlightAcquireQueueSize);
         } else {
             enabled = false;
             this.queuedHandles = null;
