@@ -1136,16 +1136,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return cachedCursor;
         }
 
-        NonDurableCursorImpl cursor = new NonDurableCursorImpl(bookKeeper, this, cursorName,
-                (PositionImpl) startCursorPosition, initialPosition, isReadCompacted);
-        cursor.setActive();
-
-        log.info("[{}] Opened new cursor: {}", name, cursor);
+        // The backlog of a non-durable cursor could be incorrect if the cursor is created before `internalTrimLedgers`
+        // and added to the managed ledger after `internalTrimLedgers`.
+        // For more details, see https://github.com/apache/pulsar/pull/23951.
         synchronized (this) {
+            NonDurableCursorImpl cursor = new NonDurableCursorImpl(bookKeeper, this, cursorName,
+                    (PositionImpl) startCursorPosition, initialPosition, isReadCompacted);
+            cursor.setActive();
+            log.info("[{}] Opened new cursor: {}", name, cursor);
             addCursor(cursor);
+            return cursor;
         }
-
-        return cursor;
     }
 
     @Override
