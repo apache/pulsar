@@ -670,7 +670,7 @@ public class LocalRunner implements AutoCloseable {
                     secretsProvider,
                     collectorRegistry, narExtractionDirectory,
                     null,
-                    exposePulsarAdminClientEnabled, webServiceUrl,pulsarClientMemoryLimit);
+                    exposePulsarAdminClientEnabled, webServiceUrl, pulsarClientMemoryLimit);
         } finally {
             Thread.currentThread().setContextClassLoader(originalClassLoader);
         }
