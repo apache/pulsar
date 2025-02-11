@@ -112,13 +112,27 @@ import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.SkipException;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
 public class BrokerServiceLookupTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(BrokerServiceLookupTest.class);
+
+    @DataProvider
+    private static Object[] booleanValues() {
+        return new Object[]{ true, false };
+    }
+
+    @Factory(dataProvider = "booleanValues")
+    public BrokerServiceLookupTest(boolean useTestZookeeper) {
+        // when set to true, TestZKServer is used which is a real ZooKeeper implementation
+        this.useTestZookeeper = useTestZookeeper;
+    }
 
     @BeforeMethod
     @Override
@@ -1197,6 +1211,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
     @Test
     public void testLookupConnectionNotCloseIfGetUnloadingExOrMetadataEx() throws Exception {
+        if (useTestZookeeper) {
+            throw new SkipException("This test case depends on MockZooKeeper");
+        }
         String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         admin.topics().createNonPartitionedTopic(tpName);
         PulsarClientImpl pulsarClientImpl = (PulsarClientImpl) pulsarClient;
