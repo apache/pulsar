@@ -22,9 +22,9 @@ import java.util.Collections;
 import java.util.List;
 import lombok.Data;
 import lombok.Getter;
+import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.common.functions.MemoryLimit;
 
 /**
  * This is the config passed to the Java Instance. Contains all the information
