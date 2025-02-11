@@ -82,13 +82,21 @@ public final class ByteBufPair extends AbstractReferenceCounted {
     }
 
     /**
-     * @return a single buffer with the content of both individual buffers
+     * Combines the content of both buffers into a single {@link ByteBuf}.
+     *
+     * <p>This method creates a new {@link ByteBuf} with the combined readable content
+     * of the two buffers in the given {@link ByteBufPair}. The original buffer is
+     * released after the data is written into the new buffer.
+     *
+     * @param pair the {@link ByteBufPair} containing the two buffers to be coalesced
+     * @return a new {@link ByteBuf} containing the combined content of both buffers
      */
     @VisibleForTesting
     public static ByteBuf coalesce(ByteBufPair pair) {
         ByteBuf b = Unpooled.buffer(pair.readableBytes());
         b.writeBytes(pair.b1, pair.b1.readerIndex(), pair.b1.readableBytes());
         b.writeBytes(pair.b2, pair.b2.readerIndex(), pair.b2.readableBytes());
+        pair.release();
         return b;
     }
 
