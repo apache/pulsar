@@ -1,4 +1,4 @@
-# PIP-XXX: Introduce per-ledger properties
+# PIP-404: Introduce per-ledger properties
 
 # Background knowledge
 
