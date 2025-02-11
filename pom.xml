@@ -133,6 +133,7 @@ flexible messaging model and an intuitive client API.</description>
     <docker.tag>latest</docker.tag>
     <skipSourceReleaseAssembly>false</skipSourceReleaseAssembly>
     <skipBuildDistribution>false</skipBuildDistribution>
+    <skipDeployConnector>false</skipDeployConnector>
     <shadePluginPhase>package</shadePluginPhase>
     <narPluginPhase>package</narPluginPhase>
 
@@ -146,12 +147,12 @@ flexible messaging model and an intuitive client API.</description>
     <snappy.version>1.1.10.5</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.7.1</curator.version>
-    <netty.version>4.1.117.Final</netty.version>
+    <netty.version>4.1.118.Final</netty.version>
     <netty-iouring.version>0.0.26.Final</netty-iouring.version>
     <jetty.version>9.4.56.v20240826</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.42</jersey.version>
-    <athenz.version>1.10.50</athenz.version>
+    <athenz.version>1.10.62</athenz.version>
     <prometheus.version>0.16.0</prometheus.version>
     <vertx.version>4.5.10</vertx.version>
     <rocksdb.version>7.9.2</rocksdb.version>

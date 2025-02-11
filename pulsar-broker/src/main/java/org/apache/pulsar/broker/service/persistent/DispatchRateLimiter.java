@@ -23,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.qos.AsyncTokenBucket;
+import org.apache.pulsar.broker.qos.AsyncTokenBucketBuilder;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -76,7 +77,9 @@ public class DispatchRateLimiter {
      * @return
      */
     public long getAvailableDispatchRateLimitOnMsg() {
-        return dispatchRateLimiterOnMessage == null ? -1 : Math.max(dispatchRateLimiterOnMessage.getTokens(), 0);
+        AsyncTokenBucket localDispatchRateLimiterOnMessage = dispatchRateLimiterOnMessage;
+        return localDispatchRateLimiterOnMessage == null ? -1 :
+                Math.max(localDispatchRateLimiterOnMessage.getTokens(), 0);
     }
 
     /**
@@ -85,7 +88,8 @@ public class DispatchRateLimiter {
      * @return
      */
     public long getAvailableDispatchRateLimitOnByte() {
-        return dispatchRateLimiterOnByte == null ? -1 : Math.max(dispatchRateLimiterOnByte.getTokens(), 0);
+        AsyncTokenBucket localDispatchRateLimiterOnByte = dispatchRateLimiterOnByte;
+        return localDispatchRateLimiterOnByte == null ? -1 : Math.max(localDispatchRateLimiterOnByte.getTokens(), 0);
     }
 
     /**
@@ -95,11 +99,13 @@ public class DispatchRateLimiter {
      * @param byteSize
      */
     public void consumeDispatchQuota(long numberOfMessages, long byteSize) {
-        if (numberOfMessages > 0 && dispatchRateLimiterOnMessage != null) {
-            dispatchRateLimiterOnMessage.consumeTokens(numberOfMessages);
+        AsyncTokenBucket localDispatchRateLimiterOnMessage = dispatchRateLimiterOnMessage;
+        if (numberOfMessages > 0 && localDispatchRateLimiterOnMessage != null) {
+            localDispatchRateLimiterOnMessage.consumeTokens(numberOfMessages);
         }
-        if (byteSize > 0 && dispatchRateLimiterOnByte != null) {
-            dispatchRateLimiterOnByte.consumeTokens(byteSize);
+        AsyncTokenBucket localDispatchRateLimiterOnByte = dispatchRateLimiterOnByte;
+        if (byteSize > 0 && localDispatchRateLimiterOnByte != null) {
+            localDispatchRateLimiterOnByte.consumeTokens(byteSize);
         }
     }
 
@@ -221,13 +227,14 @@ public class DispatchRateLimiter {
         if (msgRate > 0) {
             if (dispatchRate.isRelativeToPublishRate()) {
                 this.dispatchRateLimiterOnMessage =
-                        AsyncTokenBucket.builderForDynamicRate()
+                        configureAsyncTokenBucket(AsyncTokenBucket.builderForDynamicRate())
                                 .rateFunction(() -> getRelativeDispatchRateInMsg(dispatchRate))
                                 .ratePeriodNanosFunction(() -> ratePeriodNanos)
                                 .build();
             } else {
                 this.dispatchRateLimiterOnMessage =
-                        AsyncTokenBucket.builder().rate(msgRate).ratePeriodNanos(ratePeriodNanos)
+                        configureAsyncTokenBucket(AsyncTokenBucket.builder())
+                                .rate(msgRate).ratePeriodNanos(ratePeriodNanos)
                                 .build();
             }
         } else {
@@ -238,18 +245,24 @@ public class DispatchRateLimiter {
         if (byteRate > 0) {
             if (dispatchRate.isRelativeToPublishRate()) {
                 this.dispatchRateLimiterOnByte =
-                        AsyncTokenBucket.builderForDynamicRate()
+                        configureAsyncTokenBucket(AsyncTokenBucket.builderForDynamicRate())
                                 .rateFunction(() -> getRelativeDispatchRateInByte(dispatchRate))
                                 .ratePeriodNanosFunction(() -> ratePeriodNanos)
                                 .build();
             } else {
                 this.dispatchRateLimiterOnByte =
-                        AsyncTokenBucket.builder().rate(byteRate).ratePeriodNanos(ratePeriodNanos)
+                        configureAsyncTokenBucket(AsyncTokenBucket.builder())
+                                .rate(byteRate).ratePeriodNanos(ratePeriodNanos)
                                 .build();
             }
         } else {
             this.dispatchRateLimiterOnByte = null;
         }
+    }
+
+    private <T extends AsyncTokenBucketBuilder<T>> T configureAsyncTokenBucket(T builder) {
+        builder.clock(brokerService.getPulsar().getMonotonicSnapshotClock());
+        return builder;
     }
 
     private long getRelativeDispatchRateInMsg(DispatchRate dispatchRate) {
@@ -270,7 +283,8 @@ public class DispatchRateLimiter {
      * @return
      */
     public long getDispatchRateOnMsg() {
-        return dispatchRateLimiterOnMessage != null ? dispatchRateLimiterOnMessage.getRate() : -1;
+        AsyncTokenBucket localDispatchRateLimiterOnMessage = dispatchRateLimiterOnMessage;
+        return localDispatchRateLimiterOnMessage != null ? localDispatchRateLimiterOnMessage.getRate() : -1;
     }
 
     /**
@@ -279,7 +293,8 @@ public class DispatchRateLimiter {
      * @return
      */
     public long getDispatchRateOnByte() {
-        return dispatchRateLimiterOnByte != null ? dispatchRateLimiterOnByte.getRate() : -1;
+        AsyncTokenBucket localDispatchRateLimiterOnByte = dispatchRateLimiterOnByte;
+        return localDispatchRateLimiterOnByte != null ? localDispatchRateLimiterOnByte.getRate() : -1;
     }
 
 

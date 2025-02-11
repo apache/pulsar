@@ -334,8 +334,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 // set last invocation time
                 stats.setLastInvocation(System.currentTimeMillis());
 
-                // start time for process latency stat
-                stats.processTimeStart();
 
                 // process the message
                 Thread.currentThread().setContextClassLoader(functionClassLoader);
@@ -345,9 +343,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                         asyncResultConsumer,
                         asyncErrorHandler);
                 Thread.currentThread().setContextClassLoader(instanceClassLoader);
-
-                // register end time
-                stats.processTimeEnd();
 
                 if (result != null) {
                     // process the synchronous results
@@ -448,6 +443,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             // increment total successfully processed
             stats.incrTotalProcessedSuccessfully();
         }
+        // handle endTime here
+        stats.processTimeEnd(result.getStartTime());
     }
 
     private void sendOutputMessage(Record srcRecord, Object output) throws Exception {
@@ -629,6 +626,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             }
         }
         return "";
+    }
+
+    @VisibleForTesting
+    void setStats(ComponentStatsManager stats) {
+        this.stats = stats;
     }
 
     public InstanceCommunication.MetricsData getAndResetMetrics() {
