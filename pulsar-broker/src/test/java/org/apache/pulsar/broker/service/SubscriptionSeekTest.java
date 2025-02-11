@@ -27,8 +27,10 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -38,6 +40,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -50,6 +58,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
@@ -60,6 +69,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -71,6 +81,10 @@ public class SubscriptionSeekTest extends BrokerTestBase {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
+        conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        conf.setManagedLedgerMaxEntriesPerLedger(10);
+        conf.setDefaultRetentionSizeInMB(100);
+        conf.setDefaultRetentionTimeInMinutes(100);
         super.baseSetup();
         conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
     }
@@ -486,6 +500,110 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         Awaitility.await().until(consumer::isConnected);
         consumer.seek(currentTimestamp - resetTimeInMillis);
         assertEquals(sub.getNumberOfEntriesInBacklog(false), 10);
+    }
+
+    @Test(timeOut = 30_000)
+    public void testSeekByTimestamp() throws Exception {
+        String topicName = "persistent://prop/use/ns-abc/testSeekByTimestamp";
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topics().createSubscription(topicName, "my-sub", MessageId.earliest);
+
+        @Cleanup
+        Producer<String> producer =
+                pulsarClient.newProducer(Schema.STRING).topic(topicName).enableBatching(false).create();
+        for (int i = 0; i < 25; i++) {
+            producer.send(("message-" + i));
+            Thread.sleep(10);
+        }
+
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).get().get();
+
+        Map<Long, MessageId> timestampToMessageId = new HashMap<>();
+        @Cleanup
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING).topic(topicName).startMessageId(MessageId.earliest).create();
+        while (reader.hasMessageAvailable()) {
+           Message<String> message = reader.readNext();
+              timestampToMessageId.put(message.getPublishTime(), message.getMessageId());
+        }
+
+        Assert.assertEquals(timestampToMessageId.size(), 25);
+
+        PersistentSubscription subscription = topic.getSubscription("my-sub");
+        ManagedCursor cursor = subscription.getCursor();
+
+        @Cleanup
+        org.apache.pulsar.client.api.Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName).subscriptionName("my-sub").subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe();
+        long[] timestamps = timestampToMessageId.keySet().stream().mapToLong(Long::longValue).toArray();
+        ArrayUtils.shuffle(timestamps);
+        for (long timestamp : timestamps) {
+            MessageIdImpl messageId = (MessageIdImpl) timestampToMessageId.get(timestamp);
+            consumer.seek(timestamp);
+            Position readPosition = cursor.getReadPosition();
+            Assert.assertEquals(readPosition.getLedgerId(), messageId.getLedgerId());
+            Assert.assertEquals(readPosition.getEntryId(), messageId.getEntryId());
+        }
+    }
+
+    @Test(timeOut = 30_000)
+    public void testSeekByTimestampWithLedgerTrim() throws Exception {
+        String topicName = "persistent://prop/use/ns-abc/testSeekByTimestampWithLedgerTrim";
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topics().createSubscription(topicName, "my-sub", MessageId.earliest);
+
+        @Cleanup
+        Producer<String> producer =
+                pulsarClient.newProducer(Schema.STRING).topic(topicName).enableBatching(false).create();
+        for (int i = 0; i < 25; i++) {
+            producer.send(("message-" + i));
+            Thread.sleep(10);
+        }
+
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).get().get();
+        ManagedLedger ledger = topic.getManagedLedger();
+        ManagedLedgerConfig config = ledger.getConfig();
+        config.setRetentionTime(0, TimeUnit.SECONDS);
+        config.setRetentionSizeInMB(0);
+
+        Map<Long, MessageId> timestampToMessageId = new HashMap<>();
+        @Cleanup
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING).topic(topicName).startMessageId(MessageId.earliest).create();
+        while (reader.hasMessageAvailable()) {
+            Message<String> message = reader.readNext();
+            timestampToMessageId.put(message.getPublishTime(), message.getMessageId());
+        }
+
+        Assert.assertEquals(timestampToMessageId.size(), 25);
+
+        PersistentSubscription subscription = topic.getSubscription("my-sub");
+        ManagedCursor cursor = subscription.getCursor();
+
+        @Cleanup
+        org.apache.pulsar.client.api.Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName).subscriptionName("my-sub").subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe();
+        long[] timestamps = timestampToMessageId.keySet().stream().mapToLong(Long::longValue).toArray();
+        ArrayUtils.shuffle(timestamps);
+        boolean enterLedgerTrimmedBranch = false;
+        for (long timestamp : timestamps) {
+            MessageIdImpl messageId = (MessageIdImpl) timestampToMessageId.get(timestamp);
+            consumer.seek(timestamp);
+            CompletableFuture<?> trimFuture = new CompletableFuture<>();
+            ledger.trimConsumedLedgersInBackground(trimFuture);
+            trimFuture.get();
+            Position readPosition = cursor.getReadPosition();
+            Map.Entry<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> firstLedger = ledger.getLedgersInfo().firstEntry();
+            Assert.assertNotNull(firstLedger);
+            if (firstLedger.getKey() > messageId.getLedgerId()) {
+                Assert.assertEquals(readPosition.getLedgerId(), firstLedger.getKey());
+                Assert.assertEquals(readPosition.getEntryId(), 0);
+                enterLedgerTrimmedBranch = true;
+            } else {
+                Assert.assertEquals(readPosition.getLedgerId(), messageId.getLedgerId());
+                Assert.assertEquals(readPosition.getEntryId(), messageId.getEntryId());
+            }
+        }
+        // May have a chance to cause flaky test, because the result of `ArrayUtils.shuffle(timestamps);` is random.
+        Assert.assertTrue(enterLedgerTrimmedBranch);
     }
 
     @Test
