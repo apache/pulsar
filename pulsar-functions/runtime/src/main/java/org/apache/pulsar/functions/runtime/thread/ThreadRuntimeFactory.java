@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.functions.runtime.thread;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.functions.MemoryLimit.calculateClientMemoryLimit;
 import java.util.Optional;
 import lombok.Getter;
@@ -97,8 +96,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
                                 FunctionCollectorRegistry collectorRegistry, String narExtractionDirectory,
                                 ClassLoader rootClassLoader, boolean exposePulsarAdminClientEnabled,
                                 String pulsarWebServiceUrl, FunctionCacheManager fnCache, MemoryLimit memoryLimit) throws Exception {
-        initialize(threadGroupName, Optional.of(memoryLimit), pulsarServiceUrl, authConfig,
-                stateStorageImplClass, storageServiceUrl, null, secretsProvider, collectorRegistry,
+        initialize(threadGroupName, Optional.of(memoryLimit), pulsarServiceUrl
+                , authConfig, stateStorageImplClass, storageServiceUrl, null, secretsProvider, collectorRegistry,
                 narExtractionDirectory,
                 rootClassLoader, exposePulsarAdminClientEnabled, pulsarWebServiceUrl, Optional.empty(),
                 Optional.empty(), fnCache);
