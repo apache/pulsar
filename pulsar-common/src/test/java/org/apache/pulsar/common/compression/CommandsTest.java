@@ -52,7 +52,6 @@ public class CommandsTest {
                 .setSequenceId(sequenceId);
         int expectedChecksum = computeChecksum(messageMetadata, data);
         ByteBufPair clientCommand = Commands.newSend(1, 0, 1, ChecksumType.Crc32c, messageMetadata, data);
-        clientCommand.retain();
         ByteBuf receivedBuf = ByteBufPair.coalesce(clientCommand);
         System.err.println(ByteBufUtil.prettyHexDump(receivedBuf));
         receivedBuf.skipBytes(4); //skip [total-size]
@@ -78,7 +77,7 @@ public class CommandsTest {
         metadata = Commands.parseMessageMetadata(receivedBuf);
         // verify metadata parsing
         assertEquals(metadata.getProducerName(), producerName);
-
+        receivedBuf.release();
     }
 
     private int computeChecksum(MessageMetadata msgMetadata, ByteBuf compressedPayload) throws IOException {
@@ -88,9 +87,9 @@ public class CommandsTest {
         metaPayloadFrame.writeInt(metadataSize);
         msgMetadata.writeTo(metaPayloadFrame);
         ByteBuf payload = compressedPayload.copy();
-        ByteBufPair metaPayloadBuf = ByteBufPair.get(metaPayloadFrame, payload);
-        int computedChecksum = Crc32cIntChecksum.computeChecksum(ByteBufPair.coalesce(metaPayloadBuf));
-        metaPayloadBuf.release();
+        ByteBuf byteBuf = ByteBufPair.coalesce(ByteBufPair.get(metaPayloadFrame, payload));
+        int computedChecksum = Crc32cIntChecksum.computeChecksum(byteBuf);
+        byteBuf.release();
         return computedChecksum;
     }
 
