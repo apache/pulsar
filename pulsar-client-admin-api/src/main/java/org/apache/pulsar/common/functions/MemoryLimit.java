@@ -28,6 +28,6 @@ import lombok.experimental.Accessors;
  * If `absoluteValue` and `percentOfMaxDirectMemory` are both set, then the min of the two will be used.
  */
 public class MemoryLimit {
-    Long absoluteValue;
+    Long limitInBytes;
     Double percentOfMaxDirectMemory;
 }

@@ -144,7 +144,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     private Optional<Long> calculateClientMemoryLimit(Optional<MemoryLimit> memoryLimit) {
         if (memoryLimit.isPresent()) {
 
-            Long absolute = memoryLimit.get().getAbsoluteValue();
+            Long absolute = memoryLimit.get().getLimitInBytes();
             Double percentOfDirectMem = memoryLimit.get().getPercentOfMaxDirectMemory();
             if (absolute != null) {
                 checkArgument(absolute > 0, "Absolute memory limit for Pulsar client has to be positive");

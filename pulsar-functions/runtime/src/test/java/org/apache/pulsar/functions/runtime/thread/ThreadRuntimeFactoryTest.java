@@ -111,7 +111,7 @@ public class ThreadRuntimeFactoryTest {
             }
 
             if (absolute != null) {
-                memoryLimit.setAbsoluteValue(absolute);
+                memoryLimit.setLimitInBytes(absolute);
             }
             threadRuntimeFactoryConfig.setPulsarClientMemoryLimit(memoryLimit);
 
