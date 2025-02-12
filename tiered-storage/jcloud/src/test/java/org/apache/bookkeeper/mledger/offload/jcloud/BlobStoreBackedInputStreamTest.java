@@ -23,12 +23,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.BlobStoreBackedInputStreamImpl;
 import org.jclouds.blobstore.BlobStore;
@@ -43,7 +43,7 @@ import org.testng.annotations.Test;
 
 @Slf4j
 public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
-    
+
     class RandomInputStream extends InputStream {
         final Random r;
         int bytesRemaining;
@@ -115,6 +115,7 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         String ret = blobStore.putBlob(BUCKET, blob);
         log.debug("put blob: {} in Bucket: {}, in blobStore, result: {}", objectKey, BUCKET, ret);
 
+        @Cleanup
         BackedInputStream toTest = new BlobStoreBackedInputStreamImpl(blobStore, BUCKET, objectKey,
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
@@ -137,6 +138,7 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         String ret = blobStore.putBlob(BUCKET, blob);
         log.debug("put blob: {} in Bucket: {}, in blobStore, result: {}", objectKey, BUCKET, ret);
 
+        @Cleanup
         BackedInputStream toTest = new BlobStoreBackedInputStreamImpl(blobStore, BUCKET, objectKey,
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
@@ -145,6 +147,7 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
 
     @Test(expectedExceptions = KeyNotFoundException.class)
     public void testNotFoundOnRead() throws Exception {
+        @Cleanup
         BackedInputStream toTest = new BlobStoreBackedInputStreamImpl(blobStore, BUCKET, "doesn't exist",
                                                                  (key, md) -> {},
                                                                  1234, 1000);
@@ -176,6 +179,7 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         String ret = blobStore.putBlob(BUCKET, blob);
         log.debug("put blob: {} in Bucket: {}, in blobStore, result: {}", objectKey, BUCKET, ret);
 
+        @Cleanup
         BackedInputStream toTest = new BlobStoreBackedInputStreamImpl(blobStore, BUCKET, objectKey,
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
@@ -203,6 +207,7 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         //BlobStore spiedBlobStore = spy(blobStore);
         BlobStore spiedBlobStore = mock(BlobStore.class, delegatesTo(blobStore));
 
+        @Cleanup
         BackedInputStream toTest = new BlobStoreBackedInputStreamImpl(spiedBlobStore, BUCKET, objectKey,
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
@@ -250,6 +255,7 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         String ret = blobStore.putBlob(BUCKET, blob);
         log.debug("put blob: {} in Bucket: {}, in blobStore, result: {}", objectKey, BUCKET, ret);
 
+        @Cleanup
         BackedInputStream toTest = new BlobStoreBackedInputStreamImpl(blobStore, BUCKET, objectKey,
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
@@ -286,6 +292,7 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
             .contentLength(objectSize)
             .build();
         String ret = blobStore.putBlob(BUCKET, blob);
+        @Cleanup
         BackedInputStream bis = new BlobStoreBackedInputStreamImpl(
             blobStore, BUCKET, objectKey, (k, md) -> {}, objectSize, 512);
         assertEquals(bis.available(), objectSize);
