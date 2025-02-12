@@ -102,8 +102,8 @@ message FunctionDetails {
 }
 
 message MemoryLimit {
-    // absolute value in bytes, represents the memory limit in bytes
-    int64 absoluteValue = 1;
+    // limit value in bytes, represents the memory limit in bytes
+    int64 limitInBytes = 1;
 
     // percent of max direct memory, in percentage
     double percentOfMaxDirectMemory = 2;

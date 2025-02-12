@@ -368,7 +368,7 @@ public class FunctionConfigUtils {
         }
         if (functionConfig.getMemoryLimit() != null) {
             Function.MemoryLimit.Builder mbdr = Function.MemoryLimit.newBuilder();
-            mbdr.setAbsoluteValue(functionConfig.getMemoryLimit().getLimitInBytes());
+            mbdr.setLimitInBytes(functionConfig.getMemoryLimit().getLimitInBytes());
             mbdr.setPercentOfMaxDirectMemory(functionConfig.getMemoryLimit().getPercentOfMaxDirectMemory());
             functionDetailsBuilder.setMemoryLimit(mbdr);
         }
@@ -511,7 +511,7 @@ public class FunctionConfigUtils {
         }
         if (functionDetails.getMemoryLimit() != null) {
             MemoryLimit memoryLimit = new MemoryLimit();
-            memoryLimit.setLimitInBytes(functionDetails.getMemoryLimit().getAbsoluteValue());
+            memoryLimit.setLimitInBytes(functionDetails.getMemoryLimit().getLimitInBytes());
             memoryLimit.setPercentOfMaxDirectMemory(functionDetails.getMemoryLimit().getPercentOfMaxDirectMemory());
         }
         return functionConfig;
