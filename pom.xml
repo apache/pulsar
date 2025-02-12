@@ -197,7 +197,7 @@ flexible messaging model and an intuitive client API.</description>
     <clickhouse-jdbc.version>0.4.6</clickhouse-jdbc.version>
     <mariadb-jdbc.version>2.7.5</mariadb-jdbc.version>
     <openmldb-jdbc.version>0.4.4-hotfix1</openmldb-jdbc.version>
-    <json-smart.version>2.4.10</json-smart.version>
+    <json-smart.version>2.5.1</json-smart.version>
     <opensearch.version>2.16.0</opensearch.version>
     <elasticsearch-java.version>8.12.1</elasticsearch-java.version>
     <debezium.version>1.9.7.Final</debezium.version>
@@ -326,6 +326,11 @@ flexible messaging model and an intuitive client API.</description>
 
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <groupId>net.minidev</groupId>
+        <artifactId>json-smart</artifactId>
+        <version>${json-smart.version}</version>
+      </dependency>
 
       <dependency>
         <groupId>org.jline</groupId>
