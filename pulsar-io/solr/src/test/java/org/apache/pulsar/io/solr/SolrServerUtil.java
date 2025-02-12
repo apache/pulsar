@@ -20,7 +20,7 @@ package org.apache.pulsar.io.solr;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
-import org.apache.solr.client.solrj.embedded.JettySolrRunner;
+import org.apache.solr.embedded.JettySolrRunner;
 
 import java.io.File;
 
