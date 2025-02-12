@@ -40,7 +40,7 @@ import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.broker.resources.ClusterResources;
-import org.apache.pulsar.common.functions.DirectMemoryUtils;
+import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;

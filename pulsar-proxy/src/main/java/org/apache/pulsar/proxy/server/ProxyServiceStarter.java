@@ -52,7 +52,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
-import org.apache.pulsar.common.functions.DirectMemoryUtils;
+import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.util.ShutdownUtil;
 import org.apache.pulsar.docs.tools.CmdGenerateDocs;

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.functions;
+package org.apache.pulsar.common.util;
 
 // CHECKSTYLE.OFF: IllegalImport
 import io.netty.util.internal.PlatformDependent;
