@@ -3775,4 +3775,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     public void decrementThrottleCount() {
         throttleTracker.decrementThrottleCount();
     }
+
+    @VisibleForTesting
+    void setAuthState(AuthenticationState authState) {
+        this.authState = authState;
+    }
 }
