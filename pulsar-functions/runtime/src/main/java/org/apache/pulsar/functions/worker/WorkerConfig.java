@@ -380,7 +380,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private String downloadDirectory;
     @FieldContext(
             category = CATEGORY_FUNC_RUNTIME_MNG,
-            doc = "Memory limit set for the pulsar client used by all instances"
+            doc = "Default memory limit set for the pulsar client used instances"
     )
     protected MemoryLimit pulsarClientMemoryLimit;
     @FieldContext(
