@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.runtime.thread;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.common.util.DirectMemoryUtils.jvmMaxDirectMemoryPercentage;
 import java.util.Optional;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -28,7 +29,6 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.functions.MemoryLimit;
-import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
@@ -155,7 +155,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
             }
 
             if (absolute != null && percentOfDirectMem != null) {
-                return Optional.of(Math.min(absolute, getBytesPercentDirectMem(percentOfDirectMem)));
+                return Optional.of(Math.min(absolute, jvmMaxDirectMemoryPercentage(percentOfDirectMem)));
             }
 
             if (absolute != null) {
@@ -163,14 +163,10 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
             }
 
             if (percentOfDirectMem != null) {
-                return Optional.of(getBytesPercentDirectMem(percentOfDirectMem));
+                return Optional.of(jvmMaxDirectMemoryPercentage(percentOfDirectMem));
             }
         }
         return Optional.empty();
-    }
-
-    private long getBytesPercentDirectMem(double percent) {
-        return (long) (DirectMemoryUtils.jvmMaxDirectMemory() * (percent / 100));
     }
 
 
