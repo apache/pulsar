@@ -133,7 +133,7 @@ public class FunctionConfig {
     private Boolean exposePulsarAdminClientEnabled;
     // Whether the consumer should skip to latest position in case of failure recovery
     private Boolean skipToLatest;
-    // The momoryLimit of pulsar client
+    // The memoryLimit of pulsar client
     private MemoryLimit memoryLimit;
     @Builder.Default
     private SubscriptionInitialPosition subscriptionPosition = SubscriptionInitialPosition.Latest;
