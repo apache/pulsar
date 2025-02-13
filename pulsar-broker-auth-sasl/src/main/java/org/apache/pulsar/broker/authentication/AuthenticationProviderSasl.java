@@ -330,6 +330,7 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
         if (value == null) {
             return null;
         }
-        return value.replaceAll("[\\r\\n]", "");
+        // Remove CRLF and other special characters
+        return value.replaceAll("[\\r\\n]", "").replaceAll("[^\\x20-\\x7E]", "");
     }
 }
