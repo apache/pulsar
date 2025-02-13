@@ -21,16 +21,23 @@ package org.apache.pulsar.compaction;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import org.apache.bookkeeper.client.api.BookKeeper;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -38,12 +45,17 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ReaderImpl;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.MockZooKeeper;
 import org.awaitility.Awaitility;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -304,6 +316,145 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
 
         // cleanup.
         consumer.close();
+        producer.close();
+        admin.topics().delete(topicName, false);
+    }
+
+    @DataProvider
+    public Object[][] isInjectedCursorDeleteError() {
+        return new Object[][] {
+                {false},
+                {true}
+        };
+    }
+
+    @Test(dataProvider = "isInjectedCursorDeleteError")
+    public void testReadMsgsAfterUnloading(boolean isInjectedCursorDeleteError) throws Exception {
+        String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topicPolicies().setCompactionThreshold(topicName, 1);
+        admin.topics().createSubscription(topicName, "s1", MessageId.earliest);
+        var producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).enableBatching(false).create();
+        producer.newMessage().key("k0").value("v0").send();
+        producer.newMessage().key("k1").value("v1").send();
+        producer.newMessage().key("k2").value("v2").send();
+        triggerCompactionAndWait(topicName);
+        admin.topics().deleteSubscription(topicName, "s1");
+
+        // Disable compaction.
+        // Inject a failure that the first time to delete cursor will fail.
+        if (isInjectedCursorDeleteError) {
+            AtomicInteger times = new AtomicInteger();
+            String cursorPath = String.format("/managed-ledgers/%s/__compaction",
+                    TopicName.get(topicName).getPersistenceNamingEncoding());
+            admin.topicPolicies().removeCompactionThreshold(topicName);
+            mockZooKeeper.failConditional(KeeperException.Code.SESSIONEXPIRED, (op, path) -> {
+                return op == MockZooKeeper.Op.DELETE && cursorPath.equals(path) && times.incrementAndGet() == 1;
+            });
+            mockZooKeeperGlobal.failConditional(KeeperException.Code.SESSIONEXPIRED, (op, path) -> {
+                return op == MockZooKeeper.Op.DELETE && cursorPath.equals(path) && times.incrementAndGet() == 1;
+            });
+            try {
+                admin.topics().deleteSubscription(topicName, "__compaction");
+                fail("Should fail");
+            } catch (Exception ex) {
+                assertTrue(ex instanceof PulsarAdminException.ServerSideErrorException);
+            }
+        }
+
+        // Create a reader with start at earliest.
+        // Verify: the reader will receive 3 messages.
+        admin.topics().unload(topicName);
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING).topic(topicName).readCompacted(true)
+                .startMessageId(MessageId.earliest).create();
+        producer.newMessage().key("k3").value("v3").send();
+        assertTrue(reader.hasMessageAvailable());
+        Message<String> m0 = reader.readNext(10, TimeUnit.SECONDS);
+        assertEquals(m0.getValue(), "v0");
+        assertTrue(reader.hasMessageAvailable());
+        Message<String> m1 = reader.readNext(10, TimeUnit.SECONDS);
+        assertEquals(m1.getValue(), "v1");
+        assertTrue(reader.hasMessageAvailable());
+        Message<String> m2 = reader.readNext(10, TimeUnit.SECONDS);
+        assertEquals(m2.getValue(), "v2");
+        assertTrue(reader.hasMessageAvailable());
+        Message<String> m3 = reader.readNext(10, TimeUnit.SECONDS);
+        assertEquals(m3.getValue(), "v3");
+
+        // cleanup.
+        producer.close();
+        reader.close();
+        admin.topics().delete(topicName, false);
+    }
+
+    @Test
+    public void testDisableCompactionConcurrently() throws Exception {
+        String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topicPolicies().setCompactionThreshold(topicName, 1);
+        admin.topics().createSubscription(topicName, "s1", MessageId.earliest);
+        var producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).enableBatching(false).create();
+        producer.newMessage().key("k0").value("v0").send();
+        triggerCompactionAndWait(topicName);
+        admin.topics().deleteSubscription(topicName, "s1");
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).get().get();
+        AtomicBoolean disablingCompaction =
+                WhiteboxImpl.getInternalState(persistentTopic, "disablingCompaction");
+
+        // Disable compaction.
+        // Inject a delay when the first time of deleting cursor.
+        AtomicInteger times = new AtomicInteger();
+        String cursorPath = String.format("/managed-ledgers/%s/__compaction",
+                TopicName.get(topicName).getPersistenceNamingEncoding());
+        admin.topicPolicies().removeCompactionThreshold(topicName);
+        mockZooKeeper.delay(5000, (op, path) -> {
+            return op == MockZooKeeper.Op.DELETE && cursorPath.equals(path) && times.incrementAndGet() == 1;
+        });
+        mockZooKeeperGlobal.delay(5000, (op, path) -> {
+            return op == MockZooKeeper.Op.DELETE && cursorPath.equals(path) && times.incrementAndGet() == 1;
+        });
+        AtomicReference<CompletableFuture<Void>> f1 = new AtomicReference<CompletableFuture<Void>>();
+        AtomicReference<CompletableFuture<Void>> f2 = new AtomicReference<CompletableFuture<Void>>();
+        new Thread(() -> {
+            f1.set(admin.topics().deleteSubscriptionAsync(topicName, "__compaction"));
+        }).start();
+        new Thread(() -> {
+            f2.set(admin.topics().deleteSubscriptionAsync(topicName, "__compaction"));
+        }).start();
+
+        // Verify: the next compaction will be skipped.
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(disablingCompaction.get());
+        });
+        producer.newMessage().key("k1").value("v1").send();
+        producer.newMessage().key("k2").value("v2").send();
+        CompletableFuture<Long> currentCompaction1 =
+                WhiteboxImpl.getInternalState(persistentTopic, "currentCompaction");
+        persistentTopic.triggerCompaction();
+        CompletableFuture<Long> currentCompaction2 =
+                WhiteboxImpl.getInternalState(persistentTopic, "currentCompaction");
+        assertTrue(currentCompaction1 == currentCompaction2);
+
+        // Verify: one of the requests should fail.
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(f1.get() != null);
+            assertTrue(f2.get() != null);
+            assertTrue(f1.get().isDone());
+            assertTrue(f2.get().isDone());
+            assertTrue(f1.get().isCompletedExceptionally() || f2.get().isCompletedExceptionally());
+            assertTrue(!f1.get().isCompletedExceptionally() || !f2.get().isCompletedExceptionally());
+        });
+        try {
+            f1.get().join();
+            f2.get().join();
+            fail("Should fail");
+        } catch (Exception ex) {
+            Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+            assertTrue(actEx instanceof PulsarAdminException.PreconditionFailedException);
+        }
+
+        // cleanup.
         producer.close();
         admin.topics().delete(topicName, false);
     }
