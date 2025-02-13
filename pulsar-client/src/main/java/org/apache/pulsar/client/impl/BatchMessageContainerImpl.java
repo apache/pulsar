@@ -145,7 +145,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         return getCompressedBatchMetadataAndPayload(true);
     }
 
-    protected ByteBuf getCompressedBatchMetadataAndPayload(boolean allowCompression) {
+    protected ByteBuf getCompressedBatchMetadataAndPayload(boolean clientOperation) {
         int batchWriteIndex = batchedMessageMetadataAndPayload.writerIndex();
         int batchReadIndex = batchedMessageMetadataAndPayload.readerIndex();
 
