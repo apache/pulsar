@@ -1627,8 +1627,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     BrokerServiceException.getClientErrorCode(exception),
                                     message);
                         }
-                        log.error("Try add schema failed, remote address {}, topic {}, producerId {}", remoteAddress,
-                                topicName, producerId, exception);
+                        var cause = FutureUtil.unwrapCompletionException(exception);
+                        if (!(cause instanceof IncompatibleSchemaException)) {
+                            log.error("Try add schema failed, remote address {}, topic {}, producerId {}",
+                                    remoteAddress,
+                                    topicName, producerId, exception);
+                        }
                         producers.remove(producerId, producerFuture);
                         return null;
                     });
@@ -1729,7 +1733,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     log.warn("[{}] Failed to load topic {}, producerId={}: Topic not found", remoteAddress, topicName,
                             producerId);
                 } else if (!Exceptions.areExceptionsPresentInChain(cause,
-                        ServiceUnitNotReadyException.class, ManagedLedgerException.class)) {
+                        ServiceUnitNotReadyException.class, ManagedLedgerException.class,
+                        BrokerServiceException.ProducerBusyException.class)) {
                     log.error("[{}] Failed to create topic {}, producerId={}",
                             remoteAddress, topicName, producerId, exception);
                 }
