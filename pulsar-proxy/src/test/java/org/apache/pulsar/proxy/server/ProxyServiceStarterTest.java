@@ -72,6 +72,8 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
             // set dummy values for the required properties so that validation is passed
             properties.setProperty("brokerServiceURL", "pulsar://0.0.0.0:0");
             properties.setProperty("brokerWebServiceURL", "http://0.0.0.0:0");
+            // change keepAliveIntervalSeconds default value so that it's possible to validate that it's configured
+            properties.setProperty("keepAliveIntervalSeconds", "25");
             // write the properties to a temporary file
             proxyConfFileForTests = File.createTempFile("proxy", ".conf");
             proxyConfFileForTests.deleteOnExit();
@@ -124,6 +126,11 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
         }
+    }
+
+    @Test
+    public void testKeepAliveIntervalSecondsIsConfigured() throws Exception {
+        assertEquals(serviceStarter.getConfig().getKeepAliveIntervalSeconds(), 25);
     }
 
     @Test
