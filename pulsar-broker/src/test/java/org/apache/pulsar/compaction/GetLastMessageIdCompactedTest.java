@@ -31,7 +31,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import org.apache.bookkeeper.client.api.BookKeeper;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -329,7 +328,7 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "isInjectedCursorDeleteError")
-    public void testReadMsgsAfterUnloading(boolean isInjectedCursorDeleteError) throws Exception {
+    public void testReadMsgsAfterDisableCompaction(boolean isInjectedCursorDeleteError) throws Exception {
         String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
         admin.topics().createNonPartitionedTopic(topicName);
         admin.topicPolicies().setCompactionThreshold(topicName, 1);
