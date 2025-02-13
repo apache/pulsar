@@ -174,7 +174,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
 
         int uncompressedSize = batchedMessageMetadataAndPayload.readableBytes();
         ByteBuf compressedPayload;
-        if (!allowCompression && producer != null){
+        if (clientOperation && producer != null){
             if (compressionType != CompressionType.NONE
                     && uncompressedSize > producer.conf.getCompressMinMsgBodySize()) {
                 compressedPayload = producer.applyCompression(batchedMessageMetadataAndPayload);
@@ -186,6 +186,10 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         } else {
             compressedPayload = compressor.encode(batchedMessageMetadataAndPayload);
             batchedMessageMetadataAndPayload.release();
+            if (compressionType != CompressionType.NONE) {
+                messageMetadata.setCompression(compressionType);
+                messageMetadata.setUncompressedSize(uncompressedSize);
+            }
         }
 
         // Update the current max batch size using the uncompressed size, which is what we need in any case to
