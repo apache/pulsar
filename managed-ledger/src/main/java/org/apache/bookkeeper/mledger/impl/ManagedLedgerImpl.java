@@ -832,7 +832,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    protected void afterAddEntryToQueue(OpAddEntry addOperation) throws ManagedLedgerException {
+    protected synchronized void afterAddEntryToQueue(OpAddEntry addOperation) throws ManagedLedgerException {
         final var state = STATE_UPDATER.get(this);
         if (state == State.ClosingLedger || state == State.CreatingLedger) {
             // We don't have a ready ledger to write into
