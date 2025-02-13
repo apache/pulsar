@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.function.Predicate;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
@@ -199,6 +200,7 @@ public interface ManagedLedger {
      *            callback object
      * @param ctx
      *            opaque context
+     * @apiNote This method is not guaranteed to be thread safe. The caller should be responsible to call it in order.
      */
     void asyncAddEntry(ByteBuf buffer, int numberOfMessages, AddEntryCallback callback, Object ctx);
 
@@ -733,4 +735,13 @@ public interface ManagedLedger {
     }
 
     Position getFirstPosition();
+
+    /**
+     * In the internal implementation of a managed ledger, it is reasonable to use a single-thread executor to execute
+     * tasks that need to be performed in order. By exposing this internal executor, the caller can synchronize its
+     * custom tasks, as well as the internal tasks.
+     */
+    default Executor getExecutor() {
+        return Runnable::run;
+    }
 }
