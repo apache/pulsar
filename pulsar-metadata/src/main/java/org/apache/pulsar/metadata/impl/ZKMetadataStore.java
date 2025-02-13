@@ -478,7 +478,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
 
     private Stat getStat(String path, org.apache.zookeeper.data.Stat zkStat) {
         return new Stat(path, zkStat.getVersion(), zkStat.getCtime(), zkStat.getMtime(),
-                zkStat.getEphemeralOwner() != 0,
+                zkStat.getEphemeralOwner() != -1,
                 zkStat.getEphemeralOwner() == zkc.getSessionId());
     }
 
