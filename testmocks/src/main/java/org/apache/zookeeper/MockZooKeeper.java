@@ -27,7 +27,10 @@ import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
@@ -80,7 +83,7 @@ public class MockZooKeeper extends ZooKeeper {
     }
 
     private TreeMap<String, MockZNode> tree;
-    private SetMultimap<String, Watcher> watchers;
+    private SetMultimap<String, NodeWatcher> watchers;
     private volatile boolean stopped;
     private AtomicReference<KeeperException.Code> alwaysFail;
     private CopyOnWriteArrayList<Failure> failures;
@@ -93,7 +96,7 @@ public class MockZooKeeper extends ZooKeeper {
     private ReentrantLock mutex;
 
     private AtomicLong sequentialIdGenerator;
-    private ThreadLocal<Long> ephemeralOwnerThreadLocal;
+    private ThreadLocal<Long> overriddenSessionIdThreadLocal;
     private int referenceCount;
     private List<AutoCloseable> closeables;
 
@@ -115,12 +118,10 @@ public class MockZooKeeper extends ZooKeeper {
         }
     }
 
-    @Data
-    @AllArgsConstructor
-    private static class PersistentWatcher {
-        final String path;
-        final Watcher watcher;
-        final AddWatchMode mode;
+    private record PersistentWatcher(String path, Watcher watcher, AddWatchMode mode, long sessionId) {
+    }
+
+    private record NodeWatcher(Watcher watcher, long sessionId) {
     }
 
     private List<PersistentWatcher> persistentWatchers;
@@ -161,7 +162,7 @@ public class MockZooKeeper extends ZooKeeper {
         ObjectInstantiator<MockZooKeeper> mockZooKeeperInstantiator =
                 objenesis.getInstantiatorOf(MockZooKeeper.class);
         MockZooKeeper zk = mockZooKeeperInstantiator.newInstance();
-        zk.ephemeralOwnerThreadLocal = new ThreadLocal<>();
+        zk.overriddenSessionIdThreadLocal = new ThreadLocal<>();
         zk.init(executor);
         zk.readOpDelayMs = readOpDelayMs;
         zk.mutex = new ReentrantLock();
@@ -178,7 +179,7 @@ public class MockZooKeeper extends ZooKeeper {
         } else {
             this.executor = Executors.newFixedThreadPool(1, new DefaultThreadFactory("mock-zookeeper"));
         }
-        SetMultimap<String, Watcher> w = HashMultimap.create();
+        SetMultimap<String, NodeWatcher> w = HashMultimap.create();
         watchers = Multimaps.synchronizedSetMultimap(w);
         stopped = false;
         alwaysFail = new AtomicReference<>(KeeperException.Code.OK);
@@ -258,8 +259,6 @@ public class MockZooKeeper extends ZooKeeper {
 
         lock();
         try {
-
-
             maybeThrowProgrammedFailure(Op.CREATE, path);
 
             if (stopped) {
@@ -284,12 +283,11 @@ public class MockZooKeeper extends ZooKeeper {
                         MockZNode.of(parentNode.getContent(), parentVersion + 1, parentNode.getEphemeralOwner()));
             }
 
-            tree.put(path, MockZNode.of(data, 0, createMode.isEphemeral() ? getEphemeralOwner() : NOT_EPHEMERAL));
+            tree.put(path, MockZNode.of(data, 0, createMode.isEphemeral() ? getSessionId() : NOT_EPHEMERAL));
 
-            toNotifyCreate.addAll(watchers.get(path));
-
+            toNotifyCreate.addAll(getWatchers(path));
             if (!parent.isEmpty()) {
-                toNotifyParent.addAll(watchers.get(parent));
+                toNotifyParent.addAll(getWatchers(parent));
             }
             watchers.removeAll(path);
         } finally {
@@ -315,20 +313,30 @@ public class MockZooKeeper extends ZooKeeper {
         return path;
     }
 
-    protected long getEphemeralOwner() {
-        Long ephemeralOwner = ephemeralOwnerThreadLocal.get();
-        if (ephemeralOwner != null) {
-            return ephemeralOwner;
+    private Collection<Watcher> getWatchers(String path) {
+        Set<NodeWatcher> nodeWatchers = watchers.get(path);
+        if (nodeWatchers != null) {
+            return nodeWatchers.stream().map(NodeWatcher::watcher).toList();
+        } else {
+            return Collections.emptyList();
         }
-        return getSessionId();
     }
 
-    public void overrideEphemeralOwner(long ephemeralOwner) {
-        ephemeralOwnerThreadLocal.set(ephemeralOwner);
+    @Override
+    public long getSessionId() {
+        Long overriddenSessionId = overriddenSessionIdThreadLocal.get();
+        if (overriddenSessionId != null) {
+            return overriddenSessionId;
+        }
+        return sessionId;
     }
 
-    public void removeEphemeralOwnerOverride() {
-        ephemeralOwnerThreadLocal.remove();
+    public void overrideSessionId(long sessionId) {
+        overriddenSessionIdThreadLocal.set(sessionId);
+    }
+
+    public void removeSessionIdOverride() {
+        overriddenSessionIdThreadLocal.remove();
     }
 
     @Override
@@ -346,12 +354,12 @@ public class MockZooKeeper extends ZooKeeper {
                 }
 
                 final Set<Watcher> toNotifyCreate = Sets.newHashSet();
-                toNotifyCreate.addAll(watchers.get(path));
+                toNotifyCreate.addAll(getWatchers(path));
 
                 final Set<Watcher> toNotifyParent = Sets.newHashSet();
                 final String parent = path.substring(0, path.lastIndexOf("/"));
                 if (!parent.isEmpty()) {
-                    toNotifyParent.addAll(watchers.get(parent));
+                    toNotifyParent.addAll(getWatchers(parent));
                 }
 
                 final String name;
@@ -379,7 +387,7 @@ public class MockZooKeeper extends ZooKeeper {
                     cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
                 } else {
                     tree.put(name, MockZNode.of(data, 0,
-                            createMode != null && createMode.isEphemeral() ? getEphemeralOwner() : NOT_EPHEMERAL));
+                            createMode != null && createMode.isEphemeral() ? getSessionId() : NOT_EPHEMERAL));
                     watchers.removeAll(name);
                     unlockIfLocked();
                     cb.processResult(0, path, ctx, name);
@@ -417,7 +425,7 @@ public class MockZooKeeper extends ZooKeeper {
                 throw new KeeperException.NoNodeException(path);
             } else {
                 if (watcher != null) {
-                    watchers.put(path, watcher);
+                    watchers.put(path, new NodeWatcher(watcher, getSessionId()));
                 }
                 if (stat != null) {
                     applyToStat(value, stat);
@@ -488,7 +496,7 @@ public class MockZooKeeper extends ZooKeeper {
                     cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null, null);
                 } else {
                     if (watcher != null) {
-                        watchers.put(path, watcher);
+                        watchers.put(path, new NodeWatcher(watcher, getSessionId()));
                     }
                     Stat stat = createStatForZNode(value);
                     unlockIfLocked();
@@ -542,7 +550,7 @@ public class MockZooKeeper extends ZooKeeper {
                 }
 
                 if (watcher != null) {
-                    watchers.put(path, watcher);
+                    watchers.put(path, new NodeWatcher(watcher, getSessionId()));
                 }
                 cb.processResult(0, path, ctx, children);
             } catch (Throwable ex) {
@@ -578,7 +586,7 @@ public class MockZooKeeper extends ZooKeeper {
             });
 
             if (watcher != null) {
-                watchers.put(path, watcher);
+                watchers.put(path, new NodeWatcher(watcher, getSessionId()));
             }
 
             return new ArrayList<>(children);
@@ -700,7 +708,7 @@ public class MockZooKeeper extends ZooKeeper {
             }
 
             if (watcher != null) {
-                watchers.put(path, watcher);
+                watchers.put(path, new NodeWatcher(watcher, getSessionId()));
             }
 
             if (tree.containsKey(path)) {
@@ -735,7 +743,7 @@ public class MockZooKeeper extends ZooKeeper {
                 }
 
                 if (watcher != null) {
-                    watchers.put(path, watcher);
+                    watchers.put(path, new NodeWatcher(watcher, getSessionId()));
                 }
 
                 MockZNode mockZNode = tree.get(path);
@@ -802,7 +810,7 @@ public class MockZooKeeper extends ZooKeeper {
             newZNode = MockZNode.of(data, currentVersion + 1, mockZNode.getEphemeralOwner());
             tree.put(path, newZNode);
 
-            toNotify.addAll(watchers.get(path));
+            toNotify.addAll(getWatchers(path));
             watchers.removeAll(path);
         } finally {
             unlockIfLocked();
@@ -869,7 +877,7 @@ public class MockZooKeeper extends ZooKeeper {
                 }
                 cb.processResult(0, path, ctx, stat);
 
-                toNotify.addAll(watchers.get(path));
+                toNotify.addAll(getWatchers(path));
                 watchers.removeAll(path);
 
                 for (Watcher watcher : toNotify) {
@@ -912,12 +920,12 @@ public class MockZooKeeper extends ZooKeeper {
             tree.remove(path);
 
             toNotifyDelete = Sets.newHashSet();
-            toNotifyDelete.addAll(watchers.get(path));
+            toNotifyDelete.addAll(getWatchers(path));
 
             toNotifyParent = Sets.newHashSet();
             parent = path.substring(0, path.lastIndexOf("/"));
             if (!parent.isEmpty()) {
-                toNotifyParent.addAll(watchers.get(parent));
+                toNotifyParent.addAll(getWatchers(parent));
             }
 
             watchers.removeAll(path);
@@ -947,12 +955,12 @@ public class MockZooKeeper extends ZooKeeper {
             try {
                 lock();
                 final Set<Watcher> toNotifyDelete = Sets.newHashSet();
-                toNotifyDelete.addAll(watchers.get(path));
+                toNotifyDelete.addAll(getWatchers(path));
 
                 final Set<Watcher> toNotifyParent = Sets.newHashSet();
-                final String parent = path.substring(0, path.lastIndexOf("/"));
+                final String parent = path.substring(0, path.lastIndexOf('/'));
                 if (!parent.isEmpty()) {
-                    toNotifyParent.addAll(watchers.get(parent));
+                    toNotifyParent.addAll(getWatchers(parent));
                 }
                 watchers.removeAll(path);
 
@@ -1026,15 +1034,15 @@ public class MockZooKeeper extends ZooKeeper {
                     case ZooDefs.OpCode.create -> {
                         org.apache.zookeeper.Op.Create opc = ((org.apache.zookeeper.Op.Create) op);
                         CreateMode cm = CreateMode.fromFlag(opc.flags);
-                        String path = this.create(op.getPath(), opc.data, null, cm);
+                        String path = create(op.getPath(), opc.data, null, cm);
                         res.add(new OpResult.CreateResult(path));
                     }
                     case ZooDefs.OpCode.delete -> {
-                        this.delete(op.getPath(), (int) FieldUtils.readField(op, "version", true));
+                        delete(op.getPath(), (int) FieldUtils.readField(op, "version", true));
                         res.add(new OpResult.DeleteResult());
                     }
                     case ZooDefs.OpCode.setData -> {
-                        Stat stat = this.setData(
+                        Stat stat = setData(
                                 op.getPath(),
                                 (byte[]) FieldUtils.readField(op, "data", true),
                                 (int) FieldUtils.readField(op, "version", true));
@@ -1042,7 +1050,7 @@ public class MockZooKeeper extends ZooKeeper {
                     }
                     case ZooDefs.OpCode.getChildren -> {
                         try {
-                            List<String> children = this.getChildren(op.getPath(), null);
+                            List<String> children = getChildren(op.getPath(), null);
                             res.add(new OpResult.GetChildrenResult(children));
                         } catch (KeeperException e) {
                             res.add(new OpResult.ErrorResult(e.code().intValue()));
@@ -1051,7 +1059,7 @@ public class MockZooKeeper extends ZooKeeper {
                     case ZooDefs.OpCode.getData -> {
                         Stat stat = new Stat();
                         try {
-                            byte[] payload = this.getData(op.getPath(), null, stat);
+                            byte[] payload = getData(op.getPath(), null, stat);
                             res.add(new OpResult.GetDataResult(payload, stat));
                         } catch (KeeperException e) {
                             res.add(new OpResult.ErrorResult(e.code().intValue()));
@@ -1073,7 +1081,7 @@ public class MockZooKeeper extends ZooKeeper {
 
     @Override
     public synchronized void addWatch(String basePath, Watcher watcher, AddWatchMode mode) {
-        persistentWatchers.add(new PersistentWatcher(basePath, watcher, mode));
+        persistentWatchers.add(new PersistentWatcher(basePath, watcher, mode, getSessionId()));
     }
 
     @Override
@@ -1082,12 +1090,11 @@ public class MockZooKeeper extends ZooKeeper {
             cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), basePath, ctx);
             return;
         }
-
+        long currentSessionId = getSessionId();
         executor.execute(() -> {
             synchronized (MockZooKeeper.this) {
-                persistentWatchers.add(new PersistentWatcher(basePath, watcher, mode));
+                persistentWatchers.add(new PersistentWatcher(basePath, watcher, mode, currentSessionId));
             }
-
             cb.processResult(KeeperException.Code.OK.intValue(), basePath, ctx);
         });
     }
@@ -1134,7 +1141,7 @@ public class MockZooKeeper extends ZooKeeper {
     }
 
     Optional<KeeperException.Code> programmedFailure(Op op, String path) {
-        KeeperException.Code error = this.alwaysFail.get();
+        KeeperException.Code error = alwaysFail.get();
         if (error != KeeperException.Code.OK) {
             return Optional.of(error);
         }
@@ -1171,20 +1178,15 @@ public class MockZooKeeper extends ZooKeeper {
     }
 
     public void setAlwaysFail(KeeperException.Code rc) {
-        this.alwaysFail.set(rc);
+        alwaysFail.set(rc);
     }
 
     public void unsetAlwaysFail() {
-        this.alwaysFail.set(KeeperException.Code.OK);
+        alwaysFail.set(KeeperException.Code.OK);
     }
 
     public void setSessionId(long id) {
         sessionId = id;
-    }
-
-    @Override
-    public long getSessionId() {
-        return sessionId;
     }
 
     private boolean hasChildren(String path) {
@@ -1207,13 +1209,13 @@ public class MockZooKeeper extends ZooKeeper {
     }
 
     private void triggerPersistentWatches(String path, String parent, EventType eventType) {
-        persistentWatchers.forEach(w -> {
+        getPersistentWatchersCopy().forEach(w -> {
             if (w.mode == AddWatchMode.PERSISTENT_RECURSIVE) {
-                if (path.startsWith(w.getPath())) {
+                if (path.startsWith(w.path())) {
                     w.watcher.process(new WatchedEvent(eventType, KeeperState.SyncConnected, path));
                 }
             } else if (w.mode == AddWatchMode.PERSISTENT) {
-                if (w.getPath().equals(path)) {
+                if (w.path().equals(path)) {
                     w.watcher.process(new WatchedEvent(eventType, KeeperState.SyncConnected, path));
                 }
 
@@ -1226,6 +1228,10 @@ public class MockZooKeeper extends ZooKeeper {
         });
     }
 
+    private synchronized List<PersistentWatcher> getPersistentWatchersCopy() {
+        return new ArrayList<>(persistentWatchers);
+    }
+
     public void deleteEphemeralNodes(long sessionId) {
         if (sessionId != NOT_EPHEMERAL) {
             lock();
@@ -1234,6 +1240,21 @@ public class MockZooKeeper extends ZooKeeper {
             } finally {
                 unlockIfLocked();
             }
+        }
+    }
+
+    public synchronized void deleteWatchers(long sessionId) {
+        lock();
+        try {
+            // remove all persistent watchers for the session
+            persistentWatchers.removeIf(w -> w.sessionId == sessionId);
+            // remove all watchers for the session
+            List<Map.Entry<String, NodeWatcher>> watchersForSession =
+                    watchers.entries().stream().filter(e -> e.getValue().sessionId == sessionId).toList();
+            watchersForSession
+                    .forEach(e -> watchers.remove(e.getKey(), e.getValue()));
+        } finally {
+            unlockIfLocked();
         }
     }
 
