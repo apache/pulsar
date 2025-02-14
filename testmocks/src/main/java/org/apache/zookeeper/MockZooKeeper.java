@@ -375,8 +375,9 @@ public class MockZooKeeper extends ZooKeeper {
     public void create(final String path, final byte[] data, final List<ACL> acl, CreateMode createMode,
                        final StringCallback cb, final Object ctx) {
 
-
+        long currentSessionId = getSessionId();
         executor.execute(() -> {
+            overrideSessionId(currentSessionId);
             try {
                 lock();
 
@@ -441,6 +442,7 @@ public class MockZooKeeper extends ZooKeeper {
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null);
             } finally {
                 unlockIfLocked();
+                removeSessionIdOverride();
             }
         });
 
@@ -475,7 +477,9 @@ public class MockZooKeeper extends ZooKeeper {
 
     @Override
     public void getData(final String path, boolean watch, final DataCallback cb, final Object ctx) {
+        long currentSessionId = getSessionId();
         executor.execute(() -> {
+            overrideSessionId(currentSessionId);
             try {
                 checkReadOpDelay();
                 Optional<KeeperException.Code> failure = programmedFailure(Op.GET, path);
@@ -505,14 +509,18 @@ public class MockZooKeeper extends ZooKeeper {
             } catch (Throwable ex) {
                 log.error("get data : {} error", path, ex);
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null, null);
+            } finally {
+                removeSessionIdOverride();
             }
         });
     }
 
     @Override
     public void getData(final String path, final Watcher watcher, final DataCallback cb, final Object ctx) {
+        long currentSessionId = getSessionId();
         executor.execute(() -> {
             checkReadOpDelay();
+            overrideSessionId(currentSessionId);
             try {
                 lock();
                 Optional<KeeperException.Code> failure = programmedFailure(Op.GET, path);
@@ -543,13 +551,16 @@ public class MockZooKeeper extends ZooKeeper {
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null, null);
             } finally {
                 unlockIfLocked();
+                removeSessionIdOverride();
             }
         });
     }
 
     @Override
     public void getChildren(final String path, final Watcher watcher, final ChildrenCallback cb, final Object ctx) {
+        long currentSessionId = getSessionId();
         executor.execute(() -> {
+            overrideSessionId(currentSessionId);
             List<String> children = Lists.newArrayList();
             try {
                 lock();
@@ -594,6 +605,7 @@ public class MockZooKeeper extends ZooKeeper {
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null);
             } finally {
                 unlockIfLocked();
+                removeSessionIdOverride();
             }
 
         });
@@ -663,7 +675,9 @@ public class MockZooKeeper extends ZooKeeper {
 
     @Override
     public void getChildren(final String path, boolean watcher, final Children2Callback cb, final Object ctx) {
+        long currentSessionId = getSessionId();
         executor.execute(() -> {
+            overrideSessionId(currentSessionId);
             Set<String> children = new TreeSet<>();
             try {
                 lock();
@@ -698,6 +712,8 @@ public class MockZooKeeper extends ZooKeeper {
             } catch (Throwable ex) {
                 log.error("get children : {} error", path, ex);
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null, null);
+            } finally {
+                removeSessionIdOverride();
             }
         });
 
@@ -754,7 +770,9 @@ public class MockZooKeeper extends ZooKeeper {
 
     @Override
     public void exists(String path, Watcher watcher, StatCallback cb, Object ctx) {
+        long currentSessionId = getSessionId();
         executor.execute(() -> {
+            overrideSessionId(currentSessionId);
             try {
                 lock();
                 Optional<KeeperException.Code> failure = programmedFailure(Op.EXISTS, path);
@@ -786,23 +804,30 @@ public class MockZooKeeper extends ZooKeeper {
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null);
             } finally {
                 unlockIfLocked();
+                removeSessionIdOverride();
             }
         });
     }
 
     @Override
     public void sync(String path, VoidCallback cb, Object ctx) {
+        long currentSessionId = getSessionId();
         executor.execute(() -> {
-            Optional<KeeperException.Code> failure = programmedFailure(Op.SYNC, path);
-            if (failure.isPresent()) {
-                cb.processResult(failure.get().intValue(), path, ctx);
-                return;
-            } else if (stopped) {
-                cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx);
-                return;
-            }
+            overrideSessionId(currentSessionId);
+            try {
+                Optional<KeeperException.Code> failure = programmedFailure(Op.SYNC, path);
+                if (failure.isPresent()) {
+                    cb.processResult(failure.get().intValue(), path, ctx);
+                    return;
+                } else if (stopped) {
+                    cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx);
+                    return;
+                }
 
-            cb.processResult(0, path, ctx);
+                cb.processResult(0, path, ctx);
+            } finally {
+                removeSessionIdOverride();
+            }
         });
 
     }
@@ -856,8 +881,9 @@ public class MockZooKeeper extends ZooKeeper {
             cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null);
             return;
         }
-
+        long currentSessionId = getSessionId();
         executor.execute(() -> {
+            overrideSessionId(currentSessionId);
             try {
                 final Set<Watcher> toNotify = Sets.newHashSet();
                 lock();
@@ -911,6 +937,8 @@ public class MockZooKeeper extends ZooKeeper {
             } catch (Throwable ex) {
                 log.error("Update data : {} error", path, ex);
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null);
+            } finally {
+                removeSessionIdOverride();
             }
         });
     }
@@ -974,7 +1002,9 @@ public class MockZooKeeper extends ZooKeeper {
 
     @Override
     public void delete(final String path, int version, final VoidCallback cb, final Object ctx) {
+        long currentSessionId = getSessionId();
         Runnable r = () -> {
+            overrideSessionId(currentSessionId);
             try {
                 lock();
                 final Set<Watcher> toNotifyDelete = Sets.newHashSet();
@@ -1027,6 +1057,7 @@ public class MockZooKeeper extends ZooKeeper {
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx);
             } finally {
                 unlockIfLocked();
+                removeSessionIdOverride();
             }
         };
 
