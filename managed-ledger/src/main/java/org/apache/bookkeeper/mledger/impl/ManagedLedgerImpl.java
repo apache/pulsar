@@ -202,6 +202,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     // Cursors that are waiting to be notified when new entries are persisted
     final ConcurrentLinkedQueue<ManagedCursorImpl> waitingCursors;
 
+    // Cursors that are waiting to be notified when new maxReadPosition is updated
+    final ConcurrentLinkedQueue<ManagedCursorImpl> waitingCursorsByMaxReadPosition;
+
     // Objects that are waiting to be notified when new entries are persisted
     final ConcurrentLinkedQueue<WaitingEntryCallBack> waitingEntryCallBacks;
 
@@ -244,6 +247,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     protected final Supplier<CompletableFuture<Boolean>> mlOwnershipChecker;
 
     volatile Position lastConfirmedEntry;
+    volatile Position maxReadPosition = PositionFactory.LATEST;
 
     protected ManagedLedgerInterceptor managedLedgerInterceptor;
 
@@ -370,6 +374,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         this.entryCache = factory.getEntryCacheManager().getEntryCache(this);
         this.waitingCursors = Queues.newConcurrentLinkedQueue();
+        this.waitingCursorsByMaxReadPosition = Queues.newConcurrentLinkedQueue();
         this.waitingEntryCallBacks = Queues.newConcurrentLinkedQueue();
         this.uninitializedCursors = new HashMap();
         this.clock = config.getClock();
@@ -2422,6 +2427,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return position;
     }
 
+    void notifyCursorsByMaxReadPositionChanged() {
+        while (true) {
+            final ManagedCursorImpl waitingCursor = waitingCursorsByMaxReadPosition.poll();
+            if (waitingCursor == null) {
+                break;
+            }
+
+            executor.execute(waitingCursor::notifyEntriesAvailableByMaxReadPosition);
+        }
+    }
+
     void notifyCursors() {
         while (true) {
             final ManagedCursorImpl waitingCursor = waitingCursors.poll();
@@ -3774,6 +3790,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return lastConfirmedEntry;
     }
 
+    Position getMaxReadPosition() {
+        return maxReadPosition;
+    }
+
     @Override
     public ManagedCursor getSlowestConsumer() {
         return cursors.getSlowestReader();
@@ -3848,10 +3868,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     public void removeWaitingCursor(ManagedCursor cursor) {
         this.waitingCursors.remove(cursor);
+        this.waitingCursorsByMaxReadPosition.remove(cursor);
     }
 
     public void addWaitingCursor(ManagedCursorImpl cursor) {
         this.waitingCursors.add(cursor);
+    }
+
+    public void addWaitingCursorByMaxReadPosition(ManagedCursorImpl cursor) {
+        this.waitingCursorsByMaxReadPosition.add(cursor);
     }
 
     public boolean isCursorActive(ManagedCursor cursor) {
@@ -4003,7 +4028,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     public int getWaitingCursorsCount() {
-        return waitingCursors.size();
+        return waitingCursors.size() + waitingCursorsByMaxReadPosition.size();
     }
 
     @Override
@@ -4633,5 +4658,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                                                    final Position startPosition) {
         return ManagedLedgerImplUtils
                 .asyncGetLastValidPosition(this, predicate, startPosition);
+    }
+
+    public void updateMaxReadPosition(Position position) {
+        if (position != null) {
+            this.maxReadPosition = position;
+            // When maxReadPosition is updated, can notify the cursor
+            // waiting for maxReadPosition to update which can be read
+            this.notifyCursorsByMaxReadPositionChanged();
+        }
     }
 }
