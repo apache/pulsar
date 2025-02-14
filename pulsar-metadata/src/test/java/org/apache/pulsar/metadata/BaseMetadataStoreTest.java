@@ -147,7 +147,26 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
     }
 
     public static Supplier<String> stringSupplier(Supplier<String> supplier) {
-        return supplier;
+        return new StringSupplier(supplier);
+    }
+
+    // Implements toString() so that the test name is more descriptive
+    private static class StringSupplier implements Supplier<String> {
+        private final Supplier<String> supplier;
+
+        public StringSupplier(Supplier<String> supplier) {
+            this.supplier = supplier;
+        }
+
+        @Override
+        public String get() {
+            return supplier.get();
+        }
+
+        @Override
+        public String toString() {
+            return get();
+        }
     }
 
     protected String newKey() {
