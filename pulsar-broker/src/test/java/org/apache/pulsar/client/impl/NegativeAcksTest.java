@@ -265,6 +265,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
                 }
             }
             if (batching) {
+                // for batching, we only need to nack one message in the batch to trigger redelivery
                 consumer.negativeAcknowledge(msg);
             }
             expectedTotalRedeliveryDelay += backoff.next(i);
