@@ -444,9 +444,11 @@ public class MockZooKeeper extends ZooKeeper {
                 }
 
                 MockZNode value;
+                Stat stat;
                 lock();
                 try {
                     value = tree.get(path);
+                    stat = createStatForZNode(value);
                 } finally {
                     unlockIfLocked();
                 }
@@ -454,7 +456,7 @@ public class MockZooKeeper extends ZooKeeper {
                 if (value == null) {
                     cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null, null);
                 } else {
-                    cb.processResult(0, path, ctx, value.getContent(), createStatForZNode(value));
+                    cb.processResult(0, path, ctx, value.getContent(), stat);
                 }
             } catch (Throwable ex) {
                 log.error("get data : {} error", path, ex);
@@ -488,7 +490,6 @@ public class MockZooKeeper extends ZooKeeper {
                     if (watcher != null) {
                         watchers.put(path, watcher);
                     }
-
                     Stat stat = createStatForZNode(value);
                     unlockIfLocked();
                     cb.processResult(0, path, ctx, value.getContent(), stat);
@@ -622,6 +623,8 @@ public class MockZooKeeper extends ZooKeeper {
             Set<String> children = new TreeSet<>();
             try {
                 lock();
+                MockZNode mockZNode = tree.get(path);
+                Stat stat = mockZNode != null ? createStatForZNode(mockZNode) : null;
                 Optional<KeeperException.Code> failure = programmedFailure(Op.GET_CHILDREN, path);
                 if (failure.isPresent()) {
                     unlockIfLocked();
@@ -631,7 +634,7 @@ public class MockZooKeeper extends ZooKeeper {
                     unlockIfLocked();
                     cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null, null);
                     return;
-                } else if (!tree.containsKey(path)) {
+                } else if (mockZNode == null) {
                     unlockIfLocked();
                     cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null, null);
                     return;
@@ -642,17 +645,15 @@ public class MockZooKeeper extends ZooKeeper {
 
                 tree.subMap(firstKey, false, lastKey, false).forEach((key, value) -> {
                     String relativePath = key.replace(firstKey, "");
-
                     // Only return first-level children
                     String child = relativePath.split("/", 2)[0];
                     children.add(child);
                 });
-                cb.processResult(0, path, ctx, new ArrayList<>(children), new Stat());
+                unlockIfLocked();
+                cb.processResult(0, path, ctx, new ArrayList<>(children), stat);
             } catch (Throwable ex) {
                 log.error("get children : {} error", path, ex);
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null, null);
-            } finally {
-                unlockIfLocked();
             }
         });
 
@@ -737,9 +738,11 @@ public class MockZooKeeper extends ZooKeeper {
                     watchers.put(path, watcher);
                 }
 
-                if (tree.containsKey(path)) {
+                MockZNode mockZNode = tree.get(path);
+                if (mockZNode != null) {
+                    Stat stat = createStatForZNode(mockZNode);
                     unlockIfLocked();
-                    cb.processResult(0, path, ctx, new Stat());
+                    cb.processResult(0, path, ctx, stat);
                 } else {
                     unlockIfLocked();
                     cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
@@ -825,8 +828,8 @@ public class MockZooKeeper extends ZooKeeper {
         executor.execute(() -> {
             try {
                 final Set<Watcher> toNotify = Sets.newHashSet();
-                Stat stat;
                 lock();
+                Stat stat;
                 try {
                     Optional<KeeperException.Code> failure = programmedFailure(Op.SET, path);
                     if (failure.isPresent()) {
@@ -851,8 +854,9 @@ public class MockZooKeeper extends ZooKeeper {
                     // Check version
                     if (version != -1 && version != currentVersion) {
                         log.debug("[{}] Current version: {} -- Expected: {}", path, currentVersion, version);
+                        Stat currentStat = createStatForZNode(mockZNode);
                         unlockIfLocked();
-                        cb.processResult(KeeperException.Code.BADVERSION.intValue(), path, ctx, null);
+                        cb.processResult(KeeperException.Code.BADVERSION.intValue(), path, ctx, currentStat);
                         return;
                     }
 
