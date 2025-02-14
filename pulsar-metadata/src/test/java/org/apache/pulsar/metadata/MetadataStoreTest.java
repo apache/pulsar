@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.metadata;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -667,21 +668,25 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         store.put("/b/c/b/1", "value1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
 
         List<String> subPaths = store.getChildren("/").get();
-        Set<String> expectedSet = "ZooKeeper".equals(provider) ? Set.of("a", "b", "zookeeper") : Set.of("a", "b");
+        Set<String> ignoredRootPaths = Set.of("zookeeper");
+        Set<String> expectedSet = Set.of("a", "b");
         for (String subPath : subPaths) {
-            assertTrue(expectedSet.contains(subPath));
+            if (ignoredRootPaths.contains(subPath)) {
+                continue;
+            }
+            assertThat(expectedSet).contains(subPath);
         }
 
         List<String> subPaths2 = store.getChildren("/a").get();
         Set<String> expectedSet2 = Set.of("a-1", "a-2");
         for (String subPath : subPaths2) {
-            assertTrue(expectedSet2.contains(subPath));
+            assertThat(expectedSet2).contains(subPath);
         }
 
         List<String> subPaths3 = store.getChildren("/b").get();
         Set<String> expectedSet3 = Set.of("c");
         for (String subPath : subPaths3) {
-            assertTrue(expectedSet3.contains(subPath));
+            assertThat(expectedSet3).contains(subPath);
         }
     }
 
