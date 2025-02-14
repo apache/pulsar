@@ -48,12 +48,22 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
     private String mockZkUrl;
     // reference to keep the MockZooKeeper instance alive in MockZookeeperMetadataStoreProvider
     private MetadataStore mockZkStoreRef;
+    private String zksConnectionString;
+    private String memoryConnectionString;
+    private String rocksdbConnectionString;
+    private File rocksDbDirectory;
+    private boolean running;
 
     @BeforeClass(alwaysRun = true)
     @Override
     public void setup() throws Exception {
+        running = true;
         incrementSetupNumber();
         zks = new TestZKServer();
+        zksConnectionString = zks.getConnectionString();
+        memoryConnectionString = "memory:" + UUID.randomUUID();
+        rocksDbDirectory = Files.newTemporaryFolder().getAbsoluteFile();
+        rocksdbConnectionString = "rocksdb:" + rocksDbDirectory;
         originalMetadatastoreProvidersPropertyValue =
                 System.getProperty(MetadataStoreFactoryImpl.METADATASTORE_PROVIDERS_PROPERTY);
         // register MockZooKeeperMetadataStoreProvider
@@ -67,6 +77,7 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
     @AfterClass(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
+        running = false;
         markCurrentSetupNumberCleaned();
         if (zks != null) {
             zks.close();
@@ -89,18 +100,17 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
             mockZkUrl = null;
         }
 
+        if (rocksDbDirectory != null) {
+            Files.delete(rocksDbDirectory);
+            rocksDbDirectory = null;
+        }
+
         if (originalMetadatastoreProvidersPropertyValue != null) {
             System.setProperty(MetadataStoreFactoryImpl.METADATASTORE_PROVIDERS_PROPERTY,
                     originalMetadatastoreProvidersPropertyValue);
         } else {
             System.clearProperty(MetadataStoreFactoryImpl.METADATASTORE_PROVIDERS_PROPERTY);
         }
-    }
-
-    private static String createTempFolder() {
-        File temp = Files.newTemporaryFolder();
-        temp.deleteOnExit();
-        return temp.getAbsolutePath();
     }
 
     @DataProvider(name = "impl")
@@ -111,9 +121,9 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
         // The new connection string won't be available to the test method unless a
         // Supplier<String> lambda is used for providing the value.
         return new Object[][]{
-                {"ZooKeeper", stringSupplier(() -> zks.getConnectionString())},
-                {"Memory", stringSupplier(() -> "memory:" + UUID.randomUUID())},
-                {"RocksDB", stringSupplier(() -> "rocksdb:" + createTempFolder())},
+                {"ZooKeeper", stringSupplier(() -> zksConnectionString)},
+                {"Memory", stringSupplier(() -> memoryConnectionString)},
+                {"RocksDB", stringSupplier(() -> rocksdbConnectionString)},
                 {"Etcd", stringSupplier(() -> "etcd:" + getEtcdClusterConnectString())},
                 {"Oxia", stringSupplier(() -> "oxia://" + getOxiaServerConnectString())},
                 {"MockZooKeeper", stringSupplier(() -> mockZkUrl)},
@@ -123,13 +133,16 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
     @DataProvider(name = "distributedImpl")
     public Object[][] distributedImplementations() {
         return new Object[][]{
-                {"ZooKeeper", stringSupplier(() -> zks.getConnectionString())},
+                {"ZooKeeper", stringSupplier(() -> zksConnectionString)},
                 {"Etcd", stringSupplier(() -> "etcd:" + getEtcdClusterConnectString())},
                 {"Oxia", stringSupplier(() -> "oxia://" + getOxiaServerConnectString())},
         };
     }
 
     protected synchronized String getOxiaServerConnectString() {
+        if (!running) {
+            return null;
+        }
         if (oxiaServer == null) {
             oxiaServer = new OxiaContainer(OxiaContainer.DEFAULT_IMAGE_NAME);
             oxiaServer.start();
@@ -138,6 +151,9 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
     }
 
     private synchronized String getEtcdClusterConnectString() {
+        if (!running) {
+            return null;
+        }
         if (etcdCluster == null) {
             etcdCluster = EtcdClusterExtension.builder().withClusterName("test").withNodes(1).withSsl(false).build()
                     .cluster();
