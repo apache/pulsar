@@ -58,6 +58,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
@@ -145,7 +146,13 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
         doReturn(subscriptionName).when(cursorMock).getName();
 
         consumerMock = mock(Consumer.class);
-        succeededFuture = new SucceededFuture<>(mock(EventExecutor.class), null);
+        EventExecutor eventExecutor = mock(EventExecutor.class);
+        doAnswer(invocation -> {
+            invocation.getArgument(0, Runnable.class).run();
+            return null;
+        }).when(eventExecutor).execute(any(Runnable.class));
+        doReturn(false).when(eventExecutor).inEventLoop();
+        succeededFuture = new SucceededFuture<>(eventExecutor, null);
         doReturn("consumer1").when(consumerMock).consumerName();
         doReturn(1000).when(consumerMock).getAvailablePermits();
         doReturn(true).when(consumerMock).isWritable();
@@ -379,18 +386,28 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
                     PersistentDispatcherMultipleConsumersClassic.class.getDeclaredField("totalAvailablePermits");
             totalAvailablePermitsField.setAccessible(true);
             totalAvailablePermitsField.set(persistentDispatcher, 1000);
-
-            doAnswer(invocationOnMock -> {
-                ((PersistentStickyKeyDispatcherMultipleConsumersClassic) invocationOnMock.getArgument(2))
-                        .readEntriesComplete(copyEntries(readEntries),
-                                PersistentStickyKeyDispatcherMultipleConsumersClassic.ReadType.Normal);
-                return null;
-            }).when(cursorMock).asyncReadEntriesOrWait(
-                    anyInt(), anyLong(), any(PersistentStickyKeyDispatcherMultipleConsumersClassic.class),
-                    eq(PersistentStickyKeyDispatcherMultipleConsumersClassic.ReadType.Normal), any());
         } catch (Exception e) {
             fail("Failed to set to field", e);
         }
+
+        AtomicInteger asyncReadEntriesOrWaitStartIndex = new AtomicInteger();
+        doAnswer(invocationOnMock -> {
+            int maxEntries = invocationOnMock.getArgument(0);
+            AsyncCallbacks.ReadEntriesCallback callback = invocationOnMock.getArgument(2);
+            int startIndex = asyncReadEntriesOrWaitStartIndex.get();
+            List<Entry> entries;
+            if (startIndex < readEntries.size() - 1) {
+                int endIndex = Math.min(startIndex + maxEntries, readEntries.size() - 1);
+                entries = copyEntries(readEntries.subList(startIndex, endIndex + 1));
+            } else {
+                entries = Collections.emptyList();
+            }
+            callback.readEntriesComplete(entries,
+                    PersistentStickyKeyDispatcherMultipleConsumersClassic.ReadType.Normal);
+            return null;
+        }).when(cursorMock).asyncReadEntriesOrWait(
+                anyInt(), anyLong(), any(PersistentStickyKeyDispatcherMultipleConsumersClassic.class),
+                eq(PersistentStickyKeyDispatcherMultipleConsumersClassic.ReadType.Normal), any());
 
         // Create 2Consumers
         try {
