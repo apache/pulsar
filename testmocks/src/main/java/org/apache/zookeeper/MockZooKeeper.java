@@ -64,6 +64,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class MockZooKeeper extends ZooKeeper {
+    // ephemeralOwner value for persistent nodes
+    private static final long NOT_EPHEMERAL = 0L;
+
     @Data
     @AllArgsConstructor
     private static class MockZNode {
@@ -84,13 +87,13 @@ public class MockZooKeeper extends ZooKeeper {
     private ExecutorService executor;
 
     private Watcher sessionWatcher;
-    private long sessionId = 0L;
+    private long sessionId = 1L;
     private int readOpDelayMs;
 
     private ReentrantLock mutex;
 
     private AtomicLong sequentialIdGenerator;
-    private ThreadLocal<Long> epheralOwnerThreadLocal;
+    private ThreadLocal<Long> ephemeralOwnerThreadLocal;
 
     //see details of Objenesis caching - http://objenesis.org/details.html
     //see supported jvms - https://github.com/easymock/objenesis/blob/master/SupportedJVMs.md
@@ -156,7 +159,7 @@ public class MockZooKeeper extends ZooKeeper {
         ObjectInstantiator<MockZooKeeper> mockZooKeeperInstantiator =
                 objenesis.getInstantiatorOf(MockZooKeeper.class);
         MockZooKeeper zk = mockZooKeeperInstantiator.newInstance();
-        zk.epheralOwnerThreadLocal = new ThreadLocal<>();
+        zk.ephemeralOwnerThreadLocal = new ThreadLocal<>();
         zk.init(executor);
         zk.readOpDelayMs = readOpDelayMs;
         zk.mutex = new ReentrantLock();
@@ -278,7 +281,7 @@ public class MockZooKeeper extends ZooKeeper {
                         MockZNode.of(parentNode.getContent(), parentVersion + 1, parentNode.getEphemeralOwner()));
             }
 
-            tree.put(path, MockZNode.of(data, 0, createMode.isEphemeral() ? getEphemeralOwner() : -1L));
+            tree.put(path, MockZNode.of(data, 0, createMode.isEphemeral() ? getEphemeralOwner() : NOT_EPHEMERAL));
 
             toNotifyCreate.addAll(watchers.get(path));
 
@@ -310,19 +313,19 @@ public class MockZooKeeper extends ZooKeeper {
     }
 
     protected long getEphemeralOwner() {
-        Long epheralOwner = epheralOwnerThreadLocal.get();
-        if (epheralOwner != null) {
-            return epheralOwner;
+        Long ephemeralOwner = ephemeralOwnerThreadLocal.get();
+        if (ephemeralOwner != null) {
+            return ephemeralOwner;
         }
         return getSessionId();
     }
 
-    public void overrideEpheralOwner(long epheralOwner) {
-        epheralOwnerThreadLocal.set(epheralOwner);
+    public void overrideEphemeralOwner(long ephemeralOwner) {
+        ephemeralOwnerThreadLocal.set(ephemeralOwner);
     }
 
-    public void removeEpheralOwnerOverride() {
-        epheralOwnerThreadLocal.remove();
+    public void removeEphemeralOwnerOverride() {
+        ephemeralOwnerThreadLocal.remove();
     }
 
     @Override
@@ -373,7 +376,7 @@ public class MockZooKeeper extends ZooKeeper {
                     cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
                 } else {
                     tree.put(name, MockZNode.of(data, 0,
-                            createMode != null && createMode.isEphemeral() ? getEphemeralOwner() : -1L));
+                            createMode != null && createMode.isEphemeral() ? getEphemeralOwner() : NOT_EPHEMERAL));
                     watchers.removeAll(name);
                     unlockIfLocked();
                     cb.processResult(0, path, ctx, name);
@@ -678,9 +681,7 @@ public class MockZooKeeper extends ZooKeeper {
 
     private static Stat applyToStat(MockZNode zNode, Stat stat) {
         stat.setVersion(zNode.getVersion());
-        if (zNode.getEphemeralOwner() != -1L) {
-            stat.setEphemeralOwner(zNode.getEphemeralOwner());
-        }
+        stat.setEphemeralOwner(zNode.getEphemeralOwner());
         return stat;
     }
 
@@ -1197,6 +1198,17 @@ public class MockZooKeeper extends ZooKeeper {
                 }
             }
         });
+    }
+
+    public void deleteEphemeralNodes(long sessionId) {
+        if (sessionId != NOT_EPHEMERAL) {
+            lock();
+            try {
+                tree.values().removeIf(zNode -> zNode.getEphemeralOwner() == sessionId);
+            } finally {
+                unlockIfLocked();
+            }
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(MockZooKeeper.class);

@@ -19,6 +19,7 @@
 package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
@@ -74,14 +75,14 @@ public class MetadataStoreExtendedTest extends BaseMetadataStoreTest {
         store.put(key1, "value-1".getBytes(), Optional.empty(), EnumSet.noneOf(CreateOption.class)).join();
         var value = store.get(key1).join().get();
         assertEquals(value.getValue(), "value-1".getBytes());
-        // assertFalse(value.getStat().isEphemeral()); // Todo : fix zkStat.getEphemeralOwner() != 0 from test zk
+        assertFalse(value.getStat().isEphemeral());
         assertTrue(value.getStat().isFirstVersion());
         var version = value.getStat().getVersion();
 
         store.put(key1, "value-2".getBytes(), Optional.empty(), EnumSet.noneOf(CreateOption.class)).join();
         value = store.get(key1).join().get();
         assertEquals(value.getValue(), "value-2".getBytes());
-       //assertFalse(value.getStat().isEphemeral());  // Todo : fix zkStat.getEphemeralOwner() != 0 from test zk
+        assertFalse(value.getStat().isEphemeral());
         assertEquals(value.getStat().getVersion(), version + 1);
 
         final String key2 = newKey();
