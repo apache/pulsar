@@ -487,7 +487,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         if (useTestZookeeper) {
             builder.withTestZookeeper();
         } else {
-            builder.withMockZookeeper();
+            builder.withMockZookeeper(true);
         }
     }
 
