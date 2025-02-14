@@ -243,9 +243,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     protected final MessageDeduplication messageDeduplication;
 
     private static final Long COMPACTION_NEVER_RUN = -0xfebecffeL;
-    private volatile CompletableFuture<Long> currentCompaction = CompletableFuture.completedFuture(
+    volatile CompletableFuture<Long> currentCompaction = CompletableFuture.completedFuture(
             COMPACTION_NEVER_RUN);
-    private volatile AtomicBoolean disablingCompaction = new AtomicBoolean(false);
+    final AtomicBoolean disablingCompaction = new AtomicBoolean(false);
     private TopicCompactionService topicCompactionService;
 
     // TODO: Create compaction strategy from topic policy when exposing strategic compaction to users.

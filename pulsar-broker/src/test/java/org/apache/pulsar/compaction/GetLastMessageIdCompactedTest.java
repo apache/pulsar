@@ -28,9 +28,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -383,78 +381,6 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
         // cleanup.
         producer.close();
         reader.close();
-        admin.topics().delete(topicName, false);
-    }
-
-    @Test
-    public void testDisableCompactionConcurrently() throws Exception {
-        String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
-        admin.topics().createNonPartitionedTopic(topicName);
-        admin.topicPolicies().setCompactionThreshold(topicName, 1);
-        admin.topics().createSubscription(topicName, "s1", MessageId.earliest);
-        var producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).enableBatching(false).create();
-        producer.newMessage().key("k0").value("v0").send();
-        triggerCompactionAndWait(topicName);
-        admin.topics().deleteSubscription(topicName, "s1");
-        PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).get().get();
-        AtomicBoolean disablingCompaction =
-                WhiteboxImpl.getInternalState(persistentTopic, "disablingCompaction");
-
-        // Disable compaction.
-        // Inject a delay when the first time of deleting cursor.
-        AtomicInteger times = new AtomicInteger();
-        String cursorPath = String.format("/managed-ledgers/%s/__compaction",
-                TopicName.get(topicName).getPersistenceNamingEncoding());
-        admin.topicPolicies().removeCompactionThreshold(topicName);
-        mockZooKeeper.delay(5000, (op, path) -> {
-            return op == MockZooKeeper.Op.DELETE && cursorPath.equals(path) && times.incrementAndGet() == 1;
-        });
-        mockZooKeeperGlobal.delay(5000, (op, path) -> {
-            return op == MockZooKeeper.Op.DELETE && cursorPath.equals(path) && times.incrementAndGet() == 1;
-        });
-        AtomicReference<CompletableFuture<Void>> f1 = new AtomicReference<CompletableFuture<Void>>();
-        AtomicReference<CompletableFuture<Void>> f2 = new AtomicReference<CompletableFuture<Void>>();
-        new Thread(() -> {
-            f1.set(admin.topics().deleteSubscriptionAsync(topicName, "__compaction"));
-        }).start();
-        new Thread(() -> {
-            f2.set(admin.topics().deleteSubscriptionAsync(topicName, "__compaction"));
-        }).start();
-
-        // Verify: the next compaction will be skipped.
-        Awaitility.await().untilAsserted(() -> {
-            assertTrue(disablingCompaction.get());
-        });
-        producer.newMessage().key("k1").value("v1").send();
-        producer.newMessage().key("k2").value("v2").send();
-        CompletableFuture<Long> currentCompaction1 =
-                WhiteboxImpl.getInternalState(persistentTopic, "currentCompaction");
-        persistentTopic.triggerCompaction();
-        CompletableFuture<Long> currentCompaction2 =
-                WhiteboxImpl.getInternalState(persistentTopic, "currentCompaction");
-        assertTrue(currentCompaction1 == currentCompaction2);
-
-        // Verify: one of the requests should fail.
-        Awaitility.await().untilAsserted(() -> {
-            assertTrue(f1.get() != null);
-            assertTrue(f2.get() != null);
-            assertTrue(f1.get().isDone());
-            assertTrue(f2.get().isDone());
-            assertTrue(f1.get().isCompletedExceptionally() || f2.get().isCompletedExceptionally());
-            assertTrue(!f1.get().isCompletedExceptionally() || !f2.get().isCompletedExceptionally());
-        });
-        try {
-            f1.get().join();
-            f2.get().join();
-            fail("Should fail");
-        } catch (Exception ex) {
-            Throwable actEx = FutureUtil.unwrapCompletionException(ex);
-            assertTrue(actEx instanceof PulsarAdminException.PreconditionFailedException);
-        }
-
-        // cleanup.
-        producer.close();
         admin.topics().delete(topicName, false);
     }
 
