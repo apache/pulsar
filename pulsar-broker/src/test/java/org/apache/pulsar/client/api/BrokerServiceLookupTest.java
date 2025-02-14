@@ -112,6 +112,7 @@ import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.ITest;
 import org.testng.SkipException;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -120,8 +121,9 @@ import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-public class BrokerServiceLookupTest extends ProducerConsumerBase {
+public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITest {
     private static final Logger log = LoggerFactory.getLogger(BrokerServiceLookupTest.class);
+    private String testName;
 
     @DataProvider
     private static Object[] booleanValues() {
@@ -132,6 +134,16 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
     public BrokerServiceLookupTest(boolean useTestZookeeper) {
         // when set to true, TestZKServer is used which is a real ZooKeeper implementation
         this.useTestZookeeper = useTestZookeeper;
+    }
+
+    @Override
+    public String getTestName() {
+        return testName;
+    }
+
+    @BeforeMethod
+    public void applyTestName(Method method) {
+        testName = method.getName() + " with " + (useTestZookeeper ? "TestZKServer" : "MockZooKeeper");
     }
 
     @BeforeMethod
@@ -147,6 +159,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         internalCleanup();
+        testName = null;
     }
 
     @Override
