@@ -47,7 +47,6 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiPredicate;
 import lombok.AllArgsConstructor;
-import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.zookeeper.AsyncCallback.Children2Callback;
@@ -70,15 +69,51 @@ public class MockZooKeeper extends ZooKeeper {
     // ephemeralOwner value for persistent nodes
     private static final long NOT_EPHEMERAL = 0L;
 
-    @Data
     @AllArgsConstructor
     private static class MockZNode {
         byte[] content;
         int version;
         long ephemeralOwner;
+        long creationTimestamp;
+        long modificationTimestamp;
 
         static MockZNode of(byte[] content, int version, long ephemeralOwner) {
-            return new MockZNode(content, version, ephemeralOwner);
+            return new MockZNode(content, version, ephemeralOwner, System.currentTimeMillis(),
+                    System.currentTimeMillis());
+        }
+
+        public synchronized void updateVersion() {
+            version++;
+            modificationTimestamp = System.currentTimeMillis();
+        }
+
+        public synchronized void updateData(byte[] data) {
+            content = data;
+            updateVersion();
+        }
+
+        public Stat getStat() {
+            return applyToStat(new Stat());
+        }
+
+        public synchronized Stat applyToStat(Stat stat) {
+            stat.setCtime(creationTimestamp);
+            stat.setMtime(modificationTimestamp);
+            stat.setVersion(version);
+            stat.setEphemeralOwner(ephemeralOwner);
+            return stat;
+        }
+
+        public synchronized int getVersion() {
+            return version;
+        }
+
+        public synchronized byte[] getContent() {
+            return content;
+        }
+
+        public long getEphemeralOwner() {
+            return ephemeralOwner;
         }
     }
 
@@ -277,13 +312,10 @@ public class MockZooKeeper extends ZooKeeper {
                 MockZNode parentNode = tree.get(parent);
                 int parentVersion = tree.get(parent).getVersion();
                 path = path + parentVersion;
-
-                // Update parent version
-                tree.put(parent,
-                        MockZNode.of(parentNode.getContent(), parentVersion + 1, parentNode.getEphemeralOwner()));
+                parentNode.updateVersion();
             }
 
-            tree.put(path, MockZNode.of(data, 0, createMode.isEphemeral() ? getSessionId() : NOT_EPHEMERAL));
+            tree.put(path, createMockZNode(data, createMode));
 
             toNotifyCreate.addAll(getWatchers(path));
             if (!parent.isEmpty()) {
@@ -386,8 +418,7 @@ public class MockZooKeeper extends ZooKeeper {
                                     parent)));
                     cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
                 } else {
-                    tree.put(name, MockZNode.of(data, 0,
-                            createMode != null && createMode.isEphemeral() ? getSessionId() : NOT_EPHEMERAL));
+                    tree.put(name, createMockZNode(data, createMode));
                     watchers.removeAll(name);
                     unlockIfLocked();
                     cb.processResult(0, path, ctx, name);
@@ -415,6 +446,11 @@ public class MockZooKeeper extends ZooKeeper {
 
     }
 
+    private MockZNode createMockZNode(byte[] data, CreateMode createMode) {
+        return MockZNode.of(data, 0,
+                createMode != null && createMode.isEphemeral() ? getSessionId() : NOT_EPHEMERAL);
+    }
+
     @Override
     public byte[] getData(String path, Watcher watcher, Stat stat) throws KeeperException {
         lock();
@@ -428,7 +464,7 @@ public class MockZooKeeper extends ZooKeeper {
                     watchers.put(path, new NodeWatcher(watcher, getSessionId()));
                 }
                 if (stat != null) {
-                    applyToStat(value, stat);
+                    value.applyToStat(stat);
                 }
                 return value.getContent();
             }
@@ -456,7 +492,7 @@ public class MockZooKeeper extends ZooKeeper {
                 lock();
                 try {
                     value = tree.get(path);
-                    stat = createStatForZNode(value);
+                    stat = value.getStat();
                 } finally {
                     unlockIfLocked();
                 }
@@ -498,7 +534,7 @@ public class MockZooKeeper extends ZooKeeper {
                     if (watcher != null) {
                         watchers.put(path, new NodeWatcher(watcher, getSessionId()));
                     }
-                    Stat stat = createStatForZNode(value);
+                    Stat stat = value.getStat();
                     unlockIfLocked();
                     cb.processResult(0, path, ctx, value.getContent(), stat);
                 }
@@ -632,7 +668,7 @@ public class MockZooKeeper extends ZooKeeper {
             try {
                 lock();
                 MockZNode mockZNode = tree.get(path);
-                Stat stat = mockZNode != null ? createStatForZNode(mockZNode) : null;
+                Stat stat = mockZNode != null ? mockZNode.getStat() : null;
                 Optional<KeeperException.Code> failure = programmedFailure(Op.GET_CHILDREN, path);
                 if (failure.isPresent()) {
                     unlockIfLocked();
@@ -678,23 +714,13 @@ public class MockZooKeeper extends ZooKeeper {
             }
 
             if (tree.containsKey(path)) {
-                return createStatForZNode(tree.get(path));
+                return tree.get(path).getStat();
             } else {
                 return null;
             }
         } finally {
             unlockIfLocked();
         }
-    }
-
-    private static Stat createStatForZNode(MockZNode zNode) {
-        return applyToStat(zNode, new Stat());
-    }
-
-    private static Stat applyToStat(MockZNode zNode, Stat stat) {
-        stat.setVersion(zNode.getVersion());
-        stat.setEphemeralOwner(zNode.getEphemeralOwner());
-        return stat;
     }
 
     @Override
@@ -712,7 +738,7 @@ public class MockZooKeeper extends ZooKeeper {
             }
 
             if (tree.containsKey(path)) {
-                return createStatForZNode(tree.get(path));
+                return tree.get(path).getStat();
             } else {
                 return null;
             }
@@ -748,7 +774,7 @@ public class MockZooKeeper extends ZooKeeper {
 
                 MockZNode mockZNode = tree.get(path);
                 if (mockZNode != null) {
-                    Stat stat = createStatForZNode(mockZNode);
+                    Stat stat = mockZNode.getStat();
                     unlockIfLocked();
                     cb.processResult(0, path, ctx, stat);
                 } else {
@@ -784,9 +810,8 @@ public class MockZooKeeper extends ZooKeeper {
     @Override
     public Stat setData(final String path, byte[] data, int version) throws KeeperException, InterruptedException {
         final Set<Watcher> toNotify = Sets.newHashSet();
-        MockZNode newZNode;
-
         lock();
+        Stat stat;
         try {
             maybeThrowProgrammedFailure(Op.SET, path);
 
@@ -807,9 +832,8 @@ public class MockZooKeeper extends ZooKeeper {
             }
 
             log.debug("[{}] Updating -- current version: {}", path, currentVersion);
-            newZNode = MockZNode.of(data, currentVersion + 1, mockZNode.getEphemeralOwner());
-            tree.put(path, newZNode);
-
+            mockZNode.updateData(data);
+            stat = mockZNode.getStat();
             toNotify.addAll(getWatchers(path));
             watchers.removeAll(path);
         } finally {
@@ -823,7 +847,7 @@ public class MockZooKeeper extends ZooKeeper {
                     .process(new WatchedEvent(EventType.NodeDataChanged, KeeperState.SyncConnected, path)));
         });
 
-        return createStatForZNode(newZNode);
+        return stat;
     }
 
     @Override
@@ -862,16 +886,15 @@ public class MockZooKeeper extends ZooKeeper {
                     // Check version
                     if (version != -1 && version != currentVersion) {
                         log.debug("[{}] Current version: {} -- Expected: {}", path, currentVersion, version);
-                        Stat currentStat = createStatForZNode(mockZNode);
+                        Stat currentStat = mockZNode.getStat();
                         unlockIfLocked();
                         cb.processResult(KeeperException.Code.BADVERSION.intValue(), path, ctx, currentStat);
                         return;
                     }
 
                     log.debug("[{}] Updating -- current version: {}", path, currentVersion);
-                    MockZNode newZNode = MockZNode.of(data, currentVersion + 1, mockZNode.getEphemeralOwner());
-                    tree.put(path, newZNode);
-                    stat = createStatForZNode(newZNode);
+                    mockZNode.updateData(data);
+                    stat = mockZNode.getStat();
                 } finally {
                     unlockIfLocked();
                 }
