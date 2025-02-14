@@ -264,6 +264,15 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private String advertisedAddress;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Specifies the interval (in seconds) for sending ping messages to the client. Set to 0 to disable "
+                    + "ping messages. This setting applies to client connections used for topic lookups and "
+                    + "partition metadata requests. When a client establishes a broker connection via the proxy, "
+                    + "the client and broker will communicate directly without the proxy intercepting the messages. "
+                    + "In that case, the broker's keepAliveIntervalSeconds configuration becomes relevant.")
+    private int keepAliveIntervalSeconds = 30;
+
     @FieldContext(category = CATEGORY_SERVER,
             doc = "Enable or disable the proxy protocol.")
     private boolean haProxyProtocolEnabled;
