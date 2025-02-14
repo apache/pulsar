@@ -68,6 +68,7 @@ import org.apache.zookeeper.ZooKeeper;
 import org.assertj.core.util.Lists;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
+import org.testng.SkipException;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -415,8 +416,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
     public void testDeleteUnusedDirectories(String provider, Supplier<String> urlSupplier) throws Exception {
-        if (provider.equals("Oxia")) {
-            return;
+        if (provider.equals("Oxia") || provider.equals("MockZooKeeper")) {
+            throw new SkipException("Oxia and MockZooKeeper do not support deleteUnusedDirectories");
         }
 
         @Cleanup
