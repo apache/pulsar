@@ -275,11 +275,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
         List<Entry> entries = new ArrayList<>();
         ByteBuf markerMessage = Markers.newReplicatedSubscriptionsSnapshotRequest("testSnapshotId", "testSourceCluster");
         entries.add(EntryImpl.create(1, 1, markerMessage));
-        entries.add(EntryImpl.create(1, 2, createMessage("message1", 1)));
-        entries.add(EntryImpl.create(1, 3, createMessage("message2", 2)));
-        entries.add(EntryImpl.create(1, 4, createMessage("message3", 3)));
-        entries.add(EntryImpl.create(1, 5, createMessage("message4", 4)));
-        entries.add(EntryImpl.create(1, 6, createMessage("message5", 5)));
+        markerMessage.release();
+        entries.add(createEntry(1, 2, "message1", 1));
+        entries.add(createEntry(1, 3, "message2", 2));
+        entries.add(createEntry(1, 4, "message3", 3));
+        entries.add(createEntry(1, 5, "message4", 4));
+        entries.add(createEntry(1, 6, "message5", 5));
 
         try {
             persistentDispatcher.readEntriesComplete(entries, PersistentStickyKeyDispatcherMultipleConsumersClassic.ReadType.Normal);
@@ -324,8 +325,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
         }
 
         List<Entry> entries = new ArrayList<>();
-        entries.add(EntryImpl.create(1, 1, createMessage("message1", 1)));
-        entries.add(EntryImpl.create(1, 2, createMessage("message2", 2)));
+        entries.add(createEntry(1, 1, "message1", 1));
+        entries.add(createEntry(1, 2, "message2", 2));
 
         try {
             //Should success,see issue #8960
@@ -341,10 +342,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
         final ChannelPromise slowChannelMock = mock(ChannelPromise.class);
         // add entries to redeliver and read target
         final List<Entry> redeliverEntries = new ArrayList<>();
-        redeliverEntries.add(EntryImpl.create(1, 1, createMessage("message1", 1, "key1")));
+        redeliverEntries.add(createEntry(1, 1, "message1", 1, "key1"));
         final List<Entry> readEntries = new ArrayList<>();
-        readEntries.add(EntryImpl.create(1, 2, createMessage("message2", 2, "key1")));
-        readEntries.add(EntryImpl.create(1, 3, createMessage("message3", 3, "key2")));
+        readEntries.add(createEntry(1, 2, "message2", 2, "key1"));
+        readEntries.add(createEntry(1, 3, "message3", 3, "key2"));
 
         try {
             Field totalAvailablePermitsField = PersistentDispatcherMultipleConsumersClassic.class.getDeclaredField("totalAvailablePermits");
@@ -440,9 +441,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
 
         // Messages with key1 are routed to consumer1 and messages with key2 are routed to consumer2
         final List<Entry> allEntries = new ArrayList<>();
-        allEntries.add(EntryImpl.create(1, 1, createMessage("message1", 1, "key2")));
-        allEntries.add(EntryImpl.create(1, 2, createMessage("message2", 2, "key1")));
-        allEntries.add(EntryImpl.create(1, 3, createMessage("message3", 3, "key1")));
+        allEntries.add(createEntry(1, 1, "message1", 1, "key2"));
+        allEntries.add(createEntry(1, 2, "message2", 2, "key1"));
+        allEntries.add(createEntry(1, 3, "message3", 3, "key1"));
         allEntries.forEach(entry -> ((EntryImpl) entry).retain());
 
         final List<Entry> redeliverEntries = new ArrayList<>();
@@ -547,17 +548,27 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
         allEntries.forEach(entry -> entry.release());
     }
 
-    private ByteBuf createMessage(String message, int sequenceId) {
-        return createMessage(message, sequenceId, "testKey");
+    private EntryImpl createEntry(long ledgerId, long entryId, String message, long sequenceId) {
+        return createEntry(ledgerId, entryId, message, sequenceId, "testKey");
     }
 
-    private ByteBuf createMessage(String message, int sequenceId, String key) {
+    private EntryImpl createEntry(long ledgerId, long entryId, String message, long sequenceId, String key) {
+        ByteBuf data = createMessage(message, sequenceId, key);
+        EntryImpl entry = EntryImpl.create(ledgerId, entryId, data);
+        data.release();
+        return entry;
+    }
+
+    private ByteBuf createMessage(String message, long sequenceId, String key) {
         MessageMetadata messageMetadata = new MessageMetadata()
                 .setSequenceId(sequenceId)
                 .setProducerName("testProducer")
                 .setPartitionKey(key)
                 .setPartitionKeyB64Encoded(false)
                 .setPublishTime(System.currentTimeMillis());
-        return serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, Unpooled.copiedBuffer(message.getBytes(UTF_8)));
+        ByteBuf payload = Unpooled.copiedBuffer(message.getBytes(UTF_8));
+        ByteBuf byteBuf = serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, payload);
+        payload.release();
+        return byteBuf;
     }
 }
