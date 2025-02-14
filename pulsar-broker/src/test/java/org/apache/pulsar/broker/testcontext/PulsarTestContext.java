@@ -19,7 +19,6 @@
 
 package org.apache.pulsar.broker.testcontext;
 
-import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.channel.EventLoopGroup;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
@@ -478,7 +477,7 @@ public class PulsarTestContext implements AutoCloseable {
         }
 
         private MockZooKeeper createMockZooKeeper() throws Exception {
-            MockZooKeeper zk = MockZooKeeper.newInstance(MoreExecutors.newDirectExecutorService());
+            MockZooKeeper zk = MockZooKeeper.newInstance();
             initializeZookeeper(zk);
             registerCloseable(zk::shutdown);
             return zk;
