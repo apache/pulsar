@@ -40,7 +40,7 @@ public class MockZooKeeperSession extends ZooKeeper {
 
     private MockZooKeeper mockZooKeeper;
 
-    private long sessionId = 0L;
+    private long sessionId = 1L;
 
     private static final Objenesis objenesis = new ObjenesisStd();
 
@@ -59,6 +59,9 @@ public class MockZooKeeperSession extends ZooKeeper {
         mockZooKeeperSession.mockZooKeeper = mockZooKeeper;
         mockZooKeeperSession.sessionId = sessionIdGenerator.getAndIncrement();
         mockZooKeeperSession.closeMockZooKeeperOnClose = closeMockZooKeeperOnClose;
+        if (closeMockZooKeeperOnClose) {
+            mockZooKeeper.increaseRefCount();
+        }
         return mockZooKeeperSession;
     }
 

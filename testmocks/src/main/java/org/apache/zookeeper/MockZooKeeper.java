@@ -94,6 +94,8 @@ public class MockZooKeeper extends ZooKeeper {
 
     private AtomicLong sequentialIdGenerator;
     private ThreadLocal<Long> ephemeralOwnerThreadLocal;
+    private int referenceCount;
+    private List<AutoCloseable> closeables;
 
     //see details of Objenesis caching - http://objenesis.org/details.html
     //see supported jvms - https://github.com/easymock/objenesis/blob/master/SupportedJVMs.md
@@ -165,6 +167,7 @@ public class MockZooKeeper extends ZooKeeper {
         zk.mutex = new ReentrantLock();
         zk.lockInstance = ThreadLocal.withInitial(zk::createLock);
         zk.sequentialIdGenerator = new AtomicLong();
+        zk.closeables = new ArrayList<>();
         return zk;
     }
 
@@ -1085,9 +1088,28 @@ public class MockZooKeeper extends ZooKeeper {
         });
     }
 
+    public synchronized void increaseRefCount() {
+        referenceCount++;
+    }
+
+    public synchronized MockZooKeeper registerCloseable(AutoCloseable closeable) {
+        closeables.add(closeable);
+        return this;
+    }
+
     @Override
-    public void close() throws InterruptedException {
-        shutdown();
+    public synchronized void close() throws InterruptedException {
+        if (--referenceCount <= 0) {
+            shutdown();
+            closeables.forEach(c -> {
+                try {
+                    c.close();
+                } catch (Exception e) {
+                    log.error("Error closing closeable", e);
+                }
+            });
+            closeables.clear();
+        }
     }
 
     public void shutdown() throws InterruptedException {

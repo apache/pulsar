@@ -30,6 +30,10 @@ import java.util.concurrent.CompletionException;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreFactory;
+import org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.assertj.core.util.Files;
 import org.testng.annotations.AfterClass;
@@ -37,16 +41,27 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 
 public abstract class BaseMetadataStoreTest extends TestRetrySupport {
+    private static String originalMetadatastoreProvidersPropertyValue;
     protected TestZKServer zks;
     protected EtcdCluster etcdCluster;
-
     protected OxiaContainer oxiaServer;
+    private String mockZkUrl;
+    // reference to keep the MockZooKeeper instance alive in MockZookeeperMetadataStoreProvider
+    private MetadataStore mockZkStoreRef;
 
     @BeforeClass(alwaysRun = true)
     @Override
     public void setup() throws Exception {
         incrementSetupNumber();
         zks = new TestZKServer();
+        originalMetadatastoreProvidersPropertyValue =
+                System.getProperty(MetadataStoreFactoryImpl.METADATASTORE_PROVIDERS_PROPERTY);
+        // register MockZooKeeperMetadataStoreProvider
+        System.setProperty(MetadataStoreFactoryImpl.METADATASTORE_PROVIDERS_PROPERTY,
+                MockZooKeeperMetadataStoreProvider.class.getName());
+        mockZkUrl = "mock-zk:" + UUID.randomUUID();
+        // create a reference in MockZooKeeperMetadataStoreProvider to keep the MockZooKeeper instance alive
+        mockZkStoreRef = MetadataStoreFactory.create(mockZkUrl, MetadataStoreConfig.builder().build());
     }
 
     @AfterClass(alwaysRun = true)
@@ -66,6 +81,19 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
         if (oxiaServer != null) {
             oxiaServer.close();
             oxiaServer = null;
+        }
+
+        if (mockZkStoreRef != null) {
+            mockZkStoreRef.close();
+            mockZkStoreRef = null;
+            mockZkUrl = null;
+        }
+
+        if (originalMetadatastoreProvidersPropertyValue != null) {
+            System.setProperty(MetadataStoreFactoryImpl.METADATASTORE_PROVIDERS_PROPERTY,
+                    originalMetadatastoreProvidersPropertyValue);
+        } else {
+            System.clearProperty(MetadataStoreFactoryImpl.METADATASTORE_PROVIDERS_PROPERTY);
         }
     }
 
@@ -88,6 +116,7 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
                 {"RocksDB", stringSupplier(() -> "rocksdb:" + createTempFolder())},
                 {"Etcd", stringSupplier(() -> "etcd:" + getEtcdClusterConnectString())},
                 {"Oxia", stringSupplier(() -> "oxia://" + getOxiaServerConnectString())},
+                {"MockZooKeeper", stringSupplier(() -> mockZkUrl)},
         };
     }
 
