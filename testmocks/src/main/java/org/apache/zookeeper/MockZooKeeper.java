@@ -380,6 +380,7 @@ public class MockZooKeeper extends ZooKeeper {
                 lock();
 
                 if (stopped) {
+                    unlockIfLocked();
                     cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null);
                     return;
                 }
@@ -437,9 +438,9 @@ public class MockZooKeeper extends ZooKeeper {
                 }
             } catch (Throwable ex) {
                 log.error("create path : {} error", path, ex);
+                unlockIfLocked();
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null);
             } finally {
-                unlockIfLocked();
                 removeSessionIdOverride();
             }
         });
@@ -546,9 +547,9 @@ public class MockZooKeeper extends ZooKeeper {
                 }
             } catch (Throwable ex) {
                 log.error("get data : {} error", path, ex);
+                unlockIfLocked();
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null, null);
             } finally {
-                unlockIfLocked();
                 removeSessionIdOverride();
             }
         });
@@ -586,6 +587,7 @@ public class MockZooKeeper extends ZooKeeper {
                 cb.processResult(0, path, ctx, children);
             } catch (Throwable ex) {
                 log.error("get children : {} error", path, ex);
+                unlockIfLocked();
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null);
             } finally {
                 removeSessionIdOverride();
@@ -648,6 +650,7 @@ public class MockZooKeeper extends ZooKeeper {
                 cb.processResult(0, path, ctx, children, stat);
             } catch (Throwable ex) {
                 log.error("get children : {} error", path, ex);
+                unlockIfLocked();
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null, null);
             } finally {
                 removeSessionIdOverride();
@@ -752,9 +755,9 @@ public class MockZooKeeper extends ZooKeeper {
                 }
             } catch (Throwable ex) {
                 log.error("exist : {} error", path, ex);
+                unlockIfLocked();
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null);
             } finally {
-                unlockIfLocked();
                 removeSessionIdOverride();
             }
         });
@@ -1005,9 +1008,9 @@ public class MockZooKeeper extends ZooKeeper {
                 }
             } catch (Throwable ex) {
                 log.error("delete path : {} error", path, ex);
+                unlockIfLocked();
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx);
             } finally {
-                unlockIfLocked();
                 removeSessionIdOverride();
             }
         };
