@@ -41,6 +41,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -252,6 +253,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         ManagedLedger managedLedger = mock(ManagedLedger.class);
         MessageDeduplication messageDeduplication = spy(new MessageDeduplication(pulsarService, mock(PersistentTopic.class), managedLedger));
         doReturn(true).when(messageDeduplication).isEnabled();
+        doReturn((Executor) Runnable::run).when(managedLedger).getExecutor();
 
 
         EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
