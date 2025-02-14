@@ -77,7 +77,8 @@ public interface ManagedLedger {
      *            data entry to be persisted
      * @return the Position at which the entry has been inserted
      * @throws ManagedLedgerException
-     * @apiNote This method is not guaranteed to be thread safe. The caller should be responsible to call it in order.
+     * @apiNote This method is not guaranteed to be thread safe. The caller should be responsible to call all
+     *   {@link ManagedLedger#asyncAddEntry} and {@link ManagedLedger#addEntry} overloads in order.
      */
     Position addEntry(byte[] data) throws InterruptedException, ManagedLedgerException;
 
@@ -90,7 +91,8 @@ public interface ManagedLedger {
      *            numberOfMessages of entry
      * @return the Position at which the entry has been inserted
      * @throws ManagedLedgerException
-     * @apiNote This method is not guaranteed to be thread safe. The caller should be responsible to call it in order.
+     * @apiNote This method is not guaranteed to be thread safe. The caller should be responsible to call all
+     *   {@link ManagedLedger#asyncAddEntry} and {@link ManagedLedger#addEntry} overloads in order.
      */
     Position addEntry(byte[] data, int numberOfMessages) throws InterruptedException, ManagedLedgerException;
 
@@ -105,7 +107,8 @@ public interface ManagedLedger {
      *            callback object
      * @param ctx
      *            opaque context
-     * @apiNote This method is not guaranteed to be thread safe. The caller should be responsible to call it in order.
+     * @apiNote This method is not guaranteed to be thread safe. The caller should be responsible to call all
+     *   {@link ManagedLedger#asyncAddEntry} and {@link ManagedLedger#addEntry} overloads in order.
      */
     void asyncAddEntry(byte[] data, AddEntryCallback callback, Object ctx);
 
@@ -120,7 +123,8 @@ public interface ManagedLedger {
      *            number of bytes
      * @return the Position at which the entry has been inserted
      * @throws ManagedLedgerException
-     * @apiNote This method is not guaranteed to be thread safe. The caller should be responsible to call it in order.
+     * @apiNote This method is not guaranteed to be thread safe. The caller should be responsible to call all
+     *   {@link ManagedLedger#asyncAddEntry} and {@link ManagedLedger#addEntry} overloads in order.
      */
     Position addEntry(byte[] data, int offset, int length) throws InterruptedException, ManagedLedgerException;
 
@@ -137,7 +141,8 @@ public interface ManagedLedger {
      *            number of bytes
      * @return the Position at which the entry has been inserted
      * @throws ManagedLedgerException
-     * @apiNote This method is not guaranteed to be thread safe. The caller should be responsible to call it in order.
+     * @apiNote This method is not guaranteed to be thread safe. The caller should be responsible to call all
+     *   {@link ManagedLedger#asyncAddEntry} and {@link ManagedLedger#addEntry} overloads in order.
      */
     Position addEntry(byte[] data, int numberOfMessages, int offset, int length) throws InterruptedException,
             ManagedLedgerException;
@@ -156,7 +161,8 @@ public interface ManagedLedger {
      *            callback object
      * @param ctx
      *            opaque context
-     * @apiNote This method is not guaranteed to be thread safe. The caller should be responsible to call it in order.
+     * @apiNote This method is not guaranteed to be thread safe. The caller should be responsible to call all
+     *   {@link ManagedLedger#asyncAddEntry} and {@link ManagedLedger#addEntry} overloads in order.
      */
     void asyncAddEntry(byte[] data, int offset, int length, AddEntryCallback callback, Object ctx);
 
@@ -176,7 +182,8 @@ public interface ManagedLedger {
      *            callback object
      * @param ctx
      *            opaque context
-     * @apiNote This method is not guaranteed to be thread safe. The caller should be responsible to call it in order.
+     * @apiNote This method is not guaranteed to be thread safe. The caller should be responsible to call all
+     *   {@link ManagedLedger#asyncAddEntry} and {@link ManagedLedger#addEntry} overloads in order.
      */
     void asyncAddEntry(byte[] data, int numberOfMessages, int offset, int length, AddEntryCallback callback,
                        Object ctx);
@@ -192,7 +199,8 @@ public interface ManagedLedger {
      *            callback object
      * @param ctx
      *            opaque context
-     * @apiNote This method is not guaranteed to be thread safe. The caller should be responsible to call it in order.
+     * @apiNote This method is not guaranteed to be thread safe. The caller should be responsible to call all
+     *   {@link ManagedLedger#asyncAddEntry} and {@link ManagedLedger#addEntry} overloads in order.
      */
     void asyncAddEntry(ByteBuf buffer, AddEntryCallback callback, Object ctx);
 
@@ -208,7 +216,8 @@ public interface ManagedLedger {
      *            callback object
      * @param ctx
      *            opaque context
-     * @apiNote This method is not guaranteed to be thread safe. The caller should be responsible to call it in order.
+     * @apiNote This method is not guaranteed to be thread safe. The caller should be responsible to call all
+     *   {@link ManagedLedger#asyncAddEntry} and {@link ManagedLedger#addEntry} overloads in order.
      */
     void asyncAddEntry(ByteBuf buffer, int numberOfMessages, AddEntryCallback callback, Object ctx);
 

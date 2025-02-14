@@ -832,6 +832,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    // TODO: does this method really need to be synchronized?
     protected synchronized void afterAddEntryToQueue(OpAddEntry addOperation) throws ManagedLedgerException {
         final var state = STATE_UPDATER.get(this);
         if (state == State.ClosingLedger || state == State.CreatingLedger) {
