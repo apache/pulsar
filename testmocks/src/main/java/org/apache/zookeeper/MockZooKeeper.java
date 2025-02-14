@@ -20,7 +20,6 @@ package org.apache.zookeeper;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimaps;
 import com.google.common.collect.SetMultimap;
@@ -34,7 +33,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.TreeSet;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -561,7 +559,6 @@ public class MockZooKeeper extends ZooKeeper {
         long currentSessionId = getSessionId();
         executor.execute(() -> {
             overrideSessionId(currentSessionId);
-            List<String> children = Lists.newArrayList();
             try {
                 lock();
                 Optional<KeeperException.Code> failure = programmedFailure(Op.GET_CHILDREN, path);
@@ -581,21 +578,8 @@ public class MockZooKeeper extends ZooKeeper {
                     return;
                 }
 
-                for (String item : tree.tailMap(path).keySet()) {
-                    if (!item.startsWith(path)) {
-                        break;
-                    } else {
-                        if (path.length() >= item.length()) {
-                            continue;
-                        }
-
-                        String child = item.substring(path.length() + 1);
-                        if (item.charAt(path.length()) == '/' && !child.contains("/")) {
-                            children.add(child);
-                        }
-                    }
-                }
-
+                List<String> children = findFirstLevelChildren(path);
+                unlockIfLocked();
                 if (watcher != null) {
                     watchers.put(path, new NodeWatcher(watcher, getSessionId()));
                 }
@@ -604,7 +588,6 @@ public class MockZooKeeper extends ZooKeeper {
                 log.error("get children : {} error", path, ex);
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null);
             } finally {
-                unlockIfLocked();
                 removeSessionIdOverride();
             }
 
@@ -621,23 +604,11 @@ public class MockZooKeeper extends ZooKeeper {
                 throw new KeeperException.NoNodeException();
             }
 
-            String firstKey = path.equals("/") ? path : path + "/";
-            String lastKey = path.equals("/") ? "0" : path + "0"; // '0' is lexicographically just after '/'
-
-            Set<String> children = new TreeSet<>();
-            tree.subMap(firstKey, false, lastKey, false).forEach((key, value) -> {
-                String relativePath = key.replace(firstKey, "");
-
-                // Only return first-level children
-                String child = relativePath.split("/", 2)[0];
-                children.add(child);
-            });
-
             if (watcher != null) {
                 watchers.put(path, new NodeWatcher(watcher, getSessionId()));
             }
 
-            return new ArrayList<>(children);
+            return findFirstLevelChildren(path);
         } finally {
             unlockIfLocked();
         }
@@ -645,32 +616,7 @@ public class MockZooKeeper extends ZooKeeper {
 
     @Override
     public List<String> getChildren(String path, boolean watch) throws KeeperException, InterruptedException {
-        lock();
-        try {
-            maybeThrowProgrammedFailure(Op.GET_CHILDREN, path);
-
-            if (stopped) {
-                throw new KeeperException.ConnectionLossException();
-            } else if (!tree.containsKey(path)) {
-                throw new KeeperException.NoNodeException();
-            }
-
-            String firstKey = path.equals("/") ? path : path + "/";
-            String lastKey = path.equals("/") ? "0" : path + "0"; // '0' is lexicographically just after '/'
-
-            Set<String> children = new TreeSet<>();
-            tree.subMap(firstKey, false, lastKey, false).forEach((key, value) -> {
-                String relativePath = key.replace(firstKey, "");
-
-                // Only return first-level children
-                String child = relativePath.split("/", 2)[0];
-                children.add(child);
-            });
-
-            return new ArrayList<>(children);
-        } finally {
-            unlockIfLocked();
-        }
+        return getChildren(path, null);
     }
 
     @Override
@@ -678,7 +624,6 @@ public class MockZooKeeper extends ZooKeeper {
         long currentSessionId = getSessionId();
         executor.execute(() -> {
             overrideSessionId(currentSessionId);
-            Set<String> children = new TreeSet<>();
             try {
                 lock();
                 MockZNode mockZNode = tree.get(path);
@@ -698,17 +643,9 @@ public class MockZooKeeper extends ZooKeeper {
                     return;
                 }
 
-                String firstKey = path.equals("/") ? path : path + "/";
-                String lastKey = path.equals("/") ? "0" : path + "0"; // '0' is lexicographically just after '/'
-
-                tree.subMap(firstKey, false, lastKey, false).forEach((key, value) -> {
-                    String relativePath = key.replace(firstKey, "");
-                    // Only return first-level children
-                    String child = relativePath.split("/", 2)[0];
-                    children.add(child);
-                });
+                List<String> children = findFirstLevelChildren(path);
                 unlockIfLocked();
-                cb.processResult(0, path, ctx, new ArrayList<>(children), stat);
+                cb.processResult(0, path, ctx, children, stat);
             } catch (Throwable ex) {
                 log.error("get children : {} error", path, ex);
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null, null);
@@ -717,6 +654,20 @@ public class MockZooKeeper extends ZooKeeper {
             }
         });
 
+    }
+
+    private List<String> findFirstLevelChildren(String path) {
+        List<String> children = new ArrayList<>();
+        String requiredPrefix = path.equals("/") ? "/" : path + "/";
+        for (String key : tree.tailMap(path).keySet()) {
+            if (key.startsWith(requiredPrefix)) {
+                String relativePath = key.substring(requiredPrefix.length());
+                if (relativePath.indexOf('/') == -1) {
+                    children.add(relativePath);
+                }
+            }
+        }
+        return children;
     }
 
     @Override
