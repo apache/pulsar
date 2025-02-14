@@ -682,7 +682,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 }
             });
         } catch (Exception e) {
-            buffer.release();
+            buffer.release(); // decrease the reference count retained at the beginning of this method
+            buffer.release(); // release the original headersAndPayload since it won't be used anymore
             publishContext.completed(e, -1L, -1L);
         }
     }

@@ -63,16 +63,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -297,21 +298,36 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testPublishMessage() throws Exception {
-        // simulate the managed ledger's I/O thread
-        final var executor = Executors.newSingleThreadExecutor();
+        // Only allow at most 1 pending task
+        final var mlIOExecutor = new ThreadPoolExecutor(1, 1, 0, TimeUnit.SECONDS, new ArrayBlockingQueue<>(1));
         doAnswer(invocationOnMock -> {
             final ByteBuf payload = (ByteBuf) invocationOnMock.getArguments()[0];
             final AddEntryCallback callback = (AddEntryCallback) invocationOnMock.getArguments()[2];
             final Topic.PublishContext ctx = (Topic.PublishContext) invocationOnMock.getArguments()[3];
-            executor.execute(() -> {
+            mlIOExecutor.execute(() -> {
                 callback.addComplete(PositionFactory.LATEST, payload, ctx);
                 payload.release();
             });
             return null;
         }).when(ledgerMock).asyncAddEntry(any(ByteBuf.class), anyInt(), any(AddEntryCallback.class), any());
-        doReturn((Executor) Runnable::run).when(ledgerMock).getExecutor();
+        doReturn(mlIOExecutor).when(ledgerMock).getExecutor();
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        verifyMessagePublish(topic, true);
+
+        mlIOExecutor.execute(() -> {
+            try {
+                Thread.sleep(30000);
+            } catch (InterruptedException ignored) {
+            }
+        });
+        mlIOExecutor.execute(() -> {}); // make the work queue full
+        verifyMessagePublish(topic, false);
+
+        mlIOExecutor.shutdown();
+    }
+
+    private void verifyMessagePublish(PersistentTopic topic, boolean success) throws Exception {
         long lastMaxReadPositionMovedForwardTimestamp = topic.getLastMaxReadPositionMovedForwardTimestamp();
 
         /*
@@ -321,27 +337,34 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
          */
         ByteBuf payload = Unpooled.wrappedBuffer("content".getBytes());
 
-        final CountDownLatch latch = new CountDownLatch(1);
-
+        final var future = new CompletableFuture<Position>();
         final Topic.PublishContext publishContext = new Topic.PublishContext() {
             @Override
             public void completed(Exception e, long ledgerId, long entryId) {
-                assertEquals(ledgerId, PositionFactory.LATEST.getLedgerId());
-                assertEquals(entryId, PositionFactory.LATEST.getEntryId());
-                latch.countDown();
+                if (e == null) {
+                    future.complete(PositionFactory.create(ledgerId, entryId));
+                } else {
+                    future.completeExceptionally(e);
+                }
             }
 
             @Override
             public void setMetadataFromEntryData(ByteBuf entryData) {
                 // This method must be invoked before `completed`
-                assertEquals(latch.getCount(), 1);
+                assertFalse(future.isDone());
                 assertEquals(entryData.array(), payload.array());
             }
         };
         topic.publishMessage(payload, publishContext);
 
-        assertTrue(latch.await(1, TimeUnit.SECONDS));
-        assertTrue(topic.getLastMaxReadPositionMovedForwardTimestamp() > lastMaxReadPositionMovedForwardTimestamp);
+        try {
+            assertEquals(future.get(3, TimeUnit.SECONDS), PositionFactory.LATEST);
+            assertTrue(topic.getLastMaxReadPositionMovedForwardTimestamp() > lastMaxReadPositionMovedForwardTimestamp);
+            assertTrue(success);
+        } catch (ExecutionException ignored) {
+            assertFalse(success);
+        }
+
         Awaitility.await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> assertEquals(payload.refCnt(), 0));
     }
 
