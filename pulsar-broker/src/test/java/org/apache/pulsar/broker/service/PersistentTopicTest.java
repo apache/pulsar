@@ -297,12 +297,16 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testPublishMessage() throws Exception {
-
+        // simulate the managed ledger's I/O thread
+        final var executor = Executors.newSingleThreadExecutor();
         doAnswer(invocationOnMock -> {
             final ByteBuf payload = (ByteBuf) invocationOnMock.getArguments()[0];
             final AddEntryCallback callback = (AddEntryCallback) invocationOnMock.getArguments()[2];
             final Topic.PublishContext ctx = (Topic.PublishContext) invocationOnMock.getArguments()[3];
-            callback.addComplete(PositionFactory.LATEST, payload, ctx);
+            executor.execute(() -> {
+                callback.addComplete(PositionFactory.LATEST, payload, ctx);
+                payload.release();
+            });
             return null;
         }).when(ledgerMock).asyncAddEntry(any(ByteBuf.class), anyInt(), any(AddEntryCallback.class), any());
         doReturn((Executor) Runnable::run).when(ledgerMock).getExecutor();
@@ -338,6 +342,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         assertTrue(latch.await(1, TimeUnit.SECONDS));
         assertTrue(topic.getLastMaxReadPositionMovedForwardTimestamp() > lastMaxReadPositionMovedForwardTimestamp);
+        Awaitility.await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> assertEquals(payload.refCnt(), 0));
     }
 
     @Test

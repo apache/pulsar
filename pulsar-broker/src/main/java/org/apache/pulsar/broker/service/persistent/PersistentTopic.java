@@ -674,8 +674,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         // Retain the buffer in advance to avoid the buffer might have been released when it's passed to `asyncAddEntry`
         final var buffer = headersAndPayload.retain();
         try {
-            ledger.getExecutor().execute(() -> ledger.asyncAddEntry(buffer, (int) publishContext.getNumberOfMessages(),
-                    this, publishContext));
+            ledger.getExecutor().execute(() -> {
+                try {
+                    ledger.asyncAddEntry(buffer, (int) publishContext.getNumberOfMessages(), this, publishContext);
+                } finally {
+                    buffer.release();
+                }
+            });
         } catch (Exception e) {
             buffer.release();
             publishContext.completed(e, -1L, -1L);
