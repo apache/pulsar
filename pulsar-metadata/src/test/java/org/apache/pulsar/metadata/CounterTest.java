@@ -85,7 +85,7 @@ public class CounterTest extends BaseMetadataStoreTest {
         store1.close();
 
         // Delete all the empty container nodes
-        zks.checkContainers();
+        maybeTriggerDeletingEmptyContainers(provider);
 
         @Cleanup
         MetadataStoreExtended store2 = MetadataStoreExtended.create(metadataUrl, MetadataStoreConfig.builder().build());

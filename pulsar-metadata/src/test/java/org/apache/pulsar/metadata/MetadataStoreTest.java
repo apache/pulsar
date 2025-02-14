@@ -432,18 +432,18 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         store.delete(prefix + "/a1/b1/c1", Optional.empty()).join();
         store.delete(prefix + "/a1/b1/c2", Optional.empty()).join();
 
-        zks.checkContainers();
+        maybeTriggerDeletingEmptyContainers(provider);
         assertFalse(store.exists(prefix + "/a1/b1").join());
 
         store.delete(prefix + "/a1/b2/c1", Optional.empty()).join();
 
-        zks.checkContainers();
+        maybeTriggerDeletingEmptyContainers(provider);
         assertFalse(store.exists(prefix + "/a1/b2").join());
 
-        zks.checkContainers();
+        maybeTriggerDeletingEmptyContainers(provider);
         assertFalse(store.exists(prefix + "/a1").join());
 
-        zks.checkContainers();
+        maybeTriggerDeletingEmptyContainers(provider);
         assertFalse(store.exists(prefix).join());
     }
 

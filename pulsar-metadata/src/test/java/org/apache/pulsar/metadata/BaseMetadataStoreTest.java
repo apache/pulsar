@@ -228,4 +228,15 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
         }
         return false;
     }
+
+    /**
+     * Delete all the empty container nodes
+     * @param provider the metadata store provider
+     * @throws Exception
+     */
+    protected void maybeTriggerDeletingEmptyContainers(String provider) throws Exception {
+        if ("ZooKeeper".equals(provider) && zks != null) {
+            zks.checkContainers();
+        }
+    }
 }
