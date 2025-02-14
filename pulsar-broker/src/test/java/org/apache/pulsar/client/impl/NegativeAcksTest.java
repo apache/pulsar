@@ -255,10 +255,16 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         final int redeliverCount = 5;
         long firstReceivedAt = System.currentTimeMillis();
         long expectedTotalRedeliveryDelay = 0;
+        Message<String> msg = null;
         for (int i = 0; i < redeliverCount; i++) {
             for (int j = 0; j < N; j++) {
-                Message<String> msg = consumer.receive();
+                msg = consumer.receive();
                 log.info("Received message {}", msg.getValue());
+                if (!batching) {
+                    consumer.negativeAcknowledge(msg);
+                }
+            }
+            if (batching) {
                 consumer.negativeAcknowledge(msg);
             }
             expectedTotalRedeliveryDelay += backoff.next(i);
@@ -268,7 +274,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
 
         // All the messages should be received again
         for (int i = 0; i < N; i++) {
-            Message<String> msg = consumer.receive();
+            msg = consumer.receive();
             receivedMessages.add(msg.getValue());
             consumer.acknowledge(msg);
         }
