@@ -31,6 +31,7 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.assertj.core.util.Files;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
@@ -47,18 +48,15 @@ public class VipStatusTest {
 
     private ServletContext mockServletContext;
     private VipStatus vipStatus;
+    private File file;
 
     @BeforeTest
     public void setup() throws IOException {
-        String statusFilePath = "/tmp/status.html";
-        File file = new File(statusFilePath);
-        file.createNewFile();
+        file = Files.newTemporaryFile();
         Supplier<Boolean> isReadyProbe = () -> true;
-
         mockServletContext = Mockito.mock(ServletContext.class);
-        Mockito.when(mockServletContext.getAttribute(ATTRIBUTE_STATUS_FILE_PATH)).thenReturn(statusFilePath);
+        Mockito.when(mockServletContext.getAttribute(ATTRIBUTE_STATUS_FILE_PATH)).thenReturn(file.getAbsolutePath());
         Mockito.when(mockServletContext.getAttribute(ATTRIBUTE_IS_READY_PROBE)).thenReturn(isReadyProbe);
-
         vipStatus = new VipStatus(mockServletContext, LOG_THREADDUMP_INTERVAL_WHEN_DEADLOCK_DETECTED);
     }
 
@@ -72,8 +70,6 @@ public class VipStatusTest {
 
     @AfterTest
     public void release() throws IOException {
-        String statusFilePath = "/tmp/status.html";
-        File file = new File(statusFilePath);
         file.deleteOnExit();
     }
 
