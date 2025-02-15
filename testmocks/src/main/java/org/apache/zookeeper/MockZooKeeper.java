@@ -1077,13 +1077,13 @@ public class MockZooKeeper extends ZooKeeper {
                 tree.clear();
                 watchers.clear();
                 persistentWatchers.clear();
-                try {
-                    executor.shutdownNow();
-                    executor.awaitTermination(5, TimeUnit.SECONDS);
-                } catch (InterruptedException ex) {
-                    log.error("MockZooKeeper shutdown had error", ex);
-                }
             });
+            try {
+                executor.shutdownNow();
+                executor.awaitTermination(5, TimeUnit.SECONDS);
+            } catch (InterruptedException ex) {
+                log.error("MockZooKeeper shutdown had error", ex);
+            }
         }
     }
 
