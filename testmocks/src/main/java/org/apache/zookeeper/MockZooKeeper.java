@@ -32,19 +32,17 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiPredicate;
 import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.zookeeper.AsyncCallback.Children2Callback;
 import org.apache.zookeeper.AsyncCallback.ChildrenCallback;
 import org.apache.zookeeper.AsyncCallback.DataCallback;
@@ -117,19 +115,18 @@ public class MockZooKeeper extends ZooKeeper {
 
     private TreeMap<String, MockZNode> tree;
     private SetMultimap<String, NodeWatcher> watchers;
-    private volatile boolean stopped;
+    private AtomicBoolean stopped;
     private AtomicReference<KeeperException.Code> alwaysFail;
     private CopyOnWriteArrayList<Failure> failures;
     private ExecutorService executor;
 
-    private Watcher sessionWatcher;
+    private volatile Watcher sessionWatcher;
     private long sessionId = 1L;
     private int readOpDelayMs;
 
-    private ReentrantLock mutex;
-
     private AtomicLong sequentialIdGenerator;
     private ThreadLocal<Long> overriddenSessionIdThreadLocal;
+    private ThreadLocal<Boolean> inExecutorThreadLocal;
     private int referenceCount;
     private List<AutoCloseable> closeables;
 
@@ -178,10 +175,9 @@ public class MockZooKeeper extends ZooKeeper {
                 objenesis.getInstantiatorOf(MockZooKeeper.class);
         MockZooKeeper zk = mockZooKeeperInstantiator.newInstance();
         zk.overriddenSessionIdThreadLocal = new ThreadLocal<>();
+        zk.inExecutorThreadLocal = ThreadLocal.withInitial(() -> false);
         zk.init();
         zk.readOpDelayMs = readOpDelayMs;
-        zk.mutex = new ReentrantLock();
-        zk.lockInstance = ThreadLocal.withInitial(zk::createLock);
         zk.sequentialIdGenerator = new AtomicLong();
         zk.closeables = new ArrayList<>();
         return zk;
@@ -192,7 +188,7 @@ public class MockZooKeeper extends ZooKeeper {
         this.executor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("mock-zookeeper"));
         SetMultimap<String, NodeWatcher> w = HashMultimap.create();
         watchers = Multimaps.synchronizedSetMultimap(w);
-        stopped = false;
+        stopped = new AtomicBoolean(false);
         alwaysFail = new AtomicReference<>(KeeperException.Code.OK);
         failures = new CopyOnWriteArrayList<>();
         persistentWatchers = new ArrayList<>();
@@ -215,96 +211,140 @@ public class MockZooKeeper extends ZooKeeper {
         return States.CONNECTED;
     }
 
-
-    @Slf4j
-    private static class SingleAcquireAndReleaseLock {
-        private final AtomicBoolean acquired = new AtomicBoolean(false);
-        private final Lock lock;
-
-        SingleAcquireAndReleaseLock(Lock lock) {
-            this.lock = lock;
-        }
-
-        public void lock() {
-            if (acquired.compareAndSet(false, true)) {
-                lock.lock();
-            } else {
-                throw new IllegalStateException("Lock was already acquired!");
-            }
-        }
-
-        public void unlockIfNeeded() {
-            if (acquired.compareAndSet(true, false)) {
-                lock.unlock();
-            }
-        }
-    }
-
-    private ThreadLocal<SingleAcquireAndReleaseLock> lockInstance;
-
-    private SingleAcquireAndReleaseLock createLock() {
-        return new SingleAcquireAndReleaseLock(mutex);
-    }
-
-    private void lock() {
-        lockInstance.get().lock();
-    }
-
-    private void unlockIfLocked() {
-        lockInstance.get().unlockIfNeeded();
-    }
-
     @Override
     public void register(Watcher watcher) {
-        lock();
         sessionWatcher = watcher;
-        unlockIfLocked();
     }
 
     @Override
     public String create(String path, byte[] data, List<ACL> acl, CreateMode createMode)
             throws KeeperException, InterruptedException {
+        return runInExecutorReturningValue(() -> internalCreate(path, data, createMode));
+    }
+
+    private <T> T runInExecutorReturningValue(Callable<T> task) throws InterruptedException, KeeperException {
+        return runInExecutorReturningValue(task, true);
+    }
+
+    private <T> T runInExecutorReturningValue(Callable<T> task, boolean allowRunningInCurrentThread)
+            throws InterruptedException, KeeperException {
+        if (allowRunningInCurrentThread && inExecutorThreadLocal.get()) {
+            try {
+                return task.call();
+            } catch (Exception e) {
+                if (e instanceof KeeperException ke) {
+                    throw ke;
+                }
+                if (e instanceof InterruptedException ie) {
+                    throw ie;
+                }
+                log.error("Unexpected exception", e);
+                throw new KeeperException.SystemErrorException();
+            }
+        }
+        try {
+            long currentSessionId = getSessionId();
+            return executor.submit(() -> {
+                inExecutorThreadLocal.set(true);
+                overrideSessionId(currentSessionId);
+                try {
+                    return task.call();
+                } finally {
+                    removeSessionIdOverride();
+                    inExecutorThreadLocal.set(false);
+                }
+            }).get();
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof KeeperException ke) {
+                throw ke;
+            }
+            if (cause instanceof InterruptedException ie) {
+                throw ie;
+            }
+            log.error("Unexpected exception", e);
+            throw new KeeperException.SystemErrorException();
+        }
+    }
+
+    private void runInExecutorAsync(Runnable runnable) {
+        runInExecutorAsync(runnable, true);
+    }
+
+    private void runInExecutorAsync(Runnable runnable, boolean allowRunningInCurrentThread) {
+        if (allowRunningInCurrentThread && inExecutorThreadLocal.get()) {
+            try {
+                runnable.run();
+            } catch (Throwable t) {
+                log.error("Unexpected exception", t);
+            }
+            return;
+        }
+        long currentSessionId = getSessionId();
+        executor.submit(() -> {
+            try {
+                inExecutorThreadLocal.set(true);
+                overrideSessionId(currentSessionId);
+                try {
+                    runnable.run();
+                } finally {
+                    removeSessionIdOverride();
+                    inExecutorThreadLocal.set(false);
+                }
+            } catch (Throwable t) {
+                log.error("Unexpected exception", t);
+            }
+        });
+    }
+
+    private void runInExecutorSync(Runnable runnable) {
+        try {
+            runInExecutorReturningValue(() -> {
+                runnable.run();
+                return null;
+            });
+        } catch (Exception e) {
+            log.error("Unexpected error", e);
+        }
+    }
+
+    private String internalCreate(String path, byte[] data, CreateMode createMode) throws KeeperException {
         final Set<Watcher> toNotifyCreate = Sets.newHashSet();
         final Set<Watcher> toNotifyParent = Sets.newHashSet();
         final String parent = path.substring(0, path.lastIndexOf("/"));
 
-        lock();
-        try {
-            maybeThrowProgrammedFailure(Op.CREATE, path);
+        maybeThrowProgrammedFailure(Op.CREATE, path);
 
-            if (stopped) {
-                throw new KeeperException.ConnectionLossException();
-            }
-
-            if (tree.containsKey(path)) {
-                throw new KeeperException.NodeExistsException(path);
-            }
-
-            if (!parent.isEmpty() && !tree.containsKey(parent)) {
-                throw new KeeperException.NoNodeException();
-            }
-
-            if (createMode.isSequential()) {
-                MockZNode parentNode = tree.get(parent);
-                int parentVersion = tree.get(parent).getVersion();
-                path = path + parentVersion;
-                parentNode.updateVersion();
-            }
-
-            tree.put(path, createMockZNode(data, createMode));
-
-            toNotifyCreate.addAll(getWatchers(path));
-            if (!parent.isEmpty()) {
-                toNotifyParent.addAll(getWatchers(parent));
-            }
-            watchers.removeAll(path);
-        } finally {
-            unlockIfLocked();
+        if (isStopped()) {
+            throw new KeeperException.ConnectionLossException();
         }
+
+        if (tree.containsKey(path)) {
+            throw new KeeperException.NodeExistsException(path);
+        }
+
+        if (!parent.isEmpty() && !tree.containsKey(parent)) {
+            throw new KeeperException.NoNodeException();
+        }
+
+        if (createMode.isSequential()) {
+            MockZNode parentNode = tree.get(parent);
+            int parentVersion = tree.get(parent).getVersion();
+            path = path + parentVersion;
+            parentNode.updateVersion();
+        }
+
+        tree.put(path, createMockZNode(data, createMode));
+
+        toNotifyCreate.addAll(getWatchers(path));
+        if (!parent.isEmpty()) {
+            toNotifyParent.addAll(getWatchers(parent));
+        }
+        watchers.removeAll(path);
 
         final String finalPath = path;
         executor.execute(() -> {
-            if (stopped) {
+            if (isStopped()) {
                 return;
             }
 
@@ -354,15 +394,13 @@ public class MockZooKeeper extends ZooKeeper {
     @Override
     public void create(final String path, final byte[] data, final List<ACL> acl, CreateMode createMode,
                        final StringCallback cb, final Object ctx) {
-
-        long currentSessionId = getSessionId();
-        executor.execute(() -> {
-            overrideSessionId(currentSessionId);
+        if (isStopped()) {
+            cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null);
+            return;
+        }
+        runInExecutorAsync(() -> {
             try {
-                lock();
-
-                if (stopped) {
-                    unlockIfLocked();
+                if (isStopped()) {
                     cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null);
                     return;
                 }
@@ -385,31 +423,23 @@ public class MockZooKeeper extends ZooKeeper {
 
                 Optional<KeeperException.Code> failure = programmedFailure(Op.CREATE, path);
                 if (failure.isPresent()) {
-                    unlockIfLocked();
                     cb.processResult(failure.get().intValue(), path, ctx, null);
-                } else if (stopped) {
-                    unlockIfLocked();
+                } else if (isStopped()) {
                     cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null);
                 } else if (tree.containsKey(path)) {
-                    unlockIfLocked();
                     cb.processResult(KeeperException.Code.NODEEXISTS.intValue(), path, ctx, null);
                 } else if (!parent.isEmpty() && !tree.containsKey(parent)) {
-                    unlockIfLocked();
-                    toNotifyParent.forEach(watcher -> watcher
-                            .process(new WatchedEvent(EventType.NodeChildrenChanged, KeeperState.SyncConnected,
-                                    parent)));
+                    runNotifications(() -> {
+                        toNotifyParent.forEach(watcher -> watcher
+                                .process(new WatchedEvent(EventType.NodeChildrenChanged, KeeperState.SyncConnected,
+                                        parent)));
+                    });
                     cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
                 } else {
                     tree.put(name, createMockZNode(data, createMode));
                     watchers.removeAll(name);
-                    unlockIfLocked();
                     cb.processResult(0, path, ctx, name);
-
-                    executor.execute(() -> {
-                        if (stopped) {
-                            return;
-                        }
-
+                    runNotifications(() -> {
                         triggerPersistentWatches(path, parent, EventType.NodeCreated);
 
                         toNotifyCreate.forEach(
@@ -426,13 +456,22 @@ public class MockZooKeeper extends ZooKeeper {
                 }
             } catch (Throwable ex) {
                 log.error("create path : {} error", path, ex);
-                unlockIfLocked();
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null);
-            } finally {
-                removeSessionIdOverride();
             }
         });
+    }
 
+    public void runNotifications(Runnable runnable) {
+        executor.execute(() -> {
+            if (isStopped()) {
+                return;
+            }
+            runnable.run();
+        });
+    }
+
+    private boolean isStopped() {
+        return stopped.get();
     }
 
     private MockZNode createMockZNode(byte[] data, CreateMode createMode) {
@@ -441,167 +480,117 @@ public class MockZooKeeper extends ZooKeeper {
     }
 
     @Override
-    public byte[] getData(String path, Watcher watcher, Stat stat) throws KeeperException {
-        lock();
-        try {
-            maybeThrowProgrammedFailure(Op.GET, path);
-            MockZNode value = tree.get(path);
-            if (value == null) {
-                throw new KeeperException.NoNodeException(path);
-            } else {
-                if (watcher != null) {
-                    watchers.put(path, new NodeWatcher(watcher, getSessionId()));
-                }
-                if (stat != null) {
-                    value.applyToStat(stat);
-                }
-                return value.getContent();
+    public byte[] getData(String path, Watcher watcher, Stat stat) throws KeeperException, InterruptedException {
+        return runInExecutorReturningValue(() -> internalGetData(path, watcher, stat));
+    }
+
+    private byte[] internalGetData(String path, Watcher watcher, Stat stat) throws KeeperException {
+        maybeThrowProgrammedFailure(Op.GET, path);
+        MockZNode value = tree.get(path);
+        if (value == null) {
+            throw new KeeperException.NoNodeException(path);
+        } else {
+            if (watcher != null) {
+                watchers.put(path, new NodeWatcher(watcher, getSessionId()));
             }
-        } finally {
-            unlockIfLocked();
+            if (stat != null) {
+                value.applyToStat(stat);
+            }
+            return value.getContent();
         }
     }
 
     @Override
     public void getData(final String path, boolean watch, final DataCallback cb, final Object ctx) {
-        long currentSessionId = getSessionId();
-        executor.execute(() -> {
-            overrideSessionId(currentSessionId);
-            try {
-                checkReadOpDelay();
-                Optional<KeeperException.Code> failure = programmedFailure(Op.GET, path);
-                if (failure.isPresent()) {
-                    cb.processResult(failure.get().intValue(), path, ctx, null, null);
-                    return;
-                } else if (stopped) {
-                    cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null, null);
-                    return;
-                }
-
-                MockZNode value;
-                Stat stat;
-                lock();
-                try {
-                    value = tree.get(path);
-                    stat = value.getStat();
-                } finally {
-                    unlockIfLocked();
-                }
-
-                if (value == null) {
-                    cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null, null);
-                } else {
-                    cb.processResult(0, path, ctx, value.getContent(), stat);
-                }
-            } catch (Throwable ex) {
-                log.error("get data : {} error", path, ex);
-                cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null, null);
-            } finally {
-                removeSessionIdOverride();
-            }
-        });
+        getData(path, null, cb, ctx);
     }
 
     @Override
     public void getData(final String path, final Watcher watcher, final DataCallback cb, final Object ctx) {
-        long currentSessionId = getSessionId();
-        executor.execute(() -> {
+        if (isStopped()) {
+            cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null, null);
+            return;
+        }
+        runInExecutorAsync(() -> {
             checkReadOpDelay();
-            overrideSessionId(currentSessionId);
             try {
-                lock();
                 Optional<KeeperException.Code> failure = programmedFailure(Op.GET, path);
                 if (failure.isPresent()) {
-                    unlockIfLocked();
                     cb.processResult(failure.get().intValue(), path, ctx, null, null);
                     return;
-                } else if (stopped) {
-                    unlockIfLocked();
+                } else if (isStopped()) {
                     cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null, null);
                     return;
                 }
 
                 MockZNode value = tree.get(path);
                 if (value == null) {
-                    unlockIfLocked();
                     cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null, null);
                 } else {
                     if (watcher != null) {
                         watchers.put(path, new NodeWatcher(watcher, getSessionId()));
                     }
                     Stat stat = value.getStat();
-                    unlockIfLocked();
                     cb.processResult(0, path, ctx, value.getContent(), stat);
                 }
             } catch (Throwable ex) {
                 log.error("get data : {} error", path, ex);
-                unlockIfLocked();
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null, null);
-            } finally {
-                removeSessionIdOverride();
             }
         });
     }
 
     @Override
     public void getChildren(final String path, final Watcher watcher, final ChildrenCallback cb, final Object ctx) {
-        long currentSessionId = getSessionId();
-        executor.execute(() -> {
-            overrideSessionId(currentSessionId);
+        if (isStopped()) {
+            cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null);
+            return;
+        }
+        runInExecutorAsync(() -> {
             try {
-                lock();
                 Optional<KeeperException.Code> failure = programmedFailure(Op.GET_CHILDREN, path);
                 if (failure.isPresent()) {
-                    unlockIfLocked();
                     cb.processResult(failure.get().intValue(), path, ctx, null);
                     return;
-                } else if (stopped) {
-                    unlockIfLocked();
+                } else if (isStopped()) {
                     cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null);
                     return;
                 }
 
                 if (!tree.containsKey(path)) {
-                    unlockIfLocked();
                     cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
                     return;
                 }
 
                 List<String> children = findFirstLevelChildren(path);
-                unlockIfLocked();
                 if (watcher != null) {
                     watchers.put(path, new NodeWatcher(watcher, getSessionId()));
                 }
                 cb.processResult(0, path, ctx, children);
             } catch (Throwable ex) {
                 log.error("get children : {} error", path, ex);
-                unlockIfLocked();
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null);
-            } finally {
-                removeSessionIdOverride();
             }
-
         });
     }
 
     @Override
-    public List<String> getChildren(String path, Watcher watcher) throws KeeperException {
-        lock();
-        try {
-            maybeThrowProgrammedFailure(Op.GET_CHILDREN, path);
+    public List<String> getChildren(String path, Watcher watcher) throws KeeperException, InterruptedException {
+        return runInExecutorReturningValue(() -> internalGetChildren(path, watcher));
+    }
 
-            if (!tree.containsKey(path)) {
-                throw new KeeperException.NoNodeException();
-            }
+    private List<String> internalGetChildren(String path, Watcher watcher) throws KeeperException {
+        maybeThrowProgrammedFailure(Op.GET_CHILDREN, path);
 
-            if (watcher != null) {
-                watchers.put(path, new NodeWatcher(watcher, getSessionId()));
-            }
-
-            return findFirstLevelChildren(path);
-        } finally {
-            unlockIfLocked();
+        if (!tree.containsKey(path)) {
+            throw new KeeperException.NoNodeException();
         }
+
+        if (watcher != null) {
+            watchers.put(path, new NodeWatcher(watcher, getSessionId()));
+        }
+
+        return findFirstLevelChildren(path);
     }
 
     @Override
@@ -611,40 +600,33 @@ public class MockZooKeeper extends ZooKeeper {
 
     @Override
     public void getChildren(final String path, boolean watcher, final Children2Callback cb, final Object ctx) {
-        long currentSessionId = getSessionId();
-        executor.execute(() -> {
-            overrideSessionId(currentSessionId);
+        if (isStopped()) {
+            cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null, null);
+            return;
+        }
+        runInExecutorAsync(() -> {
             try {
-                lock();
                 MockZNode mockZNode = tree.get(path);
                 Stat stat = mockZNode != null ? mockZNode.getStat() : null;
                 Optional<KeeperException.Code> failure = programmedFailure(Op.GET_CHILDREN, path);
                 if (failure.isPresent()) {
-                    unlockIfLocked();
                     cb.processResult(failure.get().intValue(), path, ctx, null, null);
                     return;
-                } else if (stopped) {
-                    unlockIfLocked();
+                } else if (isStopped()) {
                     cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null, null);
                     return;
                 } else if (mockZNode == null) {
-                    unlockIfLocked();
                     cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null, null);
                     return;
                 }
 
                 List<String> children = findFirstLevelChildren(path);
-                unlockIfLocked();
                 cb.processResult(0, path, ctx, children, stat);
             } catch (Throwable ex) {
                 log.error("get children : {} error", path, ex);
-                unlockIfLocked();
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null, null);
-            } finally {
-                removeSessionIdOverride();
             }
         });
-
     }
 
     private List<String> findFirstLevelChildren(String path) {
@@ -664,46 +646,30 @@ public class MockZooKeeper extends ZooKeeper {
 
     @Override
     public Stat exists(String path, boolean watch) throws KeeperException, InterruptedException {
-        lock();
-        try {
-            maybeThrowProgrammedFailure(Op.EXISTS, path);
+        return runInExecutorReturningValue(() -> internalGetStat(path, null));
+    }
 
-            if (stopped) {
-                throw new KeeperException.ConnectionLossException();
-            }
+    private Stat internalGetStat(String path, Watcher watcher) throws KeeperException {
+        maybeThrowProgrammedFailure(Op.EXISTS, path);
 
-            if (tree.containsKey(path)) {
-                return tree.get(path).getStat();
-            } else {
-                return null;
-            }
-        } finally {
-            unlockIfLocked();
+        if (isStopped()) {
+            throw new KeeperException.ConnectionLossException();
+        }
+
+        if (watcher != null) {
+            watchers.put(path, new NodeWatcher(watcher, getSessionId()));
+        }
+
+        if (tree.containsKey(path)) {
+            return tree.get(path).getStat();
+        } else {
+            return null;
         }
     }
 
     @Override
     public Stat exists(String path, Watcher watcher) throws KeeperException, InterruptedException {
-        lock();
-        try {
-            maybeThrowProgrammedFailure(Op.EXISTS, path);
-
-            if (stopped) {
-                throw new KeeperException.ConnectionLossException();
-            }
-
-            if (watcher != null) {
-                watchers.put(path, new NodeWatcher(watcher, getSessionId()));
-            }
-
-            if (tree.containsKey(path)) {
-                return tree.get(path).getStat();
-            } else {
-                return null;
-            }
-        } finally {
-            unlockIfLocked();
-        }
+        return runInExecutorReturningValue(() -> internalGetStat(path, watcher));
     }
 
     @Override
@@ -713,18 +679,17 @@ public class MockZooKeeper extends ZooKeeper {
 
     @Override
     public void exists(String path, Watcher watcher, StatCallback cb, Object ctx) {
-        long currentSessionId = getSessionId();
-        executor.execute(() -> {
-            overrideSessionId(currentSessionId);
+        if (isStopped()) {
+            cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null);
+            return;
+        }
+        runInExecutorAsync(() -> {
             try {
-                lock();
                 Optional<KeeperException.Code> failure = programmedFailure(Op.EXISTS, path);
                 if (failure.isPresent()) {
-                    unlockIfLocked();
                     cb.processResult(failure.get().intValue(), path, ctx, null);
                     return;
-                } else if (stopped) {
-                    unlockIfLocked();
+                } else if (isStopped()) {
                     cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null);
                     return;
                 }
@@ -736,83 +701,68 @@ public class MockZooKeeper extends ZooKeeper {
                 MockZNode mockZNode = tree.get(path);
                 if (mockZNode != null) {
                     Stat stat = mockZNode.getStat();
-                    unlockIfLocked();
                     cb.processResult(0, path, ctx, stat);
                 } else {
-                    unlockIfLocked();
                     cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
                 }
             } catch (Throwable ex) {
                 log.error("exist : {} error", path, ex);
-                unlockIfLocked();
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null);
-            } finally {
-                removeSessionIdOverride();
             }
         });
     }
 
     @Override
     public void sync(String path, VoidCallback cb, Object ctx) {
-        long currentSessionId = getSessionId();
-        executor.execute(() -> {
-            overrideSessionId(currentSessionId);
-            try {
-                Optional<KeeperException.Code> failure = programmedFailure(Op.SYNC, path);
-                if (failure.isPresent()) {
-                    cb.processResult(failure.get().intValue(), path, ctx);
-                    return;
-                } else if (stopped) {
-                    cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx);
-                    return;
-                }
-
-                cb.processResult(0, path, ctx);
-            } finally {
-                removeSessionIdOverride();
+        if (isStopped()) {
+            cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx);
+            return;
+        }
+        runInExecutorAsync(() -> {
+            Optional<KeeperException.Code> failure = programmedFailure(Op.SYNC, path);
+            if (failure.isPresent()) {
+                cb.processResult(failure.get().intValue(), path, ctx);
+                return;
+            } else if (isStopped()) {
+                cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx);
+                return;
             }
+            cb.processResult(0, path, ctx);
         });
-
     }
 
     @Override
     public Stat setData(final String path, byte[] data, int version) throws KeeperException, InterruptedException {
+        return runInExecutorReturningValue(() ->  internalSetData(path, data, version));
+    }
+
+    private Stat internalSetData(String path, byte[] data, int version) throws KeeperException {
         final Set<Watcher> toNotify = Sets.newHashSet();
-        lock();
-        Stat stat;
-        try {
-            maybeThrowProgrammedFailure(Op.SET, path);
+        maybeThrowProgrammedFailure(Op.SET, path);
 
-            if (stopped) {
-                throw new KeeperException.ConnectionLossException();
-            }
-
-            if (!tree.containsKey(path)) {
-                throw new KeeperException.NoNodeException();
-            }
-
-            MockZNode mockZNode = tree.get(path);
-            int currentVersion = mockZNode.getVersion();
-
-            // Check version
-            if (version != -1 && version != currentVersion) {
-                throw new KeeperException.BadVersionException(path);
-            }
-
-            log.debug("[{}] Updating -- current version: {}", path, currentVersion);
-            mockZNode.updateData(data);
-            stat = mockZNode.getStat();
-            toNotify.addAll(getWatchers(path));
-            watchers.removeAll(path);
-        } finally {
-            unlockIfLocked();
+        if (isStopped()) {
+            throw new KeeperException.ConnectionLossException();
         }
 
-        executor.execute(() -> {
-            if (stopped) {
-                return;
-            }
+        if (!tree.containsKey(path)) {
+            throw new KeeperException.NoNodeException();
+        }
 
+        MockZNode mockZNode = tree.get(path);
+        int currentVersion = mockZNode.getVersion();
+
+        // Check version
+        if (version != -1 && version != currentVersion) {
+            throw new KeeperException.BadVersionException(path);
+        }
+
+        log.debug("[{}] Updating -- current version: {}", path, currentVersion);
+        mockZNode.updateData(data);
+        Stat stat = mockZNode.getStat();
+        toNotify.addAll(getWatchers(path));
+        watchers.removeAll(path);
+
+        runNotifications(() -> {
             triggerPersistentWatches(path, null, EventType.NodeDataChanged);
 
             toNotify.forEach(watcher -> watcher
@@ -824,63 +774,48 @@ public class MockZooKeeper extends ZooKeeper {
 
     @Override
     public void setData(final String path, final byte[] data, int version, final StatCallback cb, final Object ctx) {
-        if (stopped) {
+        if (isStopped()) {
             cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null);
             return;
         }
-        long currentSessionId = getSessionId();
-        executor.execute(() -> {
-            overrideSessionId(currentSessionId);
+        runInExecutorAsync(() -> {
             try {
                 final Set<Watcher> toNotify = Sets.newHashSet();
-                lock();
                 Stat stat;
-                try {
-                    Optional<KeeperException.Code> failure = programmedFailure(Op.SET, path);
-                    if (failure.isPresent()) {
-                        unlockIfLocked();
-                        cb.processResult(failure.get().intValue(), path, ctx, null);
-                        return;
-                    } else if (stopped) {
-                        unlockIfLocked();
-                        cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null);
-                        return;
-                    }
-
-                    if (!tree.containsKey(path)) {
-                        unlockIfLocked();
-                        cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
-                        return;
-                    }
-
-                    MockZNode mockZNode = tree.get(path);
-                    int currentVersion = mockZNode.getVersion();
-
-                    // Check version
-                    if (version != -1 && version != currentVersion) {
-                        log.debug("[{}] Current version: {} -- Expected: {}", path, currentVersion, version);
-                        Stat currentStat = mockZNode.getStat();
-                        unlockIfLocked();
-                        cb.processResult(KeeperException.Code.BADVERSION.intValue(), path, ctx, currentStat);
-                        return;
-                    }
-
-                    log.debug("[{}] Updating -- current version: {}", path, currentVersion);
-                    mockZNode.updateData(data);
-                    stat = mockZNode.getStat();
-                } finally {
-                    unlockIfLocked();
+                Optional<KeeperException.Code> failure = programmedFailure(Op.SET, path);
+                if (failure.isPresent()) {
+                    cb.processResult(failure.get().intValue(), path, ctx, null);
+                    return;
+                } else if (isStopped()) {
+                    cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null);
+                    return;
                 }
+
+                if (!tree.containsKey(path)) {
+                    cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
+                    return;
+                }
+
+                MockZNode mockZNode = tree.get(path);
+                int currentVersion = mockZNode.getVersion();
+
+                // Check version
+                if (version != -1 && version != currentVersion) {
+                    log.debug("[{}] Current version: {} -- Expected: {}", path, currentVersion, version);
+                    Stat currentStat = mockZNode.getStat();
+                    cb.processResult(KeeperException.Code.BADVERSION.intValue(), path, ctx, currentStat);
+                    return;
+                }
+
+                log.debug("[{}] Updating -- current version: {}", path, currentVersion);
+                mockZNode.updateData(data);
+                stat = mockZNode.getStat();
                 cb.processResult(0, path, ctx, stat);
 
                 toNotify.addAll(getWatchers(path));
                 watchers.removeAll(path);
 
-                executor.execute(() -> {
-                    if (stopped) {
-                        return;
-                    }
-
+                runNotifications(() -> {
                     triggerPersistentWatches(path, null, EventType.NodeDataChanged);
 
                     for (Watcher watcher : toNotify) {
@@ -890,58 +825,54 @@ public class MockZooKeeper extends ZooKeeper {
             } catch (Throwable ex) {
                 log.error("Update data : {} error", path, ex);
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null);
-            } finally {
-                removeSessionIdOverride();
             }
         });
     }
 
     @Override
     public void delete(final String path, int version) throws InterruptedException, KeeperException {
+        runInExecutorReturningValue(() -> {
+            internalDelete(path, version);
+            return null;
+        });
+    }
+
+    private void internalDelete(String path, int version) throws KeeperException {
         maybeThrowProgrammedFailure(Op.DELETE, path);
 
         final Set<Watcher> toNotifyDelete;
         final Set<Watcher> toNotifyParent;
         final String parent;
 
-        lock();
-        try {
-            if (stopped) {
-                throw new KeeperException.ConnectionLossException();
-            } else if (!tree.containsKey(path)) {
-                throw new KeeperException.NoNodeException(path);
-            } else if (hasChildren(path)) {
-                throw new KeeperException.NotEmptyException(path);
-            }
-
-            if (version != -1) {
-                int currentVersion = tree.get(path).getVersion();
-                if (version != currentVersion) {
-                    throw new KeeperException.BadVersionException(path);
-                }
-            }
-
-            tree.remove(path);
-
-            toNotifyDelete = Sets.newHashSet();
-            toNotifyDelete.addAll(getWatchers(path));
-
-            toNotifyParent = Sets.newHashSet();
-            parent = path.substring(0, path.lastIndexOf("/"));
-            if (!parent.isEmpty()) {
-                toNotifyParent.addAll(getWatchers(parent));
-            }
-
-            watchers.removeAll(path);
-        } finally {
-            unlockIfLocked();
+        if (isStopped()) {
+            throw new KeeperException.ConnectionLossException();
+        } else if (!tree.containsKey(path)) {
+            throw new KeeperException.NoNodeException(path);
+        } else if (hasChildren(path)) {
+            throw new KeeperException.NotEmptyException(path);
         }
 
-        executor.execute(() -> {
-            if (stopped) {
-                return;
+        if (version != -1) {
+            int currentVersion = tree.get(path).getVersion();
+            if (version != currentVersion) {
+                throw new KeeperException.BadVersionException(path);
             }
+        }
 
+        tree.remove(path);
+
+        toNotifyDelete = Sets.newHashSet();
+        toNotifyDelete.addAll(getWatchers(path));
+
+        toNotifyParent = Sets.newHashSet();
+        parent = path.substring(0, path.lastIndexOf("/"));
+        if (!parent.isEmpty()) {
+            toNotifyParent.addAll(getWatchers(parent));
+        }
+
+        watchers.removeAll(path);
+
+        runNotifications(() -> {
             for (Watcher watcher1 : toNotifyDelete) {
                 watcher1.process(new WatchedEvent(EventType.NodeDeleted, KeeperState.SyncConnected, path));
             }
@@ -955,11 +886,12 @@ public class MockZooKeeper extends ZooKeeper {
 
     @Override
     public void delete(final String path, int version, final VoidCallback cb, final Object ctx) {
-        long currentSessionId = getSessionId();
-        Runnable r = () -> {
-            overrideSessionId(currentSessionId);
+        if (isStopped()) {
+            cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx);
+            return;
+        }
+        runInExecutorAsync(() -> {
             try {
-                lock();
                 final Set<Watcher> toNotifyDelete = Sets.newHashSet();
                 toNotifyDelete.addAll(getWatchers(path));
 
@@ -972,37 +904,26 @@ public class MockZooKeeper extends ZooKeeper {
 
                 Optional<KeeperException.Code> failure = programmedFailure(Op.DELETE, path);
                 if (failure.isPresent()) {
-                    unlockIfLocked();
                     cb.processResult(failure.get().intValue(), path, ctx);
-                } else if (stopped) {
-                    unlockIfLocked();
+                } else if (isStopped()) {
                     cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx);
                 } else if (!tree.containsKey(path)) {
-                    unlockIfLocked();
                     cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx);
                 } else if (hasChildren(path)) {
-                    unlockIfLocked();
                     cb.processResult(KeeperException.Code.NOTEMPTY.intValue(), path, ctx);
                 } else {
                     if (version != -1) {
                         int currentVersion = tree.get(path).getVersion();
                         if (version != currentVersion) {
-                            unlockIfLocked();
                             cb.processResult(KeeperException.Code.BADVERSION.intValue(), path, ctx);
                             return;
                         }
                     }
 
                     tree.remove(path);
-
-                    unlockIfLocked();
                     cb.processResult(0, path, ctx);
 
-                    executor.execute(() -> {
-                        if (stopped) {
-                            return;
-                        }
-
+                    runNotifications(() -> {
                         triggerPersistentWatches(path, parent, EventType.NodeDeleted);
                         toNotifyDelete.forEach(watcher -> watcher
                                 .process(new WatchedEvent(EventType.NodeDeleted, KeeperState.SyncConnected, path)));
@@ -1013,33 +934,33 @@ public class MockZooKeeper extends ZooKeeper {
                 }
             } catch (Throwable ex) {
                 log.error("delete path : {} error", path, ex);
-                unlockIfLocked();
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx);
-            } finally {
-                removeSessionIdOverride();
             }
-        };
-
-        try {
-            executor.execute(r);
-        } catch (RejectedExecutionException ree) {
-            cb.processResult(KeeperException.Code.SESSIONEXPIRED.intValue(), path, ctx);
-        }
-
+        });
     }
 
     @Override
     public void multi(Iterable<org.apache.zookeeper.Op> ops, AsyncCallback.MultiCallback cb, Object ctx) {
-        try {
-            List<OpResult> res = multi(ops);
-            cb.processResult(KeeperException.Code.OK.intValue(), null, ctx, res);
-        } catch (Exception e) {
-            cb.processResult(KeeperException.Code.APIERROR.intValue(), null, ctx, null);
+        if (isStopped()) {
+            cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), null, ctx, null);
+            return;
         }
+        runInExecutorAsync(() -> {
+            try {
+                List<OpResult> res = multi(ops);
+                cb.processResult(KeeperException.Code.OK.intValue(), null, ctx, res);
+            } catch (Exception e) {
+                cb.processResult(KeeperException.Code.APIERROR.intValue(), null, ctx, null);
+            }
+        });
     }
 
     @Override
     public List<OpResult> multi(Iterable<org.apache.zookeeper.Op> ops) throws InterruptedException, KeeperException {
+        return runInExecutorReturningValue(() -> internalMulti(ops));
+    }
+
+    private List<OpResult> internalMulti(Iterable<org.apache.zookeeper.Op> ops) {
         List<OpResult> res = new ArrayList<>();
         for (org.apache.zookeeper.Op op : ops) {
             switch (op.getType()) {
@@ -1108,21 +1029,20 @@ public class MockZooKeeper extends ZooKeeper {
     }
 
     @Override
-    public synchronized void addWatch(String basePath, Watcher watcher, AddWatchMode mode) {
-        persistentWatchers.add(new PersistentWatcher(basePath, watcher, mode, getSessionId()));
+    public void addWatch(String basePath, Watcher watcher, AddWatchMode mode) {
+        runInExecutorSync(() -> {
+            persistentWatchers.add(new PersistentWatcher(basePath, watcher, mode, getSessionId()));
+        });
     }
 
     @Override
     public void addWatch(String basePath, Watcher watcher, AddWatchMode mode, VoidCallback cb, Object ctx) {
-        if (stopped) {
+        if (isStopped()) {
             cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), basePath, ctx);
             return;
         }
-        long currentSessionId = getSessionId();
-        executor.execute(() -> {
-            synchronized (MockZooKeeper.this) {
-                persistentWatchers.add(new PersistentWatcher(basePath, watcher, mode, currentSessionId));
-            }
+        runInExecutorAsync(() -> {
+            addWatch(basePath, watcher, mode);
             cb.processResult(KeeperException.Code.OK.intValue(), basePath, ctx);
         });
     }
@@ -1152,19 +1072,18 @@ public class MockZooKeeper extends ZooKeeper {
     }
 
     public void shutdown() throws InterruptedException {
-        lock();
-        try {
-            stopped = true;
-            tree.clear();
-            watchers.clear();
-            try {
-                executor.shutdownNow();
-                executor.awaitTermination(5, TimeUnit.SECONDS);
-            } catch (InterruptedException ex) {
-                log.error("MockZooKeeper shutdown had error", ex);
-            }
-        } finally {
-            unlockIfLocked();
+        if (stopped.compareAndSet(false, true)) {
+            runInExecutorSync(() -> {
+                tree.clear();
+                watchers.clear();
+                persistentWatchers.clear();
+                try {
+                    executor.shutdownNow();
+                    executor.awaitTermination(5, TimeUnit.SECONDS);
+                } catch (InterruptedException ex) {
+                    log.error("MockZooKeeper shutdown had error", ex);
+                }
+            });
         }
     }
 
@@ -1237,7 +1156,7 @@ public class MockZooKeeper extends ZooKeeper {
     }
 
     private void triggerPersistentWatches(String path, String parent, EventType eventType) {
-        getPersistentWatchersCopy().forEach(w -> {
+        persistentWatchers.forEach(w -> {
             if (w.mode == AddWatchMode.PERSISTENT_RECURSIVE) {
                 if (path.startsWith(w.path())) {
                     w.watcher.process(new WatchedEvent(eventType, KeeperState.SyncConnected, path));
@@ -1256,24 +1175,17 @@ public class MockZooKeeper extends ZooKeeper {
         });
     }
 
-    private synchronized List<PersistentWatcher> getPersistentWatchersCopy() {
-        return new ArrayList<>(persistentWatchers);
-    }
-
     public void deleteEphemeralNodes(long sessionId) {
         if (sessionId != NOT_EPHEMERAL) {
-            lock();
-            try {
+            runInExecutorSync(() -> {
                 tree.values().removeIf(zNode -> zNode.getEphemeralOwner() == sessionId);
-            } finally {
-                unlockIfLocked();
-            }
+            });
         }
     }
 
+
     public synchronized void deleteWatchers(long sessionId) {
-        lock();
-        try {
+        runInExecutorSync(() -> {
             // remove all persistent watchers for the session
             persistentWatchers.removeIf(w -> w.sessionId == sessionId);
             // remove all watchers for the session
@@ -1281,9 +1193,7 @@ public class MockZooKeeper extends ZooKeeper {
                     watchers.entries().stream().filter(e -> e.getValue().sessionId == sessionId).toList();
             watchersForSession
                     .forEach(e -> watchers.remove(e.getKey(), e.getValue()));
-        } finally {
-            unlockIfLocked();
-        }
+        });
     }
 
     private static final Logger log = LoggerFactory.getLogger(MockZooKeeper.class);

@@ -115,7 +115,7 @@ public class MockZooKeeperSession extends ZooKeeper {
     }
 
     @Override
-    public byte[] getData(String path, Watcher watcher, Stat stat) throws KeeperException {
+    public byte[] getData(String path, Watcher watcher, Stat stat) throws KeeperException, InterruptedException {
         try {
             mockZooKeeper.overrideSessionId(getSessionId());
             return mockZooKeeper.getData(path, watcher, stat);
@@ -155,7 +155,7 @@ public class MockZooKeeperSession extends ZooKeeper {
     }
 
     @Override
-    public List<String> getChildren(String path, Watcher watcher) throws KeeperException {
+    public List<String> getChildren(String path, Watcher watcher) throws KeeperException, InterruptedException {
         try {
             mockZooKeeper.overrideSessionId(getSessionId());
             return mockZooKeeper.getChildren(path, watcher);
