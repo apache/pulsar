@@ -160,20 +160,12 @@ public class MockZooKeeper extends ZooKeeper {
     private List<PersistentWatcher> persistentWatchers;
 
     public static MockZooKeeper newInstance() {
-        return newInstance(null);
+        return newInstance(-1);
     }
 
-    public static MockZooKeeper newInstance(ExecutorService executor) {
-        return newInstance(executor, -1);
-    }
-
-    public static MockZooKeeper newInstanceForGlobalZK(ExecutorService executor) {
-        return newInstanceForGlobalZK(executor, -1);
-    }
-
-    public static MockZooKeeper newInstanceForGlobalZK(ExecutorService executor, int readOpDelayMs) {
+    public static MockZooKeeper newInstance(int readOpDelayMs) {
         try {
-            return createMockZooKeeperInstance(executor, readOpDelayMs);
+            return createMockZooKeeperInstance(readOpDelayMs);
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
@@ -181,22 +173,12 @@ public class MockZooKeeper extends ZooKeeper {
         }
     }
 
-    public static MockZooKeeper newInstance(ExecutorService executor, int readOpDelayMs) {
-        try {
-            return createMockZooKeeperInstance(executor, readOpDelayMs);
-        } catch (RuntimeException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new IllegalStateException("Cannot create object", e);
-        }
-    }
-
-    private static MockZooKeeper createMockZooKeeperInstance(ExecutorService executor, int readOpDelayMs) {
+    private static MockZooKeeper createMockZooKeeperInstance(int readOpDelayMs) {
         ObjectInstantiator<MockZooKeeper> mockZooKeeperInstantiator =
                 objenesis.getInstantiatorOf(MockZooKeeper.class);
         MockZooKeeper zk = mockZooKeeperInstantiator.newInstance();
         zk.overriddenSessionIdThreadLocal = new ThreadLocal<>();
-        zk.init(executor);
+        zk.init();
         zk.readOpDelayMs = readOpDelayMs;
         zk.mutex = new ReentrantLock();
         zk.lockInstance = ThreadLocal.withInitial(zk::createLock);
@@ -205,13 +187,9 @@ public class MockZooKeeper extends ZooKeeper {
         return zk;
     }
 
-    private void init(ExecutorService executor) {
+    private void init() {
         tree = Maps.newTreeMap();
-        if (executor != null) {
-            this.executor = executor;
-        } else {
-            this.executor = Executors.newFixedThreadPool(1, new DefaultThreadFactory("mock-zookeeper"));
-        }
+        this.executor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("mock-zookeeper"));
         SetMultimap<String, NodeWatcher> w = HashMultimap.create();
         watchers = Multimaps.synchronizedSetMultimap(w);
         stopped = false;
