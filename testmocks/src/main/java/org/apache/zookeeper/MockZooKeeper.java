@@ -1081,6 +1081,7 @@ public class MockZooKeeper extends ZooKeeper {
                 }
             }
         } catch (Exception e) {
+            log.error("Error in multi", e);
             if (e instanceof KeeperException keeperException) {
                 res.add(new OpResult.ErrorResult(keeperException.code().intValue()));
             }
@@ -1090,7 +1091,7 @@ public class MockZooKeeper extends ZooKeeper {
             if (e instanceof InterruptedException || e instanceof KeeperException) {
                 throw e;
             } else {
-                log.error("Error in multi", e);
+                throw new KeeperException.SystemErrorException();
             }
         }
         return res;
