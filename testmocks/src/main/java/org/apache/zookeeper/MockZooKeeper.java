@@ -1021,12 +1021,11 @@ public class MockZooKeeper extends ZooKeeper {
         try {
             handler.handle();
         } catch (Exception e) {
-            log.error("Error handling {} operation for path {} type {} kind {} request {} {}", opName, op.getPath(),
-                    op.getType(), op.getKind(), op.toRequestRecord(),
-                    e instanceof KeeperException ? e.getMessage() : e);
             if (e instanceof KeeperException keeperException) {
                 res.add(new OpResult.ErrorResult(keeperException.code().intValue()));
             } else {
+                log.error("Error handling {} operation for path {} type {} kind {} request {}", opName, op.getPath(),
+                        op.getType(), op.getKind(), op.toRequestRecord(), e);
                 res.add(new OpResult.ErrorResult(KeeperException.Code.RUNTIMEINCONSISTENCY.intValue()));
             }
         }
