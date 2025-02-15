@@ -25,6 +25,8 @@ import io.etcd.jetcd.test.EtcdClusterExtension;
 import io.streamnative.oxia.testcontainers.OxiaContainer;
 import java.io.File;
 import java.net.URI;
+import java.util.Arrays;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletionException;
 import java.util.function.Predicate;
@@ -132,11 +134,19 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
 
     @DataProvider(name = "distributedImpl")
     public Object[][] distributedImplementations() {
-        return new Object[][]{
-                {"ZooKeeper", stringSupplier(() -> zksConnectionString)},
-                {"Etcd", stringSupplier(() -> "etcd:" + getEtcdClusterConnectString())},
-                {"Oxia", stringSupplier(() -> "oxia://" + getOxiaServerConnectString())},
-        };
+        return filterImplementations("ZooKeeper", "Etcd", "Oxia");
+    }
+
+    @DataProvider(name = "zkImpl")
+    public Object[][] zkImplementation() {
+        return filterImplementations("ZooKeeper");
+    }
+
+    protected Object[][] filterImplementations(String... providers) {
+        Set<String> providersSet = Set.of(providers);
+        return Arrays.stream(implementations())
+                .filter(impl -> providersSet.contains(impl[0]))
+                .toArray(Object[][]::new);
     }
 
     protected synchronized String getOxiaServerConnectString() {

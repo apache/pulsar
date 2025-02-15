@@ -71,7 +71,6 @@ import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
 import org.awaitility.Awaitility;
 import org.mockito.stubbing.Answer;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -113,14 +112,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         }
     }
 
-    @DataProvider(name = "zk")
-    public Object[][] zkimplementations() {
-        return new Object[][] {
-            { "ZooKeeper", stringSupplier(() -> zks.getConnectionString()) },
-        };
-    }
-
-    @Test(dataProvider = "zk")
+    @Test(dataProvider = "zkImpl")
     public void crossStoreAddDelete(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store1 = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -185,7 +177,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         });
     }
 
-    @Test(dataProvider = "zk")
+    @Test(dataProvider = "zkImpl")
     public void crossStoreUpdates(String provider, Supplier<String> urlSupplier) throws Exception {
         String testName = "cross store updates";
         @Cleanup
