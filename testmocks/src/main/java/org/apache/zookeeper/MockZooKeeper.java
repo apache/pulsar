@@ -662,7 +662,8 @@ public class MockZooKeeper extends ZooKeeper {
     private List<String> findFirstLevelChildren(String path) {
         List<String> children = new ArrayList<>();
         String requiredPrefix = path.equals("/") ? "/" : path + "/";
-        for (String key : tree.tailMap(path).keySet()) {
+        String lastKey = path.equals("/") ? "0" : path + "0"; // '0' is lexicographically just after '/'
+        for (String key : tree.subMap(requiredPrefix, false, lastKey, false).keySet()) {
             if (key.startsWith(requiredPrefix)) {
                 String relativePath = key.substring(requiredPrefix.length());
                 if (relativePath.indexOf('/') == -1) {
