@@ -326,6 +326,10 @@ public class MockZooKeeper extends ZooKeeper {
 
         final String finalPath = path;
         executor.execute(() -> {
+            if (stopped) {
+                return;
+            }
+
             triggerPersistentWatches(finalPath, parent, EventType.NodeCreated);
 
             toNotifyCreate.forEach(
@@ -423,18 +427,24 @@ public class MockZooKeeper extends ZooKeeper {
                     unlockIfLocked();
                     cb.processResult(0, path, ctx, name);
 
-                    triggerPersistentWatches(path, parent, EventType.NodeCreated);
+                    executor.execute(() -> {
+                        if (stopped) {
+                            return;
+                        }
 
-                    toNotifyCreate.forEach(
-                            watcher -> watcher.process(
-                                    new WatchedEvent(EventType.NodeCreated,
-                                            KeeperState.SyncConnected,
-                                            name)));
-                    toNotifyParent.forEach(
-                            watcher -> watcher.process(
-                                    new WatchedEvent(EventType.NodeChildrenChanged,
-                                            KeeperState.SyncConnected,
-                                            parent)));
+                        triggerPersistentWatches(path, parent, EventType.NodeCreated);
+
+                        toNotifyCreate.forEach(
+                                watcher -> watcher.process(
+                                        new WatchedEvent(EventType.NodeCreated,
+                                                KeeperState.SyncConnected,
+                                                name)));
+                        toNotifyParent.forEach(
+                                watcher -> watcher.process(
+                                        new WatchedEvent(EventType.NodeChildrenChanged,
+                                                KeeperState.SyncConnected,
+                                                parent)));
+                    });
                 }
             } catch (Throwable ex) {
                 log.error("create path : {} error", path, ex);
@@ -821,6 +831,10 @@ public class MockZooKeeper extends ZooKeeper {
         }
 
         executor.execute(() -> {
+            if (stopped) {
+                return;
+            }
+
             triggerPersistentWatches(path, null, EventType.NodeDataChanged);
 
             toNotify.forEach(watcher -> watcher
@@ -884,11 +898,17 @@ public class MockZooKeeper extends ZooKeeper {
                 toNotify.addAll(getWatchers(path));
                 watchers.removeAll(path);
 
-                for (Watcher watcher : toNotify) {
-                    watcher.process(new WatchedEvent(EventType.NodeDataChanged, KeeperState.SyncConnected, path));
-                }
+                executor.execute(() -> {
+                    if (stopped) {
+                        return;
+                    }
 
-                triggerPersistentWatches(path, null, EventType.NodeDataChanged);
+                    triggerPersistentWatches(path, null, EventType.NodeDataChanged);
+
+                    for (Watcher watcher : toNotify) {
+                        watcher.process(new WatchedEvent(EventType.NodeDataChanged, KeeperState.SyncConnected, path));
+                    }
+                });
             } catch (Throwable ex) {
                 log.error("Update data : {} error", path, ex);
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null);
@@ -1000,12 +1020,18 @@ public class MockZooKeeper extends ZooKeeper {
                     unlockIfLocked();
                     cb.processResult(0, path, ctx);
 
-                    toNotifyDelete.forEach(watcher -> watcher
-                            .process(new WatchedEvent(EventType.NodeDeleted, KeeperState.SyncConnected, path)));
-                    toNotifyParent.forEach(watcher -> watcher
-                            .process(new WatchedEvent(EventType.NodeChildrenChanged, KeeperState.SyncConnected,
-                                    parent)));
-                    triggerPersistentWatches(path, parent, EventType.NodeDeleted);
+                    executor.execute(() -> {
+                        if (stopped) {
+                            return;
+                        }
+
+                        triggerPersistentWatches(path, parent, EventType.NodeDeleted);
+                        toNotifyDelete.forEach(watcher -> watcher
+                                .process(new WatchedEvent(EventType.NodeDeleted, KeeperState.SyncConnected, path)));
+                        toNotifyParent.forEach(watcher -> watcher
+                                .process(new WatchedEvent(EventType.NodeChildrenChanged, KeeperState.SyncConnected,
+                                        parent)));
+                    });
                 }
             } catch (Throwable ex) {
                 log.error("delete path : {} error", path, ex);
