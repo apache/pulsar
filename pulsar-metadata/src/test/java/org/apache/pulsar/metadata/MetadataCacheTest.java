@@ -112,7 +112,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         }
     }
 
-    @Test(dataProvider = "zkImpl")
+    @Test(dataProvider = "zkImpls")
     public void crossStoreAddDelete(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store1 = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -177,7 +177,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         });
     }
 
-    @Test(dataProvider = "zkImpl")
+    @Test(dataProvider = "zkImpls")
     public void crossStoreUpdates(String provider, Supplier<String> urlSupplier) throws Exception {
         String testName = "cross store updates";
         @Cleanup
@@ -487,7 +487,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
      *
      * @throws Exception
      */
-    @Test(dataProvider = "zkImpl")
+    @Test(dataProvider = "zkImpls")
     public void readModifyUpdateBadVersionRetry(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -516,7 +516,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         }
     }
 
-    @Test(dataProvider = "zkImpl")
+    @Test(dataProvider = "zkImpls")
     public void readModifyUpdateOrCreateRetryTimeout(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());

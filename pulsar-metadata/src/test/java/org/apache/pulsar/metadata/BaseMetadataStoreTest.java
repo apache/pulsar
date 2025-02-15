@@ -137,9 +137,9 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
         return filterImplementations("ZooKeeper", "Etcd", "Oxia");
     }
 
-    @DataProvider(name = "zkImpl")
-    public Object[][] zkImplementation() {
-        return filterImplementations("ZooKeeper");
+    @DataProvider(name = "zkImpls")
+    public Object[][] zkImplementations() {
+        return filterImplementations("ZooKeeper", "MockZooKeeper");
     }
 
     protected Object[][] filterImplementations(String... providers) {
