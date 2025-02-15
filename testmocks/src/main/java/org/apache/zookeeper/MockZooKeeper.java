@@ -324,7 +324,7 @@ public class MockZooKeeper extends ZooKeeper {
         }
 
         if (!parent.isEmpty() && !tree.containsKey(parent)) {
-            throw new KeeperException.NoNodeException();
+            throw new KeeperException.NoNodeException(parent);
         }
 
         if (createMode.isSequential()) {
@@ -583,7 +583,7 @@ public class MockZooKeeper extends ZooKeeper {
         maybeThrowProgrammedFailure(Op.GET_CHILDREN, path);
 
         if (!tree.containsKey(path)) {
-            throw new KeeperException.NoNodeException();
+            throw new KeeperException.NoNodeException(path);
         }
 
         if (watcher != null) {
@@ -749,7 +749,7 @@ public class MockZooKeeper extends ZooKeeper {
         }
 
         if (!tree.containsKey(path)) {
-            throw new KeeperException.NoNodeException();
+            throw new KeeperException.NoNodeException(path);
         }
 
         MockZNode mockZNode = tree.get(path);
