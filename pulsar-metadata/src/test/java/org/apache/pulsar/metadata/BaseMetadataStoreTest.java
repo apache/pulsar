@@ -44,6 +44,10 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 
 public abstract class BaseMetadataStoreTest extends TestRetrySupport {
+    // to debug specific implementations, set the TEST_METADATA_PROVIDERS environment variable
+    // or temporarily hard code this value in the test class before running tests in the IDE
+    // supported values are ZooKeeper,Memory,RocksDB,Etcd,Oxia,MockZooKeeper
+    private static final String TEST_METADATA_PROVIDERS = System.getenv("TEST_METADATA_PROVIDERS");
     private static String originalMetadatastoreProvidersPropertyValue;
     protected TestZKServer zks;
     protected EtcdCluster etcdCluster;
@@ -119,8 +123,8 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
     @DataProvider(name = "impl")
     public Object[][] implementations() {
         // If the environment variable TEST_METADATA_PROVIDERS is set, only run the specified implementations
-        if (StringUtils.isNotBlank(System.getenv("TEST_METADATA_PROVIDERS"))) {
-            return filterImplementations(System.getenv("TEST_METADATA_PROVIDERS").split(","));
+        if (StringUtils.isNotBlank(TEST_METADATA_PROVIDERS)) {
+            return filterImplementations(TEST_METADATA_PROVIDERS.split(","));
         }
         return allImplementations();
     }
