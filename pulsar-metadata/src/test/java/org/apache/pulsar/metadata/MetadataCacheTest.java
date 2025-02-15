@@ -487,11 +487,10 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
      *
      * @throws Exception
      */
-    @Test
-    public void readModifyUpdateBadVersionRetry() throws Exception {
-        String url = zks.getConnectionString();
+    @Test(dataProvider = "zkImpl")
+    public void readModifyUpdateBadVersionRetry(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
 
         MetadataCache<MyClass> cache = store.getMetadataCache(MyClass.class);
 
@@ -505,7 +504,8 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         final var sourceStores = new ArrayList<MetadataStore>();
 
         for (int i = 0; i < 20; i++) {
-            final var sourceStore = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+            final var sourceStore =
+                    MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
             sourceStores.add(sourceStore);
             final var objCache = sourceStore.getMetadataCache(MyClass.class);
             futures.add(objCache.readModifyUpdate(key1, v -> new MyClass(v.a, v.b + 1)));
@@ -516,11 +516,10 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         }
     }
 
-    @Test
-    public void readModifyUpdateOrCreateRetryTimeout() throws Exception {
-        String url = zks.getConnectionString();
+    @Test(dataProvider = "zkImpl")
+    public void readModifyUpdateOrCreateRetryTimeout(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
 
         MetadataCache<MyClass> cache = store.getMetadataCache(MyClass.class, MetadataCacheConfig.builder()
                 .retryBackoff(new BackoffBuilder()
