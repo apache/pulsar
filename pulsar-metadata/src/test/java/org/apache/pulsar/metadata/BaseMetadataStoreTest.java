@@ -32,6 +32,7 @@ import java.util.concurrent.CompletionException;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
@@ -117,6 +118,14 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
 
     @DataProvider(name = "impl")
     public Object[][] implementations() {
+        // If the environment variable TEST_METADATA_PROVIDERS is set, only run the specified implementations
+        if (StringUtils.isNotBlank(System.getenv("TEST_METADATA_PROVIDERS"))) {
+            return filterImplementations(System.getenv("TEST_METADATA_PROVIDERS").split(","));
+        }
+        return allImplementations();
+    }
+
+    private Object[][] allImplementations() {
         // A Supplier<String> must be used for the Zookeeper connection string parameter. The retried test run will
         // use the same arguments as the failed attempt.
         // The Zookeeper test server gets restarted by TestRetrySupport before the retry.
@@ -144,7 +153,7 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
 
     protected Object[][] filterImplementations(String... providers) {
         Set<String> providersSet = Set.of(providers);
-        return Arrays.stream(implementations())
+        return Arrays.stream(allImplementations())
                 .filter(impl -> providersSet.contains(impl[0]))
                 .toArray(Object[][]::new);
     }
