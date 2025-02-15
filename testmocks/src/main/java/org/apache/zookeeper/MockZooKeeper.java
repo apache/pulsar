@@ -19,7 +19,6 @@
 package org.apache.zookeeper;
 
 import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimaps;
 import com.google.common.collect.SetMultimap;
@@ -44,6 +43,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiPredicate;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.zookeeper.AsyncCallback.Children2Callback;
@@ -1036,8 +1037,10 @@ public class MockZooKeeper extends ZooKeeper {
     }
 
     @Override
-    public List<OpResult> multi(Iterable<org.apache.zookeeper.Op> ops) throws InterruptedException, KeeperException {
+    public List<OpResult> multi(Iterable<org.apache.zookeeper.Op> opsParam) throws InterruptedException, KeeperException {
         List<OpResult> res = new ArrayList<>();
+        List<org.apache.zookeeper.Op> ops =
+                StreamSupport.stream(opsParam.spliterator(), false).collect(Collectors.toList());
         try {
             for (org.apache.zookeeper.Op op : ops) {
                 switch (op.getType()) {
@@ -1076,11 +1079,17 @@ public class MockZooKeeper extends ZooKeeper {
                     }
                 }
             }
-        } catch (KeeperException e) {
-            res.add(new OpResult.ErrorResult(e.code().intValue()));
-            int total = Iterables.size(ops);
-            for (int i = res.size(); i < total; i++) {
+        } catch (Exception e) {
+            if (e instanceof KeeperException keeperException) {
+                res.add(new OpResult.ErrorResult(keeperException.code().intValue()));
+            }
+            for (int i = res.size(); i < ops.size(); i++) {
                 res.add(new OpResult.ErrorResult(KeeperException.Code.RUNTIMEINCONSISTENCY.intValue()));
+            }
+            if (e instanceof InterruptedException || e instanceof KeeperException) {
+                throw e;
+            } else {
+                log.error("Error in multi", e);
             }
         }
         return res;
