@@ -1037,7 +1037,8 @@ public class MockZooKeeper extends ZooKeeper {
     }
 
     @Override
-    public List<OpResult> multi(Iterable<org.apache.zookeeper.Op> opsParam) throws InterruptedException, KeeperException {
+    public List<OpResult> multi(Iterable<org.apache.zookeeper.Op> opsParam)
+            throws InterruptedException, KeeperException {
         List<OpResult> res = new ArrayList<>();
         List<org.apache.zookeeper.Op> ops =
                 StreamSupport.stream(opsParam.spliterator(), false).collect(Collectors.toList());
