@@ -72,18 +72,19 @@ public class MockZooKeeper extends ZooKeeper {
         long ephemeralOwner;
         long creationTimestamp;
         long modificationTimestamp;
+        List<String> children;
 
         static MockZNode of(byte[] content, int version, long ephemeralOwner) {
             return new MockZNode(content, version, ephemeralOwner, System.currentTimeMillis(),
-                    System.currentTimeMillis());
+                    System.currentTimeMillis(), new ArrayList<>());
         }
 
-        public synchronized void updateVersion() {
+        public void updateVersion() {
             version++;
             modificationTimestamp = System.currentTimeMillis();
         }
 
-        public synchronized void updateData(byte[] data) {
+        public void updateData(byte[] data) {
             content = data;
             updateVersion();
         }
@@ -92,7 +93,7 @@ public class MockZooKeeper extends ZooKeeper {
             return applyToStat(new Stat());
         }
 
-        public synchronized Stat applyToStat(Stat stat) {
+        public Stat applyToStat(Stat stat) {
             stat.setCtime(creationTimestamp);
             stat.setMtime(modificationTimestamp);
             stat.setVersion(version);
@@ -100,16 +101,20 @@ public class MockZooKeeper extends ZooKeeper {
             return stat;
         }
 
-        public synchronized int getVersion() {
+        public int getVersion() {
             return version;
         }
 
-        public synchronized byte[] getContent() {
+        public byte[] getContent() {
             return content;
         }
 
         public long getEphemeralOwner() {
             return ephemeralOwner;
+        }
+
+        public List<String> getChildren() {
+            return children;
         }
     }
 
@@ -311,7 +316,7 @@ public class MockZooKeeper extends ZooKeeper {
     private String internalCreate(String path, byte[] data, CreateMode createMode) throws KeeperException {
         final Set<Watcher> toNotifyCreate = Sets.newHashSet();
         final Set<Watcher> toNotifyParent = Sets.newHashSet();
-        final String parent = path.substring(0, path.lastIndexOf("/"));
+        final String parent = getParentName(path);
 
         maybeThrowProgrammedFailure(Op.CREATE, path);
 
@@ -327,13 +332,17 @@ public class MockZooKeeper extends ZooKeeper {
             throw new KeeperException.NoNodeException(parent);
         }
 
+        MockZNode parentNode = tree.get(parent);
+
         if (createMode.isSequential()) {
-            MockZNode parentNode = tree.get(parent);
             int parentVersion = tree.get(parent).getVersion();
             path = path + parentVersion;
             parentNode.updateVersion();
         }
 
+        if (parentNode != null) {
+            parentNode.getChildren().add(getNodeName(path));
+        }
         tree.put(path, createMockZNode(data, createMode));
 
         toNotifyCreate.addAll(getWatchers(path));
@@ -363,6 +372,14 @@ public class MockZooKeeper extends ZooKeeper {
         });
 
         return path;
+    }
+
+    private static String getParentName(String path) {
+        return path.substring(0, path.lastIndexOf("/"));
+    }
+
+    private static String getNodeName(String path) {
+        return path.substring(path.lastIndexOf('/') + 1);
     }
 
     private Collection<Watcher> getWatchers(String path) {
@@ -409,7 +426,7 @@ public class MockZooKeeper extends ZooKeeper {
                 toNotifyCreate.addAll(getWatchers(path));
 
                 final Set<Watcher> toNotifyParent = Sets.newHashSet();
-                final String parent = path.substring(0, path.lastIndexOf("/"));
+                final String parent = getParentName(path);
                 if (!parent.isEmpty()) {
                     toNotifyParent.addAll(getWatchers(parent));
                 }
@@ -436,6 +453,9 @@ public class MockZooKeeper extends ZooKeeper {
                     });
                     cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
                 } else {
+                    if (!parent.isEmpty()) {
+                        tree.get(parent).getChildren().add(getNodeName(name));
+                    }
                     tree.put(name, createMockZNode(data, createMode));
                     watchers.removeAll(name);
                     cb.processResult(0, path, ctx, name);
@@ -630,22 +650,11 @@ public class MockZooKeeper extends ZooKeeper {
     }
 
     private List<String> findFirstLevelChildren(String path) {
-        List<String> children = new ArrayList<>();
-        String requiredPrefix = path.equals("/") ? "/" : path + "/";
-        String lastKey = path.equals("/") ? "0" : path + "0"; // '0' is lexicographically just after '/'
-        for (String key : tree.subMap(requiredPrefix, false, lastKey, false).keySet()) {
-            if (key.startsWith(requiredPrefix)) {
-                String relativePath = key.substring(requiredPrefix.length());
-                if (relativePath.indexOf('/') == -1) {
-                    children.add(relativePath);
-                }
-            }
-        }
-        return children;
+        return new ArrayList<>(tree.get(path).getChildren());
     }
 
     private boolean hasChildren(String path) {
-        return !findFirstLevelChildren(path).isEmpty();
+        return !tree.get(path).getChildren().isEmpty();
     }
 
     @Override
@@ -863,13 +872,16 @@ public class MockZooKeeper extends ZooKeeper {
             }
         }
 
+        parent = getParentName(path);
         tree.remove(path);
+        if (!parent.isEmpty()) {
+            tree.get(parent).getChildren().remove(getNodeName(path));
+        }
 
         toNotifyDelete = Sets.newHashSet();
         toNotifyDelete.addAll(getWatchers(path));
 
         toNotifyParent = Sets.newHashSet();
-        parent = path.substring(0, path.lastIndexOf("/"));
         if (!parent.isEmpty()) {
             toNotifyParent.addAll(getWatchers(parent));
         }
@@ -925,6 +937,9 @@ public class MockZooKeeper extends ZooKeeper {
                     }
 
                     tree.remove(path);
+                    if (!parent.isEmpty()) {
+                        tree.get(parent).getChildren().remove(getNodeName(path));
+                    }
                     cb.processResult(0, path, ctx);
 
                     runNotifications(() -> {
