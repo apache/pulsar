@@ -1066,66 +1066,67 @@ public class MockZooKeeper extends ZooKeeper {
         for (org.apache.zookeeper.Op op : ops) {
             switch (op.getType()) {
                 case ZooDefs.OpCode.create -> {
-                    try {
+                    handleOperation("create", op, () -> {
                         org.apache.zookeeper.Op.Create opc = ((org.apache.zookeeper.Op.Create) op);
                         CreateMode cm = CreateMode.fromFlag(opc.flags);
                         String path = create(op.getPath(), opc.data, null, cm);
                         res.add(new OpResult.CreateResult(path));
-                    } catch (KeeperException e) {
-                        res.add(new OpResult.ErrorResult(e.code().intValue()));
-                    } catch (Exception e) {
-                        res.add(new OpResult.ErrorResult(KeeperException.Code.RUNTIMEINCONSISTENCY.intValue()));
-                    }
+                    }, res);
                 }
                 case ZooDefs.OpCode.delete -> {
-                    try {
+                    handleOperation("delete", op, () -> {
                         DeleteRequest deleteRequest = (DeleteRequest) op.toRequestRecord();
                         delete(op.getPath(), deleteRequest.getVersion());
                         res.add(new OpResult.DeleteResult());
-                    } catch (KeeperException e) {
-                        res.add(new OpResult.ErrorResult(e.code().intValue()));
-                    } catch (Exception e) {
-                        res.add(new OpResult.ErrorResult(KeeperException.Code.RUNTIMEINCONSISTENCY.intValue()));
-                    }
+                    }, res);
                 }
                 case ZooDefs.OpCode.setData -> {
-                    try {
+                    handleOperation("setData", op, () -> {
                         SetDataRequest setDataRequest = (SetDataRequest) op.toRequestRecord();
                         Stat stat = setData(op.getPath(), setDataRequest.getData(), setDataRequest.getVersion());
                         res.add(new OpResult.SetDataResult(stat));
-                    } catch (KeeperException e) {
-                        res.add(new OpResult.ErrorResult(e.code().intValue()));
-                    } catch (Exception e) {
-                        res.add(new OpResult.ErrorResult(KeeperException.Code.RUNTIMEINCONSISTENCY.intValue()));
-                    }
+                    }, res);
                 }
                 case ZooDefs.OpCode.getChildren -> {
-                    try {
+                    handleOperation("getChildren", op, () -> {
                         List<String> children = getChildren(op.getPath(), null);
                         res.add(new OpResult.GetChildrenResult(children));
-                    } catch (KeeperException e) {
-                        res.add(new OpResult.ErrorResult(e.code().intValue()));
-                    } catch (Exception e) {
-                        res.add(new OpResult.ErrorResult(KeeperException.Code.RUNTIMEINCONSISTENCY.intValue()));
-                    }
+                    }, res);
                 }
                 case ZooDefs.OpCode.getData -> {
                     Stat stat = new Stat();
-                    try {
+                    handleOperation("getData", op, () -> {
                         byte[] payload = getData(op.getPath(), null, stat);
                         res.add(new OpResult.GetDataResult(payload, stat));
-                    } catch (KeeperException e) {
-                        res.add(new OpResult.ErrorResult(e.code().intValue()));
-                    } catch (Exception e) {
-                        res.add(new OpResult.ErrorResult(KeeperException.Code.RUNTIMEINCONSISTENCY.intValue()));
-                    }
+                    }, res);
                 }
                 default -> {
+                    log.error("Unsupported operation for path {} type {} kind {} request {}", op.getPath(),
+                            op.getType(), op.getKind(), op.toRequestRecord());
                     res.add(new OpResult.ErrorResult(KeeperException.Code.APIERROR.intValue()));
                 }
             }
         }
         return res;
+    }
+
+    interface ZkOpHandler {
+        void handle() throws KeeperException, InterruptedException;
+    }
+
+    private void handleOperation(String opName, org.apache.zookeeper.Op op, ZkOpHandler handler, List<OpResult> res) {
+        try {
+            handler.handle();
+        } catch (Exception e) {
+            log.error("Error handling {} operation for path {} type {} kind {} request {} {}", opName, op.getPath(),
+                    op.getType(), op.getKind(), op.toRequestRecord(),
+                    e instanceof KeeperException ? e.getMessage() : e);
+            if (e instanceof KeeperException keeperException) {
+                res.add(new OpResult.ErrorResult(keeperException.code().intValue()));
+            } else {
+                res.add(new OpResult.ErrorResult(KeeperException.Code.RUNTIMEINCONSISTENCY.intValue()));
+            }
+        }
     }
 
     @Override
