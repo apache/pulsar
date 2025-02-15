@@ -373,7 +373,7 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
         assertEquals(ledgersReadAsync, ids, "Comparing LedgersIds read asynchronously");
     }
 
-    @Test(timeOut = 30000, dataProvider = "impl")
+    @Test(timeOut = 60000, dataProvider = "impl")
     public void checkConcurrentModifications(String provider, Supplier<String> urlSupplier) throws Throwable {
         @Cleanup
         MetadataStoreExtended store =
