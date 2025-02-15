@@ -644,6 +644,10 @@ public class MockZooKeeper extends ZooKeeper {
         return children;
     }
 
+    private boolean hasChildren(String path) {
+        return !findFirstLevelChildren(path).isEmpty();
+    }
+
     @Override
     public Stat exists(String path, boolean watch) throws KeeperException, InterruptedException {
         return runInExecutorReturningValue(() -> internalGetStat(path, null));
@@ -1134,10 +1138,6 @@ public class MockZooKeeper extends ZooKeeper {
 
     public void setSessionId(long id) {
         sessionId = id;
-    }
-
-    private boolean hasChildren(String path) {
-        return !tree.subMap(path + '/', path + '0').isEmpty();
     }
 
     @Override
