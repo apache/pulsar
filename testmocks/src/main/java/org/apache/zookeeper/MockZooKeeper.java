@@ -43,8 +43,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiPredicate;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.zookeeper.AsyncCallback.Children2Callback;
@@ -1037,61 +1035,68 @@ public class MockZooKeeper extends ZooKeeper {
     }
 
     @Override
-    public List<OpResult> multi(Iterable<org.apache.zookeeper.Op> opsParam)
-            throws InterruptedException, KeeperException {
+    public List<OpResult> multi(Iterable<org.apache.zookeeper.Op> ops) throws InterruptedException, KeeperException {
         List<OpResult> res = new ArrayList<>();
-        List<org.apache.zookeeper.Op> ops =
-                StreamSupport.stream(opsParam.spliterator(), false).collect(Collectors.toList());
-        try {
-            for (org.apache.zookeeper.Op op : ops) {
-                switch (op.getType()) {
-                    case ZooDefs.OpCode.create -> {
+        for (org.apache.zookeeper.Op op : ops) {
+            switch (op.getType()) {
+                case ZooDefs.OpCode.create -> {
+                    try {
                         org.apache.zookeeper.Op.Create opc = ((org.apache.zookeeper.Op.Create) op);
                         CreateMode cm = CreateMode.fromFlag(opc.flags);
                         String path = create(op.getPath(), opc.data, null, cm);
                         res.add(new OpResult.CreateResult(path));
+                    } catch (KeeperException e) {
+                        res.add(new OpResult.ErrorResult(e.code().intValue()));
+                    } catch (Exception e) {
+                        res.add(new OpResult.ErrorResult(KeeperException.Code.RUNTIMEINCONSISTENCY.intValue()));
                     }
-                    case ZooDefs.OpCode.delete -> {
+                }
+                case ZooDefs.OpCode.delete -> {
+                    try {
                         DeleteRequest deleteRequest = (DeleteRequest) op.toRequestRecord();
                         delete(op.getPath(), deleteRequest.getVersion());
                         res.add(new OpResult.DeleteResult());
+                    } catch (KeeperException e) {
+                        res.add(new OpResult.ErrorResult(e.code().intValue()));
+                    } catch (Exception e) {
+                        res.add(new OpResult.ErrorResult(KeeperException.Code.RUNTIMEINCONSISTENCY.intValue()));
                     }
-                    case ZooDefs.OpCode.setData -> {
+                }
+                case ZooDefs.OpCode.setData -> {
+                    try {
                         SetDataRequest setDataRequest = (SetDataRequest) op.toRequestRecord();
                         Stat stat = setData(op.getPath(), setDataRequest.getData(), setDataRequest.getVersion());
                         res.add(new OpResult.SetDataResult(stat));
-                    }
-                    case ZooDefs.OpCode.getChildren -> {
-                        try {
-                            List<String> children = getChildren(op.getPath(), null);
-                            res.add(new OpResult.GetChildrenResult(children));
-                        } catch (KeeperException e) {
-                            res.add(new OpResult.ErrorResult(e.code().intValue()));
-                        }
-                    }
-                    case ZooDefs.OpCode.getData -> {
-                        Stat stat = new Stat();
-                        try {
-                            byte[] payload = getData(op.getPath(), null, stat);
-                            res.add(new OpResult.GetDataResult(payload, stat));
-                        } catch (KeeperException e) {
-                            res.add(new OpResult.ErrorResult(e.code().intValue()));
-                        }
+                    } catch (KeeperException e) {
+                        res.add(new OpResult.ErrorResult(e.code().intValue()));
+                    } catch (Exception e) {
+                        res.add(new OpResult.ErrorResult(KeeperException.Code.RUNTIMEINCONSISTENCY.intValue()));
                     }
                 }
-            }
-        } catch (Exception e) {
-            log.error("Error in multi", e);
-            if (e instanceof KeeperException keeperException) {
-                res.add(new OpResult.ErrorResult(keeperException.code().intValue()));
-            }
-            for (int i = res.size(); i < ops.size(); i++) {
-                res.add(new OpResult.ErrorResult(KeeperException.Code.RUNTIMEINCONSISTENCY.intValue()));
-            }
-            if (e instanceof InterruptedException || e instanceof KeeperException) {
-                throw e;
-            } else {
-                throw new KeeperException.SystemErrorException();
+                case ZooDefs.OpCode.getChildren -> {
+                    try {
+                        List<String> children = getChildren(op.getPath(), null);
+                        res.add(new OpResult.GetChildrenResult(children));
+                    } catch (KeeperException e) {
+                        res.add(new OpResult.ErrorResult(e.code().intValue()));
+                    } catch (Exception e) {
+                        res.add(new OpResult.ErrorResult(KeeperException.Code.RUNTIMEINCONSISTENCY.intValue()));
+                    }
+                }
+                case ZooDefs.OpCode.getData -> {
+                    Stat stat = new Stat();
+                    try {
+                        byte[] payload = getData(op.getPath(), null, stat);
+                        res.add(new OpResult.GetDataResult(payload, stat));
+                    } catch (KeeperException e) {
+                        res.add(new OpResult.ErrorResult(e.code().intValue()));
+                    } catch (Exception e) {
+                        res.add(new OpResult.ErrorResult(KeeperException.Code.RUNTIMEINCONSISTENCY.intValue()));
+                    }
+                }
+                default -> {
+                    res.add(new OpResult.ErrorResult(KeeperException.Code.APIERROR.intValue()));
+                }
             }
         }
         return res;
