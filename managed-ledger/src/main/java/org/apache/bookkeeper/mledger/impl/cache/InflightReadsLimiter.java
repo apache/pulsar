@@ -32,7 +32,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.opentelemetry.Constants;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.InflightReadLimiterUtilization;
 import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
-import org.jctools.queues.SpscArrayQueue;
 
 @Slf4j
 public class InflightReadsLimiter implements AutoCloseable {
