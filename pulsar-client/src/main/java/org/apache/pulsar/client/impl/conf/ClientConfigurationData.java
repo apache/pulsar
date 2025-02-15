@@ -374,6 +374,12 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private String dnsLookupBindAddress = null;
 
     @ApiModelProperty(
+            name = "maxRetryRequestTimes",
+            value = "The Pulsar admin client max retry request times, default value is 5"
+    )
+    private int maxRetryRequestTimes = 5;
+
+    @ApiModelProperty(
             name = "dnsLookupBindPort",
             value = "The Pulsar client dns lookup bind port, takes effect when dnsLookupBindAddress is configured,"
                     + " default value is 0."

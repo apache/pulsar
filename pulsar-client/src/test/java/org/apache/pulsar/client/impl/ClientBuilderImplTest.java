@@ -170,6 +170,11 @@ public class ClientBuilderImplTest {
         assertThatAuthIsNotSet(auth);
     }
 
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testClientBuilderWithMaxRetryTime() throws PulsarClientException {
+        PulsarClient.builder().maxRetryTimes(5).build();
+    }
+
     @Test
     public void testLoadConfAuthNotSetWhenEmptyAuthParamsSpecified() {
         Map<String, Object> confProps = new HashMap<>();
