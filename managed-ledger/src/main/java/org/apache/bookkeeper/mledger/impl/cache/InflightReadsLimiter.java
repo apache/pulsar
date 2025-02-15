@@ -180,7 +180,7 @@ public class InflightReadsLimiter implements AutoCloseable {
                 log.warn("Failed to queue handle for acquiring permits: {}, creationTime: {}, remainingBytes:{}",
                         permits, handle.creationTime, remainingBytes);
                 return Optional.of(new Handle(0, handle.creationTime, false));
-            }else {
+            } else {
                 queuedHandles.offer(new QueuedHandle(handle, callback));
                 scheduleTimeOutCheck(acquireTimeoutMillis);
                 return Optional.empty();
