@@ -70,6 +70,7 @@ public class CounterTest extends BaseMetadataStoreTest {
             return;
         }
         String metadataUrl = urlSupplier.get();
+        @Cleanup
         MetadataStoreExtended store1 = MetadataStoreExtended.create(metadataUrl, MetadataStoreConfig.builder().build());
 
         CoordinationService cs1 = new CoordinationServiceImpl(store1);
