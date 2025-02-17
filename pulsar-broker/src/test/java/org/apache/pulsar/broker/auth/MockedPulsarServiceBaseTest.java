@@ -144,6 +144,9 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected boolean enableBrokerInterceptor = false;
 
+    // Set to true in test's constructor to use a real Zookeeper (TestZKServer)
+    protected boolean useTestZookeeper;
+
     public MockedPulsarServiceBaseTest() {
         resetConfig();
     }
@@ -328,7 +331,14 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
      * @throws Exception if an error occurs
      */
     protected void restartBroker() throws Exception {
+        restartBroker(null);
+    }
+
+    protected void restartBroker(Consumer<ServiceConfiguration> configurationChanger) throws Exception {
         stopBroker();
+        if (configurationChanger != null) {
+            configurationChanger.accept(conf);
+        }
         startBroker();
     }
 
@@ -419,7 +429,6 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         PulsarTestContext.Builder builder = PulsarTestContext.builder()
                 .spyByDefault()
                 .config(conf)
-                .withMockZookeeper(true)
                 .pulsarServiceCustomizer(pulsarService -> {
                     try {
                         beforePulsarStart(pulsarService);
@@ -428,7 +437,23 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
                     }
                 })
                 .brokerServiceCustomizer(this::customizeNewBrokerService);
+        configureMetadataStores(builder);
         return builder;
+    }
+
+    /**
+     * Configures the metadata stores for the PulsarTestContext.Builder instance.
+     * Set useTestZookeeper to true in the test's constructor to use TestZKServer which is a real ZooKeeper
+     * implementation.
+     *
+     * @param builder the PulsarTestContext.Builder instance to configure
+     */
+    protected void configureMetadataStores(PulsarTestContext.Builder builder) {
+        if (useTestZookeeper) {
+            builder.withTestZookeeper();
+        } else {
+            builder.withMockZookeeper(true);
+        }
     }
 
     /**

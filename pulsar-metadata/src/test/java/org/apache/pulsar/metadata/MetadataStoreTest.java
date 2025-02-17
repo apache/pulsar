@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.metadata;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -54,6 +55,7 @@ import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.assertj.core.util.Lists;
 import org.awaitility.Awaitility;
+import org.testng.SkipException;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -97,7 +99,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String data = "data";
-        String path = "/non-existing-key";
+        String path = "/concurrentPutTest";
         int concurrent = 50;
         List<CompletableFuture<Stat>> futureList = new ArrayList<>();
         for (int i = 0; i < concurrent; i++) {
@@ -400,6 +402,10 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
     public void testDeleteUnusedDirectories(String provider, Supplier<String> urlSupplier) throws Exception {
+        if (provider.equals("MockZooKeeper")) {
+            throw new SkipException("MockZooKeeper does not support deleteUnusedDirectories");
+        }
+
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
@@ -413,18 +419,18 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         store.delete(prefix + "/a1/b1/c1", Optional.empty()).join();
         store.delete(prefix + "/a1/b1/c2", Optional.empty()).join();
 
-        zks.checkContainers();
+        maybeTriggerDeletingEmptyContainers(provider);
         assertFalse(store.exists(prefix + "/a1/b1").join());
 
         store.delete(prefix + "/a1/b2/c1", Optional.empty()).join();
 
-        zks.checkContainers();
+        maybeTriggerDeletingEmptyContainers(provider);
         assertFalse(store.exists(prefix + "/a1/b2").join());
 
-        zks.checkContainers();
+        maybeTriggerDeletingEmptyContainers(provider);
         assertFalse(store.exists(prefix + "/a1").join());
 
-        zks.checkContainers();
+        maybeTriggerDeletingEmptyContainers(provider);
         assertFalse(store.exists(prefix).join());
     }
 
@@ -602,21 +608,25 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         store.put("/b/c/b/1", "value1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
 
         List<String> subPaths = store.getChildren("/").get();
-        Set<String> expectedSet = "ZooKeeper".equals(provider) ? Set.of("a", "b", "zookeeper") : Set.of("a", "b");
+        Set<String> ignoredRootPaths = Set.of("zookeeper");
+        Set<String> expectedSet = Set.of("a", "b");
         for (String subPath : subPaths) {
-            assertTrue(expectedSet.contains(subPath));
+            if (ignoredRootPaths.contains(subPath)) {
+                continue;
+            }
+            assertThat(expectedSet).contains(subPath);
         }
 
         List<String> subPaths2 = store.getChildren("/a").get();
         Set<String> expectedSet2 = Set.of("a-1", "a-2");
         for (String subPath : subPaths2) {
-            assertTrue(expectedSet2.contains(subPath));
+            assertThat(expectedSet2).contains(subPath);
         }
 
         List<String> subPaths3 = store.getChildren("/b").get();
         Set<String> expectedSet3 = Set.of("c");
         for (String subPath : subPaths3) {
-            assertTrue(expectedSet3.contains(subPath));
+            assertThat(expectedSet3).contains(subPath);
         }
     }
 

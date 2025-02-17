@@ -207,6 +207,7 @@ public abstract class BookKeeperClusterTestCase {
         try {
             // cleanup for metrics.
             metadataStore.close();
+            metadataStore = null;
             stopZKCluster();
         } catch (Exception e) {
             LOG.error("Got Exception while trying to stop ZKCluster", e);
@@ -236,6 +237,9 @@ public abstract class BookKeeperClusterTestCase {
     protected void startZKCluster() throws Exception {
         zkUtil.startCluster();
         zkc = zkUtil.getZooKeeperClient();
+        if (metadataStore != null) {
+            metadataStore.close();
+        }
         metadataStore = new FaultInjectionMetadataStore(
                 MetadataStoreExtended.create(zkUtil.getZooKeeperConnectString(),
                 MetadataStoreConfig.builder().metadataStoreName("metastore-" + getClass().getSimpleName()).build()));
