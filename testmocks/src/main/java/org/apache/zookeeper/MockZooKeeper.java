@@ -66,6 +66,7 @@ import org.slf4j.LoggerFactory;
 public class MockZooKeeper extends ZooKeeper {
     // ephemeralOwner value for persistent nodes
     private static final long NOT_EPHEMERAL = 0L;
+    private static final String ROOT_PATH = "/";
 
     @AllArgsConstructor
     private static class MockZNode {
@@ -192,6 +193,7 @@ public class MockZooKeeper extends ZooKeeper {
 
     private void init() {
         tree = Maps.newTreeMap();
+        tree.put(ROOT_PATH, MockZNode.of(new byte[0], 0, NOT_EPHEMERAL));
         this.executor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("mock-zookeeper"));
         watchers = HashMultimap.create();
         stopped = new AtomicBoolean(false);
@@ -327,7 +329,7 @@ public class MockZooKeeper extends ZooKeeper {
             throw new KeeperException.NodeExistsException(path);
         }
 
-        if (!parent.isEmpty() && !tree.containsKey(parent)) {
+        if (!tree.containsKey(parent)) {
             throw new KeeperException.NoNodeException(parent);
         }
 
@@ -345,7 +347,7 @@ public class MockZooKeeper extends ZooKeeper {
         tree.put(path, createMockZNode(data, createMode));
 
         toNotifyCreate.addAll(getWatchers(path));
-        if (!parent.isEmpty()) {
+        if (!ROOT_PATH.equals(parent)) {
             toNotifyParent.addAll(getWatchers(parent));
         }
         watchers.removeAll(path);
@@ -374,7 +376,8 @@ public class MockZooKeeper extends ZooKeeper {
     }
 
     private static String getParentName(String path) {
-        return path.substring(0, path.lastIndexOf("/"));
+        String parentName = path.substring(0, path.lastIndexOf('/'));
+        return parentName.length() > 0 ? parentName : "/";
     }
 
     private static String getNodeName(String path) {
@@ -426,7 +429,7 @@ public class MockZooKeeper extends ZooKeeper {
 
                 final Set<Watcher> toNotifyParent = Sets.newHashSet();
                 final String parent = getParentName(path);
-                if (!parent.isEmpty()) {
+                if (!ROOT_PATH.equals(parent)) {
                     toNotifyParent.addAll(getWatchers(parent));
                 }
 
@@ -444,7 +447,7 @@ public class MockZooKeeper extends ZooKeeper {
                     cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null);
                 } else if (tree.containsKey(path)) {
                     cb.processResult(KeeperException.Code.NODEEXISTS.intValue(), path, ctx, null);
-                } else if (!parent.isEmpty() && !tree.containsKey(parent)) {
+                } else if (!tree.containsKey(parent)) {
                     runNotifications(() -> {
                         toNotifyParent.forEach(watcher -> watcher
                                 .process(new WatchedEvent(EventType.NodeChildrenChanged, KeeperState.SyncConnected,
@@ -452,9 +455,7 @@ public class MockZooKeeper extends ZooKeeper {
                     });
                     cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
                 } else {
-                    if (!parent.isEmpty()) {
-                        tree.get(parent).getChildren().add(getNodeName(name));
-                    }
+                    tree.get(parent).getChildren().add(getNodeName(name));
                     tree.put(name, createMockZNode(data, createMode));
                     watchers.removeAll(name);
                     cb.processResult(0, path, ctx, name);
@@ -873,15 +874,13 @@ public class MockZooKeeper extends ZooKeeper {
 
         parent = getParentName(path);
         tree.remove(path);
-        if (!parent.isEmpty()) {
-            tree.get(parent).getChildren().remove(getNodeName(path));
-        }
+        tree.get(parent).getChildren().remove(getNodeName(path));
 
         toNotifyDelete = Sets.newHashSet();
         toNotifyDelete.addAll(getWatchers(path));
 
         toNotifyParent = Sets.newHashSet();
-        if (!parent.isEmpty()) {
+        if (!ROOT_PATH.equals(parent)) {
             toNotifyParent.addAll(getWatchers(parent));
         }
 
@@ -911,8 +910,8 @@ public class MockZooKeeper extends ZooKeeper {
                 toNotifyDelete.addAll(getWatchers(path));
 
                 final Set<Watcher> toNotifyParent = Sets.newHashSet();
-                final String parent = path.substring(0, path.lastIndexOf('/'));
-                if (!parent.isEmpty()) {
+                final String parent = getParentName(path);
+                if (!ROOT_PATH.equals(parent)) {
                     toNotifyParent.addAll(getWatchers(parent));
                 }
                 watchers.removeAll(path);
@@ -936,9 +935,7 @@ public class MockZooKeeper extends ZooKeeper {
                     }
 
                     tree.remove(path);
-                    if (!parent.isEmpty()) {
-                        tree.get(parent).getChildren().remove(getNodeName(path));
-                    }
+                    tree.get(parent).getChildren().remove(getNodeName(path));
                     cb.processResult(0, path, ctx);
 
                     runNotifications(() -> {
