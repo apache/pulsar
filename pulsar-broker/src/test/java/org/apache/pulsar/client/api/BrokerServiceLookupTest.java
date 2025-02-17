@@ -147,13 +147,45 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         testName = method.getName() + " with " + (useTestZookeeper ? "TestZKServer" : "MockZooKeeper");
     }
 
-    @BeforeMethod
+    @BeforeMethod(dependsOnMethods = "setTestMethodName")
     @Override
     protected void setup() throws Exception {
         conf.setDefaultNumberOfNamespaceBundles(1);
         isTcpLookup = true;
         internalSetup();
         producerBaseSetup();
+    }
+
+    @Override
+    protected void doInitConf() throws Exception {
+        super.doInitConf();
+        switch (methodName) {
+            case "testMultipleBrokerDifferentClusterLookup" -> {
+                conf.setAuthenticationEnabled(true);
+            }
+            case "testWebserviceServiceTls" -> {
+                // broker1 with tls enabled
+                conf.setBrokerServicePortTls(Optional.of(0));
+                conf.setWebServicePortTls(Optional.of(0));
+                conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+                conf.setTlsRequireTrustedClientCertOnConnect(true);
+                conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+                conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
+                conf.setNumExecutorThreadPoolSize(5);
+                // Not in use, and because TLS is not configured, it will fail to start
+                conf.setSystemTopicEnabled(false);
+            }
+            case "testSkipSplitBundleIfOnlyOneBroker" -> {
+                conf.setDefaultNumberOfNamespaceBundles(1);
+                conf.setLoadBalancerNamespaceBundleMaxTopics(1);
+                conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+            }
+            case "testPartitionedMetadataWithDeprecatedVersion" -> {
+                conf.setBrokerServicePortTls(Optional.empty());
+                conf.setWebServicePortTls(Optional.empty());
+                conf.setClientLibraryVersionCheckEnabled(true);
+            }
+        }
     }
 
     @AfterMethod(alwaysRun = true)
@@ -407,12 +439,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         @Cleanup
         PulsarClient pulsarClient2 = PulsarClient.builder().serviceUrl(brokerServiceUrl.toString()).build();
 
-        // restart broker with authorization enabled: it initialize AuthorizationService
-        restartBroker(conf -> {
-            // enable authorization: so, broker can validate cluster and redirect if finds different cluster
-            conf.setAuthorizationEnabled(true);
-        });
-
         LoadManager loadManager2 = spy(pulsar2.getLoadManager().get());
         Field loadManagerField = NamespaceService.class.getDeclaredField("loadManager");
         loadManagerField.setAccessible(true);
@@ -449,10 +475,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         consumer.acknowledgeCumulative(msg);
         consumer.close();
         producer.close();
-
-        // disable authorization
-        pulsar.getConfiguration().setAuthorizationEnabled(false);
-        loadManager2 = null;
     }
 
     /**
@@ -570,18 +592,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf2);
         PulsarService pulsar2 = pulsarTestContext2.getPulsarService();
 
-        restartBroker(conf -> {
-            // restart broker1 with tls enabled
-            conf.setBrokerServicePortTls(Optional.of(0));
-            conf.setWebServicePortTls(Optional.of(0));
-            conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
-            conf.setTlsRequireTrustedClientCertOnConnect(true);
-            conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
-            conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
-            conf.setNumExecutorThreadPoolSize(5);
-            // Not in use, and because TLS is not configured, it will fail to start
-            conf.setSystemTopicEnabled(false);
-        });
         pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
         pulsar2.getLoadManager().get().writeLoadReportOnZookeeper();
 
@@ -785,11 +795,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
             conf2.setLoadBalancerAutoUnloadSplitBundlesEnabled(true);
             conf2.setLoadBalancerNamespaceBundleMaxTopics(1);
 
-            // configure broker-1 with ModularLoadManager
-            restartBroker(conf -> {
-                conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
-            });
-
             @Cleanup
             PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf2);
             PulsarService pulsar2 = pulsarTestContext2.getPulsarService();
@@ -907,12 +912,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         final String topicName1 = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp_");
         final String topicName2 = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp_");
         try {
-            // configure broker with ModularLoadManager.
-            restartBroker(conf -> {
-                conf.setDefaultNumberOfNamespaceBundles(1);
-                conf.setLoadBalancerNamespaceBundleMaxTopics(1);
-                conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
-            });
             final ModularLoadManagerWrapper modularLoadManagerWrapper =
                     (ModularLoadManagerWrapper) pulsar.getLoadManager().get();
             final ModularLoadManagerImpl modularLoadManager =
@@ -1064,12 +1063,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
         admin.namespaces().createNamespace(property + "/" + cluster + "/" + namespace);
         admin.topics().createPartitionedTopic(dest.toString(), totalPartitions);
-
-        restartBroker(conf -> {
-            conf.setBrokerServicePortTls(Optional.empty());
-            conf.setWebServicePortTls(Optional.empty());
-            conf.setClientLibraryVersionCheckEnabled(true);
-        });
 
         URI brokerServiceUrl = new URI(pulsar.getSafeWebServiceAddress());
 
