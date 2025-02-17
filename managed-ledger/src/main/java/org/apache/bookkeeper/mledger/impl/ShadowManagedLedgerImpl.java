@@ -223,14 +223,14 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
     }
 
     @Override
-    protected void beforeAddEntryToQueue(State state) throws ManagedLedgerException {
-        if (state != State.LedgerOpened) {
+    protected void beforeAddEntryToQueue() throws ManagedLedgerException {
+        if (STATE_UPDATER.get(this) != State.LedgerOpened) {
             throw new ManagedLedgerException("Managed ledger is not opened");
         }
     }
 
     @Override
-    protected void afterAddEntryToQueue(State state, OpAddEntry addOperation) throws ManagedLedgerException {
+    protected void afterAddEntryToQueue(OpAddEntry addOperation) throws ManagedLedgerException {
         if (addOperation.getCtx() == null || !(addOperation.getCtx() instanceof Position position)) {
             pendingAddEntries.poll();
             throw new ManagedLedgerException("Illegal addOperation context object.");

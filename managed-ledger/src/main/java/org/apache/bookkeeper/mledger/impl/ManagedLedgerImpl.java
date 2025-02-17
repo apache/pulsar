@@ -798,26 +798,21 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             log.debug("[{}] asyncAddEntry size={} state={}", name, buffer.readableBytes(), state);
         }
 
-        // retain buffer in this thread
+        // The buffer will be queued in `pendingAddEntries` and might be polled later in a different thread. However,
+        // the caller could release it after this method returns. To ensure the buffer is not released when it's polled,
+        // increase the reference count, which should be decreased by `OpAddEntry`'s methods later.
         buffer.retain();
-
-        // Jump to specific thread to avoid contention from writers writing from different threads
         final var addOperation = OpAddEntry.createNoRetainBuffer(this, buffer, numberOfMessages, callback, ctx,
                 currentLedgerTimeoutTriggered);
         var added = false;
         try {
-            // Use synchronized to ensure if `addOperation` is added to queue and fails later, it will be the first
-            // element in `pendingAddEntries`.
-            synchronized (this) {
-                if (managedLedgerInterceptor != null) {
-                    managedLedgerInterceptor.beforeAddEntry(addOperation, addOperation.getNumberOfMessages());
-                }
-                final var state = STATE_UPDATER.get(this);
-                beforeAddEntryToQueue(state);
-                pendingAddEntries.add(addOperation);
-                added = true;
-                afterAddEntryToQueue(state, addOperation);
+            if (managedLedgerInterceptor != null) {
+                managedLedgerInterceptor.beforeAddEntry(addOperation, addOperation.getNumberOfMessages());
             }
+            beforeAddEntryToQueue();
+            pendingAddEntries.add(addOperation);
+            added = true;
+            afterAddEntryToQueue(addOperation);
         } catch (Throwable throwable) {
             if (!added) {
                 addOperation.failed(ManagedLedgerException.getManagedLedgerException(throwable));
@@ -825,7 +820,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    protected void beforeAddEntryToQueue(State state) throws ManagedLedgerException {
+    protected void beforeAddEntryToQueue() throws ManagedLedgerException {
+        final var state = STATE_UPDATER.get(this);
         if (state.isFenced()) {
             throw new ManagedLedgerFencedException();
         }
@@ -836,7 +832,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    protected void afterAddEntryToQueue(State state, OpAddEntry addOperation) throws ManagedLedgerException {
+    // TODO: does this method really need to be synchronized?
+    protected synchronized void afterAddEntryToQueue(OpAddEntry addOperation) throws ManagedLedgerException {
+        final var state = STATE_UPDATER.get(this);
         if (state == State.ClosingLedger || state == State.CreatingLedger) {
             // We don't have a ready ledger to write into
             // We are waiting for a new ledger to be created
@@ -893,22 +891,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
         managedLedgerInterceptor.afterFailedAddEntry(numOfMessages);
-    }
-
-    protected boolean beforeAddEntry(OpAddEntry addOperation) {
-        // if no interceptor, just return true to make sure addOperation will be initiate()
-        if (managedLedgerInterceptor == null) {
-            return true;
-        }
-        try {
-            managedLedgerInterceptor.beforeAddEntry(addOperation, addOperation.getNumberOfMessages());
-            return true;
-        } catch (Exception e) {
-            addOperation.failed(
-                    new ManagedLedgerInterceptException("Interceptor managed ledger before add to bookie failed."));
-            log.error("[{}] Failed to intercept adding an entry to bookie.", name, e);
-            return false;
-        }
     }
 
     @Override

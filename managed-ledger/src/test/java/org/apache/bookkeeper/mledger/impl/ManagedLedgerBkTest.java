@@ -275,7 +275,10 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
                     // wait for all threads to be ready to start at once
                     barrier.await();
                     while (!done.get()) {
-                        Position position = ledger.addEntry("entry".getBytes());
+                        Position position;
+                        synchronized (this) {
+                            position = ledger.addEntry("entry".getBytes());
+                        }
                         positions.add(position);
                         Thread.sleep(1);
                     }
