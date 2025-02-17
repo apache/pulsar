@@ -407,11 +407,11 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         @Cleanup
         PulsarClient pulsarClient2 = PulsarClient.builder().serviceUrl(brokerServiceUrl.toString()).build();
 
-        // enable authorization: so, broker can validate cluster and redirect if finds different cluster
-        pulsar.getConfiguration().setAuthorizationEnabled(true);
         // restart broker with authorization enabled: it initialize AuthorizationService
-        stopBroker();
-        startBroker();
+        restartBroker(conf -> {
+            // enable authorization: so, broker can validate cluster and redirect if finds different cluster
+            conf.setAuthorizationEnabled(true);
+        });
 
         LoadManager loadManager2 = spy(pulsar2.getLoadManager().get());
         Field loadManagerField = NamespaceService.class.getDeclaredField("loadManager");
@@ -570,18 +570,18 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf2);
         PulsarService pulsar2 = pulsarTestContext2.getPulsarService();
 
-        // restart broker1 with tls enabled
-        conf.setBrokerServicePortTls(Optional.of(0));
-        conf.setWebServicePortTls(Optional.of(0));
-        conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
-        conf.setTlsRequireTrustedClientCertOnConnect(true);
-        conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
-        conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
-        conf.setNumExecutorThreadPoolSize(5);
-        // Not in use, and because TLS is not configured, it will fail to start
-        conf.setSystemTopicEnabled(false);
-        stopBroker();
-        startBroker();
+        restartBroker(conf -> {
+            // restart broker1 with tls enabled
+            conf.setBrokerServicePortTls(Optional.of(0));
+            conf.setWebServicePortTls(Optional.of(0));
+            conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+            conf.setTlsRequireTrustedClientCertOnConnect(true);
+            conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+            conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
+            conf.setNumExecutorThreadPoolSize(5);
+            // Not in use, and because TLS is not configured, it will fail to start
+            conf.setSystemTopicEnabled(false);
+        });
         pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
         pulsar2.getLoadManager().get().writeLoadReportOnZookeeper();
 
@@ -786,9 +786,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
             conf2.setLoadBalancerNamespaceBundleMaxTopics(1);
 
             // configure broker-1 with ModularLoadManager
-            stopBroker();
-            conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
-            startBroker();
+            restartBroker(conf -> {
+                conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+            });
 
             @Cleanup
             PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf2);
@@ -908,11 +908,11 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         final String topicName2 = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp_");
         try {
             // configure broker with ModularLoadManager.
-            stopBroker();
-            conf.setDefaultNumberOfNamespaceBundles(1);
-            conf.setLoadBalancerNamespaceBundleMaxTopics(1);
-            conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
-            startBroker();
+            restartBroker(conf -> {
+                conf.setDefaultNumberOfNamespaceBundles(1);
+                conf.setLoadBalancerNamespaceBundleMaxTopics(1);
+                conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+            });
             final ModularLoadManagerWrapper modularLoadManagerWrapper =
                     (ModularLoadManagerWrapper) pulsar.getLoadManager().get();
             final ModularLoadManagerImpl modularLoadManager =
@@ -1065,11 +1065,11 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         admin.namespaces().createNamespace(property + "/" + cluster + "/" + namespace);
         admin.topics().createPartitionedTopic(dest.toString(), totalPartitions);
 
-        stopBroker();
-        conf.setBrokerServicePortTls(Optional.empty());
-        conf.setWebServicePortTls(Optional.empty());
-        conf.setClientLibraryVersionCheckEnabled(true);
-        startBroker();
+        restartBroker(conf -> {
+            conf.setBrokerServicePortTls(Optional.empty());
+            conf.setWebServicePortTls(Optional.empty());
+            conf.setClientLibraryVersionCheckEnabled(true);
+        });
 
         URI brokerServiceUrl = new URI(pulsar.getSafeWebServiceAddress());
 

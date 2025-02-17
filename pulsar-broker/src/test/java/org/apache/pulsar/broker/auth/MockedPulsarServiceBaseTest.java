@@ -366,7 +366,14 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
      * @throws Exception if an error occurs
      */
     protected void restartBroker() throws Exception {
+        restartBroker(null);
+    }
+
+    protected void restartBroker(Consumer<ServiceConfiguration> configurationChanger) throws Exception {
         stopBroker();
+        if (configurationChanger != null) {
+            configurationChanger.accept(conf);
+        }
         startBroker();
         if (pulsarClient == null) {
             pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
