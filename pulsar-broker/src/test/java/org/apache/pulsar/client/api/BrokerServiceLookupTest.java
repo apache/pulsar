@@ -327,6 +327,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         for (int i = 0; i < 100; i++) {
             map.put("my-property/my-ns/" + boundaries.get(i), new NamespaceBundleStats());
         }
+        BrokerService originalBrokerService = pulsar.getBrokerService();
         BrokerService brokerService = mock(BrokerService.class);
         doReturn(brokerService).when(pulsar).getBrokerService();
         doReturn(map).when(brokerService).getBundleStats();
@@ -357,6 +358,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         for (Future<?> future : list) {
             future.get();
         }
+        // allow proper shutdown so that resources aren't leaked
+        doReturn(originalBrokerService).when(pulsar).getBrokerService();
     }
 
     /**
