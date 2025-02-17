@@ -35,6 +35,13 @@
   <packaging>jar</packaging>
   <name>Pulsar Build Tools</name>
 
+  <developers>
+    <developer>
+      <organization>Apache Pulsar developers</organization>
+      <organizationUrl>http://pulsar.apache.org/</organizationUrl>
+    </developer>
+  </developers>
+
   <properties>
     <project.build.outputTimestamp>2024-10-14T13:32:50Z</project.build.outputTimestamp>
     <maven.compiler.source>1.8</maven.compiler.source>
