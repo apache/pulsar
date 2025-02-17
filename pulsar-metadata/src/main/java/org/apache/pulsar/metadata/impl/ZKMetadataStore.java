@@ -70,9 +70,10 @@ import org.apache.zookeeper.client.ConnectStringParser;
 @Slf4j
 public class ZKMetadataStore extends AbstractBatchedMetadataStore
         implements MetadataStoreExtended, MetadataStoreLifecycle {
-
     public static final String ZK_SCHEME = "zk";
     public static final String ZK_SCHEME_IDENTIFIER = "zk:";
+    // ephemeralOwner value for persistent nodes
+    private static final long NOT_EPHEMERAL = 0L;
 
     private final String zkConnectString;
     private final String rootPath;
@@ -128,12 +129,17 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
     @VisibleForTesting
     @SneakyThrows
     public ZKMetadataStore(ZooKeeper zkc, MetadataStoreConfig config) {
-        super(config);
+        this(zkc, config, false);
+    }
 
+    @VisibleForTesting
+    @SneakyThrows
+    public ZKMetadataStore(ZooKeeper zkc, MetadataStoreConfig config, boolean isZkManaged) {
+        super(config);
         this.zkConnectString = null;
         this.rootPath = null;
         this.metadataStoreConfig = null;
-        this.isZkManaged = false;
+        this.isZkManaged = isZkManaged;
         this.zkc = zkc;
         this.sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent);
         zkc.addWatch("/", this::handleWatchEvent, AddWatchMode.PERSISTENT_RECURSIVE);
@@ -477,7 +483,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
 
     private Stat getStat(String path, org.apache.zookeeper.data.Stat zkStat) {
         return new Stat(path, zkStat.getVersion(), zkStat.getCtime(), zkStat.getMtime(),
-                zkStat.getEphemeralOwner() != -1,
+                zkStat.getEphemeralOwner() != NOT_EPHEMERAL,
                 zkStat.getEphemeralOwner() == zkc.getSessionId());
     }
 

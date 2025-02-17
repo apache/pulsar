@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.intercept;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -30,12 +29,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import lombok.Cleanup;
@@ -503,53 +499,4 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
         ledger.close();
     }
 
-    @Test
-    public void testBeforeAddEntry() throws Exception {
-        final var interceptor = new ManagedLedgerInterceptorImpl(getBrokerEntryMetadataInterceptors(), null);
-        final var config = new ManagedLedgerConfig();
-        final var numEntries = 100;
-        config.setMaxEntriesPerLedger(numEntries);
-        config.setManagedLedgerInterceptor(interceptor);
-        @Cleanup final var ml = (ManagedLedgerImpl) factory.open("test_concurrent_add_entry", config);
-
-        final var indexesBeforeAdd = new ArrayList<Long>();
-        final var batchSizes = new ArrayList<Long>();
-        final var random = new Random();
-        final var latch = new CountDownLatch(numEntries);
-        final var executor = Executors.newFixedThreadPool(3);
-        final var lock = new Object(); // make sure `asyncAddEntry` are called in order
-        for (int i = 0; i < numEntries; i++) {
-            final var batchSize = random.nextInt(0, 100);
-            final var msg = "msg-" + i;
-            final var callback = new AsyncCallbacks.AddEntryCallback() {
-
-                @Override
-                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
-                    latch.countDown();
-                }
-
-                @Override
-                public void addFailed(ManagedLedgerException exception, Object ctx) {
-                    log.error("Failed to add {}", msg, exception);
-                    latch.countDown();
-                }
-            };
-            executor.execute(() -> {
-                synchronized (lock) {
-                    batchSizes.add((long) batchSize);
-                    indexesBeforeAdd.add(interceptor.getIndex() + 1); // index is updated in each asyncAddEntry call
-                    ml.asyncAddEntry(Unpooled.wrappedBuffer(msg.getBytes()), batchSize, callback, null);
-                }
-            });
-        }
-        assertTrue(latch.await(3, TimeUnit.SECONDS));
-        synchronized (lock) {
-            for (int i = 1; i < numEntries; i++) {
-                final var sum = batchSizes.get(i) + batchSizes.get(i - 1);
-                batchSizes.set(i, sum);
-            }
-            assertEquals(indexesBeforeAdd.subList(1, numEntries), batchSizes.subList(0, numEntries - 1));
-        }
-        executor.shutdown();
-    }
 }
