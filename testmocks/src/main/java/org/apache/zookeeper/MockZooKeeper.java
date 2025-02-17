@@ -20,7 +20,6 @@ package org.apache.zookeeper;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Multimaps;
 import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -194,8 +193,7 @@ public class MockZooKeeper extends ZooKeeper {
     private void init() {
         tree = Maps.newTreeMap();
         this.executor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("mock-zookeeper"));
-        SetMultimap<String, NodeWatcher> w = HashMultimap.create();
-        watchers = Multimaps.synchronizedSetMultimap(w);
+        watchers = HashMultimap.create();
         stopped = new AtomicBoolean(false);
         alwaysFail = new AtomicReference<>(KeeperException.Code.OK);
         failures = new CopyOnWriteArrayList<>();
@@ -1199,7 +1197,7 @@ public class MockZooKeeper extends ZooKeeper {
     }
 
 
-    public synchronized void deleteWatchers(long sessionId) {
+    public void deleteWatchers(long sessionId) {
         runInExecutorSync(() -> {
             // remove all persistent watchers for the session
             persistentWatchers.removeIf(w -> w.sessionId == sessionId);
