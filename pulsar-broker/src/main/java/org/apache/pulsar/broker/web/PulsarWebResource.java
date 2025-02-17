@@ -1016,7 +1016,7 @@ public abstract class PulsarWebResource {
         if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
             return true;
         }
-        return  pulsar.getLeaderElectionService().isLeader();
+        return pulsar.getLeaderElectionService() != null && pulsar.getLeaderElectionService().isLeader();
     }
 
     public void validateTenantOperation(String tenant, TenantOperation operation) {
