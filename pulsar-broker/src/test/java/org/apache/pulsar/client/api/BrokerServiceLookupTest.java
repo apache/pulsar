@@ -92,6 +92,7 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.PoliciesUtil;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
@@ -322,8 +323,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
     @Test
     public void testConcurrentWriteBrokerData() throws Exception {
         Map<String, NamespaceBundleStats> map = new ConcurrentHashMap<>();
+        List<String> boundaries = PoliciesUtil.getBundles(100).getBoundaries();
         for (int i = 0; i < 100; i++) {
-            map.put("key"+ i, new NamespaceBundleStats());
+            map.put("my-property/my-ns/" + boundaries.get(i), new NamespaceBundleStats());
         }
         BrokerService brokerService = mock(BrokerService.class);
         doReturn(brokerService).when(pulsar).getBrokerService();
