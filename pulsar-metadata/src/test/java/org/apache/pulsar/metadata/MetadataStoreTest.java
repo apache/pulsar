@@ -551,6 +551,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         builder.configFilePath("src/test/resources/oxia_client.conf");
         MetadataStoreConfig config = builder.build();
 
+        @Cleanup
         OxiaMetadataStore store = (OxiaMetadataStore) MetadataStoreFactory.create(oxia, config);
         var client = (AsyncOxiaClient) WhiteboxImpl.getInternalState(store, "client");
         var sessionManager = (SessionManager) WhiteboxImpl.getInternalState(client, "sessionManager");
