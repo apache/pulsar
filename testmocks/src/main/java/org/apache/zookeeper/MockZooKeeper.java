@@ -329,21 +329,19 @@ public class MockZooKeeper extends ZooKeeper {
             throw new KeeperException.NodeExistsException(path);
         }
 
-        if (!tree.containsKey(parent)) {
+        MockZNode parentNode = tree.get(parent);
+
+        if (parentNode == null) {
             throw new KeeperException.NoNodeException(parent);
         }
 
-        MockZNode parentNode = tree.get(parent);
-
         if (createMode.isSequential()) {
-            int parentVersion = tree.get(parent).getVersion();
+            int parentVersion = parentNode.getVersion();
             path = path + parentVersion;
             parentNode.updateVersion();
         }
 
-        if (parentNode != null) {
-            parentNode.getChildren().add(getNodeName(path));
-        }
+        parentNode.getChildren().add(getNodeName(path));
         tree.put(path, createMockZNode(data, createMode));
 
         toNotifyCreate.addAll(getWatchers(path));
