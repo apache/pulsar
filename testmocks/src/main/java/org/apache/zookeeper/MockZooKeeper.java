@@ -228,16 +228,12 @@ public class MockZooKeeper extends ZooKeeper {
         return runInExecutorReturningValue(() -> internalCreate(path, data, createMode));
     }
 
-    private <T> T runInExecutorReturningValue(Callable<T> task) throws InterruptedException, KeeperException {
-        return runInExecutorReturningValue(task, true);
-    }
-
-    private <T> T runInExecutorReturningValue(Callable<T> task, boolean allowRunningInCurrentThread)
+    private <T> T runInExecutorReturningValue(Callable<T> task)
             throws InterruptedException, KeeperException {
         if (isStopped()) {
             throw new KeeperException.ConnectionLossException();
         }
-        if (allowRunningInCurrentThread && inExecutorThreadLocal.get()) {
+        if (inExecutorThreadLocal.get()) {
             try {
                 return task.call();
             } catch (Exception e) {
@@ -277,11 +273,7 @@ public class MockZooKeeper extends ZooKeeper {
     }
 
     private void runInExecutorAsync(Runnable runnable) {
-        runInExecutorAsync(runnable, true);
-    }
-
-    private void runInExecutorAsync(Runnable runnable, boolean allowRunningInCurrentThread) {
-        if (allowRunningInCurrentThread && inExecutorThreadLocal.get()) {
+        if (inExecutorThreadLocal.get()) {
             try {
                 runnable.run();
             } catch (Throwable t) {
