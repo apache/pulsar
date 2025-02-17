@@ -456,8 +456,13 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
             try {
                 MLDataFormats.ManagedLedgerInfoMetadata metadata =
                         MLDataFormats.ManagedLedgerInfoMetadata.parseFrom(metadataBytes);
-                return ManagedLedgerInfo.parseFrom(getCompressionCodec(metadata.getCompressionType())
-                        .decode(byteBuf, metadata.getUncompressedSize()).nioBuffer());
+                ByteBuf uncompressed = getCompressionCodec(metadata.getCompressionType())
+                        .decode(byteBuf, metadata.getUncompressedSize());
+                try {
+                    return ManagedLedgerInfo.parseFrom(uncompressed.nioBuffer());
+                } finally {
+                    uncompressed.release();
+                }
             } catch (Exception e) {
                 log.error("Failed to parse managedLedgerInfo metadata, "
                         + "fall back to parse managedLedgerInfo directly.", e);
@@ -478,8 +483,13 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
             try {
                 MLDataFormats.ManagedCursorInfoMetadata metadata =
                         MLDataFormats.ManagedCursorInfoMetadata.parseFrom(metadataBytes);
-                return ManagedCursorInfo.parseFrom(getCompressionCodec(metadata.getCompressionType())
-                        .decode(byteBuf, metadata.getUncompressedSize()).nioBuffer());
+                ByteBuf uncompressed = getCompressionCodec(metadata.getCompressionType())
+                        .decode(byteBuf, metadata.getUncompressedSize());
+                try {
+                    return ManagedCursorInfo.parseFrom(uncompressed.nioBuffer());
+                } finally {
+                    uncompressed.release();
+                }
             } catch (Exception e) {
                 log.error("Failed to parse ManagedCursorInfo metadata, "
                         + "fall back to parse ManagedCursorInfo directly", e);
@@ -503,29 +513,23 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
         if (compressionType == null || compressionType.equals(CompressionType.NONE)) {
             return info;
         }
-        ByteBuf metadataByteBuf = null;
-        ByteBuf encodeByteBuf = null;
+
+        CompositeByteBuf compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
         try {
-            metadataByteBuf = PulsarByteBufAllocator.DEFAULT.buffer(metadataSerializedSize + 6,
+            ByteBuf metadataByteBuf = PulsarByteBufAllocator.DEFAULT.buffer(metadataSerializedSize + 6,
                     metadataSerializedSize + 6);
             metadataByteBuf.writeShort(MAGIC_MANAGED_INFO_METADATA);
             metadataByteBuf.writeInt(metadataSerializedSize);
             metadataByteBuf.writeBytes(metadata);
-            encodeByteBuf = getCompressionCodec(compressionType)
+            ByteBuf encodeByteBuf = getCompressionCodec(compressionType)
                     .encode(Unpooled.wrappedBuffer(info));
-            CompositeByteBuf compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
             compositeByteBuf.addComponent(true, metadataByteBuf);
             compositeByteBuf.addComponent(true, encodeByteBuf);
             byte[] dataBytes = new byte[compositeByteBuf.readableBytes()];
             compositeByteBuf.readBytes(dataBytes);
             return dataBytes;
         } finally {
-            if (metadataByteBuf != null) {
-                metadataByteBuf.release();
-            }
-            if (encodeByteBuf != null) {
-                encodeByteBuf.release();
-            }
+            compositeByteBuf.release();
         }
     }
 

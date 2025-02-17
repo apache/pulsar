@@ -2114,6 +2114,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " Consumer Netty channel. Use O to disable")
     private long managedLedgerMaxReadsInFlightSizeInMB = 0;
 
+    @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum time to wait for acquiring permits for max reads in "
+            + "flight when managedLedgerMaxReadsInFlightSizeInMB is set (>0) and the limit is reached.")
+    private long managedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis = 60000;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum number of reads that can be queued for acquiring "
+            + "permits for max reads in flight when managedLedgerMaxReadsInFlightSizeInMB is set (>0) and the limit "
+            + "is reached.")
+    private int managedLedgerMaxReadsInFlightPermitsAcquireQueueSize = 50000;
+
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         dynamic = true,
@@ -2266,6 +2275,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " will only be tracked in memory and messages will be redelivered in case of"
             + " crashes.")
     private int managedLedgerMaxUnackedRangesToPersist = 10000;
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Whether persist cursor ack stats as long arrays, which will compress the data and reduce GC rate")
+    private boolean managedLedgerPersistIndividualAckAsLongArray = true;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "If enabled, the maximum \"acknowledgment holes\" will not be limited and \"acknowledgment holes\" "

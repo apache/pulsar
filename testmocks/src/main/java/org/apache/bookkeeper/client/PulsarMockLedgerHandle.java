@@ -73,7 +73,7 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
         this.digest = digest;
         this.passwd = Arrays.copyOf(passwd, passwd.length);
 
-        readHandle = new PulsarMockReadHandle(bk, id, getLedgerMetadata(), entries);
+        readHandle = new PulsarMockReadHandle(bk, id, getLedgerMetadata(), entries, bk::getReadHandleInterceptor);
     }
 
     @Override

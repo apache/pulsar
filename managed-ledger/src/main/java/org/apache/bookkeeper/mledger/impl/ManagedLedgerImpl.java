@@ -632,7 +632,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     for (final String cursorName : consumers) {
                         log.info("[{}] Loading cursor {}", name, cursorName);
                         final ManagedCursorImpl cursor;
-                        cursor = new ManagedCursorImpl(bookKeeper, ManagedLedgerImpl.this, cursorName);
+                        cursor = createCursor(ManagedLedgerImpl.this.bookKeeper, cursorName);
 
                         cursor.recover(new VoidCallback() {
                             @Override
@@ -663,7 +663,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             log.debug("[{}] Recovering cursor {} lazily", name, cursorName);
                         }
                         final ManagedCursorImpl cursor;
-                        cursor = new ManagedCursorImpl(bookKeeper, ManagedLedgerImpl.this, cursorName);
+                        cursor = createCursor(ManagedLedgerImpl.this.bookKeeper, cursorName);
                         CompletableFuture<ManagedCursor> cursorRecoveryFuture = new CompletableFuture<>();
                         uninitializedCursors.put(cursorName, cursorRecoveryFuture);
 
@@ -802,33 +802,41 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         buffer.retain();
 
         // Jump to specific thread to avoid contention from writers writing from different threads
-        executor.execute(() -> {
-            OpAddEntry addOperation = OpAddEntry.createNoRetainBuffer(this, buffer, numberOfMessages, callback, ctx,
-                    currentLedgerTimeoutTriggered);
-            internalAsyncAddEntry(addOperation);
-        });
+        final var addOperation = OpAddEntry.createNoRetainBuffer(this, buffer, numberOfMessages, callback, ctx,
+                currentLedgerTimeoutTriggered);
+        var added = false;
+        try {
+            // Use synchronized to ensure if `addOperation` is added to queue and fails later, it will be the first
+            // element in `pendingAddEntries`.
+            synchronized (this) {
+                if (managedLedgerInterceptor != null) {
+                    managedLedgerInterceptor.beforeAddEntry(addOperation, addOperation.getNumberOfMessages());
+                }
+                final var state = STATE_UPDATER.get(this);
+                beforeAddEntryToQueue(state);
+                pendingAddEntries.add(addOperation);
+                added = true;
+                afterAddEntryToQueue(state, addOperation);
+            }
+        } catch (Throwable throwable) {
+            if (!added) {
+                addOperation.failed(ManagedLedgerException.getManagedLedgerException(throwable));
+            } // else: all elements of `pendingAddEntries` will fail in another thread
+        }
     }
 
-    protected synchronized void internalAsyncAddEntry(OpAddEntry addOperation) {
-        if (!beforeAddEntry(addOperation)) {
-            return;
-        }
-        final State state = STATE_UPDATER.get(this);
+    protected void beforeAddEntryToQueue(State state) throws ManagedLedgerException {
         if (state.isFenced()) {
-            addOperation.failed(new ManagedLedgerFencedException());
-            return;
-        } else if (state == State.Terminated) {
-            addOperation.failed(new ManagedLedgerTerminatedException("Managed ledger was already terminated"));
-            return;
-        } else if (state == State.Closed) {
-            addOperation.failed(new ManagedLedgerAlreadyClosedException("Managed ledger was already closed"));
-            return;
-        } else if (state == State.WriteFailed) {
-            addOperation.failed(new ManagedLedgerAlreadyClosedException("Waiting to recover from failure"));
-            return;
+            throw new ManagedLedgerFencedException();
         }
-        pendingAddEntries.add(addOperation);
+        switch (state) {
+            case Terminated -> throw new ManagedLedgerTerminatedException("Managed ledger was already terminated");
+            case Closed -> throw new ManagedLedgerAlreadyClosedException("Managed ledger was already closed");
+            case WriteFailed -> throw new ManagedLedgerAlreadyClosedException("Waiting to recover from failure");
+        }
+    }
 
+    protected void afterAddEntryToQueue(State state, OpAddEntry addOperation) throws ManagedLedgerException {
         if (state == State.ClosingLedger || state == State.CreatingLedger) {
             // We don't have a ready ledger to write into
             // We are waiting for a new ledger to be created
@@ -1007,7 +1015,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Creating new cursor: {}", name, cursorName);
         }
-        final ManagedCursorImpl cursor = new ManagedCursorImpl(bookKeeper, this, cursorName);
+        final ManagedCursorImpl cursor = createCursor(bookKeeper, cursorName);
         CompletableFuture<ManagedCursor> cursorFuture = new CompletableFuture<>();
         uninitializedCursors.put(cursorName, cursorFuture);
         Position position = InitialPosition.Earliest == initialPosition ? getFirstPosition() : getLastPosition();
@@ -1037,6 +1045,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 callback.openCursorFailed(exception, ctx);
             }
         });
+    }
+
+    protected ManagedCursorImpl createCursor(BookKeeper bookKeeper, String cursorName) {
+        return new ManagedCursorImpl(bookKeeper, this, cursorName);
     }
 
     @Override
@@ -1140,16 +1152,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return cachedCursor;
         }
 
-        NonDurableCursorImpl cursor = new NonDurableCursorImpl(bookKeeper, this, cursorName,
-                startCursorPosition, initialPosition, isReadCompacted);
-        cursor.setActive();
-
-        log.info("[{}] Opened new cursor: {}", name, cursor);
+        // The backlog of a non-durable cursor could be incorrect if the cursor is created before `internalTrimLedgers`
+        // and added to the managed ledger after `internalTrimLedgers`.
+        // For more details, see https://github.com/apache/pulsar/pull/23951.
         synchronized (this) {
+            NonDurableCursorImpl cursor = new NonDurableCursorImpl(bookKeeper, this, cursorName,
+                    startCursorPosition, initialPosition, isReadCompacted);
+            cursor.setActive();
+            log.info("[{}] Opened new cursor: {}", name, cursor);
             addCursor(cursor);
+            return cursor;
         }
-
-        return cursor;
     }
 
     @Override

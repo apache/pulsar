@@ -247,6 +247,10 @@ public class PulsarClientImpl implements PulsarClient {
                 this.timer = timer;
             }
 
+            if (conf.getServiceUrlProvider() != null) {
+                conf.getServiceUrlProvider().initialize(this);
+            }
+
             if (conf.isEnableTransaction()) {
                 tcClient = new TransactionCoordinatorClientImpl(this);
                 try {
@@ -262,6 +266,9 @@ public class PulsarClientImpl implements PulsarClient {
                     this::reduceConsumerReceiverQueueSize);
             state.set(State.Open);
         } catch (Throwable t) {
+            // Log the exception first, or it could be missed if there are any subsequent exceptions in the
+            // shutdown sequence
+            log.error("Failed to create Pulsar client instance.", t);
             shutdown();
             shutdownEventLoopGroup(eventLoopGroupReference);
             closeCnxPool(connectionPoolReference);

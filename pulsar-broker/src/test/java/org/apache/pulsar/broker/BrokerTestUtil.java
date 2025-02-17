@@ -39,10 +39,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -224,33 +226,61 @@ public class BrokerTestUtil {
     public static <T> void receiveMessages(BiFunction<Consumer<T>, Message<T>, Boolean> messageHandler,
                                        Duration quietTimeout,
                                        Consumer<T>... consumers) {
-        FutureUtil.waitForAll(Arrays.stream(consumers)
-                .map(consumer -> receiveMessagesAsync(consumer, quietTimeout, messageHandler)).toList()).join();
+        receiveMessages(messageHandler, quietTimeout, Arrays.stream(consumers));
+    }
+
+    /**
+     * Receive messages concurrently from multiple consumers and handles them using the provided message handler.
+     * The message handler should return true if it wants to continue receiving more messages, false otherwise.
+     *
+     * @param messageHandler the message handler
+     * @param quietTimeout the duration of quiet time after which the method will stop waiting for more messages
+     * @param consumers the consumers to receive messages from
+     * @param <T> the message value type
+     */
+    public static <T> void receiveMessages(BiFunction<Consumer<T>, Message<T>, Boolean> messageHandler,
+                                           Duration quietTimeout,
+                                           Stream<Consumer<T>> consumers) {
+        long quietTimeoutNanos = quietTimeout.toNanos();
+        AtomicLong lastMessageReceivedNanos = new AtomicLong(System.nanoTime());
+        FutureUtil.waitForAll(consumers
+                .map(consumer -> receiveMessagesAsync(consumer, quietTimeoutNanos, quietTimeoutNanos, messageHandler,
+                        lastMessageReceivedNanos)).toList()).join();
     }
 
     // asynchronously receive messages from a consumer and handle them using the provided message handler
     // the benefit is that multiple consumers can be concurrently consumed without the need to have multiple threads
     // this is useful in tests where multiple consumers are needed to test the functionality
-    private static <T> CompletableFuture<Void> receiveMessagesAsync(Consumer<T> consumer, Duration quietTimeout,
-                                                             BiFunction<Consumer<T>, Message<T>, Boolean>
-                                                                     messageHandler) {
-        CompletableFuture<Message<T>> receiveFuture = consumer.receiveAsync();
-        return receiveFuture
-                .orTimeout(quietTimeout.toMillis(), TimeUnit.MILLISECONDS)
+    private static <T> CompletableFuture<Void> receiveMessagesAsync(Consumer<T> consumer,
+                                                                    long quietTimeoutNanos,
+                                                                    long receiveTimeoutNanos,
+                                                                    BiFunction<Consumer<T>, Message<T>, Boolean>
+                                                                            messageHandler,
+                                                                    AtomicLong lastMessageReceivedNanos) {
+        return consumer.receiveAsync()
+                .orTimeout(receiveTimeoutNanos, TimeUnit.NANOSECONDS)
                 .handle((msg, t) -> {
+                    long currentNanos = System.nanoTime();
                     if (t != null) {
                         if (t instanceof TimeoutException) {
-                            // cancel the receive future so that Pulsar client can clean up the resources
-                            receiveFuture.cancel(false);
-                            return false;
+                            long sinceLastMessageReceivedNanos = currentNanos - lastMessageReceivedNanos.get();
+                            if (sinceLastMessageReceivedNanos > quietTimeoutNanos) {
+                                return Pair.of(false, 0L);
+                            } else {
+                                return Pair.of(true, quietTimeoutNanos - sinceLastMessageReceivedNanos);
+                            }
                         } else {
                             throw FutureUtil.wrapToCompletionException(t);
                         }
                     }
-                    return messageHandler.apply(consumer, msg);
-                }).thenComposeAsync(receiveMore -> {
+                    lastMessageReceivedNanos.set(currentNanos);
+                    return Pair.of(messageHandler.apply(consumer, msg), quietTimeoutNanos);
+                }).thenComposeAsync(receiveMoreAndNextTimeout -> {
+                    boolean receiveMore = receiveMoreAndNextTimeout.getLeft();
                     if (receiveMore) {
-                        return receiveMessagesAsync(consumer, quietTimeout, messageHandler);
+                        Long nextReceiveTimeoutNanos = receiveMoreAndNextTimeout.getRight();
+                        return receiveMessagesAsync(consumer, quietTimeoutNanos, nextReceiveTimeoutNanos,
+                                messageHandler, lastMessageReceivedNanos);
                     } else {
                         return CompletableFuture.completedFuture(null);
                     }
