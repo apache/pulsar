@@ -38,6 +38,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -273,6 +274,9 @@ public class MockZooKeeper extends ZooKeeper {
     }
 
     private void runInExecutorAsync(Runnable runnable) {
+        if (isStopped()) {
+            throw new RejectedExecutionException("MockZooKeeper is stopped");
+        }
         if (inExecutorThreadLocal.get()) {
             try {
                 runnable.run();
