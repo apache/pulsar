@@ -23,6 +23,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Multimaps;
 import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -233,6 +234,9 @@ public class MockZooKeeper extends ZooKeeper {
 
     private <T> T runInExecutorReturningValue(Callable<T> task, boolean allowRunningInCurrentThread)
             throws InterruptedException, KeeperException {
+        if (isStopped()) {
+            throw new KeeperException.ConnectionLossException();
+        }
         if (allowRunningInCurrentThread && inExecutorThreadLocal.get()) {
             try {
                 return task.call();
@@ -1096,12 +1100,7 @@ public class MockZooKeeper extends ZooKeeper {
                 watchers.clear();
                 persistentWatchers.clear();
             });
-            try {
-                executor.shutdownNow();
-                executor.awaitTermination(5, TimeUnit.SECONDS);
-            } catch (InterruptedException ex) {
-                log.error("MockZooKeeper shutdown had error", ex);
-            }
+            MoreExecutors.shutdownAndAwaitTermination(executor, 10, TimeUnit.SECONDS);
         }
     }
 
