@@ -24,6 +24,7 @@ import org.apache.pulsar.broker.delayed.bucket.RecoverDelayedDeliveryTrackerExce
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -67,10 +68,10 @@ public class DelayedDeliveryTrackerFactoryTest extends ProducerConsumerBase {
 
     @Test
     public void testFallbackToInMemoryTracker() throws Exception {
-        Pair<BrokerService, PersistentDispatcherMultipleConsumers> pair =
+        Pair<BrokerService, AbstractPersistentDispatcherMultipleConsumers> pair =
                 mockDelayedDeliveryTrackerFactoryAndDispatcher();
         BrokerService brokerService = pair.getLeft();
-        PersistentDispatcherMultipleConsumers dispatcher = pair.getRight();
+        AbstractPersistentDispatcherMultipleConsumers dispatcher = pair.getRight();
 
         // Since Mocked BucketDelayedDeliveryTrackerFactory.newTracker0() throws RecoverDelayedDeliveryTrackerException,
         // the factory should be fallback to InMemoryDelayedDeliveryTrackerFactory
@@ -83,12 +84,13 @@ public class DelayedDeliveryTrackerFactoryTest extends ProducerConsumerBase {
     }
 
 
-    private Pair<BrokerService, PersistentDispatcherMultipleConsumers> mockDelayedDeliveryTrackerFactoryAndDispatcher()
+    private Pair<BrokerService, AbstractPersistentDispatcherMultipleConsumers> mockDelayedDeliveryTrackerFactoryAndDispatcher()
             throws Exception {
         BrokerService brokerService = Mockito.spy(pulsar.getBrokerService());
 
         // Mock dispatcher
-        PersistentDispatcherMultipleConsumers dispatcher = Mockito.mock(PersistentDispatcherMultipleConsumers.class);
+        AbstractPersistentDispatcherMultipleConsumers dispatcher =
+                Mockito.mock(AbstractPersistentDispatcherMultipleConsumers.class);
         Mockito.doReturn("test").when(dispatcher).getName();
         // Mock BucketDelayedDeliveryTrackerFactory
         @Cleanup
@@ -113,10 +115,10 @@ public class DelayedDeliveryTrackerFactoryTest extends ProducerConsumerBase {
 
     @Test
     public void testFallbackToInMemoryTrackerFactoryFailed() throws Exception {
-        Pair<BrokerService, PersistentDispatcherMultipleConsumers> pair =
+        Pair<BrokerService, AbstractPersistentDispatcherMultipleConsumers> pair =
                 mockDelayedDeliveryTrackerFactoryAndDispatcher();
         BrokerService brokerService = pair.getLeft();
-        PersistentDispatcherMultipleConsumers dispatcher = pair.getRight();
+        AbstractPersistentDispatcherMultipleConsumers dispatcher = pair.getRight();
 
         // Mock InMemoryDelayedDeliveryTrackerFactory
         @Cleanup

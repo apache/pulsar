@@ -198,17 +198,21 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> ackTimeout(long ackTimeout, TimeUnit timeUnit);
 
     /**
-     * Acknowledgement returns receipt, but the message is not re-sent after getting receipt.
+     * Enables or disables the acknowledgment receipt feature.
      *
-     * Configure the acknowledgement timeout mechanism to redeliver the message if it is not acknowledged after
-     * ackTimeout, or to execute a timer task to check the acknowledgement timeout messages during every
-     * ackTimeoutTickTime period.
+     * <p>When this feature is enabled, the consumer ensures that acknowledgments are processed by the broker by
+     * waiting for a receipt from the broker. Even when the broker returns a receipt, it doesn't guarantee that the
+     * message won't be redelivered later due to certain implementation details.
+     * It is recommended to use the asynchronous {@link Consumer#acknowledgeAsync(Message)} method for acknowledgment
+     * when this feature is enabled. This is because using the synchronous {@link Consumer#acknowledge(Message)} method
+     * with acknowledgment receipt can cause performance issues due to the round trip to the server, which prevents
+     * pipelining (having multiple messages in-flight). With the asynchronous method, the consumer can continue
+     * consuming other messages while waiting for the acknowledgment receipts.
      *
-     * @param isAckReceiptEnabled {@link Boolean} enables acknowledgement for receipt
+     * @param isAckReceiptEnabled {@code true} to enable acknowledgment receipt, {@code false} to disable it
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> isAckReceiptEnabled(boolean isAckReceiptEnabled);
-
     /**
      * Define the granularity of the ack-timeout redelivery.
      *
@@ -238,6 +242,19 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * @see Consumer#negativeAcknowledge(Message)
      */
     ConsumerBuilder<T> negativeAckRedeliveryDelay(long redeliveryDelay, TimeUnit timeUnit);
+
+    /**
+     * Sets the redelivery time precision bit count. The lower bits of the redelivery time will be
+     * trimmed to reduce the memory occupation. The default value is 8, which means the redelivery time
+     * will be bucketed by 256ms, the redelivery time could be earlier(no later) than the expected time,
+     * but no more than 256ms. If set to k, the redelivery time will be bucketed by 2^k ms.
+     * If the value is 0, the redelivery time will be accurate to ms.
+     *
+     * @param negativeAckPrecisionBitCnt
+     *            The redelivery time precision bit count.
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> negativeAckRedeliveryDelayPrecision(int negativeAckPrecisionBitCount);
 
     /**
      * Select the subscription type to be used when subscribing to a topic.
@@ -679,8 +696,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> keySharedPolicy(KeySharedPolicy keySharedPolicy);
 
     /**
-     * Sets the consumer to include the given position of any reset operation like {@link Consumer#seek(long)} or
-     * {@link Consumer#seek(MessageId)}}.
+     * Sets the consumer to include the given position of reset operation {@link Consumer#seek(MessageId)}}.
      *
      * @return the consumer builder instance
      */
@@ -881,13 +897,16 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * If this is enabled, the consumer receiver queue size is initialized as a very small value, 1 by default,
-     * and will double itself until it reaches the value set by {@link #receiverQueueSize(int)}, if and only if:
+     * and will double itself until it reaches either the value set by {@link #receiverQueueSize(int)} or the client
+     * memory limit set by {@link ClientBuilder#memoryLimit(long, SizeUnit)}.
+     *
+     * <p>The consumer receiver queue size will double if and only if:
      * <p>1) User calls receive() and there are no messages in receiver queue.
      * <p>2) The last message we put in the receiver queue took the last space available in receiver queue.
      *
-     * This is disabled by default and currentReceiverQueueSize is initialized as maxReceiverQueueSize.
+     * <p>This is disabled by default and currentReceiverQueueSize is initialized as maxReceiverQueueSize.
      *
-     * The feature should be able to reduce client memory usage.
+     * <p>The feature should be able to reduce client memory usage.
      *
      * @param enabled whether to enable AutoScaledReceiverQueueSize.
      */

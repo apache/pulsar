@@ -22,6 +22,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -322,7 +323,17 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 .enableBatching(false)
                 .create();
 
-        for (int i = 0; i < NUM_OF_MESSAGES; i++) {
+        // send 3 messages first, and it won't trigger the window and so these 3 messages will not be acked
+        for (int i = 0; i < 3; i++) {
+            producer.send(String.format("%d", i).getBytes());
+        }
+        TopicStats stats = pulsarAdmin.topics().getStats(inputTopicName, true);
+        SubscriptionStats subStats = stats.getSubscriptions().get("public/default/" + functionName);
+        assertNotNull(subStats);
+        assertEquals(3, subStats.getMsgBacklog());
+        assertEquals(3, subStats.getUnackedMessages());
+
+        for (int i = 3; i < NUM_OF_MESSAGES; i++) {
             producer.send(String.format("%d", i).getBytes());
         }
 
@@ -347,6 +358,13 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // in case last commit is not updated
         assertThat(i).isGreaterThanOrEqualTo(expectedResults.length - 1);
+
+        // test that all messages are acked
+        stats = pulsarAdmin.topics().getStats(inputTopicName, true);
+        subStats = stats.getSubscriptions().get("public/default/" + functionName);
+        assertNotNull(subStats);
+        assertEquals(0, subStats.getMsgBacklog());
+        assertEquals(0, subStats.getUnackedMessages());
 
         deleteFunction(functionName);
 

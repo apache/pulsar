@@ -23,6 +23,7 @@ import static org.apache.pulsar.schema.compatibility.SchemaCompatibilityCheckTes
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
@@ -84,6 +85,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.SchemaMetadata;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
@@ -1491,5 +1493,29 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         assertNotNull(producer);
         consumer.close();
         producer.close();
+    }
+
+    @Test
+    public void testTopicSchemaMetadata() throws Exception {
+        final String tenant = PUBLIC_TENANT;
+        final String namespace = "test-namespace-" + randomName(16);
+        final String topicOne = "metadata-topic";
+        final String topicName = TopicName.get(TopicDomain.persistent.value(), tenant, namespace, topicOne).toString();
+
+        admin.namespaces().createNamespace(tenant + "/" + namespace, Sets.newHashSet(CLUSTER_NAME));
+
+        @Cleanup
+        Producer<Schemas.PersonTwo> producer = pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo> builder().withAlwaysAllowNull(false)
+                        .withSupportSchemaVersioning(true).withPojo(Schemas.PersonTwo.class).build()))
+                .topic(topicName).create();
+
+        SchemaMetadata metadata = admin.schemas().getSchemaMetadata(topicName);
+
+        assertNotNull(metadata);
+        assertNotNull(metadata.info);
+        assertNotEquals(metadata.info.getLedgerId(), 0);
+        assertEquals(metadata.info.getEntryId(), 0);
+        assertEquals(metadata.index.size(), 1);
     }
 }

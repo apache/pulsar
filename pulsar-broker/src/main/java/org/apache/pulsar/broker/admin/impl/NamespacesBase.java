@@ -42,6 +42,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
@@ -65,8 +66,10 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.GrantTopicPermissionOptions;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.RevokeTopicPermissionOptions;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.NamedEntity;
@@ -613,6 +616,78 @@ public abstract class NamespacesBase extends AdminResource {
                 });
     }
 
+    protected CompletableFuture<Void> internalGrantPermissionOnTopicsAsync(List<GrantTopicPermissionOptions> options) {
+        return checkNamespace(options.stream().map(o -> TopicName.get(o.getTopic()).getNamespace()))
+                .thenCompose(__ -> validateAdminAccessForTenantAsync(
+                        TopicName.get(options.get(0).getTopic()).getTenant())
+                ).thenCompose(__ -> internalCheckTopicExists(options.stream().map(o -> TopicName.get(o.getTopic()))))
+                .thenCompose(__ -> getAuthorizationService().grantPermissionAsync(options))
+                .thenAccept(unused -> log.info("[{}] Successfully granted access for {}", clientAppId(), options))
+                .exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    //The IllegalArgumentException and the IllegalStateException were historically thrown by the
+                    // grantPermissionAsync method, so we catch them here to ensure backwards compatibility.
+                    if (realCause instanceof MetadataStoreException.NotFoundException
+                            || realCause instanceof IllegalArgumentException) {
+                        log.warn("[{}] Failed to grant permissions for namespace {}: does not exist", clientAppId(),
+                                namespaceName, ex);
+                        throw new RestException(Status.NOT_FOUND, "Topic's namespace does not exist");
+                    } else if (realCause instanceof MetadataStoreException.BadVersionException
+                            || realCause instanceof IllegalStateException) {
+                        log.warn("[{}] Failed to grant permissions for namespace {}: {}",
+                                clientAppId(), namespaceName, ex.getCause().getMessage(), ex);
+                        throw new RestException(Status.CONFLICT, "Concurrent modification");
+                    } else {
+                        log.error("[{}] Failed to grant permissions for namespace {}",
+                                clientAppId(), namespaceName, ex);
+                        throw new RestException(realCause);
+                    }
+                });
+    }
+
+    protected CompletableFuture<Void> internalRevokePermissionOnTopicsAsync(
+            List<RevokeTopicPermissionOptions> options) {
+        return checkNamespace(options.stream().map(o -> TopicName.get(o.getTopic()).getNamespace()))
+                .thenCompose(__ -> validateAdminAccessForTenantAsync(
+                        TopicName.get(options.get(0).getTopic()).getTenant()))
+                .thenCompose(__ -> internalCheckTopicExists(options.stream().map(o -> TopicName.get(o.getTopic()))))
+                .thenCompose(__ -> getAuthorizationService().revokePermissionAsync(options))
+                .thenAccept(unused -> log.info("[{}] Successfully revoke access for {}", clientAppId(), options))
+                .exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    //The IllegalArgumentException and the IllegalStateException were historically thrown by the
+                    // grantPermissionAsync method, so we catch them here to ensure backwards compatibility.
+                    if (realCause instanceof MetadataStoreException.NotFoundException
+                            || realCause instanceof IllegalArgumentException) {
+                        log.warn("[{}] Failed to revoke permissions for namespace {}: does not exist", clientAppId(),
+                                namespaceName, ex);
+                        throw new RestException(Status.NOT_FOUND, "Topic's namespace does not exist");
+                    } else if (realCause instanceof MetadataStoreException.BadVersionException
+                            || realCause instanceof IllegalStateException) {
+                        log.warn("[{}] Failed to revoke permissions for namespace {}: {}",
+                                clientAppId(), namespaceName, ex.getCause().getMessage(), ex);
+                        throw new RestException(Status.CONFLICT, "Concurrent modification");
+                    } else {
+                        log.error("[{}] Failed to revoke permissions for namespace {}",
+                                clientAppId(), namespaceName, ex);
+                        throw new RestException(realCause);
+                    }
+                });
+    }
+
+    private CompletableFuture<Void> checkNamespace(Stream<String> namespaces) {
+        boolean sameNamespace = namespaces.distinct().count() == 1;
+        if (!sameNamespace) {
+            throw new RestException(Status.BAD_REQUEST, "The namespace should be the same");
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
+    private CompletableFuture<Void> internalCheckTopicExists(Stream<TopicName> topicNameStream) {
+        List<TopicName> topicNames = topicNameStream.collect(Collectors.toList());
+        return CompletableFuture.allOf(topicNames.stream().map(topic -> internalCheckTopicExists(topic))
+                .toArray(CompletableFuture[]::new));
+    }
 
     protected CompletableFuture<Void> internalGrantPermissionOnSubscriptionAsync(String subscription,
                                                                                 Set<String> roles) {
@@ -885,7 +960,8 @@ public abstract class NamespacesBase extends AdminResource {
                 LocalPolicies localPolicies = oldPolicies.map(
                         policies -> new LocalPolicies(policies.bundles,
                                 bookieAffinityGroup,
-                                policies.namespaceAntiAffinityGroup))
+                                policies.namespaceAntiAffinityGroup,
+                                policies.migrated))
                         .orElseGet(() -> new LocalPolicies(getBundles(config().getDefaultNumberOfNamespaceBundles()),
                                 bookieAffinityGroup,
                                 null));
@@ -1704,7 +1780,8 @@ public abstract class NamespacesBase extends AdminResource {
             getLocalPolicies().setLocalPoliciesWithCreate(namespaceName, (lp)->
                 lp.map(policies -> new LocalPolicies(policies.bundles,
                         policies.bookieAffinityGroup,
-                        antiAffinityGroup))
+                        antiAffinityGroup,
+                        policies.migrated))
                         .orElseGet(() -> new LocalPolicies(defaultBundle(),
                                 null, antiAffinityGroup))
             );
@@ -1741,7 +1818,8 @@ public abstract class NamespacesBase extends AdminResource {
             getLocalPolicies().setLocalPolicies(namespaceName, (policies)->
                 new LocalPolicies(policies.bundles,
                         policies.bookieAffinityGroup,
-                        null));
+                        null,
+                        policies.migrated));
             log.info("[{}] Successfully removed anti-affinity group for a namespace={}", clientAppId(), namespaceName);
         } catch (Exception e) {
             log.error("[{}] Failed to remove anti-affinity group for namespace {}", clientAppId(), namespaceName, e);
@@ -2540,7 +2618,7 @@ public abstract class NamespacesBase extends AdminResource {
         String localClusterName = pulsar().getConfiguration().getClusterName();
 
         OffloaderObjectsScannerUtils.scanOffloadedLedgers(managedLedgerOffloader,
-                localClusterName, pulsar().getManagedLedgerFactory(), sink);
+                localClusterName, pulsar().getDefaultManagedLedgerFactory(), sink);
 
     }
 
@@ -2690,10 +2768,13 @@ public abstract class NamespacesBase extends AdminResource {
     protected void internalEnableMigration(boolean migrated) {
         validateSuperUserAccess();
         try {
-            getLocalPolicies().setLocalPolicies(namespaceName, (policies) -> {
-                policies.migrated = migrated;
-                return policies;
-            });
+            getLocalPolicies().setLocalPoliciesWithCreate(namespaceName, oldPolicies -> oldPolicies.map(
+                    policies -> new LocalPolicies(policies.bundles,
+                            policies.bookieAffinityGroup,
+                            policies.namespaceAntiAffinityGroup,
+                            migrated))
+                    .orElseGet(() -> new LocalPolicies(getBundles(config().getDefaultNumberOfNamespaceBundles()),
+                            null, null, migrated)));
             log.info("Successfully updated migration on namespace {}", namespaceName);
         } catch (Exception e) {
             log.error("Failed to update migration on namespace {}", namespaceName, e);

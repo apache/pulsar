@@ -33,6 +33,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -144,8 +145,13 @@ public class ServiceUnitStateTableViewImpl extends ServiceUnitStateTableViewBase
                 .sendAsync()
                 .whenComplete((messageId, e) -> {
                     if (e != null) {
-                        log.error("Failed to publish the message: serviceUnit:{}, data:{}",
-                                key, value, e);
+                        if (e instanceof PulsarClientException.AlreadyClosedException) {
+                            log.info("Skip publishing the message since the producer is closed, serviceUnit: {}, data: "
+                                    + "{}", key, value);
+                        } else {
+                            log.error("Failed to publish the message: serviceUnit:{}, data:{}",
+                                    key, value, e);
+                        }
                         future.completeExceptionally(e);
                     } else {
                         future.complete(null);
@@ -159,7 +165,14 @@ public class ServiceUnitStateTableViewImpl extends ServiceUnitStateTableViewBase
         if (!isValidState()) {
             throw new IllegalStateException(INVALID_STATE_ERROR_MSG);
         }
-        producer.flushAsync().get(waitDurationInMillis, MILLISECONDS);
+        final var deadline = System.currentTimeMillis() + waitDurationInMillis;
+        var waitTimeMs = waitDurationInMillis;
+        producer.flushAsync().get(waitTimeMs, MILLISECONDS);
+        waitTimeMs = deadline - System.currentTimeMillis();
+        if (waitTimeMs < 0) {
+            waitTimeMs = 0;
+        }
+        tableview.refreshAsync().get(waitTimeMs, MILLISECONDS);
     }
 
     @Override

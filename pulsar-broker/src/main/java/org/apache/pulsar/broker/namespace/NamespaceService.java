@@ -109,7 +109,6 @@ import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.stats.MetricsUtil;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
@@ -150,7 +149,7 @@ public class NamespaceService implements AutoCloseable {
     public static final String HEARTBEAT_NAMESPACE_FMT_V2 = "pulsar/%s";
     public static final String SLA_NAMESPACE_FMT = SLA_NAMESPACE_PROPERTY + "/%s/%s";
 
-    private final ConcurrentOpenHashMap<ClusterDataImpl, PulsarClientImpl> namespaceClients;
+    private final Map<ClusterDataImpl, PulsarClientImpl> namespaceClients = new ConcurrentHashMap<>();
 
     private final List<NamespaceBundleOwnershipListener> bundleOwnershipListeners;
 
@@ -204,8 +203,6 @@ public class NamespaceService implements AutoCloseable {
         this.loadManager = pulsar.getLoadManager();
         this.bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
         this.ownershipCache = new OwnershipCache(pulsar, this);
-        this.namespaceClients =
-                ConcurrentOpenHashMap.<ClusterDataImpl, PulsarClientImpl>newBuilder().build();
         this.bundleOwnershipListeners = new CopyOnWriteArrayList<>();
         this.bundleSplitListeners = new CopyOnWriteArrayList<>();
         this.localBrokerDataCache = pulsar.getLocalMetadataStore().getMetadataCache(LocalBrokerData.class);
@@ -461,16 +458,10 @@ public class NamespaceService implements AutoCloseable {
         }
     }
 
-    private final ConcurrentOpenHashMap<NamespaceBundle, CompletableFuture<Optional<LookupResult>>>
-            findingBundlesAuthoritative =
-            ConcurrentOpenHashMap.<NamespaceBundle,
-                    CompletableFuture<Optional<LookupResult>>>newBuilder()
-                    .build();
-    private final ConcurrentOpenHashMap<NamespaceBundle, CompletableFuture<Optional<LookupResult>>>
-            findingBundlesNotAuthoritative =
-            ConcurrentOpenHashMap.<NamespaceBundle,
-                    CompletableFuture<Optional<LookupResult>>>newBuilder()
-                    .build();
+    private final Map<NamespaceBundle, CompletableFuture<Optional<LookupResult>>>
+            findingBundlesAuthoritative = new ConcurrentHashMap<>();
+    private final Map<NamespaceBundle, CompletableFuture<Optional<LookupResult>>>
+            findingBundlesNotAuthoritative = new ConcurrentHashMap<>();
 
     /**
      * Main internal method to lookup and setup ownership of service unit to a broker.
@@ -485,7 +476,7 @@ public class NamespaceService implements AutoCloseable {
             LOG.debug("findBrokerServiceUrl: {} - options: {}", bundle, options);
         }
 
-        ConcurrentOpenHashMap<NamespaceBundle, CompletableFuture<Optional<LookupResult>>> targetMap;
+        Map<NamespaceBundle, CompletableFuture<Optional<LookupResult>>> targetMap;
         if (options.isAuthoritative()) {
             targetMap = findingBundlesAuthoritative;
         } else {

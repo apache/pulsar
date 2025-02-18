@@ -37,6 +37,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
@@ -47,6 +48,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.ToLongFunction;
 import javax.annotation.Nonnull;
 import lombok.Getter;
+import lombok.Setter;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
@@ -64,6 +66,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedEx
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -93,6 +96,13 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
     protected static final long POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS = 60;
 
     protected final String topic;
+
+    // Reference to the CompletableFuture returned when creating this topic in BrokerService.
+    // Used to safely remove the topic from BrokerService's cache by ensuring we remove the exact
+    // topic instance that was created.
+    @Getter
+    @Setter
+    protected volatile CompletableFuture<Optional<Topic>> createFuture;
 
     // Producers currently connected to this topic
     protected final ConcurrentHashMap<String, Producer> producers;
@@ -281,6 +291,10 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         if (log.isDebugEnabled()) {
             log.debug("[{}]updateTopicPolicyByNamespacePolicy,data={}", topic, namespacePolicies);
         }
+        if (!isSystemTopic()) {
+            updateNamespacePublishRate(namespacePolicies, brokerService.getPulsar().getConfig().getClusterName());
+            updateNamespaceDispatchRate(namespacePolicies, brokerService.getPulsar().getConfig().getClusterName());
+        }
         topicPolicies.getRetentionPolicies().updateNamespaceValue(namespacePolicies.retention_policies);
         topicPolicies.getCompactionThreshold().updateNamespaceValue(namespacePolicies.compaction_threshold);
         topicPolicies.getReplicationClusters().updateNamespaceValue(
@@ -303,7 +317,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         topicPolicies.getDeduplicationEnabled().updateNamespaceValue(namespacePolicies.deduplicationEnabled);
         topicPolicies.getDeduplicationSnapshotIntervalSeconds().updateNamespaceValue(
                 namespacePolicies.deduplicationSnapshotIntervalSeconds);
-        updateNamespacePublishRate(namespacePolicies, brokerService.getPulsar().getConfig().getClusterName());
         topicPolicies.getDelayedDeliveryEnabled().updateNamespaceValue(
                 Optional.ofNullable(namespacePolicies.delayed_delivery_policies)
                         .map(DelayedDeliveryPolicies::isActive).orElse(null));
@@ -324,7 +337,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         updateNamespaceSubscriptionDispatchRate(namespacePolicies,
             brokerService.getPulsar().getConfig().getClusterName());
         updateSchemaCompatibilityStrategyNamespaceValue(namespacePolicies);
-        updateNamespaceDispatchRate(namespacePolicies, brokerService.getPulsar().getConfig().getClusterName());
         topicPolicies.getSchemaValidationEnforced().updateNamespaceValue(namespacePolicies.schema_validation_enforced);
         topicPolicies.getEntryFilters().updateNamespaceValue(namespacePolicies.entryFilters);
 
@@ -666,9 +678,15 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
     }
     @Override
     public CompletableFuture<Boolean> hasSchema() {
-        return brokerService.pulsar()
-                .getSchemaRegistryService()
-                .getSchema(getSchemaId()).thenApply(Objects::nonNull);
+        return brokerService.pulsar().getSchemaRegistryService().getSchema(getSchemaId()).thenApply(Objects::nonNull)
+                .exceptionally(e -> {
+                    Throwable ex = e.getCause();
+                    if (brokerService.pulsar().getConfig().isSchemaLedgerForceRecovery()
+                            && (ex instanceof SchemaException && !((SchemaException) ex).isRecoverable())) {
+                        return false;
+                    }
+                    throw ex instanceof CompletionException ? (CompletionException) ex : new CompletionException(ex);
+                });
     }
 
     @Override
@@ -1355,8 +1373,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
                 .getClusterPoliciesAsync(pulsar.getConfig().getClusterName())
                 .thenCombine(isNamespaceMigrationEnabledAsync(pulsar, topic),
                         ((clusterData, isNamespaceMigrationEnabled) -> {
-                            Optional<ClusterUrl> url = ((clusterData.isPresent() && clusterData.get().isMigrated())
-                                    || isNamespaceMigrationEnabled)
+                            Optional<ClusterUrl> url = (clusterData.isPresent() && (clusterData.get().isMigrated()
+                                    || isNamespaceMigrationEnabled))
                                             ? Optional.ofNullable(clusterData.get().getMigratedClusterUrl())
                                             : Optional.empty();
                             return url;

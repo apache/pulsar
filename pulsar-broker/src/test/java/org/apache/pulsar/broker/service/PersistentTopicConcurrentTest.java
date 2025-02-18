@@ -92,7 +92,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         cursorMock = ledger.openCursor("c1");
         ledgerMock = ledger;
         mlFactoryMock = factory;
-        doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
+        doReturn(mlFactoryMock).when(pulsar).getDefaultManagedLedgerFactory();
 
         brokerService = spyWithClassAndConstructorArgs(BrokerService.class, pulsar, eventLoopGroup);
         doReturn(brokerService).when(pulsar).getBrokerService();

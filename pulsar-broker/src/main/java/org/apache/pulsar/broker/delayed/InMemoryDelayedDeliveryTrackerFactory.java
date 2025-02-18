@@ -25,7 +25,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +51,7 @@ public class InMemoryDelayedDeliveryTrackerFactory implements DelayedDeliveryTra
     }
 
     @Override
-    public DelayedDeliveryTracker newTracker(PersistentDispatcherMultipleConsumers dispatcher) {
+    public DelayedDeliveryTracker newTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher) {
         String topicName = dispatcher.getTopic().getName();
         String subscriptionName = dispatcher.getSubscription().getName();
         DelayedDeliveryTracker tracker =  DelayedDeliveryTracker.DISABLE;
@@ -66,7 +66,7 @@ public class InMemoryDelayedDeliveryTrackerFactory implements DelayedDeliveryTra
     }
 
     @VisibleForTesting
-    InMemoryDelayedDeliveryTracker newTracker0(PersistentDispatcherMultipleConsumers dispatcher) {
+    InMemoryDelayedDeliveryTracker newTracker0(AbstractPersistentDispatcherMultipleConsumers dispatcher) {
         return new InMemoryDelayedDeliveryTracker(dispatcher, timer, tickTimeMillis,
                 isDelayedDeliveryDeliverAtTimeStrict, fixedDelayDetectionLookahead);
     }

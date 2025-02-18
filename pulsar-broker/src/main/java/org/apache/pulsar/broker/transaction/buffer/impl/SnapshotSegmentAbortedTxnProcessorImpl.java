@@ -311,8 +311,13 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                         SnapshotSegmentAbortedTxnProcessorImpl.this.topic.getName());
             }
         };
-        topic.getBrokerService().getPulsar().getManagedLedgerFactory().asyncOpenReadOnlyManagedLedger(
-                topicName.getPersistenceNamingEncoding(), callback, topic.getManagedLedger().getConfig(), null);
+        topic.getBrokerService().getManagedLedgerFactoryForTopic(topicName).thenAccept(managedLedgerFactory ->
+                        managedLedgerFactory.asyncOpenReadOnlyManagedLedger(topicName.getPersistenceNamingEncoding(),
+                                callback, topic.getManagedLedger().getConfig(), null))
+                .exceptionally(e -> {
+                    future.completeExceptionally(e);
+                    return null;
+                });
         return wait(future, "open read only ml for " + topicName);
     }
 
@@ -763,8 +768,16 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     try {
                         while (wait(reader.hasMoreEventsAsync(), "has more events")) {
                             final var message = wait(reader.readNextAsync(), "read next");
-                            if (topic.getName().equals(message.getValue().getTopicName())) {
-                                snapshotSegmentsWriter.getFuture().get().write(message.getKey(), null);
+                            final String topicName;
+                            final String key;
+                            try {
+                                topicName = message.getValue().getTopicName();
+                                key = message.getKey();
+                            } finally {
+                                message.release();
+                            }
+                            if (topic.getName().equals(topicName)) {
+                                snapshotSegmentsWriter.getFuture().get().write(key, null);
                             }
                         }
                         future.complete(null);

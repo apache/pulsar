@@ -510,7 +510,7 @@ public class TransactionTest extends TransactionTestBase {
         admin.topics().createNonPartitionedTopic(topic);
         PulsarService pulsarService = super.getPulsarServiceList().get(0);
         pulsarService.getBrokerService().getTopics().clear();
-        ManagedLedgerFactory managedLedgerFactory = pulsarService.getBrokerService().getManagedLedgerFactory();
+        ManagedLedgerFactory managedLedgerFactory = pulsarService.getDefaultManagedLedgerFactory();
         Field field = ManagedLedgerFactoryImpl.class.getDeclaredField("ledgers");
         field.setAccessible(true);
         ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers =

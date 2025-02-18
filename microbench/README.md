@@ -41,3 +41,29 @@ For fast recompiling of the benchmarks (without compiling Pulsar modules) and cr
 mvn -Pmicrobench -pl microbench clean package
 ```
 
+### Running specific benchmarks
+
+Display help:
+
+```shell
+java -jar microbench/target/microbenchmarks.jar -h
+```
+
+Listing all benchmarks:
+
+```shell
+java -jar microbench/target/microbenchmarks.jar -l
+```
+
+Running specific benchmarks:
+
+```shell
+java -jar microbench/target/microbenchmarks.jar ".*BenchmarkName.*"
+```
+
+Checking what benchmarks match the pattern:
+
+```shell
+java -jar microbench/target/microbenchmarks.jar ".*BenchmarkName.*" -lp
+```
+

@@ -136,6 +136,7 @@ import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
@@ -1216,7 +1217,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 producer.send("t1");
 
                 // Test re-register broker and check the lookup result
-                loadManager4.getBrokerRegistry().register();
+                loadManager4.getBrokerRegistry().registerAsync().get();
 
                 result = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
                 assertNotNull(result);
@@ -1428,7 +1429,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 producer.send("t1");
 
                 // Test re-register broker and check the lookup result
-                loadManager4.getBrokerRegistry().register();
+                loadManager4.getBrokerRegistry().registerAsync().get();
 
                 result = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
                 assertNotNull(result);
@@ -1495,16 +1496,16 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         log.info("makePrimaryAsLeader");
         if (channel2.isChannelOwner()) {
             pulsar2.getLeaderElectionService().close();
-            Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
+            Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
                 assertTrue(channel1.isChannelOwner());
             });
             pulsar2.getLeaderElectionService().start();
         }
 
-        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
             assertTrue(channel1.isChannelOwner());
         });
-        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
             assertFalse(channel2.isChannelOwner());
         });
     }
@@ -1609,6 +1610,82 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
 
 
     }
+
+    @DataProvider(name = "noChannelOwnerMonitorHandler")
+    public Object[][] noChannelOwnerMonitorHandler() {
+        return new Object[][] { { true }, { false } };
+    }
+
+    @Test(dataProvider = "noChannelOwnerMonitorHandler", timeOut = 30 * 1000, priority = 2101)
+    public void testHandleNoChannelOwner(boolean noChannelOwnerMonitorHandler) throws Exception {
+
+        makePrimaryAsLeader();
+        primaryLoadManager.playLeader();
+        secondaryLoadManager.playFollower();
+
+        assertEquals(ExtensibleLoadManagerImpl.Role.Leader,
+                primaryLoadManager.getRole());
+        assertEquals(ExtensibleLoadManagerImpl.Role.Follower,
+                secondaryLoadManager.getRole());
+
+        try {
+
+            // simulate no owner in the channel
+            Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions().until(() -> {
+                try {
+                    pulsar1.getLeaderElectionService().close();
+                    primaryLoadManager.getServiceUnitStateChannel().isChannelOwner();
+                    return false;
+                } catch (ExecutionException e) {
+                    if (e.getCause() instanceof IllegalStateException && e.getMessage()
+                            .contains("no channel owner now")) {
+                        return true;
+                    } else {
+                        return false;
+                    }
+                }
+            });
+
+            Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions().until(() -> {
+                try {
+                    pulsar2.getLeaderElectionService().close();
+                    secondaryLoadManager.getServiceUnitStateChannel().isChannelOwner();
+                    return false;
+                } catch (ExecutionException e) {
+                    if (e.getCause() instanceof IllegalStateException && e.getMessage()
+                            .contains("no channel owner now")) {
+                        return true;
+                    } else {
+                        return false;
+                    }
+                }
+            });
+
+            // elect new channel owner by either monitor or playLeader/playFollower
+            if (noChannelOwnerMonitorHandler) {
+                secondaryLoadManager.monitor();
+                primaryLoadManager.monitor();
+            } else {
+                secondaryLoadManager.playLeader();
+                primaryLoadManager.playFollower();
+            }
+            Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
+                assertEquals(ExtensibleLoadManagerImpl.Role.Leader,
+                        secondaryLoadManager.getRole());
+                assertEquals(ExtensibleLoadManagerImpl.Role.Follower,
+                        primaryLoadManager.getRole());
+
+                assertTrue(secondaryLoadManager.getServiceUnitStateChannel().isChannelOwner());
+                assertFalse(primaryLoadManager.getServiceUnitStateChannel().isChannelOwner());
+            });
+
+        } finally {
+            // clean up for monitor test
+            pulsar1.getLeaderElectionService().start();
+            pulsar2.getLeaderElectionService().start();
+        }
+    }
+
     @Test(timeOut = 30 * 1000, priority = 2000)
     public void testRoleChange() throws Exception {
         makePrimaryAsLeader();
@@ -2146,6 +2223,20 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         private double msgThroughputEMA;
         private long updatedAt;
         private long reportedAt;
+    }
+
+    @Test(timeOut = 30 * 1000)
+    public void testMonitorBrokerRegistry() throws MetadataStoreException {
+        primaryLoadManager.getBrokerRegistry().unregister();
+        assertFalse(primaryLoadManager.getBrokerRegistry().isRegistered());
+        Awaitility.await()
+                .pollInterval(200, TimeUnit.MILLISECONDS)
+                .atMost(30, TimeUnit.SECONDS)
+                .ignoreExceptions()
+                .untilAsserted(() -> { // wait until true
+                    primaryLoadManager.monitor();
+                    assertTrue(primaryLoadManager.getBrokerRegistry().isRegistered());
+                });
     }
 
     private static abstract class MockBrokerFilter implements BrokerFilter {

@@ -142,6 +142,10 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     }
 
     protected ByteBuf getCompressedBatchMetadataAndPayload() {
+        return getCompressedBatchMetadataAndPayload(true);
+    }
+
+    protected ByteBuf getCompressedBatchMetadataAndPayload(boolean clientOperation) {
         int batchWriteIndex = batchedMessageMetadataAndPayload.writerIndex();
         int batchReadIndex = batchedMessageMetadataAndPayload.readerIndex();
 
@@ -169,11 +173,23 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         }
 
         int uncompressedSize = batchedMessageMetadataAndPayload.readableBytes();
-        ByteBuf compressedPayload = compressor.encode(batchedMessageMetadataAndPayload);
-        batchedMessageMetadataAndPayload.release();
-        if (compressionType != CompressionType.NONE) {
-            messageMetadata.setCompression(compressionType);
-            messageMetadata.setUncompressedSize(uncompressedSize);
+        ByteBuf compressedPayload;
+        if (clientOperation && producer != null){
+            if (compressionType != CompressionType.NONE
+                    && uncompressedSize > producer.conf.getCompressMinMsgBodySize()) {
+                compressedPayload = producer.applyCompression(batchedMessageMetadataAndPayload);
+                messageMetadata.setCompression(compressionType);
+                messageMetadata.setUncompressedSize(uncompressedSize);
+            } else {
+                compressedPayload = batchedMessageMetadataAndPayload;
+            }
+        } else {
+            compressedPayload = compressor.encode(batchedMessageMetadataAndPayload);
+            batchedMessageMetadataAndPayload.release();
+            if (compressionType != CompressionType.NONE) {
+                messageMetadata.setCompression(compressionType);
+                messageMetadata.setUncompressedSize(uncompressedSize);
+            }
         }
 
         // Update the current max batch size using the uncompressed size, which is what we need in any case to
@@ -252,7 +268,8 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         if (messages.size() == 1) {
             messageMetadata.clear();
             messageMetadata.copyFrom(messages.get(0).getMessageBuilder());
-            ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata, getCompressedBatchMetadataAndPayload());
+            ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata,
+                    getCompressedBatchMetadataAndPayload());
             updateAndReserveBatchAllocatedSize(encryptedPayload.capacity());
             ByteBufPair cmd = producer.sendMessage(producer.producerId, messageMetadata.getSequenceId(),
                 1, null, messageMetadata, encryptedPayload);
@@ -273,6 +290,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
 
             // handle mgs size check as non-batched in `ProducerImpl.isMessageSizeExceeded`
             if (op.getMessageHeaderAndPayloadSize() > getMaxMessageSize()) {
+                cmd.release();
                 producer.semaphoreRelease(1);
                 producer.client.getMemoryLimitController().releaseMemory(
                         messages.get(0).getUncompressedSize() + batchAllocatedSizeBytes);
@@ -283,15 +301,17 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             lowestSequenceId = -1L;
             return op;
         }
-        ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata, getCompressedBatchMetadataAndPayload());
+        ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata,
+                getCompressedBatchMetadataAndPayload());
         updateAndReserveBatchAllocatedSize(encryptedPayload.capacity());
         if (encryptedPayload.readableBytes() > getMaxMessageSize()) {
+            encryptedPayload.release();
             producer.semaphoreRelease(messages.size());
             messages.forEach(msg -> producer.client.getMemoryLimitController()
                     .releaseMemory(msg.getUncompressedSize()));
             producer.client.getMemoryLimitController().releaseMemory(batchAllocatedSizeBytes);
-            discard(new PulsarClientException.InvalidMessageException(
-                    "Message size is bigger than " + getMaxMessageSize() + " bytes"));
+            discard(new PulsarClientException.InvalidMessageException("Message size "
+                    + encryptedPayload.readableBytes() + " is bigger than " + getMaxMessageSize() + " bytes"));
             return null;
         }
         messageMetadata.setNumMessagesInBatch(numMessagesInBatch);

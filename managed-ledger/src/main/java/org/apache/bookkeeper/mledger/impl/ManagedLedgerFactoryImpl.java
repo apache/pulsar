@@ -104,7 +104,6 @@ import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.Runnables;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -229,7 +228,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 compressionConfigForManagedCursorInfo);
         this.config = config;
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
-        this.entryCacheManager = new RangeEntryCacheManagerImpl(this, openTelemetry);
+        this.entryCacheManager = new RangeEntryCacheManagerImpl(this, scheduledExecutor, openTelemetry);
         this.statsTask = scheduledExecutor.scheduleWithFixedDelay(catchingAndLoggingThrowables(this::refreshStats),
                 0, config.getStatsPeriodSeconds(), TimeUnit.SECONDS);
         this.flushCursorsTask = scheduledExecutor.scheduleAtFixedRate(catchingAndLoggingThrowables(this::flushCursors),
@@ -411,11 +410,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                             new EnsemblePlacementPolicyConfig(config.getBookKeeperEnsemblePlacementPolicyClassName(),
                                     config.getBookKeeperEnsemblePlacementPolicyProperties()))
                     .thenAccept(bk -> {
-                        final ManagedLedgerImpl newledger = config.getShadowSource() == null
-                                ? new ManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name,
-                                mlOwnershipChecker)
-                                : new ShadowManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name,
-                                mlOwnershipChecker);
+                        final ManagedLedgerImpl newledger =
+                                createManagedLedger(bk, store, name, config, mlOwnershipChecker);
                         PendingInitializeManagedLedger pendingLedger = new PendingInitializeManagedLedger(newledger);
                         pendingInitializeLedgers.put(name, pendingLedger);
                         newledger.initialize(new ManagedLedgerInitializeLedgerCallback() {
@@ -441,6 +437,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
                                 // Clean the map if initialization fails
                                 ledgers.remove(name, future);
+                                entryCacheManager.removeEntryCache(name);
 
                                 if (pendingInitializeLedgers.remove(name, pendingLedger)) {
                                     pendingLedger.ledger.asyncClose(new CloseCallback() {
@@ -470,6 +467,14 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     .getManagedLedgerException(FutureUtil.unwrapCompletionException(exception)), ctx);
             return null;
         });
+    }
+
+    protected ManagedLedgerImpl createManagedLedger(BookKeeper bk, MetaStore store, String name,
+                                                    ManagedLedgerConfig config,
+                                                    Supplier<CompletableFuture<Boolean>> mlOwnershipChecker) {
+        return config.getShadowSource() == null
+                ? new ManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name, mlOwnershipChecker) :
+                new ShadowManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name, mlOwnershipChecker);
     }
 
     @Override
@@ -1207,8 +1212,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         BookKeeper bk = getBookKeeper().get();
         final CountDownLatch allCursorsCounter = new CountDownLatch(1);
         final long errorInReadingCursor = -1;
-        ConcurrentOpenHashMap<String, Long> ledgerRetryMap =
-                ConcurrentOpenHashMap.<String, Long>newBuilder().build();
+        final var ledgerRetryMap = new ConcurrentHashMap<String, Long>();
 
         final MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo = ledgers.lastEntry().getValue();
         final Position lastLedgerPosition =

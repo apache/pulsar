@@ -710,9 +710,12 @@ public class ClientCnx extends PulsarHandler {
     @Override
     protected void handleTopicMigrated(CommandTopicMigrated commandTopicMigrated) {
         final long resourceId = commandTopicMigrated.getResourceId();
-        final String serviceUrl = commandTopicMigrated.getBrokerServiceUrl();
-        final String serviceUrlTls = commandTopicMigrated.getBrokerServiceUrlTls();
-
+        final String serviceUrl = commandTopicMigrated.hasBrokerServiceUrl()
+                ? commandTopicMigrated.getBrokerServiceUrl()
+                : null;
+        final String serviceUrlTls = commandTopicMigrated.hasBrokerServiceUrlTls()
+                ? commandTopicMigrated.getBrokerServiceUrlTls()
+                : null;
         HandlerState resource = commandTopicMigrated.getResourceType() == ResourceType.Producer
                 ? producers.get(resourceId)
                 : consumers.get(resourceId);
@@ -922,6 +925,7 @@ public class ClientCnx extends PulsarHandler {
             if (maxLookupRequestSemaphore.tryAcquire()) {
                 waitingLookupRequests.add(Pair.of(requestId, Pair.of(request, future)));
             } else {
+                request.release();
                 if (log.isDebugEnabled()) {
                     log.debug("{} Failed to add lookup-request into waiting queue", requestId);
                 }

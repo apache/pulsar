@@ -715,7 +715,9 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         indexesWriter.write(SNAPSHOT_INDEX, transactionBufferTransactionBufferSnapshotIndexes);
 
         assertTrue(indexesReader.hasMoreEvents());
-        transactionBufferTransactionBufferSnapshotIndexes = indexesReader.readNext().getValue();
+        @Cleanup("release")
+        Message<TransactionBufferSnapshotIndexes> message = indexesReader.readNext();
+        transactionBufferTransactionBufferSnapshotIndexes = message.getValue();
         assertEquals(transactionBufferTransactionBufferSnapshotIndexes.getTopicName(), SNAPSHOT_INDEX);
         assertEquals(transactionBufferTransactionBufferSnapshotIndexes.getIndexList().size(), 5);
         assertNull(transactionBufferTransactionBufferSnapshotIndexes.getSnapshot());
@@ -806,7 +808,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                 //
             }
         };
-        pulsarService.getManagedLedgerFactory()
+        pulsarService.getDefaultManagedLedgerFactory()
                 .asyncOpenReadOnlyManagedLedger(snapshotSegmentTopicName.getPersistenceNamingEncoding(), callback,
                         brokerService.getManagedLedgerConfig(snapshotSegmentTopicName).get(),null);
 

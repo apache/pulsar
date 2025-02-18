@@ -88,14 +88,17 @@ public class TopKBundlesTest {
         var topKBundles = new TopKBundles(pulsar);
         NamespaceBundleStats stats1 = new NamespaceBundleStats();
         stats1.msgRateIn = 100000;
+        stats1.msgThroughputOut = 10;
         bundleStats.put(bundle1, stats1);
 
         NamespaceBundleStats stats2 = new NamespaceBundleStats();
         stats2.msgRateIn = 500;
+        stats2.msgThroughputOut = 10;
         bundleStats.put(bundle2, stats2);
 
         NamespaceBundleStats stats3 = new NamespaceBundleStats();
         stats3.msgRateIn = 10000;
+        stats3.msgThroughputOut = 10;
         bundleStats.put(bundle3, stats3);
 
         NamespaceBundleStats stats4 = new NamespaceBundleStats();
@@ -118,10 +121,12 @@ public class TopKBundlesTest {
         var topKBundles = new TopKBundles(pulsar);
         NamespaceBundleStats stats1 = new NamespaceBundleStats();
         stats1.msgRateIn = 500;
+        stats1.msgThroughputOut = 10;
         bundleStats.put("pulsar/system/0x00000000_0x0FFFFFFF", stats1);
 
         NamespaceBundleStats stats2 = new NamespaceBundleStats();
         stats2.msgRateIn = 10000;
+        stats2.msgThroughputOut = 10;
         bundleStats.put(bundle1, stats2);
 
         topKBundles.update(bundleStats, 2);
@@ -129,6 +134,21 @@ public class TopKBundlesTest {
         assertEquals(topKBundles.getLoadData().getTopBundlesLoadData().size(), 1);
         var top0 = topKBundles.getLoadData().getTopBundlesLoadData().get(0);
         assertEquals(top0.bundleName(), bundle1);
+    }
+
+    @Test
+    public void testZeroMsgThroughputBundleStats() {
+        Map<String, NamespaceBundleStats> bundleStats = new HashMap<>();
+        var topKBundles = new TopKBundles(pulsar);
+        NamespaceBundleStats stats1 = new NamespaceBundleStats();
+        bundleStats.put(bundle1, stats1);
+
+        NamespaceBundleStats stats2 = new NamespaceBundleStats();
+        bundleStats.put(bundle1, stats2);
+
+        topKBundles.update(bundleStats, 2);
+
+        assertEquals(topKBundles.getLoadData().getTopBundlesLoadData().size(), 0);
     }
 
 
@@ -166,10 +186,12 @@ public class TopKBundlesTest {
         var topKBundles = new TopKBundles(pulsar);
         NamespaceBundleStats stats1 = new NamespaceBundleStats();
         stats1.msgRateIn = 500;
+        stats1.msgThroughputOut = 10;
         bundleStats.put(bundle1, stats1);
 
         NamespaceBundleStats stats2 = new NamespaceBundleStats();
         stats2.msgRateIn = 10000;
+        stats2.msgThroughputOut = 10;
         bundleStats.put(bundle2, stats2);
 
         topKBundles.update(bundleStats, 2);
@@ -188,10 +210,12 @@ public class TopKBundlesTest {
         var topKBundles = new TopKBundles(pulsar);
         NamespaceBundleStats stats1 = new NamespaceBundleStats();
         stats1.msgRateIn = 500;
+        stats1.msgThroughputOut = 10;
         bundleStats.put(bundle1, stats1);
 
         NamespaceBundleStats stats2 = new NamespaceBundleStats();
         stats2.msgRateIn = 10000;
+        stats2.msgThroughputOut = 10;
         bundleStats.put(bundle2, stats2);
 
         topKBundles.update(bundleStats, 2);
@@ -213,10 +237,12 @@ public class TopKBundlesTest {
         var topKBundles = new TopKBundles(pulsar);
         NamespaceBundleStats stats1 = new NamespaceBundleStats();
         stats1.msgRateIn = 500;
+        stats1.msgThroughputOut = 10;
         bundleStats.put(bundle1, stats1);
 
         NamespaceBundleStats stats2 = new NamespaceBundleStats();
         stats2.msgRateIn = 10000;
+        stats2.msgThroughputOut = 10;
         bundleStats.put(bundle2, stats2);
 
         topKBundles.update(bundleStats, 2);

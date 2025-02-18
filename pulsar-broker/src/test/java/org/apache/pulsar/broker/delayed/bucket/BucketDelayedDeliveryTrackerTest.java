@@ -51,7 +51,7 @@ import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.pulsar.broker.delayed.AbstractDeliveryTrackerTest;
 import org.apache.pulsar.broker.delayed.MockBucketSnapshotStorage;
 import org.apache.pulsar.broker.delayed.MockManagedCursor;
-import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.awaitility.Awaitility;
 import org.roaringbitmap.RoaringBitmap;
 import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
@@ -74,7 +74,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
     @DataProvider(name = "delayedTracker")
     public Object[][] provider(Method method) throws Exception {
-        dispatcher = mock(PersistentDispatcherMultipleConsumers.class);
+        dispatcher = mock(AbstractPersistentDispatcherMultipleConsumers.class);
         clock = mock(Clock.class);
         clockTime = new AtomicLong();
         when(clock.millis()).then(x -> clockTime.get());

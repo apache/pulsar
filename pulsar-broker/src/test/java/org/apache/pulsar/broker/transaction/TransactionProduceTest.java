@@ -247,7 +247,7 @@ public class TransactionProduceTest extends TransactionTestBase {
             if (partition >= 0) {
                 topic = TopicName.get(topic).toString() + TopicName.PARTITIONED_TOPIC_SUFFIX + partition;
             }
-            return getPulsarServiceList().get(0).getManagedLedgerFactory().openReadOnlyCursor(
+            return getPulsarServiceList().get(0).getDefaultManagedLedgerFactory().openReadOnlyCursor(
                     TopicName.get(topic).getPersistenceNamingEncoding(),
                     PositionFactory.EARLIEST, new ManagedLedgerConfig());
         } catch (Exception e) {

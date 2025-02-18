@@ -70,7 +70,7 @@ public class TransactionMarkerDeleteTest extends TransactionTestBase {
     @Test
     public void testMarkerDeleteTimes() throws Exception {
         ManagedLedgerImpl managedLedger =
-                spy((ManagedLedgerImpl) getPulsarServiceList().get(0).getManagedLedgerFactory().open("test"));
+                spy((ManagedLedgerImpl) getPulsarServiceList().get(0).getDefaultManagedLedgerFactory().open("test"));
         PersistentTopic topic = mock(PersistentTopic.class);
         BrokerService brokerService = mock(BrokerService.class);
         PulsarService pulsarService = mock(PulsarService.class);

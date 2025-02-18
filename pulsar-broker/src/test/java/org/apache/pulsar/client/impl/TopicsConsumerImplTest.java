@@ -139,6 +139,24 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = testTimeout)
+    public void testRetryClusterTopic() throws Exception {
+        String key = "testRetryClusterTopic";
+        final String topicName = "persistent://prop/use/ns-abc1/topic-1-" + key;
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
+        final String namespace = "prop/ns-abc1";
+        admin.tenants().createTenant("prop", tenantInfo);
+        admin.namespaces().createNamespace(namespace, Set.of("test"));
+        Consumer consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("my-sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .enableRetry(true)
+                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                .subscribe();
+        assertTrue(consumer instanceof MultiTopicsConsumerImpl);
+    }
+
+    @Test(timeOut = testTimeout)
     public void testGetConsumersAndGetTopics() throws Exception {
         String key = "TopicsConsumerGet";
         final String subscriptionName = "my-ex-subscription-" + key;
@@ -1356,6 +1374,39 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         for (int i = 0; i < topicCount; i++) {
             admin.topics().createNonPartitionedTopic(topic + "-" + i);
+        }
+
+        CustomizedConsumerEventListener eventListener = new CustomizedConsumerEventListener();
+
+        List<Consumer<?>> consumerList = new ArrayList<>(consumers);
+        for (int i = 0; i < consumers; i++) {
+            consumerList.add(pulsarClient.newConsumer()
+                    .topics(IntStream.range(0, topicCount).mapToObj(j -> topic + "-" + j).toList())
+                    .subscriptionType(SubscriptionType.Failover)
+                    .subscriptionName("my-sub")
+                    .consumerName("consumer-" + i)
+                    .consumerEventListener(eventListener)
+                    .subscribe());
+        }
+
+        log.info("Topics are distributed to consumers as {}", eventListener.getActiveConsumers());
+        Map<String, Integer> assigned = new HashMap<>();
+        eventListener.getActiveConsumers().forEach((k, v) -> assigned.compute(v, (t, c) -> c == null ? 1 : ++ c));
+        assertEquals(assigned.size(), consumers);
+        for (Consumer<?> consumer : consumerList) {
+            consumer.close();
+        }
+    }
+
+    @Test
+    public void testPartitionedTopicDistribution() throws Exception {
+        this.conf.setActiveConsumerFailoverConsistentHashing(true);
+        final String topic = "partitioned-topics-distribution";
+        final int topicCount = 100;
+        final int consumers = 10;
+
+        for (int i = 0; i < topicCount; i++) {
+            admin.topics().createPartitionedTopic(topic + "-" + i, 1);
         }
 
         CustomizedConsumerEventListener eventListener = new CustomizedConsumerEventListener();

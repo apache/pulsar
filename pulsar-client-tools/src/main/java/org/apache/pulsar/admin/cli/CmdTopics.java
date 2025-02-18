@@ -1852,14 +1852,14 @@ public class CmdTopics extends CmdBase {
                 + "-t 120 will set retention to 2 minutes. "
                 + "0 means no retention and -1 means infinite time retention.", required = true,
                 converter = TimeUnitToSecondsConverter.class)
-        private Integer retentionTimeInSec;
+        private Long retentionTimeInSec;
 
         @Option(names = { "--size", "-s" }, description = "Retention size limit with optional size unit suffix. "
                 + "For example, 4096, 10M, 16G, 3T.  The size unit suffix character can be k/K, m/M, g/G, or t/T.  "
                 + "If the size unit suffix is not specified, the default unit is bytes. "
                 + "0 or less than 1MB means no retention and -1 means infinite size retention", required = true,
-                converter = ByteUnitToIntegerConverter.class)
-        private Integer sizeLimit;
+                converter = ByteUnitToLongConverter.class)
+        private Long sizeLimit;
 
         @Override
         void run() throws PulsarAdminException {
@@ -1867,8 +1867,8 @@ public class CmdTopics extends CmdBase {
             final int retentionTimeInMin = retentionTimeInSec != -1
                     ? (int) TimeUnit.SECONDS.toMinutes(retentionTimeInSec)
                     : retentionTimeInSec.intValue();
-            final int retentionSizeInMB = sizeLimit != -1
-                    ? (int) (sizeLimit / (1024 * 1024))
+            final long retentionSizeInMB = sizeLimit != -1
+                    ? (sizeLimit / (1024 * 1024))
                     : sizeLimit;
             getTopics().setRetention(persistentTopic, new RetentionPolicies(retentionTimeInMin, retentionSizeInMB));
         }
@@ -2148,6 +2148,11 @@ public class CmdTopics extends CmdBase {
                 + "(0 means no throttle)")
         private double managedLedgerMaxMarkDeleteRate = 0;
 
+        @Option(names = { "-c",
+                "--ml-storage-class" },
+                description = "Managed ledger storage class name")
+        private String managedLedgerStorageClassName;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
@@ -2159,7 +2164,8 @@ public class CmdTopics extends CmdBase {
                 throw new ParameterException("[--ml-mark-delete-max-rate] cannot less than 0.");
             }
             getTopics().setPersistence(persistentTopic, new PersistencePolicies(bookkeeperEnsemble,
-                    bookkeeperWriteQuorum, bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate));
+                    bookkeeperWriteQuorum, bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate,
+                    managedLedgerStorageClassName));
         }
     }
 

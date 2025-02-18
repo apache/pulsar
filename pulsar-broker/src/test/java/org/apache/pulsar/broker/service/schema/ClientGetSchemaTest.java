@@ -20,8 +20,9 @@ package org.apache.pulsar.broker.service.schema;
 
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.schema.compatibility.SchemaCompatibilityCheckTest.randomName;
-import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -176,5 +177,37 @@ public class ClientGetSchemaTest extends ProducerConsumerBase {
 
         producer.close();
         consumer.close();
+    }
+
+    @Test
+    public void testAddProducerOnDeletedSchemaLedgerTopic() throws Exception {
+        final String tenant = PUBLIC_TENANT;
+        final String namespace = "test-namespace-" + randomName(16);
+        final String topicOne = "test-deleted-schema-ledger";
+        final String fqtnOne = TopicName.get(TopicDomain.persistent.value(), tenant, namespace, topicOne).toString();
+
+        pulsar.getConfig().setSchemaLedgerForceRecovery(true);
+        admin.namespaces().createNamespace(tenant + "/" + namespace, Sets.newHashSet("test"));
+
+        // (1) create topic with schema
+        Producer<Schemas.PersonTwo> producer = pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo> builder().withAlwaysAllowNull(false)
+                        .withSupportSchemaVersioning(true).withPojo(Schemas.PersonTwo.class).build()))
+                .topic(fqtnOne).create();
+
+        producer.close();
+
+        String key = TopicName.get(fqtnOne).getSchemaName();
+        BookkeeperSchemaStorage schemaStrogate = (BookkeeperSchemaStorage) pulsar.getSchemaStorage();
+        long schemaLedgerId = schemaStrogate.getSchemaLedgerList(key).get(0);
+
+        // (2) break schema locator by deleting schema-ledger
+        schemaStrogate.getBookKeeper().deleteLedger(schemaLedgerId);
+
+        admin.topics().unload(fqtnOne);
+
+        Producer<byte[]> producerWihtoutSchema = pulsarClient.newProducer().topic(fqtnOne).create();
+
+        assertNotNull(producerWihtoutSchema);
     }
 }

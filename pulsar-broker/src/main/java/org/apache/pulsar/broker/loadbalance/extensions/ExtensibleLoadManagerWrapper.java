@@ -51,7 +51,7 @@ public class ExtensibleLoadManagerWrapper implements LoadManager {
     }
 
     public boolean started() {
-        return loadManager.started && loadManager.getServiceUnitStateChannel().started();
+        return loadManager.running() && loadManager.getServiceUnitStateChannel().started();
     }
 
     @Override

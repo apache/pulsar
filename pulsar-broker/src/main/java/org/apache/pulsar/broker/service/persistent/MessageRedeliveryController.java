@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import com.google.common.collect.ComparisonChain;
+import static org.apache.pulsar.broker.service.StickyKeyConsumerSelector.STICKY_KEY_HASH_NOT_SET;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableSet;
@@ -41,12 +41,18 @@ import org.apache.pulsar.utils.ConcurrentBitmapSortedLongPairSet;
 public class MessageRedeliveryController {
 
     private final boolean allowOutOfOrderDelivery;
+    private final boolean isClassicDispatcher;
     private final ConcurrentBitmapSortedLongPairSet messagesToRedeliver;
     private final ConcurrentLongLongPairHashMap hashesToBeBlocked;
     private final ConcurrentLongLongHashMap hashesRefCount;
 
     public MessageRedeliveryController(boolean allowOutOfOrderDelivery) {
+        this(allowOutOfOrderDelivery, false);
+    }
+
+    public MessageRedeliveryController(boolean allowOutOfOrderDelivery, boolean isClassicDispatcher) {
         this.allowOutOfOrderDelivery = allowOutOfOrderDelivery;
+        this.isClassicDispatcher = isClassicDispatcher;
         this.messagesToRedeliver = new ConcurrentBitmapSortedLongPairSet();
         if (!allowOutOfOrderDelivery) {
             this.hashesToBeBlocked = ConcurrentLongLongPairHashMap
@@ -65,6 +71,9 @@ public class MessageRedeliveryController {
 
     public void add(long ledgerId, long entryId, long stickyKeyHash) {
         if (!allowOutOfOrderDelivery) {
+            if (!isClassicDispatcher && stickyKeyHash == STICKY_KEY_HASH_NOT_SET) {
+                throw new IllegalArgumentException("Sticky key hash is not set. It is required.");
+            }
             boolean inserted = hashesToBeBlocked.putIfAbsent(ledgerId, entryId, stickyKeyHash, 0);
             if (!inserted) {
                 hashesToBeBlocked.put(ledgerId, entryId, stickyKeyHash, 0);
@@ -108,18 +117,20 @@ public class MessageRedeliveryController {
     }
 
     public void removeAllUpTo(long markDeleteLedgerId, long markDeleteEntryId) {
-        if (!allowOutOfOrderDelivery) {
+        boolean bitsCleared = messagesToRedeliver.removeUpTo(markDeleteLedgerId, markDeleteEntryId + 1);
+        // only if bits have been clear, and we are not allowing out of order delivery, we need to remove the hashes
+        // removing hashes is a relatively expensive operation, so we should only do it when necessary
+        if (bitsCleared && !allowOutOfOrderDelivery) {
             List<LongPair> keysToRemove = new ArrayList<>();
             hashesToBeBlocked.forEach((ledgerId, entryId, stickyKeyHash, none) -> {
-                if (ComparisonChain.start().compare(ledgerId, markDeleteLedgerId).compare(entryId, markDeleteEntryId)
-                        .result() <= 0) {
+                if (ledgerId < markDeleteLedgerId || (ledgerId == markDeleteLedgerId && entryId <= markDeleteEntryId)) {
                     keysToRemove.add(new LongPair(ledgerId, entryId));
                 }
             });
-            keysToRemove.forEach(longPair -> removeFromHashBlocker(longPair.first, longPair.second));
-            keysToRemove.clear();
+            for (LongPair longPair : keysToRemove) {
+                removeFromHashBlocker(longPair.first, longPair.second);
+            }
         }
-        messagesToRedeliver.removeUpTo(markDeleteLedgerId, markDeleteEntryId + 1);
     }
 
     public boolean isEmpty() {
@@ -141,7 +152,7 @@ public class MessageRedeliveryController {
     public boolean containsStickyKeyHashes(Set<Integer> stickyKeyHashes) {
         if (!allowOutOfOrderDelivery) {
             for (Integer stickyKeyHash : stickyKeyHashes) {
-                if (hashesRefCount.containsKey(stickyKeyHash)) {
+                if (stickyKeyHash != STICKY_KEY_HASH_NOT_SET && hashesRefCount.containsKey(stickyKeyHash)) {
                     return true;
                 }
             }
@@ -150,7 +161,8 @@ public class MessageRedeliveryController {
     }
 
     public boolean containsStickyKeyHash(int stickyKeyHash) {
-        return !allowOutOfOrderDelivery && hashesRefCount.containsKey(stickyKeyHash);
+        return !allowOutOfOrderDelivery
+                && stickyKeyHash != STICKY_KEY_HASH_NOT_SET && hashesRefCount.containsKey(stickyKeyHash);
     }
 
     public Optional<Position> getFirstPositionInReplay() {

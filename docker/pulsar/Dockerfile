@@ -17,7 +17,8 @@
 # under the License.
 #
 
-ARG ALPINE_VERSION=3.20
+ARG ALPINE_VERSION=3.21
+ARG IMAGE_JDK_MAJOR_VERSION=21
 
 # First create a stage with just the Pulsar tarball and scripts
 FROM alpine:$ALPINE_VERSION as pulsar
@@ -54,7 +55,7 @@ RUN chmod -R o+rx /pulsar
 RUN echo 'OPTS="$OPTS -Dorg.xerial.snappy.use.systemlib=true"' >> /pulsar/conf/bkenv.sh
 
 ###  Create one stage to include JVM distribution
-FROM amazoncorretto:21-alpine AS jvm
+FROM amazoncorretto:${IMAGE_JDK_MAJOR_VERSION}-alpine${ALPINE_VERSION} AS jvm
 
 RUN apk add --no-cache binutils
 
@@ -74,7 +75,7 @@ ARG SNAPPY_VERSION
 RUN apk add git alpine-sdk util-linux cmake autoconf automake libtool openjdk17 maven curl bash tar
 ENV JAVA_HOME=/usr
 RUN curl -Ls https://github.com/xerial/snappy-java/archive/refs/tags/v$SNAPPY_VERSION.tar.gz | tar zxf - && cd snappy-java-$SNAPPY_VERSION && make clean-native native
-FROM apachepulsar/glibc-base:2.38 as glibc
+
 
 ## Create final stage from Alpine image
 ## and add OpenJDK and Python dependencies (for Pulsar functions)
@@ -89,10 +90,15 @@ RUN apk add --no-cache \
             py3-grpcio \
             py3-yaml \
             gcompat \
+            libgcc \
+            libstdc++ \
+            libuuid \
             ca-certificates \
             procps \
             curl \
-            bind-tools
+            bind-tools \
+            openssl \
+            coreutils
 
 # Upgrade all packages to get latest versions with security fixes
 RUN apk upgrade --no-cache
@@ -121,10 +127,6 @@ fastavro>=1.9.2\n\
 RUN pip3 install --break-system-packages --no-cache-dir --only-binary grpcio -r /requirements.txt
 RUN rm /requirements.txt
 
-# Install GLibc compatibility library
-COPY --from=glibc /root/packages /root/packages
-RUN apk add --allow-untrusted --force-overwrite /root/packages/glibc-*.apk
-
 COPY --from=jvm /opt/jvm /opt/jvm
 ENV JAVA_HOME=/opt/jvm
 
@@ -133,12 +135,14 @@ COPY --from=snappy-java /tmp/libsnappyjava.so /usr/lib/libsnappyjava.so
 # The default is /pulsat/bin and cannot be written.
 ENV PULSAR_PID_DIR=/pulsar/logs
 
-ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
-
 COPY --from=pulsar /pulsar /pulsar
 
 WORKDIR /pulsar
 ENV PATH=$PATH:$JAVA_HOME/bin:/pulsar/bin
+# Use musl libc library for RocksDB
+ENV ROCKSDB_MUSL_LIBC=true
+# Preload gcompat library for glibc compatibility with Netty native libraries
+ENV LD_PRELOAD=/lib/libgcompat.so.0
 
 # The UID must be non-zero. Otherwise, it is arbitrary. No logic should rely on its specific value.
 ARG DEFAULT_USERNAME=pulsar

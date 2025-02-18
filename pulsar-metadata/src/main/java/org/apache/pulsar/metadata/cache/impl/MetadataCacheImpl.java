@@ -30,13 +30,16 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.metadata.api.CacheGetResult;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
@@ -58,18 +61,23 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     private final MetadataStore store;
     private final MetadataStoreExtended storeExtended;
     private final MetadataSerde<T> serde;
+    private final ScheduledExecutorService executor;
+    private final MetadataCacheConfig<T> cacheConfig;
 
     private final AsyncLoadingCache<String, Optional<CacheGetResult<T>>> objCache;
 
-    public MetadataCacheImpl(MetadataStore store, TypeReference<T> typeRef, MetadataCacheConfig<T> cacheConfig) {
-        this(store, new JSONMetadataSerdeTypeRef<>(typeRef), cacheConfig);
+    public MetadataCacheImpl(MetadataStore store, TypeReference<T> typeRef, MetadataCacheConfig<T> cacheConfig,
+                             ScheduledExecutorService executor) {
+        this(store, new JSONMetadataSerdeTypeRef<>(typeRef), cacheConfig, executor);
     }
 
-    public MetadataCacheImpl(MetadataStore store, JavaType type, MetadataCacheConfig<T> cacheConfig) {
-        this(store, new JSONMetadataSerdeSimpleType<>(type), cacheConfig);
+    public MetadataCacheImpl(MetadataStore store, JavaType type, MetadataCacheConfig<T> cacheConfig,
+                             ScheduledExecutorService executor) {
+        this(store, new JSONMetadataSerdeSimpleType<>(type), cacheConfig, executor);
     }
 
-    public MetadataCacheImpl(MetadataStore store, MetadataSerde<T> serde, MetadataCacheConfig<T> cacheConfig) {
+    public MetadataCacheImpl(MetadataStore store, MetadataSerde<T> serde, MetadataCacheConfig<T> cacheConfig,
+                             ScheduledExecutorService executor) {
         this.store = store;
         if (store instanceof MetadataStoreExtended) {
             this.storeExtended = (MetadataStoreExtended) store;
@@ -77,6 +85,8 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
             this.storeExtended = null;
         }
         this.serde = serde;
+        this.cacheConfig = cacheConfig;
+        this.executor = executor;
 
         Caffeine<Object, Object> cacheBuilder = Caffeine.newBuilder();
         if (cacheConfig.getRefreshAfterWriteMillis() > 0) {
@@ -321,22 +331,34 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
         }
     }
 
-    private CompletableFuture<T> executeWithRetry(Supplier<CompletableFuture<T>> op, String key) {
-        CompletableFuture<T> result = new CompletableFuture<>();
+    private void execute(Supplier<CompletableFuture<T>> op, String key, CompletableFuture<T> result, Backoff backoff) {
         op.get().thenAccept(result::complete).exceptionally((ex) -> {
             if (ex.getCause() instanceof BadVersionException) {
                 // if resource is updated by other than metadata-cache then metadata-cache will get bad-version
                 // exception. so, try to invalidate the cache and try one more time.
                 objCache.synchronous().invalidate(key);
-                op.get().thenAccept(result::complete).exceptionally((ex1) -> {
-                    result.completeExceptionally(ex1.getCause());
+                long elapsed = System.currentTimeMillis() - backoff.getFirstBackoffTimeInMillis();
+                if (backoff.isMandatoryStopMade()) {
+                    result.completeExceptionally(new TimeoutException(
+                            String.format("Timeout to update key %s. Elapsed time: %d ms", key, elapsed)));
                     return null;
-                });
+                }
+                final var next = backoff.next();
+                log.info("Update key {} conflicts. Retrying in {} ms. Mandatory stop: {}. Elapsed time: {} ms", key,
+                        next, backoff.isMandatoryStopMade(), elapsed);
+                executor.schedule(() -> execute(op, key, result, backoff), next,
+                        TimeUnit.MILLISECONDS);
                 return null;
             }
             result.completeExceptionally(ex.getCause());
             return null;
         });
+    }
+
+    private CompletableFuture<T> executeWithRetry(Supplier<CompletableFuture<T>> op, String key) {
+        final var backoff = cacheConfig.getRetryBackoff().create();
+        CompletableFuture<T> result = new CompletableFuture<>();
+        execute(op, key, result, backoff);
         return result;
     }
 }

@@ -927,7 +927,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         // verify second ledger created
         String managedLedgerName = ((PersistentTopic)pulsar.getBrokerService().getTopicReference(topic).get())
             .getManagedLedger().getName();
-        ManagedLedgerInfo info = pulsar.getManagedLedgerFactory().getManagedLedgerInfo(managedLedgerName);
+        ManagedLedgerInfo info = pulsar.getDefaultManagedLedgerFactory().getManagedLedgerInfo(managedLedgerName);
         Assert.assertEquals(info.ledgers.size(), 2);
         Assert.assertTrue(ledgersOpened.isEmpty()); // no ledgers should have been opened
 
@@ -950,7 +950,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                     .send();
         }
 
-        info = pulsar.getManagedLedgerFactory().getManagedLedgerInfo(managedLedgerName);
+        info = pulsar.getDefaultManagedLedgerFactory().getManagedLedgerInfo(managedLedgerName);
         Assert.assertEquals(info.ledgers.size(), 3);
 
         // should only have opened the penultimate ledger to get stat

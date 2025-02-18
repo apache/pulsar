@@ -708,7 +708,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         // partitioned topic to more than 10.
         final String nonPartitionTopicName2 = "special-topic-partition-10";
         final String partitionedTopicName = "special-topic";
-        pulsar.getBrokerService().getManagedLedgerFactory()
+        pulsar.getDefaultManagedLedgerFactory()
                 .open(TopicName.get(nonPartitionTopicName2).getPersistenceNamingEncoding());
         doAnswer(invocation -> {
             persistentTopics.namespaceName = NamespaceName.get("tenant", "namespace");
@@ -1031,6 +1031,36 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testRevokePartitionedTopicWithReadonlyPolicies() throws Exception {
+        final String partitionedTopicName = "testRevokePartitionedTopicWithReadonlyPolicies-topic";
+        final int numPartitions = 5;
+        AsyncResponse response = mock(AsyncResponse.class);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.createPartitionedTopic(
+                response, testTenant, testNamespace, partitionedTopicName, numPartitions, true);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+        String role = "role";
+        Set<AuthAction> expectActions = new HashSet<>();
+        expectActions.add(AuthAction.produce);
+        response = mock(AsyncResponse.class);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.grantPermissionsOnTopic(response, testTenant, testNamespace, partitionedTopicName, role,
+                expectActions);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+        response = mock(AsyncResponse.class);
+        doReturn(CompletableFuture.failedFuture(
+                new RestException(Response.Status.FORBIDDEN,  "Broker is forbidden to do read-write operations"))
+        ).when(persistentTopics).validatePoliciesReadOnlyAccessAsync();
+        persistentTopics.revokePermissionsOnTopic(response, testTenant, testNamespace, partitionedTopicName, role);
+        ArgumentCaptor<RestException> exceptionCaptor = ArgumentCaptor.forClass(RestException.class);
+        verify(response, timeout(5000).times(1)).resume(exceptionCaptor.capture());
+        Assert.assertEquals(exceptionCaptor.getValue().getResponse().getStatus(),
+                Response.Status.FORBIDDEN.getStatusCode());
+    }
+
+    @Test
     public void testTriggerCompactionTopic() {
         final String partitionTopicName = "test-part";
         final String nonPartitionTopicName = "test-non-part";
@@ -1227,11 +1257,12 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         admin.topics().createPartitionedTopic(topicName, 2);
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        ProducerImpl<String> producer = (ProducerImpl<String>) pulsarClient.newProducer(Schema.STRING)
                 .producerName("testExamineMessageMetadataProducer")
                 .compressionType(CompressionType.LZ4)
                 .topic(topicName + "-partition-0")
                 .create();
+        producer.getConfiguration().setCompressMinMsgBodySize(1);
 
         producer.newMessage()
                 .keyBytes("partition123".getBytes())
@@ -1388,6 +1419,10 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         });
         Assert.expectThrows(PulsarAdminException.NotFoundException.class, () -> {
             admin.topics().getMessageById(topicName1, id2.getLedgerId(), id2.getEntryId());
+        });
+
+        Assert.expectThrows(PulsarAdminException.ServerSideErrorException.class, () -> {
+            admin.topics().getMessageById(topicName1, id1.getLedgerId(), id1.getEntryId() + 10);
         });
     }
 
@@ -1904,5 +1939,77 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(cursor.getCursorProperties().size(), 1);
         assertEquals(cursor.getCursorProperties().get("foo"), "bar");
+    }
+
+    @Test
+    public void testPeekMessageWithProperties() throws Exception {
+        String topicName = "persistent://" + testTenant + "/" + testNamespaceLocal + "/testPeekMessageWithProperties";
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        // Test non-batch messages
+        @Cleanup
+        Producer<String> nonBatchProducer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+
+        Map<String, String> props1 = new HashMap<>();
+        props1.put("key1", "value1");
+        props1.put("KEY2", "VALUE2");
+        props1.put("KeY3", "VaLuE3");
+
+        nonBatchProducer.newMessage()
+                .properties(props1)
+                .value("non-batch-message")
+                .send();
+
+        Message<byte[]> peekedMessage = admin.topics().peekMessages(topicName, "sub-peek", 1).get(0);
+        assertEquals(new String(peekedMessage.getData()), "non-batch-message");
+        assertEquals(peekedMessage.getProperties().size(), 3);
+        assertEquals(peekedMessage.getProperties().get("key1"), "value1");
+        assertEquals(peekedMessage.getProperties().get("KEY2"), "VALUE2");
+        assertEquals(peekedMessage.getProperties().get("KeY3"), "VaLuE3");
+
+        admin.topics().truncate(topicName);
+
+        // Test batch messages
+        @Cleanup
+        Producer<String> batchProducer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableBatching(true)
+                .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
+                .batchingMaxMessages(2)
+                .create();
+
+        Map<String, String> props2 = new HashMap<>();
+        props2.put("batch-key1", "batch-value1");
+        props2.put("BATCH-KEY2", "BATCH-VALUE2");
+        props2.put("BaTcH-kEy3", "BaTcH-vAlUe3");
+
+        batchProducer.newMessage()
+                .properties(props2)
+                .value("batch-message-1")
+                .sendAsync();
+
+        batchProducer.newMessage()
+                .properties(props2)
+                .value("batch-message-2")
+                .send();
+
+        List<Message<byte[]>> peekedMessages = admin.topics().peekMessages(topicName, "sub-peek", 2);
+        assertEquals(peekedMessages.size(), 2);
+
+        for (int i = 0; i < 2; i++) {
+            Message<byte[]> batchMessage = peekedMessages.get(i);
+            assertEquals(new String(batchMessage.getData()), "batch-message-" + (i + 1));
+            assertEquals(batchMessage.getProperties().size(),
+                    3 + 2 // 3 properties from the message + 2 properties from the batch
+            );
+            assertEquals(batchMessage.getProperties().get("X-Pulsar-num-batch-message"), "2");
+            assertNotNull(batchMessage.getProperties().get("X-Pulsar-batch-size"));
+            assertEquals(batchMessage.getProperties().get("batch-key1"), "batch-value1");
+            assertEquals(batchMessage.getProperties().get("BATCH-KEY2"), "BATCH-VALUE2");
+            assertEquals(batchMessage.getProperties().get("BaTcH-kEy3"), "BaTcH-vAlUe3");
+        }
     }
 }

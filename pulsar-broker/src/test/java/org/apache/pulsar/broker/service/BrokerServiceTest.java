@@ -76,8 +76,8 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.impl.NonAppendableLedgerOffloader;
+import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -103,6 +103,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
@@ -1451,7 +1452,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         ledgerField.setAccessible(true);
         @SuppressWarnings("unchecked")
         ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers = (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>) ledgerField
-                .get(pulsar.getManagedLedgerFactory());
+                .get(pulsar.getDefaultManagedLedgerFactory());
         CompletableFuture<ManagedLedgerImpl> future = new CompletableFuture<>();
         future.completeExceptionally(new ManagedLedgerException("ledger opening failed"));
         ledgers.put(namespace + "/persistent/deadLockTestTopic", future);
@@ -1517,8 +1518,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
-        ManagedLedgerFactoryImpl mlFactory = (ManagedLedgerFactoryImpl) pulsar.getManagedLedgerClientFactory()
-                .getManagedLedgerFactory();
+        ManagedLedgerFactoryImpl mlFactory = (ManagedLedgerFactoryImpl) pulsar.getDefaultManagedLedgerFactory();
         Field ledgersField = ManagedLedgerFactoryImpl.class.getDeclaredField("ledgers");
         ledgersField.setAccessible(true);
         ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers = (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>) ledgersField
@@ -1791,6 +1791,47 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @Test
+    public void testBlockedConsumerOnUnackedMsgs() throws Exception {
+        final String ns = "prop/ns-test";
+        admin.namespaces().createNamespace(ns, 2);
+        admin.namespaces().setMaxUnackedMessagesPerConsumer(ns, 1);
+
+        final String topicName = "persistent://prop/ns-test/testBlockedConsumerOnUnackedMsgs";
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .create();
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("sub-test")
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscriptionType(SubscriptionType.Shared)
+                .isAckReceiptEnabled(true)
+                .receiverQueueSize(0)
+                .subscribe();
+
+        producer.send("1".getBytes(StandardCharsets.UTF_8));
+        producer.send("2".getBytes(StandardCharsets.UTF_8));
+
+        // 1. receive message
+        Message<byte[]> message = consumer.receive();
+        Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
+
+        SubscriptionStats subscriptionStats = admin.topics().getStats(topicName).getSubscriptions().get("sub-test");
+        assertEquals(subscriptionStats.getUnackedMessages(), 1);
+        assertTrue(subscriptionStats.getConsumers().get(0).isBlockedConsumerOnUnackedMsgs());
+
+        // 2、ack this message
+        consumer.acknowledge(message);
+        Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
+
+        subscriptionStats = admin.topics().getStats(topicName).getSubscriptions().get("sub-test");
+        assertEquals(subscriptionStats.getUnackedMessages(), 0);
+        assertFalse(subscriptionStats.getConsumers().get(0).isBlockedConsumerOnUnackedMsgs());
+    }
+
+    @Test
     public void testUnsubscribeNonDurableSub() throws Exception {
         final String ns = "prop/ns-test";
         final String topic = ns + "/testUnsubscribeNonDurableSub";
@@ -1917,5 +1958,49 @@ public class BrokerServiceTest extends BrokerTestBase {
             }
         }
     }
+
+    @Test
+    public void testTlsWithAuthParams() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/newTopic";
+        final String subName = "newSub";
+        Authentication auth;
+
+        Set<String> providers = new HashSet<>();
+        providers.add("org.apache.pulsar.broker.authentication.AuthenticationProviderTls");
+
+        conf.setAuthenticationEnabled(true);
+        conf.setAuthenticationProviders(providers);
+        conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setWebServicePortTls(Optional.of(0));
+        conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
+        conf.setTlsAllowInsecureConnection(false);
+        conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+        conf.setNumExecutorThreadPoolSize(5);
+        restartBroker();
+
+        String authParam = String.format("tlsCertFile:%s,tlsKeyFile:%s", getTlsFileForClient("admin.cert"),
+                getTlsFileForClient("admin.key-pk8"));
+        String authClassName = "org.apache.pulsar.client.impl.auth.AuthenticationTls";
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl(brokerUrlTls.toString());
+        conf.setAuthParams(authParam);
+        conf.setAuthPluginClassName(authClassName);
+        conf.setTlsAllowInsecureConnection(true);
+
+        PulsarClient pulsarClient = null;
+        try {
+            pulsarClient = (new ClientBuilderImpl(conf)).build();
+
+            @Cleanup
+            Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                    .subscribe();
+        } catch (Exception e) {
+            fail("should not fail");
+        } finally {
+            pulsarClient.close();
+        }
+    }
+
 }
 
