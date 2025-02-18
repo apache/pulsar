@@ -114,7 +114,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String data = "data";
-        String path = "/non-existing-key";
+        String path = "/concurrentPutTest";
         int concurrent = 50;
         List<CompletableFuture<Stat>> futureList = new ArrayList<>();
         for (int i = 0; i < concurrent; i++) {
