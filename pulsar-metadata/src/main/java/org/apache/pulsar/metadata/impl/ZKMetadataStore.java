@@ -19,7 +19,6 @@
 package org.apache.pulsar.metadata.impl;
 
 import com.google.common.annotations.VisibleForTesting;
-import java.io.File;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
@@ -604,8 +603,10 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
             if (rc != Code.NONODE.intValue()) {
                 callback.processResult(rc, path, ctx, name);
             } else {
-                String parent = (new File(originalPath)).getParent().replace("\\", "/");
-
+                String parent = parent(originalPath);
+                if (parent == null) {
+                    parent = "/";
+                }
                 // Create parent nodes as "CONTAINER" so that ZK will automatically delete them when they're empty
                 asyncCreateFullPathOptimistic(zk, parent, new byte[0], CreateMode.CONTAINER,
                         (rc1, path1, ctx1, name1) -> {
