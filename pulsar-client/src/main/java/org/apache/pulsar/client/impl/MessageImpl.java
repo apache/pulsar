@@ -38,6 +38,7 @@ import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.Getter;
+import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
@@ -778,6 +779,10 @@ public class MessageImpl<T> implements Message<T> {
 
     int getUncompressedSize() {
         return uncompressedSize;
+    }
+
+    CompressionType getCompressionType() {
+        return CompressionType.valueOf(msgMetadata.getCompression().name());
     }
 
     SchemaState getSchemaState() {
