@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.LongAdder;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -43,6 +44,9 @@ public abstract class DispatchRateLimiter {
     protected final Type type;
 
     protected final BrokerService brokerService;
+    
+    private final LongAdder dispatchThrottleMsgCount = new LongAdder();
+    private final LongAdder dispatchThrottleBytesCount = new LongAdder();
 
     protected DispatchRateLimiter(PersistentTopic topic, String subscriptionName, Type type) {
         this.topic = topic;
@@ -206,6 +210,22 @@ public abstract class DispatchRateLimiter {
 
     public abstract void close();
 
+    public long getDispatchThrottleMsgCount() {
+        return dispatchThrottleMsgCount.longValue();
+    }
+
+    public long getDispatchThrottleBytesCount() {
+        return dispatchThrottleBytesCount.longValue();
+    }
+    
+    public void increaseDispatchThrottleMsgCount() {
+        dispatchThrottleMsgCount.increment();
+    }
+    
+    public void increaseDispatchThrottleBytesCount() {
+        dispatchThrottleBytesCount.increment();
+    }
+    
     public static boolean isDispatchRateEnabled(DispatchRate dispatchRate) {
         return dispatchRate != null && (dispatchRate.getDispatchThrottlingRateInMsg() > 0
                 || dispatchRate.getDispatchThrottlingRateInByte() > 0);

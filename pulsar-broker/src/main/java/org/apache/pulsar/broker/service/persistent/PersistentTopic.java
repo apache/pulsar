@@ -2653,6 +2653,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         stats.backlogQuotaLimitSize = getBacklogQuota(BacklogQuotaType.destination_storage).getLimitSize();
         stats.backlogQuotaLimitTime = getBacklogQuota(BacklogQuotaType.message_age).getLimitTime();
+        stats.dispatchThrottledMsgCount = getDispatchRateLimiter()
+                .map(DispatchRateLimiter::getDispatchThrottleMsgCount).orElse(-1L);
+        stats.dispatchThrottledBytesCount = getDispatchRateLimiter()
+                .map(DispatchRateLimiter::getDispatchThrottleBytesCount).orElse(-1L);
 
         stats.oldestBacklogMessageAgeSeconds = getBestEffortOldestUnacknowledgedMessageAgeSeconds();
         stats.oldestBacklogMessageSubscriptionName = (oldestPositionInfo == null)

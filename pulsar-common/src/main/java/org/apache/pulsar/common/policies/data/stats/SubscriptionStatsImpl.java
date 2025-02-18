@@ -168,6 +168,10 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
 
     public long filterRescheduledMsgCount;
 
+    public long dispatchThrottledMsgCount;
+
+    public long dispatchThrottledBytesCount;
+
     public SubscriptionStatsImpl() {
         this.consumers = new ArrayList<>();
         this.consumersAfterMarkDeletePosition = new LinkedHashMap<>();
@@ -208,6 +212,8 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         filterAcceptedMsgCount = 0;
         filterRejectedMsgCount = 0;
         filterRescheduledMsgCount = 0;
+        dispatchThrottledMsgCount = 0;
+        dispatchThrottledBytesCount = 0;
         bucketDelayedIndexStats.clear();
     }
 
@@ -267,6 +273,8 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         this.filterAcceptedMsgCount += stats.filterAcceptedMsgCount;
         this.filterRejectedMsgCount += stats.filterRejectedMsgCount;
         this.filterRescheduledMsgCount += stats.filterRescheduledMsgCount;
+        this.dispatchThrottledMsgCount += stats.dispatchThrottledMsgCount;
+        this.dispatchThrottledBytesCount += stats.dispatchThrottledBytesCount;
         stats.bucketDelayedIndexStats.forEach((k, v) -> {
             TopicMetricBean topicMetricBean =
                     this.bucketDelayedIndexStats.computeIfAbsent(k, __ -> new TopicMetricBean());

@@ -31,6 +31,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopicMetrics;
 import org.apache.pulsar.broker.service.persistent.PersistentTopicMetrics.BacklogQuotaMetrics;
@@ -118,7 +119,7 @@ public class NamespaceStatsAggregator {
             printTopicsCountStats(stream, localNamespaceTopicCount, cluster);
         }
 
-        printBrokerStats(stream, cluster, brokerStats);
+        printBrokerStats(stream, cluster, brokerStats, pulsar);
     }
 
     private static Optional<CompactorMXBean> getCompactorMXBean(PulsarService pulsar) {
@@ -159,6 +160,8 @@ public class NamespaceStatsAggregator {
         subsStats.filterAcceptedMsgCount = subscriptionStats.filterAcceptedMsgCount;
         subsStats.filterRejectedMsgCount = subscriptionStats.filterRejectedMsgCount;
         subsStats.filterRescheduledMsgCount = subscriptionStats.filterRescheduledMsgCount;
+        subsStats.dispatchThrottledMsgCount = subscriptionStats.dispatchThrottledMsgCount;
+        subsStats.dispatchThrottledBytesCount = subscriptionStats.dispatchThrottledBytesCount;
         subsStats.delayedMessageIndexSizeInBytes = subscriptionStats.delayedMessageIndexSizeInBytes;
         subsStats.bucketDelayedIndexStats = subscriptionStats.bucketDelayedIndexStats;
     }
@@ -206,6 +209,11 @@ public class NamespaceStatsAggregator {
                     backlogQuotaMetrics.getSizeBasedBacklogQuotaExceededEvictionCount();
             stats.timeBasedBacklogQuotaExceededEvictionCount =
                     backlogQuotaMetrics.getTimeBasedBacklogQuotaExceededEvictionCount();
+
+            stats.dispatchThrottledMsgCount = persistentTopic.getDispatchRateLimiter()
+                    .map(DispatchRateLimiter::getDispatchThrottleMsgCount).orElse(-1L);
+            stats.dispatchThrottledBytesCount = persistentTopic.getDispatchRateLimiter()
+                    .map(DispatchRateLimiter::getDispatchThrottleBytesCount).orElse(-1L);
         }
 
         TopicStatsImpl tStatus = topic.getStats(getPreciseBacklog, subscriptionBacklogSize, false);
@@ -339,7 +347,7 @@ public class NamespaceStatsAggregator {
     }
 
     private static void printBrokerStats(PrometheusMetricStreams stream, String cluster,
-                                         AggregatedBrokerStats brokerStats) {
+                                         AggregatedBrokerStats brokerStats, PulsarService pulsar) {
         // Print metrics values. This is necessary to have the available brokers being
         // reported in the brokers dashboard even if they don't have any topic or traffic
         writeMetric(stream, "pulsar_broker_topics_count", brokerStats.topicsCount, cluster);
@@ -375,6 +383,12 @@ public class NamespaceStatsAggregator {
                 userTopicInBytes, cluster, "system_topic", "false");
         writeMetric(stream, "pulsar_broker_in_bytes_total",
                 brokerStats.systemTopicBytesInCounter, cluster, "system_topic", "true");
+
+        DispatchRateLimiter brokerDispatchRateLimiter = pulsar.getBrokerService().getBrokerDispatchRateLimiter();
+        writeMetric(stream, "pulsar_broker_dispatch_throttled_msg_count",
+                brokerDispatchRateLimiter.getDispatchThrottleMsgCount(), cluster);
+        writeMetric(stream, "pulsar_broker_dispatch_throttled_bytes_count",
+                brokerDispatchRateLimiter.getDispatchThrottleBytesCount(), cluster);
     }
 
     private static void printTopicsCountStats(PrometheusMetricStreams stream, Map<String, Long> namespaceTopicsCount,
@@ -429,6 +443,11 @@ public class NamespaceStatsAggregator {
 
         writeMetric(stream, "pulsar_delayed_message_index_size_bytes", stats.delayedMessageIndexSizeInBytes, cluster,
                 namespace);
+
+        writeMetric(stream, "pulsar_dispatch_throttled_msg_count", stats.dispatchThrottledMsgCount,
+                cluster, namespace);
+        writeMetric(stream, "pulsar_dispatch_throttled_bytes_count", stats.dispatchThrottledBytesCount,
+                cluster, namespace);
 
         stats.bucketDelayedIndexStats.forEach((k, metric) -> {
             String[] labels = ArrayUtils.addAll(new String[]{"namespace", namespace}, metric.labelsAndValues);
