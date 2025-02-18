@@ -136,6 +136,46 @@ public class RetryTopicTest extends ProducerConsumerBase {
         checkConsumer.close();
     }
 
+    /**
+     * Retry topic feature relies on the delay queue feature when consumer produce a delayed message
+     * to the retry topic. The delay queue feature is only supported in shared and key-shared subscription type.
+     * As a result, the subscription type of the retry topic should be shared or key-shared.
+     * @throws Exception
+     */
+    @Test
+    public void testRetryTopicWithExclusiveMode() throws Exception {
+        final String topic = "persistent://my-property/my-ns/retry-topic-exclusive";
+        final int maxRedeliveryCount = 2;
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName("my-subscription")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .enableRetry(true)
+                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
+                .receiverQueueSize(100)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+                .topic(topic)
+                .create();
+
+        producer.send("Hello Pulsar".getBytes());
+        producer.close();
+
+        // receive message and set delay to 5 seconds
+        Message<byte[]> message = consumer.receive();
+        long timestamp = System.currentTimeMillis();
+        consumer.reconsumeLater(message, 4, TimeUnit.SECONDS);
+
+        // receive message and check the delay is at least 4 seconds
+        consumer.receive();
+        long delay = System.currentTimeMillis() - timestamp;
+        assertTrue(delay >= 2000);
+        consumer.close();
+    }
+
     @Data
     public static class Foo {
         @Nullable
