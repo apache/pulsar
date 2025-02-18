@@ -2614,9 +2614,7 @@ public class BrokerService implements Closeable {
                 configFieldWrapper.field.set(pulsar.getConfiguration(), newValue);
             } else {
                 // This case only occurs when it is a customized item.
-                // See: https://github.com/apache/pulsar/blob/
-              
-              /pip/pip-300.md.
+                // See: https://github.com/apache/pulsar/blob/pip/pip-300.md.
                 log.info("Skip update customized dynamic configuration {}/{} in memory, only trigger an event"
                         + " listeners.", configKey, newValueStr);
                 existingValue = configFieldWrapper.lastDynamicValue;
