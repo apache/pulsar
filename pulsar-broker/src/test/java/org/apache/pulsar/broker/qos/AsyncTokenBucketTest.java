@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.qos;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.testng.annotations.BeforeMethod;
@@ -46,6 +47,29 @@ public class AsyncTokenBucketTest {
 
     private void incrementMillis(long millis) {
         manualClockSource.addAndGet(TimeUnit.MILLISECONDS.toNanos(millis));
+    }
+
+    @Test
+    void testAsyncTokenWithMultiCall() throws Exception {
+        int rate = 2000;
+        int resolutionTimeNano = 8;
+        asyncTokenBucket = AsyncTokenBucket.builder().rate(rate).ratePeriodNanos(TimeUnit.SECONDS.toNanos(1)).clock(
+                new DefaultMonotonicSnapshotClock(TimeUnit.MILLISECONDS.toNanos(resolutionTimeNano), System::nanoTime))
+                .build();
+
+        for (int i = 0; i < (1000); i++) {
+            for (int j = 0; j < (1000); j++) {
+                long token = asyncTokenBucket.getTokens();
+                if (token < 0) {
+                    // sleep to allow add new more tokens
+                    Thread.sleep(resolutionTimeNano * 5);
+                    assertTrue(asyncTokenBucket.getTokens() > 0);
+                }
+                // calling consumeTokens iteratively to simulate calling this method multiple times from multiple
+                // threads
+                asyncTokenBucket.consumeTokens(100);
+            }
+        }
     }
 
     @Test

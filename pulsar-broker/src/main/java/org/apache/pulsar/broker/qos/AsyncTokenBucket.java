@@ -193,12 +193,15 @@ public abstract class AsyncTokenBucket {
             // calculate the token delta by subtracting the consumed tokens from the new tokens
             long tokenDelta = newTokens - currentPendingConsumedTokens;
             if (tokenDelta != 0 || consumeTokens != 0) {
+                // prevent tokens to become excessive -ve where it can't recover
+                long cT = tokens < 0 ?  0 : consumeTokens;
                 // update the tokens and return the current token value
-                return TOKENS_UPDATER.updateAndGet(this,
+                long availableTokens = TOKENS_UPDATER.updateAndGet(this,
                         // limit the tokens to the capacity of the bucket
-                        currentTokens -> Math.min(currentTokens + tokenDelta, getCapacity())
+                        currentTokens -> Math.min(currentTokens + Math.max(0, tokenDelta), getCapacity())
                                 // subtract the consumed tokens from the capped tokens
-                                - consumeTokens);
+                                - cT);
+                return availableTokens;
             } else {
                 return tokens;
             }
