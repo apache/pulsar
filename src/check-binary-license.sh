@@ -66,6 +66,11 @@ for J in $JARS; do
         continue
     fi
 
+    echo $J | grep -q "com.datastax.oss"
+    if [ $? == 0 ]; then
+        continue
+    fi
+
     echo "$LICENSE" | grep -q $J
     if [ $? != 0 ]; then
         echo $J unaccounted for in LICENSE
