@@ -153,18 +153,6 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
                 .toArray(Object[][]::new);
     }
 
-    @DataProvider(name = "zkImpls")
-    public Object[][] zkImplementations() {
-        return filterImplementations("ZooKeeper", "MockZooKeeper");
-    }
-
-    protected Object[][] filterImplementations(String... providers) {
-        Set<String> providersSet = Set.of(providers);
-        return Arrays.stream(allImplementations())
-                .filter(impl -> providersSet.contains(impl[0]))
-                .toArray(Object[][]::new);
-    }
-
     private synchronized String getEtcdClusterConnectString() {
         if (!running) {
             return null;
