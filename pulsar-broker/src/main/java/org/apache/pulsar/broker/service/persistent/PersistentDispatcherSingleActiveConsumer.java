@@ -350,7 +350,8 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 final Consumer activeConsumer = getActiveConsumer();
                 if (consumer != activeConsumer) {
                     log.info("[{}] cancel the readMoreEntries because consumer {} is no longer the active consumer {}",
-                            topic.getName(), consumer.consumerName(), activeConsumer.consumerName());
+                            topic.getName(), consumer.consumerName(),
+                            activeConsumer != null ? activeConsumer.consumerName() : null);
                     return;
                 }
                 if (havePendingRead) {
