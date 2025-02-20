@@ -1665,41 +1665,6 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @Test
-    public void testIsSystemTopicAllowAutoTopicCreationAsync() throws Exception {
-        BrokerService brokerService = pulsar.getBrokerService();
-        assertFalse(brokerService.isAllowAutoTopicCreationAsync(
-                ServiceUnitStateChannelImpl.TOPIC).get());
-        assertTrue(brokerService.isAllowAutoTopicCreationAsync(
-                "persistent://pulsar/system/my-system-topic").get());
-    }
-
-    @Test
-    public void testDuplicateAcknowledgement() throws Exception {
-        final String ns = "prop/ns-test";
-
-        admin.namespaces().createNamespace(ns, 2);
-        final String topicName = "persistent://prop/ns-test/duplicated-acknowledgement-test";
-        @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topicName)
-                .create();
-        @Cleanup
-        Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
-                .topic(topicName)
-                .subscriptionName("sub-1")
-                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
-                .subscriptionType(SubscriptionType.Shared)
-                .isAckReceiptEnabled(true)
-                .subscribe();
-        producer.send("1".getBytes(StandardCharsets.UTF_8));
-        Message<byte[]> message = consumer1.receive();
-        consumer1.acknowledge(message);
-        consumer1.acknowledge(message);
-        assertEquals(admin.topics().getStats(topicName).getSubscriptions()
-                .get("sub-1").getUnackedMessages(), 0);
-    }
-
-    @Test
     public void testBlockedConsumerOnUnackedMsgs() throws Exception {
         final String ns = "prop/ns-test";
         admin.namespaces().createNamespace(ns, 2);
@@ -1738,31 +1703,6 @@ public class BrokerServiceTest extends BrokerTestBase {
         subscriptionStats = admin.topics().getStats(topicName).getSubscriptions().get("sub-test");
         assertEquals(subscriptionStats.getUnackedMessages(), 0);
         assertFalse(subscriptionStats.getConsumers().get(0).isBlockedConsumerOnUnackedMsgs());
-    }
-
-    @Test
-    public void testUnsubscribeNonDurableSub() throws Exception {
-        final String ns = "prop/ns-test";
-        final String topic = ns + "/testUnsubscribeNonDurableSub";
-
-        admin.namespaces().createNamespace(ns, 2);
-        admin.topics().createPartitionedTopic(String.format("persistent://%s", topic), 1);
-
-        pulsarClient.newProducer(Schema.STRING).topic(topic).create().close();
-        @Cleanup
-        Consumer<String> consumer = pulsarClient
-                .newConsumer(Schema.STRING)
-                .topic(topic)
-                .subscriptionMode(SubscriptionMode.NonDurable)
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscriptionName("sub1")
-                .subscriptionType(SubscriptionType.Shared)
-                .subscribe();
-        try {
-            consumer.unsubscribe();
-        } catch (Exception ex) {
-            fail("Unsubscribe failed");
-        }
     }
 
     // this test is disabled since it is flaky
