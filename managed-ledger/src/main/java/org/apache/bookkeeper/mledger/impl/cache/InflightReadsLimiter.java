@@ -86,7 +86,7 @@ public class InflightReadsLimiter implements AutoCloseable {
         this.maxReadsInFlightAcquireQueueSize = maxReadsInFlightAcquireQueueSize;
         if (maxReadsInFlightSize > 0) {
             enabled = true;
-            this.queuedHandles = new ArrayDeque<>(maxReadsInFlightAcquireQueueSize);
+            this.queuedHandles = new ArrayDeque<>();
         } else {
             enabled = false;
             this.queuedHandles = null;
