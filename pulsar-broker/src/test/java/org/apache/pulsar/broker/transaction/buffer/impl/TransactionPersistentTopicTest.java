@@ -83,7 +83,7 @@ public class TransactionPersistentTopicTest extends ProducerConsumerBase {
             }).when(abortedTxnProcessor).recoverFromSnapshot();
             when(abortedTxnProcessor.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
             return new TopicTransactionBuffer(
-                    (PersistentTopic) originTopic, abortedTxnProcessor);
+                    (PersistentTopic) originTopic, abortedTxnProcessor, AbortedTxnProcessor.SnapshotType.Single);
         };
         TransactionBufferProvider originalTransactionBufferProvider = pulsar.getTransactionBufferProvider();
         pulsar.setTransactionBufferProvider(mockTransactionBufferProvider);
