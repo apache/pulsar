@@ -127,6 +127,10 @@ public interface Topic {
         default void setEntryTimestamp(long entryTimestamp) {
 
         }
+
+        default boolean supportsReplDedupByLidAndEid() {
+            return false;
+        }
     }
 
     CompletableFuture<Void> initialize();
