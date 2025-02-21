@@ -24,6 +24,7 @@ import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLed
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_RETRIES;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
+import static org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl.BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
@@ -3830,7 +3831,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                     // Only read 1 entry if no entries to read.
                     return 1;
                 }
-                long avg = Math.max(1, ml.getCurrentLedgerSize() / ml.getCurrentLedgerEntries());
+                long avg = Math.max(1, ml.getCurrentLedgerSize() / ml.getCurrentLedgerEntries())
+                        + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
                 result += remainingBytesSize / avg;
                 break;
             }
@@ -3841,7 +3843,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 continue;
             }
             // Calculate entries by average of ledgers.
-            long avg = Math.max(1, ledgerInfo.getSize() / ledgerInfo.getEntries());
+            long avg = Math.max(1, ledgerInfo.getSize() / ledgerInfo.getEntries()) + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
             long remainEntriesOfLedger = ledgerInfo.getEntries() - posToRead.getEntryId();
             if (remainEntriesOfLedger * avg >= remainingBytesSize) {
                 result += remainingBytesSize / avg;

@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl.BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
@@ -5170,8 +5171,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     public void testEstimateEntryCountBySize() throws Exception {
         final String mlName = "ml-" + UUID.randomUUID().toString().replaceAll("-", "");
         ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName);
-        // Verify: no entry to read
-
         long entryCount0 =
                 ManagedCursorImpl.estimateEntryCountBySize(16, PositionFactory.create(ml.getCurrentLedger().getId(), 0), ml);
         assertEquals(entryCount0, 1);
@@ -5197,48 +5196,48 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         long ledger3 = ml.getCurrentLedger().getId();
         MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo1 = ml.getLedgersInfo().get(ledger1);
         MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo2 = ml.getLedgersInfo().get(ledger2);
-        long average1 = ledgerInfo1.getSize() / ledgerInfo1.getEntries();
-        long average2 = ledgerInfo2.getSize() / ledgerInfo2.getEntries();
-        long average3 = ml.getCurrentLedgerSize() / ml.getCurrentLedgerEntries();
-        assertEquals(average1, 1);
-        assertEquals(average2, 2);
-        assertEquals(average3, 4);
+        long average1 = ledgerInfo1.getSize() / ledgerInfo1.getEntries() + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
+        long average2 = ledgerInfo2.getSize() / ledgerInfo2.getEntries() + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
+        long average3 = ml.getCurrentLedgerSize() / ml.getCurrentLedgerEntries() + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
+        assertEquals(average1, 1 + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY);
+        assertEquals(average2, 2 + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY);
+        assertEquals(average3, 4 + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY);
 
         // Test: the individual ledgers.
         long entryCount1 =
-                ManagedCursorImpl.estimateEntryCountBySize(16, PositionFactory.create(ledger1, 0), ml);
+                ManagedCursorImpl.estimateEntryCountBySize(average1 * 16, PositionFactory.create(ledger1, 0), ml);
         assertEquals(entryCount1, 16);
         long entryCount2 =
-                ManagedCursorImpl.estimateEntryCountBySize(16, PositionFactory.create(ledger2, 0), ml);
+                ManagedCursorImpl.estimateEntryCountBySize(average2 * 8, PositionFactory.create(ledger2, 0), ml);
         assertEquals(entryCount2, 8);
         long entryCount3 =
-                ManagedCursorImpl.estimateEntryCountBySize(16, PositionFactory.create(ledger3, 0), ml);
+                ManagedCursorImpl.estimateEntryCountBySize(average3 * 4, PositionFactory.create(ledger3, 0), ml);
         assertEquals(entryCount3, 4);
 
         // Test: across ledgers.
         long entryCount4 =
-                ManagedCursorImpl.estimateEntryCountBySize(100 + 16, PositionFactory.create(ledger1, 0), ml);
+                ManagedCursorImpl.estimateEntryCountBySize((average1 * 100) + (average2 * 8), PositionFactory.create(ledger1, 0), ml);
         assertEquals(entryCount4, 108);
         long entryCount5 =
-                ManagedCursorImpl.estimateEntryCountBySize(200 + 16, PositionFactory.create(ledger2, 0), ml);
+                ManagedCursorImpl.estimateEntryCountBySize((average2 * 100) + (average3 * 4), PositionFactory.create(ledger2, 0), ml);
         assertEquals(entryCount5, 104);
         long entryCount6 =
-                ManagedCursorImpl.estimateEntryCountBySize(100 + 200 + 16, PositionFactory.create(ledger1, 0), ml);
+                ManagedCursorImpl.estimateEntryCountBySize((average1 * 100) + (average2 * 100) + (average3 * 4), PositionFactory.create(ledger1, 0), ml);
         assertEquals(entryCount6, 204);
 
         long entryCount7 =
-                ManagedCursorImpl.estimateEntryCountBySize(20 + 16, PositionFactory.create(ledger1, 80), ml);
+                ManagedCursorImpl.estimateEntryCountBySize((average1 * 20) + (average2 * 8), PositionFactory.create(ledger1, 80), ml);
         assertEquals(entryCount7, 28);
         long entryCount8 =
-                ManagedCursorImpl.estimateEntryCountBySize(40 + 16, PositionFactory.create(ledger2, 80), ml);
+                ManagedCursorImpl.estimateEntryCountBySize((average2 * 20) + (average3 * 4), PositionFactory.create(ledger2, 80), ml);
         assertEquals(entryCount8, 24);
         long entryCount9 =
-                ManagedCursorImpl.estimateEntryCountBySize(20 + 200 + 16, PositionFactory.create(ledger1, 80), ml);
+                ManagedCursorImpl.estimateEntryCountBySize((average1 * 20) + (average2 * 100)  + (average3 * 4), PositionFactory.create(ledger1, 80), ml);
         assertEquals(entryCount9, 124);
 
         // Test: read more than entries written.
         long entryCount10 =
-                ManagedCursorImpl.estimateEntryCountBySize(100 + 200 + 400 + 16, PositionFactory.create(ledger1, 0), ml);
+                ManagedCursorImpl.estimateEntryCountBySize((average1 * 100) + (average2 * 100) + (average3 * 100) + (average3 * 4) , PositionFactory.create(ledger1, 0), ml);
         assertEquals(entryCount10, 304);
 
         // cleanup.

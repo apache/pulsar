@@ -424,7 +424,7 @@ public class RangeEntryCacheImpl implements EntryCache {
             // No entries stored.
             return Math.max(getAvgEntrySize(), DEFAULT_ESTIMATED_ENTRY_SIZE) + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
         }
-        return Math.max(1, lh.getLength() / (lh.getLastAddConfirmed() + 1));
+        return Math.max(1, lh.getLength() / (lh.getLastAddConfirmed() + 1)) + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
     }
 
     private long getAvgEntrySize() {
