@@ -3919,12 +3919,13 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         // Since https://github.com/apache/pulsar/pull/23931 improved the performance of delivery, the consumer
         // will get more messages than before(it only receives 1 messages at the first delivery),
-        List<Entry> entries = c.readEntriesOrWait(10, 3 * 1024);
+        int avg = (int) (1024 + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY);
+        List<Entry> entries = c.readEntriesOrWait(10, 3 * avg);
         assertEquals(entries.size(), 3);
         entries.forEach(Entry::release);
 
         // We should only return 3 entries, based on the max size
-        entries = c.readEntriesOrWait(10, 3 * 1024);
+        entries = c.readEntriesOrWait(10, 3 * avg);
         assertEquals(entries.size(), 3);
         entries.forEach(Entry::release);
 
