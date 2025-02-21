@@ -171,6 +171,7 @@ public abstract class AbstractReplicator implements Replicator {
         // the remote cluster.
         ProducerBuilderImpl builderImpl = (ProducerBuilderImpl) producerBuilder;
         builderImpl.getConf().setNonPartitionedTopicExpected(true);
+        builderImpl.getConf().setReplProducer(true);
         producerBuilder.createAsync().thenAccept(producer -> {
             setProducerAndTriggerReadEntries(producer);
         }).exceptionally(ex -> {

@@ -64,6 +64,7 @@ import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
+import lombok.Getter;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -235,6 +236,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     private boolean encryptionRequireOnProducer;
 
+    @Getter
     private FeatureFlags features;
 
     private PulsarCommandSender commandSender;
