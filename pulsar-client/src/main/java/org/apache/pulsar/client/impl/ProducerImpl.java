@@ -109,7 +109,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     // Variable is updated in a synchronized block
     private volatile long msgIdGenerator;
 
-    private final OpSendMsgQueue pendingMessages;
+    protected final OpSendMsgQueue pendingMessages;
     private final Optional<Semaphore> semaphore;
     private volatile Timeout sendTimeout = null;
     private final long lookupDeadline;
@@ -126,12 +126,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private LastSendFutureWrapper lastSendFutureWrapper = LastSendFutureWrapper.create(lastSendFuture);
 
     // Globally unique producer name
-    private String producerName;
+    protected String producerName;
     private final boolean userProvidedProducerName;
 
     private String connectionId;
     private String connectedSince;
-    private final int partitionIndex;
+    protected final int partitionIndex;
 
     private final ProducerStatsRecorder stats;
 
@@ -1199,7 +1199,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
     }
 
-    void ackReceived(ClientCnx cnx, long sequenceId, long highestSequenceId, long ledgerId, long entryId) {
+    protected void ackReceived(ClientCnx cnx, long sequenceId, long highestSequenceId, long ledgerId, long entryId) {
         OpSendMsg op = null;
         synchronized (this) {
             op = pendingMessages.peek();
@@ -1274,11 +1274,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         op.recycle();
     }
 
-    private long getHighestSequenceId(OpSendMsg op) {
+    protected long getHighestSequenceId(OpSendMsg op) {
         return Math.max(op.highestSequenceId, op.sequenceId);
     }
 
-    private void releaseSemaphoreForSendOp(OpSendMsg op) {
+    protected void releaseSemaphoreForSendOp(OpSendMsg op) {
 
         semaphoreRelease(isBatchMessagingEnabled() ? op.numMessagesInBatch : 1);
 
@@ -2272,10 +2272,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 return;
             }
             pendingMessages.add(op);
-            if (op.msg != null) {
-                LAST_SEQ_ID_PUSHED_UPDATER.getAndUpdate(this,
-                        last -> Math.max(last, getHighestSequenceId(op)));
-            }
+            updateLastSeqPushed(op);
 
             final ClientCnx cnx = getCnxIfReady();
             if (cnx != null) {
@@ -2298,6 +2295,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             releaseSemaphoreForSendOp(op);
             log.warn("[{}] [{}] error while closing out batch -- {}", topic, producerName, t);
             op.sendComplete(new PulsarClientException(t, op.sequenceId));
+        }
+    }
+
+    protected void updateLastSeqPushed(OpSendMsg op) {
+        if (op.msg != null) {
+            LAST_SEQ_ID_PUSHED_UPDATER.getAndUpdate(this,
+                    last -> Math.max(last, getHighestSequenceId(op)));
         }
     }
 
