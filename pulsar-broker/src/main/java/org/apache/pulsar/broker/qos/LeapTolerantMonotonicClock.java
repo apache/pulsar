@@ -28,7 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Default implementation of {@link MonotonicSnapshotClock} optimized for use with {@link AsyncTokenBucket}.
+ * Leap tolerant implementation of {@link MonotonicClock} optimized for use with {@link AsyncTokenBucket}.
  *
  * <p>
  * This class provides a monotonic snapshot value that consistently increases, ensuring reliable behavior
@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>
  * The {@link AsyncTokenBucket} utilizes this clock to obtain tick values. It does not require a consistent value on
- * every retrieval. However, when a consistent snapshot is necessary, the {@link #getTickNanos(boolean)} method
+ * every retrieval. However, when a consistent snapshot is necessary, the {@link #getTickNanos()} method
  * is called with the {@code requestSnapshot} parameter set to {@code true}.
  * </p>
  *
@@ -54,12 +54,16 @@ import org.slf4j.LoggerFactory;
  * source discrepancies across different CPUs.
  * </p>
  */
-public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, AutoCloseable {
-    private static final Logger LOG = LoggerFactory.getLogger(DefaultMonotonicSnapshotClock.class);
+public class LeapTolerantMonotonicClock implements MonotonicClock, AutoCloseable {
+    private static final Logger LOG = LoggerFactory.getLogger(LeapTolerantMonotonicClock.class);
     private final TickUpdaterThread tickUpdaterThread;
     private volatile long snapshotTickNanos;
 
-    public DefaultMonotonicSnapshotClock(long snapshotIntervalNanos, LongSupplier clockSource) {
+    public LeapTolerantMonotonicClock() {
+        this(AsyncTokenBucket.DEFAULT_ADD_TOKENS_RESOLUTION_NANOS / 2, System::nanoTime);
+    }
+
+    public LeapTolerantMonotonicClock(long snapshotIntervalNanos, LongSupplier clockSource) {
         if (snapshotIntervalNanos < TimeUnit.MILLISECONDS.toNanos(1)) {
             throw new IllegalArgumentException("snapshotIntervalNanos must be at least 1 millisecond");
         }
@@ -74,10 +78,8 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
 
     /** {@inheritDoc} */
     @Override
-    public long getTickNanos(boolean requestSnapshot) {
-        if (requestSnapshot) {
-            tickUpdaterThread.requestUpdateAndWait();
-        }
+    public long getTickNanos() {
+        tickUpdaterThread.requestUpdateAndWait();
         return snapshotTickNanos;
     }
 
@@ -88,7 +90,7 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
 
     /**
      * A thread that updates snapshotTickNanos value periodically with a configured interval.
-     * The thread is started when the DefaultMonotonicSnapshotClock is created and runs until the close method is
+     * The thread is started when the instance is created and runs until the close method is
      * called.
      * A single thread is used to read the clock source value since on some hardware of virtualized platforms,
      * System.nanoTime() isn't strictly monotonic across all CPUs. Reading by a single thread will improve the
@@ -106,7 +108,7 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
         private final int sleepNanos;
 
         TickUpdaterThread(long snapshotIntervalNanos, LongSupplier clockSource, LongConsumer setSnapshotTickNanos) {
-            super(DefaultMonotonicSnapshotClock.class.getSimpleName() + "-update-loop");
+            super(LeapTolerantMonotonicClock.class.getSimpleName() + "-update-loop");
             // set as daemon thread so that it doesn't prevent the JVM from exiting
             setDaemon(true);
             // set the highest priority
@@ -152,7 +154,7 @@ public class DefaultMonotonicSnapshotClock implements MonotonicSnapshotClock, Au
                 // this is very unlikely to happen, but it's better to log it in any case
                 LOG.error("Unexpected fatal error that stopped the clock.", t);
             } finally {
-                LOG.info("DefaultMonotonicSnapshotClock's TickUpdaterThread stopped. {},tid={}", this, getId());
+                LOG.info("TickUpdaterThread stopped. {},tid={}", this, getId());
                 running = false;
                 notifyAllTickUpdated();
             }

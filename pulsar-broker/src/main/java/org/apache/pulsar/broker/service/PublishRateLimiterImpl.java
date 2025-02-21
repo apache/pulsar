@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.qos.AsyncTokenBucket;
-import org.apache.pulsar.broker.qos.MonotonicSnapshotClock;
+import org.apache.pulsar.broker.qos.MonotonicClock;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.jctools.queues.MessagePassingQueue;
@@ -36,15 +36,15 @@ import org.jctools.queues.MpscUnboundedArrayQueue;
 public class PublishRateLimiterImpl implements PublishRateLimiter {
     private volatile AsyncTokenBucket tokenBucketOnMessage;
     private volatile AsyncTokenBucket tokenBucketOnByte;
-    private final MonotonicSnapshotClock monotonicSnapshotClock;
+    private final MonotonicClock monotonicClock;
 
     private final MessagePassingQueue<Producer> unthrottlingQueue = new MpscUnboundedArrayQueue<>(1024);
 
     private final AtomicInteger throttledProducersCount = new AtomicInteger(0);
     private final AtomicBoolean processingQueuedProducers = new AtomicBoolean(false);
 
-    public PublishRateLimiterImpl(MonotonicSnapshotClock monotonicSnapshotClock) {
-        this.monotonicSnapshotClock = monotonicSnapshotClock;
+    public PublishRateLimiterImpl(MonotonicClock monotonicClock) {
+        this.monotonicClock = monotonicClock;
     }
 
     /**
@@ -172,13 +172,13 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
     protected void updateTokenBuckets(long publishThrottlingRateInMsg, long publishThrottlingRateInByte) {
         if (publishThrottlingRateInMsg > 0) {
             tokenBucketOnMessage =
-                    AsyncTokenBucket.builder().rate(publishThrottlingRateInMsg).clock(monotonicSnapshotClock).build();
+                    AsyncTokenBucket.builder().rate(publishThrottlingRateInMsg).clock(monotonicClock).build();
         } else {
             tokenBucketOnMessage = null;
         }
         if (publishThrottlingRateInByte > 0) {
             tokenBucketOnByte =
-                    AsyncTokenBucket.builder().rate(publishThrottlingRateInByte).clock(monotonicSnapshotClock).build();
+                    AsyncTokenBucket.builder().rate(publishThrottlingRateInByte).clock(monotonicClock).build();
         } else {
             tokenBucketOnByte = null;
         }

@@ -27,23 +27,17 @@ import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.assertj.core.data.Offset;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
-public class DefaultMonotonicSnapshotClockTest {
-    @DataProvider
-    private static Object[] booleanValues() {
-        return new Object[]{ true, false };
-    }
-
-    @Test(dataProvider = "booleanValues")
-    void testClockHandlesTimeLeapsBackwards(boolean requestSnapshot) throws InterruptedException {
+public class LeapTolerantMonotonicClockTest {
+    @Test
+    void testClockHandlesTimeLeapsBackwards() throws InterruptedException {
         long snapshotIntervalMillis = 5;
         AtomicLong clockValue = new AtomicLong(1);
         @Cleanup
-        DefaultMonotonicSnapshotClock clock =
-                new DefaultMonotonicSnapshotClock(Duration.ofMillis(snapshotIntervalMillis).toNanos(),
+        LeapTolerantMonotonicClock clock =
+                new LeapTolerantMonotonicClock(Duration.ofMillis(snapshotIntervalMillis).toNanos(),
                         clockValue::get);
 
 
@@ -51,7 +45,7 @@ public class DefaultMonotonicSnapshotClockTest {
         boolean leapDirection = true;
         for (int i = 0; i < 10000; i++) {
             clockValue.addAndGet(TimeUnit.MILLISECONDS.toNanos(1));
-            long tick = clock.getTickNanos(requestSnapshot);
+            long tick = clock.getTickNanos();
             //log.info("i = {}, tick = {}", i, tick);
             if ((i + 1) % 5 == 0) {
                 leapDirection = !leapDirection;
@@ -66,43 +60,32 @@ public class DefaultMonotonicSnapshotClockTest {
                                 // then snapshot is requested, the time difference between the two ticks is accurate
                                 // otherwise allow time difference at most 4 times the snapshot interval since the
                                 // clock is updated periodically by a background thread
-                                Offset.offset(TimeUnit.MILLISECONDS.toNanos(
-                                        requestSnapshot ? 1 : 4 * snapshotIntervalMillis)));
+                                Offset.offset(TimeUnit.MILLISECONDS.toNanos(4 * snapshotIntervalMillis)));
             }
             previousTick = tick;
         }
     }
 
     @Test
-    void testRequestUpdate() throws InterruptedException {
-        @Cleanup
-        DefaultMonotonicSnapshotClock clock =
-                new DefaultMonotonicSnapshotClock(Duration.ofSeconds(5).toNanos(), System::nanoTime);
-        long tick1 = clock.getTickNanos(false);
-        long tick2 = clock.getTickNanos(true);
-        assertThat(tick2).isGreaterThan(tick1);
-    }
-
-    @Test
-    void testRequestingSnapshotAfterClosed() throws InterruptedException {
-        DefaultMonotonicSnapshotClock clock =
-                new DefaultMonotonicSnapshotClock(Duration.ofSeconds(5).toNanos(), System::nanoTime);
+    void testRequestingTicksAfterClosed() throws InterruptedException {
+        LeapTolerantMonotonicClock clock =
+                new LeapTolerantMonotonicClock(Duration.ofSeconds(5).toNanos(), System::nanoTime);
         clock.close();
-        long tick1 = clock.getTickNanos(true);
+        long tick1 = clock.getTickNanos();
         Thread.sleep(10);
-        long tick2 = clock.getTickNanos(true);
+        long tick2 = clock.getTickNanos();
         assertThat(tick2).isGreaterThan(tick1);
     }
 
     @Test
     void testConstructorValidation() {
-        assertThatThrownBy(() -> new DefaultMonotonicSnapshotClock(0, System::nanoTime))
+        assertThatThrownBy(() -> new LeapTolerantMonotonicClock(0, System::nanoTime))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("snapshotIntervalNanos must be at least 1 millisecond");
-        assertThatThrownBy(() -> new DefaultMonotonicSnapshotClock(-1, System::nanoTime))
+        assertThatThrownBy(() -> new LeapTolerantMonotonicClock(-1, System::nanoTime))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("snapshotIntervalNanos must be at least 1 millisecond");
-        assertThatThrownBy(() -> new DefaultMonotonicSnapshotClock(TimeUnit.MILLISECONDS.toNanos(1), null))
+        assertThatThrownBy(() -> new LeapTolerantMonotonicClock(TimeUnit.MILLISECONDS.toNanos(1), null))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessage("clockSource must not be null");
     }
@@ -110,12 +93,12 @@ public class DefaultMonotonicSnapshotClockTest {
     @Test
     void testFailureHandlingInClockSource() {
         @Cleanup
-        DefaultMonotonicSnapshotClock clock =
-                new DefaultMonotonicSnapshotClock(Duration.ofSeconds(5).toNanos(), () -> {
+        LeapTolerantMonotonicClock clock =
+                new LeapTolerantMonotonicClock(Duration.ofSeconds(5).toNanos(), () -> {
                     throw new RuntimeException("Test clock failure");
                 });
         // the exception should be propagated
-        assertThatThrownBy(() -> clock.getTickNanos(true))
+        assertThatThrownBy(() -> clock.getTickNanos())
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("Test clock failure");
     }
@@ -126,8 +109,8 @@ public class DefaultMonotonicSnapshotClockTest {
         AtomicLong tickValue = new AtomicLong(0);
         long expectedTickValue = 0;
         long snapshotIntervalNanos = TimeUnit.MILLISECONDS.toNanos(1);
-        DefaultMonotonicSnapshotClock.MonotonicLeapDetectingTickUpdater updater =
-                new DefaultMonotonicSnapshotClock.MonotonicLeapDetectingTickUpdater(clockValue::get, tickValue::set,
+        LeapTolerantMonotonicClock.MonotonicLeapDetectingTickUpdater updater =
+                new LeapTolerantMonotonicClock.MonotonicLeapDetectingTickUpdater(clockValue::get, tickValue::set,
                         snapshotIntervalNanos);
 
         updater.update(true);

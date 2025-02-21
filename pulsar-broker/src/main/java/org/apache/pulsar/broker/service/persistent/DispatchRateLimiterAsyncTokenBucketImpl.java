@@ -146,7 +146,7 @@ public class DispatchRateLimiterAsyncTokenBucketImpl extends DispatchRateLimiter
     }
 
     private <T extends AsyncTokenBucketBuilder<T>> T configureAsyncTokenBucket(T builder) {
-        builder.clock(brokerService.getPulsar().getMonotonicSnapshotClock());
+        builder.clock(brokerService.getPulsar().getMonotonicClock());
         return builder;
     }
 
