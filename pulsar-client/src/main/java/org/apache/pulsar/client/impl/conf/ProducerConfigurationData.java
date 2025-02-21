@@ -208,6 +208,8 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
 
     private boolean isNonPartitionedTopicExpected;
 
+    private boolean isReplProducer;
+
     @ApiModelProperty(
             name = "initialSubscriptionName",
             value = "Use this configuration to automatically create an initial subscription when creating a topic."
