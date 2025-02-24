@@ -21,14 +21,14 @@ package org.apache.pulsar.broker.service.persistent;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.qos.AsyncTokenBucket;
-import org.apache.pulsar.broker.qos.AsyncTokenBucketBuilder;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.util.RateLimiter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,8 +46,8 @@ public class DispatchRateLimiter {
     private final Type type;
 
     private final BrokerService brokerService;
-    private volatile AsyncTokenBucket dispatchRateLimiterOnMessage;
-    private volatile AsyncTokenBucket dispatchRateLimiterOnByte;
+    private volatile RateLimiter dispatchRateLimiterOnMessage;
+    private volatile RateLimiter dispatchRateLimiterOnByte;
 
     public DispatchRateLimiter(PersistentTopic topic, Type type) {
         this(topic, null, type);
@@ -77,9 +77,9 @@ public class DispatchRateLimiter {
      * @return
      */
     public long getAvailableDispatchRateLimitOnMsg() {
-        AsyncTokenBucket localDispatchRateLimiterOnMessage = dispatchRateLimiterOnMessage;
+        RateLimiter localDispatchRateLimiterOnMessage = dispatchRateLimiterOnMessage;
         return localDispatchRateLimiterOnMessage == null ? -1 :
-                Math.max(localDispatchRateLimiterOnMessage.getTokens(), 0);
+                Math.max(localDispatchRateLimiterOnMessage.getAvailablePermits(), 0);
     }
 
     /**
@@ -88,8 +88,9 @@ public class DispatchRateLimiter {
      * @return
      */
     public long getAvailableDispatchRateLimitOnByte() {
-        AsyncTokenBucket localDispatchRateLimiterOnByte = dispatchRateLimiterOnByte;
-        return localDispatchRateLimiterOnByte == null ? -1 : Math.max(localDispatchRateLimiterOnByte.getTokens(), 0);
+        RateLimiter localDispatchRateLimiterOnByte = dispatchRateLimiterOnByte;
+        return localDispatchRateLimiterOnByte == null ? -1 :
+                Math.max(localDispatchRateLimiterOnByte.getAvailablePermits(), 0);
     }
 
     /**
@@ -99,13 +100,13 @@ public class DispatchRateLimiter {
      * @param byteSize
      */
     public void consumeDispatchQuota(long numberOfMessages, long byteSize) {
-        AsyncTokenBucket localDispatchRateLimiterOnMessage = dispatchRateLimiterOnMessage;
+        RateLimiter localDispatchRateLimiterOnMessage = dispatchRateLimiterOnMessage;
         if (numberOfMessages > 0 && localDispatchRateLimiterOnMessage != null) {
-            localDispatchRateLimiterOnMessage.consumeTokens(numberOfMessages);
+            localDispatchRateLimiterOnMessage.tryAcquire(numberOfMessages);
         }
-        AsyncTokenBucket localDispatchRateLimiterOnByte = dispatchRateLimiterOnByte;
+        RateLimiter localDispatchRateLimiterOnByte = dispatchRateLimiterOnByte;
         if (byteSize > 0 && localDispatchRateLimiterOnByte != null) {
-            localDispatchRateLimiterOnByte.consumeTokens(byteSize);
+            localDispatchRateLimiterOnByte.tryAcquire(byteSize);
         }
     }
 
@@ -221,48 +222,61 @@ public class DispatchRateLimiter {
 
         long msgRate = dispatchRate.getDispatchThrottlingRateInMsg();
         long byteRate = dispatchRate.getDispatchThrottlingRateInByte();
-        long ratePeriodNanos = TimeUnit.SECONDS.toNanos(Math.max(dispatchRate.getRatePeriodInSecond(), 1));
+        long ratePeriod = dispatchRate.getRatePeriodInSecond();
 
+        Supplier<Long> permitUpdaterMsg = dispatchRate.isRelativeToPublishRate()
+                ? () -> getRelativeDispatchRateInMsg(dispatchRate)
+                : null;
         // update msg-rateLimiter
         if (msgRate > 0) {
-            if (dispatchRate.isRelativeToPublishRate()) {
+            if (this.dispatchRateLimiterOnMessage == null) {
                 this.dispatchRateLimiterOnMessage =
-                        configureAsyncTokenBucket(AsyncTokenBucket.builderForDynamicRate())
-                                .rateFunction(() -> getRelativeDispatchRateInMsg(dispatchRate))
-                                .ratePeriodNanosFunction(() -> ratePeriodNanos)
+                        RateLimiter.builder()
+                                .scheduledExecutorService(brokerService.pulsar().getExecutor())
+                                .permits(msgRate)
+                                .rateTime(ratePeriod)
+                                .timeUnit(TimeUnit.SECONDS)
+                                .permitUpdater(permitUpdaterMsg)
+                                .isDispatchOrPrecisePublishRateLimiter(true)
                                 .build();
             } else {
-                this.dispatchRateLimiterOnMessage =
-                        configureAsyncTokenBucket(AsyncTokenBucket.builder())
-                                .rate(msgRate).ratePeriodNanos(ratePeriodNanos)
-                                .build();
+                this.dispatchRateLimiterOnMessage.setRate(msgRate, dispatchRate.getRatePeriodInSecond(),
+                        TimeUnit.SECONDS, permitUpdaterMsg);
             }
         } else {
-            this.dispatchRateLimiterOnMessage = null;
+            // message-rate should be disable and close
+            if (this.dispatchRateLimiterOnMessage != null) {
+                this.dispatchRateLimiterOnMessage.close();
+                this.dispatchRateLimiterOnMessage = null;
+            }
         }
 
+        Supplier<Long> permitUpdaterByte = dispatchRate.isRelativeToPublishRate()
+                ? () -> getRelativeDispatchRateInByte(dispatchRate)
+                : null;
         // update byte-rateLimiter
         if (byteRate > 0) {
-            if (dispatchRate.isRelativeToPublishRate()) {
+            if (this.dispatchRateLimiterOnByte == null) {
                 this.dispatchRateLimiterOnByte =
-                        configureAsyncTokenBucket(AsyncTokenBucket.builderForDynamicRate())
-                                .rateFunction(() -> getRelativeDispatchRateInByte(dispatchRate))
-                                .ratePeriodNanosFunction(() -> ratePeriodNanos)
+                        RateLimiter.builder()
+                                .scheduledExecutorService(brokerService.pulsar().getExecutor())
+                                .permits(byteRate)
+                                .rateTime(ratePeriod)
+                                .timeUnit(TimeUnit.SECONDS)
+                                .permitUpdater(permitUpdaterByte)
+                                .isDispatchOrPrecisePublishRateLimiter(true)
                                 .build();
             } else {
-                this.dispatchRateLimiterOnByte =
-                        configureAsyncTokenBucket(AsyncTokenBucket.builder())
-                                .rate(byteRate).ratePeriodNanos(ratePeriodNanos)
-                                .build();
+                this.dispatchRateLimiterOnByte.setRate(byteRate, dispatchRate.getRatePeriodInSecond(),
+                        TimeUnit.SECONDS, permitUpdaterByte);
             }
         } else {
-            this.dispatchRateLimiterOnByte = null;
+            // message-rate should be disable and close
+            if (this.dispatchRateLimiterOnByte != null) {
+                this.dispatchRateLimiterOnByte.close();
+                this.dispatchRateLimiterOnByte = null;
+            }
         }
-    }
-
-    private <T extends AsyncTokenBucketBuilder<T>> T configureAsyncTokenBucket(T builder) {
-        builder.clock(brokerService.getPulsar().getMonotonicSnapshotClock());
-        return builder;
     }
 
     private long getRelativeDispatchRateInMsg(DispatchRate dispatchRate) {
@@ -283,7 +297,7 @@ public class DispatchRateLimiter {
      * @return
      */
     public long getDispatchRateOnMsg() {
-        AsyncTokenBucket localDispatchRateLimiterOnMessage = dispatchRateLimiterOnMessage;
+        RateLimiter localDispatchRateLimiterOnMessage = dispatchRateLimiterOnMessage;
         return localDispatchRateLimiterOnMessage != null ? localDispatchRateLimiterOnMessage.getRate() : -1;
     }
 
@@ -293,7 +307,7 @@ public class DispatchRateLimiter {
      * @return
      */
     public long getDispatchRateOnByte() {
-        AsyncTokenBucket localDispatchRateLimiterOnByte = dispatchRateLimiterOnByte;
+        RateLimiter localDispatchRateLimiterOnByte = dispatchRateLimiterOnByte;
         return localDispatchRateLimiterOnByte != null ? localDispatchRateLimiterOnByte.getRate() : -1;
     }
 
@@ -306,9 +320,11 @@ public class DispatchRateLimiter {
     public void close() {
         // close rate-limiter
         if (dispatchRateLimiterOnMessage != null) {
+            dispatchRateLimiterOnMessage.close();
             dispatchRateLimiterOnMessage = null;
         }
         if (dispatchRateLimiterOnByte != null) {
+            dispatchRateLimiterOnByte.close();
             dispatchRateLimiterOnByte = null;
         }
     }
