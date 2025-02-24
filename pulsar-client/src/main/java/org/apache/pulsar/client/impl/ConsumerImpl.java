@@ -2303,7 +2303,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                         this.consumerName, RandomStringUtils.randomAlphanumeric(5)))
                                         .blockIfQueueFull(false)
                                         .enableBatching(false)
-                                        .enableChunking(true)
                                         .createAsync();
                         newProducer.whenComplete((producer, ex) -> {
                             if (ex != null) {
@@ -2368,7 +2367,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                 .newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
                                 .topic(this.deadLetterPolicy.getRetryLetterTopic())
                                 .enableBatching(false)
-                                .enableChunking(true)
                                 .blockIfQueueFull(false)
                                 .createAsync();
                         newProducer.whenComplete((producer, ex) -> {
