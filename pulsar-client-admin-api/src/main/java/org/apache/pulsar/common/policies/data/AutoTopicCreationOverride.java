@@ -29,7 +29,7 @@ public interface AutoTopicCreationOverride {
     String getTopicType();
 
     Integer getDefaultNumPartitions();
-  
+
     Integer getSystemTopicDefaultNumPartitions();
 
     interface Builder {
