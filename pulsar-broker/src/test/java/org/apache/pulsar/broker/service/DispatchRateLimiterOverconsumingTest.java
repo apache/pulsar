@@ -19,9 +19,12 @@
 package org.apache.pulsar.broker.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.testng.Assert.assertEquals;
+import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -29,9 +32,12 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 import java.util.stream.IntStream;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.service.persistent.DispatchRateLimiterFactoryAsyncTokenBucket;
+import org.apache.pulsar.broker.service.persistent.DispatchRateLimiterFactoryClassic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageListener;
@@ -40,13 +46,53 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.assertj.core.data.Percentage;
 import org.awaitility.Awaitility;
+import org.testng.ITest;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker")
-public class DispatchRateLimiterOverconsumingTest extends BrokerTestBase {
+public class DispatchRateLimiterOverconsumingTest extends BrokerTestBase implements ITest {
+    public enum DispatchRateLimiterImplType {
+        PIP322(DispatchRateLimiterFactoryAsyncTokenBucket.class.getName()),
+        Classic(DispatchRateLimiterFactoryClassic.class.getName());
+
+        private final String factoryClassName;
+
+        DispatchRateLimiterImplType(String implementationClassName) {
+            this.factoryClassName = implementationClassName;
+        }
+
+        public String getFactoryClassName() {
+            return factoryClassName;
+        }
+
+        public static Object[] generateTestInstances(
+                Function<DispatchRateLimiterImplType, Object> testInstanceFactory) {
+            return Arrays.stream(values()).map(testInstanceFactory).toArray();
+        }
+    }
+
+    // Comment out the next line (Factory annotation) to run tests manually in IntelliJ, one-by-one
+    @Factory
+    public static Object[] createTestInstances() {
+        return DispatchRateLimiterImplType.generateTestInstances(DispatchRateLimiterOverconsumingTest::new);
+    }
+
+    public DispatchRateLimiterOverconsumingTest() {
+        // set the default implementation type for manual running in IntelliJ
+        this(DispatchRateLimiterImplType.Classic);
+    }
+
+    public DispatchRateLimiterOverconsumingTest(DispatchRateLimiterImplType implType) {
+        this.implType = implType;
+    }
+
+    private DispatchRateLimiterImplType implType;
+    private String testName;
+
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
@@ -54,29 +100,47 @@ public class DispatchRateLimiterOverconsumingTest extends BrokerTestBase {
     }
 
     @Override
+    public String getTestName() {
+        return testName;
+    }
+
+    @BeforeMethod
+    public void applyTestName(Method method) {
+        testName = method.getName() + " with " + implType.name() + " rate limiter implementation";
+    }
+
+    @Override
     protected void doInitConf() throws Exception {
         super.doInitConf();
+        // configure dispatch rate limiter factory class name
+        conf.setDispatchRateLimiterFactoryClassName(implType.getFactoryClassName());
         // simplify testing by enabling throttling on non-backlog consumers
         conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(true);
+        // set the dispatch max read batch size to 1 to stress the rate limiting behavior more effectively
+        conf.setDispatcherMaxReadBatchSize(1);
+        conf.setDispatcherDispatchMessagesInSubscriptionThread(false);
     }
 
     @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
+        this.testName = null;
         super.internalCleanup();
     }
 
     /**
      * This test verifies the broker dispatch rate limiting behavior with multiple concurrent consumers.
+     * Reproduces issue "with a huge spike in a traffic consume is stuck for a long time" mentioned in
+     * issue https://github.com/apache/pulsar/issues/24001 and prevents future regressions.
      */
     @Test
     public void testOverconsumingTokensWithBrokerDispatchRateLimiter() throws Exception {
         int rateInMsg = 50;
-        int numberOfMessages = 2000;
-        int numberOfConsumers = 10;
         int durationSeconds = 5;
+        int numberOfConsumers = 10;
+        int numberOfMessages = rateInMsg * durationSeconds;
 
-        // configure dispatch throttling rate to 10 msg/s
+        // configure dispatch throttling rate
         BrokerService brokerService = pulsar.getBrokerService();
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInMsg", String.valueOf(rateInMsg));
         Awaitility.await().untilAsserted(() ->
@@ -88,6 +152,8 @@ public class DispatchRateLimiterOverconsumingTest extends BrokerTestBase {
 
         // state for calculating message rate
         AtomicLong startTimeNanos = new AtomicLong();
+        AtomicLong lastReceivedMessageTimeNanos = new AtomicLong();
+        AtomicInteger totalMessagesReceived = new AtomicInteger();
         AtomicInteger currentSecondMessagesCount = new AtomicInteger();
         AtomicInteger lastCalculatedSecond = new AtomicInteger(0);
         List<Integer> collectedRatesForEachSecond = Collections.synchronizedList(new ArrayList<>());
@@ -103,7 +169,7 @@ public class DispatchRateLimiterOverconsumingTest extends BrokerTestBase {
             if (elapsedFullSeconds > 0 && lastCalculatedSecond.compareAndSet(elapsedFullSeconds - 1,
                     elapsedFullSeconds)) {
                 int messagesCountForPreviousSecond = currentSecondMessagesCount.getAndSet(0);
-                log.info("Rate for second {}: {} msg/s", elapsedFullSeconds, messagesCountForPreviousSecond);
+                log.info("Rate for second {}: {} msg/s {}", elapsedFullSeconds, messagesCountForPreviousSecond, TimeUnit.NANOSECONDS.toMillis(durationNanos));
                 collectedRatesForEachSecond.add(messagesCountForPreviousSecond);
             }
         };
@@ -115,7 +181,9 @@ public class DispatchRateLimiterOverconsumingTest extends BrokerTestBase {
         MessageListener<Integer> messageListener = new MessageListener<>() {
             @Override
             public void received(Consumer<Integer> consumer, Message<Integer> msg) {
+                lastReceivedMessageTimeNanos.set(System.nanoTime());
                 currentSecondMessagesCount.incrementAndGet();
+                totalMessagesReceived.incrementAndGet();
                 consumer.acknowledgeAsync(msg);
             }
         };
@@ -129,6 +197,7 @@ public class DispatchRateLimiterOverconsumingTest extends BrokerTestBase {
                                 .consumerName("consumer-" + (i + 1))
                                 .subscriptionType(SubscriptionType.Shared)
                                 .subscriptionName("sub")
+                                .receiverQueueSize(10)
                                 .messageListener(messageListener)
                                 // start paused so that there's a backlog when consumers are resumed
                                 .startPaused(true)
@@ -175,18 +244,33 @@ public class DispatchRateLimiterOverconsumingTest extends BrokerTestBase {
 
         // wait for results
         Awaitility.await()
+                .atMost(Duration.ofSeconds(durationSeconds * 2))
                 .pollInterval(Duration.ofMillis(100))
-                .untilAsserted(() -> assertThat(lastCalculatedSecond).hasValue(durationSeconds));
-
+                .untilAsserted(() -> assertThat(totalMessagesReceived).hasValue(numberOfMessages));
         List<Integer> collectedRatesSnapshot = new ArrayList<>(collectedRatesForEachSecond);
+        int messagesCountForPreviousSecond = currentSecondMessagesCount.getAndSet(0);
+        if (messagesCountForPreviousSecond > 0) {
+            collectedRatesSnapshot.add(messagesCountForPreviousSecond);
+        }
+        log.info("Collected rates for each second: {}", collectedRatesSnapshot);
+        long avgMsgRate =
+                totalMessagesReceived.get() / TimeUnit.NANOSECONDS.toSeconds(
+                        lastReceivedMessageTimeNanos.get() - startTimeNanos.get());
+        log.info("Average rate during the test run: {} msg/s", avgMsgRate);
 
-        // check that rates were collected
-        assertThat(collectedRatesSnapshot).size().isEqualTo(durationSeconds);
+        assertSoftly(softly -> {
+            // check the rate during the test run
+            softly.assertThat(avgMsgRate)
+                    .describedAs("average rate during the test run")
+                    // allow rate in 40% range
+                    .isCloseTo(rateInMsg, Percentage.withPercentage(40));
 
-        // check the rate during the test run
-        assertThat(collectedRatesSnapshot)
-                .describedAs("actual rates for each second")
-                // allow rate in 10% range
-                .allSatisfy(rate -> assertThat(rate).isCloseTo(rateInMsg, Percentage.withPercentage(10)));
+            // check that rates were collected
+            softly.assertThat(collectedRatesSnapshot)
+                    .describedAs("actual rates for each second")
+                    .size().isGreaterThanOrEqualTo(durationSeconds).returnToIterable()
+                    // allow rate in 10% range
+                    .allSatisfy(rate -> assertThat(rate).isCloseTo(rateInMsg, Percentage.withPercentage(10)));
+        });
     }
 }
