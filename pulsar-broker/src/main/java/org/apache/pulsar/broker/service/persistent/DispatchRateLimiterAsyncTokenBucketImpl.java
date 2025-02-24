@@ -112,13 +112,13 @@ public class DispatchRateLimiterAsyncTokenBucketImpl extends DispatchRateLimiter
         if (msgRate > 0) {
             if (dispatchRate.isRelativeToPublishRate()) {
                 this.dispatchRateLimiterOnMessage =
-                        configureAsyncTokenBucket(AsyncTokenBucket.builderForDynamicRate())
+                        configureAsyncTokenBucket(AsyncTokenBucket.builderForDynamicRate(), ratePeriodNanos)
                                 .rateFunction(() -> getRelativeDispatchRateInMsg(dispatchRate))
                                 .ratePeriodNanosFunction(() -> ratePeriodNanos)
                                 .build();
             } else {
                 this.dispatchRateLimiterOnMessage =
-                        configureAsyncTokenBucket(AsyncTokenBucket.builder())
+                        configureAsyncTokenBucket(AsyncTokenBucket.builder(), ratePeriodNanos)
                                 .rate(msgRate).ratePeriodNanos(ratePeriodNanos)
                                 .build();
             }
@@ -130,13 +130,13 @@ public class DispatchRateLimiterAsyncTokenBucketImpl extends DispatchRateLimiter
         if (byteRate > 0) {
             if (dispatchRate.isRelativeToPublishRate()) {
                 this.dispatchRateLimiterOnByte =
-                        configureAsyncTokenBucket(AsyncTokenBucket.builderForDynamicRate())
+                        configureAsyncTokenBucket(AsyncTokenBucket.builderForDynamicRate(), ratePeriodNanos)
                                 .rateFunction(() -> getRelativeDispatchRateInByte(dispatchRate))
                                 .ratePeriodNanosFunction(() -> ratePeriodNanos)
                                 .build();
             } else {
                 this.dispatchRateLimiterOnByte =
-                        configureAsyncTokenBucket(AsyncTokenBucket.builder())
+                        configureAsyncTokenBucket(AsyncTokenBucket.builder(), ratePeriodNanos)
                                 .rate(byteRate).ratePeriodNanos(ratePeriodNanos)
                                 .build();
             }
@@ -145,8 +145,13 @@ public class DispatchRateLimiterAsyncTokenBucketImpl extends DispatchRateLimiter
         }
     }
 
-    private <T extends AsyncTokenBucketBuilder<T>> T configureAsyncTokenBucket(T builder) {
+    private <T extends AsyncTokenBucketBuilder<T>> T configureAsyncTokenBucket(T builder,
+                                                                               long addTokensResolutionNanos) {
         builder.clock(brokerService.getPulsar().getMonotonicClock());
+        // configures tokens to be added once in every addTokensResolutionNanos
+        // this makes AsyncTokenBucket behave in the similar way as the "classic" dispatch rate limiter implementation
+        // which uses a scheduled task to add tokens to the rate limiter once in every ratePeriod
+        builder.addTokensResolutionNanos(addTokensResolutionNanos);
         return builder;
     }
 
