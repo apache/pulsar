@@ -32,6 +32,10 @@ import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
+/**
+ * On MacOS, the performance of System.nanoTime() is not great. Running benchmarks on Linux is recommended due
+ * to the bottleneck of System.nanoTime() implementation on MacOS.
+ */
 @Fork(3)
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.SECONDS)
