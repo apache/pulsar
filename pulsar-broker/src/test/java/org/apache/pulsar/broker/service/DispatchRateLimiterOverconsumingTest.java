@@ -118,6 +118,7 @@ public class DispatchRateLimiterOverconsumingTest extends BrokerTestBase impleme
         conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(true);
         // set the dispatch max read batch size to 1 to stress the rate limiting behavior more effectively
         conf.setDispatcherMaxReadBatchSize(1);
+        // avoid dispatching messages in a separate thread to simplify testing and reduce variance
         conf.setDispatcherDispatchMessagesInSubscriptionThread(false);
     }
 
@@ -137,7 +138,7 @@ public class DispatchRateLimiterOverconsumingTest extends BrokerTestBase impleme
     public void testOverconsumingTokensWithBrokerDispatchRateLimiter() throws Exception {
         int rateInMsg = 50;
         int durationSeconds = 5;
-        int numberOfConsumers = 10;
+        int numberOfConsumers = 20;
         int numberOfMessages = rateInMsg * durationSeconds;
 
         // configure dispatch throttling rate
@@ -252,11 +253,11 @@ public class DispatchRateLimiterOverconsumingTest extends BrokerTestBase impleme
         if (messagesCountForPreviousSecond > 0) {
             collectedRatesSnapshot.add(messagesCountForPreviousSecond);
         }
-        log.info("Collected rates for each second: {}", collectedRatesSnapshot);
+        log.info("[{}] Collected rates for each second: {}", implType, collectedRatesSnapshot);
         long avgMsgRate =
                 totalMessagesReceived.get() / TimeUnit.NANOSECONDS.toSeconds(
                         lastReceivedMessageTimeNanos.get() - startTimeNanos.get());
-        log.info("Average rate during the test run: {} msg/s", avgMsgRate);
+        log.info("[{}] Average rate during the test run: {} msg/s", implType, avgMsgRate);
 
         assertSoftly(softly -> {
             // check the rate during the test run
