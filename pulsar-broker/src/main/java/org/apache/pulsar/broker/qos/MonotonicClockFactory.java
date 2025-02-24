@@ -20,23 +20,8 @@
 package org.apache.pulsar.broker.qos;
 
 /**
- * Default implementation of {@link MonotonicClock} for use with {@link AsyncTokenBucket}.
- *
- * <p>
- * This delegates directly to System.nanoTime() and relies on the underlying system clock for monotonic timekeeping.
- * </p>
+ * Creates a new instance of a monotonic clock.
  */
-public class DefaultMonotonicClock implements MonotonicClock {
-    public static class Factory implements MonotonicClockFactory {
-        @Override
-        public MonotonicClock createMonotonicClock() {
-            return new DefaultMonotonicClock();
-        }
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    public long getTickNanos() {
-        return System.nanoTime();
-    }
+public interface MonotonicClockFactory {
+    MonotonicClock createMonotonicClock();
 }

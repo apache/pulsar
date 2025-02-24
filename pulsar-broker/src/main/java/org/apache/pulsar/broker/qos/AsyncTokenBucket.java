@@ -27,7 +27,10 @@ import java.util.concurrent.atomic.LongAdder;
  * An asynchronous token bucket algorithm implementation that is optimized for performance with highly concurrent
  * use. CAS (compare-and-swap) operations are used and multiple levels of CAS fields are used to minimize contention
  * when using CAS fields. The {@link LongAdder} class is used in the hot path to hold the sum of consumed tokens.
- * It is eventually consistent, meaning that the tokens are not updated on every call to the "consumeTokens" method.
+ * The internal implementation is eventually consistent, meaning that the tokens field value is not updated
+ * on every call to the "consumeTokens" method. Externally, the token balance is provided as a snapshot of the
+ * current balance, which is guaranteed to be off by at most the amount of new tokens gained during the
+ * addTokensResolutionNanos.
  * <p>Main usage flow:
  * 1. Tokens are consumed by invoking the "consumeTokens" or "consumeTokensAndCheckIfContainsTokens" methods.
  * 2. The "consumeTokensAndCheckIfContainsTokens" or "containsTokens" methods return false if there are no
@@ -42,14 +45,11 @@ import java.util.concurrent.atomic.LongAdder;
  * connection or client from the throttling queue to unthrottle. Before unthrottling, the application should check
  * for available tokens. If tokens are still not available, the application should continue with throttling and
  * repeat the throttling loop.
- * <p>By default, the AsyncTokenBucket is eventually consistent. This means that the token balance is updated
- * with added tokens and consumed tokens at most once during each "increment", when time advances more than the
- * configured resolution. There are settings for configuring consistency, please see {@link AsyncTokenBucketBuilder}
- * for details.
  * <p>This class does not produce side effects outside its own scope. It functions similarly to a stateful function,
  * akin to a counter function. In essence, it is a sophisticated counter. It can serve as a foundational component for
  * constructing higher-level asynchronous rate limiter implementations, which require side effects for throttling.
- * <p>To achieve optimal performance, pass a {@link DefaultMonotonicClock} instance as the clock .
+ * <p>On MacOS, to achieve optimal performance, pass a {@link LeapTolerantMonotonicClock} instance as the clock.
+ * On Linux, the default {@link DefaultMonotonicClock} instance delegating directly to System.nanoTime is sufficient.
  */
 public abstract class AsyncTokenBucket {
     public static final MonotonicClock DEFAULT_SNAPSHOT_CLOCK = new DefaultMonotonicClock();
@@ -219,7 +219,7 @@ public abstract class AsyncTokenBucket {
     }
 
     /**
-     * Eventually consume tokens from the bucket.
+     * Consume tokens from the bucket.
      *
      * @param consumeTokens the number of tokens to consume
      */
@@ -233,22 +233,17 @@ public abstract class AsyncTokenBucket {
     }
 
     /**
-     * Eventually consume tokens from the bucket and check if tokens remain available.
-     * The number of tokens is eventually consistent with the configured granularity of resolutionNanos.
-     * Therefore, the returned result is not definite.
+     * Consume tokens from the bucket and check if tokens remain available.
      *
      * @param consumeTokens the number of tokens to consume
-     * @return true if there is tokens remains, false if tokens are all consumed. The answer isn't definite since the
-     * comparison is made with eventually consistent token value.
+     * @return true if there is tokens remains, false if tokens are all consumed.
      */
     public boolean consumeTokensAndCheckIfContainsTokens(long consumeTokens) {
         return consumeTokensAndMaybeUpdateTokensBalance(consumeTokens) > 0;
     }
 
     /**
-     * Returns the current token balance. When forceConsistentTokens is true, the tokens balance is updated before
-     * returning. If forceConsistentTokens is false, the tokens balance could be updated if the last updated happened
-     * more than resolutionNanos nanoseconds ago.
+     * Returns the current token balance.
      *
      * @return the current token balance
      */
@@ -261,7 +256,7 @@ public abstract class AsyncTokenBucket {
      * tokens. Will return 0 if there are available tokens in the bucket.
      */
     public long calculateThrottlingDuration() {
-        return calculateThrottlingDuration(1);
+        return calculateThrottlingDuration(Math.max(1, getTargetAmountOfTokensAfterThrottling()));
     }
 
     /**
@@ -269,11 +264,6 @@ public abstract class AsyncTokenBucket {
      * of tokens. Will return 0 if the required amount of tokens is already in the bucket.
      */
     public long calculateThrottlingDuration(long requiredTokens) {
-        return internalCalculateThrottlingDuration(requiredTokens,
-                Math.max(requiredTokens, getTargetAmountOfTokensAfterThrottling()));
-    }
-
-    private long internalCalculateThrottlingDuration(long requiredTokens, long minimumTokensForThrottlingCalculation) {
         long currentTokens = consumeTokensAndMaybeUpdateTokensBalance(0);
         if (currentTokens == Long.MIN_VALUE) {
             throw new IllegalArgumentException(
@@ -284,35 +274,31 @@ public abstract class AsyncTokenBucket {
         }
         // when currentTokens is negative, subtracting a negative value results in
         // adding the absolute value (-(-x) -> +x)
-        long needTokens = minimumTokensForThrottlingCalculation - currentTokens;
-        long throttlingDurationNanos = (needTokens * getRatePeriodNanos()) / getRate();
-        // calculate when the next token will be added
-        long currentNanos = clockSource.getTickNanos();
-        long minThrottlingDurations =
-                lastNanos + Math.max(getNanosForOneToken(), addTokensResolutionNanos) - currentNanos;
-        return Math.max(throttlingDurationNanos, minThrottlingDurations);
+        long needTokens = requiredTokens - currentTokens;
+        return (needTokens * getRatePeriodNanos()) / getRate();
     }
 
+    /**
+     * Returns the configured capacity of the bucket.
+     */
     public abstract long getCapacity();
 
     /**
-     * Returns the current number of tokens in the bucket.
-     * The token balance is updated if the configured resolutionNanos has passed since the last update unless
-     * consistentConsumedTokens is true.
+     * Returns the current token balance of the bucket.
      */
     public final long getTokens() {
         return tokens();
     }
 
+    /**
+     * Returns the configured rate of the bucket.
+     */
     public abstract long getRate();
 
     protected abstract long getNanosForOneToken();
 
     /**
      * Checks if the bucket contains tokens.
-     * The token balance is updated before the comparison if the configured resolutionNanos has passed since the last
-     * update. It's possible that the returned result is not definite since the token balance is eventually consistent
-     * if consistentConsumedTokens is false.
      *
      * @return true if the bucket contains tokens, false otherwise
      */

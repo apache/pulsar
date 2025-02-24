@@ -1042,6 +1042,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Enable precise rate limit for topic publish"
     )
     private boolean preciseTopicPublishRateLimiterEnable = false;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "The class name of the factory that creates the MonotonicClock instance used by AsyncTokenBucket "
+                    + "instances part of rate limiters. Current options are "
+                    + "org.apache.pulsar.broker.qos.DefaultMonotonicClock$Factory (delegates to System.nanoTime) and "
+                    + "org.apache.pulsar.broker.qos.LeapTolerantMonotonicClock$Factory (delegates to System.nanoTime, "
+                    + "but tolerates non-monotonic or slow implementation)."
+    )
+    private String monotonicClockFactoryClassName = "org.apache.pulsar.broker.qos.DefaultMonotonicClock$Factory";
+
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,

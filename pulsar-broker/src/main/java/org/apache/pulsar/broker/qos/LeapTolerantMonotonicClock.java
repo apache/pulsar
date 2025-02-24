@@ -59,6 +59,13 @@ public class LeapTolerantMonotonicClock implements MonotonicClock, AutoCloseable
     private final TickUpdaterThread tickUpdaterThread;
     private volatile long snapshotTickNanos;
 
+    public static class Factory implements MonotonicClockFactory {
+        @Override
+        public MonotonicClock createMonotonicClock() {
+            return new LeapTolerantMonotonicClock();
+        }
+    }
+
     public LeapTolerantMonotonicClock() {
         this(AsyncTokenBucket.DEFAULT_ADD_TOKENS_RESOLUTION_NANOS / 2, System::nanoTime);
     }
