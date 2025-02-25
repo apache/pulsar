@@ -85,7 +85,7 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
                 .newConsumer()
                 .topic(topicName)
                 .subscriptionName(subscriptionName)
-                .receiverQueueSize(10)
+                .receiverQueueSize(50)
                 .subscriptionType(SubscriptionType.Shared)
                 .enableBatchIndexAcknowledgment(true)
                 .negativeAckRedeliveryDelay(100, TimeUnit.MILLISECONDS)
@@ -114,27 +114,29 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
         consumer.acknowledge(receive1);
         consumer.acknowledge(receive2);
         Awaitility.await().untilAsserted(() -> {
-            assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 18);
+            // Since https://github.com/apache/pulsar/pull/23931 improved the mechanism of estimate average entry size,
+            // broker will deliver much messages than before. So edit 18 -> 38 here.
+            assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 38);
         });
         Message<byte[]> receive3 = consumer.receive();
         Message<byte[]> receive4 = consumer.receive();
         consumer.acknowledge(receive3);
         consumer.acknowledge(receive4);
         Awaitility.await().untilAsserted(() -> {
-            assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 16);
+            assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 36);
         });
         // Block cmd-flow send until verify finish. see: https://github.com/apache/pulsar/pull/17436.
         consumer.pause();
         Message<byte[]> receive5 = consumer.receive();
         consumer.negativeAcknowledge(receive5);
         Awaitility.await().pollInterval(1, TimeUnit.MILLISECONDS).untilAsserted(() -> {
-            assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 0);
+            assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 20);
         });
         // Unblock cmd-flow.
         consumer.resume();
         consumer.receive();
         Awaitility.await().untilAsserted(() -> {
-            assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 16);
+            assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 36);
         });
     }
 
