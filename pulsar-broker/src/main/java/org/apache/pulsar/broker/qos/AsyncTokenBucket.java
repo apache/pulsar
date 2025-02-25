@@ -263,10 +263,6 @@ public abstract class AsyncTokenBucket {
      */
     public long calculateThrottlingDuration(long requiredTokens) {
         long currentTokens = consumeTokensAndMaybeUpdateTokensBalance(0);
-        if (currentTokens == Long.MIN_VALUE) {
-            throw new IllegalArgumentException(
-                    "Unexpected result from updateAndConsumeTokens with forceConsistentTokens set to true");
-        }
         if (currentTokens >= requiredTokens) {
             return 0L;
         }
