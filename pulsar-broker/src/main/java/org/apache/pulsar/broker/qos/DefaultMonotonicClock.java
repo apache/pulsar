@@ -27,13 +27,6 @@ package org.apache.pulsar.broker.qos;
  * </p>
  */
 public class DefaultMonotonicClock implements MonotonicClock {
-    public static class Factory implements MonotonicClockFactory {
-        @Override
-        public MonotonicClock createMonotonicClock() {
-            return new DefaultMonotonicClock();
-        }
-    }
-
     /** {@inheritDoc} */
     @Override
     public long getTickNanos() {

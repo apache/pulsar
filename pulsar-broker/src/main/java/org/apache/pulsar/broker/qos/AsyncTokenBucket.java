@@ -48,8 +48,6 @@ import java.util.concurrent.atomic.LongAdder;
  * <p>This class does not produce side effects outside its own scope. It functions similarly to a stateful function,
  * akin to a counter function. In essence, it is a sophisticated counter. It can serve as a foundational component for
  * constructing higher-level asynchronous rate limiter implementations, which require side effects for throttling.
- * <p>On MacOS, to achieve optimal performance, pass a {@link LeapTolerantMonotonicClock} instance as the clock.
- * On Linux, the default {@link DefaultMonotonicClock} instance delegating directly to System.nanoTime is sufficient.
  */
 public abstract class AsyncTokenBucket {
     public static final MonotonicClock DEFAULT_SNAPSHOT_CLOCK = new DefaultMonotonicClock();

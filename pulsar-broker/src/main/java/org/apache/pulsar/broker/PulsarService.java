@@ -98,7 +98,6 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.protocol.ProtocolHandlers;
 import org.apache.pulsar.broker.qos.DefaultMonotonicClock;
 import org.apache.pulsar.broker.qos.MonotonicClock;
-import org.apache.pulsar.broker.qos.MonotonicClockFactory;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroupService;
 import org.apache.pulsar.broker.resourcegroup.ResourceUsageTopicTransportManager;
 import org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager;
@@ -400,17 +399,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     protected MonotonicClock createMonotonicClock(ServiceConfiguration config) {
-        String monotonicClockFactoryClassName = config.getMonotonicClockFactoryClassName();
-        if (isNotBlank(monotonicClockFactoryClassName)) {
-            try {
-                MonotonicClockFactory monotonicClockFactory =
-                        (MonotonicClockFactory) Class.forName(monotonicClockFactoryClassName).newInstance();
-                return monotonicClockFactory.createMonotonicClock();
-            } catch (Exception e) {
-                LOG.warn("Failed to initialize monotonic clock factory class {}. Using default implementation.",
-                        monotonicClockFactoryClassName, e);
-            }
-        }
         return new DefaultMonotonicClock();
     }
 
