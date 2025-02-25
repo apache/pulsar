@@ -2189,11 +2189,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
     }
 
-    private PulsarClient getPulsarClient() throws PulsarClientException {
+    protected PulsarClient getPulsarClient() throws PulsarClientException {
         return PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
     }
 
-    private PulsarAdmin getPulsarAdmin() throws PulsarClientException {
+    protected PulsarAdmin getPulsarAdmin() throws PulsarClientException {
         return PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
     }
 }

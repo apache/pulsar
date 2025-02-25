@@ -26,7 +26,7 @@ import org.apache.pulsar.tests.integration.containers.ProxyContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.containers.ZKContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
-import org.apache.pulsar.tests.integration.messaging.TopicMessagingBase;
+import org.apache.pulsar.tests.integration.messaging.MessagingBase;
 import org.testng.annotations.Test;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,7 +35,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-public class ClientToolTest extends TopicMessagingBase {
+public class ClientToolTest extends MessagingBase {
 
     private static final int MESSAGE_COUNT = 10;
 

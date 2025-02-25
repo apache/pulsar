@@ -18,19 +18,10 @@
  */
 package org.apache.pulsar.tests.integration.messaging;
 
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
-import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.DeadLetterPolicy;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.SubscriptionInitialPosition;
-import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
-import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /**
@@ -39,68 +30,20 @@ import org.testng.annotations.Test;
 @Slf4j
 public class DelayMessagingTest extends PulsarTestSuite {
 
-    @Test(dataProvider = "ServiceUrls")
-    public void delayMsgBlockTest(Supplier<String> serviceUrl) throws Exception {
-        String nsName = generateNamespaceName();
-        pulsarCluster.createNamespace(nsName);
+    DelayMessaging test;
+    @BeforeClass(alwaysRun = true)
+    public void setupTest() throws Exception {
+        this.test = new DelayMessaging(getPulsarClient(), getPulsarAdmin());
+    }
 
-        String topic = generateTopicName(nsName, "testDelayMsgBlock", true);
-        pulsarCluster.createPartitionedTopic(topic, 3);
+    @AfterClass(alwaysRun = true)
+    public void closeTest() throws Exception {
+        this.test.close();
+    }
 
-        String retryTopic = topic + "-RETRY";
-        String deadLetterTopic = topic + "-DLT";
-
-        @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(serviceUrl.get()).build();
-
-        @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .create();
-
-        final int redeliverCnt = 10;
-        final int delayTimeSeconds = 5;
-        @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic(topic)
-                .subscriptionName("test")
-                .subscriptionType(SubscriptionType.Shared)
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .enableRetry(true)
-                .deadLetterPolicy(DeadLetterPolicy.builder()
-                        .maxRedeliverCount(redeliverCnt)
-                        .retryLetterTopic(retryTopic)
-                        .deadLetterTopic(deadLetterTopic)
-                        .build())
-                .receiverQueueSize(100)
-                .ackTimeout(60, TimeUnit.SECONDS)
-                .subscribe();
-
-        producer.newMessage().value("hello".getBytes()).send();
-
-        // receive message at first time
-        Message<byte[]> message = consumer.receive(delayTimeSeconds * 2, TimeUnit.SECONDS);
-        Assert.assertNotNull(message, "Can't receive message at the first time.");
-        consumer.reconsumeLater(message, delayTimeSeconds, TimeUnit.SECONDS);
-
-        // receive retry messages
-        for (int i = 0; i < redeliverCnt; i++) {
-            message = consumer.receive(delayTimeSeconds * 2, TimeUnit.SECONDS);
-            Assert.assertNotNull(message, "Consumer can't receive message in double delayTimeSeconds time "
-                    + delayTimeSeconds * 2 + "s");
-            log.info("receive msg. reConsumeTimes: {}", message.getProperty("RECONSUMETIMES"));
-            consumer.reconsumeLater(message, delayTimeSeconds, TimeUnit.SECONDS);
-        }
-
-        @Cleanup
-        Consumer<byte[]> dltConsumer = pulsarClient.newConsumer()
-                .topic(deadLetterTopic)
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscriptionName("test")
-                .subscribe();
-
-        message = dltConsumer.receive(10, TimeUnit.SECONDS);
-        Assert.assertNotNull(message, "Dead letter topic consumer can't receive message.");
+    @Test
+    public void delayMsgBlockTest() throws Exception {
+        test.delayMsgBlockTest();
     }
 
 }

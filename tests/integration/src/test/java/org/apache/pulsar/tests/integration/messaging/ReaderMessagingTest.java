@@ -18,125 +18,34 @@
  */
 package org.apache.pulsar.tests.integration.messaging;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
-import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.client.api.Schema;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
 public class ReaderMessagingTest extends MessagingBase {
 
-    @Test(dataProvider = "ServiceAndAdminUrls")
-    public void testReaderReconnectAndRead(Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
-        log.info("-- Starting {} test --", methodName);
-        final String topicName = getNonPartitionedTopic("test-reader-reconnect-read", false);
-        @Cleanup final PulsarClient client = PulsarClient.builder()
-                .serviceUrl(serviceUrl.get())
-                .build();
-        @Cleanup final Reader<String> reader = client.newReader(Schema.STRING)
-                .topic(topicName)
-                .subscriptionName("test-sub")
-                // Here we need to make sure that setting the startMessageId should not cause a change in the
-                // behavior of the reader under non.
-                .startMessageId(MessageId.earliest)
-                .create();
+    ReaderMessaging test;
 
-        final int messagesToSend = 10;
-        @Cleanup final Producer<String> producer = client.newProducer(Schema.STRING)
-                .topic(topicName)
-                .enableBatching(false)
-                .create();
-        for (int i = 0; i < messagesToSend; i++) {
-            MessageId messageId = producer.newMessage().value("message-" + i).send();
-            assertNotNull(messageId);
-        }
-
-        for (int i = 0; i < messagesToSend; i++) {
-            Message<String> msg = reader.readNext();
-            assertEquals(msg.getValue(), "message-" + i);
-        }
-
-        @Cleanup
-        PulsarAdmin admin = PulsarAdmin.builder()
-                .serviceHttpUrl(adminUrl.get())
-                .build();
-
-        admin.topics().unload(topicName);
-
-        for (int i = 0; i < messagesToSend; i++) {
-            MessageId messageId = producer.newMessage().value("message-" + i).send();
-            assertNotNull(messageId);
-        }
-
-        for (int i = 0; i < messagesToSend; i++) {
-            Message<String> msg = reader.readNext();
-            assertEquals(msg.getValue(), "message-" + i);
-        }
-
-        log.info("-- Exiting {} test --", methodName);
+    @BeforeClass(alwaysRun = true)
+    public void setupTest() throws Exception {
+        this.test = new ReaderMessaging(getPulsarClient(), getPulsarAdmin());
     }
 
-    @Test(dataProvider = "ServiceAndAdminUrls")
-    public void testReaderReconnectAndReadBatchMessages(Supplier<String> serviceUrl, Supplier<String> adminUrl)
+    @AfterClass(alwaysRun = true)
+    public void closeTest() throws Exception {
+        this.test.close();
+    }
+
+    @Test
+    public void testReaderReconnectAndRead() throws Exception {
+        test.testReaderReconnectAndRead();
+    }
+
+    @Test
+    public void testReaderReconnectAndReadBatchMessages()
             throws Exception {
-        log.info("-- Starting {} test --", methodName);
-        final String topicName = getNonPartitionedTopic("test-reader-reconnect-read-batch", false);
-        @Cleanup final PulsarClient client = PulsarClient.builder()
-                .serviceUrl(serviceUrl.get())
-                .build();
-        @Cleanup final Reader<String> reader = client.newReader(Schema.STRING)
-                .topic(topicName)
-                .subscriptionName("test-sub")
-                // Here we need to make sure that setting the startMessageId should not cause a change in the
-                // behavior of the reader under non.
-                .startMessageId(MessageId.earliest)
-                .create();
-
-        final int messagesToSend = 10;
-        @Cleanup final Producer<String> producer = client.newProducer(Schema.STRING)
-                .topic(topicName)
-                .enableBatching(true)
-                .batchingMaxPublishDelay(5, TimeUnit.SECONDS)
-                .batchingMaxMessages(5)
-                .create();
-
-        for (int i = 0; i < messagesToSend; i++) {
-            MessageId messageId = producer.newMessage().value("message-" + i).send();
-            assertNotNull(messageId);
-        }
-
-        for (int i = 0; i < messagesToSend; i++) {
-            Message<String> msg = reader.readNext();
-            assertEquals(msg.getValue(), "message-" + i);
-        }
-
-        @Cleanup
-        PulsarAdmin admin = PulsarAdmin.builder()
-                .serviceHttpUrl(adminUrl.get())
-                .build();
-
-        admin.topics().unload(topicName);
-
-        for (int i = 0; i < messagesToSend; i++) {
-            MessageId messageId = producer.newMessage().value("message-" + i).send();
-            assertNotNull(messageId);
-        }
-
-        for (int i = 0; i < messagesToSend; i++) {
-            Message<String> msg = reader.readNext();
-            assertEquals(msg.getValue(), "message-" + i);
-        }
-
-        log.info("-- Exiting {} test --", methodName);
+        test.testReaderReconnectAndReadBatchMessages();
     }
 }

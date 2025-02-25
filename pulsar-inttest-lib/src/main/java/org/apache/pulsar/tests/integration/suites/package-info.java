@@ -16,28 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration.messaging;
-
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
-
-public class NonDurableConsumerMessagingTest extends MessagingBase {
-
-    NonDurableConsumerMessaging test;
-
-    @BeforeClass(alwaysRun = true)
-    public void setupTest() throws Exception {
-        this.test = new NonDurableConsumerMessaging(getPulsarClient(), getPulsarAdmin());
-    }
-
-    @AfterClass(alwaysRun = true)
-    public void closeTest() throws Exception {
-        this.test.close();
-    }
-
-    @Test
-    public void testNonDurableConsumer() throws Exception {
-        test.testNonDurableConsumer();
-    }
-}
+/**
+ * Implementation of policies.
+ */
+package org.apache.pulsar.tests.integration.suites;

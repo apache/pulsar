@@ -46,7 +46,7 @@ public abstract class MessagingBase extends PulsarTestSuite {
     protected String methodName;
 
     @BeforeMethod(alwaysRun = true)
-    public void beforeMethod(Method m) throws Exception {
+    public void beforeMethod(Method m) {
         methodName = m.getName();
     }
 
@@ -54,6 +54,7 @@ public abstract class MessagingBase extends PulsarTestSuite {
         String nsName = generateNamespaceName();
         pulsarCluster.createNamespace(nsName);
 
+        //TODO: Pass isPersistent, reported in https://github.com/apache/pulsar/issues/23541
         return generateTopicName(nsName, topicPrefix, true);
     }
 
@@ -62,6 +63,7 @@ public abstract class MessagingBase extends PulsarTestSuite {
         String nsName = generateNamespaceName();
         pulsarCluster.createNamespace(nsName);
 
+        //TODO: Pass isPersistent, reported in https://github.com/apache/pulsar/issues/23541
         String topicName = generateTopicName(nsName, topicPrefix, true);
         pulsarCluster.createPartitionedTopic(topicName, partitions);
         return topicName;

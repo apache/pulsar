@@ -16,28 +16,34 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration.messaging;
+package org.apache.pulsar.tests.integration.docker;
 
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
+import lombok.Data;
 
-public class NonDurableConsumerMessagingTest extends MessagingBase {
+/**
+ * Represents the result of executing a command.
+ */
+@Data(staticConstructor = "of")
+public class ContainerExecResult {
 
-    NonDurableConsumerMessaging test;
+    private final long exitCode;
+    private final String stdout;
+    private final String stderr;
 
-    @BeforeClass(alwaysRun = true)
-    public void setupTest() throws Exception {
-        this.test = new NonDurableConsumerMessaging(getPulsarClient(), getPulsarAdmin());
+    public void assertNoOutput() {
+        assertNoStdout();
+        assertNoStderr();
     }
 
-    @AfterClass(alwaysRun = true)
-    public void closeTest() throws Exception {
-        this.test.close();
+    public void assertNoStdout() {
+        if (!stdout.isEmpty()) {
+            throw new IllegalArgumentException("stdout should be empty, but was '" + stdout + "'");
+        }
     }
 
-    @Test
-    public void testNonDurableConsumer() throws Exception {
-        test.testNonDurableConsumer();
+    public void assertNoStderr() {
+        if (!stderr.isEmpty()) {
+            throw new IllegalArgumentException("stderr should be empty, but was '" + stderr + "'");
+        }
     }
 }
