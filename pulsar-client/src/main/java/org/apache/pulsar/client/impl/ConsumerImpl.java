@@ -2301,7 +2301,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                         .producerName(
                                                 String.format("%s-%s-%s-%s-DLQ", this.topicName, this.subscription,
                                                         this.consumerName, RandomStringUtils.randomAlphanumeric(5)))
-                                        .loadConf(this.deadLetterPolicy.getDeadLetterProducerConfig())
+                                        .loadConf(this.deadLetterPolicy.getDeadLetterProducerConfig().toMap())
                                         .createAsync();
                         newProducer.whenComplete((producer, ex) -> {
                             if (ex != null) {
@@ -2365,9 +2365,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         CompletableFuture<Producer<byte[]>> newProducer = client
                                 .newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
                                 .topic(this.deadLetterPolicy.getRetryLetterTopic())
-                                .enableBatching(false)
-                                .enableChunking(true)
-                                .blockIfQueueFull(false)
+                                .loadConf(this.deadLetterPolicy.getRetryLetterProducerConfig().toMap())
                                 .createAsync();
                         newProducer.whenComplete((producer, ex) -> {
                             if (ex != null) {

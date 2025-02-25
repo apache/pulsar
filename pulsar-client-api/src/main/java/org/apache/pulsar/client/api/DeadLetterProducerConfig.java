@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -20,7 +21,6 @@ public class DeadLetterProducerConfig implements Serializable {
     // refer to default values in ProducerConfigurationData
     public static final int DEFAULT_BATCHING_MAX_MESSAGES = 1000;
     public static final int DEFAULT_MAX_PENDING_MESSAGES = 0;
-
 
     /**
      * @see ProducerBuilder#blockIfQueueFull(boolean)
@@ -57,6 +57,15 @@ public class DeadLetterProducerConfig implements Serializable {
      */
     private int chunkMaxMessageSize = -1;
 
-    private Map<String, Object> toMap() {
+    public Map<String, Object> toMap() {
+        Map<String, Object> map = new HashMap<>();
+        map.put("blockIfQueueFull", blockIfQueueFull);
+        map.put("maxPendingMessages", maxPendingMessages);
+        map.put("batchingEnabled", batchingEnabled);
+        map.put("batchingMaxMessages", batchingMaxMessages);
+        map.put("batchingMaxBytes", batchingMaxBytes);
+        map.put("chunkingEnabled", chunkingEnabled);
+        map.put("chunkMaxMessageSize", chunkMaxMessageSize);
+        return map;
     }
 }
