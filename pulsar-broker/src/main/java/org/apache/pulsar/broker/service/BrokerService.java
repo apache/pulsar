@@ -124,6 +124,8 @@ import org.apache.pulsar.broker.service.TopicEventsListener.TopicEvent;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentSystemTopic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
+import org.apache.pulsar.broker.service.persistent.DispatchRateLimiterFactory;
+import org.apache.pulsar.broker.service.persistent.DispatchRateLimiterFactoryClassic;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.SystemTopic;
@@ -264,6 +266,7 @@ public class BrokerService implements Closeable {
     private final ScheduledExecutorService consumedLedgersMonitor;
     private ScheduledExecutorService deduplicationSnapshotMonitor;
     protected final PublishRateLimiter brokerPublishRateLimiter;
+    private final DispatchRateLimiterFactory dispatchRateLimiterFactory;
     protected volatile DispatchRateLimiter brokerDispatchRateLimiter = null;
 
     private DistributedIdGenerator producerNameGenerator;
@@ -316,10 +319,11 @@ public class BrokerService implements Closeable {
     public BrokerService(PulsarService pulsar, EventLoopGroup eventLoopGroup) throws Exception {
         this.pulsar = pulsar;
         this.dynamicConfigurationMap = prepareDynamicConfigurationMap();
-        this.brokerPublishRateLimiter = new PublishRateLimiterImpl(pulsar.getMonotonicSnapshotClock());
+        this.brokerPublishRateLimiter = new PublishRateLimiterImpl(pulsar.getMonotonicClock());
         this.preciseTopicPublishRateLimitingEnable =
                 pulsar.getConfiguration().isPreciseTopicPublishRateLimiterEnable();
         this.managedLedgerFactory = pulsar.getManagedLedgerFactory();
+        this.dispatchRateLimiterFactory = createDispatchRateLimiterFactory(pulsar.getConfig());
         this.topics =
                 ConcurrentOpenHashMap.<String, CompletableFuture<Optional<Topic>>>newBuilder()
                 .build();
@@ -465,6 +469,22 @@ public class BrokerService implements Closeable {
                         .getBrokerEntryPayloadProcessors(), BrokerService.class.getClassLoader());
 
         this.bundlesQuotas = new BundlesQuotas(pulsar);
+    }
+
+    protected DispatchRateLimiterFactory createDispatchRateLimiterFactory(ServiceConfiguration config)
+            throws ClassNotFoundException, InstantiationException, IllegalAccessException {
+        String dispatchRateLimiterFactoryClassName = config.getDispatchRateLimiterFactoryClassName();
+        if (isNotBlank(dispatchRateLimiterFactoryClassName)) {
+            try {
+                return (DispatchRateLimiterFactory) Class.forName(dispatchRateLimiterFactoryClassName).newInstance();
+            } catch (Exception e) {
+                log.warn("Failed to initialize dispatch rate limiter factory class {}",
+                        dispatchRateLimiterFactoryClassName, e);
+                throw e;
+            }
+        } else {
+            return new DispatchRateLimiterFactoryClassic();
+        }
     }
 
     private int getPendingLookupRequest() {
@@ -2866,7 +2886,7 @@ public class BrokerService implements Closeable {
 
     private void updateBrokerDispatchThrottlingMaxRate() {
         if (brokerDispatchRateLimiter == null) {
-            brokerDispatchRateLimiter = new DispatchRateLimiter(this);
+            brokerDispatchRateLimiter = dispatchRateLimiterFactory.createBrokerDispatchRateLimiter(this);
         } else {
             brokerDispatchRateLimiter.updateDispatchRate();
         }

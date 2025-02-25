@@ -250,6 +250,11 @@ public class AbstractBaseDispatcherTest {
         }
 
         @Override
+        public String getName() {
+            return "AbstractBaseDispatcherTestHelper for subscription" + subscription.getName();
+        }
+
+        @Override
         public CompletableFuture<Void> addConsumer(Consumer consumer) {
             return CompletableFuture.completedFuture(null);
         }
