@@ -19,6 +19,7 @@
 package org.apache.pulsar.admin.cli;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.admin.cli.CmdTopics.printMessages;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
@@ -39,8 +40,6 @@ import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.cli.NoSplitter;
-import org.apache.pulsar.client.impl.BatchMessageIdImpl;
-import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 @Parameters(commandDescription = "Operations on persistent topics. The persistent-topics "
@@ -606,26 +605,7 @@ public class CmdPersistentTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             List<Message<byte[]>> messages = getPersistentTopics().peekMessages(persistentTopic, subName, numMessages);
-            int position = 0;
-            for (Message<byte[]> msg : messages) {
-                if (++position != 1) {
-                    System.out.println("-------------------------------------------------------------------------\n");
-                }
-                if (msg.getMessageId() instanceof BatchMessageIdImpl) {
-                    BatchMessageIdImpl msgId = (BatchMessageIdImpl) msg.getMessageId();
-                    System.out.println("Batch Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId() + ":"
-                            + msgId.getBatchIndex());
-                } else {
-                    MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
-                    System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
-                }
-                if (msg.getProperties().size() > 0) {
-                    System.out.println("Properties:");
-                    print(msg.getProperties());
-                }
-                ByteBuf data = Unpooled.wrappedBuffer(msg.getData());
-                System.out.println(ByteBufUtil.prettyHexDump(data));
-            }
+            printMessages(messages, false, this);
         }
     }
 
