@@ -131,7 +131,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                                                          OffsetsCache entryOffsetsCache)
             throws IOException {
 
-        return new BlobStoreManagedLedgerOffloader(config, scheduler, readExecutor, userMetadata, offloaderStats, entryOffsetsCache);
+        return new BlobStoreManagedLedgerOffloader(config, scheduler, readExecutor,
+                userMetadata, offloaderStats, entryOffsetsCache);
     }
 
     BlobStoreManagedLedgerOffloader(TieredStorageConfiguration config, OrderedScheduler scheduler,
