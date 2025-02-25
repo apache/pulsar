@@ -34,8 +34,10 @@ public class DeadLetterProducerConfig implements Serializable {
 
     /**
      * @see ProducerBuilder#enableBatching(boolean)
+     * default is false to keep the same behavior as before
+     * while the default value in ProducerConfigurationData is true
      */
-    private boolean batchingEnabled = true;
+    private boolean batchingEnabled = false;
 
     /**
      * @see ProducerBuilder#batchingMaxMessages(int)
@@ -49,8 +51,10 @@ public class DeadLetterProducerConfig implements Serializable {
 
     /**
      * @see ProducerBuilder#enableChunking(boolean)
+     * default is true to keep the same behavior as before
+     * while the default value in ProducerConfigurationData is false
      */
-    private boolean chunkingEnabled = false;
+    private boolean chunkingEnabled = true;
 
     /**
      * @see ProducerBuilder#chunkMaxMessageSize(int) 
