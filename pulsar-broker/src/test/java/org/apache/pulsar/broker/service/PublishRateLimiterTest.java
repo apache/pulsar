@@ -56,7 +56,7 @@ public class PublishRateLimiterTest {
         policies.publishMaxMessageRate = new HashMap<>();
         policies.publishMaxMessageRate.put(CLUSTER_NAME, publishRate);
         manualClockSource = new AtomicLong(TimeUnit.SECONDS.toNanos(100));
-        publishRateLimiter = new PublishRateLimiterImpl(requestSnapshot -> manualClockSource.get());
+        publishRateLimiter = new PublishRateLimiterImpl(() -> manualClockSource.get());
         publishRateLimiter.update(policies, CLUSTER_NAME);
         producer = mock(Producer.class);
         throttleCount.set(0);
