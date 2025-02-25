@@ -178,6 +178,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
             }
         });
         confBuilder.setDisableHttpsEndpointIdentificationAlgorithm(!conf.isTlsHostnameVerificationEnable());
+        // Disable the retry mechanism of DefaultAsyncHttpClient since the retryOrTimeOut method in AsyncHttpConnector already implements retry logic.
         confBuilder.setMaxRequestRetry(0);
     }
 
