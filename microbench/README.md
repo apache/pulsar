@@ -67,3 +67,12 @@ Checking what benchmarks match the pattern:
 java -jar microbench/target/microbenchmarks.jar ".*BenchmarkName.*" -lp
 ```
 
+Profiling benchmarks with [async-profiler](https://github.com/async-profiler/async-profiler):
+
+```shell
+# example of profiling with async-profiler
+# download async-profiler from https://github.com/async-profiler/async-profiler/releases
+LIBASYNCPROFILER_PATH=$HOME/async-profiler/lib/libasyncProfiler.dylib
+java -jar microbench/target/microbenchmarks.jar -prof async:libPath=$LIBASYNCPROFILER_PATH\;output=flamegraph\;dir=profile-results ".*BenchmarkName.*"
+```
+

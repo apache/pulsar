@@ -227,6 +227,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private final CallbackMutex offloadMutex = new CallbackMutex();
     public static final CompletableFuture<Position> NULL_OFFLOAD_PROMISE = CompletableFuture
             .completedFuture(PositionFactory.LATEST);
+    @VisibleForTesting
+    @Getter
     protected volatile LedgerHandle currentLedger;
     protected volatile long currentLedgerEntries = 0;
     protected volatile long currentLedgerSize = 0;
@@ -807,41 +809,33 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         buffer.retain();
 
         // Jump to specific thread to avoid contention from writers writing from different threads
-        final var addOperation = OpAddEntry.createNoRetainBuffer(this, buffer, numberOfMessages, callback, ctx,
-                currentLedgerTimeoutTriggered);
-        var added = false;
-        try {
-            // Use synchronized to ensure if `addOperation` is added to queue and fails later, it will be the first
-            // element in `pendingAddEntries`.
-            synchronized (this) {
-                if (managedLedgerInterceptor != null) {
-                    managedLedgerInterceptor.beforeAddEntry(addOperation, addOperation.getNumberOfMessages());
-                }
-                final var state = STATE_UPDATER.get(this);
-                beforeAddEntryToQueue(state);
-                pendingAddEntries.add(addOperation);
-                added = true;
-                afterAddEntryToQueue(state, addOperation);
-            }
-        } catch (Throwable throwable) {
-            if (!added) {
-                addOperation.failed(ManagedLedgerException.getManagedLedgerException(throwable));
-            } // else: all elements of `pendingAddEntries` will fail in another thread
-        }
+        executor.execute(() -> {
+            OpAddEntry addOperation = OpAddEntry.createNoRetainBuffer(this, buffer, numberOfMessages, callback, ctx,
+                    currentLedgerTimeoutTriggered);
+            internalAsyncAddEntry(addOperation);
+        });
     }
 
-    protected void beforeAddEntryToQueue(State state) throws ManagedLedgerException {
+    protected synchronized void internalAsyncAddEntry(OpAddEntry addOperation) {
+        if (!beforeAddEntry(addOperation)) {
+            return;
+        }
+        final State state = STATE_UPDATER.get(this);
         if (state.isFenced()) {
-            throw new ManagedLedgerFencedException();
+            addOperation.failed(new ManagedLedgerFencedException());
+            return;
+        } else if (state == State.Terminated) {
+            addOperation.failed(new ManagedLedgerTerminatedException("Managed ledger was already terminated"));
+            return;
+        } else if (state == State.Closed) {
+            addOperation.failed(new ManagedLedgerAlreadyClosedException("Managed ledger was already closed"));
+            return;
+        } else if (state == State.WriteFailed) {
+            addOperation.failed(new ManagedLedgerAlreadyClosedException("Waiting to recover from failure"));
+            return;
         }
-        switch (state) {
-            case Terminated -> throw new ManagedLedgerTerminatedException("Managed ledger was already terminated");
-            case Closed -> throw new ManagedLedgerAlreadyClosedException("Managed ledger was already closed");
-            case WriteFailed -> throw new ManagedLedgerAlreadyClosedException("Waiting to recover from failure");
-        }
-    }
+        pendingAddEntries.add(addOperation);
 
-    protected void afterAddEntryToQueue(State state, OpAddEntry addOperation) throws ManagedLedgerException {
         if (state == State.ClosingLedger || state == State.CreatingLedger) {
             // We don't have a ready ledger to write into
             // We are waiting for a new ledger to be created

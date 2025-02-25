@@ -115,7 +115,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     // Variable is updated in a synchronized block
     private volatile long msgIdGenerator;
 
-    private final OpSendMsgQueue pendingMessages;
+    protected final OpSendMsgQueue pendingMessages;
     private final Optional<Semaphore> semaphore;
     private volatile Timeout sendTimeout = null;
     private final long lookupDeadline;
@@ -132,12 +132,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private LastSendFutureWrapper lastSendFutureWrapper = LastSendFutureWrapper.create(lastSendFuture);
 
     // Globally unique producer name
-    private String producerName;
+    protected String producerName;
     private final boolean userProvidedProducerName;
 
     private String connectionId;
     private String connectedSince;
-    private final int partitionIndex;
+    protected final int partitionIndex;
 
     private final ProducerStatsRecorder stats;
 
@@ -486,7 +486,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
      * @param payload
      * @return a new payload
      */
-    private ByteBuf applyCompression(ByteBuf payload) {
+    @VisibleForTesting
+    public ByteBuf applyCompression(ByteBuf payload) {
         ByteBuf compressedPayload = compressor.encode(payload);
         payload.release();
         return compressedPayload;
@@ -540,22 +541,29 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         boolean compressed = false;
         // Batch will be compressed when closed
         // If a message has a delayed delivery time, we'll always send it individually
-        if (!isBatchMessagingEnabled() || msgMetadata.hasDeliverAtTime()) {
-            compressedPayload = applyCompression(payload);
-            compressed = true;
+        if (((!isBatchMessagingEnabled() || msgMetadata.hasDeliverAtTime()))) {
+            if (payload.readableBytes() < conf.getCompressMinMsgBodySize()) {
 
-            // validate msg-size (For batching this will be check at the batch completion size)
-            int compressedSize = compressedPayload.readableBytes();
-            if (compressedSize > getMaxMessageSize() && !this.conf.isChunkingEnabled()) {
-                compressedPayload.release();
-                String compressedStr = conf.getCompressionType() != CompressionType.NONE ? "Compressed" : "";
-                PulsarClientException.InvalidMessageException invalidMessageException =
-                        new PulsarClientException.InvalidMessageException(
-                                format("The producer %s of the topic %s sends a %s message with %d bytes that exceeds"
-                                                + " %d bytes",
-                        producerName, topic, compressedStr, compressedSize, getMaxMessageSize()));
-                completeCallbackAndReleaseSemaphore(uncompressedSize, callback, invalidMessageException);
-                return;
+            } else {
+                compressedPayload = applyCompression(payload);
+                compressed = true;
+
+                // validate msg-size (For batching this will be check at the batch completion size)
+                int compressedSize = compressedPayload.readableBytes();
+                if (compressedSize > getMaxMessageSize() && !this.conf.isChunkingEnabled()) {
+                    compressedPayload.release();
+                    String compressedStr = conf.getCompressionType() != CompressionType.NONE
+                            ? ("compressed (" + conf.getCompressionType() + ")")
+                            : "uncompressed";
+                    PulsarClientException.InvalidMessageException invalidMessageException =
+                            new PulsarClientException.InvalidMessageException(
+                                    format("The producer %s of the topic %s sends a %s message with %d bytes that "
+                                                    + "exceeds %d bytes",
+                                            producerName, topic, compressedStr, compressedSize,
+                                            getMaxMessageSize()));
+                    completeCallbackAndReleaseSemaphore(uncompressedSize, callback, invalidMessageException);
+                    return;
+                }
             }
         }
 
@@ -577,7 +585,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         // Update the message metadata before computing the payload chunk size to avoid a large message cannot be split
         // into chunks.
-        updateMessageMetadata(msgMetadata, uncompressedSize);
+        updateMessageMetadata(msgMetadata, uncompressedSize, compressed);
 
         // send in chunks
         int totalChunks;
@@ -673,7 +681,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
      * @param uncompressedSize
      * @return the sequence id
      */
-    private void updateMessageMetadata(final MessageMetadata msgMetadata, final int uncompressedSize) {
+    @SuppressWarnings("checkstyle:Indentation")
+    private void updateMessageMetadata(final MessageMetadata msgMetadata, final int uncompressedSize,
+                                       boolean isCompressed) {
         if (!msgMetadata.hasPublishTime()) {
             msgMetadata.setPublishTime(client.getClientClock().millis());
 
@@ -683,9 +693,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
             // The field "uncompressedSize" is zero means the compression info were not set yet.
             if (msgMetadata.getUncompressedSize() <= 0) {
-                if (conf.getCompressionType() != CompressionType.NONE) {
-                    msgMetadata
-                            .setCompression(CompressionCodecProvider.convertToWireProtocol(conf.getCompressionType()));
+                if (conf.getCompressionType() != CompressionType.NONE && isCompressed) {
+                    msgMetadata.setCompression(
+                            CompressionCodecProvider.convertToWireProtocol(conf.getCompressionType()));
                 }
                 msgMetadata.setUncompressedSize(uncompressedSize);
             }
@@ -777,7 +787,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         } else {
             // in this case compression has not been applied by the caller
             // but we have to compress the payload if compression is configured
-            if (!compressed) {
+            if (!compressed && chunkPayload.readableBytes() > conf.getCompressMinMsgBodySize()) {
                 chunkPayload = applyCompression(chunkPayload);
             }
             ByteBuf encryptedPayload = encryptMessage(msgMetadata, chunkPayload);
@@ -1254,7 +1264,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
     }
 
-    void ackReceived(ClientCnx cnx, long sequenceId, long highestSequenceId, long ledgerId, long entryId) {
+    protected void ackReceived(ClientCnx cnx, long sequenceId, long highestSequenceId, long ledgerId, long entryId) {
         OpSendMsg op = null;
         synchronized (this) {
             op = pendingMessages.peek();
@@ -1329,11 +1339,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         op.recycle();
     }
 
-    private long getHighestSequenceId(OpSendMsg op) {
+    protected long getHighestSequenceId(OpSendMsg op) {
         return Math.max(op.highestSequenceId, op.sequenceId);
     }
 
-    private void releaseSemaphoreForSendOp(OpSendMsg op) {
+    protected void releaseSemaphoreForSendOp(OpSendMsg op) {
 
         semaphoreRelease(isBatchMessagingEnabled() ? op.numMessagesInBatch : 1);
 
@@ -2355,10 +2365,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 return;
             }
             pendingMessages.add(op);
-            if (op.msg != null) {
-                LAST_SEQ_ID_PUSHED_UPDATER.getAndUpdate(this,
-                        last -> Math.max(last, getHighestSequenceId(op)));
-            }
+            updateLastSeqPushed(op);
 
             final ClientCnx cnx = getCnxIfReady();
             if (cnx != null) {
@@ -2381,6 +2388,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             releaseSemaphoreForSendOp(op);
             log.warn("[{}] [{}] error while closing out batch -- {}", topic, producerName, t);
             op.sendComplete(new PulsarClientException(t, op.sequenceId));
+        }
+    }
+
+    protected void updateLastSeqPushed(OpSendMsg op) {
+        if (op.msg != null) {
+            LAST_SEQ_ID_PUSHED_UPDATER.getAndUpdate(this,
+                    last -> Math.max(last, getHighestSequenceId(op)));
         }
     }
 

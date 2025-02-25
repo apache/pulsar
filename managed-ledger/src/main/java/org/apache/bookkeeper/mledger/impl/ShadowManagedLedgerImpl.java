@@ -223,23 +223,25 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
     }
 
     @Override
-    protected void beforeAddEntryToQueue(State state) throws ManagedLedgerException {
-        if (state != State.LedgerOpened) {
-            throw new ManagedLedgerException("Managed ledger is not opened");
+    protected synchronized void internalAsyncAddEntry(OpAddEntry addOperation) {
+        if (!beforeAddEntry(addOperation)) {
+            return;
         }
-    }
+        if (state != State.LedgerOpened) {
+            addOperation.failed(new ManagedLedgerException("Managed ledger is not opened"));
+            return;
+        }
 
-    @Override
-    protected void afterAddEntryToQueue(State state, OpAddEntry addOperation) throws ManagedLedgerException {
         if (addOperation.getCtx() == null || !(addOperation.getCtx() instanceof Position position)) {
-            pendingAddEntries.poll();
-            throw new ManagedLedgerException("Illegal addOperation context object.");
+            addOperation.failed(new ManagedLedgerException("Illegal addOperation context object."));
+            return;
         }
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Add entry into shadow ledger lh={} entries={}, pos=({},{})",
                     name, currentLedger.getId(), currentLedgerEntries, position.getLedgerId(), position.getEntryId());
         }
+        pendingAddEntries.add(addOperation);
         if (position.getLedgerId() <= currentLedger.getId()) {
             // Write into lastLedger
             if (position.getLedgerId() == currentLedger.getId()) {
