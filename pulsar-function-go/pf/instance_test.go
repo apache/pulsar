@@ -22,6 +22,7 @@ package pf
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -114,4 +115,38 @@ func Test_goInstance_handlerMsg(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "output", string(output))
 	assert.Equal(t, message, fc.record)
+}
+
+func Test_goInstance_clearTextSecretsProvider(t *testing.T) {
+	fc := NewFuncContext()
+	fc.secrets = map[string]interface{}{
+		"mySecret": "hello world",
+	}
+	fc.instanceConf.secretsProviderClassName = "ClearTextSecretsProvider"
+	instance := &goInstance{
+		context: fc,
+	}
+
+	assert.Nil(t, instance.context.secretsProvider)
+	assert.Nil(t, instance.setupSecretsProvider())
+	assert.NotNil(t, instance.context.secretsProvider)
+
+	assert.Equal(t, fc.GetSecretValue("mySecret"), "hello world")
+	assert.Nil(t, fc.GetSecretValue("notASecret"))
+}
+
+func Test_goInstance_environmentBasedSecretsProvider(t *testing.T) {
+	fc := NewFuncContext()
+	fc.instanceConf.secretsProviderClassName = "EnvironmentBasedSecretsProvider"
+	instance := &goInstance{
+		context: fc,
+	}
+
+	assert.Nil(t, instance.context.secretsProvider)
+	assert.Nil(t, instance.setupSecretsProvider())
+	assert.NotNil(t, instance.context.secretsProvider)
+
+	os.Setenv("MY_ENV_VAR", "hello world")
+	assert.Equal(t, fc.GetSecretValue("MY_ENV_VAR"), "hello world")
+	assert.Nil(t, fc.GetSecretValue("NOT_AN_ENV_VAR"))
 }

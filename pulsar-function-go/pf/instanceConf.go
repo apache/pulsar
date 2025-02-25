@@ -48,6 +48,8 @@ type instanceConf struct {
 	metricsPort                 int
 	authPlugin                  string
 	authParams                  string
+	secretsProviderClassName    string
+	secretsProviderConfig       string
 	tlsTrustCertsPath           string
 	tlsAllowInsecure            bool
 	tlsHostnameVerification     bool
@@ -118,11 +120,13 @@ func newInstanceConfWithConf(cfg *conf.Conf) *instanceConf {
 			},
 			UserConfig: cfg.UserConfig,
 		},
-		authPlugin:              cfg.ClientAuthenticationPlugin,
-		authParams:              cfg.ClientAuthenticationParameters,
-		tlsTrustCertsPath:       cfg.TLSTrustCertsFilePath,
-		tlsAllowInsecure:        cfg.TLSAllowInsecureConnection,
-		tlsHostnameVerification: cfg.TLSHostnameVerificationEnable,
+		authPlugin:               cfg.ClientAuthenticationPlugin,
+		authParams:               cfg.ClientAuthenticationParameters,
+		secretsProviderClassName: cfg.SecretsProviderClassName,
+		secretsProviderConfig:    cfg.SecretsProviderConfig,
+		tlsTrustCertsPath:        cfg.TLSTrustCertsFilePath,
+		tlsAllowInsecure:         cfg.TLSAllowInsecureConnection,
+		tlsHostnameVerification:  cfg.TLSHostnameVerificationEnable,
 	}
 	// parse the raw function details and ignore the unmarshal error(fallback to original way)
 	if cfg.FunctionDetails != "" {
