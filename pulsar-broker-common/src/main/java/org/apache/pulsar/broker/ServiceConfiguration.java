@@ -1076,14 +1076,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private long brokerPublisherThrottlingMaxByteRate = 0;
 
-    @FieldContext(
-            category = CATEGORY_SERVER,
-            doc = "The class name of the factory that creates DispatchRateLimiter implementations. Current options are "
-                    + "org.apache.pulsar.broker.service.persistent.DispatchRateLimiterFactoryClassic and "
-                    + "org.apache.pulsar.broker.service.persistent.DispatchRateLimiterFactoryAsyncTokenBucket"
-    )
+    @FieldContext(category = CATEGORY_SERVER, doc =
+            "The class name of the factory that creates DispatchRateLimiter implementations. Current options are "
+                    + "org.apache.pulsar.broker.service.persistent.DispatchRateLimiterFactoryAsyncTokenBucket "
+                    + "(default, PIP-322 implementation) "
+                    + "org.apache.pulsar.broker.service.persistent.DispatchRateLimiterFactoryClassic (legacy "
+                    + "implementation)")
     private String dispatchRateLimiterFactoryClassName =
-            "org.apache.pulsar.broker.service.persistent.DispatchRateLimiterFactoryClassic";
+            "org.apache.pulsar.broker.service.persistent.DispatchRateLimiterFactoryAsyncTokenBucket";
 
     @FieldContext(
             category = CATEGORY_SERVER,
