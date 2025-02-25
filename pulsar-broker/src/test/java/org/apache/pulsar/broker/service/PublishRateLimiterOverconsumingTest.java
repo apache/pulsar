@@ -251,7 +251,9 @@ public class PublishRateLimiterOverconsumingTest extends BrokerTestBase {
                     .isCloseTo(rateInMsg, Percentage.withPercentage(40));
 
             // check that rates were collected
-            softly.assertThat(collectedRatesSnapshot).describedAs("actual rates for each second")
+            // skip the first element as it might contain messages for first 2 seconds
+            softly.assertThat(collectedRatesSnapshot.subList(1, collectedRatesSnapshot.size() - 1))
+                    .describedAs("actual rates for each second")
                     .allSatisfy(rates -> {
                         assertThat(rates).describedAs("actual rate for each second")
                                 .isCloseTo(rateInMsg, Percentage.withPercentage(50));
