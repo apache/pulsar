@@ -154,9 +154,9 @@ public abstract class AsyncTokenBucket {
                         // limit the tokens to the capacity of the bucket
                         currentTokens -> Math.min(currentTokens + tokenDelta, getCapacity())
                                 // subtract the consumed tokens from the capped tokens
-                                - consumeTokens) - pendingConsumedTokens.sum();
+                                - consumeTokens);
             } else {
-                return tokens - pendingConsumedTokens.sum();
+                return tokens;
             }
         } else {
             // tokens are not updated immediately to prevent CAS loop contention
