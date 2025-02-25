@@ -2301,9 +2301,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                         .producerName(
                                                 String.format("%s-%s-%s-%s-DLQ", this.topicName, this.subscription,
                                                         this.consumerName, RandomStringUtils.randomAlphanumeric(5)))
-                                        .blockIfQueueFull(false)
-                                        .enableBatching(false)
-                                        .enableChunking(true)
+                                        .loadConf(this.deadLetterPolicy.getDeadLetterProducerConfig())
                                         .createAsync();
                         newProducer.whenComplete((producer, ex) -> {
                             if (ex != null) {

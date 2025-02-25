@@ -62,4 +62,14 @@ public class DeadLetterPolicy implements Serializable {
      * to be created.
      */
     private String initialSubscriptionName;
+
+    /**
+     * Configuration used to create a producer that will send messages to the dead letter topic.
+     */
+    private DeadLetterProducerConfig deadLetterProducerConfig;
+
+    /**
+     * Configuration used to create a producer that will send messages to the retry letter topic.
+     */
+    private DeadLetterProducerConfig retryLetterProducerConfig;
 }
