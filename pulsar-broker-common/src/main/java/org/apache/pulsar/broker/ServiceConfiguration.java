@@ -2263,9 +2263,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_STORAGE_ML,
             doc = "Whether persist cursor ack stats as long arrays, which will compress the data and reduce GC rate\n"
-                    + "When it's false, the behavior will be the same with 3.x or earlier\n"
+                    + "When it's false, the behavior will be the same with 4.0 or earlier\n"
                     + "Modifying this config could lose existing individual acknowledgments, so you should configure it"
-                    + "with false when upgrading from 3.x to 4.0 or later if you don't want to lose these "
+                    + "with false when upgrading from version <=4.0 to 4.1 or later if you don't want to lose these "
                     + "acknowledgments.")
     private boolean managedLedgerPersistIndividualAckAsLongArray = true;
     @FieldContext(
