@@ -191,6 +191,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         doReturn(null).when(cursorMock).getLastIndividualDeletedRange();
         doReturn(subscriptionName).when(cursorMock).getName();
         doReturn(ledgerMock).when(cursorMock).getManagedLedger();
+        doAnswer(invocation -> {
+            int max = invocation.getArgument(0);
+            return max;
+        }).when(cursorMock).applyMaxSizeCap(anyInt(), anyLong());
 
         consumerMock = createMockConsumer();
         channelMock = mock(ChannelPromise.class);

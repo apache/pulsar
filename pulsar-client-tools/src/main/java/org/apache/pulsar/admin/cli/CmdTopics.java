@@ -1117,50 +1117,7 @@ public class CmdTopics extends CmdBase {
             String persistentTopic = validatePersistentTopic(topicName);
             List<Message<byte[]>> messages = getTopics().peekMessages(persistentTopic, subName, numMessages,
                     showServerMarker, transactionIsolationLevel);
-            int position = 0;
-            for (Message<byte[]> msg : messages) {
-                MessageImpl message = (MessageImpl) msg;
-                if (++position != 1) {
-                    System.out.println("-------------------------------------------------------------------------\n");
-                }
-                if (message.getMessageId() instanceof BatchMessageIdImpl) {
-                    BatchMessageIdImpl msgId = (BatchMessageIdImpl) message.getMessageId();
-                    System.out.println("Batch Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId() + ":"
-                            + msgId.getBatchIndex());
-                } else {
-                    MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
-                    System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
-                }
-
-                System.out.println("Publish time: " + message.getPublishTime());
-                System.out.println("Event time: " + message.getEventTime());
-
-                if (message.getDeliverAtTime() != 0) {
-                    System.out.println("Deliver at time: " + message.getDeliverAtTime());
-                }
-                MessageMetadata msgMetaData = message.getMessageBuilder();
-                if (showServerMarker && msgMetaData.hasMarkerType()) {
-                    System.out.println("Marker Type: " + MarkerType.valueOf(msgMetaData.getMarkerType()));
-                }
-
-                if (message.getBrokerEntryMetadata() != null) {
-                    if (message.getBrokerEntryMetadata().hasBrokerTimestamp()) {
-                        System.out.println("Broker entry metadata timestamp: "
-                                + message.getBrokerEntryMetadata().getBrokerTimestamp());
-                    }
-                    if (message.getBrokerEntryMetadata().hasIndex()) {
-                        System.out.println("Broker entry metadata index: "
-                                + message.getBrokerEntryMetadata().getIndex());
-                    }
-                }
-
-                if (message.getProperties().size() > 0) {
-                    System.out.println("Properties:");
-                    print(msg.getProperties());
-                }
-                ByteBuf data = Unpooled.wrappedBuffer(msg.getData());
-                System.out.println(ByteBufUtil.prettyHexDump(data));
-            }
+            printMessages(messages, showServerMarker, this);
         }
     }
 
@@ -1377,6 +1334,55 @@ public class CmdTopics extends CmdBase {
             previousLedger = l.ledgerId;
         }
         return null;
+    }
+
+    public static void printMessages(List<Message<byte[]>> messages, boolean showServerMarker, CliCommand cli) {
+        if (messages == null) {
+            return;
+        }
+        int position = 0;
+        for (Message<byte[]> msg : messages) {
+            MessageImpl message = (MessageImpl) msg;
+            if (++position != 1) {
+                System.out.println("-------------------------------------------------------------------------\n");
+            }
+            if (message.getMessageId() instanceof BatchMessageIdImpl) {
+                BatchMessageIdImpl msgId = (BatchMessageIdImpl) message.getMessageId();
+                System.out.println("Batch Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId() + ":"
+                        + msgId.getBatchIndex());
+            } else {
+                MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
+                System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
+            }
+
+            System.out.println("Publish time: " + message.getPublishTime());
+            System.out.println("Event time: " + message.getEventTime());
+
+            if (message.getDeliverAtTime() != 0) {
+                System.out.println("Deliver at time: " + message.getDeliverAtTime());
+            }
+            MessageMetadata msgMetaData = message.getMessageBuilder();
+            if (showServerMarker && msgMetaData.hasMarkerType()) {
+                System.out.println("Marker Type: " + MarkerType.valueOf(msgMetaData.getMarkerType()));
+            }
+
+            if (message.getBrokerEntryMetadata() != null) {
+                if (message.getBrokerEntryMetadata().hasBrokerTimestamp()) {
+                    System.out.println("Broker entry metadata timestamp: "
+                            + message.getBrokerEntryMetadata().getBrokerTimestamp());
+                }
+                if (message.getBrokerEntryMetadata().hasIndex()) {
+                    System.out.println("Broker entry metadata index: " + message.getBrokerEntryMetadata().getIndex());
+                }
+            }
+
+            if (message.getProperties().size() > 0) {
+                System.out.println("Properties:");
+                cli.print(msg.getProperties());
+            }
+            ByteBuf data = Unpooled.wrappedBuffer(msg.getData());
+            System.out.println(ByteBufUtil.prettyHexDump(data));
+        }
     }
 
     @Command(description = "Trigger offload of data from a topic to long-term storage (e.g. Amazon S3)")

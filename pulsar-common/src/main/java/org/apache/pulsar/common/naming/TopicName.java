@@ -170,9 +170,9 @@ public class TopicName implements ServiceUnitId {
                 throw new IllegalArgumentException("Invalid topic name: " + completeTopicName);
             }
 
-
-            if (localName == null || localName.isEmpty()) {
-                throw new IllegalArgumentException("Invalid topic name: " + completeTopicName);
+            if (StringUtils.isBlank(localName)) {
+                throw new IllegalArgumentException(String.format("Invalid topic name: %s. Topic local name must not"
+                        + " be blank.", completeTopicName));
             }
 
         } catch (NullPointerException e) {

@@ -66,6 +66,7 @@ import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
+import lombok.Getter;
 import io.prometheus.client.Gauge;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
@@ -239,6 +240,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     private boolean encryptionRequireOnProducer;
 
+    @Getter
     private FeatureFlags features;
 
     private PulsarCommandSender commandSender;
@@ -1266,8 +1268,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 ? subscribe.getStartMessageRollbackDurationSec()
                 : -1;
         final SchemaData schema = subscribe.hasSchema() ? getSchema(subscribe.getSchema()) : null;
-        final boolean isReplicated = subscribe.hasReplicateSubscriptionState()
-                && subscribe.isReplicateSubscriptionState();
+        final Boolean isReplicated =
+                subscribe.hasReplicateSubscriptionState() ? subscribe.isReplicateSubscriptionState() : null;
         final boolean forceTopicCreation = subscribe.isForceTopicCreation();
         final KeySharedMeta keySharedMeta = subscribe.hasKeySharedMeta()
               ? new KeySharedMeta().copyFrom(subscribe.getKeySharedMeta())
@@ -1652,8 +1654,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     BrokerServiceException.getClientErrorCode(exception),
                                     message);
                         }
-                        log.error("Try add schema failed, remote address {}, topic {}, producerId {}", remoteAddress,
-                                topicName, producerId, exception);
+                        var cause = FutureUtil.unwrapCompletionException(exception);
+                        if (!(cause instanceof IncompatibleSchemaException)) {
+                            log.error("Try add schema failed, remote address {}, topic {}, producerId {}",
+                                    remoteAddress,
+                                    topicName, producerId, exception);
+                        }
                         producers.remove(producerId, producerFuture);
                         return null;
                     });
@@ -1754,7 +1760,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     log.warn("[{}] Failed to load topic {}, producerId={}: Topic not found", remoteAddress, topicName,
                             producerId);
                 } else if (!Exceptions.areExceptionsPresentInChain(cause,
-                        ServiceUnitNotReadyException.class, ManagedLedgerException.class)) {
+                        ServiceUnitNotReadyException.class, ManagedLedgerException.class,
+                        BrokerServiceException.ProducerBusyException.class)) {
                     log.error("[{}] Failed to create topic {}, producerId={}",
                             remoteAddress, topicName, producerId, exception);
                 }
