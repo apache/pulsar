@@ -97,6 +97,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     private static final String MANAGED_LEDGER_NAME = "ManagedLedgerName";
 
     private final OrderedScheduler scheduler;
+    private final OrderedScheduler readExecutor;
     private final TieredStorageConfiguration config;
     private final OffloadPolicies policies;
     private final Location writeLocation;
@@ -125,18 +126,21 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     public static BlobStoreManagedLedgerOffloader create(TieredStorageConfiguration config,
                                                          Map<String, String> userMetadata,
                                                          OrderedScheduler scheduler,
+                                                         OrderedScheduler readExecutor,
                                                          LedgerOffloaderStats offloaderStats,
                                                          OffsetsCache entryOffsetsCache)
             throws IOException {
 
-        return new BlobStoreManagedLedgerOffloader(config, scheduler, userMetadata, offloaderStats, entryOffsetsCache);
+        return new BlobStoreManagedLedgerOffloader(config, scheduler, readExecutor,
+                userMetadata, offloaderStats, entryOffsetsCache);
     }
 
     BlobStoreManagedLedgerOffloader(TieredStorageConfiguration config, OrderedScheduler scheduler,
+                                    OrderedScheduler readExecutor,
                                     Map<String, String> userMetadata, LedgerOffloaderStats offloaderStats,
                                     OffsetsCache entryOffsetsCache) {
-
         this.scheduler = scheduler;
+        this.readExecutor = readExecutor;
         this.userMetadata = userMetadata;
         this.config = config;
         Properties properties = new Properties();
@@ -561,10 +565,10 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         CompletableFuture<ReadHandle> promise = new CompletableFuture<>();
         String key = DataBlockUtils.dataBlockOffloadKey(ledgerId, uid);
         String indexKey = DataBlockUtils.indexBlockOffloadKey(ledgerId, uid);
-        scheduler.chooseThread(ledgerId).execute(() -> {
+        readExecutor.chooseThread(ledgerId).execute(() -> {
             try {
                 BlobStore readBlobstore = getBlobStore(config.getBlobStoreLocation());
-                promise.complete(BlobStoreBackedReadHandleImpl.open(scheduler.chooseThread(ledgerId),
+                promise.complete(BlobStoreBackedReadHandleImpl.open(readExecutor.chooseThread(ledgerId),
                         readBlobstore,
                         readBucket, key, indexKey,
                         DataBlockUtils.VERSION_CHECK,
@@ -596,10 +600,10 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             indexKeys.add(indexKey);
         });
 
-        scheduler.chooseThread(ledgerId).execute(() -> {
+        readExecutor.chooseThread(ledgerId).execute(() -> {
             try {
                 BlobStore readBlobstore = getBlobStore(config.getBlobStoreLocation());
-                promise.complete(BlobStoreBackedReadHandleImplV2.open(scheduler.chooseThread(ledgerId),
+                promise.complete(BlobStoreBackedReadHandleImplV2.open(readExecutor.chooseThread(ledgerId),
                         readBlobstore,
                         readBucket, keys, indexKeys,
                         DataBlockUtils.VERSION_CHECK,
