@@ -54,7 +54,19 @@ public class JCloudLedgerOffloaderFactory implements LedgerOffloaderFactory<Blob
 
         TieredStorageConfiguration config =
                 TieredStorageConfiguration.create(offloadPolicies.toProperties());
-        return BlobStoreManagedLedgerOffloader.create(config, userMetadata, scheduler, offloaderStats,
+        return BlobStoreManagedLedgerOffloader.create(config, userMetadata, scheduler, scheduler, offloaderStats,
+                entryOffsetsCache);
+    }
+
+    @Override
+    public BlobStoreManagedLedgerOffloader create(OffloadPoliciesImpl offloadPolicies, Map<String, String> userMetadata,
+                                                  OrderedScheduler scheduler,
+                                                  OrderedScheduler readExecutor,
+                                                  LedgerOffloaderStats offloaderStats) throws IOException {
+
+        TieredStorageConfiguration config =
+                TieredStorageConfiguration.create(offloadPolicies.toProperties());
+        return BlobStoreManagedLedgerOffloader.create(config, userMetadata, scheduler, readExecutor, offloaderStats,
                 entryOffsetsCache);
     }
 
