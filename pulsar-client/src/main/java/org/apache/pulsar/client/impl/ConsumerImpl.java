@@ -2295,13 +2295,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 if (p == null || p.isCompletedExceptionally()) {
                     p = createProducerWithBackOff(() -> {
                         CompletableFuture<Producer<byte[]>> newProducer =
-                                ((ProducerBuilderImpl<byte[]>) client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema)))
+                                ((ProducerBuilderImpl<byte[]>) this.deadLetterPolicy.getDeadLetterProducerBuilder()
+                                        .apply(this.deadLetterPolicy.getDeadLetterTopic()))
                                         .initialSubscriptionName(this.deadLetterPolicy.getInitialSubscriptionName())
+                                        .schema(Schema.AUTO_PRODUCE_BYTES(schema))
                                         .topic(this.deadLetterPolicy.getDeadLetterTopic())
-                                        .producerName(
-                                                String.format("%s-%s-%s-%s-DLQ", this.topicName, this.subscription,
-                                                        this.consumerName, RandomStringUtils.randomAlphanumeric(5)))
-                                        .loadConf(this.deadLetterPolicy.getDeadLetterProducerConfig().toMap())
                                         .createAsync();
                         newProducer.whenComplete((producer, ex) -> {
                             if (ex != null) {
@@ -2362,11 +2360,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 p = retryLetterProducer;
                 if (p == null || p.isCompletedExceptionally()) {
                     p = createProducerWithBackOff(() -> {
-                        CompletableFuture<Producer<byte[]>> newProducer = client
-                                .newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
-                                .topic(this.deadLetterPolicy.getRetryLetterTopic())
-                                .loadConf(this.deadLetterPolicy.getRetryLetterProducerConfig().toMap())
-                                .createAsync();
+                        CompletableFuture<Producer<byte[]>> newProducer =
+                                ((ProducerBuilderImpl<byte[]>) this.deadLetterPolicy.getRetryLetterProducerBuilder()
+                                        .apply(this.deadLetterPolicy.getRetryLetterTopic()))
+                                        .schema(Schema.AUTO_PRODUCE_BYTES(schema))
+                                        .topic(this.deadLetterPolicy.getRetryLetterTopic())
+                                        .createAsync();
                         newProducer.whenComplete((producer, ex) -> {
                             if (ex != null) {
                                 log.error("[{}] [{}] [{}] Failed to create retry letter producer for topic {}",
