@@ -219,6 +219,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private final ScheduledExecutorService loadManagerExecutor;
     private ScheduledExecutorService compactorExecutor;
     private OrderedScheduler offloaderScheduler;
+    private OrderedScheduler offloaderReadExecutor;
     private OffloadersCache offloadersCache = new OffloadersCache();
     private LedgerOffloader defaultOffloader;
     private LedgerOffloaderStats offloaderStats;
@@ -597,6 +598,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             executorServicesShutdown.shutdown(compactorExecutor);
             executorServicesShutdown.shutdown(offloaderScheduler);
+            executorServicesShutdown.shutdown(offloaderReadExecutor);
             executorServicesShutdown.shutdown(executor);
             executorServicesShutdown.shutdown(orderedExecutor);
 
@@ -1525,7 +1527,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                                         LedgerOffloader.METADATA_PULSAR_CLUSTER_NAME.toLowerCase(),
                                         config.getClusterName()
                                 ),
-                                schemaStorage, getOffloaderScheduler(offloadPolicies), this.offloaderStats);
+                                schemaStorage, getOffloaderScheduler(offloadPolicies),
+                                getOffloaderReadScheduler(offloadPolicies), this.offloaderStats);
                     } catch (IOException ioe) {
                         throw new PulsarServerException(ioe.getMessage(), ioe.getCause());
                     }
@@ -1595,6 +1598,15 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     .name("offloader").build();
         }
         return this.offloaderScheduler;
+    }
+
+    protected synchronized OrderedScheduler getOffloaderReadScheduler(OffloadPoliciesImpl offloadPolicies) {
+        if (this.offloaderReadExecutor == null) {
+            this.offloaderReadExecutor = OrderedScheduler.newSchedulerBuilder()
+                    .numThreads(offloadPolicies.getManagedLedgerOffloadReadThreads())
+                    .name("offloader-read").build();
+        }
+        return this.offloaderReadExecutor;
     }
 
     public PulsarClientImpl createClientImpl(ClientConfigurationData clientConf)
