@@ -1055,8 +1055,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
 
     @Test()
     public void testDeadLetterTopicWithProducerBuilder() throws Exception {
-        final String suffix = "-with-producer-builder";
-        final String topic = "persistent://my-property/my-ns/dead-letter-topic" + suffix;
+        final String topic = "persistent://my-property/my-ns/dead-letter-topic-with-producer-builder";
         final int maxRedeliveryCount = 2;
         final int sendMessages = 100;
 
