@@ -29,7 +29,7 @@ services:
     container_name: zk1
     hostname: zk1
     image: apachepulsar/pulsar-all:latest
-    command: >
+    command: |
       bash -c "bin/apply-config-from-env.py conf/zookeeper.conf && \
                bin/apply-config-from-env.py conf/pulsar_env.sh && \
                bin/generate-zookeeper-config.sh conf/zookeeper.conf && \
@@ -45,7 +45,7 @@ services:
     container_name: zk2
     hostname: zk2
     image: apachepulsar/pulsar-all:latest
-    command: >
+    command: |
       bash -c "bin/apply-config-from-env.py conf/zookeeper.conf && \
                bin/apply-config-from-env.py conf/pulsar_env.sh && \
                bin/generate-zookeeper-config.sh conf/zookeeper.conf && \
@@ -61,7 +61,7 @@ services:
     container_name: zk3
     hostname: zk3
     image: apachepulsar/pulsar-all:latest
-    command: >
+    command: |
       bash -c "bin/apply-config-from-env.py conf/zookeeper.conf && \
                bin/apply-config-from-env.py conf/pulsar_env.sh && \
                bin/generate-zookeeper-config.sh conf/zookeeper.conf && \
@@ -96,7 +96,7 @@ services:
     hostname: bk1
     container_name: bk1
     image: apachepulsar/pulsar-all:latest
-    command: >
+    command: |
       bash -c "export dbStorage_writeCacheMaxSizeMb="$${dbStorage_writeCacheMaxSizeMb:-16}" && \
                export dbStorage_readAheadCacheMaxSizeMb="$${dbStorage_readAheadCacheMaxSizeMb:-16}" && \
                bin/apply-config-from-env.py conf/bookkeeper.conf && \
@@ -122,7 +122,7 @@ services:
     hostname: bk2
     container_name: bk2
     image: apachepulsar/pulsar-all:latest
-    command: >
+    command: |
       bash -c "export dbStorage_writeCacheMaxSizeMb="${dbStorage_writeCacheMaxSizeMb:-16}" && \
                export dbStorage_readAheadCacheMaxSizeMb="${dbStorage_readAheadCacheMaxSizeMb:-16}" && \
                bin/apply-config-from-env.py conf/bookkeeper.conf && \
@@ -149,7 +149,7 @@ services:
     hostname: bk3
     container_name: bk3
     image: apachepulsar/pulsar-all:latest
-    command: >
+    command: |
       bash -c "export dbStorage_writeCacheMaxSizeMb="${dbStorage_writeCacheMaxSizeMb:-16}" && \
                export dbStorage_readAheadCacheMaxSizeMb="${dbStorage_readAheadCacheMaxSizeMb:-16}" && \
                bin/apply-config-from-env.py conf/bookkeeper.conf && \
@@ -178,7 +178,7 @@ services:
     container_name: broker1
     image: apachepulsar/pulsar-all:latest
     restart: on-failure
-    command: >
+    command: |
       bash -c "bin/apply-config-from-env.py conf/broker.conf && \
                bin/apply-config-from-env.py conf/pulsar_env.sh && \
                bin/watch-znode.py -z $$zookeeperServers -p /initialized-$$clusterName -w && \
@@ -207,7 +207,7 @@ services:
     container_name: broker2
     image: apachepulsar/pulsar-all:latest
     restart: on-failure
-    command: >
+    command: |
       bash -c "bin/apply-config-from-env.py conf/broker.conf && \
                bin/apply-config-from-env.py conf/pulsar_env.sh && \
                bin/watch-znode.py -z $$zookeeperServers -p /initialized-$$clusterName -w && \
@@ -237,7 +237,7 @@ services:
     container_name: broker3
     image: apachepulsar/pulsar-all:latest
     restart: on-failure
-    command: >
+    command: |
       bash -c "bin/apply-config-from-env.py conf/broker.conf && \
                bin/apply-config-from-env.py conf/pulsar_env.sh && \
                bin/watch-znode.py -z $$zookeeperServers -p /initialized-$$clusterName -w && \
@@ -268,7 +268,7 @@ services:
     container_name: proxy1
     restart: on-failure
     image: apachepulsar/pulsar-all:latest
-    command: >
+    command: |
       bash -c "bin/apply-config-from-env.py conf/proxy.conf && \
                bin/apply-config-from-env.py conf/pulsar_env.sh && \
                bin/watch-znode.py -z $$zookeeperServers -p /initialized-$$clusterName -w && \
@@ -301,7 +301,7 @@ services:
     container_name: websocket1
     restart: on-failure
     image: apachepulsar/pulsar-all:latest
-    command: >
+    command: |
       bash -c "bin/apply-config-from-env.py conf/websocket.conf && \
                bin/apply-config-from-env.py conf/pulsar_env.sh && \
                bin/watch-znode.py -z $$zookeeperServers -p /initialized-$$clusterName -w && \
@@ -330,7 +330,7 @@ services:
     container_name: fnc1
     image: apachepulsar/pulsar-all:latest
     restart: on-failure
-    command: >
+    command: |
       bash -c "bin/apply-config-from-env.py conf/client.conf && \
                bin/gen-yml-from-env.py conf/functions_worker.yml && \
                bin/apply-config-from-env.py conf/pulsar_env.sh && \
@@ -366,7 +366,7 @@ services:
     container_name: sql1
     image: apachepulsar/pulsar-all:latest
     restart: on-failure
-    command: >
+    command: |
       bash -c "bin/apply-config-from-env.py conf/pulsar_env.sh && \
                bin/watch-znode.py -z $$zookeeperServers -p /initialized-$$clusterName -w && \
                exec bin/pulsar sql-worker run"
