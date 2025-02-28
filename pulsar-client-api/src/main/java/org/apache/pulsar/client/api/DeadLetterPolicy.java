@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import java.io.Serializable;
+import java.util.function.Function;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -62,4 +63,16 @@ public class DeadLetterPolicy implements Serializable {
      * to be created.
      */
     private String initialSubscriptionName;
+
+    /**
+     * Function to build the producer for the retry letter topic.
+     * The input parameter is the topic name.
+     */
+    private Function<String, ProducerBuilder<byte[]>> retryLetterProducerBuilder;
+
+    /**
+     * Function to build the producer for the dead letter topic.
+     * The input parameter is the topic name.
+     */
+    private Function<String, ProducerBuilder<byte[]>> deadLetterProducerBuilder;
 }
