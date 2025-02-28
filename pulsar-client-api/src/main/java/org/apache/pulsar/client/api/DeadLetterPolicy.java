@@ -20,7 +20,6 @@ package org.apache.pulsar.client.api;
 
 import java.io.Serializable;
 import java.util.function.Function;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

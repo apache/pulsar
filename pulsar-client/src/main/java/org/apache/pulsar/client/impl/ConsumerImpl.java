@@ -2303,7 +2303,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                     .topic(this.deadLetterPolicy.getDeadLetterTopic());
                         } else {
                             // keep compatibility with old configuration
-                            builder = (ProducerBuilderImpl<byte[]>) client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
+                            builder = (ProducerBuilderImpl<byte[]>) client
+                                    .newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
                                     .topic(deadLetterPolicy.getDeadLetterTopic())
                                     .producerName(String.format("%s-%s-%s-%s-DLQ", this.topicName, this.subscription,
                                                     this.consumerName, RandomStringUtils.randomAlphanumeric(5)))
@@ -2380,7 +2381,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                     .topic(this.deadLetterPolicy.getRetryLetterTopic());
                         } else {
                             // keep compatibility with old configuration
-                            builder = (ProducerBuilderImpl<byte[]>) client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
+                            builder = (ProducerBuilderImpl<byte[]>) client
+                                    .newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
                                     .topic(deadLetterPolicy.getRetryLetterTopic())
                                     .blockIfQueueFull(false)
                                     .enableBatching(false)
