@@ -1905,6 +1905,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                    sub.expireMessages(messageTtlInSeconds);
                 }
             });
+            replicators.forEach((__, replicator)
+                    -> ((PersistentReplicator) replicator).expireMessages(messageTtlInSeconds));
+            shadowReplicators.forEach((__, replicator)
+                    -> ((PersistentReplicator) replicator).expireMessages(messageTtlInSeconds));
         }
     }
 
