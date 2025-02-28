@@ -44,7 +44,7 @@ public abstract class DispatchRateLimiter {
     protected final Type type;
 
     protected final BrokerService brokerService;
-    
+
     private final LongAdder dispatchThrottleMsgCount = new LongAdder();
     private final LongAdder dispatchThrottleBytesCount = new LongAdder();
 
@@ -217,15 +217,15 @@ public abstract class DispatchRateLimiter {
     public long getDispatchThrottleBytesCount() {
         return dispatchThrottleBytesCount.longValue();
     }
-    
+
     public void increaseDispatchThrottleMsgCount() {
         dispatchThrottleMsgCount.increment();
     }
-    
+
     public void increaseDispatchThrottleBytesCount() {
         dispatchThrottleBytesCount.increment();
     }
-    
+
     public static boolean isDispatchRateEnabled(DispatchRate dispatchRate) {
         return dispatchRate != null && (dispatchRate.getDispatchThrottlingRateInMsg() > 0
                 || dispatchRate.getDispatchThrottlingRateInByte() > 0);
