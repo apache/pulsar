@@ -595,6 +595,7 @@ public class Consumer {
                 ackedCount = getAckedCountForMsgIdNoAckSets(batchSize, position, ackOwnerConsumer);
                 if (checkCanRemovePendingAcksAndHandle(ackOwnerConsumer, position, msgId)) {
                     addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
+                    updateBlockedConsumerOnUnackedMsgs(ackOwnerConsumer);
                 }
             }
 
@@ -1081,6 +1082,11 @@ public class Consumer {
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] consumer {} received ack {}", topicName, subscription, consumerId, position);
         }
+        updateBlockedConsumerOnUnackedMsgs(ackOwnedConsumer);
+        return true;
+    }
+
+    public void updateBlockedConsumerOnUnackedMsgs(Consumer ackOwnedConsumer) {
         // unblock consumer-throttling when limit check is disabled or receives half of maxUnackedMessages =>
         // consumer can start again consuming messages
         int unAckedMsgs = UNACKED_MESSAGES_UPDATER.get(ackOwnedConsumer);
@@ -1090,7 +1096,6 @@ public class Consumer {
             ackOwnedConsumer.blockedConsumerOnUnackedMsgs = false;
             flowConsumerBlockedPermits(ackOwnedConsumer);
         }
-        return true;
     }
 
     public PendingAcksMap getPendingAcks() {

@@ -405,9 +405,9 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         int lastId = -1;
         for (int i = 0; i < totalMessages; i++) {
-            Message<GenericRecord> msg1 = consumer1.receive();
-            Message<GenericRecord> msg2 = consumer2.receive();
-            Message<GenericRecord> msg3 = consumer3.receive();
+            Message<GenericRecord> msg1 = consumer1.receive(10, TimeUnit.SECONDS);
+            Message<GenericRecord> msg2 = consumer2.receive(10, TimeUnit.SECONDS);
+            Message<GenericRecord> msg3 = consumer3.receive(10, TimeUnit.SECONDS);
             assertTrue(msg1 != null && msg2 != null && msg3 != null);
             GenericRecord record1 = msg1.getValue();
             GenericRecord record2 = msg2.getValue();

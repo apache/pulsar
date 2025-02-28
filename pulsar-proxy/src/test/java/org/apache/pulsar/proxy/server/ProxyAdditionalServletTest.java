@@ -28,6 +28,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
@@ -68,6 +69,7 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
     private WebServer proxyWebServer;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
     private Authentication proxyClientAuthentication;
+    private Map<String, String> responseHeaders = new HashMap<>();
 
     @Override
     @BeforeClass
@@ -82,6 +84,9 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
         // enable full parsing feature
         proxyConfig.setProxyLogLevel(Optional.of(2));
         proxyConfig.setClusterName(configClusterName);
+        responseHeaders.put("header1", "value1");
+        proxyConfig.setProxyHttpResponseHeadersJson(
+                ObjectMapperFactory.getMapper().writer().writeValueAsString(responseHeaders));
 
         // this is for nar package test
 //        addServletNar();
@@ -198,11 +203,15 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
         int httpPort = proxyWebServer.getListenPortHTTP().get();
         log.info("proxy service httpPort {}", httpPort);
         String paramValue = "value - " + RandomUtils.nextInt();
-        String response = httpGet("http://localhost:" + httpPort + BASE_PATH + "?" + QUERY_PARAM + "=" + paramValue);
+        final Map<String, String> headers = new HashMap<>();
+        String response = httpGet("http://localhost:" + httpPort + BASE_PATH + "?" + QUERY_PARAM + "=" + paramValue,
+                headers);
         Assert.assertEquals(response, paramValue);
+        String headerKey = "header1";
+        Assert.assertEquals(headers.get(headerKey), responseHeaders.get(headerKey));
     }
 
-    String httpGet(String url) throws IOException {
+    String httpGet(String url, Map<String, String> headers) throws IOException {
         OkHttpClient client = new OkHttpClient();
         okhttp3.Request request = new okhttp3.Request.Builder()
                 .get()
@@ -210,6 +219,9 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
                 .build();
 
         try (Response response = client.newCall(request).execute()) {
+            response.headers().forEach(pair -> {
+                headers.put(pair.getFirst(), pair.getSecond());
+            });
             return response.body().string();
         }
     }

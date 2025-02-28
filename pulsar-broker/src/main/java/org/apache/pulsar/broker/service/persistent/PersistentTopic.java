@@ -130,7 +130,6 @@ import org.apache.pulsar.broker.service.SubscriptionOption;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.TransportCnx;
-import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.NotExistSchemaException;
@@ -494,7 +493,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             // dispatch rate limiter for topic
             if (!dispatchRateLimiter.isPresent()
                 && DispatchRateLimiter.isDispatchRateEnabled(topicPolicies.getDispatchRate().get())) {
-                this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(this, Type.TOPIC));
+                this.dispatchRateLimiter = Optional.of(
+                        getBrokerService().getDispatchRateLimiterFactory().createTopicDispatchRateLimiter(this));
             }
         }
     }
@@ -1031,7 +1031,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                         decrementUsageCount();
                         return FutureUtil.failedFuture(
-                                new BrokerServiceException("Connection was closed while the opening the cursor "));
+                                new BrokerServiceException.ConnectionClosedException(
+                                        "Connection was closed while the opening the cursor "));
                     } else {
                         checkReplicatedSubscriptionControllerState();
                         if (log.isDebugEnabled()) {
@@ -1068,6 +1069,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     log.warn("[{}][{}] has been fenced. closing the topic {}", topic, subscriptionName,
                             ex.getMessage());
                     close();
+                } else if (ex.getCause() instanceof BrokerServiceException.ConnectionClosedException) {
+                    log.warn("[{}][{}] Connection was closed while the opening the cursor", topic, subscriptionName);
                 } else {
                     log.error("[{}] Failed to create subscription: {}", topic, subscriptionName, ex);
                 }
