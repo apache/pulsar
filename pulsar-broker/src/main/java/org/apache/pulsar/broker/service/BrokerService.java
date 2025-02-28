@@ -1110,7 +1110,7 @@ public class BrokerService implements Closeable {
                             final TopicName topicNameEntity = TopicName.get(topicName.getPartitionedTopicName());
                             return fetchPartitionedTopicMetadataAsync(topicNameEntity)
                                     .thenCompose((metadata) -> {
-                                        // Allow crate non-partitioned persistent topic that name includes
+                                        // Allow creating non-partitioned persistent topic that name includes
                                         // `partition`
                                         if (metadata.partitions == 0
                                                 || topicName.getPartitionIndex() < metadata.partitions) {
