@@ -137,6 +137,12 @@ public class TopicStatsImpl implements TopicStats {
     public long abortedTxnCount;
     public long committedTxnCount;
 
+    /** Total count of throttling occurrences due to message rate limiting. */
+    public long dispatchThrottledMsgCount;
+
+    /** Total count of throttling occurrences due to byte rate limiting. */
+    public long dispatchThrottledBytesCount;
+
     /** List of connected publishers on this topic w/ their stats. */
     @Getter(AccessLevel.NONE)
     @Setter(AccessLevel.NONE)
@@ -256,6 +262,8 @@ public class TopicStatsImpl implements TopicStats {
         this.backlogQuotaLimitTime = 0;
         this.oldestBacklogMessageAgeSeconds = -1;
         this.oldestBacklogMessageSubscriptionName = null;
+        this.dispatchThrottledMsgCount = -1;
+        this.dispatchThrottledBytesCount = -1;
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
@@ -287,6 +295,8 @@ public class TopicStatsImpl implements TopicStats {
         this.committedTxnCount = stats.committedTxnCount;
         this.backlogQuotaLimitTime = stats.backlogQuotaLimitTime;
         this.backlogQuotaLimitSize = stats.backlogQuotaLimitSize;
+        this.dispatchThrottledMsgCount += stats.dispatchThrottledMsgCount;
+        this.dispatchThrottledBytesCount += stats.dispatchThrottledBytesCount;
         if (stats.oldestBacklogMessageAgeSeconds > this.oldestBacklogMessageAgeSeconds) {
             this.oldestBacklogMessageAgeSeconds = stats.oldestBacklogMessageAgeSeconds;
             this.oldestBacklogMessageSubscriptionName = stats.oldestBacklogMessageSubscriptionName;

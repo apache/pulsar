@@ -75,6 +75,10 @@ public class AggregatedSubscriptionStats {
 
     long filterRescheduledMsgCount;
 
+    long dispatchThrottledMsgCount;
+
+    long dispatchThrottledBytesCount;
+
     public Map<Consumer, AggregatedConsumerStats> consumerStat = new HashMap<>();
 
     long delayedMessageIndexSizeInBytes;
