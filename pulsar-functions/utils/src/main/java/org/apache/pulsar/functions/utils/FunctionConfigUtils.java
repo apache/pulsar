@@ -48,6 +48,7 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionDefinition;
+import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.WindowConfig;
@@ -365,7 +366,12 @@ public class FunctionConfigUtils {
             String builtin = functionConfig.getJar().replaceFirst("^builtin://", "");
             functionDetailsBuilder.setBuiltin(builtin);
         }
-
+        if (functionConfig.getMemoryLimit() != null) {
+            Function.MemoryLimit.Builder mbdr = Function.MemoryLimit.newBuilder();
+            mbdr.setLimitInBytes(functionConfig.getMemoryLimit().getLimitInBytes());
+            mbdr.setPercentOfMaxDirectMemory(functionConfig.getMemoryLimit().getPercentOfMaxDirectMemory());
+            functionDetailsBuilder.setMemoryLimit(mbdr);
+        }
         return validateFunctionDetails(functionDetailsBuilder.build());
     }
 
@@ -503,7 +509,11 @@ public class FunctionConfigUtils {
         if (!isEmpty(functionDetails.getCustomRuntimeOptions())) {
             functionConfig.setCustomRuntimeOptions(functionDetails.getCustomRuntimeOptions());
         }
-
+        if (functionDetails.getMemoryLimit() != null) {
+            MemoryLimit memoryLimit = new MemoryLimit();
+            memoryLimit.setLimitInBytes(functionDetails.getMemoryLimit().getLimitInBytes());
+            memoryLimit.setPercentOfMaxDirectMemory(functionDetails.getMemoryLimit().getPercentOfMaxDirectMemory());
+        }
         return functionConfig;
     }
 
