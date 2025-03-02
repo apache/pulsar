@@ -1350,9 +1350,22 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             }
                             return service.isAllowAutoSubscriptionCreationAsync(topicName)
                                     .thenCompose(isAllowedAutoSubscriptionCreation -> {
+                                        boolean subscriptionExists =
+                                                topic.getSubscriptions().containsKey(subscriptionName);
+                                        // If subscription is as "a/b". The url of HTTP API that defined as
+                                        // "{tenant}/{namespace}/{topic}/{subscription}" will be like below:
+                                        // "public/default/tp/a/b", then the broker will assume it is a topic that
+                                        // using the old rule "{tenant}/{cluster}/{namespace}/{topic}/{subscription}".
+                                        // So denied to create a subscription that contains "/".
+                                        if (!subscriptionExists && subscriptionName.contains("/")) {
+                                            return FutureUtil.failedFuture(
+                                                            new BrokerServiceException.NamingException(
+                                                                    "Subscription does not allow containing '/'"));
+                                        }
+
                                         boolean rejectSubscriptionIfDoesNotExist = isDurable
                                                 && !isAllowedAutoSubscriptionCreation
-                                                && !topic.getSubscriptions().containsKey(subscriptionName)
+                                                && !subscriptionExists
                                                 && topic.isPersistent();
 
                                         if (rejectSubscriptionIfDoesNotExist) {
