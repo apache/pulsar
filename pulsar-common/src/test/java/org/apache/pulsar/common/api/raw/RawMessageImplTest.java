@@ -41,7 +41,7 @@ public class RawMessageImplTest {
     private static final String HARD_CODE_KEY_ID_VALUE  = "__pfn_input_msg_id_value__";
 
     @Test
-    public void testGetProperties() {
+    public void testGetMessageSingleMetadataProperties() {
         ReferenceCountedMessageMetadata refCntMsgMetadata =
                 ReferenceCountedMessageMetadata.get(mock(ByteBuf.class));
         SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
@@ -49,6 +49,24 @@ public class RawMessageImplTest {
         singleMessageMetadata.addProperty().setKey(HARD_CODE_KEY).setValue(KEY_VALUE_SECOND);
         singleMessageMetadata.addProperty().setKey(HARD_CODE_KEY_ID).setValue(HARD_CODE_KEY_ID_VALUE);
         RawMessage msg = RawMessageImpl.get(refCntMsgMetadata, singleMessageMetadata, null, 0, 0, 0);
+        Map<String, String> properties = msg.getProperties();
+        assertEquals(properties.get(HARD_CODE_KEY), KEY_VALUE_SECOND);
+        assertEquals(properties.get(HARD_CODE_KEY_ID), HARD_CODE_KEY_ID_VALUE);
+        assertEquals(KEY_VALUE_SECOND, properties.get(HARD_CODE_KEY));
+        assertEquals(HARD_CODE_KEY_ID_VALUE, properties.get(HARD_CODE_KEY_ID));
+    }
+
+    @Test
+    public void testGetMessageMetadataProperties() {
+        ReferenceCountedMessageMetadata refCntMsgMetadata =
+                ReferenceCountedMessageMetadata.get(mock(ByteBuf.class));
+
+        MessageMetadata messageMetadata = refCntMsgMetadata.getMetadata();
+        messageMetadata.addProperty().setKey(HARD_CODE_KEY).setValue(KEY_VALUE_FIRST);
+        messageMetadata.addProperty().setKey(HARD_CODE_KEY).setValue(KEY_VALUE_SECOND);
+        messageMetadata.addProperty().setKey(HARD_CODE_KEY_ID).setValue(HARD_CODE_KEY_ID_VALUE);
+
+        RawMessage msg = RawMessageImpl.get(refCntMsgMetadata, null, null, 0, 0, 0);
         Map<String, String> properties = msg.getProperties();
         assertEquals(properties.get(HARD_CODE_KEY), KEY_VALUE_SECOND);
         assertEquals(properties.get(HARD_CODE_KEY_ID), HARD_CODE_KEY_ID_VALUE);
