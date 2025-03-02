@@ -445,4 +445,8 @@ public class MockManagedLedger implements ManagedLedger {
         // no-op
         return false;
     }
+
+    @Override
+    public void updateMaxReadPosition(Position position) {
+    }
 }
