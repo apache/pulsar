@@ -1693,7 +1693,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     protected synchronized OrderedScheduler getOffloaderReadScheduler(OffloadPoliciesImpl offloadPolicies) {
         if (this.offloaderReadExecutor == null) {
             this.offloaderReadExecutor = OrderedScheduler.newSchedulerBuilder()
-                    .numThreads(offloadPolicies.getManagedLedgerOffloadReadThreads())
+                    .numThreads(OffloadPoliciesImpl.DEFAULT_OFFLOAD_READ_THREADS)
                     .name("offloader-read").build();
         }
         return this.offloaderReadExecutor;
