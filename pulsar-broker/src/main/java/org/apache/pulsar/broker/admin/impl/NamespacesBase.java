@@ -1916,21 +1916,6 @@ public abstract class NamespacesBase extends AdminResource {
             });
     }
 
-    protected void validateRetentionPolicies(RetentionPolicies retention) {
-        if (retention == null) {
-            return;
-        }
-        checkArgument(retention.getRetentionSizeInMB() >= -1,
-                "Invalid retention policy: size limit must be >= -1");
-        checkArgument(retention.getRetentionTimeInMinutes() >= -1,
-                "Invalid retention policy: time limit must be >= -1");
-        checkArgument((retention.getRetentionTimeInMinutes() != 0 && retention.getRetentionSizeInMB() != 0)
-                        || (retention.getRetentionTimeInMinutes() == 0 && retention.getRetentionSizeInMB() == 0),
-                "Invalid retention policy: Setting a single time or size limit to 0 is invalid when "
-                        + "one of the limits has a non-zero value. Use the value of -1 instead of 0 to ignore a "
-                        + "specific limit. To disable retention both limits must be set to 0.");
-    }
-
     protected void internalSetDeduplicationSnapshotInterval(Integer interval) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.DEDUPLICATION_SNAPSHOT, PolicyOperation.WRITE);
         if (interval != null && interval < 0) {
