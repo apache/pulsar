@@ -19,7 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import java.io.Serializable;
-import java.util.function.Function;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -65,14 +65,21 @@ public class DeadLetterPolicy implements Serializable {
     private String initialSubscriptionName;
 
     /**
-     * Function to build the producer for the retry letter topic.
-     * The input parameter is the topic name.
+     * Customizer for configuring the producer builder for the retry letter topic.
+     *
+     * <p>This field holds a function that allows the caller to customize the producer builder
+     * settings for the retry letter topic before the producer is created. The customization logic
+     * can use the provided context (which includes input topic and subscription details) to adjust
+     * configurations such as timeouts, batching, or message routing.
      */
-    private Function<String, ProducerBuilder<byte[]>> retryLetterProducerBuilder;
-
+    private ProducerBuilderCustomizer retryLetterProducerBuilderCustomizer;
     /**
-     * Function to build the producer for the dead letter topic.
-     * The input parameter is the topic name.
+     * Customizer for configuring the producer builder for the dead letter topic.
+     *
+     * <p>This field holds a function that allows the caller to customize the producer builder
+     * settings for the dead letter topic before the producer is created. Using the provided context,
+     * implementations can perform specific adjustments that ensure the dead letter queue operates
+     * with the appropriate configurations tailored for handling undeliverable messages.
      */
-    private Function<String, ProducerBuilder<byte[]>> deadLetterProducerBuilder;
+    private ProducerBuilderCustomizer deadLetterProducerBuilderCustomizer;
 }

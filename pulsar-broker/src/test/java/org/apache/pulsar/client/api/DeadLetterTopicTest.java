@@ -1060,10 +1060,8 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         final int sendMessages = 100;
 
         // enable batch
-        Function<String, ProducerBuilder<byte[]>> producerBuilderFunction = (topicName) -> {
-            ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer(Schema.BYTES);
-            producerBuilder.topic(topicName).enableBatching(true);
-            return producerBuilder;
+        ProducerBuilderCustomizer producerBuilderCustomizer = (context, producerBuilder) -> {
+            producerBuilder.enableBatching(true);
         };
         String subscriptionName = "my-subscription";
         String subscriptionNameDLQ = "my-subscription-DLQ";
@@ -1075,8 +1073,8 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
                 .deadLetterPolicy(DeadLetterPolicy.builder()
                         .maxRedeliverCount(maxRedeliveryCount)
                         .initialSubscriptionName(subscriptionNameDLQ)
-                        .deadLetterProducerBuilder(producerBuilderFunction)
-                        .retryLetterProducerBuilder(producerBuilderFunction)
+                        .deadLetterProducerBuilderCustomizer(producerBuilderCustomizer)
+                        .retryLetterProducerBuilderCustomizer(producerBuilderCustomizer)
                         .build())
                 .receiverQueueSize(100)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)

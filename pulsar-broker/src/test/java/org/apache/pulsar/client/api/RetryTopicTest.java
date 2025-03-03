@@ -145,10 +145,8 @@ public class RetryTopicTest extends ProducerConsumerBase {
         final int sendMessages = 100;
 
         // enable batch
-        Function<String, ProducerBuilder<byte[]>> producerBuilderFunction = (topicName) -> {
-            ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer(Schema.BYTES);
-            producerBuilder.topic(topicName).enableBatching(true);
-            return producerBuilder;
+        ProducerBuilderCustomizer producerBuilderCustomizer = (context, producerBuilder) -> {
+            producerBuilder.enableBatching(true);
         };
         String subscriptionName = "my-subscription";
         String subscriptionNameDLQ = "my-subscription-DLQ";
@@ -159,7 +157,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
                 .enableRetry(true)
                 .deadLetterPolicy(DeadLetterPolicy.builder()
                         .maxRedeliverCount(maxRedeliveryCount)
-                        .retryLetterProducerBuilder(producerBuilderFunction)
+                        .retryLetterProducerBuilderCustomizer(producerBuilderCustomizer)
                         .build())
                 .receiverQueueSize(100)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)

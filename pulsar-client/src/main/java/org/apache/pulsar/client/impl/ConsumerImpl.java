@@ -83,6 +83,8 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilderContext;
+import org.apache.pulsar.client.api.ProducerBuilderContextImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.TopicDoesNotExistException;
 import org.apache.pulsar.client.api.Schema;
@@ -2294,24 +2296,21 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 p = deadLetterProducer;
                 if (p == null || p.isCompletedExceptionally()) {
                     p = createProducerWithBackOff(() -> {
-                        ProducerBuilderImpl<byte[]> builder;
-                        if (deadLetterPolicy.getDeadLetterProducerBuilder() != null) {
-                            builder = (ProducerBuilderImpl<byte[]>) deadLetterPolicy.getDeadLetterProducerBuilder()
-                                    .apply(deadLetterPolicy.getDeadLetterTopic());
-                            builder.initialSubscriptionName(this.deadLetterPolicy.getInitialSubscriptionName())
-                                    .schema(Schema.AUTO_PRODUCE_BYTES(schema))
-                                    .topic(this.deadLetterPolicy.getDeadLetterTopic());
+                        ProducerBuilderImpl<byte[]> builder = (ProducerBuilderImpl<byte[]>) client
+                                .newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
+                                .topic(deadLetterPolicy.getDeadLetterTopic());
+                        builder.initialSubscriptionName(deadLetterPolicy.getInitialSubscriptionName());
+                        if (deadLetterPolicy.getDeadLetterProducerBuilderCustomizer() != null) {
+                            ProducerBuilderContext context = new ProducerBuilderContextImpl(
+                                    deadLetterPolicy.getDeadLetterTopic(), topic, subscription);
+                            deadLetterPolicy.getDeadLetterProducerBuilderCustomizer().customize(context, builder);
                         } else {
                             // keep compatibility with old configuration
-                            builder = (ProducerBuilderImpl<byte[]>) client
-                                    .newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
-                                    .topic(deadLetterPolicy.getDeadLetterTopic())
-                                    .producerName(String.format("%s-%s-%s-%s-DLQ", this.topicName, this.subscription,
+                            builder.producerName(String.format("%s-%s-%s-%s-DLQ", this.topicName, this.subscription,
                                                     this.consumerName, RandomStringUtils.randomAlphanumeric(5)))
                                     .blockIfQueueFull(false)
                                     .enableBatching(false)
                                     .enableChunking(true);
-                            builder.initialSubscriptionName(deadLetterPolicy.getInitialSubscriptionName());
                         }
                         CompletableFuture<Producer<byte[]>> newProducer = builder.createAsync();
                         newProducer.whenComplete((producer, ex) -> {
@@ -2373,18 +2372,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 p = retryLetterProducer;
                 if (p == null || p.isCompletedExceptionally()) {
                     p = createProducerWithBackOff(() -> {
-                        ProducerBuilderImpl<byte[]> builder;
-                        if (deadLetterPolicy.getRetryLetterProducerBuilder() != null) {
-                            builder = (ProducerBuilderImpl<byte[]>) deadLetterPolicy.getRetryLetterProducerBuilder()
-                                    .apply(deadLetterPolicy.getRetryLetterTopic());
-                            builder.schema(Schema.AUTO_PRODUCE_BYTES(schema))
-                                    .topic(this.deadLetterPolicy.getRetryLetterTopic());
+                        ProducerBuilderImpl<byte[]> builder = (ProducerBuilderImpl<byte[]>) client
+                                .newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
+                                .topic(deadLetterPolicy.getRetryLetterTopic());
+                        if (deadLetterPolicy.getRetryLetterProducerBuilderCustomizer() != null) {
+                            ProducerBuilderContext context = new ProducerBuilderContextImpl(
+                                    deadLetterPolicy.getRetryLetterTopic(), topic, subscription);
+                            deadLetterPolicy.getRetryLetterProducerBuilderCustomizer().customize(context, builder);
                         } else {
                             // keep compatibility with old configuration
-                            builder = (ProducerBuilderImpl<byte[]>) client
-                                    .newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
-                                    .topic(deadLetterPolicy.getRetryLetterTopic())
-                                    .blockIfQueueFull(false)
+                            builder.blockIfQueueFull(false)
                                     .enableBatching(false)
                                     .enableChunking(true);
                         }
