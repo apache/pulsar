@@ -71,7 +71,6 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.Getter;
-import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.Consumer;
@@ -83,6 +82,8 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilderContext;
+import org.apache.pulsar.client.api.ProducerBuilderContextImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.TopicDoesNotExistException;
 import org.apache.pulsar.client.api.Schema;
@@ -2294,17 +2295,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 p = deadLetterProducer;
                 if (p == null || p.isCompletedExceptionally()) {
                     p = createProducerWithBackOff(() -> {
-                        CompletableFuture<Producer<byte[]>> newProducer =
-                                ((ProducerBuilderImpl<byte[]>) client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema)))
-                                        .initialSubscriptionName(this.deadLetterPolicy.getInitialSubscriptionName())
-                                        .topic(this.deadLetterPolicy.getDeadLetterTopic())
-                                        .producerName(
-                                                String.format("%s-%s-%s-%s-DLQ", this.topicName, this.subscription,
-                                                        this.consumerName, RandomStringUtils.randomAlphanumeric(5)))
-                                        .blockIfQueueFull(false)
-                                        .enableBatching(false)
-                                        .enableChunking(true)
-                                        .createAsync();
+                        ProducerBuilderImpl<byte[]> builder = (ProducerBuilderImpl<byte[]>) client
+                                .newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
+                                .topic(deadLetterPolicy.getDeadLetterTopic());
+                        builder.initialSubscriptionName(deadLetterPolicy.getInitialSubscriptionName());
+                        if (deadLetterPolicy.getDeadLetterProducerBuilderCustomizer() != null) {
+                            ProducerBuilderContext context = new ProducerBuilderContextImpl(
+                                    deadLetterPolicy.getDeadLetterTopic(), topic, subscription);
+                            deadLetterPolicy.getDeadLetterProducerBuilderCustomizer().customize(context, builder);
+                        }
+                        CompletableFuture<Producer<byte[]>> newProducer = builder.createAsync();
                         newProducer.whenComplete((producer, ex) -> {
                             if (ex != null) {
                                 log.error("[{}] [{}] [{}] Failed to create dead letter producer for topic {}",
@@ -2364,13 +2364,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 p = retryLetterProducer;
                 if (p == null || p.isCompletedExceptionally()) {
                     p = createProducerWithBackOff(() -> {
-                        CompletableFuture<Producer<byte[]>> newProducer = client
+                        ProducerBuilderImpl<byte[]> builder = (ProducerBuilderImpl<byte[]>) client
                                 .newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
-                                .topic(this.deadLetterPolicy.getRetryLetterTopic())
-                                .enableBatching(false)
-                                .enableChunking(true)
-                                .blockIfQueueFull(false)
-                                .createAsync();
+                                .topic(deadLetterPolicy.getRetryLetterTopic());
+                        if (deadLetterPolicy.getRetryLetterProducerBuilderCustomizer() != null) {
+                            ProducerBuilderContext context = new ProducerBuilderContextImpl(
+                                    deadLetterPolicy.getRetryLetterTopic(), topic, subscription);
+                            deadLetterPolicy.getRetryLetterProducerBuilderCustomizer().customize(context, builder);
+                        }
+                        CompletableFuture<Producer<byte[]>> newProducer = builder.createAsync();
                         newProducer.whenComplete((producer, ex) -> {
                             if (ex != null) {
                                 log.error("[{}] [{}] [{}] Failed to create retry letter producer for topic {}",
