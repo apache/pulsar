@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import lombok.Builder;
-
 /**
  * Provides context information required for customizing a producer builder.
  *

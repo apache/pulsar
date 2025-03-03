@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.api;
 
 import java.io.Serializable;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -73,6 +72,7 @@ public class DeadLetterPolicy implements Serializable {
      * configurations such as timeouts, batching, or message routing.
      */
     private ProducerBuilderCustomizer retryLetterProducerBuilderCustomizer = DEFAULT_PRODUCER_BUILDER_CUSTOMIZER;
+
     /**
      * Customizer for configuring the producer builder for the dead letter topic.
      *

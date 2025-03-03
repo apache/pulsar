@@ -71,7 +71,6 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.Getter;
-import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.Consumer;
