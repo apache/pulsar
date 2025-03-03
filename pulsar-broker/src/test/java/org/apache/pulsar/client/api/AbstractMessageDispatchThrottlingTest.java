@@ -24,7 +24,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
@@ -43,7 +42,6 @@ public abstract class AbstractMessageDispatchThrottlingTest extends ProducerCons
     @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
-        AsyncTokenBucket.switchToConsistentTokensView();
         this.conf.setClusterName("test");
         internalSetup();
         producerBaseSetup();
@@ -53,7 +51,6 @@ public abstract class AbstractMessageDispatchThrottlingTest extends ProducerCons
     @Override
     protected void cleanup() throws Exception {
         internalCleanup();
-        AsyncTokenBucket.resetToDefaultEventualConsistentTokensView();
     }
 
     @AfterMethod(alwaysRun = true)

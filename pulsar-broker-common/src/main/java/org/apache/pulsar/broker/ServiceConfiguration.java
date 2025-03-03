@@ -1042,6 +1042,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Enable precise rate limit for topic publish"
     )
     private boolean preciseTopicPublishRateLimiterEnable = false;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
@@ -1064,6 +1065,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "when broker publish rate limiting enabled. (Disable byte rate limit with value 0)"
     )
     private long brokerPublisherThrottlingMaxByteRate = 0;
+
+    @FieldContext(category = CATEGORY_SERVER, doc =
+            "The class name of the factory that creates DispatchRateLimiter implementations. Current options are "
+                    + "org.apache.pulsar.broker.service.persistent.DispatchRateLimiterFactoryAsyncTokenBucket "
+                    + "(default, PIP-322 implementation) "
+                    + "org.apache.pulsar.broker.service.persistent.DispatchRateLimiterFactoryClassic (legacy "
+                    + "implementation)")
+    private String dispatchRateLimiterFactoryClassName =
+            "org.apache.pulsar.broker.service.persistent.DispatchRateLimiterFactoryAsyncTokenBucket";
+
     @FieldContext(
             category = CATEGORY_SERVER,
             dynamic = true,
@@ -3383,6 +3394,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Maximum number of thread pool threads for ledger offloading"
     )
     private int managedLedgerOffloadMaxThreads = 2;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_OFFLOADING,
+            doc = "Maximum number of thread pool threads for offloaded ledger reading"
+    )
+    private int managedLedgerOffloadReadThreads = 2;
 
     @FieldContext(
         category = CATEGORY_STORAGE_OFFLOADING,
