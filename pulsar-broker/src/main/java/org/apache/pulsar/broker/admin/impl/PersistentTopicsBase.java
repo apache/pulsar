@@ -3467,6 +3467,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetRetention(RetentionPolicies retention, boolean isGlobal) {
+        validateRetentionPolicies(retention);
         if (retention == null) {
             return CompletableFuture.completedFuture(null);
         }

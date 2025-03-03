@@ -810,7 +810,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
     public void testSeekWillNotEncounteredFencedError() throws Exception {
         String topicName = "persistent://prop/ns-abc/my-topic2";
         admin.topics().createNonPartitionedTopic(topicName);
-        admin.topicPolicies().setRetention(topicName, new RetentionPolicies(3600, 0));
+        admin.topicPolicies().setRetention(topicName, new RetentionPolicies(3600, -1));
         // Create a pulsar client with a subscription fenced counter.
         ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(lookupUrl.toString());
         AtomicInteger receivedFencedErrorCounter = new AtomicInteger();
