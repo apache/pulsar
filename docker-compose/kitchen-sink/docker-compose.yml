@@ -34,6 +34,7 @@ services:
                exec bin/pulsar zookeeper"
     environment:
       ZOOKEEPER_SERVERS: zk1,zk2,zk3
+      PULSAR_MEM: -Xmx128m
     networks:
       pulsar:
 
@@ -48,6 +49,7 @@ services:
                exec bin/pulsar zookeeper"
     environment:
       ZOOKEEPER_SERVERS: zk1,zk2,zk3
+      PULSAR_MEM: -Xmx128m
     networks:
       pulsar:
 
@@ -62,6 +64,7 @@ services:
                exec bin/pulsar zookeeper"
     environment:
       ZOOKEEPER_SERVERS: zk1,zk2,zk3
+      PULSAR_MEM: -Xmx128m
     networks:
       pulsar:
 
@@ -75,6 +78,7 @@ services:
       zkServers: zk1:2181
       configurationStore: zk1:2181
       pulsarNode: proxy1
+      PULSAR_MEM: -Xmx128m
     volumes:
       - ./scripts/init-cluster.sh/:/pulsar/bin/init-cluster.sh:z
     depends_on:
@@ -101,6 +105,7 @@ services:
       zkServers: zk1:2181,zk2:2181,zk3:2181
       numAddWorkerThreads: 8
       useHostNameAsBookieID: "true"
+      BOOKIE_MEM: -Xmx256m
     depends_on:
       - zk1
       - zk2
@@ -126,6 +131,7 @@ services:
       zkServers: zk1:2181,zk2:2181,zk3:2181
       numAddWorkerThreads: 8
       useHostNameAsBookieID: "true"
+      BOOKIE_MEM: -Xmx256m
     depends_on:
       - zk1
       - zk2
@@ -152,6 +158,7 @@ services:
       zkServers: zk1:2181,zk2:2181,zk3:2181
       numAddWorkerThreads: 8
       useHostNameAsBookieID: "true"
+      BOOKIE_MEM: -Xmx256m
     depends_on:
       - zk1
       - zk2
@@ -178,6 +185,7 @@ services:
       configurationStore: zk1:2181,zk2:2181,zk3:2181
       webSocketServiceEnabled: "false"
       functionsWorkerEnabled: "false"
+      PULSAR_MEM: -Xmx256m
     depends_on:
       - zk1
       - zk2
@@ -205,6 +213,7 @@ services:
       configurationStore: zk1:2181,zk2:2181,zk3:2181
       webSocketServiceEnabled: "false"
       functionsWorkerEnabled: "false"
+      PULSAR_MEM: -Xmx256m
     depends_on:
       - zk1
       - zk2
@@ -233,6 +242,7 @@ services:
       configurationStore: zk1:2181,zk2:2181,zk3:2181
       webSocketServiceEnabled: "false"
       functionsWorkerEnabled: "false"
+      PULSAR_MEM: -Xmx256m
     depends_on:
       - zk1
       - zk2
@@ -262,6 +272,7 @@ services:
       configurationStoreServers: zk1:2181,zk2:2181,zk3:2181
       webSocketServiceEnabled: "true"
       functionWorkerWebServiceURL: http://fnc1:6750
+      PULSAR_MEM: -Xmx256m
     ports:
       - "6650:6650"
       - "8080:8080"
@@ -291,6 +302,7 @@ services:
       clusterName: test
       zookeeperServers: zk1:2181,zk2:2181,zk3:2181
       configurationStoreServers: zk1:2181,zk2:2181,zk3:2181
+      PULSAR_MEM: -Xmx256m
     depends_on:
       - zk1
       - zk2
@@ -325,6 +337,7 @@ services:
       PF_configurationStoreServers: zk1:2181
       PF_pulsarServiceUrl: pulsar://proxy1:6650
       PF_pulsarWebServiceUrl: http://proxy1:8080
+      PULSAR_MEM: -Xmx256m
     depends_on:
       - zk1
       - zk2
