@@ -36,10 +36,13 @@ import org.apache.commons.lang3.SystemUtils;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Slf4j
 @Test
 public class NarUnpackerTest {
+    private static final Logger log = LoggerFactory.getLogger(NarUnpackerTest.class);
     File sampleZipFile;
     File extractDirectory;
 
@@ -100,6 +103,8 @@ public class NarUnpackerTest {
     }
 
     public static class NarUnpackerWorker {
+        private static final Logger log = LoggerFactory.getLogger(NarUnpackerWorker.class);
+
         public static void main(String[] args) {
             File sampleZipFile = new File(args[0]);
             File extractDirectory = new File(args[1]);

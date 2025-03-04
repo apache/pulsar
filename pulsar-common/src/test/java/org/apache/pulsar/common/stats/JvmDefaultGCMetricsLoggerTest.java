@@ -19,6 +19,8 @@
 package org.apache.pulsar.common.stats;
 
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.testng.annotations.Test;
 
@@ -27,6 +29,7 @@ import static org.testng.Assert.assertNotEquals;
 
 @Slf4j
 public class JvmDefaultGCMetricsLoggerTest {
+    private static final Logger log = LoggerFactory.getLogger(JvmDefaultGCMetricsLoggerTest.class);
 
     @Test
     public void testInvokeJVMInternals() {

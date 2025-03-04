@@ -26,12 +26,16 @@ import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4FastDecompressor;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * LZ4 Compression.
  */
 @Slf4j
 public class CompressionCodecLZ4JNI implements CompressionCodec {
+
+    private static final Logger log = LoggerFactory.getLogger(CompressionCodecLZ4JNI.class);
 
     static {
         try {
