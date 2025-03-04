@@ -39,9 +39,9 @@ public class KeyManagerProxyTest {
 
     @Test(dataProvider = "certDataProvider")
     public void testLoadCert(String path, int certCount) {
-        final String certFilePath = Resources.getResource(path).getPath();
+        final String certFilePath = Resources.getResource(path).getPath().replaceFirst("^/", "");
         // This key is not paired with certs, but this is not a problem as the key is not used in this test
-        final String keyFilePath = Resources.getResource("ssl/my-ca/client-key.pem").getPath();
+        final String keyFilePath = Resources.getResource("ssl/my-ca/client-key.pem").getPath().replaceFirst("^/", "");
         @Cleanup("shutdownNow")
         final ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
 

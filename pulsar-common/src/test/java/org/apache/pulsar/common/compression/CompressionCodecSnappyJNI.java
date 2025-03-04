@@ -22,14 +22,16 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.xerial.snappy.Snappy;
 
 /**
  * Snappy Compression.
  */
-@Slf4j
 public class CompressionCodecSnappyJNI implements CompressionCodec {
+
+    private static final Logger log = LoggerFactory.getLogger(CompressionCodecSnappyJNI.class);
 
     @Override
     public ByteBuf encode(ByteBuf source) {

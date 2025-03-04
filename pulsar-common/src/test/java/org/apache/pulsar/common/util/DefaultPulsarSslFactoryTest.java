@@ -273,7 +273,25 @@ public class DefaultPulsarSslFactoryTest {
         assertEquals(sslEngine.getPeerPort(), 1234);
     }
 
-
+    @Test
+    public void testInitialize() throws Exception {
+        PulsarSslConfiguration pulsarSslConfiguration = PulsarSslConfiguration.builder()
+                .tlsEnabledWithKeystore(true)
+                .tlsKeyStoreType("JKS")
+                .tlsKeyStorePath("path/to/keystore")
+                .tlsKeyStorePassword("password")
+                .allowInsecureConnection(false)
+                .tlsTrustStoreType("JKS")
+                .tlsTrustStorePath("path/to/truststore")
+                .tlsTrustStorePassword("password")
+                .requireTrustedClientCertOnConnect(true)
+                .build();
+        try (PulsarSslFactory pulsarSslFactory = new DefaultPulsarSslFactory()) {
+            pulsarSslFactory.initialize(pulsarSslConfiguration);
+            pulsarSslFactory.createInternalSslContext();
+            assertNotNull(pulsarSslFactory.getInternalSslContext());
+        }
+    }
 
     private static String getAbsolutePath(String resourceName) {
             return new File(Resources.getResource(resourceName).getPath()).getAbsolutePath();

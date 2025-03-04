@@ -32,6 +32,7 @@ import org.apache.bookkeeper.common.allocator.impl.ByteBufAllocatorImpl;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator; // Add this import
 
 public class PulsarByteBufAllocatorOomThrowExceptionTest {
 

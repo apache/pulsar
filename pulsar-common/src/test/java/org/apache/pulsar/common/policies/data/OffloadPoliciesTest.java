@@ -410,7 +410,7 @@ public class OffloadPoliciesTest {
 
         private Class<?> getClass(String name) {
             String file = name.replace('.', File.separatorChar) + ".class";
-            Path targetPath = Paths.get(getClass().getClassLoader().getResource(".").getPath()).getParent();
+            Path targetPath = Paths.get(getClass().getClassLoader().getResource(".").getPath().replaceFirst("^/", "")).getParent();
             file = Paths.get(targetPath.toString(), "classes", file).toString();
             byte[] byteArr = null;
             try {
@@ -425,7 +425,7 @@ public class OffloadPoliciesTest {
         }
 
         private byte[] loadClassData(String name) throws IOException {
-            InputStream stream = Files.newInputStream(Paths.get(name));
+            InputStream stream = Files.newInputStream(Paths.get(name.replaceFirst("^/", "")));
             int size = stream.available();
             byte buff[] = new byte[size];
             DataInputStream in = new DataInputStream(stream);

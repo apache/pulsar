@@ -215,6 +215,17 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         this.instanceClassLoader = Thread.currentThread().getContextClassLoader();
     }
 
+    public static Object getFunctionInstance(ClassLoader classLoader, String className) throws Exception {
+        Class<?> clazz = Class.forName(className, true, classLoader);
+
+        // Check if it's a Kotlin function
+        if (clazz.getName().endsWith("Kt")) {
+            return clazz.getDeclaredMethod("invoke").invoke(null);
+        }
+
+        return clazz.getDeclaredConstructor().newInstance();
+    }
+
     /**
      * NOTE: this method should be called in the instance thread, in order to make class loading work.
      */
@@ -244,11 +255,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     instanceConfig.getFunctionDetails().getClassName(),
                     instanceClassLoader);
         } else {
-            object = Reflections.createInstance(
-                    instanceConfig.getFunctionDetails().getClassName(),
-                    functionClassLoader);
+            object = getFunctionInstance(
+                    functionClassLoader,
+                    instanceConfig.getFunctionDetails().getClassName());
         }
-
 
         if (!(object instanceof Function) && !(object instanceof java.util.function.Function)) {
             throw new RuntimeException("User class must either be Function or java.util.Function");

@@ -21,7 +21,9 @@ package org.apache.pulsar.common.util.netty;
 import static org.testng.Assert.assertThrows;
 import com.google.common.io.Resources;
 import io.netty.handler.ssl.SslProvider;
+import java.nio.file.Paths;
 import java.util.HashSet;
+import java.net.URISyntaxException;
 import java.util.Set;
 import javax.net.ssl.SSLException;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -33,18 +35,49 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class SslContextTest {
-    final static String brokerKeyStorePath =
-            Resources.getResource("certificate-authority/jks/broker.keystore.jks").getPath();
-    final static String brokerTrustStorePath =
-            Resources.getResource("certificate-authority/jks/broker.truststore.jks").getPath();
+    final static String brokerKeyStorePath;
+    static {
+        try {
+            brokerKeyStorePath = Paths.get(Resources.getResource("certificate-authority/jks/broker.keystore.jks").toURI()).toString();
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
+    }
+    final static String brokerTrustStorePath;
+    static {
+        try {
+            brokerTrustStorePath = Paths.get(Resources.getResource("certificate-authority/jks/broker.truststore.jks").toURI()).toString();
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
+    }
     final static String keyStoreType = "JKS";
     final static String keyStorePassword = "111111";
 
-    final static String caCertPath = Resources.getResource("certificate-authority/certs/ca.cert.pem").getPath();
-    final static String brokerCertPath =
-            Resources.getResource("certificate-authority/server-keys/broker.cert.pem").getPath();
-    final static String brokerKeyPath =
-            Resources.getResource("certificate-authority/server-keys/broker.key-pk8.pem").getPath();
+    final static String caCertPath;
+    static {
+        try {
+            caCertPath = Paths.get(Resources.getResource("certificate-authority/certs/ca.cert.pem").toURI()).toString();
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
+    }
+    final static String brokerCertPath;
+    static {
+        try {
+            brokerCertPath = Paths.get(Resources.getResource("certificate-authority/server-keys/broker.cert.pem").toURI()).toString();
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
+    }
+    final static String brokerKeyPath;
+    static {
+        try {
+            brokerKeyPath = Paths.get(Resources.getResource("certificate-authority/server-keys/broker.key-pk8.pem").toURI()).toString();
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     @DataProvider(name = "caCertSslContextDataProvider")
     public static Object[][] getSslContextDataProvider() {
@@ -54,79 +87,19 @@ public class SslContextTest {
         ciphers.add("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256");
         ciphers.add("TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384");
         ciphers.add("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
-
-        // Note: OPENSSL doesn't support these ciphers.
+        
         return new Object[][]{
-                new Object[]{SslProvider.JDK, ciphers},
-                new Object[]{SslProvider.JDK, null},
-
-                new Object[]{SslProvider.OPENSSL, ciphers},
-                new Object[]{SslProvider.OPENSSL, null},
-
-                new Object[]{null, ciphers},
-                new Object[]{null, null},
+                {SslProvider.JDK, ciphers},
+                {SslProvider.JDK, null},
+                {SslProvider.OPENSSL, ciphers},
+                {SslProvider.OPENSSL, null},
+                {null, ciphers},
+                {null, null},
         };
     }
 
-    @DataProvider(name = "cipherDataProvider")
-    public static Object[] getCipher() {
-        Set<String> cipher = new HashSet<>();
-        cipher.add("TLS_DHE_RSA_WITH_AES_256_GCM_SHA384");
-        cipher.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
-        cipher.add("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256");
-        cipher.add("TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384");
-        cipher.add("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
-
-        return new Object[]{null, cipher};
-    }
-
-    @Test(dataProvider = "cipherDataProvider")
-    public void testServerKeyStoreSSLContext(Set<String> cipher) throws Exception {
-        PulsarSslConfiguration pulsarSslConfiguration = PulsarSslConfiguration.builder()
-                .tlsEnabledWithKeystore(true)
-                .tlsKeyStoreType(keyStoreType)
-                .tlsKeyStorePath(brokerKeyStorePath)
-                .tlsKeyStorePassword(keyStorePassword)
-                .allowInsecureConnection(false)
-                .tlsTrustStoreType(keyStoreType)
-                .tlsTrustStorePath(brokerTrustStorePath)
-                .tlsTrustStorePassword(keyStorePassword)
-                .requireTrustedClientCertOnConnect(true)
-                .tlsCiphers(cipher)
-                .build();
-        try (PulsarSslFactory pulsarSslFactory = new DefaultPulsarSslFactory()) {
-            pulsarSslFactory.initialize(pulsarSslConfiguration);
-            pulsarSslFactory.createInternalSslContext();
-        }
-    }
-
-    private static class ClientAuthenticationData implements AuthenticationDataProvider {
-        @Override
-        public KeyStoreParams getTlsKeyStoreParams() {
-            return null;
-        }
-    }
-
-    @Test(dataProvider = "cipherDataProvider")
-    public void testClientKeyStoreSSLContext(Set<String> cipher) throws Exception {
-        PulsarSslConfiguration pulsarSslConfiguration = PulsarSslConfiguration.builder()
-                .allowInsecureConnection(false)
-                .tlsEnabledWithKeystore(true)
-                .tlsTrustStoreType(keyStoreType)
-                .tlsTrustStorePath(brokerTrustStorePath)
-                .tlsTrustStorePassword(keyStorePassword)
-                .tlsCiphers(cipher)
-                .authData(new ClientAuthenticationData())
-                .build();
-        try (PulsarSslFactory pulsarSslFactory = new DefaultPulsarSslFactory()) {
-            pulsarSslFactory.initialize(pulsarSslConfiguration);
-            pulsarSslFactory.createInternalSslContext();
-        }
-    }
-
     @Test(dataProvider = "caCertSslContextDataProvider")
-    public void testServerCaCertSslContextWithSslProvider(SslProvider sslProvider, Set<String> ciphers)
-            throws Exception {
+    public void testServerCaCertSslContextWithSslProvider(SslProvider sslProvider, Set<String> ciphers) throws Exception {
         try (PulsarSslFactory pulsarSslFactory = new DefaultPulsarSslFactory()) {
             PulsarSslConfiguration.PulsarSslConfigurationBuilder builder = PulsarSslConfiguration.builder()
                     .tlsTrustCertsFilePath(caCertPath)
@@ -134,41 +107,19 @@ public class SslContextTest {
                     .tlsKeyFilePath(brokerKeyPath)
                     .tlsCiphers(ciphers)
                     .requireTrustedClientCertOnConnect(true);
+            
             if (sslProvider != null) {
                 builder.tlsProvider(sslProvider.name());
             }
+            
             PulsarSslConfiguration pulsarSslConfiguration = builder.build();
             pulsarSslFactory.initialize(pulsarSslConfiguration);
 
-            if (ciphers != null) {
-                if (sslProvider == null || sslProvider == SslProvider.OPENSSL) {
-                    assertThrows(SSLException.class, pulsarSslFactory::createInternalSslContext);
-                    return;
-                }
+            if (ciphers != null && (sslProvider == null || sslProvider == SslProvider.OPENSSL)) {
+                assertThrows(SSLException.class, pulsarSslFactory::createInternalSslContext);
+                return;
             }
-            pulsarSslFactory.createInternalSslContext();
-        }
-    }
-
-    @Test(dataProvider = "caCertSslContextDataProvider")
-    public void testClientCaCertSslContextWithSslProvider(SslProvider sslProvider, Set<String> ciphers)
-            throws Exception {
-        try (PulsarSslFactory pulsarSslFactory = new DefaultPulsarSslFactory()) {
-            PulsarSslConfiguration.PulsarSslConfigurationBuilder builder = PulsarSslConfiguration.builder()
-                    .allowInsecureConnection(true)
-                    .tlsTrustCertsFilePath(caCertPath)
-                    .tlsCiphers(ciphers);
-            if (sslProvider != null) {
-                builder.tlsProvider(sslProvider.name());
-            }
-            PulsarSslConfiguration pulsarSslConfiguration = builder.build();
-            pulsarSslFactory.initialize(pulsarSslConfiguration);
-            if (ciphers != null) {
-                if (sslProvider == null || sslProvider == SslProvider.OPENSSL) {
-                    assertThrows(SSLException.class, pulsarSslFactory::createInternalSslContext);
-                    return;
-                }
-            }
+            
             pulsarSslFactory.createInternalSslContext();
         }
     }

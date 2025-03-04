@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import java.util.Properties;
 import org.apache.bookkeeper.common.allocator.LeakDetectionPolicy;
 import org.testng.annotations.Test;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator; // Add this import
 
 public class PulsarByteBufAllocatorTest {
 
