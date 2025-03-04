@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.policies.data;
 
 import com.google.common.collect.Sets;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -191,6 +192,7 @@ public class TopicPolicies {
         return replicationClusters != null ? Sets.newTreeSet(this.replicationClusters) : null;
     }
 
+    @SuppressFBWarnings(value = "RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE")
     public Map<String, SubscriptionPolicies> getSubscriptionPolicies() {
         if (subscriptionPolicies == null) {
             subscriptionPolicies = new HashMap<>();
