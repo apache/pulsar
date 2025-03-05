@@ -26,6 +26,7 @@ class ProducerBuilderContextImpl implements ProducerBuilderContext {
     private final String defaultTopicName;
     private final String inputTopicName;
     private final String inputTopicSubscriptionName;
+    private final String inputTopicConsumerName;
 
     @Override
     public String getDefaultTopicName() {
@@ -40,5 +41,10 @@ class ProducerBuilderContextImpl implements ProducerBuilderContext {
     @Override
     public String getInputTopicSubscriptionName() {
         return inputTopicSubscriptionName;
+    }
+
+    @Override
+    public String getInputTopicConsumerName() {
+        return inputTopicConsumerName;
     }
 }

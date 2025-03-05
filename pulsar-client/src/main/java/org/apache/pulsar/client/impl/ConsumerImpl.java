@@ -2308,7 +2308,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                         .enableChunking(true);
                         if (deadLetterPolicy.getDeadLetterProducerBuilderCustomizer() != null) {
                             ProducerBuilderContext context = new ProducerBuilderContextImpl(
-                                    deadLetterPolicy.getDeadLetterTopic(), topic, subscription);
+                                    deadLetterPolicy.getDeadLetterTopic(), topic, subscription, consumerName);
                             deadLetterPolicy.getDeadLetterProducerBuilderCustomizer().customize(context, builder);
                         }
                         CompletableFuture<Producer<byte[]>> newProducer = builder.createAsync();
@@ -2379,7 +2379,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                 .blockIfQueueFull(false);
                         if (deadLetterPolicy.getRetryLetterProducerBuilderCustomizer() != null) {
                             ProducerBuilderContext context = new ProducerBuilderContextImpl(
-                                    deadLetterPolicy.getRetryLetterTopic(), topic, subscription);
+                                    deadLetterPolicy.getRetryLetterTopic(), topic, subscription, consumerName);
                             deadLetterPolicy.getRetryLetterProducerBuilderCustomizer().customize(context, builder);
                         }
                         CompletableFuture<Producer<byte[]>> newProducer = builder.createAsync();

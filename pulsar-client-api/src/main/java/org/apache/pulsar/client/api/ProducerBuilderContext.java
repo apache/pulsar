@@ -46,6 +46,13 @@ public interface ProducerBuilderContext {
      * @return a {@code String} representing the subscription name
      */
     String getInputTopicSubscriptionName();
+
+    /**
+     * Returns the name of the consumer for which the dead letter or
+     * retry letter producer is being configured.
+     * @return a {@code String} representing the consumer name
+     */
+    String getInputTopicConsumerName();
 }
 
 
