@@ -87,5 +87,5 @@ None
 Updated afterwards
 -->
 
-* Mailing List discussion thread:
-* Mailing List voting thread:
+* Mailing List discussion thread: https://lists.apache.org/thread/bcf13todophd05tn0qrrdwqyw8yvboly
+* Mailing List voting thread: https://lists.apache.org/thread/dtj9ccntsjorb54yrb5fr3pppwl4m2r5
