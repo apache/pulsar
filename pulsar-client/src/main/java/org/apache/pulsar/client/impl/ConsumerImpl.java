@@ -713,6 +713,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                             .value(retryMessage.getData())
                                             .properties(propertiesMap);
                             copyMessageKeysIfNeeded(message, typedMessageBuilderNew);
+                            copyMessageEventTime(message, typedMessageBuilderNew);
                             typedMessageBuilderNew.sendAsync().thenAccept(msgId -> {
                                 consumerDlqMessagesCounter.increment();
 
@@ -745,6 +746,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                 typedMessageBuilderNew.deliverAfter(delayTime, unit);
                             }
                             copyMessageKeysIfNeeded(message, typedMessageBuilderNew);
+                            copyMessageEventTime(message, typedMessageBuilderNew);
                             typedMessageBuilderNew.sendAsync()
                                     .thenCompose(
                                             __ -> doAcknowledge(finalMessageId, ackType, Collections.emptyMap(), null))
@@ -818,6 +820,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return (MessageImpl<?>) message;
         }
         return null;
+    }
+
+    private static void copyMessageEventTime(Message<?> message,
+                                             TypedMessageBuilder<byte[]> typedMessageBuilderNew) {
+        typedMessageBuilderNew.eventTime(message.getEventTime());
     }
 
     @Override
@@ -2221,6 +2228,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                         .value(message.getData())
                                         .properties(getPropertiesMap(message, originMessageIdStr, originTopicNameStr));
                         copyMessageKeysIfNeeded(message, typedMessageBuilderNew);
+                        copyMessageEventTime(message, typedMessageBuilderNew);
                         typedMessageBuilderNew.sendAsync()
                                 .thenAccept(messageIdInDLQ -> {
                                     possibleSendToDeadLetterTopicMessages.remove(messageId);
