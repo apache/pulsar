@@ -163,4 +163,14 @@ public interface SubscriptionStats {
     long getFilterRescheduledMsgCount();
 
     long getDelayedMessageIndexSizeInBytes();
+
+    /**
+     * Total count of throttling occurrences due to message rate limiting.
+     */
+    long getDispatchThrottledMsgCount();
+
+    /**
+     * Total count of throttling occurrences due to byte rate limiting.
+     */
+    long getDispatchThrottledBytesCount();
 }

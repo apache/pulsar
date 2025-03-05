@@ -18,9 +18,24 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.testng.Assert.assertEquals;
+import com.google.common.collect.Multimap;
+import java.io.ByteArrayOutputStream;
+import java.util.Collection;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
+import org.apache.pulsar.PrometheusMetricsTestUtil;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -54,6 +69,64 @@ public class BrokerDispatchRateLimiterTest extends BrokerTestBase {
         Awaitility.await().untilAsserted(() ->
             assertEquals(service.getBrokerDispatchRateLimiter().getAvailableDispatchRateLimitOnMsg(), 100L));
         assertEquals(service.getBrokerDispatchRateLimiter().getAvailableDispatchRateLimitOnMsg(), 100L);
+    }
+
+    @Test
+    public void testBrokerDispatchThrottledMetrics() throws Exception {
+
+        BrokerService service = pulsar.getBrokerService();
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInMsg", "10");
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", "1024");
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(service.getBrokerDispatchRateLimiter().getAvailableDispatchRateLimitOnMsg(), 10L));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(service.getBrokerDispatchRateLimiter().getAvailableDispatchRateLimitOnByte(), 1024L));
+
+        final String topic= "persistent://" + newTopicName();
+        final String subName = "my-sub";
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName(subName)
+                .subscribe();
+
+        for (int i = 0; i < 100; i++) {
+            producer.newMessage().value(UUID.randomUUID().toString()).send();
+        }
+
+        for (int i = 0; i < 100; i++) {
+            Message<String> message = consumer.receive(100, TimeUnit.SECONDS);
+            Assert.assertNotNull(message);
+            consumer.acknowledge(message);
+        }
+
+        // Assert broker metrics
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, true, false, false, output);
+        String metricsStr = output.toString();
+        Multimap<String, PrometheusMetricsClient.Metric> metrics = parseMetrics(metricsStr);
+
+        Collection<PrometheusMetricsClient.Metric> dispatchThrottledMsgCountMetrics =
+                metrics.get("pulsar_broker_dispatch_throttled_msg_count");
+        Assert.assertFalse(dispatchThrottledMsgCountMetrics.isEmpty());
+        double dispatchThrottledMsgCount = dispatchThrottledMsgCountMetrics.stream()
+                .mapToDouble(m-> m.value).sum();
+        Assert.assertTrue(dispatchThrottledMsgCount > 0);
+
+        Collection<PrometheusMetricsClient.Metric> dispatchThrottledBytesCountMetrics =
+                metrics.get("pulsar_broker_dispatch_throttled_bytes_count");
+        Assert.assertFalse(dispatchThrottledBytesCountMetrics.isEmpty());
+        double dispatchThrottledBytesCount = dispatchThrottledBytesCountMetrics.stream()
+                .mapToDouble(m-> m.value).sum();
+        Assert.assertTrue(dispatchThrottledBytesCount > 0);
     }
 
 }
