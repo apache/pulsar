@@ -3826,7 +3826,8 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         while (remainingBytesSize > 0) {
             // Last ledger.
-            if (posToRead.getLedgerId() == ml.getCurrentLedger().getId()) {
+            LedgerHandle currentLedger = ml.getCurrentLedger();
+            if (currentLedger != null && posToRead.getLedgerId() == currentLedger.getId()) {
                 if (ml.getCurrentLedgerSize() == 0 ||  ml.getCurrentLedgerEntries() == 0) {
                     // Only read 1 entry if no entries to read.
                     return 1;
