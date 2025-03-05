@@ -2303,6 +2303,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             ProducerBuilderContext context = new ProducerBuilderContextImpl(
                                     deadLetterPolicy.getDeadLetterTopic(), topic, subscription);
                             deadLetterPolicy.getDeadLetterProducerBuilderCustomizer().customize(context, builder);
+                        } else {
+                            DeadLetterPolicy.DEFAULT_PRODUCER_BUILDER_CUSTOMIZER.customize(null, builder);
                         }
                         CompletableFuture<Producer<byte[]>> newProducer = builder.createAsync();
                         newProducer.whenComplete((producer, ex) -> {
@@ -2371,6 +2373,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             ProducerBuilderContext context = new ProducerBuilderContextImpl(
                                     deadLetterPolicy.getRetryLetterTopic(), topic, subscription);
                             deadLetterPolicy.getRetryLetterProducerBuilderCustomizer().customize(context, builder);
+                        } else {
+                            DeadLetterPolicy.DEFAULT_PRODUCER_BUILDER_CUSTOMIZER.customize(null, builder);
                         }
                         CompletableFuture<Producer<byte[]>> newProducer = builder.createAsync();
                         newProducer.whenComplete((producer, ex) -> {
