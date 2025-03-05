@@ -5245,7 +5245,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // cleanup.
         ml.delete();
 
-        // test estimate long value convert to int value
+        // test estimated long value convert to an int value
         ml = (ManagedLedgerImpl) factory.open(mlName);
         ml.addEntry(new byte[1000]);
         int entryCount11 = ManagedCursorImpl.estimateEntryCountBySize(

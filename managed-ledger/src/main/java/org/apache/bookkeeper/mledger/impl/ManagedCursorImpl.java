@@ -3814,6 +3814,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         return Math.min(estimateEntryCountBySize(maxSizeBytes, readPosition, ledger), maxEntries);
     }
 
+    // The minimum value is 1
     static int estimateEntryCountBySize(long bytesSize, Position readPosition, ManagedLedgerImpl ml) {
         Position posToRead = readPosition;
         if (!ml.isValidPosition(readPosition)) {
