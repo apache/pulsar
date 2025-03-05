@@ -83,6 +83,8 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.DeadLetterProducerBuilderContext;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.TopicDoesNotExistException;
 import org.apache.pulsar.client.api.Schema;
@@ -2296,7 +2298,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 p = deadLetterProducer;
                 if (p == null || p.isCompletedExceptionally()) {
                     p = createProducerWithBackOff(() -> {
-                        CompletableFuture<Producer<byte[]>> newProducer =
+                        ProducerBuilder<byte[]> builder =
                                 ((ProducerBuilderImpl<byte[]>) client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema)))
                                         .initialSubscriptionName(this.deadLetterPolicy.getInitialSubscriptionName())
                                         .topic(this.deadLetterPolicy.getDeadLetterTopic())
@@ -2305,8 +2307,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                         this.consumerName, RandomStringUtils.randomAlphanumeric(5)))
                                         .blockIfQueueFull(false)
                                         .enableBatching(false)
-                                        .enableChunking(true)
-                                        .createAsync();
+                                        .enableChunking(true);
+                        if (deadLetterPolicy.getDeadLetterProducerBuilderCustomizer() != null) {
+                            DeadLetterProducerBuilderContext context = new DeadLetterProducerBuilderContextImpl(
+                                    deadLetterPolicy.getDeadLetterTopic(), topic, subscription, consumerName);
+                            deadLetterPolicy.getDeadLetterProducerBuilderCustomizer().customize(context, builder);
+                        }
+                        CompletableFuture<Producer<byte[]>> newProducer = builder.createAsync();
                         newProducer.whenComplete((producer, ex) -> {
                             if (ex != null) {
                                 log.error("[{}] [{}] [{}] Failed to create dead letter producer for topic {}",
@@ -2366,13 +2373,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 p = retryLetterProducer;
                 if (p == null || p.isCompletedExceptionally()) {
                     p = createProducerWithBackOff(() -> {
-                        CompletableFuture<Producer<byte[]>> newProducer = client
+                        ProducerBuilder<byte[]> builder = client
                                 .newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
                                 .topic(this.deadLetterPolicy.getRetryLetterTopic())
                                 .enableBatching(false)
                                 .enableChunking(true)
-                                .blockIfQueueFull(false)
-                                .createAsync();
+                                .blockIfQueueFull(false);
+                        if (deadLetterPolicy.getRetryLetterProducerBuilderCustomizer() != null) {
+                            DeadLetterProducerBuilderContext context = new DeadLetterProducerBuilderContextImpl(
+                                    deadLetterPolicy.getRetryLetterTopic(), topic, subscription, consumerName);
+                            deadLetterPolicy.getRetryLetterProducerBuilderCustomizer().customize(context, builder);
+                        }
+                        CompletableFuture<Producer<byte[]>> newProducer = builder.createAsync();
                         newProducer.whenComplete((producer, ex) -> {
                             if (ex != null) {
                                 log.error("[{}] [{}] [{}] Failed to create retry letter producer for topic {}",
