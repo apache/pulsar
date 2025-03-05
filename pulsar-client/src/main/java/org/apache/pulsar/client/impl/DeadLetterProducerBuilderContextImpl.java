@@ -19,10 +19,10 @@
 package org.apache.pulsar.client.impl;
 
 import lombok.AllArgsConstructor;
-import org.apache.pulsar.client.api.ProducerBuilderContext;
+import org.apache.pulsar.client.api.DeadLetterProducerBuilderContext;
 
 @AllArgsConstructor
-class ProducerBuilderContextImpl implements ProducerBuilderContext {
+class DeadLetterProducerBuilderContextImpl implements DeadLetterProducerBuilderContext {
     private final String defaultTopicName;
     private final String inputTopicName;
     private final String inputTopicSubscriptionName;

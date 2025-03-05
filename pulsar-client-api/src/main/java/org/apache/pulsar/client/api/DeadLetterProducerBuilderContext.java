@@ -24,7 +24,7 @@ package org.apache.pulsar.client.api;
  * <p>This interface supplies relevant details such as the name of the input topic and associated subscription name.
  * This contextual information helps in correctly configuring the producer for the appropriate topic.
  */
-public interface ProducerBuilderContext {
+public interface DeadLetterProducerBuilderContext {
     /**
      * Returns the default name of topic for the dead letter or retry letter producer. This topic name is used
      * unless the ProducerBuilderCustomizer overrides it.

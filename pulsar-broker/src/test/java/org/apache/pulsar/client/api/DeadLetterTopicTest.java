@@ -1059,7 +1059,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         final int sendMessages = 100;
 
         // enable batch
-        ProducerBuilderCustomizer producerBuilderCustomizer = (context, producerBuilder) -> {
+        DeadLetterProducerBuilderCustomizer producerBuilderCustomizer = (context, producerBuilder) -> {
             producerBuilder.enableBatching(true);
         };
         String subscriptionName = "my-subscription";

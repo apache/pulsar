@@ -25,14 +25,14 @@ package org.apache.pulsar.client.api;
  * or the dead letter topic. The customization might include setting producer properties such as batching, timeouts,
  * or any other producer-specific configuration.
  *
- * @see ProducerBuilderContext
+ * @see DeadLetterProducerBuilderContext
  */
-public interface ProducerBuilderCustomizer {
+public interface DeadLetterProducerBuilderCustomizer {
     /**
      * Customize the given producer builder with settings specific to the topic context provided.
      *
      * @param context         the context containing information about the input topic and the subscription
      * @param producerBuilder the producer builder instance to be customized
      */
-    void customize(ProducerBuilderContext context, ProducerBuilder<byte[]> producerBuilder);
+    void customize(DeadLetterProducerBuilderContext context, ProducerBuilder<byte[]> producerBuilder);
 }

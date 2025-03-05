@@ -84,7 +84,7 @@ import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
-import org.apache.pulsar.client.api.ProducerBuilderContext;
+import org.apache.pulsar.client.api.DeadLetterProducerBuilderContext;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.TopicDoesNotExistException;
 import org.apache.pulsar.client.api.Schema;
@@ -2307,7 +2307,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                         .enableBatching(false)
                                         .enableChunking(true);
                         if (deadLetterPolicy.getDeadLetterProducerBuilderCustomizer() != null) {
-                            ProducerBuilderContext context = new ProducerBuilderContextImpl(
+                            DeadLetterProducerBuilderContext context = new DeadLetterProducerBuilderContextImpl(
                                     deadLetterPolicy.getDeadLetterTopic(), topic, subscription, consumerName);
                             deadLetterPolicy.getDeadLetterProducerBuilderCustomizer().customize(context, builder);
                         }
@@ -2378,7 +2378,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                 .enableChunking(true)
                                 .blockIfQueueFull(false);
                         if (deadLetterPolicy.getRetryLetterProducerBuilderCustomizer() != null) {
-                            ProducerBuilderContext context = new ProducerBuilderContextImpl(
+                            DeadLetterProducerBuilderContext context = new DeadLetterProducerBuilderContextImpl(
                                     deadLetterPolicy.getRetryLetterTopic(), topic, subscription, consumerName);
                             deadLetterPolicy.getRetryLetterProducerBuilderCustomizer().customize(context, builder);
                         }

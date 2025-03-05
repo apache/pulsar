@@ -71,7 +71,7 @@ public class DeadLetterPolicy implements Serializable {
      * can use the provided context (which includes input topic and subscription details) to adjust
      * configurations such as timeouts, batching, or message routing.
      */
-    private ProducerBuilderCustomizer retryLetterProducerBuilderCustomizer;
+    private DeadLetterProducerBuilderCustomizer retryLetterProducerBuilderCustomizer;
 
     /**
      * Customizer for configuring the producer builder for the dead letter topic.
@@ -81,5 +81,5 @@ public class DeadLetterPolicy implements Serializable {
      * implementations can perform specific adjustments that ensure the dead letter queue operates
      * with the appropriate configurations tailored for handling undeliverable messages.
      */
-    private ProducerBuilderCustomizer deadLetterProducerBuilderCustomizer;
+    private DeadLetterProducerBuilderCustomizer deadLetterProducerBuilderCustomizer;
 }
