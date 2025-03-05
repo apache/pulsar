@@ -24,6 +24,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -300,6 +301,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
 
         byte[] key = "key".getBytes();
         byte[] orderingKey = "orderingKey".getBytes();
+        long eventTime = Instant.now().toEpochMilli();
 
         final int maxRedeliveryCount = 3;
 
@@ -333,6 +335,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
                     .value(String.format("Hello Pulsar [%d]", i).getBytes())
                     .keyBytes(key)
                     .orderingKey(orderingKey)
+                    .eventTime(eventTime)
                     .send();
             originMessageIds.add(msgId.toString());
         }
@@ -350,6 +353,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
                 assertEquals(message.getKeyBytes(), key);
                 assertTrue(message.hasOrderingKey());
                 assertEquals(message.getOrderingKey(), orderingKey);
+                assertEquals(message.getEventTime(), eventTime);
                 retryMessageIds.add(message.getProperty(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID));
             }
             consumer.reconsumeLater(message, 1, TimeUnit.SECONDS);
@@ -373,6 +377,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
                 assertEquals(message.getKeyBytes(), key);
                 assertTrue(message.hasOrderingKey());
                 assertEquals(message.getOrderingKey(), orderingKey);
+                assertEquals(message.getEventTime(), eventTime);
                 deadLetterMessageIds.add(message.getProperty(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID));
             }
             deadLetterConsumer.acknowledge(message);
