@@ -119,6 +119,7 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("unchecked")
 public class ClientCnx extends PulsarHandler {
 
+    private static final Logger log = LoggerFactory.getLogger(ClientCnx.class);
     protected final Authentication authentication;
     protected State state;
 
@@ -1438,7 +1439,13 @@ public class ClientCnx extends PulsarHandler {
         }
     }
 
-    private static final Logger log = LoggerFactory.getLogger(ClientCnx.class);
+    public boolean isProxy() {
+        return proxyToTargetBrokerAddress != null;
+    }
+
+    public SocketAddress getLocalAddress() {
+        return this.localAddress;
+    }
 
     /**
      * Check client connection is now free. This method will not change the state to idle.
