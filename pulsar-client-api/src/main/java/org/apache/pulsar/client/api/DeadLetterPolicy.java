@@ -82,9 +82,4 @@ public class DeadLetterPolicy implements Serializable {
      * with the appropriate configurations tailored for handling undeliverable messages.
      */
     private ProducerBuilderCustomizer deadLetterProducerBuilderCustomizer;
-
-    // keep compatibility with old configuration
-    public static final ProducerBuilderCustomizer DEFAULT_PRODUCER_BUILDER_CUSTOMIZER =
-            (context, builder) ->
-                    builder.enableBatching(false).enableChunking(true).blockIfQueueFull(false);
 }

@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api;
+package org.apache.pulsar.client.impl;
 
 import lombok.AllArgsConstructor;
+import org.apache.pulsar.client.api.ProducerBuilderContext;
 
 @AllArgsConstructor
-public class ProducerBuilderContextImpl implements ProducerBuilderContext {
+class ProducerBuilderContextImpl implements ProducerBuilderContext {
     private final String defaultTopicName;
     private final String inputTopicName;
     private final String inputTopicSubscriptionName;
