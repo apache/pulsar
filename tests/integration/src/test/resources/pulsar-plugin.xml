@@ -1,3 +1,4 @@
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -18,14 +19,14 @@
     under the License.
 
 -->
-<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd" >
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
 <suite name="Pulsar Plugin Integration Tests" verbose="2" annotations="JDK">
-    <test name="pulsar-plugin-test-suite" preserve-order="true" >
+    <test name="pulsar-plugin-test-suite" preserve-order="true">
         <classes>
-            <class name="org.apache.pulsar.tests.integration.plugins.TestProtocolHandlers" />
-            <class name="org.apache.pulsar.tests.integration.plugins.TestAdditionalServlets" />
-            <class name="org.apache.pulsar.tests.integration.plugins.TestBrokerInterceptors" />
-            <class name="org.apache.pulsar.tests.integration.plugins.TestEntryFilters" />
+            <class name="org.apache.pulsar.tests.integration.plugins.TestProtocolHandlers"/>
+            <class name="org.apache.pulsar.tests.integration.plugins.TestAdditionalServlets"/>
+            <class name="org.apache.pulsar.tests.integration.plugins.TestBrokerInterceptors"/>
+            <class name="org.apache.pulsar.tests.integration.plugins.TestEntryFilters"/>
         </classes>
     </test>
 </suite>

@@ -21,7 +21,7 @@
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
-    <groupId>org.apache.pulsar.tests</groupId>
+    <groupId>io.streamnative.tests</groupId>
     <artifactId>docker-images</artifactId>
     <version>3.0.10.1</version>
   </parent>
@@ -30,12 +30,12 @@
   <name>Apache Pulsar :: Tests :: Docker Images :: Java Test Functions</name>
   <dependencies>
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>io.streamnative</groupId>
       <artifactId>pulsar-io-core</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>io.streamnative</groupId>
       <artifactId>pulsar-functions-api</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -69,7 +69,7 @@
       </activation>
       <dependencies>
         <dependency>
-          <groupId>org.apache.pulsar</groupId>
+          <groupId>io.streamnative</groupId>
           <artifactId>pulsar-functions-api-examples</artifactId>
           <version>${project.version}</version>
         </dependency>
@@ -88,7 +88,7 @@
                 <configuration>
                   <artifactSet>
                     <includes>
-                      <include>org.apache.pulsar:pulsar-functions-api-examples</include>
+                      <include>io.streamnative:pulsar-functions-api-examples</include>
                     </includes>
                   </artifactSet>
                 </configuration>

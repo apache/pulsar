@@ -22,7 +22,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>org.apache.pulsar</groupId>
+    <groupId>io.streamnative</groupId>
     <artifactId>pulsar-sql</artifactId>
     <version>3.0.10.1</version>
   </parent>
@@ -122,13 +122,13 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>io.streamnative</groupId>
       <artifactId>pulsar-broker</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>io.streamnative</groupId>
       <artifactId>testmocks</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
@@ -156,10 +156,10 @@
               <promoteTransitiveDependencies>true</promoteTransitiveDependencies>
               <artifactSet>
                 <includes>
-                  <include>org.apache.pulsar:pulsar-client-original</include>
-                  <include>org.apache.pulsar:pulsar-client-admin-original</include>
-                  <include>org.apache.pulsar:managed-ledger</include>
-                  <include>org.apache.pulsar:pulsar-metadata</include>
+                  <include>io.streamnative:pulsar-client-original</include>
+                  <include>io.streamnative:pulsar-client-admin-original</include>
+                  <include>io.streamnative:managed-ledger</include>
+                  <include>io.streamnative:pulsar-metadata</include>
                   <include>org.glassfish.jersey*:*</include>
                   <include>jakarta.ws.rs:jakarta.ws.rs-api</include>
                   <include>jakarta.annotation:*</include>
@@ -169,7 +169,7 @@
               </artifactSet>
               <filters>
                 <filter>
-                  <artifact>org.apache.pulsar:pulsar-client-original</artifact>
+                  <artifact>io.streamnative:pulsar-client-original</artifact>
                   <includes>
                     <include>**</include>
                   </includes>

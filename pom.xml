@@ -27,7 +27,7 @@
     <artifactId>apache</artifactId>
     <version>29</version>
   </parent>
-  <groupId>org.apache.pulsar</groupId>
+  <groupId>io.streamnative</groupId>
   <artifactId>pulsar</artifactId>
   <version>3.0.10.1</version>
   <name>Pulsar</name>
@@ -53,9 +53,9 @@ flexible messaging model and an intuitive client API.</description>
     </license>
   </licenses>
   <scm>
-    <url>https://github.com/apache/pulsar</url>
-    <connection>scm:git:https://github.com/apache/pulsar.git</connection>
-    <developerConnection>scm:git:ssh://git@github.com:apache/pulsar.git</developerConnection>
+    <url>https://github.com/streamnative/pulsar</url>
+    <connection>scm:git:https://github.com/streamnative/pulsar.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com:streamnative/pulsar.git</developerConnection>
   </scm>
   <ciManagement>
     <system>GitHub Actions</system>
@@ -1396,7 +1396,7 @@ flexible messaging model and an intuitive client API.</description>
   <dependencies>
     <!-- These dependencies are common to all the submodules -->
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>io.streamnative</groupId>
       <artifactId>buildtools</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
@@ -1476,7 +1476,11 @@ flexible messaging model and an intuitive client API.</description>
         </exclusion>
       </exclusions>
     </dependency>
-  </dependencies>
+  <dependency>
+    <groupId>org.apache.logging.log4j</groupId>
+    <artifactId>log4j-layout-template-json</artifactId>
+    <version>2.20.0</version>
+</dependency></dependencies>
   <build>
     <finalName>${project.artifactId}</finalName>
     <plugins>
@@ -1565,7 +1569,7 @@ flexible messaging model and an intuitive client API.</description>
             <configuration>
               <property>pulsar.basedir</property>
               <project>
-                <groupId>org.apache.pulsar</groupId>
+                <groupId>io.streamnative</groupId>
                 <artifactId>pulsar</artifactId>
               </project>
             </configuration>
@@ -1783,7 +1787,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/*.so.*</exclude>
             <exclude>**/*.dylib</exclude>
             <exclude>src/test/resources/*.txt</exclude>
-          </excludes>
+          <exclude>**/dependency-reduced-pom.xml</exclude></excludes>
         </configuration>
       </plugin>
       <plugin>
@@ -1838,7 +1842,55 @@ flexible messaging model and an intuitive client API.</description>
           </execution>
         </executions>
       </plugin>
-    </plugins>
+    <plugin>
+        <groupId>org.sonatype.plugins</groupId>
+        <artifactId>nexus-staging-maven-plugin</artifactId>
+        <version>1.6.13</version>
+        <extensions>true</extensions>
+        <configuration>
+            <serverId>ossrh</serverId>
+            <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
+            <skipStagingRepositoryClose>true</skipStagingRepositoryClose>
+            <autoReleaseAfterClose>false</autoReleaseAfterClose>
+        </configuration>
+    </plugin><plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-source-plugin</artifactId>
+    <version>3.2.0</version>
+    <executions>
+        <execution>
+            <id>attach-sources</id>
+            <goals>
+                 <goal>jar-no-fork</goal>
+            </goals>
+        </execution>
+    </executions>
+</plugin><plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-javadoc-plugin</artifactId>
+    <executions>
+        <execution>
+            <id>attach-javadocs</id>
+                <goals>
+                    <goal>jar</goal>
+                </goals>
+            <configuration>
+                <doclint>none</doclint>
+                <failOnError>false</failOnError>
+            </configuration>
+        </execution>
+    </executions>
+</plugin><plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-release-plugin</artifactId>
+    <version>3.0.0-M1</version>
+    <configuration>
+        <autoVersionSubmodules>true</autoVersionSubmodules>
+        <useReleaseProfile>false</useReleaseProfile>
+        <releaseProfiles>release</releaseProfiles>
+        <goals>deploy</goals>
+    </configuration>
+</plugin></plugins>
     <pluginManagement>
       <plugins>
         <plugin>
@@ -2022,7 +2074,15 @@ flexible messaging model and an intuitive client API.</description>
             </lifecycleMappingMetadata>
           </configuration>
         </plugin>
-      </plugins>
+      <plugin>
+     <groupId>org.sonatype.plugins</groupId>
+     <artifactId>nexus-staging-maven-plugin</artifactId>
+     <version>1.6.13</version>
+ </plugin><plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-source-plugin</artifactId>
+    <version>3.2.0</version>
+</plugin></plugins>
     </pluginManagement>
     <extensions>
       <extension>
@@ -2525,7 +2585,31 @@ flexible messaging model and an intuitive client API.</description>
         <UBUNTU_SECURITY_MIRROR>${env.UBUNTU_SECURITY_MIRROR}</UBUNTU_SECURITY_MIRROR>
       </properties>
     </profile>
-  </profiles>
+  <profile>
+    <id>release-sign-artifacts</id>
+    <activation>
+        <property>
+            <name>performRelease</name>
+            <value>true</value>
+        </property>
+    </activation>
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <executions>
+                    <execution>
+                    <id>sign-artifacts</id>
+                    <phase>verify</phase>
+                        <goals>
+                        <goal>sign</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</profile></profiles>
   <repositories>
     <repository>
       <id>central</id>
@@ -2551,4 +2635,13 @@ flexible messaging model and an intuitive client API.</description>
       </snapshots>
     </repository>
   </repositories>
-</project>
+<distributionManagement>
+    <snapshotRepository>
+        <id>ossrh</id>
+        <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+    </snapshotRepository>
+    <repository>
+        <id>ossrh</id>
+        <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+    </repository>
+</distributionManagement></project>

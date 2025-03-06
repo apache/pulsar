@@ -31,7 +31,7 @@
     <!-- main project directory structure -->
     <fileSet>
       <directory>.</directory>
-      <outputDirectory></outputDirectory>
+      <outputDirectory/>
       <useDefaultExcludes>true</useDefaultExcludes>
       <excludes>
         <!-- need special permissions -->
@@ -86,7 +86,7 @@
     <!-- license, readme, etc. calculated at build time -->
     <fileSet>
       <directory>${project.build.directory}/maven-shared-archive-resources/META-INF</directory>
-      <outputDirectory></outputDirectory>
+      <outputDirectory/>
     </fileSet>
     <fileSet>
       <directory>src</directory>

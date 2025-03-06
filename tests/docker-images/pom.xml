@@ -23,7 +23,7 @@
   <packaging>pom</packaging>
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>org.apache.pulsar.tests</groupId>
+    <groupId>io.streamnative.tests</groupId>
     <artifactId>tests-parent</artifactId>
     <version>3.0.10.1</version>
   </parent>

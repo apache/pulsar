@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -19,9 +19,7 @@
     under the License.
 
 -->
-<Configuration xmlns="http://logging.apache.org/log4j/2.0/config"
-               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-               xsi:schemaLocation="http://logging.apache.org/log4j/2.0/config https://logging.apache.org/log4j/2.0/log4j-core.xsd">
+<Configuration xmlns="http://logging.apache.org/log4j/2.0/config" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://logging.apache.org/log4j/2.0/config https://logging.apache.org/log4j/2.0/log4j-core.xsd">
   <Appenders>
     <!-- setting follow="true" is required for using ConsoleCaptor to validate log messages -->
     <Console name="CONSOLE" target="SYSTEM_OUT" follow="true">
@@ -36,6 +34,6 @@
     <Root level="INFO">
       <AppenderRef ref="CONSOLE"/>
     </Root>
-    <Logger name="org.apache.pulsar.client.admin" level="DEBUG" />
+    <Logger name="org.apache.pulsar.client.admin" level="DEBUG"/>
   </Loggers>
 </Configuration>

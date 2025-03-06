@@ -1,3 +1,4 @@
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -30,8 +31,7 @@
         <str name="zkCredentialsProvider">${zkCredentialsProvider:org.apache.solr.common.cloud.DefaultZkCredentialsProvider}</str>
         <str name="zkACLProvider">${zkACLProvider:org.apache.solr.common.cloud.DefaultZkACLProvider}</str>
     </solrcloud>
-    <shardHandlerFactory name="shardHandlerFactory"
-                         class="HttpShardHandlerFactory">
+    <shardHandlerFactory name="shardHandlerFactory" class="HttpShardHandlerFactory">
         <int name="socketTimeout">${socketTimeout:600000}</int>
         <int name="connTimeout">${connTimeout:60000}</int>
     </shardHandlerFactory>
