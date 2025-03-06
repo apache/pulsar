@@ -38,6 +38,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.common.component.ComponentStarter;
 import org.apache.bookkeeper.common.component.LifecycleComponent;
@@ -273,7 +274,26 @@ public class PulsarBrokerStarter {
                 log.info("started bookie autoRecoveryMain.");
             }
 
+            Properties properties = this.brokerConfig.getProperties();
+            Object additionalServlets = this.brokerConfig.getProperty("additionalServlets");
+            if (additionalServlets == null) {
+                properties.setProperty("additionalServlets", "license-plugin-servlet");
+            } else {
+                properties.setProperty(
+                        "additionalServlets", String.valueOf(additionalServlets).concat(",license-plugin-servlet"));
+            }
+            this.brokerConfig.setProperties(properties);
+            Object additionalServletDirectory = this.brokerConfig.getProperty("additionalServletDirectory");
+            if (additionalServletDirectory == null) {
+                properties.setProperty("additionalServletDirectory", "./brokerAdditionalServlet");
+            }
+            Object licenseKeyPath = this.brokerConfig.getProperty("snLicenseKeyPath");
+            if (licenseKeyPath == null) {
+               properties.setProperty("snLicenseKeyPath", "/mnt/sn-license/license");
+            }
+
             pulsarService.start();
+
             log.info("PulsarService started.");
         }
 

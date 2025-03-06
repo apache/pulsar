@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -19,20 +19,16 @@
     under the License.
 
 -->
-<project
-    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
-    xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>3.0.11-SNAPSHOT</version>
+    <version>3.0.10.1</version>
     <relativePath>..</relativePath>
   </parent>
-
   <artifactId>jclouds-shaded</artifactId>
   <name>Apache Pulsar :: Jclouds shaded</name>
-
   <properties>
     <!-- for compatibility, use versions from jclouds-project
          https://repo1.maven.org/maven2/org/apache/jclouds/jclouds-project/2.6.0/jclouds-project-2.6.0.pom -->
@@ -71,7 +67,6 @@
       <version>${jclouds.version}</version>
     </dependency>
   </dependencies>
-
   <dependencyManagement>
     <dependencies>
       <dependency>
@@ -111,7 +106,6 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
-
   <build>
     <plugins>
       <plugin>
@@ -127,7 +121,6 @@
               <createDependencyReducedPom>true</createDependencyReducedPom>
               <promoteTransitiveDependencies>true</promoteTransitiveDependencies>
               <minimizeJar>false</minimizeJar>
-
               <artifactSet>
                 <includes>
                   <include>com.google.guava:guava</include>
@@ -151,7 +144,6 @@
                   <include>jakarta.ws.rs:jakarta.ws.rs-api</include>
                 </includes>
               </artifactSet>
-
               <relocations>
                 <relocation>
                   <pattern>com.google</pattern>
@@ -187,14 +179,14 @@
                 <transformer implementation="org.apache.maven.plugins.shade.resource.PluginXmlResourceTransformer"/>
               </transformers>
               <filters>
-              <filter>
-                <artifact>org.apache.jclouds:jclouds-core</artifact>
-                <excludes>
-                  <!-- jclouds-core is a mixed uber jar containing a gson vulnerable version-->
-                  <exclude>lib/gson*jar</exclude>
-                </excludes>
-              </filter>
-            </filters>
+                <filter>
+                  <artifact>org.apache.jclouds:jclouds-core</artifact>
+                  <excludes>
+                    <!-- jclouds-core is a mixed uber jar containing a gson vulnerable version-->
+                    <exclude>lib/gson*jar</exclude>
+                  </excludes>
+                </filter>
+              </filters>
             </configuration>
           </execution>
         </executions>

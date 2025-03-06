@@ -1,3 +1,4 @@
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -18,70 +19,58 @@
     under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
-
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>distribution</artifactId>
-    <version>3.0.11-SNAPSHOT</version>
+    <version>3.0.10.1</version>
     <relativePath>..</relativePath>
   </parent>
-
   <artifactId>pulsar-server-distribution</artifactId>
   <packaging>pom</packaging>
   <name>Pulsar :: Distribution :: Server</name>
-
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-broker</artifactId>
       <version>${project.version}</version>
     </dependency>
-
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-metadata</artifactId>
       <version>${project.version}</version>
     </dependency>
-
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>jetcd-core-shaded</artifactId>
       <version>${project.version}</version>
     </dependency>
-
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-proxy</artifactId>
       <version>${project.version}</version>
     </dependency>
-
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-broker-auth-oidc</artifactId>
       <version>${project.version}</version>
     </dependency>
-
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-broker-auth-sasl</artifactId>
       <version>${project.version}</version>
     </dependency>
-
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-auth-sasl</artifactId>
       <version>${project.version}</version>
     </dependency>
-
     <dependency>
       <groupId>jline</groupId>
       <artifactId>jline</artifactId>
       <version>${jline.version}</version>
     </dependency>
-
     <dependency>
       <groupId>org.apache.zookeeper</groupId>
       <artifactId>zookeeper-prometheus-metrics</artifactId>
@@ -101,7 +90,6 @@
         </exclusion>
       </exclusions>
     </dependency>
-
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-package-bookkeeper-storage</artifactId>
@@ -113,13 +101,11 @@
         </exclusion>
       </exclusions>
     </dependency>
-
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-package-filesystem-storage</artifactId>
       <version>${project.version}</version>
     </dependency>
-
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-tools</artifactId>
@@ -131,33 +117,27 @@
         </exclusion>
       </exclusions>
     </dependency>
-
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-testclient</artifactId>
       <version>${project.version}</version>
     </dependency>
-
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-api</artifactId>
     </dependency>
-
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-core</artifactId>
     </dependency>
-
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-web</artifactId>
     </dependency>
-
     <dependency>
       <groupId>io.dropwizard.metrics</groupId>
       <artifactId>metrics-core</artifactId>
     </dependency>
-
     <dependency>
       <groupId>io.dropwizard.metrics</groupId>
       <artifactId>metrics-graphite</artifactId>
@@ -168,44 +148,36 @@
         </exclusion>
       </exclusions>
     </dependency>
-
     <dependency>
       <groupId>io.dropwizard.metrics</groupId>
       <artifactId>metrics-jvm</artifactId>
     </dependency>
-
     <dependency>
       <groupId>org.xerial.snappy</groupId>
       <artifactId>snappy-java</artifactId>
     </dependency>
-
     <dependency>
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-yaml</artifactId>
     </dependency>
-
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-slf4j-impl</artifactId>
     </dependency>
-
     <dependency>
-      <groupId>org.apache.bookkeeper.stats</groupId>
+      <groupId>io.streamnative.stats</groupId>
       <artifactId>prometheus-metrics-provider</artifactId>
     </dependency>
-
     <dependency>
       <groupId>io.prometheus</groupId>
       <artifactId>simpleclient_log4j2</artifactId>
     </dependency>
-
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>bouncy-castle-bc</artifactId>
       <version>${project.version}</version>
       <classifier>pkg</classifier>
     </dependency>
-
     <!-- function examples -->
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -220,7 +192,6 @@
         </exclusion>
       </exclusions>
     </dependency>
-
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-functions-worker</artifactId>
@@ -237,7 +208,6 @@
         </exclusion>
       </exclusions>
     </dependency>
-
     <!-- runtime-all -->
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -252,7 +222,6 @@
         </exclusion>
       </exclusions>
     </dependency>
-
     <!-- local-runner -->
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -265,7 +234,6 @@
         </exclusion>
       </exclusions>
     </dependency>
-
     <!-- grpc -->
     <dependency>
       <groupId>io.grpc</groupId>
@@ -275,16 +243,14 @@
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcpkix-jdk18on</artifactId>
     </dependency>
-
     <dependency>
       <groupId>io.perfmark</groupId>
       <artifactId>perfmark-api</artifactId>
       <scope>compile</scope>
     </dependency>
-
     <!-- bookkeeper http server -->
     <dependency>
-      <groupId>org.apache.bookkeeper.http</groupId>
+      <groupId>io.streamnative.http</groupId>
       <artifactId>vertx-http-server</artifactId>
       <version>${bookkeeper.version}</version>
       <exclusions>
@@ -303,7 +269,6 @@
       <artifactId>vertx-web</artifactId>
     </dependency>
   </dependencies>
-
   <build>
     <plugins>
       <plugin>
