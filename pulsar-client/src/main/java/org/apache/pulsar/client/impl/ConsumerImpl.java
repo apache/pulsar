@@ -77,6 +77,7 @@ import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
+import org.apache.pulsar.client.api.DeadLetterProducerBuilderCustomizer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageId;
@@ -2288,6 +2289,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return result;
     }
 
+    private void customizeDeadLetterProducerBuilder(DeadLetterProducerBuilderCustomizer customizer,
+                                                    String deadLetterOrRetryLetterTopic,
+                                                    ProducerBuilder<byte[]> builder) {
+        if (customizer != null) {
+            DeadLetterProducerBuilderContext context = new DeadLetterProducerBuilderContextImpl(
+                    deadLetterOrRetryLetterTopic, topic, subscription, consumerName);
+            customizer.customize(context, builder);
+        }
+    }
+
     private CompletableFuture<Producer<byte[]>> initDeadLetterProducerIfNeeded() {
         CompletableFuture<Producer<byte[]>> p = deadLetterProducer;
         if (p == null || p.isCompletedExceptionally()) {
@@ -2306,11 +2317,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                         .blockIfQueueFull(false)
                                         .enableBatching(false)
                                         .enableChunking(true);
-                        if (deadLetterPolicy.getDeadLetterProducerBuilderCustomizer() != null) {
-                            DeadLetterProducerBuilderContext context = new DeadLetterProducerBuilderContextImpl(
-                                    deadLetterPolicy.getDeadLetterTopic(), topic, subscription, consumerName);
-                            deadLetterPolicy.getDeadLetterProducerBuilderCustomizer().customize(context, builder);
-                        }
+                        customizeDeadLetterProducerBuilder(deadLetterPolicy.getDeadLetterProducerBuilderCustomizer(),
+                                deadLetterPolicy.getDeadLetterTopic(), builder);
                         CompletableFuture<Producer<byte[]>> newProducer = builder.createAsync();
                         newProducer.whenComplete((producer, ex) -> {
                             if (ex != null) {
@@ -2377,11 +2385,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                 .enableBatching(false)
                                 .enableChunking(true)
                                 .blockIfQueueFull(false);
-                        if (deadLetterPolicy.getRetryLetterProducerBuilderCustomizer() != null) {
-                            DeadLetterProducerBuilderContext context = new DeadLetterProducerBuilderContextImpl(
-                                    deadLetterPolicy.getRetryLetterTopic(), topic, subscription, consumerName);
-                            deadLetterPolicy.getRetryLetterProducerBuilderCustomizer().customize(context, builder);
-                        }
+                        customizeDeadLetterProducerBuilder(deadLetterPolicy.getRetryLetterProducerBuilderCustomizer(),
+                                deadLetterPolicy.getRetryLetterTopic(), builder);
                         CompletableFuture<Producer<byte[]>> newProducer = builder.createAsync();
                         newProducer.whenComplete((producer, ex) -> {
                             if (ex != null) {
