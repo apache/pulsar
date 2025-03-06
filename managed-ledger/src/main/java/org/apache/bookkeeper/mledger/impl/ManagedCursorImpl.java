@@ -3854,8 +3854,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                 posToRead = ml.getNextValidPosition(PositionFactory.create(posToRead.getLedgerId(), Long.MAX_VALUE));
             }
         }
-        int resultInt = Long.valueOf(result).intValue();
-        return Math.max(resultInt < 0 ? Integer.MAX_VALUE : resultInt, 1);
+        int safeInt = result > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) result;
+        return Math.max(safeInt, 1);
     }
 
     @Override
