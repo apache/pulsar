@@ -2353,7 +2353,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     processOpSendMsg(opSendMsg);
                 }
             } catch (Throwable t) {
-                log.warn("[{}] [{}] error while create opSendMsg by batch message container", topic, producerName, t);
+                batchMessageContainer.resetPayloadAfterFailedPublishing();
+                log.warn("[{}] [{}] error while create opSendMsg by batch message container, and reset payloads",
+                        topic, producerName, t);
             } finally {
                 if (shouldScheduleNextBatchFlush) {
                     maybeScheduleBatchFlushTask();
