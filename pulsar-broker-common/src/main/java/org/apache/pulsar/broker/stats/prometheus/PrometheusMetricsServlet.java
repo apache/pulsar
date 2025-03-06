@@ -40,6 +40,11 @@ import org.slf4j.LoggerFactory;
 
 public class PrometheusMetricsServlet extends HttpServlet {
     public static final String DEFAULT_METRICS_PATH = "/metrics";
+    // Prometheus uses version 0.0.4 of the text format for metrics.
+    // This content-type value ensures compatibility with Prometheus 3.x and later versions.
+    // For details, refer to the Prometheus 3.x migration guide:
+    // https://prometheus.io/docs/prometheus/latest/migration/#scrape-protocols
+    public static final String PROMETHEUS_CONTENT_TYPE_004 = "text/plain; version=0.0.4; charset=utf-8";
     private static final long serialVersionUID = 1L;
     static final int HTTP_STATUS_OK_200 = 200;
     static final int HTTP_STATUS_INTERNAL_SERVER_ERROR_500 = 500;
@@ -164,7 +169,7 @@ public class PrometheusMetricsServlet extends HttpServlet {
 
     private void generateMetricsSynchronously(HttpServletResponse res) throws IOException {
         res.setStatus(HTTP_STATUS_OK_200);
-        res.setContentType("text/plain;charset=utf-8");
+        res.setContentType(PROMETHEUS_CONTENT_TYPE_004);
         PrometheusMetricsGeneratorUtils.generate(cluster, res.getOutputStream(), metricsProviders);
     }
 
