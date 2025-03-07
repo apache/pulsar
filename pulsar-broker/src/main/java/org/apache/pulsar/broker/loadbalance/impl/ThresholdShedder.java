@@ -189,16 +189,16 @@ public class ThresholdShedder implements LoadSheddingStrategy {
         Pair<Boolean, String> result = getMaxUsageBroker(loadData, threshold, avgUsage);
         boolean hasBrokerBelowLowerBound = result.getLeft();
         String maxUsageBroker = result.getRight();
-        BrokerData brokerData = loadData.getBrokerData().get(maxUsageBroker);
-        if (brokerData == null) {
-            log.info("Load data is null or bundle <=1, skipping bundle unload.");
-            return;
-        }
         if (!hasBrokerBelowLowerBound) {
             log.info("No broker is below the lower bound, threshold is {}, "
                             + "avgUsage usage is {}, max usage of Broker {} is {}",
                     threshold, avgUsage, maxUsageBroker,
                     brokerAvgResourceUsage.getOrDefault(maxUsageBroker, 0.0));
+            return;
+        }
+        BrokerData brokerData = loadData.getBrokerData().get(maxUsageBroker);
+        if (brokerData == null) {
+            log.info("Load data is null or bundle <=1, skipping bundle unload.");
             return;
         }
         LocalBrokerData localData = brokerData.getLocalData();
