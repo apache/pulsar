@@ -98,6 +98,8 @@ class TopicStats {
     public long sizeBasedBacklogQuotaExceededEvictionCount;
     public long timeBasedBacklogQuotaExceededEvictionCount;
 
+    long dispatchThrottledMsgCount;
+    long dispatchThrottledBytesCount;
 
     @SuppressWarnings("DuplicatedCode")
     public void reset() {
@@ -142,6 +144,9 @@ class TopicStats {
         timeBasedBacklogQuotaExceededEvictionCount = 0;
         sizeBasedBacklogQuotaExceededEvictionCount = 0;
         backlogAgeSeconds = -1;
+
+        dispatchThrottledMsgCount = 0;
+        dispatchThrottledBytesCount = 0;
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
@@ -198,6 +203,10 @@ class TopicStats {
         writeMetric(stream, "pulsar_storage_backlog_quota_limit_time", stats.backlogQuotaLimitTime,
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
         writeMetric(stream, "pulsar_storage_backlog_age_seconds", stats.backlogAgeSeconds,
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_dispatch_throttled_msg_count", stats.dispatchThrottledMsgCount,
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_dispatch_throttled_bytes_count", stats.dispatchThrottledBytesCount,
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
         writeBacklogQuotaMetric(stream, "pulsar_storage_backlog_quota_exceeded_evictions_total",
                 stats.sizeBasedBacklogQuotaExceededEvictionCount, cluster, namespace, topic,
@@ -362,6 +371,12 @@ class TopicStats {
                     splitTopicAndPartitionIndexLabel);
             writeSubscriptionMetric(stream, "pulsar_subscription_delayed_message_index_size_bytes",
                     subsStats.delayedMessageIndexSizeInBytes, cluster, namespace, topic, sub,
+                    splitTopicAndPartitionIndexLabel);
+            writeSubscriptionMetric(stream, "pulsar_subscription_dispatch_throttled_msg_count",
+                    subsStats.dispatchThrottledMsgCount, cluster, namespace, topic, sub,
+                    splitTopicAndPartitionIndexLabel);
+            writeSubscriptionMetric(stream, "pulsar_subscription_dispatch_throttled_bytes_count",
+                    subsStats.dispatchThrottledBytesCount, cluster, namespace, topic, sub,
                     splitTopicAndPartitionIndexLabel);
 
             final String[] subscriptionLabel = {"subscription", sub};

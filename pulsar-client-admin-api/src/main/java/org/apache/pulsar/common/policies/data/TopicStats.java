@@ -121,4 +121,14 @@ public interface TopicStats {
     String getOwnerBroker();
 
     long getDelayedMessageIndexSizeInBytes();
+
+    /**
+     * Total count of throttling occurrences due to message rate limiting.
+     */
+    long getDispatchThrottledMsgCount();
+
+    /**
+     * Total count of throttling occurrences due to byte rate limiting.
+     */
+    long getDispatchThrottledBytesCount();
 }

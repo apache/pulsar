@@ -405,6 +405,8 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
     private boolean applyDispatchRateLimitsToReadLimits(DispatchRateLimiter rateLimiter,
                                                         MutablePair<Integer, Long> readLimits,
                                                         DispatchRateLimiter.Type limiterType) {
+        int originalMessagesToRead = readLimits.getLeft();
+        long originalBytesToRead = readLimits.getRight();
         // update messagesToRead according to available dispatch rate limit.
         int availablePermitsOnMsg = (int) rateLimiter.getAvailableDispatchRateLimitOnMsg();
         if (availablePermitsOnMsg >= 0) {
@@ -413,6 +415,12 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         long availablePermitsOnByte = rateLimiter.getAvailableDispatchRateLimitOnByte();
         if (availablePermitsOnByte >= 0) {
             readLimits.setRight(Math.min(readLimits.getRight(), availablePermitsOnByte));
+        }
+        if (readLimits.getLeft() < originalMessagesToRead) {
+            rateLimiter.increaseDispatchThrottleMsgCount();
+        }
+        if (readLimits.getRight() < originalBytesToRead) {
+            rateLimiter.increaseDispatchThrottleBytesCount();
         }
         if (readLimits.getLeft() == 0 || readLimits.getRight() == 0) {
             if (log.isDebugEnabled()) {

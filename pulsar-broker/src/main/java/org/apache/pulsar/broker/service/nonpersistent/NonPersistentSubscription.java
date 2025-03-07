@@ -39,6 +39,7 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
@@ -502,6 +503,10 @@ public class NonPersistentSubscription extends AbstractSubscription {
             subStats.filterAcceptedMsgCount = dispatcher.getFilterAcceptedMsgCount();
             subStats.filterRejectedMsgCount = dispatcher.getFilterRejectedMsgCount();
             subStats.filterRescheduledMsgCount = dispatcher.getFilterRescheduledMsgCount();
+            subStats.dispatchThrottledMsgCount = dispatcher.getRateLimiter().map(
+                    DispatchRateLimiter::getDispatchThrottleMsgCount).orElse(-1L);
+            subStats.dispatchThrottledBytesCount =  dispatcher.getRateLimiter().map(
+                    DispatchRateLimiter::getDispatchThrottleBytesCount).orElse(-1L);
         }
 
         subStats.type = getTypeString();

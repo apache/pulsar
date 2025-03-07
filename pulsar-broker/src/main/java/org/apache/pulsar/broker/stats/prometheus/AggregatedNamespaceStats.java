@@ -55,6 +55,9 @@ public class AggregatedNamespaceStats {
     public long sizeBasedBacklogQuotaExceededEvictionCount;
     public long timeBasedBacklogQuotaExceededEvictionCount;
 
+    long dispatchThrottledMsgCount;
+    long dispatchThrottledBytesCount;
+
     public Map<String, AggregatedReplicationStats> replicationStats = new HashMap<>();
 
     public Map<String, AggregatedSubscriptionStats> subscriptionStats = new HashMap<>();
@@ -113,6 +116,9 @@ public class AggregatedNamespaceStats {
         sizeBasedBacklogQuotaExceededEvictionCount += stats.sizeBasedBacklogQuotaExceededEvictionCount;
         timeBasedBacklogQuotaExceededEvictionCount += stats.timeBasedBacklogQuotaExceededEvictionCount;
 
+        dispatchThrottledMsgCount += stats.dispatchThrottledMsgCount;
+        dispatchThrottledBytesCount += stats.dispatchThrottledBytesCount;
+
         managedLedgerStats.storageWriteRate += stats.managedLedgerStats.storageWriteRate;
         managedLedgerStats.storageReadRate += stats.managedLedgerStats.storageReadRate;
         managedLedgerStats.storageReadCacheMissesRate += stats.managedLedgerStats.storageReadCacheMissesRate;
@@ -154,6 +160,8 @@ public class AggregatedNamespaceStats {
             subsStats.filterAcceptedMsgCount += as.filterAcceptedMsgCount;
             subsStats.filterRejectedMsgCount += as.filterRejectedMsgCount;
             subsStats.filterRescheduledMsgCount += as.filterRescheduledMsgCount;
+            subsStats.dispatchThrottledMsgCount += as.dispatchThrottledMsgCount;
+            subsStats.dispatchThrottledBytesCount += as.dispatchThrottledBytesCount;
             subsStats.delayedMessageIndexSizeInBytes += as.delayedMessageIndexSizeInBytes;
             as.bucketDelayedIndexStats.forEach((k, v) -> {
                 TopicMetricBean topicMetricBean =
@@ -216,6 +224,9 @@ public class AggregatedNamespaceStats {
 
         sizeBasedBacklogQuotaExceededEvictionCount = 0;
         timeBasedBacklogQuotaExceededEvictionCount = 0;
+
+        dispatchThrottledMsgCount = -1;
+        dispatchThrottledBytesCount = -1;
 
         compactionRemovedEventCount = 0;
         compactionSucceedCount = 0;
