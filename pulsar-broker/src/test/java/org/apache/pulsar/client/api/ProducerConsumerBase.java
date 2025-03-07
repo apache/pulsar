@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.function.BiFunction;
+import lombok.Getter;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -97,6 +98,7 @@ public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
 
     protected static class ReceivedMessages<T> {
 
+        @Getter
         List<Pair<MessageId, T>> messagesReceived = Collections.synchronizedList(new ArrayList<>());
 
         List<Pair<MessageId, T>> messagesAcked = Collections.synchronizedList(new ArrayList<>());
