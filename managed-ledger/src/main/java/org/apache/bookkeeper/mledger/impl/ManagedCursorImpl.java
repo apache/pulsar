@@ -3719,9 +3719,11 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (maxSizeBytes == NO_MAX_SIZE_LIMIT) {
             return maxEntries;
         }
-        int maxEntriesBasedOnSize =
-                Long.valueOf(estimateEntryCountBySize(maxSizeBytes, readPosition, ledger)).intValue();
-        return Math.min(maxEntriesBasedOnSize, maxEntries);
+        long estimatedEntryCount = estimateEntryCountBySize(maxSizeBytes, readPosition, ledger);
+        if (estimatedEntryCount > Integer.MAX_VALUE) {
+            return maxEntries;
+        }
+        return Math.min((int) estimatedEntryCount, maxEntries);
     }
 
     static long estimateEntryCountBySize(long bytesSize, PositionImpl readPosition, ManagedLedgerImpl ml) {
