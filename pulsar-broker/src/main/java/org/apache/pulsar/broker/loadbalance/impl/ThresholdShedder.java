@@ -119,7 +119,7 @@ public class ThresholdShedder implements LoadSheddingStrategy {
             }
         });
         if (selectedBundlesCache.isEmpty() && conf.isLowerBoundarySheddingEnabled()) {
-            tryLowerBoundaryShedding(loadData, conf);
+            tryLowerBoundaryShedding(loadData, threshold, conf);
         }
         return selectedBundlesCache;
     }
@@ -182,9 +182,8 @@ public class ThresholdShedder implements LoadSheddingStrategy {
         return historyUsage;
     }
 
-    private void tryLowerBoundaryShedding(LoadData loadData, ServiceConfiguration conf) {
+    private void tryLowerBoundaryShedding(LoadData loadData, double threshold, ServiceConfiguration conf) {
         // Select the broker with the most resource usage.
-        final double threshold = conf.getLoadBalancerBrokerThresholdShedderPercentage() / 100.0;
         final double avgUsage = getBrokerAvgUsage(loadData, conf.getLoadBalancerHistoryResourcePercentage(), conf);
         Pair<Boolean, String> result = getMaxUsageBroker(loadData, threshold, avgUsage);
         boolean hasBrokerBelowLowerBound = result.getLeft();
