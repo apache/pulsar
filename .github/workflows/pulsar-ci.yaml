@@ -23,6 +23,7 @@ on:
     branches:
       - master
       - branch-3.0
+      - branch-3.0.10
   schedule:
     - cron: '0 12 * * *'
   workflow_dispatch:
