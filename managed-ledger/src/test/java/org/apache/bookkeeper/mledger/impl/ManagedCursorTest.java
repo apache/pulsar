@@ -4880,5 +4880,15 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ml.delete();
     }
 
+    @Test
+    public void testApplyMaxSizeCap() throws Exception {
+        var ml = factory.open("testApplyMaxSizeCap");
+        var cursor = ml.openCursor("c1");
+        ml.addEntry(new byte[1000]);
+        assertEquals(((ManagedCursorImpl) cursor).applyMaxSizeCap(200, Long.MAX_VALUE), 200);
+        ml.deleteCursor("c1");
+        ml.delete();
+    }
+
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
 }
