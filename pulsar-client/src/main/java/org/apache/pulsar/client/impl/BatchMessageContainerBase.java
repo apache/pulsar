@@ -89,4 +89,9 @@ public interface BatchMessageContainerBase extends BatchMessageContainer {
      * @return the timestamp in nanoseconds or 0L if the batch container is empty
      */
     long getFirstAddedTimestamp();
+
+    /**
+     * Clear the container's payload if build {@link OpSendMsg} failed.
+     */
+    void resetPayloadAfterFailedPublishing();
 }
