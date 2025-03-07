@@ -1551,7 +1551,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         final String metricsEndPoint = getPulsar().getWebServiceAddress() + "/metrics";
         HttpResponse response = httpClient.execute(new HttpGet(metricsEndPoint));
         assertEquals(response.getEntity().getContentType().getValue(),
-                PrometheusMetricsServlet.PROMETHEUS_CONTENT_TYPE_004);
+                PrometheusMetricsServlet.PROMETHEUS_TEXT_FORMAT_V1_0_0);
         InputStream inputStream = response.getEntity().getContent();
         InputStreamReader isReader = new InputStreamReader(inputStream);
         BufferedReader reader = new BufferedReader(isReader);

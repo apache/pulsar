@@ -64,7 +64,7 @@ public class FunctionsMetricsResource extends FunctionApiResource {
             };
             return Response
                 .ok(streamOut)
-                .type(PrometheusMetricsServlet.PROMETHEUS_CONTENT_TYPE_004)
+                .type(PrometheusMetricsServlet.PROMETHEUS_TEXT_FORMAT_V1_0_0)
                 .build();
         } finally {
             buf.release();

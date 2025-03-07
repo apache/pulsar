@@ -40,11 +40,28 @@ import org.slf4j.LoggerFactory;
 
 public class PrometheusMetricsServlet extends HttpServlet {
     public static final String DEFAULT_METRICS_PATH = "/metrics";
-    // Prometheus uses version 0.0.4 of the text format for metrics.
-    // This content-type value ensures compatibility with Prometheus 3.x and later versions.
-    // For details, refer to the Prometheus 3.x migration guide:
-    // https://prometheus.io/docs/prometheus/latest/migration/#scrape-protocols
-    public static final String PROMETHEUS_CONTENT_TYPE_004 = "text/plain; version=0.0.4; charset=utf-8";
+    /**
+     * Metrics endpoint uses version 1.0.0 of the Prometheus/OpenMetrics text format.
+     * <p>
+     * This content-type value ensures compatibility with Prometheus 3.x and later versions.
+     * For details, refer to the Prometheus 3.x migration guide:
+     * https://prometheus.io/docs/prometheus/latest/migration/#scrape-protocols
+     * <p>
+     * The difference between version 1.0.0 and 0.0.4 is mainly about counters.
+     * The prometheus client_java library >=0.10.0 creates OpenMetrics compatible counters
+     * which are not compatible with the 0.0.4 format which is currently in use in BookKeeper.
+     * For implementation details of Prometheus client_java, see:
+     * https://github.com/prometheus/client_java/blob/parent-0.16.0/
+     * simpleclient/src/main/java/io/prometheus/client/Counter.java#L76-L80
+     * <p>
+     * The library will always append "_total" to the counter name unless the counter name already contains "_total"
+     * suffix and will have a separate "_created" counter to ensure OpenMetrics compatibility.
+     * This change was introduced in https://github.com/prometheus/client_java/pull/615 in version 0.10.0.
+     * Release notes: https://github.com/prometheus/client_java/releases/tag/parent-0.10.0
+     * <p>
+     * In Pulsar, the library was updated to 0.15.0 with https://github.com/apache/pulsar/pull/13785 in Pulsar 2.11.0.
+     */
+    public static final String PROMETHEUS_TEXT_FORMAT_V1_0_0 = "text/plain; version=1.0.0; charset=utf-8";
     private static final long serialVersionUID = 1L;
     static final int HTTP_STATUS_OK_200 = 200;
     static final int HTTP_STATUS_INTERNAL_SERVER_ERROR_500 = 500;
@@ -169,7 +186,7 @@ public class PrometheusMetricsServlet extends HttpServlet {
 
     private void generateMetricsSynchronously(HttpServletResponse res) throws IOException {
         res.setStatus(HTTP_STATUS_OK_200);
-        res.setContentType(PROMETHEUS_CONTENT_TYPE_004);
+        res.setContentType(PROMETHEUS_TEXT_FORMAT_V1_0_0);
         PrometheusMetricsGeneratorUtils.generate(cluster, res.getOutputStream(), metricsProviders);
     }
 
