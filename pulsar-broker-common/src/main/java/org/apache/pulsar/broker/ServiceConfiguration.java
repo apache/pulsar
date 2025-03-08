@@ -640,7 +640,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @Deprecated
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "@deprecated - Use backlogQuotaDefaultLimitByte instead."
+        doc = "@deprecated - Use backlogQuotaDefaultLimitBytes instead."
     )
     private double backlogQuotaDefaultLimitGB = -1;
 
