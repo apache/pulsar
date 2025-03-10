@@ -42,6 +42,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.opentelemetry.api.metrics.LongCounter;
+import io.opentelemetry.api.metrics.ObservableLongGauge;
 import io.opentelemetry.api.metrics.ObservableLongUpDownCounter;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Histogram;
@@ -75,6 +76,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -279,6 +281,12 @@ public class BrokerService implements Closeable {
             .help("Counter of connections throttled because of per-connection limit")
             .register();
 
+    // Pending publish buffer usage metrics
+    private final AtomicLong maxPendingPublishBufferUsage = new AtomicLong();
+    private final AtomicLong currentPendingPublishBufferUsage = new AtomicLong();
+    private final ObservableLongGauge pendingPublishBufferUsage;
+    private final ObservableLongGauge pendingPublishBufferMaxUsage;
+
     private final ScheduledExecutorService inactivityMonitor;
     private final ScheduledExecutorService messageExpiryMonitor;
     private final ScheduledExecutorService compactionMonitor;
@@ -467,6 +475,17 @@ public class BrokerService implements Closeable {
                 .setDescription("The number of times a connection has been rate limited.")
                 .setUnit("{operation}")
                 .build();
+
+        this.pendingPublishBufferUsage = pulsar.getOpenTelemetry().getMeter()
+                .gaugeBuilder("pulsar.broker.publish.buffer.usage")
+                .setDescription("The number of bytes pending to be published to the broker.")
+                .setUnit("{By}").ofLongs()
+                .buildWithCallback(measurement -> measurement.record(currentPendingPublishBufferUsage.get()));
+        this.pendingPublishBufferMaxUsage = pulsar.getOpenTelemetry().getMeter()
+                .gaugeBuilder("pulsar.broker.publish.buffer.max.usage")
+                .setDescription("The maximum number of bytes pending to be published to the broker.")
+                .setUnit("{By}").ofLongs()
+                .buildWithCallback(measurement -> measurement.record(maxPendingPublishBufferUsage.get()));
 
         this.brokerEntryMetadataInterceptors = BrokerEntryMetadataUtils
                 .loadBrokerEntryMetadataInterceptors(pulsar.getConfiguration().getBrokerEntryMetadataInterceptors(),
@@ -3755,6 +3774,15 @@ public class BrokerService implements Closeable {
     @VisibleForTesting
     public void setPulsarChannelInitializerFactory(PulsarChannelInitializer.Factory factory) {
         this.pulsarChannelInitFactory = factory;
+    }
+
+    void increasePendingPublishBytes(long bytes) {
+        long current = currentPendingPublishBufferUsage.addAndGet(bytes);
+        maxPendingPublishBufferUsage.accumulateAndGet(current, Math::max);
+    }
+
+    void decreasePendingPublishBytes(long bytes) {
+        currentPendingPublishBufferUsage.addAndGet(-bytes);
     }
 
     @AllArgsConstructor
