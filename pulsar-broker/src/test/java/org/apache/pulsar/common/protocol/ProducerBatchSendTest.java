@@ -23,6 +23,9 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.mockito.Mockito.spy;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +41,7 @@ import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -57,8 +61,21 @@ public class ProducerBatchSendTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test(timeOut = 30_000)
-    public void testNoEnoughMemSend() throws Exception {
+    @DataProvider
+    public Object[][] flushSend() {
+        return new Object[][] {
+                {Collections.emptyList()},
+                {Arrays.asList(1)},
+                {Arrays.asList(2)},
+                {Arrays.asList(3)},
+                {Arrays.asList(1, 2)},
+                {Arrays.asList(2, 3)},
+                {Arrays.asList(1, 2, 3)},
+        };
+    }
+
+    @Test(timeOut = 30_000, dataProvider = "flushSend")
+    public void testNoEnoughMemSend(List<Integer> flushSend) throws Exception {
         final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final String subscription = "s1";
         admin.topics().createNonPartitionedTopic(topic);
@@ -85,11 +102,17 @@ public class ProducerBatchSendTest extends ProducerConsumerBase {
 
         // Failed sending 3 times.
         producer.sendAsync("1");
-        producer.flushAsync();
+        if (flushSend.contains(1)) {
+            producer.flushAsync();
+        }
         producer.sendAsync("2");
-        producer.flushAsync();
+        if (flushSend.contains(2)) {
+            producer.flushAsync();
+        }
         producer.sendAsync("3");
-        producer.flushAsync();
+        if (flushSend.contains(3)) {
+            producer.flushAsync();
+        }
         // Publishing is finished eventually.
         failure.set(false);
         producer.flush();
