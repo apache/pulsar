@@ -74,7 +74,13 @@ public class TopicPolicies {
     private Integer deduplicationSnapshotIntervalSeconds;
     private Integer maxMessageSize;
     private Integer maxSubscriptionsPerTopic;
+    /**
+     * @deprecated Use {@link #replicatorDispatchRateMap} instead.
+     */
+    @Deprecated
     private DispatchRateImpl replicatorDispatchRate;
+    @Builder.Default
+    private Map<String, DispatchRateImpl> replicatorDispatchRateMap = new HashMap<>();
     private SchemaCompatibilityStrategy schemaCompatibilityStrategy;
     private EntryFilters entryFilters;
     // If set, it will override the namespace settings for allowing auto subscription creation

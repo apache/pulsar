@@ -1109,9 +1109,21 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public CompletableFuture<DispatchRate> getReplicatorDispatchRateAsync(String topic, boolean applied) {
+        return getReplicatorDispatchRateAsync(topic, null, applied);
+    }
+
+    @Override
+    public DispatchRate getReplicatorDispatchRate(String topic, String cluster, boolean applied)
+            throws PulsarAdminException {
+        return sync(() -> getReplicatorDispatchRateAsync(topic, cluster, applied));
+    }
+
+    @Override
+    public CompletableFuture<DispatchRate> getReplicatorDispatchRateAsync(String topic, String cluster,
+                                                                          boolean applied) {
         TopicName topicName = validateTopic(topic);
-        WebTarget path = topicPath(topicName, "replicatorDispatchRate");
-        path = path.queryParam("applied", applied);
+        WebTarget path = topicPath(topicName, "replicatorDispatchRate").queryParam("applied", applied)
+                .queryParam("cluster", cluster);
         return asyncGetRequest(path, new FutureCallback<DispatchRate>(){});
     }
 
@@ -1122,8 +1134,20 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public CompletableFuture<Void> setReplicatorDispatchRateAsync(String topic, DispatchRate dispatchRate) {
+        return setReplicatorDispatchRateAsync(topic, null, dispatchRate);
+    }
+
+    @Override
+    public void setReplicatorDispatchRate(String topic, String cluster, DispatchRate dispatchRate)
+            throws PulsarAdminException {
+        sync(() -> setReplicatorDispatchRateAsync(topic, cluster, dispatchRate));
+    }
+
+    @Override
+    public CompletableFuture<Void> setReplicatorDispatchRateAsync(String topic, String cluster,
+                                                                  DispatchRate dispatchRate) {
         TopicName tn = validateTopic(topic);
-        WebTarget path = topicPath(tn, "replicatorDispatchRate");
+        WebTarget path = topicPath(tn, "replicatorDispatchRate").queryParam("cluster", cluster);
         return asyncPostRequest(path, Entity.entity(dispatchRate, MediaType.APPLICATION_JSON));
     }
 
@@ -1134,8 +1158,18 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public CompletableFuture<Void> removeReplicatorDispatchRateAsync(String topic) {
+        return removeReplicatorDispatchRateAsync(topic, null);
+    }
+
+    @Override
+    public void removeReplicatorDispatchRate(String topic, String cluster) throws PulsarAdminException {
+        sync(() -> removeReplicatorDispatchRateAsync(topic, cluster));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeReplicatorDispatchRateAsync(String topic, String cluster) {
         TopicName tn = validateTopic(topic);
-        WebTarget path = topicPath(tn, "replicatorDispatchRate");
+        WebTarget path = topicPath(tn, "replicatorDispatchRate").queryParam("cluster", cluster);
         return asyncDeleteRequest(path);
     }
 

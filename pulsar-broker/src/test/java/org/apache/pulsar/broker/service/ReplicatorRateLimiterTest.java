@@ -26,11 +26,13 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.assertFalse;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Method;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroupDispatchLimiter;
+import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -696,6 +698,94 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
                     assertThat(totalReceived.get()).isLessThan((byteRate / payloadSize) + 2);
                 });
     }
+
+    @Test
+    public void testLoadReplicatorDispatchRateLimiterByTopicPolicies() throws Exception {
+        final String namespace = "pulsar/replicator-dispatch-rate-" + System.currentTimeMillis();
+        final String topicName = "persistent://" + namespace + "/" + System.currentTimeMillis();
+
+        admin1.namespaces().createNamespace(namespace);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+
+        final int byteRate = 400;
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(-1)
+                .dispatchThrottlingRateInByte(byteRate)
+                .ratePeriodInSecond(1)
+                .build();
+        admin1.namespaces().setReplicatorDispatchRate(namespace, dispatchRate);
+
+        admin1.topics().createNonPartitionedTopic(topicName);
+
+        Optional<Topic> topicOptional = pulsar1.getBrokerService().getTopicIfExists(topicName).get();
+        assertTrue(topicOptional.isPresent());
+
+        PersistentTopic topic = (PersistentTopic) topicOptional.get();
+        Awaitility.await()
+                .untilAsserted(() -> {
+                    Optional<DispatchRateLimiter> rateLimiter = topic.getReplicators().values().get(0).getRateLimiter();
+                    assertTrue(rateLimiter.isPresent());
+                    assertEquals(rateLimiter.get().getDispatchRateOnByte(), byteRate);
+                });
+
+        // r1 -> r2: limits this replication channel by the namespace policy
+        long dispatchThrottlingRateInMsgWhenR1ToR2OnNs = 3000;
+        long dispatchThrottlingRateInByteWhenR1ToR2OnNs = 2000;
+        DispatchRate dispatchRateOnNamespace = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg((int) dispatchThrottlingRateInMsgWhenR1ToR2OnNs)
+                .dispatchThrottlingRateInByte(dispatchThrottlingRateInByteWhenR1ToR2OnNs)
+                .ratePeriodInSecond(1)
+                .build();
+        admin1.namespaces().setReplicatorDispatchRate(namespace, "r2", dispatchRateOnNamespace);
+        Awaitility.await()
+                .untilAsserted(() -> {
+                    Optional<DispatchRateLimiter> rateLimiter = topic.getReplicators().values().get(0).getRateLimiter();
+                    assertTrue(rateLimiter.isPresent());
+                    assertEquals(rateLimiter.get().getDispatchRateOnByte(), dispatchThrottlingRateInByteWhenR1ToR2OnNs);
+                    assertEquals(rateLimiter.get().getDispatchRateOnMsg(), dispatchThrottlingRateInMsgWhenR1ToR2OnNs);
+                });
+
+        // r1 -> r2: limits this replication channel by default dispatch rate on the topic level.
+        long defaultDispatchThrottlingRateInMsgOnTopic = 30000;
+        long defaultDispatchThrottlingRateInByteOnTopic = 20000;
+        DispatchRate dispatchRateOnTopic = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg((int) defaultDispatchThrottlingRateInMsgOnTopic)
+                .dispatchThrottlingRateInByte(defaultDispatchThrottlingRateInByteOnTopic)
+                .ratePeriodInSecond(1)
+                .build();
+
+        admin1.topicPolicies().setReplicatorDispatchRate(topicName, dispatchRateOnTopic);
+        Awaitility.await()
+                .untilAsserted(() -> {
+                    Optional<DispatchRateLimiter> rateLimiter = topic.getReplicators().values().get(0).getRateLimiter();
+                    assertTrue(rateLimiter.isPresent());
+                    assertEquals(rateLimiter.get().getDispatchRateOnByte(),
+                            defaultDispatchThrottlingRateInByteOnTopic);
+                    assertEquals(rateLimiter.get().getDispatchRateOnMsg(),
+                            defaultDispatchThrottlingRateInMsgOnTopic);
+                });
+
+        // r1 -> r2: limits this replication channel by the specific cluster on the topic level.
+        long dispatchThrottlingRateInMsgBetweenR1AndR2OnTopic = 50000;
+        long dispatchThrottlingRateInByteBetweenR1AndR2OnTopic = 40000;
+        DispatchRate dispatchRateBetweenR1AndR2OnTopic = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg((int) dispatchThrottlingRateInMsgBetweenR1AndR2OnTopic)
+                .dispatchThrottlingRateInByte(dispatchThrottlingRateInByteBetweenR1AndR2OnTopic)
+                .ratePeriodInSecond(1)
+                .build();
+
+        admin1.topicPolicies().setReplicatorDispatchRate(topicName, "r2", dispatchRateBetweenR1AndR2OnTopic);
+        Awaitility.await()
+                .untilAsserted(() -> {
+                    Optional<DispatchRateLimiter> rateLimiter = topic.getReplicators().values().get(0).getRateLimiter();
+                    assertTrue(rateLimiter.isPresent());
+                    assertEquals(rateLimiter.get().getDispatchRateOnByte(),
+                            dispatchThrottlingRateInByteBetweenR1AndR2OnTopic);
+                    assertEquals(rateLimiter.get().getDispatchRateOnMsg(),
+                            dispatchThrottlingRateInMsgBetweenR1AndR2OnTopic);
+                });
+    }
+
 
     private static final Logger log = LoggerFactory.getLogger(ReplicatorRateLimiterTest.class);
 }

@@ -50,7 +50,7 @@ public class HierarchyTopicPolicies {
     final PolicyHierarchyValue<PublishRate> publishRate;
     final PolicyHierarchyValue<Boolean> delayedDeliveryEnabled;
     final PolicyHierarchyValue<Long> delayedDeliveryTickTimeMillis;
-    final PolicyHierarchyValue<DispatchRateImpl> replicatorDispatchRate;
+    final PolicyHierarchyValue<Map<String, DispatchRateImpl>> replicatorDispatchRate;
     final PolicyHierarchyValue<Integer> maxConsumersPerSubscription;
     final PolicyHierarchyValue<SubscribeRate> subscribeRate;
     final PolicyHierarchyValue<DispatchRateImpl> subscriptionDispatchRate;

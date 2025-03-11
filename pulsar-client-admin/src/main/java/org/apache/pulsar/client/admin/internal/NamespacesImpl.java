@@ -1030,8 +1030,20 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<Void> setReplicatorDispatchRateAsync(String namespace, DispatchRate dispatchRate) {
+        return setReplicatorDispatchRateAsync(namespace, null, dispatchRate);
+    }
+
+    @Override
+    public void setReplicatorDispatchRate(String namespace, String cluster, DispatchRate dispatchRate)
+            throws PulsarAdminException {
+        sync(() -> setReplicatorDispatchRateAsync(namespace, cluster, dispatchRate));
+    }
+
+    @Override
+    public CompletableFuture<Void> setReplicatorDispatchRateAsync(String namespace, String cluster,
+                                                                  DispatchRate dispatchRate) {
         NamespaceName ns = NamespaceName.get(namespace);
-        WebTarget path = namespacePath(ns, "replicatorDispatchRate");
+        WebTarget path = namespacePath(ns, "replicatorDispatchRate").queryParam("cluster", cluster);
         return asyncPostRequest(path, Entity.entity(dispatchRate, MediaType.APPLICATION_JSON));
     }
 
@@ -1042,8 +1054,18 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<Void> removeReplicatorDispatchRateAsync(String namespace) {
+        return removeReplicatorDispatchRateAsync(namespace, null);
+    }
+
+    @Override
+    public void removeReplicatorDispatchRate(String namespace, String cluster) throws PulsarAdminException {
+        sync(() -> removeReplicatorDispatchRateAsync(namespace, cluster));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeReplicatorDispatchRateAsync(String namespace, String cluster) {
         NamespaceName ns = NamespaceName.get(namespace);
-        WebTarget path = namespacePath(ns, "replicatorDispatchRate");
+        WebTarget path = namespacePath(ns, "replicatorDispatchRate").queryParam("cluster", cluster);
         return asyncDeleteRequest(path);
     }
 
@@ -1053,8 +1075,20 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public DispatchRate getReplicatorDispatchRate(String namespace, String cluster) throws PulsarAdminException {
+        return sync(()-> getReplicatorDispatchRateAsync(namespace, cluster));
+    }
+
+    @Override
     public CompletableFuture<DispatchRate> getReplicatorDispatchRateAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<DispatchRate>(){}, namespace, "replicatorDispatchRate");
+        return getReplicatorDispatchRateAsync(namespace, null);
+    }
+
+    @Override
+    public CompletableFuture<DispatchRate> getReplicatorDispatchRateAsync(String namespace, String cluster) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "replicatorDispatchRate").queryParam("cluster", cluster);
+        return asyncGetRequest(path, DispatchRate.class);
     }
 
     @Override

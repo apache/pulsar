@@ -3807,25 +3807,64 @@ public class PersistentTopicsBase extends AdminResource {
             });
     }
 
-    protected CompletableFuture<DispatchRateImpl> internalGetReplicatorDispatchRate(boolean applied, boolean isGlobal) {
+    protected CompletableFuture<DispatchRateImpl> internalGetReplicatorDispatchRate(String cluster, boolean applied,
+                                                                                    boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
-            .thenApply(op -> op.map(TopicPolicies::getReplicatorDispatchRate)
-                .orElseGet(() -> {
-                    if (applied) {
-                        DispatchRateImpl namespacePolicy = getNamespacePolicies(namespaceName)
-                                .replicatorDispatchRate.get(pulsar().getConfiguration().getClusterName());
-                        return namespacePolicy == null ? replicatorDispatchRate() : namespacePolicy;
+                .thenApply(op -> op.map(n -> {
+                    // Prioritize getting the dispatch rate from the replicatorDispatchRateMap if a specific cluster
+                    // is provided.
+                    // If the cluster is empty, it means the user has not explicitly set a rate for a particular
+                    // cluster,
+                    // so we still attempt to retrieve the value from the replicatorDispatchRateMap using the current
+                    // cluster.
+                    // If `applied` is true, we also need to consider the default cluster rate and finally fallback
+                    // to `getReplicatorDispatchRate()` for backward compatibility.
+                    if (StringUtils.isNotEmpty(cluster)) {
+                        DispatchRateImpl dispatchRate = n.getReplicatorDispatchRateMap().get(cluster);
+                        if (dispatchRate != null) {
+                            return dispatchRate;
+                        }
+                    }
+
+                    if (applied || StringUtils.isEmpty(cluster)) {
+                        DispatchRateImpl dispatchRate =
+                                n.getReplicatorDispatchRateMap().get(pulsar().getConfiguration().getClusterName());
+                        if (dispatchRate != null) {
+                            return dispatchRate;
+                        }
+                        // Backward compatibility.
+                        return n.getReplicatorDispatchRate();
                     }
                     return null;
+                }).orElseGet(() -> {
+                    if (!applied) {
+                        return null;
+                    }
+                    Map<String, DispatchRateImpl> replicatorDispatchRate =
+                            getNamespacePolicies(namespaceName).replicatorDispatchRate;
+                    DispatchRateImpl namespacePolicy = replicatorDispatchRate.getOrDefault(cluster,
+                            replicatorDispatchRate.get(pulsar().getConfiguration().getClusterName()));
+                    return namespacePolicy == null ? replicatorDispatchRate() : namespacePolicy;
                 }));
     }
 
-    protected CompletableFuture<Void> internalSetReplicatorDispatchRate(DispatchRateImpl dispatchRate,
+    protected CompletableFuture<Void> internalSetReplicatorDispatchRate(String cluster, DispatchRateImpl dispatchRate,
                                                                         boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenCompose(op -> {
                 TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
-                topicPolicies.setReplicatorDispatchRate(dispatchRate);
+                boolean usingDefaultCluster = StringUtils.isEmpty(cluster);
+                if (dispatchRate == null) {
+                    topicPolicies.getReplicatorDispatchRateMap()
+                            .remove(usingDefaultCluster ? pulsar().getConfiguration().getClusterName() : cluster);
+                } else {
+                    topicPolicies.getReplicatorDispatchRateMap()
+                            .put(usingDefaultCluster ? pulsar().getConfiguration().getClusterName() : cluster,
+                                    dispatchRate);
+                }
+                if (usingDefaultCluster) {
+                    topicPolicies.setReplicatorDispatchRate(dispatchRate);
+                }
                 topicPolicies.setIsGlobal(isGlobal);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
             });

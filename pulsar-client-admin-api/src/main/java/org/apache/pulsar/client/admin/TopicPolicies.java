@@ -973,6 +973,20 @@ public interface TopicPolicies {
     void setReplicatorDispatchRate(String topic, DispatchRate dispatchRate) throws PulsarAdminException;
 
     /**
+     * Set replicatorDispatchRate for the topic.
+     * <p/>
+     * Replicator dispatch rate under this topic can dispatch this many messages per second
+     *
+     * @param topic
+     * @param cluster The cluster for which set the replicator dispatch rate.
+     * @param dispatchRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setReplicatorDispatchRate(String topic, String cluster, DispatchRate dispatchRate) throws PulsarAdminException;
+
+    /**
      * Set replicatorDispatchRate for the topic asynchronously.
      * <p/>
      * Replicator dispatch rate under this topic can dispatch this many messages per second.
@@ -982,6 +996,17 @@ public interface TopicPolicies {
      *            number of messages per second
      */
     CompletableFuture<Void> setReplicatorDispatchRateAsync(String topic, DispatchRate dispatchRate);
+
+    /**
+     * Set replicatorDispatchRate for the topic asynchronously.
+     * <p/>
+     * Replicator dispatch rate under this topic can dispatch this many messages per second.
+     *
+     * @param topic
+     * @param cluster      The cluster for which set the replicator dispatch rate.
+     * @param dispatchRate number of messages per second
+     */
+    CompletableFuture<Void> setReplicatorDispatchRateAsync(String topic, String cluster, DispatchRate dispatchRate);
 
     /**
      * Get replicatorDispatchRate for the topic.
@@ -1017,12 +1042,31 @@ public interface TopicPolicies {
     DispatchRate getReplicatorDispatchRate(String topic, boolean applied) throws PulsarAdminException;
 
     /**
+     * Get applied replicatorDispatchRate for the topic.
+     * @param topic
+     * @param cluster The cluster for which get the replicator dispatch rate.
+     * @param applied
+     * @return
+     * @throws PulsarAdminException
+     */
+    DispatchRate getReplicatorDispatchRate(String topic, String cluster, boolean applied) throws PulsarAdminException;
+
+    /**
      * Get applied replicatorDispatchRate asynchronously.
      * @param topic
      * @param applied
      * @return
      */
     CompletableFuture<DispatchRate> getReplicatorDispatchRateAsync(String topic, boolean applied);
+
+    /**
+     * Get applied replicatorDispatchRate asynchronously.
+     * @param topic
+     * @param cluster The cluster for which get the replicator dispatch rate.
+     * @param applied
+     * @return
+     */
+    CompletableFuture<DispatchRate> getReplicatorDispatchRateAsync(String topic, String cluster, boolean applied);
 
     /**
      * Remove replicatorDispatchRate for a topic.
@@ -1034,11 +1078,29 @@ public interface TopicPolicies {
     void removeReplicatorDispatchRate(String topic) throws PulsarAdminException;
 
     /**
+     * Remove replicatorDispatchRate for a topic.
+     * @param topic
+     *            Topic name
+     * @param cluster The cluster for which remove the replicator dispatch rate.
+     * @throws PulsarAdminException
+     *            Unexpected error
+     */
+    void removeReplicatorDispatchRate(String topic, String cluster) throws PulsarAdminException;
+
+    /**
      * Remove replicatorDispatchRate for a topic asynchronously.
      * @param topic
      *            Topic name
      */
     CompletableFuture<Void> removeReplicatorDispatchRateAsync(String topic);
+
+    /**
+     * Remove replicatorDispatchRate for a topic asynchronously.
+     * @param topic
+     *            Topic name
+     * @param cluster The cluster for which remove the replicator dispatch rate.
+     */
+    CompletableFuture<Void> removeReplicatorDispatchRateAsync(String topic, String cluster);
 
     /**
      * Get the compactionThreshold for a topic. The maximum number of bytes

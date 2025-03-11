@@ -2442,6 +2442,21 @@ public interface Namespaces {
     void setReplicatorDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException;
 
     /**
+     * Set replicator-message-dispatch-rate.
+     * <p/>
+     * Replicators under this namespace can dispatch this many messages per second.
+     *
+     * @param namespace
+     * @param cluster The cluster for which to set the replicator dispatch rate.
+     * @param dispatchRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setReplicatorDispatchRate(String namespace, String cluster, DispatchRate dispatchRate)
+            throws PulsarAdminException;
+
+    /**
      * Set replicator-message-dispatch-rate asynchronously.
      * <p/>
      * Replicators under this namespace can dispatch this many messages per second.
@@ -2453,6 +2468,18 @@ public interface Namespaces {
     CompletableFuture<Void> setReplicatorDispatchRateAsync(String namespace, DispatchRate dispatchRate);
 
     /**
+     * Set replicator-message-dispatch-rate asynchronously.
+     * <p/>
+     * Replicators under this namespace can dispatch this many messages per second.
+     *
+     * @param namespace
+     * @param cluster The cluster for which to set the replicator dispatch rate.
+     * @param dispatchRate
+     *            number of messages per second
+     */
+    CompletableFuture<Void> setReplicatorDispatchRateAsync(String namespace, String cluster, DispatchRate dispatchRate);
+
+    /**
      * Remove replicator-message-dispatch-rate.
      *
      * @param namespace
@@ -2462,11 +2489,29 @@ public interface Namespaces {
     void removeReplicatorDispatchRate(String namespace) throws PulsarAdminException;
 
     /**
+     * Remove replicator-message-dispatch-rate.
+     *
+     * @param namespace
+     * @param cluster The cluster for which to remove the replicator dispatch rate.
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void removeReplicatorDispatchRate(String namespace, String cluster) throws PulsarAdminException;
+
+    /**
      * Set replicator-message-dispatch-rate asynchronously.
      *
      * @param namespace
      */
     CompletableFuture<Void> removeReplicatorDispatchRateAsync(String namespace);
+
+    /**
+     * Set replicator-message-dispatch-rate asynchronously.
+     *
+     * @param namespace
+     * @param cluster The cluster for which to remove the replicator dispatch rate.
+     */
+    CompletableFuture<Void> removeReplicatorDispatchRateAsync(String namespace, String cluster);
 
     /**
      * Get replicator-message-dispatch-rate.
@@ -2482,6 +2527,20 @@ public interface Namespaces {
     DispatchRate getReplicatorDispatchRate(String namespace) throws PulsarAdminException;
 
     /**
+     * Get replicator-message-dispatch-rate.
+     * <p/>
+     * Replicators under this namespace can dispatch this many messages per second.
+     *
+     * @param namespace
+     * @param cluster The cluster for which to get the replicator dispatch rate.
+     * @returns DispatchRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    DispatchRate getReplicatorDispatchRate(String namespace, String cluster) throws PulsarAdminException;
+
+    /**
      * Get replicator-message-dispatch-rate asynchronously.
      * <p/>
      * Replicators under this namespace can dispatch this many messages per second.
@@ -2491,6 +2550,18 @@ public interface Namespaces {
      *            number of messages per second
      */
     CompletableFuture<DispatchRate> getReplicatorDispatchRateAsync(String namespace);
+
+    /**
+     * Get replicator-message-dispatch-rate asynchronously.
+     * <p/>
+     * Replicators under this namespace can dispatch this many messages per second.
+     *
+     * @param namespace
+     * @param cluster The cluster for which to get the dispatch rate.
+     * @returns DispatchRate
+     *            number of messages per second
+     */
+    CompletableFuture<DispatchRate> getReplicatorDispatchRateAsync(String namespace, String cluster);
 
     /**
      * Clear backlog for all topics on a namespace.

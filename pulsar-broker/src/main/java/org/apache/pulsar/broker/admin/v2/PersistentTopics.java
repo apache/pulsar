@@ -2840,11 +2840,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @QueryParam("applied") @DefaultValue("false") boolean applied,
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("cluster") String cluster) {
         validateTopicName(tenant, namespace, encodedTopic);
         validateTopicPolicyOperationAsync(topicName, PolicyName.REPLICATION_RATE, PolicyOperation.READ)
             .thenCompose(__ -> preValidation(authoritative))
-            .thenCompose(__ -> internalGetReplicatorDispatchRate(applied, isGlobal))
+            .thenCompose(__ -> internalGetReplicatorDispatchRate(cluster, applied, isGlobal))
             .thenApply(asyncResponse::resume)
             .exceptionally(ex -> {
                 handleTopicPolicyException("getReplicatorDispatchRate", ex, asyncResponse);
@@ -2870,11 +2871,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("cluster") String cluster,
             @ApiParam(value = "Replicator dispatch rate of the topic") DispatchRateImpl dispatchRate) {
         validateTopicName(tenant, namespace, encodedTopic);
         validateTopicPolicyOperationAsync(topicName, PolicyName.REPLICATION_RATE, PolicyOperation.WRITE)
             .thenCompose(__ -> preValidation(authoritative))
-            .thenCompose(__ -> internalSetReplicatorDispatchRate(dispatchRate, isGlobal))
+            .thenCompose(__ -> internalSetReplicatorDispatchRate(cluster, dispatchRate, isGlobal))
             .thenRun(() -> {
                 log.info("[{}] Successfully updated replicatorDispatchRate: namespace={}, topic={}"
                                 + ", replicatorDispatchRate={}, isGlobal={}",
@@ -2903,11 +2905,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("cluster") String cluster) {
         validateTopicName(tenant, namespace, encodedTopic);
         validateTopicPolicyOperationAsync(topicName, PolicyName.REPLICATION_RATE, PolicyOperation.WRITE)
             .thenCompose(__ -> preValidation(authoritative))
-            .thenCompose(__ -> internalSetReplicatorDispatchRate(null, isGlobal))
+            .thenCompose(__ -> internalSetReplicatorDispatchRate(cluster, null, isGlobal))
             .thenRun(() -> {
                 log.info("[{}] Successfully remove replicatorDispatchRate limit: namespace={}, topic={}",
                         clientAppId(), namespaceName, topicName.getLocalName());

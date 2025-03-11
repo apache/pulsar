@@ -1118,10 +1118,11 @@ public class Namespaces extends NamespacesBase {
                                           @PathParam("tenant") String tenant,
                                           @PathParam("cluster") String cluster,
                                           @PathParam("namespace") String namespace,
+                                          @QueryParam("cluster") String queryCluster,
             @ApiParam(value = "Replicator dispatch rate for all topics of the specified namespace")
                                               DispatchRateImpl dispatchRate) {
         validateNamespaceName(tenant, cluster, namespace);
-        internalSetReplicatorDispatchRate(asyncResponse, dispatchRate);
+        internalSetReplicatorDispatchRate(asyncResponse, cluster, dispatchRate);
     }
 
     @GET
@@ -1135,9 +1136,10 @@ public class Namespaces extends NamespacesBase {
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
             @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace) {
+            @PathParam("namespace") String namespace,
+            @QueryParam("cluster") String queryCluster) {
         validateNamespaceName(tenant, cluster, namespace);
-        internalGetReplicatorDispatchRate(asyncResponse);
+        internalGetReplicatorDispatchRate(asyncResponse, cluster);
     }
 
     @GET

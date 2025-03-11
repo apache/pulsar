@@ -749,8 +749,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
     public void initializeDispatchRateLimiterIfNeeded() {
         synchronized (dispatchRateLimiterLock) {
             if (!dispatchRateLimiter.isPresent()
-                && DispatchRateLimiter.isDispatchRateEnabled(topic.getReplicatorDispatchRate())) {
-                this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(topic, Type.REPLICATOR));
+                && DispatchRateLimiter.isDispatchRateEnabled(topic.getReplicatorDispatchRate(remoteCluster))) {
+                this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(topic, remoteCluster, Type.REPLICATOR));
             }
         }
         ResourceGroupService resourceGroupService = brokerService.getPulsar().getResourceGroupServiceManager();

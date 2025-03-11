@@ -43,7 +43,7 @@ public class DispatchRateLimiter {
 
     private final PersistentTopic topic;
     private final String topicName;
-    private final String subscriptionName;
+    private final String subscriptionNameOrRemoteCluster;
     private final Type type;
 
     private final BrokerService brokerService;
@@ -54,10 +54,10 @@ public class DispatchRateLimiter {
         this(topic, null, type);
     }
 
-    public DispatchRateLimiter(PersistentTopic topic, String subscriptionName, Type type) {
+    public DispatchRateLimiter(PersistentTopic topic, String subscriptionNameOrRemoteCluster, Type type) {
         this.topic = topic;
         this.topicName = topic.getName();
-        this.subscriptionName = subscriptionName;
+        this.subscriptionNameOrRemoteCluster = subscriptionNameOrRemoteCluster;
         this.brokerService = topic.getBrokerService();
         this.type = type;
         updateDispatchRate();
@@ -66,7 +66,7 @@ public class DispatchRateLimiter {
     public DispatchRateLimiter(BrokerService brokerService) {
         this.topic = null;
         this.topicName = null;
-        this.subscriptionName = null;
+        this.subscriptionNameOrRemoteCluster = null;
         this.brokerService = brokerService;
         this.type = Type.BROKER;
         updateDispatchRate();
@@ -177,10 +177,10 @@ public class DispatchRateLimiter {
                 dispatchRate = topic.getDispatchRate();
                 break;
             case SUBSCRIPTION:
-                dispatchRate = topic.getSubscriptionDispatchRate(subscriptionName);
+                dispatchRate = topic.getSubscriptionDispatchRate(subscriptionNameOrRemoteCluster);
                 break;
             case REPLICATOR:
-                dispatchRate = topic.getReplicatorDispatchRate();
+                dispatchRate = topic.getReplicatorDispatchRate(subscriptionNameOrRemoteCluster);
                 break;
             case BROKER:
                 dispatchRate = createDispatchRate();
