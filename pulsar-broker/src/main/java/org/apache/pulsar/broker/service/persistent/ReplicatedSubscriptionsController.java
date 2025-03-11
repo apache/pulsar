@@ -18,9 +18,13 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.pulsar.common.api.proto.MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST;
+import static org.apache.pulsar.common.api.proto.MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_RESPONSE;
+import static org.apache.pulsar.common.api.proto.MarkerType.REPLICATED_SUBSCRIPTION_UPDATE;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import java.io.IOException;
 import java.time.Clock;
@@ -76,6 +80,22 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                     "Counter of currently pending snapshots")
             .register();
 
+    private static final Counter snapshotOperationCounter = Counter
+            .build("pulsar_broker_replication_subscription_snapshot_operation_count",
+                    "The number of snapshot operations attempted")
+            .register();
+
+    private static final Counter writtenMarkerMessageCounter = Counter
+            .build("pulsar_broker_replication_marker_messages_written_count",
+                    "The number of marker messages written to the local topic")
+            .register();
+
+    private static final Counter receivedMarkerMessageCounter = Counter
+            .build("pulsar_broker_replication_marker_messages_received_count",
+                    "The number of marker messages received by the broker")
+            .labelNames("remote_cluster", "marker_type")
+            .register();
+
     public ReplicatedSubscriptionsController(PersistentTopic topic, String localCluster) {
         this.topic = topic;
         this.localCluster = localCluster;
@@ -86,20 +106,24 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                         TimeUnit.MILLISECONDS);
     }
 
-    public void receivedReplicatedSubscriptionMarker(Position position, int markerType, ByteBuf payload) {
+    public void receivedReplicatedSubscriptionMarker(String remoteCluster, Position position, int markerType,
+                                                     ByteBuf payload) {
         MarkerType m = null;
 
         try {
             switch (markerType) {
             case MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST_VALUE:
+                recordReceivedMarkerMessage(remoteCluster, REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST);
                 receivedSnapshotRequest(Markers.parseReplicatedSubscriptionsSnapshotRequest(payload));
                 break;
 
             case MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_RESPONSE_VALUE:
+                recordReceivedMarkerMessage(remoteCluster, REPLICATED_SUBSCRIPTION_SNAPSHOT_RESPONSE);
                 receivedSnapshotResponse(position, Markers.parseReplicatedSubscriptionsSnapshotResponse(payload));
                 break;
 
             case MarkerType.REPLICATED_SUBSCRIPTION_UPDATE_VALUE:
+                recordReceivedMarkerMessage(remoteCluster, REPLICATED_SUBSCRIPTION_UPDATE);
                 receiveSubscriptionUpdated(Markers.parseReplicatedSubscriptionsUpdate(payload));
                 break;
 
@@ -204,6 +228,10 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         }
     }
 
+    private void recordReceivedMarkerMessage(String remoteCluster, MarkerType markerType) {
+        receivedMarkerMessageCounter.labels(remoteCluster, markerType.name()).inc();
+    }
+
     private void startNewSnapshot() {
         cleanupTimedOutSnapshots();
 
@@ -253,6 +281,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
             log.debug("[{}] Starting snapshot creation.", topic.getName());
         }
 
+        snapshotOperationCounter.inc();
         pendingSnapshotsMetric.inc();
         ReplicatedSubscriptionsSnapshotBuilder builder = new ReplicatedSubscriptionsSnapshotBuilder(this,
                 topic.getReplicators().keys(), topic.getBrokerService().pulsar().getConfiguration(), Clock.systemUTC());
@@ -307,6 +336,10 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         // closed
         if (log.isDebugEnabled()) {
             log.debug("[{}] Published marker at {}:{}. Exception: {}", topic.getName(), ledgerId, entryId, e);
+        }
+
+        if (e != null) {
+            writtenMarkerMessageCounter.inc();
         }
 
         this.positionOfLastLocalMarker = new PositionImpl(ledgerId, entryId);

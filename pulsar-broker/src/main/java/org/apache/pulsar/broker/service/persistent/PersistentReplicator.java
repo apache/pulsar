@@ -796,7 +796,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
         case MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST_VALUE:
         case MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_RESPONSE_VALUE:
         case MarkerType.REPLICATED_SUBSCRIPTION_UPDATE_VALUE:
-            topic.receivedReplicatedSubscriptionMarker(position, markerType, payload);
+            topic.receivedReplicatedSubscriptionMarker(msg.getReplicatedFrom(), position, markerType, payload);
             break;
 
         default:
