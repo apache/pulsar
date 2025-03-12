@@ -88,6 +88,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceExcept
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -1549,6 +1550,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         CloseableHttpClient httpClient = HttpClientBuilder.create().build();
         final String metricsEndPoint = getPulsar().getWebServiceAddress() + "/metrics";
         HttpResponse response = httpClient.execute(new HttpGet(metricsEndPoint));
+        assertEquals(response.getEntity().getContentType().getValue(),
+                PrometheusMetricsServlet.PROMETHEUS_CONTENT_TYPE_004);
         InputStream inputStream = response.getEntity().getContent();
         InputStreamReader isReader = new InputStreamReader(inputStream);
         BufferedReader reader = new BufferedReader(isReader);
@@ -1788,6 +1791,47 @@ public class BrokerServiceTest extends BrokerTestBase {
         consumer1.acknowledge(message);
         assertEquals(admin.topics().getStats(topicName).getSubscriptions()
                 .get("sub-1").getUnackedMessages(), 0);
+    }
+
+    @Test
+    public void testBlockedConsumerOnUnackedMsgs() throws Exception {
+        final String ns = "prop/ns-test";
+        admin.namespaces().createNamespace(ns, 2);
+        admin.namespaces().setMaxUnackedMessagesPerConsumer(ns, 1);
+
+        final String topicName = "persistent://prop/ns-test/testBlockedConsumerOnUnackedMsgs";
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .create();
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("sub-test")
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscriptionType(SubscriptionType.Shared)
+                .isAckReceiptEnabled(true)
+                .receiverQueueSize(0)
+                .subscribe();
+
+        producer.send("1".getBytes(StandardCharsets.UTF_8));
+        producer.send("2".getBytes(StandardCharsets.UTF_8));
+
+        // 1. receive message
+        Message<byte[]> message = consumer.receive();
+        Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
+
+        SubscriptionStats subscriptionStats = admin.topics().getStats(topicName).getSubscriptions().get("sub-test");
+        assertEquals(subscriptionStats.getUnackedMessages(), 1);
+        assertTrue(subscriptionStats.getConsumers().get(0).isBlockedConsumerOnUnackedMsgs());
+
+        // 2、ack this message
+        consumer.acknowledge(message);
+        Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
+
+        subscriptionStats = admin.topics().getStats(topicName).getSubscriptions().get("sub-test");
+        assertEquals(subscriptionStats.getUnackedMessages(), 0);
+        assertFalse(subscriptionStats.getConsumers().get(0).isBlockedConsumerOnUnackedMsgs());
     }
 
     @Test

@@ -21,8 +21,8 @@ package org.apache.pulsar.broker.qos;
 
 // CHECKSTYLE.OFF: ClassTypeParameterName
 public abstract class AsyncTokenBucketBuilder<SELF extends AsyncTokenBucketBuilder<SELF>> {
-    protected MonotonicSnapshotClock clock = AsyncTokenBucket.DEFAULT_SNAPSHOT_CLOCK;
-    protected long resolutionNanos = AsyncTokenBucket.defaultResolutionNanos;
+    protected MonotonicClock clock = AsyncTokenBucket.DEFAULT_SNAPSHOT_CLOCK;
+    protected long addTokensResolutionNanos = AsyncTokenBucket.DEFAULT_ADD_TOKENS_RESOLUTION_NANOS;
 
     protected AsyncTokenBucketBuilder() {
     }
@@ -31,13 +31,22 @@ public abstract class AsyncTokenBucketBuilder<SELF extends AsyncTokenBucketBuild
         return (SELF) this;
     }
 
-    public SELF clock(MonotonicSnapshotClock clock) {
+    /**
+     * Set the clock source for the token bucket. It's recommended to use the {@link DefaultMonotonicClock}
+     * for most use cases.
+     */
+    public SELF clock(MonotonicClock clock) {
         this.clock = clock;
         return self();
     }
 
-    public SELF resolutionNanos(long resolutionNanos) {
-        this.resolutionNanos = resolutionNanos;
+    /**
+     * This setting determines the minimum time interval that must pass since the last operation
+     * before new tokens are added to the token balance.
+     * Setting this value to 0 ensures the token balance is always up-to-date, but it may slightly impact performance.
+     */
+    public SELF addTokensResolutionNanos(long addTokensResolutionNanos) {
+        this.addTokensResolutionNanos = addTokensResolutionNanos;
         return self();
     }
 

@@ -624,7 +624,12 @@ public abstract class AdminResource extends PulsarWebResource {
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, ex);
+                    if (AdminResource.isConflictException(ex)) {
+                        log.info("[{}] Failed to create partitioned topic {}: {}", clientAppId(), topicName,
+                                ex.getMessage());
+                    } else {
+                        log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, ex);
+                    }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -852,6 +857,21 @@ public abstract class AdminResource extends PulsarWebResource {
 
     }
 
+    protected void validateRetentionPolicies(RetentionPolicies retention) {
+        if (retention == null) {
+            return;
+        }
+        checkArgument(retention.getRetentionSizeInMB() >= -1,
+                "Invalid retention policy: size limit must be >= -1");
+        checkArgument(retention.getRetentionTimeInMinutes() >= -1,
+                "Invalid retention policy: time limit must be >= -1");
+        checkArgument((retention.getRetentionTimeInMinutes() != 0 && retention.getRetentionSizeInMB() != 0)
+                        || (retention.getRetentionTimeInMinutes() == 0 && retention.getRetentionSizeInMB() == 0),
+                "Invalid retention policy: Setting a single time or size limit to 0 is invalid when "
+                        + "one of the limits has a non-zero value. Use the value of -1 instead of 0 to ignore a "
+                        + "specific limit. To disable retention both limits must be set to 0.");
+    }
+
     protected void validateEntryFilters(EntryFilters entryFilters) {
         if (entryFilters == null) {
             // remove entry filters
@@ -885,11 +905,22 @@ public abstract class AdminResource extends PulsarWebResource {
                 == Status.TEMPORARY_REDIRECT.getStatusCode();
     }
 
+    protected static boolean isNotFoundOrConflictException(Throwable ex) {
+        return isNotFoundException(ex) || isConflictException(ex);
+    }
+
     protected static boolean isNotFoundException(Throwable ex) {
         Throwable realCause = FutureUtil.unwrapCompletionException(ex);
         return realCause instanceof WebApplicationException
                 && ((WebApplicationException) realCause).getResponse().getStatus()
                 == Status.NOT_FOUND.getStatusCode();
+    }
+
+    protected static boolean isConflictException(Throwable ex) {
+        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+        return realCause instanceof WebApplicationException
+                && ((WebApplicationException) realCause).getResponse().getStatus()
+                == Status.CONFLICT.getStatusCode();
     }
 
     protected static boolean isNot307And404Exception(Throwable ex) {
