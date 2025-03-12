@@ -23,7 +23,6 @@ import io.netty.util.concurrent.Promise;
 import java.net.SocketAddress;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.common.api.proto.FeatureFlags;
 
 public interface TransportCnx {
 
@@ -91,11 +90,4 @@ public interface TransportCnx {
      * is null if the connection liveness check is disabled.
      */
     CompletableFuture<Boolean> checkConnectionLiveness();
-
-    FeatureFlags getFeatures();
-
-    default boolean isClientSupportsReplDedupByLidAndEid() {
-        return getFeatures() != null && getFeatures().hasSupportsReplDedupByLidAndEid()
-                && getFeatures().isSupportsReplDedupByLidAndEid();
-    }
 }

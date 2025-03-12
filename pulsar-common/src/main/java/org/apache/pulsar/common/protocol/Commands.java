@@ -189,7 +189,6 @@ public class Commands {
         flags.setSupportsBrokerEntryMetadata(true);
         flags.setSupportsPartialProducer(true);
         flags.setSupportsGetPartitionedMetadataWithoutAutoCreation(true);
-        flags.setSupportsReplDedupByLidAndEid(true);
     }
 
     public static ByteBuf newConnect(String authMethodName, String authData, int protocolVersion, String libVersion,
@@ -243,15 +242,6 @@ public class Commands {
     public static ByteBuf newConnect(String authMethodName, AuthData authData, int protocolVersion, String libVersion,
                                      String targetBroker, String originalPrincipal, AuthData originalAuthData,
                                      String originalAuthMethod, String proxyVersion) {
-        BaseCommand cmd = newConnectWithoutSerialize(authMethodName, authData, protocolVersion, libVersion,
-                targetBroker, originalPrincipal, originalAuthData, originalAuthMethod, proxyVersion);
-        return serializeWithSize(cmd);
-    }
-
-    public static BaseCommand newConnectWithoutSerialize(String authMethodName, AuthData authData,
-                                    int protocolVersion, String libVersion,
-                                    String targetBroker, String originalPrincipal, AuthData originalAuthData,
-                                    String originalAuthMethod, String proxyVersion) {
         BaseCommand cmd = localCmd(Type.CONNECT);
         CommandConnect connect = cmd.setConnect()
                 .setClientVersion(libVersion != null ? libVersion : "Pulsar Client")
@@ -284,7 +274,7 @@ public class Commands {
         connect.setProtocolVersion(protocolVersion);
         setFeatureFlags(connect.setFeatureFlags());
 
-        return cmd;
+        return serializeWithSize(cmd);
     }
 
     public static ByteBuf newConnected(int clientProtocoVersion,  boolean supportsTopicWatchers) {
@@ -310,7 +300,6 @@ public class Commands {
 
         connected.setFeatureFlags().setSupportsTopicWatchers(supportsTopicWatchers);
         connected.setFeatureFlags().setSupportsGetPartitionedMetadataWithoutAutoCreation(true);
-        connected.setFeatureFlags().setSupportsReplDedupByLidAndEid(true);
         return cmd;
     }
 

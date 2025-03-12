@@ -504,10 +504,6 @@ public class PulsarClientImpl implements PulsarClient {
                                                   ProducerInterceptors interceptors,
                                                   CompletableFuture<Producer<T>> producerCreatedFuture,
                                                   Optional<String> overrideProducerName) {
-        if (conf.isReplProducer()) {
-            return new GeoReplicationProducerImpl(PulsarClientImpl.this, topic, conf, producerCreatedFuture,
-                    partitionIndex, schema, interceptors, overrideProducerName);
-        }
         return new ProducerImpl<>(PulsarClientImpl.this, topic, conf, producerCreatedFuture, partitionIndex, schema,
                 interceptors, overrideProducerName);
     }

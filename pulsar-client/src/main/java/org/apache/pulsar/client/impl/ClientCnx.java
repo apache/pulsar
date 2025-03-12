@@ -117,12 +117,10 @@ public class ClientCnx extends PulsarHandler {
     protected final Authentication authentication;
     protected State state;
 
-    @VisibleForTesting
-    protected AtomicLong duplicatedResponseCounter = new AtomicLong(0);
+    private AtomicLong duplicatedResponseCounter = new AtomicLong(0);
 
-    @VisibleForTesting
     @Getter
-    protected final ConcurrentLongHashMap<TimedCompletableFuture<? extends Object>> pendingRequests =
+    private final ConcurrentLongHashMap<TimedCompletableFuture<? extends Object>> pendingRequests =
             ConcurrentLongHashMap.<TimedCompletableFuture<? extends Object>>newBuilder()
                     .expectedItems(16)
                     .concurrencyLevel(1)
@@ -190,8 +188,6 @@ public class ClientCnx extends PulsarHandler {
     private boolean supportsTopicWatchers;
     @Getter
     private boolean supportsGetPartitionedMetadataWithoutAutoCreation;
-    @Getter
-    private boolean brokerSupportsReplDedupByLidAndEid;
 
     /** Idle stat. **/
     @Getter
@@ -200,7 +196,7 @@ public class ClientCnx extends PulsarHandler {
     @Getter
     private long lastDisconnectedTimestamp;
 
-    protected final String clientVersion;
+    private final String clientVersion;
 
     protected enum State {
         None, SentConnectFrame, Ready, Failed, Connecting
@@ -391,8 +387,6 @@ public class ClientCnx extends PulsarHandler {
         supportsGetPartitionedMetadataWithoutAutoCreation =
             connected.hasFeatureFlags()
                     && connected.getFeatureFlags().isSupportsGetPartitionedMetadataWithoutAutoCreation();
-        brokerSupportsReplDedupByLidAndEid =
-            connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsReplDedupByLidAndEid();
 
         // set remote protocol version to the correct version before we complete the connection future
         setRemoteEndpointProtocolVersion(connected.getProtocolVersion());
@@ -462,19 +456,18 @@ public class ClientCnx extends PulsarHandler {
             ledgerId = sendReceipt.getMessageId().getLedgerId();
             entryId = sendReceipt.getMessageId().getEntryId();
         }
-        ProducerImpl<?> producer = producers.get(producerId);
+
         if (ledgerId == -1 && entryId == -1) {
-            log.warn("{} Message with sequence-id {}-{} published by producer [id:{}, name:{}] has been dropped",
-                    ctx.channel(), sequenceId, highestSequenceId, producerId,
-                    producer != null ? producer.getProducerName() : "null");
-        } else {
-            if (log.isDebugEnabled()) {
-                log.debug("{} Got receipt for producer: [id:{}, name:{}] -- sequence-id: {}-{} -- entry-id: {}:{}",
-                        ctx.channel(), producerId, producer.getProducerName(), sequenceId, highestSequenceId,
-                        ledgerId, entryId);
-            }
+            log.warn("{} Message with sequence-id {} published by producer {} has been dropped", ctx.channel(),
+                    sequenceId, producerId);
         }
 
+        if (log.isDebugEnabled()) {
+            log.debug("{} Got receipt for producer: {} -- msg: {} -- id: {}:{}", ctx.channel(), producerId, sequenceId,
+                    ledgerId, entryId);
+        }
+
+        ProducerImpl<?> producer = producers.get(producerId);
         if (producer != null) {
             producer.ackReceived(this, sequenceId, highestSequenceId, ledgerId, entryId);
         } else {

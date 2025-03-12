@@ -20,8 +20,6 @@ package org.apache.pulsar.broker.service;
 
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static org.apache.pulsar.broker.service.AbstractReplicator.REPL_PRODUCER_NAME_DELIMITER;
-import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_IS_REPL_MARKER;
-import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SOURCE_POSITION;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 import com.google.common.annotations.VisibleForTesting;
@@ -89,7 +87,6 @@ public class Producer {
 
     private final PublisherStatsImpl stats;
     private final boolean isRemote;
-    private final boolean isRemoteOrShadow;
     private final String remoteCluster;
     private final boolean isNonPersistentTopic;
     private final boolean isShadowTopic;
@@ -151,7 +148,6 @@ public class Producer {
 
         String replicatorPrefix = serviceConf.getReplicatorPrefix() + ".";
         this.isRemote = producerName.startsWith(replicatorPrefix);
-        this.isRemoteOrShadow = isRemoteOrShadow(producerName, serviceConf.getReplicatorPrefix());
         this.remoteCluster = parseRemoteClusterName(producerName, isRemote, replicatorPrefix);
 
         this.isEncrypted = isEncrypted;
@@ -162,13 +158,6 @@ public class Producer {
 
         this.clientAddress = cnx.clientSourceAddress();
         this.brokerInterceptor = cnx.getBrokerService().getInterceptor();
-    }
-
-    /**
-     * Difference with "isRemote" is whether the prefix string is end with a dot.
-     */
-    public static boolean isRemoteOrShadow(String producerName, String replicatorPrefix) {
-        return producerName != null && producerName.startsWith(replicatorPrefix);
     }
 
     /**
@@ -292,16 +281,11 @@ public class Producer {
         return true;
     }
 
-    private boolean isSupportsReplDedupByLidAndEid() {
-        // Non-Persistent topic does not have ledger id or entry id, so it does not support.
-        return cnx.isClientSupportsReplDedupByLidAndEid() && topic.isPersistent();
-    }
-
     private void publishMessageToTopic(ByteBuf headersAndPayload, long sequenceId, long batchSize, boolean isChunked,
                                        boolean isMarker, Position position) {
         MessagePublishContext messagePublishContext =
                 MessagePublishContext.get(this, sequenceId, msgIn, headersAndPayload.readableBytes(),
-                        batchSize, isChunked, System.nanoTime(), isMarker, position, isSupportsReplDedupByLidAndEid());
+                        batchSize, isChunked, System.nanoTime(), isMarker, position);
         if (brokerInterceptor != null) {
             brokerInterceptor
                     .onMessagePublish(this, headersAndPayload, messagePublishContext);
@@ -313,7 +297,7 @@ public class Producer {
                                        long batchSize, boolean isChunked, boolean isMarker, Position position) {
         MessagePublishContext messagePublishContext = MessagePublishContext.get(this, lowestSequenceId,
                 highestSequenceId, msgIn, headersAndPayload.readableBytes(), batchSize,
-                isChunked, System.nanoTime(), isMarker, position, isSupportsReplDedupByLidAndEid());
+                isChunked, System.nanoTime(), isMarker, position);
         if (brokerInterceptor != null) {
             brokerInterceptor
                     .onMessagePublish(this, headersAndPayload, messagePublishContext);
@@ -409,7 +393,6 @@ public class Producer {
         private long batchSize;
         private boolean chunked;
         private boolean isMarker;
-        private boolean supportsReplDedupByLidAndEid;
 
         private long startTimeNs;
 
@@ -501,11 +484,6 @@ public class Producer {
         }
 
         @Override
-        public boolean supportsReplDedupByLidAndEid() {
-            return supportsReplDedupByLidAndEid;
-        }
-
-        @Override
         public void setOriginalHighestSequenceId(long originalHighestSequenceId) {
             this.originalHighestSequenceId = originalHighestSequenceId;
         }
@@ -572,12 +550,8 @@ public class Producer {
             // stats
             rateIn.recordMultipleEvents(batchSize, msgSize);
             producer.topic.recordAddLatency(System.nanoTime() - startTimeNs, TimeUnit.NANOSECONDS);
-            if (producer.isRemoteOrShadow && producer.isSupportsReplDedupByLidAndEid()) {
-                sendSendReceiptResponseRepl();
-            } else {
-                // Repl V1 is the same as normal for this handling.
-                sendSendReceiptResponseNormal();
-            }
+            producer.cnx.getCommandSender().sendSendReceiptResponse(producer.producerId, sequenceId, highestSequenceId,
+                    ledgerId, entryId);
             producer.cnx.completedSendOperation(producer.isNonPersistentTopic, msgSize);
             if (this.chunked) {
                 producer.chunkedMessageRate.recordEvent();
@@ -590,46 +564,8 @@ public class Producer {
             recycle();
         }
 
-        private void sendSendReceiptResponseRepl() {
-            // Case-1: is a repl marker.
-            boolean isReplMarker = getProperty(MSG_PROP_IS_REPL_MARKER) != null;
-            if (isReplMarker) {
-                producer.cnx.getCommandSender().sendSendReceiptResponse(producer.producerId, sequenceId, Long.MIN_VALUE,
-                        ledgerId, entryId);
-
-                return;
-            }
-            // Case-2: is a repl message.
-            Object positionPairObj = getProperty(MSG_PROP_REPL_SOURCE_POSITION);
-            if (positionPairObj == null || !(positionPairObj instanceof long[])
-                    || ((long[]) positionPairObj).length < 2) {
-                log.error("[{}] Message can not determine whether the message is duplicated due to the acquired"
-                                + " messages props were are invalid. producer={}. supportsReplDedupByLidAndEid: {},"
-                                + " sequence-id {}, prop-{}: not in expected format",
-                        producer.topic.getName(), producer.producerName,
-                        supportsReplDedupByLidAndEid(), getSequenceId(),
-                        MSG_PROP_REPL_SOURCE_POSITION);
-                producer.cnx.getCommandSender().sendSendError(producer.producerId,
-                        Math.max(highestSequenceId, sequenceId),
-                        ServerError.PersistenceError, "Message can not determine whether the message is"
-                                + " duplicated due to the acquired messages props were are invalid");
-                return;
-            }
-            long[] positionPair = (long[]) positionPairObj;
-            long replSequenceLId = positionPair[0];
-            long replSequenceEId = positionPair[1];
-            producer.cnx.getCommandSender().sendSendReceiptResponse(producer.producerId, replSequenceLId,
-                    replSequenceEId, ledgerId, entryId);
-        }
-
-        private void sendSendReceiptResponseNormal() {
-            producer.cnx.getCommandSender().sendSendReceiptResponse(producer.producerId, sequenceId, highestSequenceId,
-                    ledgerId, entryId);
-        }
-
         static MessagePublishContext get(Producer producer, long sequenceId, Rate rateIn, int msgSize,
-                             long batchSize, boolean chunked, long startTimeNs, boolean isMarker, Position position,
-                             boolean supportsReplDedupByLidAndEid) {
+                long batchSize, boolean chunked, long startTimeNs, boolean isMarker, Position position) {
             MessagePublishContext callback = RECYCLER.get();
             callback.producer = producer;
             callback.sequenceId = sequenceId;
@@ -641,7 +577,6 @@ public class Producer {
             callback.originalSequenceId = -1L;
             callback.startTimeNs = startTimeNs;
             callback.isMarker = isMarker;
-            callback.supportsReplDedupByLidAndEid = supportsReplDedupByLidAndEid;
             callback.ledgerId = position == null ? -1 : position.getLedgerId();
             callback.entryId = position == null ? -1 : position.getEntryId();
             if (callback.propertyMap != null) {
@@ -651,8 +586,7 @@ public class Producer {
         }
 
         static MessagePublishContext get(Producer producer, long lowestSequenceId, long highestSequenceId, Rate rateIn,
-                int msgSize, long batchSize, boolean chunked, long startTimeNs, boolean isMarker, Position position,
-                boolean supportsReplDedupByLidAndEid) {
+                int msgSize, long batchSize, boolean chunked, long startTimeNs, boolean isMarker, Position position) {
             MessagePublishContext callback = RECYCLER.get();
             callback.producer = producer;
             callback.sequenceId = lowestSequenceId;
@@ -665,7 +599,6 @@ public class Producer {
             callback.startTimeNs = startTimeNs;
             callback.chunked = chunked;
             callback.isMarker = isMarker;
-            callback.supportsReplDedupByLidAndEid = supportsReplDedupByLidAndEid;
             callback.ledgerId = position == null ? -1 : position.getLedgerId();
             callback.entryId = position == null ? -1 : position.getEntryId();
             if (callback.propertyMap != null) {
@@ -896,8 +829,7 @@ public class Producer {
         }
         MessagePublishContext messagePublishContext =
                 MessagePublishContext.get(this, sequenceId, highSequenceId, msgIn,
-                        headersAndPayload.readableBytes(), batchSize, isChunked, System.nanoTime(), isMarker, null,
-                        cnx.isClientSupportsReplDedupByLidAndEid());
+                        headersAndPayload.readableBytes(), batchSize, isChunked, System.nanoTime(), isMarker, null);
         if (brokerInterceptor != null) {
             brokerInterceptor
                     .onMessagePublish(this, headersAndPayload, messagePublishContext);
