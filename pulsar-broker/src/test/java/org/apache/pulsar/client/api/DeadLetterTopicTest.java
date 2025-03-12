@@ -24,6 +24,8 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
+import java.lang.reflect.Field;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -45,6 +47,9 @@ import org.apache.avro.reflect.Nullable;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
+import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.awaitility.Awaitility;
@@ -1123,6 +1128,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         // enable batch
         DeadLetterProducerBuilderCustomizer producerBuilderCustomizer = (context, producerBuilder) -> {
             producerBuilder.enableBatching(true);
+            producerBuilder.enableChunking(false);
         };
         String subscriptionName = "my-subscription";
         String subscriptionNameDLQ = "my-subscription-DLQ";
@@ -1170,6 +1176,29 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
             totalReceived++;
             consumer.reconsumeLater(message, 1, TimeUnit.SECONDS);
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
+
+        // check the retry topic producer enable batch
+        List<ConsumerImpl<byte[]>> consumers = ((MultiTopicsConsumerImpl<byte[]>) consumer).getConsumers();
+        Field retryTopicProducerField = ConsumerImpl.class.getDeclaredField("retryLetterProducer");
+        Field deadLetterTopicProducerField = ConsumerImpl.class.getDeclaredField("deadLetterProducer");
+        retryTopicProducerField.setAccessible(true);
+        deadLetterTopicProducerField.setAccessible(true);
+        for (ConsumerImpl<byte[]> consumerImpl : consumers) {
+            CompletableFuture<ProducerImpl<byte[]>> retryProducer =
+                    (CompletableFuture<ProducerImpl<byte[]>>) retryTopicProducerField.get(consumerImpl);
+            CompletableFuture<ProducerImpl<byte[]>> deadLetterProducer =
+                    (CompletableFuture<ProducerImpl<byte[]>>) deadLetterTopicProducerField.get(consumerImpl);
+            Field batchMessageContainerField = ProducerImpl.class.getDeclaredField("batchMessageContainer");
+            batchMessageContainerField.setAccessible(true);
+            if (retryProducer != null) {
+                ProducerImpl<byte[]> producerImpl = retryProducer.get();
+                assertNotNull(batchMessageContainerField.get(producerImpl));
+            }
+            if (deadLetterProducer != null) {
+                ProducerImpl<byte[]> producerImpl = deadLetterProducer.get();
+                assertNotNull(batchMessageContainerField.get(producerImpl));
+            }
+        }
 
         int totalInDeadLetter = 0;
         do {
