@@ -57,7 +57,7 @@ public class TopicListService {
                                 Pattern topicsPattern, List<String> topics) {
             this.topicListService = topicListService;
             this.id = id;
-            this.topicsPattern = topicsPattern;
+            this.topicsPattern = Pattern.compile(TopicList.removeTopicDomainScheme(topicsPattern.toString()));
             this.matchingTopics = TopicList.filterTopics(topics, topicsPattern);
         }
 
@@ -70,7 +70,8 @@ public class TopicListService {
          */
         @Override
         public void accept(String topicName, NotificationType notificationType) {
-            if (topicsPattern.matcher(TopicName.get(topicName).getPartitionedTopicName()).matches()) {
+            String partitionedTopicName = TopicName.get(topicName).getPartitionedTopicName();
+            if (topicsPattern.matcher(TopicList.removeTopicDomainScheme(partitionedTopicName)).matches()) {
                 List<String> newTopics;
                 List<String> deletedTopics;
                 if (notificationType == NotificationType.Deleted) {
