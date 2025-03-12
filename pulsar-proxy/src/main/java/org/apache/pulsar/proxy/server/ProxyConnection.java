@@ -155,7 +155,7 @@ public class ProxyConnection extends PulsarHandler {
     }
 
     public ProxyConnection(ProxyService proxyService, DnsAddressResolverGroup dnsAddressResolverGroup) {
-        super(30, TimeUnit.SECONDS);
+        super(proxyService.getConfiguration().getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
         this.service = proxyService;
         this.dnsAddressResolverGroup = dnsAddressResolverGroup;
         this.state = State.Init;

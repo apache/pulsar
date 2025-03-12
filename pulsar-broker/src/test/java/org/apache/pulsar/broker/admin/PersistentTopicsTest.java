@@ -1257,11 +1257,12 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         admin.topics().createPartitionedTopic(topicName, 2);
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        ProducerImpl<String> producer = (ProducerImpl<String>) pulsarClient.newProducer(Schema.STRING)
                 .producerName("testExamineMessageMetadataProducer")
                 .compressionType(CompressionType.LZ4)
                 .topic(topicName + "-partition-0")
                 .create();
+        producer.getConfiguration().setCompressMinMsgBodySize(1);
 
         producer.newMessage()
                 .keyBytes("partition123".getBytes())

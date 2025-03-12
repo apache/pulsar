@@ -55,7 +55,6 @@ import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.MessageExpirer;
 import org.apache.pulsar.broker.service.Replicator;
-import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -670,8 +669,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
     @Override
     public boolean expireMessages(int messageTTLInSeconds) {
-        if ((cursor.getNumberOfEntriesInBacklog(false) == 0)
-                || (cursor.getNumberOfEntriesInBacklog(false) < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
+        long backlog = cursor.getNumberOfEntriesInBacklog(false);
+        if ((backlog == 0) || (backlog < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
                         && !topic.isOldestMessageExpired(cursor, messageTTLInSeconds))) {
             // don't do anything for almost caught-up connected subscriptions
             return false;
@@ -696,7 +695,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
             if (!dispatchRateLimiter.isPresent()
                     && DispatchRateLimiter.isDispatchRateEnabled(topic.getReplicatorDispatchRate())) {
                 this.dispatchRateLimiter = Optional.of(
-                        new DispatchRateLimiter(topic, Codec.decode(cursor.getName()), Type.REPLICATOR));
+                        topic.getBrokerService().getDispatchRateLimiterFactory()
+                                .createReplicatorDispatchRateLimiter(topic, Codec.decode(cursor.getName())));
             }
         }
     }

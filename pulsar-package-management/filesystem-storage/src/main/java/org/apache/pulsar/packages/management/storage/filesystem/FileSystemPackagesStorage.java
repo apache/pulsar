@@ -59,11 +59,14 @@ public class FileSystemPackagesStorage implements PackagesStorage {
     }
 
     private File getPath(String path) throws IOException {
-        if (path.contains("..")) {
+        // Normalize the path to remove any redundant path elements
+        File f = Paths.get(storagePath.toString(), path).normalize().toFile();
+
+        // Ensure the normalized path is still within the storagePath
+        if (!f.getAbsolutePath().startsWith(storagePath.getAbsolutePath())) {
             throw new IOException("Invalid path: " + path);
         }
 
-        File f = Paths.get(storagePath.toString(), path).toFile();
         if (!f.getParentFile().exists()) {
             if (!f.getParentFile().mkdirs()) {
                 throw new RuntimeException("Failed to create parent dirs for " + path);

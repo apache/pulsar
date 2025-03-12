@@ -87,6 +87,8 @@ public interface OffloadPolicies {
 
         Builder managedLedgerOffloadMaxThreads(Integer managedLedgerOffloadMaxThreads);
 
+        Builder managedLedgerOffloadReadThreads(Integer managedLedgerOffloadReadThreads);
+
         Builder managedLedgerOffloadPrefetchRounds(Integer managedLedgerOffloadPrefetchRounds);
 
         Builder managedLedgerOffloadThresholdInBytes(Long managedLedgerOffloadThresholdInBytes);

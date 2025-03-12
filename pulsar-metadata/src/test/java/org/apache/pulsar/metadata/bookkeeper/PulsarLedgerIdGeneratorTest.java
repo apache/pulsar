@@ -242,7 +242,7 @@ public class PulsarLedgerIdGeneratorTest extends BaseMetadataStoreTest {
         l1.await();
         log.info("res1 : {}", res1);
 
-        zks.checkContainers();
+        maybeTriggerDeletingEmptyContainers(provider);
 
         CountDownLatch l2 = new CountDownLatch(1);
         AtomicLong res2 = new AtomicLong();

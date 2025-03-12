@@ -285,7 +285,7 @@ public class LoadManagerShared {
     public static String getBundleRangeFromBundleName(String bundleName) {
         // the bundle format is property/cluster/namespace/0x00000000_0xFFFFFFFF
         int pos = bundleName.lastIndexOf("/");
-        checkArgument(pos != -1);
+        checkArgument(pos != -1, "Invalid bundle name format: %s", bundleName);
         return bundleName.substring(pos + 1);
     }
 
@@ -293,7 +293,7 @@ public class LoadManagerShared {
     public static String getNamespaceNameFromBundleName(String bundleName) {
         // the bundle format is property/cluster/namespace/0x00000000_0xFFFFFFFF
         int pos = bundleName.lastIndexOf('/');
-        checkArgument(pos != -1);
+        checkArgument(pos != -1, "Invalid bundle name format: %s", bundleName);
         return bundleName.substring(0, pos);
     }
 

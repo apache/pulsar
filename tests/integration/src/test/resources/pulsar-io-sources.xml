@@ -25,6 +25,7 @@
             <class name="org.apache.pulsar.tests.integration.io.sources.debezium.PulsarDebeziumSourcesTest" />
             <class name="org.apache.pulsar.tests.integration.io.sources.BatchSourceTest" />
             <class name="org.apache.pulsar.tests.integration.io.sources.KafkaSourceTest" />
+            <class name="org.apache.pulsar.tests.integration.io.sources.DataGeneratorSourceTest" />
         </classes>
     </test>
 </suite>

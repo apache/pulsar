@@ -27,32 +27,12 @@ package org.apache.pulsar.broker.qos;
  * The monotonic clock is not related to the wall-clock time and is not affected by changes to the system time.
  * The tick value is only significant when compared to other values obtained from the same clock source
  * and should not be used for other purposes.
- *
- * This interface assumes that the implementation can be implemented in a granular way. This means that the value is
- * advanced in steps of a configurable resolution that snapshots the underlying high precision monotonic clock source
- * value.
- * This design allows for optimizations that can improve performance on platforms where obtaining the value of a
- * platform monotonic clock is relatively expensive.
  */
-public interface MonotonicSnapshotClock {
+public interface MonotonicClock {
     /**
      * Retrieves the latest snapshot of the tick value of the monotonic clock in nanoseconds.
      *
-     * When requestSnapshot is set to true, the method will snapshot the underlying high-precision monotonic clock
-     * source so that the latest snapshot value is as accurate as possible. This may be a relatively expensive
-     * compared to a non-snapshot request.
-     *
-     * When requestSnapshot is set to false, the method will return the latest snapshot value which is updated by
-     * either a call that requested a snapshot or by an update thread that is configured to update the snapshot value
-     * periodically.
-     *
-     * This method returns a value that is guaranteed to be monotonic, meaning it will always increase or remain the
-     * same, never decrease. The returned value is only significant when compared to other values obtained from the same
-     * clock source and should not be used for other purposes.
-     *
-     * @param requestSnapshot If set to true, the method will request a new snapshot from the underlying more
-     *                        high-precision monotonic clock.
      * @return The current tick value of the monotonic clock in nanoseconds.
      */
-    long getTickNanos(boolean requestSnapshot);
+    long getTickNanos();
 }

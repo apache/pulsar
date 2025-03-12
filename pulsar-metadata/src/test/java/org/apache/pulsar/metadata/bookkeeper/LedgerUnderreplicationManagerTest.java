@@ -300,10 +300,10 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         assertEquals(l, lB.get(), "Should be the ledger I marked");
     }
 
-
-    @Test(timeOut = 10000)
-    public void testZkMetasStoreMarkReplicatedDeleteEmptyParentNodes() throws Exception {
-        methodSetup(stringSupplier(() -> zks.getConnectionString()));
+    @Test(dataProvider = "zkImpls", timeOut = 10000)
+    public void testZkMetasStoreMarkReplicatedDeleteEmptyParentNodes(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+        methodSetup(urlSupplier);
 
         String missingReplica = "localhost:3181";
 

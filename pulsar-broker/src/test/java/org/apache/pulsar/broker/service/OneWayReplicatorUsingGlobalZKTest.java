@@ -156,6 +156,10 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         p1.close();
 
         admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(admin2.topics().getList(ns1).contains(topic1));
+        });
+        admin2.topics().createSubscription(topic1, subscription1, MessageId.earliest);
         org.apache.pulsar.client.api.Consumer<String> c1 = client2.newConsumer(Schema.STRING).topic(topic1)
                 .subscriptionName(subscription1).subscribe();
         Message<String> msg2 = c1.receive(2, TimeUnit.SECONDS);

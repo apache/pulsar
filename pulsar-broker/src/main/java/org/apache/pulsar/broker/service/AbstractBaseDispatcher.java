@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.andAckSet;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetEmpty;
+import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 import io.netty.buffer.ByteBuf;
 import io.prometheus.client.Gauge;
 import java.util.ArrayList;
@@ -35,6 +36,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
@@ -368,25 +370,63 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
     protected abstract void reScheduleRead();
 
-    protected Pair<Integer, Long> updateMessagesToRead(DispatchRateLimiter dispatchRateLimiter,
-                                                       int messagesToRead, long bytesToRead) {
-        // update messagesToRead according to available dispatch rate limit.
-        return computeReadLimits(messagesToRead,
-                (int) dispatchRateLimiter.getAvailableDispatchRateLimitOnMsg(),
-                bytesToRead, dispatchRateLimiter.getAvailableDispatchRateLimitOnByte());
+    public abstract String getName();
+
+    protected boolean hasAnyDispatchRateLimiter() {
+        return subscription.getTopic().getBrokerDispatchRateLimiter().isPresent()
+                || subscription.getTopic().getDispatchRateLimiter().isPresent()
+                || getRateLimiter().isPresent();
     }
 
-    protected static Pair<Integer, Long> computeReadLimits(int messagesToRead, int availablePermitsOnMsg,
-                                                           long bytesToRead, long availablePermitsOnByte) {
+    protected Pair<Integer, Long> applyRateLimitsToMessagesAndBytesToRead(int messagesToRead, long bytesToRead) {
+        MutablePair<Integer, Long> readLimits = new MutablePair<>(messagesToRead, bytesToRead);
+        Topic topic = subscription.getTopic();
+
+        boolean success = true;
+
+        if (topic.getBrokerDispatchRateLimiter().isPresent()) {
+            success = applyDispatchRateLimitsToReadLimits(topic.getBrokerDispatchRateLimiter().get(), readLimits,
+                    DispatchRateLimiter.Type.BROKER);
+        }
+
+        if (success && topic.getDispatchRateLimiter().isPresent()) {
+            success = applyDispatchRateLimitsToReadLimits(topic.getDispatchRateLimiter().get(), readLimits,
+                    DispatchRateLimiter.Type.TOPIC);
+        }
+
+        if (success && getRateLimiter().isPresent()) {
+            success = applyDispatchRateLimitsToReadLimits(getRateLimiter().get(), readLimits,
+                    DispatchRateLimiter.Type.SUBSCRIPTION);
+        }
+
+        return readLimits;
+    }
+
+    private boolean applyDispatchRateLimitsToReadLimits(DispatchRateLimiter rateLimiter,
+                                                        MutablePair<Integer, Long> readLimits,
+                                                        DispatchRateLimiter.Type limiterType) {
+        // update messagesToRead according to available dispatch rate limit.
+        int availablePermitsOnMsg = (int) rateLimiter.getAvailableDispatchRateLimitOnMsg();
         if (availablePermitsOnMsg >= 0) {
-            messagesToRead = Math.min(messagesToRead, availablePermitsOnMsg);
+            readLimits.setLeft(Math.min(readLimits.getLeft(), availablePermitsOnMsg));
         }
-
+        long availablePermitsOnByte = rateLimiter.getAvailableDispatchRateLimitOnByte();
         if (availablePermitsOnByte >= 0) {
-            bytesToRead = Math.min(bytesToRead, availablePermitsOnByte);
+            readLimits.setRight(Math.min(readLimits.getRight(), availablePermitsOnByte));
         }
-
-        return Pair.of(messagesToRead, bytesToRead);
+        if (readLimits.getLeft() == 0 || readLimits.getRight() == 0) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] message-read exceeded {} message-rate {}/{}, schedule after {}ms", getName(),
+                        limiterType.name().toLowerCase(),
+                        rateLimiter.getDispatchRateOnMsg(), rateLimiter.getDispatchRateOnByte(),
+                        MESSAGE_RATE_BACKOFF_MS);
+            }
+            reScheduleRead();
+            readLimits.setLeft(-1);
+            readLimits.setRight(-1L);
+            return false;
+        }
+        return true;
     }
 
     protected byte[] peekStickyKey(ByteBuf metadataAndPayload) {

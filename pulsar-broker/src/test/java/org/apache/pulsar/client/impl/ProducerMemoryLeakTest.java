@@ -124,6 +124,7 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
                 .compressionType(compressionType)
                 .enableBatching(false)
                 .create();
+        producer.getConfiguration().setCompressMinMsgBodySize(1);
         producer.getConnectionHandler().setMaxMessageSize(maxMessageSize);
         MsgPayloadTouchableMessageBuilder<String> msgBuilder = newMessage(producer);
         /**

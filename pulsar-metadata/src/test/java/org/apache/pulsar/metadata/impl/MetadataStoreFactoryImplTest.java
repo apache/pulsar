@@ -21,6 +21,10 @@ package org.apache.pulsar.metadata.impl;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import io.opentelemetry.api.OpenTelemetry;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import lombok.Cleanup;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -32,26 +36,25 @@ import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 
 public class MetadataStoreFactoryImplTest {
-
-    private static Object originalProperty;
+    private static String originalMetadatastoreProvidersPropertyValue;
 
     @BeforeClass
     public void setMetadataStoreProperty() {
-        originalProperty = System.getProperties().get(MetadataStoreFactoryImpl.METADATASTORE_PROVIDERS_PROPERTY);
+        originalMetadatastoreProvidersPropertyValue =
+                System.getProperty(MetadataStoreFactoryImpl.METADATASTORE_PROVIDERS_PROPERTY);
         System.setProperty(MetadataStoreFactoryImpl.METADATASTORE_PROVIDERS_PROPERTY,
                 MyMetadataStoreProvider.class.getName());
     }
 
     @AfterClass
     public void resetMetadataStoreProperty() {
-        if (originalProperty != null) {
-            System.getProperties().put(MetadataStoreFactoryImpl.METADATASTORE_PROVIDERS_PROPERTY, originalProperty);
+        if (originalMetadatastoreProvidersPropertyValue != null) {
+            System.setProperty(MetadataStoreFactoryImpl.METADATASTORE_PROVIDERS_PROPERTY,
+                    originalMetadatastoreProvidersPropertyValue);
+        } else {
+            System.clearProperty(MetadataStoreFactoryImpl.METADATASTORE_PROVIDERS_PROPERTY);
         }
     }
 
