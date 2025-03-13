@@ -1176,21 +1176,6 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
             consumer.reconsumeLater(message, 1, TimeUnit.SECONDS);
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
 
-        // check the retry topic producer enable batch
-        List<ConsumerImpl<byte[]>> consumers = ((MultiTopicsConsumerImpl<byte[]>) consumer).getConsumers();
-        for (ConsumerImpl<byte[]> consumerImpl : consumers) {
-            CompletableFuture<Producer<byte[]>> retryProducer = consumerImpl.getRetryLetterProducer();
-            CompletableFuture<Producer<byte[]>> deadLetterProducer = consumerImpl.getDeadLetterProducer();
-            if (retryProducer != null) {
-                ProducerImpl<byte[]> producerImpl = (ProducerImpl<byte[]>) retryProducer.get();
-                assertTrue(producerImpl.isBatchMessagingEnabled());
-            }
-            if (deadLetterProducer != null) {
-                ProducerImpl<byte[]> producerImpl = (ProducerImpl<byte[]>) deadLetterProducer.get();
-                assertTrue(producerImpl.isBatchMessagingEnabled());
-            }
-        }
-
         int totalInDeadLetter = 0;
         do {
             Message message = deadLetterConsumer.receive(5, TimeUnit.SECONDS);
@@ -1202,6 +1187,21 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
             totalInDeadLetter++;
         } while (totalInDeadLetter < sendMessages);
         assertTrue(messageContent.isEmpty());
+
+        // check the retry topic producer enable batch
+        List<ConsumerImpl<byte[]>> consumers = ((MultiTopicsConsumerImpl<byte[]>) consumer).getConsumers();
+        for (ConsumerImpl<byte[]> consumerImpl : consumers) {
+            if (!consumerImpl.getTopic().endsWith(RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX)) {
+                Producer<byte[]> retryProducer = consumerImpl.getRetryLetterProducer();
+                Producer<byte[]> deadLetterProducer = consumerImpl.getDeadLetterProducer();
+                if (retryProducer != null) {
+                    assertTrue(((ProducerImpl<byte[]>)retryProducer).isBatchMessagingEnabled());
+                }
+                if (deadLetterProducer != null) {
+                    assertTrue(((ProducerImpl<byte[]>) deadLetterProducer).isBatchMessagingEnabled());
+                }
+            }
+        }
 
         deadLetterConsumer.close();
         consumer.close();

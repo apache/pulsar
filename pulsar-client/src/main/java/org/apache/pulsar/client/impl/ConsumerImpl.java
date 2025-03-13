@@ -3232,12 +3232,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @VisibleForTesting
-    public CompletableFuture<Producer<byte[]>> getRetryLetterProducer() {
-        return retryLetterProducer;
+    public Producer<byte[]> getRetryLetterProducer() {
+        if (retryLetterProducer == null) {
+            return null;
+        }
+        return retryLetterProducer.getNow(null);
     }
 
     @VisibleForTesting
-    public CompletableFuture<Producer<byte[]>> getDeadLetterProducer() {
-        return deadLetterProducer;
+    public Producer<byte[]> getDeadLetterProducer() {
+        if (deadLetterProducer == null) {
+            return null;
+        }
+        return deadLetterProducer.getNow(null);
     }
 }
