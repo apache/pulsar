@@ -83,17 +83,19 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     private static final Counter snapshotOperationCounter = Counter
             .build("pulsar_broker_replication_subscription_snapshot_operation_count",
                     "The number of snapshot operations attempted")
+            .labelNames("topic")
             .register();
 
     private static final Counter writtenMarkerMessageCounter = Counter
             .build("pulsar_broker_replication_marker_messages_written_count",
                     "The number of marker messages written to the local topic")
+            .labelNames("topic")
             .register();
 
     private static final Counter receivedMarkerMessageCounter = Counter
             .build("pulsar_broker_replication_marker_messages_received_count",
                     "The number of marker messages received by the broker")
-            .labelNames("remote_cluster", "marker_type")
+            .labelNames("topic", "remote_cluster", "marker_type")
             .register();
 
     public ReplicatedSubscriptionsController(PersistentTopic topic, String localCluster) {
@@ -229,7 +231,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     }
 
     private void recordReceivedMarkerMessage(String remoteCluster, MarkerType markerType) {
-        receivedMarkerMessageCounter.labels(remoteCluster, markerType.name()).inc();
+        receivedMarkerMessageCounter.labels(topic.getName(), remoteCluster, markerType.name()).inc();
     }
 
     private void startNewSnapshot() {
@@ -281,7 +283,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
             log.debug("[{}] Starting snapshot creation.", topic.getName());
         }
 
-        snapshotOperationCounter.inc();
+        snapshotOperationCounter.labels(topic.getName()).inc();
         pendingSnapshotsMetric.inc();
         ReplicatedSubscriptionsSnapshotBuilder builder = new ReplicatedSubscriptionsSnapshotBuilder(this,
                 topic.getReplicators().keys(), topic.getBrokerService().pulsar().getConfiguration(), Clock.systemUTC());
@@ -339,7 +341,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         }
 
         if (e != null) {
-            writtenMarkerMessageCounter.inc();
+            writtenMarkerMessageCounter.labels(topic.getName()).inc();
         }
 
         this.positionOfLastLocalMarker = new PositionImpl(ledgerId, entryId);

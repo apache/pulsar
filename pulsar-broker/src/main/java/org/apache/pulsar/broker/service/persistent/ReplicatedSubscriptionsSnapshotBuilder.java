@@ -54,7 +54,7 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
     private final Clock clock;
 
     private static final Summary snapshotMetric = Summary.build("pulsar_replicated_subscriptions_snapshot_ms",
-            "Time taken to create a consistent snapshot across clusters").register();
+            "Time taken to create a consistent snapshot across clusters").labelNames("topic").register();
 
     public ReplicatedSubscriptionsSnapshotBuilder(ReplicatedSubscriptionsController controller,
             List<String> remoteClusters, ServiceConfiguration conf, Clock clock) {
@@ -125,7 +125,7 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
         controller.snapshotCompleted(snapshotId);
 
         double latencyMillis = clock.millis() - startTimeMillis;
-        snapshotMetric.observe(latencyMillis);
+        snapshotMetric.labels(controller.topic().getName()).observe(latencyMillis);
     }
 
     boolean isTimedOut() {

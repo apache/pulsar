@@ -73,6 +73,9 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
             return null;
         }).when(controller)
                 .writeMarker(any(ByteBuf.class));
+        PersistentTopic persistentTopic = mock(PersistentTopic.class);
+        when(persistentTopic.getName()).thenReturn("test-topic");
+        when(controller.topic()).thenReturn(persistentTopic);
     }
 
     @Test
