@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -42,6 +43,7 @@ import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@SuppressFBWarnings(value = "RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE")
 public class TopicPolicies {
 
     @Builder.Default
@@ -192,10 +194,9 @@ public class TopicPolicies {
         return replicationClusters != null ? Sets.newTreeSet(this.replicationClusters) : null;
     }
 
-    @SuppressFBWarnings(value = "RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE")
     public Map<String, SubscriptionPolicies> getSubscriptionPolicies() {
         if (subscriptionPolicies == null) {
-            subscriptionPolicies = new HashMap<>();
+            subscriptionPolicies = new ConcurrentHashMap<>();
         }
         return subscriptionPolicies;
     }

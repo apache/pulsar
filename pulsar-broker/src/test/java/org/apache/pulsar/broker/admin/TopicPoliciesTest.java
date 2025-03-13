@@ -3244,4 +3244,27 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(topicPolicies.getSubscriptionPolicies().get("sub").getDispatchRate()
                 .getDispatchThrottlingRateInByte(), 0);
     }
+
+    @Test
+    public void testSetSubRateWithNoSub() throws Exception {
+        String topic = "persistent://" + myNamespace + "/testSetSubRateWithNoSub";
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topicPolicies().setSubscriptionDispatchRate(topic, DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(10)
+                .dispatchThrottlingRateInByte(10)
+                .ratePeriodInSecond(10)
+                .build());
+    }
+
+    @Test
+    public void testSetSubRateWithSub() throws Exception {
+        String topic = "persistent://" + myNamespace + "/testSetSubRateWithSub";
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().createSubscription(topic, "sub1", MessageId.earliest);
+        admin.topicPolicies().setSubscriptionDispatchRate(topic, "sub1", DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(10)
+                .dispatchThrottlingRateInByte(10)
+                .ratePeriodInSecond(10)
+                .build());
+    }
 }
