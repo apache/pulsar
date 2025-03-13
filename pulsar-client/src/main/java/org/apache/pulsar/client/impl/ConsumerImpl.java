@@ -3230,4 +3230,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         IN_PROGRESS,
         COMPLETED
     }
+
+    @VisibleForTesting
+    public CompletableFuture<Producer<byte[]>> getRetryLetterProducer() {
+        return retryLetterProducer;
+    }
+
+    @VisibleForTesting
+    public CompletableFuture<Producer<byte[]>> getDeadLetterProducer() {
+        return deadLetterProducer;
+    }
 }

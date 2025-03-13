@@ -25,7 +25,6 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
-import java.lang.reflect.Field;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -1179,24 +1178,16 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
 
         // check the retry topic producer enable batch
         List<ConsumerImpl<byte[]>> consumers = ((MultiTopicsConsumerImpl<byte[]>) consumer).getConsumers();
-        Field retryTopicProducerField = ConsumerImpl.class.getDeclaredField("retryLetterProducer");
-        Field deadLetterTopicProducerField = ConsumerImpl.class.getDeclaredField("deadLetterProducer");
-        retryTopicProducerField.setAccessible(true);
-        deadLetterTopicProducerField.setAccessible(true);
         for (ConsumerImpl<byte[]> consumerImpl : consumers) {
-            CompletableFuture<ProducerImpl<byte[]>> retryProducer =
-                    (CompletableFuture<ProducerImpl<byte[]>>) retryTopicProducerField.get(consumerImpl);
-            CompletableFuture<ProducerImpl<byte[]>> deadLetterProducer =
-                    (CompletableFuture<ProducerImpl<byte[]>>) deadLetterTopicProducerField.get(consumerImpl);
-            Field batchMessageContainerField = ProducerImpl.class.getDeclaredField("batchMessageContainer");
-            batchMessageContainerField.setAccessible(true);
+            CompletableFuture<Producer<byte[]>> retryProducer = consumerImpl.getRetryLetterProducer();
+            CompletableFuture<Producer<byte[]>> deadLetterProducer = consumerImpl.getDeadLetterProducer();
             if (retryProducer != null) {
-                ProducerImpl<byte[]> producerImpl = retryProducer.get();
-                assertNotNull(batchMessageContainerField.get(producerImpl));
+                ProducerImpl<byte[]> producerImpl = (ProducerImpl<byte[]>) retryProducer.get();
+                assertTrue(producerImpl.isBatchMessagingEnabled());
             }
             if (deadLetterProducer != null) {
-                ProducerImpl<byte[]> producerImpl = deadLetterProducer.get();
-                assertNotNull(batchMessageContainerField.get(producerImpl));
+                ProducerImpl<byte[]> producerImpl = (ProducerImpl<byte[]>) deadLetterProducer.get();
+                assertTrue(producerImpl.isBatchMessagingEnabled());
             }
         }
 
