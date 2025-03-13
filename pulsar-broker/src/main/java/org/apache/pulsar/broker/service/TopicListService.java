@@ -57,7 +57,7 @@ public class TopicListService {
                                 Pattern topicsPattern, List<String> topics) {
             this.topicListService = topicListService;
             this.id = id;
-            this.topicsPattern = Pattern.compile(TopicList.removeTopicDomainScheme(topicsPattern.toString()));
+            this.topicsPattern = topicsPattern;
             this.matchingTopics = TopicList.filterTopics(topics, topicsPattern);
         }
 
