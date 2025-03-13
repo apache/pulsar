@@ -451,6 +451,11 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
+    public CompletableFuture<String> asyncGetLedgerProperty(long ledgerId, String key) {
+        return null;
+    }
+
+    @Override
     public boolean isMigrated() {
         // no-op
         return false;

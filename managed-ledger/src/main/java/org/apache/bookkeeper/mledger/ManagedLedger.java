@@ -470,6 +470,17 @@ public interface ManagedLedger {
     CompletableFuture<Void> asyncRemoveLedgerProperty(long ledgerId, String key);
 
     /**
+     * Get the value of the specified property from the specified LedgerInfo.
+     *
+     * @param ledgerId the ledger id
+     * @param key      the key of the property to get
+     * @return the value of the property
+     * @throws ManagedLedgerException.ManagedLedgerFencedException if the ledger is fenced
+     * @throws ManagedLedgerException if the ledger is not found or persistent failure
+     */
+    CompletableFuture<String> asyncGetLedgerProperty(long ledgerId, String key);
+
+    /**
      * Terminate the managed ledger and return the last committed entry.
      *
      * <p/>Once the managed ledger is terminated, it will not accept any more write
