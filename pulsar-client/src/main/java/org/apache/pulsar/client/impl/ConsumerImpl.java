@@ -3233,17 +3233,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @VisibleForTesting
     public Producer<byte[]> getRetryLetterProducer() {
-        if (retryLetterProducer == null) {
-            return null;
-        }
-        return retryLetterProducer.getNow(null);
+        return (retryLetterProducer == null) ? null : retryLetterProducer.getNow(null);
     }
 
     @VisibleForTesting
     public Producer<byte[]> getDeadLetterProducer() {
-        if (deadLetterProducer == null) {
-            return null;
-        }
-        return deadLetterProducer.getNow(null);
+        return (deadLetterProducer == null) ? null : deadLetterProducer.getNow(null);
     }
 }
