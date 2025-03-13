@@ -97,6 +97,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class PersistentSubscription extends AbstractSubscription {
+    private static final int CURSOR_RESET_LEDGER_CLOSE_TIMESTAMP_MAX_CLOCK_SKEW_MILLIS = 60000;
     protected final PersistentTopic topic;
     protected final ManagedCursor cursor;
     protected volatile Dispatcher dispatcher;
@@ -792,7 +793,7 @@ public class PersistentSubscription extends AbstractSubscription {
     public CompletableFuture<Void> resetCursor(long timestamp) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         PersistentMessageFinder persistentMessageFinder = new PersistentMessageFinder(topicName, cursor,
-                config.getManagedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis());
+                CURSOR_RESET_LEDGER_CLOSE_TIMESTAMP_MAX_CLOCK_SKEW_MILLIS);
 
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Resetting subscription to timestamp {}", topicName, subName, timestamp);
