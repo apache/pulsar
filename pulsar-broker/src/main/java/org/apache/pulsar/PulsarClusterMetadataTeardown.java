@@ -227,7 +227,6 @@ public class PulsarClusterMetadataTeardown {
                 switch (bkException.getCode()) {
                     case BKException.Code.NoSuchLedgerExistsException:
                     case BKException.Code.NoSuchLedgerExistsOnMetadataServerException:
-                    case BKException.Code.NoSuchEntryException:
                         log.warn("Failed to delete deleted ledger. ledgerId={} errorCode={}",
                                 ledgerId, bkException.getCode());
                         return;
