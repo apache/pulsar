@@ -66,8 +66,8 @@ public class PatternConsumerUpdateQueueTest {
             when(patternConsumer.getSubscribeFuture()).thenReturn(CompletableFuture.completedFuture(null));
         }
 
-        PatternMultiTopicsConsumerImpl.TopicsChangedListener topicsChangeListener =
-                mock(PatternMultiTopicsConsumerImpl.TopicsChangedListener.class);
+        TopicsChangedListener topicsChangeListener =
+                mock(TopicsChangedListener.class);
         if (successTopics == null && errorTopics == null) {
             when(topicsChangeListener.onTopicsAdded(anyCollection())).thenReturn(customizedPartialUpdateFuture);
             when(topicsChangeListener.onTopicsRemoved(anyCollection())).thenReturn(customizedPartialUpdateFuture);
@@ -92,7 +92,7 @@ public class PatternConsumerUpdateQueueTest {
     private static class QueueInstance implements Closeable {
         private PatternConsumerUpdateQueue queue;
         private PatternMultiTopicsConsumerImpl mockedConsumer;
-        private PatternMultiTopicsConsumerImpl.TopicsChangedListener mockedListener;
+        private TopicsChangedListener mockedListener;
 
         @Override
         public void close() {
