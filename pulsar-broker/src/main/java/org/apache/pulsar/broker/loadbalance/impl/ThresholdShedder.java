@@ -119,7 +119,7 @@ public class ThresholdShedder implements LoadSheddingStrategy {
             }
         });
         if (selectedBundlesCache.isEmpty() && conf.isLowerBoundarySheddingEnabled()) {
-            tryLowerBoundaryShedding(loadData, conf);
+            tryLowerBoundaryShedding(loadData, threshold, conf);
         }
         return selectedBundlesCache;
     }
@@ -182,23 +182,22 @@ public class ThresholdShedder implements LoadSheddingStrategy {
         return historyUsage;
     }
 
-    private void tryLowerBoundaryShedding(LoadData loadData, ServiceConfiguration conf) {
+    private void tryLowerBoundaryShedding(LoadData loadData, double threshold, ServiceConfiguration conf) {
         // Select the broker with the most resource usage.
-        final double threshold = conf.getLoadBalancerBrokerThresholdShedderPercentage() / 100.0;
         final double avgUsage = getBrokerAvgUsage(loadData, conf.getLoadBalancerHistoryResourcePercentage(), conf);
         Pair<Boolean, String> result = getMaxUsageBroker(loadData, threshold, avgUsage);
         boolean hasBrokerBelowLowerBound = result.getLeft();
         String maxUsageBroker = result.getRight();
-        BrokerData brokerData = loadData.getBrokerData().get(maxUsageBroker);
-        if (brokerData == null) {
-            log.info("Load data is null or bundle <=1, skipping bundle unload.");
-            return;
-        }
         if (!hasBrokerBelowLowerBound) {
             log.info("No broker is below the lower bound, threshold is {}, "
                             + "avgUsage usage is {}, max usage of Broker {} is {}",
                     threshold, avgUsage, maxUsageBroker,
                     brokerAvgResourceUsage.getOrDefault(maxUsageBroker, 0.0));
+            return;
+        }
+        BrokerData brokerData = loadData.getBrokerData().get(maxUsageBroker);
+        if (brokerData == null) {
+            log.info("Load data is null or bundle <=1, skipping bundle unload.");
             return;
         }
         LocalBrokerData localData = brokerData.getLocalData();
