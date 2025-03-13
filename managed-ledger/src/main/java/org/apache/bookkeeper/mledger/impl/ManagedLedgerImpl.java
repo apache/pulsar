@@ -420,6 +420,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 log.debug("[{}] Opened ledger {}: {}", name, id, BKException.getMessage(rc));
                             }
                             if (rc == BKException.Code.OK) {
+                                if (State.Terminated.equals(state)) {
+                                    currentLedger = lh;
+                                }
                                 LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(id)
                                         .setEntries(lh.getLastAddConfirmed() + 1).setSize(lh.getLength())
                                         .setTimestamp(clock.millis()).build();
