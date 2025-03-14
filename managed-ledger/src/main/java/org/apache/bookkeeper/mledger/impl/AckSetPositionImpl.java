@@ -36,6 +36,8 @@ public class AckSetPositionImpl implements Position, AckSetState {
     @Getter
     @Setter
     private int messagesCountAcked;
+    @Getter
+    private boolean allMessagesAcked;
 
     public AckSetPositionImpl(long ledgerId, long entryId, long[] ackSet) {
         this.ledgerId = ledgerId;
@@ -66,6 +68,10 @@ public class AckSetPositionImpl implements Position, AckSetState {
         } else {
             return PositionFactory.create(ledgerId, entryId + 1);
         }
+    }
+
+    public void markAllMessagesAcked() {
+        this.allMessagesAcked = true;
     }
 
     @Override

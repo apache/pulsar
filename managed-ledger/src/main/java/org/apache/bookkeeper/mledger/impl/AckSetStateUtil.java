@@ -71,6 +71,21 @@ public class AckSetStateUtil {
         return 0;
     }
 
+    public static void markAllMessagesAcked(Position position) {
+        Optional<AckSetState> ackSetState = maybeGetAckSetState(position);
+        if (ackSetState.isPresent()) {
+            ackSetState.get().markAllMessagesAcked();
+        }
+    }
+
+    public static boolean isAllMessagesAcked(Position position) {
+        Optional<AckSetState> ackSetState = maybeGetAckSetState(position);
+        if (ackSetState.isPresent()) {
+            return ackSetState.get().isAllMessagesAcked();
+        }
+        return true;
+    }
+
     /**
      * Get the AckSetState instance from the position.
      * @param position position which contains the AckSetState
