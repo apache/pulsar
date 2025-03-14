@@ -127,7 +127,8 @@ public class Commands {
     public static final short magicBrokerEntryMetadata = 0x0e02;
     private static final int checksumSize = 4;
 
-    private static final FastThreadLocal<BaseCommand> LOCAL_BASE_COMMAND = new FastThreadLocal<BaseCommand>() {
+    @VisibleForTesting
+    static final FastThreadLocal<BaseCommand> LOCAL_BASE_COMMAND = new FastThreadLocal<BaseCommand>() {
         @Override
         protected BaseCommand initialValue() throws Exception {
             return new BaseCommand();
