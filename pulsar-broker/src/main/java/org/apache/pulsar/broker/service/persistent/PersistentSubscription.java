@@ -23,6 +23,7 @@ import static org.apache.pulsar.common.naming.SystemTopicNames.isEventSystemTopi
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import io.netty.buffer.ByteBuf;
+import it.unimi.dsi.fastutil.ints.IntIntPair;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -51,7 +52,10 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentFindCursorPositionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositionException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ScanOutcome;
+import org.apache.bookkeeper.mledger.impl.AckSetState;
+import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -93,6 +97,7 @@ import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -437,7 +442,7 @@ public class PersistentSubscription extends AbstractSubscription {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Individual acks on {}", topicName, subName, positions);
             }
-            cursor.asyncDelete(positions, deleteCallback, previousMarkDeletePosition);
+            cursor.asyncDelete(positions, deleteCallback, positions);
             if (config.isTransactionCoordinatorEnabled()) {
                 positions.forEach(position -> {
                     if ((cursor.isMessageDeleted(position))) {
@@ -517,15 +522,46 @@ public class PersistentSubscription extends AbstractSubscription {
     private final DeleteCallback deleteCallback = new DeleteCallback() {
         @Override
         public void deleteComplete(Object context) {
+            List<Position> positions = (List<Position>) context;
             if (log.isDebugEnabled()) {
                 // The value of the param "context" is a position.
                 log.debug("[{}][{}] Deleted message at {}", topicName, subName, context);
+            }
+            for (Position position : positions) {
+                for (Consumer consumer : getConsumers()) {
+                    IntIntPair intIntPair = consumer.getPendingAcks()
+                            .get(position.getLedgerId(), position.getEntryId());
+                    if (intIntPair != null) {
+                        int messagesCountAcked = AckSetStateUtil.getMessagesCountAcked(position);
+                        long[] ackSet = AckSetStateUtil.getAckSetArrayOrNull(position);
+                        if (messagesCountAcked == 0) {
+                            break;
+                        }
+                        if (AckSetState.MESSAGES_COUNT_ACKED_THAT_REQUESTED != messagesCountAcked) {
+                            log.info("===> 1 consumer: {}, unack: {}, ack: {}", consumer.consumerName(), consumer.getUnackedMessages(), messagesCountAcked);
+                            consumer.addAndGetUnAckedMsgs(consumer, -messagesCountAcked);
+                        } else {
+                            if (ackSet != null) {
+                                BitSetRecyclable bitSet = BitSetRecyclable.create().resetWords(ackSet);
+                                log.info("===> 2 consumer: {}, unack: {}, ack: {}", consumer.consumerName(), consumer.getUnackedMessages(), bitSet.cardinality() - intIntPair.firstInt());
+                                consumer.addAndGetUnAckedMsgs(consumer,
+                                        bitSet.cardinality() - intIntPair.firstInt());
+                            } else {
+                                log.info("===> 3 consumer: {}, unack: {}, ack: {}", consumer.consumerName(), consumer.getUnackedMessages(), intIntPair.firstInt());
+                                consumer.addAndGetUnAckedMsgs(consumer, -intIntPair.firstInt());
+                            }
+                        }
+                        // TODO removePendingAcks(ackOwnerConsumer, position);
+                        break;
+                    }
+                }
             }
             // Signal the dispatchers to give chance to take extra actions
             if (dispatcher != null) {
                 dispatcher.afterAckMessages(null, context);
             }
-            notifyTheMarkDeletePositionMoveForwardIfNeeded((Position) context);
+            // TODO fix the issue.
+            notifyTheMarkDeletePositionMoveForwardIfNeeded(PositionFactory.create(-1, -1));
         }
 
         @Override
