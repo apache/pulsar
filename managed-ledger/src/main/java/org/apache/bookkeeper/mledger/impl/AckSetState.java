@@ -45,6 +45,10 @@ public interface AckSetState {
 
     int getMessagesCountAcked();
 
+    void markAllMessagesAcked();
+
+    boolean isAllMessagesAcked();
+
     /**
      * Check if the ackSet is set.
      * @return true if the ackSet is set, false otherwise

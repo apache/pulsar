@@ -529,30 +529,38 @@ public class PersistentSubscription extends AbstractSubscription {
             }
             for (Position position : positions) {
                 for (Consumer consumer : getConsumers()) {
-                    IntIntPair intIntPair = consumer.getPendingAcks()
-                            .get(position.getLedgerId(), position.getEntryId());
+                    long[] ackSet = AckSetStateUtil.getAckSetArrayOrNull(position);
+                    IntIntPair intIntPair = null;
+                    if (ackSet != null) {
+                        intIntPair = consumer.getPendingAcks()
+                                .get(position.getLedgerId(), position.getEntryId());
+                    } else {
+                        intIntPair = consumer.getPendingAcks()
+                                .removeAndReturn(position.getLedgerId(), position.getEntryId());
+                    }
                     if (intIntPair != null) {
                         int messagesCountAcked = AckSetStateUtil.getMessagesCountAcked(position);
-                        long[] ackSet = AckSetStateUtil.getAckSetArrayOrNull(position);
-                        if (messagesCountAcked == 0) {
-                            break;
-                        }
+//                        if (messagesCountAcked == 0) {
+//                            break;
+//                        }
                         if (AckSetState.MESSAGES_COUNT_ACKED_THAT_REQUESTED != messagesCountAcked) {
-                            log.info("===> 1 consumer: {}, unack: {}, ack: {}", consumer.consumerName(), consumer.getUnackedMessages(), messagesCountAcked);
+                            log.info("===> 1 consumer: {}, unack: {}, ack: {}, all-msg-acked: {}", consumer.consumerName(), consumer.getUnackedMessages(), messagesCountAcked, AckSetStateUtil.isAllMessagesAcked(position));
                             consumer.addAndGetUnAckedMsgs(consumer, -messagesCountAcked);
                         } else {
                             if (ackSet != null) {
                                 BitSetRecyclable bitSet = BitSetRecyclable.create().resetWords(ackSet);
-                                log.info("===> 2 consumer: {}, unack: {}, ack: {}", consumer.consumerName(), consumer.getUnackedMessages(), bitSet.cardinality() - intIntPair.firstInt());
+                                log.info("===> 2 consumer: {}, unack: {}, ack: {}, all-msg-acked: {}", consumer.consumerName(), consumer.getUnackedMessages(), bitSet.cardinality() - intIntPair.firstInt(), AckSetStateUtil.isAllMessagesAcked(position));
                                 consumer.addAndGetUnAckedMsgs(consumer,
                                         bitSet.cardinality() - intIntPair.firstInt());
                             } else {
-                                log.info("===> 3 consumer: {}, unack: {}, ack: {}", consumer.consumerName(), consumer.getUnackedMessages(), intIntPair.firstInt());
+                                log.info("===> 3 consumer: {}, unack: {}, ack: {}, all-msg-acked: {}", consumer.consumerName(), consumer.getUnackedMessages(), intIntPair.firstInt(), AckSetStateUtil.isAllMessagesAcked(position));
                                 consumer.addAndGetUnAckedMsgs(consumer, -intIntPair.firstInt());
                             }
                         }
                         // TODO removePendingAcks(ackOwnerConsumer, position);
                         break;
+                    } else {
+                        log.info("===> skipped consumer: {}, unack: {}", consumer.consumerName(), consumer.getUnackedMessages());
                     }
                 }
             }

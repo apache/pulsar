@@ -2388,6 +2388,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 }
                 long[] ackSet = AckSetStateUtil.getAckSetArrayOrNull(position);
                 if (ackSet == null) {
+                    AckSetStateUtil.markAllMessagesAcked(position);
                     if (batchDeletedIndexes != null) {
                         BitSet bitSet = batchDeletedIndexes.remove(position);
                         if (bitSet != null) {
@@ -2431,6 +2432,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                                 AckSetState.MESSAGES_COUNT_ACKED_THAT_REQUESTED);
                     }
                     if (bitSet.isEmpty()) {
+                        AckSetStateUtil.markAllMessagesAcked(position);
                         Position previousPosition = ledger.getPreviousPosition(position);
                         individualDeletedMessages.addOpenClosed(previousPosition.getLedgerId(),
                             previousPosition.getEntryId(),
