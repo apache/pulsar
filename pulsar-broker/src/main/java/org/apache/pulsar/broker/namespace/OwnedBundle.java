@@ -39,8 +39,8 @@ public class OwnedBundle {
     private final NamespaceBundle bundle;
 
     /**
-     * {@link #nsLock} is used to protect read/write access to {@link #active} flag and the corresponding code section
-     * based on {@link #active} flag.
+     * {@link #nsLock} is used to protect read/write access to {@link #isActive} flag and the corresponding code section
+     * based on {@link #isActive} flag.
      */
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -104,7 +104,7 @@ public class OwnedBundle {
     public CompletableFuture<Void> handleUnloadRequest(PulsarService pulsar, long timeout, TimeUnit timeoutUnit,
                                                        boolean closeWithoutWaitingClientDisconnect) {
         long unloadBundleStartTime = System.nanoTime();
-        // Need a per namespace RenetrantReadWriteLock
+        // Need a per namespace ReentrantReadWriteLock
         // Here to do a writeLock to set the flag and proceed to check and close connections
         try {
             while (!this.nsLock.writeLock().tryLock(1, TimeUnit.SECONDS)) {

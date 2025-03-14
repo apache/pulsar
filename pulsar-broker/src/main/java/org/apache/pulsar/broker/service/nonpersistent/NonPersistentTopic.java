@@ -691,11 +691,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
     @Override
     public int getNumberOfConsumers() {
-        int count = 0;
-        for (NonPersistentSubscription subscription : subscriptions.values()) {
-            count += subscription.getConsumers().size();
-        }
-        return count;
+        return getNumberOfConsumers(subscriptions.values());
     }
 
     @Override

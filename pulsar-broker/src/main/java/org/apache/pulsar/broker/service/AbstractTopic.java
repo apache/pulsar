@@ -599,6 +599,14 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         return count;
     }
 
+    protected int getNumberOfConsumers(final Collection<? extends Subscription> subscriptions) {
+        int count = 0;
+        for (Subscription subscription : subscriptions) {
+            count += subscription.getConsumers().size();
+        }
+        return count;
+    }
+
     protected CompletableFuture<Void> addConsumerToSubscription(Subscription subscription, Consumer consumer) {
         if (isConsumersExceededOnTopic()) {
             log.warn("[{}] Attempting to add consumer to topic which reached max consumers limit", topic);
