@@ -115,6 +115,7 @@ public class CompactionRecord {
     }
 
     public StatsBuckets getCompactionLatencyStats() {
+        writeLatencyStats.refresh();
         return writeLatencyStats;
     }
 
