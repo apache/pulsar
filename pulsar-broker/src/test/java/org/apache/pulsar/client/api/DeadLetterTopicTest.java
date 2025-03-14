@@ -1191,15 +1191,17 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         // check the retry topic producer enable batch
         List<ConsumerImpl<byte[]>> consumers = ((MultiTopicsConsumerImpl<byte[]>) consumer).getConsumers();
         for (ConsumerImpl<byte[]> consumerImpl : consumers) {
-            if (!consumerImpl.getTopic().endsWith(RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX)) {
-                Producer<byte[]> retryProducer = consumerImpl.getRetryLetterProducer();
-                Producer<byte[]> deadLetterProducer = consumerImpl.getDeadLetterProducer();
-                if (retryProducer != null) {
-                    assertTrue(((ProducerImpl<byte[]>)retryProducer).isBatchMessagingEnabled());
-                }
-                if (deadLetterProducer != null) {
-                    assertTrue(((ProducerImpl<byte[]>) deadLetterProducer).isBatchMessagingEnabled());
-                }
+            Producer<byte[]> retryProducer = consumerImpl.getRetryLetterProducer();
+            Producer<byte[]> deadLetterProducer = consumerImpl.getDeadLetterProducer();
+            // there are two type of consumers in MultiTopicsConsumerImpl when enableRetry is true
+            // 1. consumer subscribe to original topic
+            // 2. consumer subscribe to retry topic
+            if (consumerImpl.getTopic().endsWith(RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX)) {
+                assertTrue(((ProducerImpl<byte[]>) retryProducer).isBatchMessagingEnabled());
+                assertTrue(((ProducerImpl<byte[]>) deadLetterProducer).isBatchMessagingEnabled());
+            } else {
+                assertTrue(((ProducerImpl<byte[]>) retryProducer).isBatchMessagingEnabled());
+                assertNull(deadLetterProducer);
             }
         }
 
