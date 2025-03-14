@@ -128,6 +128,13 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
     }
 
     @Override
+    public void resetPayloadAfterFailedPublishing() {
+        for (BatchMessageContainerImpl batch : batches.values()) {
+            batch.resetPayloadAfterFailedPublishing();
+        }
+    }
+
+    @Override
     public boolean hasSameSchema(MessageImpl<?> msg) {
         String key = getKey(msg);
         BatchMessageContainerImpl batchMessageContainer = batches.get(key);
