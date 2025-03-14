@@ -534,7 +534,7 @@ public class Consumer {
                 }
                 position = AckSetStateUtil.createPositionWithAckSet(msgId.getLedgerId(), msgId.getEntryId(), ackSets);
             } else {
-                position = PositionFactory.create(msgId.getLedgerId(), msgId.getEntryId());
+                position = AckSetStateUtil.createPositionWithAckSet(msgId.getLedgerId(), msgId.getEntryId(), null); // TODO 用 null 合理吗？
             }
 
             if (ack.hasTxnidMostBits() && ack.hasTxnidLeastBits()) {
@@ -589,12 +589,13 @@ public class Consumer {
                                 .syncBatchPositionBitSetForPendingAck(position);
                     }
                 }
-                addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
+                // TODO 并发 ack 同一个消息会出现 unack 是负值的情况
+//                addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
             } else {
-                position = PositionFactory.create(msgId.getLedgerId(), msgId.getEntryId());
+                position = AckSetStateUtil.createPositionWithAckSet(msgId.getLedgerId(), msgId.getEntryId(), null);
                 ackedCount = getAckedCountForMsgIdNoAckSets(batchSize, position, ackOwnerConsumer);
                 if (checkCanRemovePendingAcksAndHandle(ackOwnerConsumer, position, msgId)) {
-                    addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
+//                    addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
                     updateBlockedConsumerOnUnackedMsgs(ackOwnerConsumer);
                 }
             }
@@ -619,7 +620,7 @@ public class Consumer {
                 if (AckSetStateUtil.hasAckSet(position)) {
                     if (((PersistentSubscription) subscription)
                             .checkIsCanDeleteConsumerPendingAck(position)) {
-                        removePendingAcks(ackOwnerConsumer, position);
+                        //removePendingAcks(ackOwnerConsumer, position);
                     }
                 }
             }));
@@ -692,7 +693,7 @@ public class Consumer {
                         if (AckSetStateUtil.hasAckSet(positionLongMutablePair.getLeft())) {
                             if (((PersistentSubscription) subscription)
                                     .checkIsCanDeleteConsumerPendingAck(positionLongMutablePair.left)) {
-                                removePendingAcks(ackOwnerConsumer, positionLongMutablePair.left);
+                                //removePendingAcks(ackOwnerConsumer, positionLongMutablePair.left);
                             }
                         }
                     }));
@@ -762,7 +763,7 @@ public class Consumer {
     private boolean checkCanRemovePendingAcksAndHandle(Consumer ackOwnedConsumer,
                                                        Position position, MessageIdData msgId) {
         if (Subscription.isIndividualAckMode(subType) && msgId.getAckSetsCount() == 0) {
-            return removePendingAcks(ackOwnedConsumer, position);
+            //return removePendingAcks(ackOwnedConsumer, position);
         }
         return false;
     }
@@ -1126,6 +1127,7 @@ public class Consumer {
             });
 
             for (Position p : pendingPositions) {
+                // TODO 这里没有处理unack messages
                 pendingAcks.remove(p.getLedgerId(), p.getEntryId());
             }
 
@@ -1148,6 +1150,7 @@ public class Consumer {
             IntIntPair pendingAck = pendingAcks.get(position.getLedgerId(), position.getEntryId());
             if (pendingAck != null) {
                 int unAckedCount = (int) getUnAckedCountForBatchIndexLevelEnabled(position, pendingAck.leftInt());
+                // TODO redeliver 和 ack 并发？
                 pendingAcks.remove(position.getLedgerId(), position.getEntryId());
                 totalRedeliveryMessages += unAckedCount;
                 pendingPositions.add(position);
@@ -1183,7 +1186,7 @@ public class Consumer {
         return subscription;
     }
 
-    private int addAndGetUnAckedMsgs(Consumer consumer, int ackedMessages) {
+    public int addAndGetUnAckedMsgs(Consumer consumer, int ackedMessages) {
         int unackedMsgs = 0;
         if (isPersistentTopic && Subscription.isIndividualAckMode(subType)) {
             subscription.addUnAckedMessages(ackedMessages);

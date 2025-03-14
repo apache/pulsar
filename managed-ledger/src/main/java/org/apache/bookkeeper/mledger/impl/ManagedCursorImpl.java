@@ -2392,7 +2392,16 @@ public class ManagedCursorImpl implements ManagedCursor {
                 long[] ackSet = AckSetStateUtil.getAckSetArrayOrNull(position);
                 if (ackSet == null) {
                     if (batchDeletedIndexes != null) {
-                        batchDeletedIndexes.remove(position);
+                        BitSet bitSet = batchDeletedIndexes.remove(position);
+                        if (bitSet != null) {
+                            AckSetStateUtil.setMessagesCountAcked(position, bitSet.cardinality());
+                        } else {
+                            AckSetStateUtil.setMessagesCountAcked(position,
+                                    AckSetState.MESSAGES_COUNT_ACKED_THAT_REQUESTED);
+                        }
+                    } else {
+                        AckSetStateUtil.setMessagesCountAcked(position,
+                                AckSetState.MESSAGES_COUNT_ACKED_THAT_REQUESTED);
                     }
                     // Add a range (prev, pos] to the set. Adding the previous entry as an open limit to the range will
                     // make the RangeSet recognize the "continuity" between adjacent Positions.
@@ -2416,7 +2425,13 @@ public class ManagedCursorImpl implements ManagedCursor {
                     final var givenBitSet = BitSet.valueOf(ackSet);
                     final var bitSet = batchDeletedIndexes.computeIfAbsent(position, __ -> givenBitSet);
                     if (givenBitSet != bitSet) {
+                        int messageUnAckedBefore = bitSet.cardinality();
                         bitSet.and(givenBitSet);
+                        int messageUnAckedAfter = bitSet.cardinality();
+                        AckSetStateUtil.setMessagesCountAcked(position, messageUnAckedBefore - messageUnAckedAfter);
+                    } else {
+                        AckSetStateUtil.setMessagesCountAcked(position,
+                                AckSetState.MESSAGES_COUNT_ACKED_THAT_REQUESTED);
                     }
                     if (bitSet.isEmpty()) {
                         Position previousPosition = ledger.getPreviousPosition(position);

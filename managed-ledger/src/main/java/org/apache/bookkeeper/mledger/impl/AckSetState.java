@@ -26,6 +26,9 @@ import org.jspecify.annotations.Nullable;
  * ackSet state and to extract the state.
  */
 public interface AckSetState {
+
+    int MESSAGES_COUNT_ACKED_THAT_REQUESTED = -1;
+
     /**
      * Get the ackSet bitset information encoded as a long array.
      * @return the ackSet
@@ -37,6 +40,10 @@ public interface AckSetState {
      * @param ackSet the ackSet
      */
     void setAckSet(long[] ackSet);
+
+    void setMessagesCountAcked(int messagesCountAcked);
+
+    int getMessagesCountAcked();
 
     /**
      * Check if the ackSet is set.

@@ -56,6 +56,21 @@ public class AckSetStateUtil {
         return maybeGetAckSetState(position).map(AckSetState::getAckSet).orElse(null);
     }
 
+    public static void setMessagesCountAcked(Position position, int messagesCountAcked) {
+        Optional<AckSetState> ackSetState = maybeGetAckSetState(position);
+        if (ackSetState.isPresent()) {
+            ackSetState.get().setMessagesCountAcked(messagesCountAcked);
+        }
+    }
+
+    public static int getMessagesCountAcked(Position position) {
+        Optional<AckSetState> ackSetState = maybeGetAckSetState(position);
+        if (ackSetState.isPresent()) {
+            return ackSetState.get().getMessagesCountAcked();
+        }
+        return 0;
+    }
+
     /**
      * Get the AckSetState instance from the position.
      * @param position position which contains the AckSetState
