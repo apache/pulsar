@@ -40,7 +40,7 @@ public class TopicListWatcherTest {
     );
 
     private static final long ID = 7;
-    private static final Pattern PATTERN = Pattern.compile("persistent://tenant/ns/topic\\d+");
+    private static final Pattern PATTERN = Pattern.compile("tenant/ns/topic\\d+");
 
 
     private TopicListService topicListService;

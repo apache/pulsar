@@ -70,7 +70,8 @@ public class TopicListService {
          */
         @Override
         public void accept(String topicName, NotificationType notificationType) {
-            if (topicsPattern.matcher(TopicName.get(topicName).getPartitionedTopicName()).matches()) {
+            String partitionedTopicName = TopicName.get(topicName).getPartitionedTopicName();
+            if (topicsPattern.matcher(TopicList.removeTopicDomainScheme(partitionedTopicName)).matches()) {
                 List<String> newTopics;
                 List<String> deletedTopics;
                 if (notificationType == NotificationType.Deleted) {
