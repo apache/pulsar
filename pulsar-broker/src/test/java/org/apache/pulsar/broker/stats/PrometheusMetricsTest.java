@@ -306,8 +306,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         double systemCursorOutBytes = 0.0;
         for (Metric metric : topicLevelBytesOutTotal) {
-            if (metric.tags.get("subscription").startsWith(SystemTopicNames.SYSTEM_READER_PREFIX)
-                    || metric.tags.get("subscription").equals(Compactor.COMPACTION_SUBSCRIPTION)) {
+            if (metric.tags.get("subscription").startsWith(SystemTopicNames.SYSTEM_READER_PREFIX)) {
                 systemCursorOutBytes = metric.value;
             }
         }
