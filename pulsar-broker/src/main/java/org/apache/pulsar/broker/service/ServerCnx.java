@@ -3024,7 +3024,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final NamespaceName namespaceName = NamespaceName.get(commandWatchTopicList.getNamespace());
 
         Pattern topicsPattern = Pattern.compile(commandWatchTopicList.hasTopicsPattern()
-                ? commandWatchTopicList.getTopicsPattern() : TopicList.ALL_TOPICS_PATTERN);
+                ? TopicList.removeTopicDomainScheme(commandWatchTopicList.getTopicsPattern())
+                : TopicList.ALL_TOPICS_PATTERN);
         String topicsHash = commandWatchTopicList.hasTopicsHash()
                 ? commandWatchTopicList.getTopicsHash() : null;
 
