@@ -167,7 +167,7 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
                 log.warn("[{}] Failed to create producer ({}), retrying in {} s", topicName, ex.getMessage(),
                         waitTimeMs / 1000.0);
                 // BackOff before retrying
-                brokerService.executor().schedule(this::startProducer, waitTimeMs, TimeUnit.MILLISECONDS);
+                pulsar.getExecutor().schedule(this::startProducer, waitTimeMs, TimeUnit.MILLISECONDS);
                 return null;
             });
     }
