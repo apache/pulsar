@@ -146,6 +146,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
         // enable batch
         DeadLetterProducerBuilderCustomizer producerBuilderCustomizer = (context, producerBuilder) -> {
             producerBuilder.enableBatching(true);
+            producerBuilder.enableChunking(false);
         };
         String subscriptionName = "my-subscription";
         String subscriptionNameDLQ = "my-subscription-DLQ";
