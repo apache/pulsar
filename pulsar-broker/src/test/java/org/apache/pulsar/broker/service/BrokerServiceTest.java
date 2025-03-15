@@ -50,6 +50,7 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -67,6 +68,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import io.opentelemetry.sdk.metrics.data.MetricData;
+import io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions;
+import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.ReadHandle;
@@ -90,6 +94,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
@@ -161,6 +166,12 @@ public class BrokerServiceTest extends BrokerTestBase {
     private void resetState() throws Exception {
         cleanup();
         setup();
+    }
+
+    @Override
+    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder builder) {
+        super.customizeMainPulsarTestContextBuilder(builder);
+        builder.enableOpenTelemetry(true);
     }
 
     @Test
@@ -590,7 +601,8 @@ public class BrokerServiceTest extends BrokerTestBase {
                     topicLoadTimesDimensionFound = true;
                 }
             } catch (Exception e) {
-                /* it's possible there's no dimensions */ }
+                /* it's possible there's no dimensions */
+            }
         }
 
         assertTrue(namespaceDimensionFound && topicLoadTimesDimensionFound);
@@ -1018,42 +1030,42 @@ public class BrokerServiceTest extends BrokerTestBase {
         latchRef.set(new CountDownLatch(1));
         try (ConnectionPool pool = new ConnectionPool(InstrumentProvider.NOOP, conf, eventLoop,
                 () -> new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop) {
-            @Override
-            protected void handleLookupResponse(CommandLookupTopicResponse lookupResult) {
-                try {
-                    latchRef.get().await();
-                } catch (InterruptedException e) {
-                    // ignore
-                }
-                super.handleLookupResponse(lookupResult);
-            }
+                    @Override
+                    protected void handleLookupResponse(CommandLookupTopicResponse lookupResult) {
+                        try {
+                            latchRef.get().await();
+                        } catch (InterruptedException e) {
+                            // ignore
+                        }
+                        super.handleLookupResponse(lookupResult);
+                    }
 
-            @Override
-            protected void handlePartitionResponse(CommandPartitionedTopicMetadataResponse lookupResult) {
-                try {
-                    latchRef.get().await();
-                } catch (InterruptedException e) {
-                    // ignore
-                }
-                super.handlePartitionResponse(lookupResult);
-            }
-        }, null)) {
+                    @Override
+                    protected void handlePartitionResponse(CommandPartitionedTopicMetadataResponse lookupResult) {
+                        try {
+                            latchRef.get().await();
+                        } catch (InterruptedException e) {
+                            // ignore
+                        }
+                        super.handlePartitionResponse(lookupResult);
+                    }
+                }, null)) {
             // for PMR
             // 2 lookup will succeed
             long reqId1 = reqId++;
             ByteBuf request1 = Commands.newPartitionMetadataRequest(topicName, reqId1, true);
             CompletableFuture<?> f1 = pool.getConnection(resolver.resolveHost())
-                .thenCompose(clientCnx -> clientCnx.newLookup(request1, reqId1));
+                    .thenCompose(clientCnx -> clientCnx.newLookup(request1, reqId1));
 
             long reqId2 = reqId++;
             ByteBuf request2 = Commands.newPartitionMetadataRequest(topicName, reqId2, true);
             CompletableFuture<?> f2 = pool.getConnection(resolver.resolveHost())
-                .thenCompose(clientCnx -> {
-                    CompletableFuture<?> future = clientCnx.newLookup(request2, reqId2);
-                    // pending other responses in `ClientCnx` until now
-                    latchRef.get().countDown();
-                    return future;
-                });
+                    .thenCompose(clientCnx -> {
+                        CompletableFuture<?> future = clientCnx.newLookup(request2, reqId2);
+                        // pending other responses in `ClientCnx` until now
+                        latchRef.get().countDown();
+                        return future;
+                    });
 
             f1.get();
             f2.get();
@@ -1063,21 +1075,21 @@ public class BrokerServiceTest extends BrokerTestBase {
             long reqId3 = reqId++;
             ByteBuf request3 = Commands.newPartitionMetadataRequest(topicName, reqId3, true);
             f1 = pool.getConnection(resolver.resolveHost())
-                .thenCompose(clientCnx -> clientCnx.newLookup(request3, reqId3));
+                    .thenCompose(clientCnx -> clientCnx.newLookup(request3, reqId3));
 
             long reqId4 = reqId++;
             ByteBuf request4 = Commands.newPartitionMetadataRequest(topicName, reqId4, true);
             f2 = pool.getConnection(resolver.resolveHost())
-                .thenCompose(clientCnx -> clientCnx.newLookup(request4, reqId4));
+                    .thenCompose(clientCnx -> clientCnx.newLookup(request4, reqId4));
 
             long reqId5 = reqId++;
             ByteBuf request5 = Commands.newPartitionMetadataRequest(topicName, reqId5, true);
             CompletableFuture<?> f3 = pool.getConnection(resolver.resolveHost())
-                .thenCompose(clientCnx -> {
-                    CompletableFuture<?> future = clientCnx.newLookup(request5, reqId5);
-                    // pending other responses in `ClientCnx` until now
-                    latchRef.get().countDown();
-                    return future;
+                    .thenCompose(clientCnx -> {
+                        CompletableFuture<?> future = clientCnx.newLookup(request5, reqId5);
+                        // pending other responses in `ClientCnx` until now
+                        latchRef.get().countDown();
+                        return future;
                     });
 
             f1.get();
@@ -1091,7 +1103,7 @@ public class BrokerServiceTest extends BrokerTestBase {
                     rootCause = rootCause.getCause();
                 }
                 if (!(rootCause instanceof
-                      org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException)) {
+                        org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException)) {
                     throw e;
                 }
             }
@@ -1102,17 +1114,17 @@ public class BrokerServiceTest extends BrokerTestBase {
             long reqId6 = reqId++;
             ByteBuf request6 = Commands.newLookup(topicName, true, reqId6);
             f1 = pool.getConnection(resolver.resolveHost())
-                .thenCompose(clientCnx -> clientCnx.newLookup(request6, reqId6));
+                    .thenCompose(clientCnx -> clientCnx.newLookup(request6, reqId6));
 
             long reqId7 = reqId++;
             ByteBuf request7 = Commands.newLookup(topicName, true, reqId7);
             f2 = pool.getConnection(resolver.resolveHost())
-                .thenCompose(clientCnx -> {
-                    CompletableFuture<?> future = clientCnx.newLookup(request7, reqId7);
-                    // pending other responses in `ClientCnx` until now
-                    latchRef.get().countDown();
-                    return future;
-                });
+                    .thenCompose(clientCnx -> {
+                        CompletableFuture<?> future = clientCnx.newLookup(request7, reqId7);
+                        // pending other responses in `ClientCnx` until now
+                        latchRef.get().countDown();
+                        return future;
+                    });
 
             f1.get();
             f2.get();
@@ -1122,22 +1134,22 @@ public class BrokerServiceTest extends BrokerTestBase {
             long reqId8 = reqId++;
             ByteBuf request8 = Commands.newLookup(topicName, true, reqId8);
             f1 = pool.getConnection(resolver.resolveHost())
-                .thenCompose(clientCnx -> clientCnx.newLookup(request8, reqId8));
+                    .thenCompose(clientCnx -> clientCnx.newLookup(request8, reqId8));
 
             long reqId9 = reqId++;
             ByteBuf request9 = Commands.newLookup(topicName, true, reqId9);
             f2 = pool.getConnection(resolver.resolveHost())
-                .thenCompose(clientCnx -> clientCnx.newLookup(request9, reqId9));
+                    .thenCompose(clientCnx -> clientCnx.newLookup(request9, reqId9));
 
             long reqId10 = reqId++;
             ByteBuf request10 = Commands.newLookup(topicName, true, reqId10);
             f3 = pool.getConnection(resolver.resolveHost())
-                .thenCompose(clientCnx -> {
-                    CompletableFuture<?> future = clientCnx.newLookup(request10, reqId10);
-                    // pending other responses in `ClientCnx` until now
-                    latchRef.get().countDown();
-                    return future;
-                });
+                    .thenCompose(clientCnx -> {
+                        CompletableFuture<?> future = clientCnx.newLookup(request10, reqId10);
+                        // pending other responses in `ClientCnx` until now
+                        latchRef.get().countDown();
+                        return future;
+                    });
 
             f1.get();
             f2.get();
@@ -1150,7 +1162,7 @@ public class BrokerServiceTest extends BrokerTestBase {
                     rootCause = rootCause.getCause();
                 }
                 if (!(rootCause instanceof
-                      org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException)) {
+                        org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException)) {
                     throw e;
                 }
             }
@@ -1291,7 +1303,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         Field currentCompaction = PersistentTopic.class.getDeclaredField("currentCompaction");
         currentCompaction.setAccessible(true);
-        CompletableFuture<Long> compactionFuture = (CompletableFuture<Long>)currentCompaction.get(topic);
+        CompletableFuture<Long> compactionFuture = (CompletableFuture<Long>) currentCompaction.get(topic);
 
         compactionFuture.get();
 
@@ -1381,7 +1393,6 @@ public class BrokerServiceTest extends BrokerTestBase {
     /**
      * Verifies brokerService should not have deadlock and successfully remove topic from topicMap on topic-failure and
      * it should not introduce deadlock while performing it.
-     *
      */
     @Test(timeOut = 3000)
     public void testTopicFailureShouldNotHaveDeadLock() {
@@ -1557,7 +1568,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         BufferedReader reader = new BufferedReader(isReader);
         StringBuffer sb = new StringBuffer();
         String str;
-        while((str = reader.readLine()) != null){
+        while ((str = reader.readLine()) != null) {
             sb.append(str);
         }
         Assert.assertTrue(sb.toString().contains("test_metrics"));
@@ -1652,7 +1663,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         setup();
         admin.brokers()
                 .updateDynamicConfiguration("forceDeleteNamespaceAllowed", "true");
-        Awaitility.await().untilAsserted(()->{
+        Awaitility.await().untilAsserted(() -> {
             assertTrue(conf.isForceDeleteNamespaceAllowed());
         });
     }
@@ -1664,7 +1675,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         setup();
         admin.brokers()
                 .updateDynamicConfiguration("forceDeleteTenantAllowed", "true");
-        Awaitility.await().untilAsserted(()->{
+        Awaitility.await().untilAsserted(() -> {
             assertTrue(conf.isForceDeleteTenantAllowed());
         });
     }
@@ -1962,6 +1973,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         }
     }
 
+
     @Test
     public void testTlsWithAuthParams() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic";
@@ -2003,6 +2015,40 @@ public class BrokerServiceTest extends BrokerTestBase {
         } finally {
             pulsarClient.close();
         }
+    }
+
+    @Test
+    public void testPendingPublishBufferUsageMetrics() throws Exception {
+        PulsarTestContext pulsarTestContext = this.pulsarTestContext;
+        InMemoryMetricReader reader = pulsarTestContext.getOpenTelemetryMetricReader();
+
+        Collection<MetricData> metricData = reader.collectAllMetrics();
+        OpenTelemetryAssertions.assertThat(metricData).anySatisfy(metric ->
+                OpenTelemetryAssertions.assertThat(metric).hasName("pulsar.broker.publish.buffer.usage")
+                        .hasLongGaugeSatisfying(gauge ->
+                                gauge.hasPointsSatisfying(point -> point.hasValue(0))));
+        OpenTelemetryAssertions.assertThat(metricData).anySatisfy(metric ->
+                OpenTelemetryAssertions.assertThat(metric).hasName("pulsar.broker.publish.buffer.max.usage")
+                        .hasLongGaugeSatisfying(gauge ->
+                                gauge.hasPointsSatisfying(point -> point.hasValue(0))));
+
+        String topic = "persistent://prop/ns-abc/testPendingPublishBufferUsageMetrics";
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).enableBatching(false).create();
+        for (int i = 0; i < 10; i++) {
+            producer.send("test");
+        }
+
+        metricData = reader.collectAllMetrics();
+        OpenTelemetryAssertions.assertThat(metricData).anySatisfy(metric ->
+                OpenTelemetryAssertions.assertThat(metric).hasName("pulsar.broker.publish.buffer.usage")
+                        .hasLongGaugeSatisfying(gauge ->
+                                gauge.hasPointsSatisfying(point -> point.hasValue(0))));
+        OpenTelemetryAssertions.assertThat(metricData).anySatisfy(metric ->
+                OpenTelemetryAssertions.assertThat(metric).hasName("pulsar.broker.publish.buffer.max.usage")
+                        .hasLongGaugeSatisfying(gauge ->
+                                gauge.hasPointsSatisfying(point ->
+                                        point.matches(value -> value.getValue() > 0))));
     }
 
 }
