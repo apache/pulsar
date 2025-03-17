@@ -319,7 +319,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
     private void individualAcknowledgeMessageIfNeeded(List<Position> positions, Map<String, Long> properties) {
         if (!(subscription instanceof PulsarCompactorSubscription)) {
-            subscription.acknowledgeMessage(positions, AckType.Individual, properties);
+            subscription.acknowledgeMessage(positions, AckType.Individual, properties, null);
         }
     }
 
