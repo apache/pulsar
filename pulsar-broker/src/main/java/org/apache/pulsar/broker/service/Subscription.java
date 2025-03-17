@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import javax.annotation.Nullable;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
@@ -48,7 +49,13 @@ public interface Subscription extends MessageExpirer {
 
     void consumerFlow(Consumer consumer, int additionalNumberOfMessages);
 
-    void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String, Long> properties);
+    /**
+     * @param ackFrom It can be null, and it will always be null if {@param ackType} is {@link AckType#Cumulative}.
+     *               The performance will be improved, if this param is the owner consumer that received the messages
+     *               who are being acked when {@param ackType} is {@link AckType#Individual}.
+     */
+    void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String, Long> properties,
+                            @Nullable Consumer ackFrom);
 
     String getTopicName();
 

@@ -465,7 +465,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                             }
                             persistentSubscription.acknowledgeMessage(
                                     Collections.singletonList(cumulativeAckOfTransaction.getValue()),
-                                    AckType.Cumulative, properties);
+                                    AckType.Cumulative, properties, null);
                             cumulativeAckOfTransaction = null;
                             commitFuture.complete(null);
                         }).exceptionally(e -> {
@@ -755,7 +755,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             if (this.cumulativeAckOfTransaction != null) {
                 persistentSubscription.acknowledgeMessage(
                         Collections.singletonList(this.cumulativeAckOfTransaction.getValue()),
-                        AckType.Cumulative, properties);
+                        AckType.Cumulative, properties, null);
             }
             this.cumulativeAckOfTransaction = null;
         } else {
@@ -774,7 +774,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                                            Map<String, Long> properties) {
         if (currentTxn != null) {
             persistentSubscription.acknowledgeMessage(new ArrayList<>(currentTxn.values()),
-                    AckType.Individual, properties);
+                    AckType.Individual, properties, null);
             individualAckOfTransaction.remove(txnID);
         }
     }

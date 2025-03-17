@@ -56,32 +56,32 @@ public class AckSetStateUtil {
         return maybeGetAckSetState(position).map(AckSetState::getAckSet).orElse(null);
     }
 
-    public static void setMessagesCountAcked(Position position, int messagesCountAcked) {
+    public static void setBatchMessagesAckedCount(Position position, int messagesCountAcked) {
         Optional<AckSetState> ackSetState = maybeGetAckSetState(position);
         if (ackSetState.isPresent()) {
-            ackSetState.get().setMessagesCountAcked(messagesCountAcked);
+            ackSetState.get().setBatchMessagesAckedCount(messagesCountAcked);
         }
     }
 
-    public static int getMessagesCountAcked(Position position) {
+    public static int getBatchMessagesAckedCount(Position position) {
         Optional<AckSetState> ackSetState = maybeGetAckSetState(position);
         if (ackSetState.isPresent()) {
-            return ackSetState.get().getMessagesCountAcked();
+            return ackSetState.get().getBatchMessagesAckedCount();
         }
         return 0;
     }
 
-    public static void markAllMessagesAcked(Position position) {
+    public static void markPositionRemovedFromCursor(Position position) {
         Optional<AckSetState> ackSetState = maybeGetAckSetState(position);
         if (ackSetState.isPresent()) {
-            ackSetState.get().markAllMessagesAcked();
+            ackSetState.get().markPositionRemovedFromCursor();
         }
     }
 
-    public static boolean isAllMessagesAcked(Position position) {
+    public static boolean isPositionRemovedFromCursor(Position position) {
         Optional<AckSetState> ackSetState = maybeGetAckSetState(position);
         if (ackSetState.isPresent()) {
-            return ackSetState.get().isAllMessagesAcked();
+            return ackSetState.get().isPositionRemovedFromCursor();
         }
         return true;
     }

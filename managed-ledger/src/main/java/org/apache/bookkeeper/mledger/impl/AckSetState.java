@@ -27,7 +27,8 @@ import org.jspecify.annotations.Nullable;
  */
 public interface AckSetState {
 
-    int MESSAGES_COUNT_ACKED_THAT_REQUESTED = -1;
+    int BATCH_MESSAGE_ACKED_AT_ONCE = -1;
+    int BATCH_MESSAGE_ACKED_FIRST_PART = -2;
 
     /**
      * Get the ackSet bitset information encoded as a long array.
@@ -41,13 +42,13 @@ public interface AckSetState {
      */
     void setAckSet(long[] ackSet);
 
-    void setMessagesCountAcked(int messagesCountAcked);
+    void setBatchMessagesAckedCount(int messagesCountAcked);
 
-    int getMessagesCountAcked();
+    int getBatchMessagesAckedCount();
 
-    void markAllMessagesAcked();
+    void markPositionRemovedFromCursor();
 
-    boolean isAllMessagesAcked();
+    boolean isPositionRemovedFromCursor();
 
     /**
      * Check if the ackSet is set.

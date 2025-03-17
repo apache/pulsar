@@ -22,6 +22,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
 import static org.apache.bookkeeper.mledger.impl.EntryCountEstimator.estimateEntryCountByBytesSize;
+import static org.apache.bookkeeper.mledger.impl.AckSetState.BATCH_MESSAGE_ACKED_AT_ONCE;
+import static org.apache.bookkeeper.mledger.impl.AckSetState.BATCH_MESSAGE_ACKED_FIRST_PART;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_RETRIES;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
@@ -2391,18 +2393,12 @@ public class ManagedCursorImpl implements ManagedCursor {
                 }
                 long[] ackSet = AckSetStateUtil.getAckSetArrayOrNull(position);
                 if (ackSet == null) {
-                    AckSetStateUtil.markAllMessagesAcked(position);
-                    if (batchDeletedIndexes != null) {
-                        BitSet bitSet = batchDeletedIndexes.remove(position);
-                        if (bitSet != null) {
-                            AckSetStateUtil.setMessagesCountAcked(position, bitSet.cardinality());
-                        } else {
-                            AckSetStateUtil.setMessagesCountAcked(position,
-                                    AckSetState.MESSAGES_COUNT_ACKED_THAT_REQUESTED);
-                        }
+                    AckSetStateUtil.markPositionRemovedFromCursor(position);
+                    BitSet bitSet;
+                    if (batchDeletedIndexes == null || (bitSet = batchDeletedIndexes.remove(position)) == null) {
+                        AckSetStateUtil.setBatchMessagesAckedCount(position, BATCH_MESSAGE_ACKED_AT_ONCE);
                     } else {
-                        AckSetStateUtil.setMessagesCountAcked(position,
-                                AckSetState.MESSAGES_COUNT_ACKED_THAT_REQUESTED);
+                        AckSetStateUtil.setBatchMessagesAckedCount(position, bitSet.cardinality());
                     }
                     // Add a range (prev, pos] to the set. Adding the previous entry as an open limit to the range will
                     // make the RangeSet recognize the "continuity" between adjacent Positions.
@@ -2426,16 +2422,15 @@ public class ManagedCursorImpl implements ManagedCursor {
                     final var givenBitSet = BitSet.valueOf(ackSet);
                     final var bitSet = batchDeletedIndexes.computeIfAbsent(position, __ -> givenBitSet);
                     if (givenBitSet != bitSet) {
-                        int messageUnAckedBefore = bitSet.cardinality();
+                        int unAckedBefore = bitSet.cardinality();
                         bitSet.and(givenBitSet);
-                        int messageUnAckedAfter = bitSet.cardinality();
-                        AckSetStateUtil.setMessagesCountAcked(position, messageUnAckedBefore - messageUnAckedAfter);
+                        int unAckedAfter = bitSet.cardinality();
+                        AckSetStateUtil.setBatchMessagesAckedCount(position, unAckedBefore - unAckedAfter);
                     } else {
-                        AckSetStateUtil.setMessagesCountAcked(position,
-                                AckSetState.MESSAGES_COUNT_ACKED_THAT_REQUESTED);
+                        AckSetStateUtil.setBatchMessagesAckedCount(position, BATCH_MESSAGE_ACKED_FIRST_PART);
                     }
                     if (bitSet.isEmpty()) {
-                        AckSetStateUtil.markAllMessagesAcked(position);
+                        AckSetStateUtil.markPositionRemovedFromCursor(position);
                         Position previousPosition = ledger.getPreviousPosition(position);
                         individualDeletedMessages.addOpenClosed(previousPosition.getLedgerId(),
                             previousPosition.getEntryId(),

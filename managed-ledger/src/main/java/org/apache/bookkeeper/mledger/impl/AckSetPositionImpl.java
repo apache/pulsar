@@ -35,9 +35,9 @@ public class AckSetPositionImpl implements Position, AckSetState {
     protected volatile long[] ackSet;
     @Getter
     @Setter
-    private int messagesCountAcked;
+    private int batchMessagesAckedCount;
     @Getter
-    private boolean allMessagesAcked;
+    private boolean positionRemovedFromCursor;
 
     public AckSetPositionImpl(long ledgerId, long entryId, long[] ackSet) {
         this.ledgerId = ledgerId;
@@ -70,8 +70,8 @@ public class AckSetPositionImpl implements Position, AckSetState {
         }
     }
 
-    public void markAllMessagesAcked() {
-        this.allMessagesAcked = true;
+    public void markPositionRemovedFromCursor() {
+        this.positionRemovedFromCursor = true;
     }
 
     @Override
