@@ -537,7 +537,7 @@ public class Consumer {
                 }
                 position = AckSetStateUtil.createPositionWithAckSet(msgId.getLedgerId(), msgId.getEntryId(), ackSets);
             } else {
-                position = AckSetStateUtil.createPositionWithAckSet(msgId.getLedgerId(), msgId.getEntryId(), null); // TODO 用 null 合理吗？
+                position = PositionFactory.create(msgId.getLedgerId(), msgId.getEntryId());
             }
 
             if (ack.hasTxnidMostBits() && ack.hasTxnidLeastBits()) {
@@ -1103,7 +1103,6 @@ public class Consumer {
             });
 
             for (Position p : pendingPositions) {
-                // TODO 这里没有处理unack messages
                 pendingAcks.remove(p.getLedgerId(), p.getEntryId());
             }
 
@@ -1126,7 +1125,6 @@ public class Consumer {
             IntIntPair pendingAck = pendingAcks.get(position.getLedgerId(), position.getEntryId());
             if (pendingAck != null) {
                 int unAckedCount = (int) getUnAckedCountForBatchIndexLevelEnabled(position, pendingAck.leftInt());
-                // TODO redeliver 和 ack 并发？
                 pendingAcks.remove(position.getLedgerId(), position.getEntryId());
                 totalRedeliveryMessages += unAckedCount;
                 pendingPositions.add(position);
