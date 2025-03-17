@@ -2263,11 +2263,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public int getNumberOfConsumers() {
-        int count = 0;
-        for (PersistentSubscription subscription : subscriptions.values()) {
-            count += subscription.getConsumers().size();
-        }
-        return count;
+        return getNumberOfConsumers(subscriptions.values());
     }
 
     @Override
