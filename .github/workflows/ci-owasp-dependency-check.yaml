@@ -89,10 +89,10 @@ jobs:
         timeout-minutes: 5
         with:
           path: ~/.m2/repository/org/owasp/dependency-check-data
-          key: owasp-dependency-check-data-${{ steps.get-weeknum.outputs.weeknum }}
+          key: owasp-dependency-check-data-v11-${{ steps.get-weeknum.outputs.weeknum }}
           enableCrossOsArchive: true
           restore-keys: |
-            owasp-dependency-check-data-
+            owasp-dependency-check-data-v11-
 
       - name: Update OWASP Dependency Check data
         id: update-owasp-dependency-check-data
