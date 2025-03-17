@@ -170,11 +170,12 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
     }
 
 
-    public void updateRates() {
+    private void updateRates() {
         msgExpired.calculateRate();
     }
 
     public double getMessageExpiryRate() {
+        updateRates();
         return msgExpired.getRate();
     }
 
