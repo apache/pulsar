@@ -19,12 +19,13 @@
 package org.apache.pulsar.common.policies.data;
 
 import com.google.common.collect.Sets;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -42,6 +43,7 @@ import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@SuppressFBWarnings(value = "RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE")
 public class TopicPolicies {
 
     @Builder.Default
@@ -191,6 +193,9 @@ public class TopicPolicies {
     }
 
     public Map<String, SubscriptionPolicies> getSubscriptionPolicies() {
-        return subscriptionPolicies == null ? Collections.emptyMap() : subscriptionPolicies;
+        if (subscriptionPolicies == null) {
+            subscriptionPolicies = new ConcurrentHashMap<>();
+        }
+        return subscriptionPolicies;
     }
 }
