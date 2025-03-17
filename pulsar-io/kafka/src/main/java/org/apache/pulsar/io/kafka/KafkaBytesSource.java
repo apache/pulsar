@@ -18,13 +18,20 @@
  */
 package org.apache.pulsar.io.kafka;
 
+import io.confluent.kafka.schemaregistry.SchemaProvider;
+import io.confluent.kafka.schemaregistry.avro.AvroSchemaProvider;
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
+import io.confluent.kafka.schemaregistry.protobuf.MessageIndexes;
+import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchemaProvider;
+import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
-import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig;
+import io.confluent.kafka.serializers.protobuf.KafkaProtobufDeserializer;
 import java.nio.ByteBuffer;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 import lombok.extern.slf4j.Slf4j;
@@ -51,7 +58,8 @@ import org.apache.pulsar.io.core.annotations.IOType;
 /**
  *  Kafka Source that transfers the data from Kafka to Pulsar and sets the Schema type properly.
  *  We use the key and the value deserializer in order to decide the type of Schema to be set on the topic on Pulsar.
- *  In case of KafkaAvroDeserializer we use the Schema Registry to download the schema and apply it to the topic.
+ *  In case of KafkaAvroDeserializer and KafkaProtobufDeserializer we use the Schema Registry to download the schema
+ *  and apply it to the topic.
  *  Please refer to {@link #getSchemaFromDeserializerAndAdaptConfiguration(String, Properties, boolean)} for the list
  *  of supported Deserializers.
  *  If you set StringDeserializer for the key then we use the raw key as key for the Pulsar message.
@@ -69,10 +77,11 @@ import org.apache.pulsar.io.core.annotations.IOType;
 @Slf4j
 public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
 
-    private AvroSchemaCache schemaCache;
+    private KafkaSchemaCache schemaCache;
     private Schema<ByteBuffer> keySchema;
     private Schema<ByteBuffer> valueSchema;
     private boolean produceKeyValue;
+    private static final String SCHEMA_TYPE_CONFIG = "schema.type";
 
     @Override
     protected Properties beforeCreateConsumer(Properties props) {
@@ -85,8 +94,8 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
         valueSchema = getSchemaFromDeserializerAndAdaptConfiguration(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
                 props, false);
 
-        boolean needsSchemaCache = keySchema == DeferredSchemaPlaceholder.INSTANCE
-                                    || valueSchema == DeferredSchemaPlaceholder.INSTANCE;
+        boolean needsSchemaCache = keySchema instanceof DeferredSchemaPlaceholder
+                || valueSchema instanceof DeferredSchemaPlaceholder;
 
         if (needsSchemaCache) {
             initSchemaCache(props);
@@ -105,12 +114,26 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
     }
 
     private void initSchemaCache(Properties props) {
-        KafkaAvroDeserializerConfig config = new KafkaAvroDeserializerConfig(props);
+        AbstractKafkaSchemaSerDeConfig config =
+                new AbstractKafkaSchemaSerDeConfig(AbstractKafkaSchemaSerDeConfig.baseConfigDef(), props);
         List<String> urls = config.getSchemaRegistryUrls();
         int maxSchemaObject = config.getMaxSchemasPerSubject();
-        SchemaRegistryClient schemaRegistryClient = new CachedSchemaRegistryClient(urls, maxSchemaObject);
+
+        List<SchemaProvider> providers = List.of(
+                new AvroSchemaProvider(),
+                new ProtobufSchemaProvider()
+        );
+
+        // we need to provide schema registry required properties, like auth related
+        Map<String, Object> configs = new HashMap<>();
+        for (String key : props.stringPropertyNames()) {
+            configs.put(key, props.get(key));
+        }
+
+        SchemaRegistryClient schemaRegistryClient =
+                new CachedSchemaRegistryClient(urls, maxSchemaObject, providers, configs);
         log.info("initializing SchemaRegistry Client, urls:{}, maxSchemasPerSubject: {}", urls, maxSchemaObject);
-        schemaCache = new AvroSchemaCache(schemaRegistryClient);
+        schemaCache = new KafkaSchemaCache(schemaRegistryClient);
     }
 
     @Override
@@ -140,7 +163,7 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
         // we have substituted the original Deserializer with
         // ByteBufferDeserializer in order to save memory copies
         // so here we can have only a ByteBuffer or at most a
-        // BytesWithKafkaSchema in case of ExtractKafkaAvroSchemaDeserializer
+        // BytesWithKafkaSchema in case of ExtractKafkaSchemaDeserializer
         if (value == null) {
             return null;
         } else if (value instanceof BytesWithKafkaSchema) {
@@ -156,7 +179,8 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
         if (value instanceof BytesWithKafkaSchema) {
             // this is a Struct with schema downloaded by the schema registry
             // the schema may be different from record to record
-            return schemaCache.get(((BytesWithKafkaSchema) value).getSchemaId());
+            return schemaCache.get(((BytesWithKafkaSchema) value).getSchemaId(),
+                    ((BytesWithKafkaSchema) value).getSchemaType());
         } else {
             return fallback;
         }
@@ -196,10 +220,19 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
         } else if (KafkaAvroDeserializer.class.getName().equals(kafkaDeserializerClass)){
             // in this case we have to inject our custom deserializer
             // that extracts Avro schema information
-            props.put(key, ExtractKafkaAvroSchemaDeserializer.class.getName());
+            props.put(key, ExtractKafkaSchemaDeserializer.class.getName());
+            props.put(SCHEMA_TYPE_CONFIG, SchemaType.AVRO.name());
             // this is only a placeholder, we are not really using AUTO_PRODUCE_BYTES
             // but we the schema is created by downloading the definition from the SchemaRegistry
             return DeferredSchemaPlaceholder.INSTANCE;
+        } else if (KafkaProtobufDeserializer.class.getName().equals(kafkaDeserializerClass)) {
+            // in this case we have to inject our custom deserializer
+            // that extracts Protobuf schema information
+            props.put(key, ExtractKafkaSchemaDeserializer.class.getName());
+            props.put(SCHEMA_TYPE_CONFIG, SchemaType.PROTOBUF_NATIVE.name());
+            // this is only a placeholder, we are not really using AUTO_PRODUCE_BYTES
+            // but we the schema is created by downloading the definition from the SchemaRegistry
+            return DeferredSchemaPlaceholder.PROTOBUF_INSTANCE;
         } else {
             throw new IllegalArgumentException("Unsupported deserializer " + kafkaDeserializerClass);
         }
@@ -219,7 +252,15 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
     }
 
 
-    public static class ExtractKafkaAvroSchemaDeserializer implements Deserializer<BytesWithKafkaSchema> {
+    public static class ExtractKafkaSchemaDeserializer implements Deserializer<BytesWithKafkaSchema> {
+        SchemaType schemaType = SchemaType.AVRO;
+
+        @Override
+        public void configure(Map<String, ?> configs, boolean isKey) {
+            if (configs.containsKey(SCHEMA_TYPE_CONFIG)) {
+                schemaType = SchemaType.valueOf((String) configs.get(SCHEMA_TYPE_CONFIG));
+            }
+        }
 
         @Override
         public BytesWithKafkaSchema deserialize(String topic, byte[] payload) {
@@ -230,24 +271,31 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
                     ByteBuffer buffer = ByteBuffer.wrap(payload);
                     buffer.get(); // magic number
                     int id = buffer.getInt();
-                    return new BytesWithKafkaSchema(buffer, id);
+                    // the kafka protobuf serializer encodes the MessageIndexes in the payload, we need to skip them
+                    if (schemaType == SchemaType.PROTOBUF_NATIVE) {
+                        MessageIndexes.readFrom(buffer);
+                    }
+                    return new BytesWithKafkaSchema(buffer, id, schemaType);
                 } catch (Exception err) {
-                    throw new SerializationException("Error deserializing Avro message", err);
+                    throw new SerializationException("Error deserializing Kafka message", err);
                 }
             }
         }
     }
 
-     static final class DeferredSchemaPlaceholder extends ByteBufferSchemaWrapper {
-        DeferredSchemaPlaceholder() {
+    static final class DeferredSchemaPlaceholder extends ByteBufferSchemaWrapper {
+        DeferredSchemaPlaceholder(SchemaType schemaType) {
             super(SchemaInfoImpl
                     .builder()
-                    .type(SchemaType.AVRO)
+                    .type(schemaType)
                     .properties(Collections.emptyMap())
                     .schema(new byte[0])
                     .build());
         }
-        static final DeferredSchemaPlaceholder INSTANCE = new DeferredSchemaPlaceholder();
+
+        static final DeferredSchemaPlaceholder INSTANCE = new DeferredSchemaPlaceholder(SchemaType.AVRO);
+        static final DeferredSchemaPlaceholder PROTOBUF_INSTANCE =
+                new DeferredSchemaPlaceholder(SchemaType.PROTOBUF_NATIVE);
     }
 
 }
