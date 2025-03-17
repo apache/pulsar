@@ -3826,9 +3826,19 @@ public class ManagedCursorImpl implements ManagedCursor {
         long result = 0;
         long remainingBytesSize = bytesSize;
 
+        Position previousPosToRead = null;
         while (remainingBytesSize > 0) {
-            // Last ledger.
-            if (posToRead.getLedgerId() == ml.getCurrentLedger().getId()) {
+            if (previousPosToRead != null && previousPosToRead.compareTo(posToRead) >= 0) {
+                // Exit the loop if posToRead is not advancing to avoid counting the same position
+                // multiple times, which could cause an unnecessarily high number of iterations,
+                // especially when bytesSize is set to Long.MAX_VALUE.
+                break;
+            }
+            // Save the current posToRead in a variable to verify if it advances in the next iteration.
+            previousPosToRead = posToRead;
+            // Last ledger. This is null in ReadOnlyManagedLedgerImpl
+            LedgerHandle currentLedger = ml.getCurrentLedger();
+            if (currentLedger != null && posToRead.getLedgerId() == currentLedger.getId()) {
                 if (ml.getCurrentLedgerSize() == 0 ||  ml.getCurrentLedgerEntries() == 0) {
                     // Only read 1 entry if no entries to read.
                     return 1;
