@@ -1500,8 +1500,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         @Cleanup
         Consumer<byte[]> deadLetterConsumer = pulsarClient.newConsumer()
-                .topic(String.format("%s-%s" + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX,
-                        topic, subName))
+                .topic(RetryMessageUtil.getDLQTopic(topic, subName))
                 .subscriptionType(SubscriptionType.Shared)
                 .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(1).build())
                 .subscriptionName("test")
@@ -1536,8 +1535,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         consumer.close();
         deadLetterConsumer.close();
         producer.close();
-        admin.topics().delete(String.format("%s-%s" + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX,
-                topic, subName), true);
+        admin.topics().delete(RetryMessageUtil.getDLQTopic(topic, subName), true);
         admin.topics().delete(topic, true);
     }
 
@@ -1564,8 +1562,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         @Cleanup
         Consumer<byte[]> deadLetterConsumer = pulsarClient.newConsumer()
-                .topic(String.format("%s-%s" + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX,
-                        topic, subName))
+                .topic(RetryMessageUtil.getDLQTopic(topic, subName))
                 .subscriptionType(SubscriptionType.Shared)
                 .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(1).build())
                 .subscriptionName("test")
@@ -1611,8 +1608,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         consumer.close();
         deadLetterConsumer.close();
         producer.close();
-        admin.topics().delete(String.format("%s-%s" + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX,
-                topic, subName), true);
+        admin.topics().delete(RetryMessageUtil.getDLQTopic(topic, subName), true);
         admin.topics().delete(topic, true);
     }
 
