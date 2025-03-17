@@ -24,6 +24,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -45,6 +46,9 @@ import org.apache.avro.reflect.Nullable;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
+import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.awaitility.Awaitility;
@@ -1123,6 +1127,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         // enable batch
         DeadLetterProducerBuilderCustomizer producerBuilderCustomizer = (context, producerBuilder) -> {
             producerBuilder.enableBatching(true);
+            producerBuilder.enableChunking(false);
         };
         String subscriptionName = "my-subscription";
         String subscriptionNameDLQ = "my-subscription-DLQ";
@@ -1182,6 +1187,23 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
             totalInDeadLetter++;
         } while (totalInDeadLetter < sendMessages);
         assertTrue(messageContent.isEmpty());
+
+        // check the retry topic producer enable batch
+        List<ConsumerImpl<byte[]>> consumers = ((MultiTopicsConsumerImpl<byte[]>) consumer).getConsumers();
+        for (ConsumerImpl<byte[]> consumerImpl : consumers) {
+            Producer<byte[]> retryProducer = consumerImpl.getRetryLetterProducer();
+            Producer<byte[]> deadLetterProducer = consumerImpl.getDeadLetterProducer();
+            // there are two type of consumers in MultiTopicsConsumerImpl when enableRetry is true
+            // 1. consumer subscribe to original topic
+            // 2. consumer subscribe to retry topic
+            if (consumerImpl.getTopic().endsWith(RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX)) {
+                assertTrue(((ProducerImpl<byte[]>) retryProducer).isBatchMessagingEnabled());
+                assertTrue(((ProducerImpl<byte[]>) deadLetterProducer).isBatchMessagingEnabled());
+            } else {
+                assertTrue(((ProducerImpl<byte[]>) retryProducer).isBatchMessagingEnabled());
+                assertNull(deadLetterProducer);
+            }
+        }
 
         deadLetterConsumer.close();
         consumer.close();

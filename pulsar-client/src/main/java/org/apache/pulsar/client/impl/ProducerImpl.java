@@ -350,7 +350,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return connectionHandler;
     }
 
-    private boolean isBatchMessagingEnabled() {
+    public boolean isBatchMessagingEnabled() {
         return conf.isBatchingEnabled();
     }
 
@@ -2353,7 +2353,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     processOpSendMsg(opSendMsg);
                 }
             } catch (Throwable t) {
-                log.warn("[{}] [{}] error while create opSendMsg by batch message container", topic, producerName, t);
+                // Since there is a uncompleted payload was built, we should reset it.
+                batchMessageContainer.resetPayloadAfterFailedPublishing();
+                log.warn("[{}] [{}] Failed to create batch message for sending. Batch payloads have been reset and"
+                                + " messages will be retried in subsequent batches.", topic, producerName, t);
             } finally {
                 if (shouldScheduleNextBatchFlush) {
                     maybeScheduleBatchFlushTask();
