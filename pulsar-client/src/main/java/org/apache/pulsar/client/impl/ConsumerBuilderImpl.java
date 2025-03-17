@@ -164,10 +164,10 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
                 CompletableFuture<Boolean> deadLetterTopicMetadata = checkDlqAlreadyExists(oldDeadLetterTopic);
                 applyDLQConfig = CompletableFuture.allOf(retryLetterTopicMetadata, deadLetterTopicMetadata)
                         .thenAccept(__ -> {
-                            String retryLetterTopic = topicFirst + "-" + conf.getSubscriptionName()
-                                    + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
-                            String deadLetterTopic = topicFirst + "-" + conf.getSubscriptionName()
-                                    + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
+                            String retryLetterTopic = RetryMessageUtil.getRetryTopic(topicFirst.toString(),
+                                    conf.getSubscriptionName());
+                            String deadLetterTopic = RetryMessageUtil.getDLQTopic(topicFirst.toString(),
+                                    conf.getSubscriptionName());
                             if (retryLetterTopicMetadata.join()) {
                                 retryLetterTopic = oldRetryLetterTopic;
                             }
