@@ -121,6 +121,7 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
         if (!isProducerStarted()) {
             log.info("Producer is not started on {}, failed to publish {}", topicName, event);
             future.completeExceptionally(new IllegalStateException("producer is not started yet"));
+            return;
         }
         producer.newMessage().value(event).sendAsync().thenAccept(__ -> {
             log.info("successfully published metadata change event {}", event);
@@ -136,6 +137,7 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
     protected void startProducer() {
         if (isClosingOrClosed()) {
             log.info("[{}] Skip to start new producer because the synchronizer is closed", topicName);
+            return;
         }
         if (producer != null) {
             log.error("[{}] Failed to start the producer because the producer has been set, state: {}",
