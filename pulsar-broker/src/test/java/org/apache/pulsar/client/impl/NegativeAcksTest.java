@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import java.util.HashSet;
@@ -255,9 +256,16 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         long firstReceivedAt = System.currentTimeMillis();
         long expectedTotalRedeliveryDelay = 0;
         for (int i = 0; i < redeliverCount; i++) {
+            Message<String> msg = null;
             for (int j = 0; j < N; j++) {
-                Message<String> msg = consumer.receive();
+                msg = consumer.receive();
                 log.info("Received message {}", msg.getValue());
+                if (!batching) {
+                    consumer.negativeAcknowledge(msg);
+                }
+            }
+            if (batching) {
+                // for batching, we only need to nack one message in the batch to trigger redelivery
                 consumer.negativeAcknowledge(msg);
             }
             expectedTotalRedeliveryDelay += backoff.next(i);
@@ -311,7 +319,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         // negative topic message id
         consumer.negativeAcknowledge(topicMessageId);
         NegativeAcksTracker negativeAcksTracker = consumer.getNegativeAcksTracker();
-        assertEquals(negativeAcksTracker.getNackedMessagesCount().orElse((long) -1).longValue(), 1L);
+        assertEquals(negativeAcksTracker.getNackedMessagesCount(), 1L);
         assertEquals(unAckedMessageTracker.size(), 0);
         negativeAcksTracker.close();
         // negative batch message id
@@ -319,9 +327,54 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         consumer.negativeAcknowledge(batchMessageId);
         consumer.negativeAcknowledge(batchMessageId2);
         consumer.negativeAcknowledge(batchMessageId3);
-        assertEquals(negativeAcksTracker.getNackedMessagesCount().orElse((long) -1).longValue(), 1L);
+        assertEquals(negativeAcksTracker.getNackedMessagesCount(), 1L);
         assertEquals(unAckedMessageTracker.size(), 0);
         negativeAcksTracker.close();
+    }
+
+    /**
+     * If we nack multiple messages in the same batch with different redelivery delays, the messages should be redelivered
+     * with the correct delay. However, all messages are redelivered at the same time.
+     * @throws Exception
+     */
+    @Test
+    public void testNegativeAcksWithBatch() throws Exception {
+        cleanup();
+        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
+        setup();
+        String topic = BrokerTestUtil.newUniqueName("testNegativeAcksWithBatch");
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub1")
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscriptionType(SubscriptionType.Shared)
+                .enableBatchIndexAcknowledgment(true)
+                .negativeAckRedeliveryDelay(3, TimeUnit.SECONDS)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(true)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .batchingMaxMessages(2)
+                .create();
+        // send two messages in the same batch
+        producer.sendAsync("test-0");
+        producer.sendAsync("test-1");
+        producer.flush();
+
+        // negative ack the first message
+        consumer.negativeAcknowledge(consumer.receive());
+        // wait for 2s, negative ack the second message
+        Thread.sleep(2000);
+        consumer.negativeAcknowledge(consumer.receive());
+
+        // now 2s has passed, the first message should be redelivered 1s later.
+        Message<String> msg1 = consumer.receive(2, TimeUnit.SECONDS);
+        assertNotNull(msg1);
     }
 
     @Test
@@ -498,5 +551,52 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         producer.close();
         consumer.close();
         admin.topics().deletePartitionedTopic("persistent://public/default/" + topic);
+    }
+
+    @DataProvider(name = "negativeAckPrecisionBitCnt")
+    public Object[][] negativeAckPrecisionBitCnt() {
+        return new Object[][]{
+                {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}, {11}, {12}
+        };
+    }
+
+    /**
+     * When negativeAckPrecisionBitCnt is greater than 0, the lower bits of the redelivery time will be truncated
+     * to reduce the memory occupation. If set to k, the redelivery time will be bucketed by 2^k ms, resulting in
+     * the redelivery time could be earlier(no later) than the expected time no more than 2^k ms.
+     * @throws Exception if an error occurs
+     */
+    @Test(dataProvider = "negativeAckPrecisionBitCnt")
+    public void testConfigureNegativeAckPrecisionBitCnt(int negativeAckPrecisionBitCnt) throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("testConfigureNegativeAckPrecisionBitCnt");
+        long timeDeviation = 1L << negativeAckPrecisionBitCnt;
+        long delayInMs = 2000;
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub1")
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscriptionType(SubscriptionType.Shared)
+                .negativeAckRedeliveryDelay(delayInMs, TimeUnit.MILLISECONDS)
+                .negativeAckRedeliveryDelayPrecision(negativeAckPrecisionBitCnt)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+        producer.sendAsync("test-0");
+        producer.flush();
+
+        // receive the message and negative ack
+        consumer.negativeAcknowledge(consumer.receive());
+        long expectedTime = System.currentTimeMillis() + delayInMs;
+
+        // receive the redelivered message and calculate the time deviation
+        // assert that the redelivery time is no earlier than the `expected time - timeDeviation`
+        Message<String> msg1 = consumer.receive();
+        assertTrue(System.currentTimeMillis() >= expectedTime - timeDeviation);
+        assertNotNull(msg1);
     }
 }

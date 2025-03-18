@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import com.google.common.collect.Sets;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -30,6 +32,7 @@ import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
@@ -37,8 +40,8 @@ import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Test(groups = "flaky")
-public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchThrottlingTest {
+@Test(groups = "broker-api")
+public class SubscriptionMessageDispatchThrottlingTest extends AbstractMessageDispatchThrottlingTest {
     private static final Logger log = LoggerFactory.getLogger(SubscriptionMessageDispatchThrottlingTest.class);
 
     /**
@@ -241,7 +244,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         admin.namespaces().setSubscriptionDispatchRate(namespace, subscriptionDispatchRate);
         admin.namespaces().setDispatchRate(namespace, topicDispatchRate);
         long initBytes = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInByte();
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", "" + brokerRate);
+        updateBrokerDispatchThrottlingRateInBytes(brokerRate);
 
         final int numProducedMessages = 30;
         final CountDownLatch latch = new CountDownLatch(numProducedMessages);
@@ -272,10 +275,11 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
             Assert.fail("Should only have PersistentDispatcher in this test");
         }
         final DispatchRateLimiter subDispatchRateLimiter = subRateLimiter;
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().atMost(Duration.ofSeconds(15)).untilAsserted(() -> {
             DispatchRateLimiter brokerDispatchRateLimiter = pulsar.getBrokerService().getBrokerDispatchRateLimiter();
-            Assert.assertTrue(brokerDispatchRateLimiter != null
-                    && brokerDispatchRateLimiter.getDispatchRateOnByte() > 0);
+            assertThat(brokerDispatchRateLimiter)
+                    .isNotNull()
+                    .satisfies(l -> assertThat(l.getDispatchRateOnByte()).isEqualTo(brokerRate));
             DispatchRateLimiter topicDispatchRateLimiter = topic.getDispatchRateLimiter().orElse(null);
             Assert.assertTrue(topicDispatchRateLimiter != null
                     && topicDispatchRateLimiter.getDispatchRateOnByte() > 0);
@@ -301,10 +305,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         consumer.close();
         producer.close();
 
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", Long.toString(initBytes));
-
-        admin.topics().delete(topicName, true);
-        admin.namespaces().deleteNamespace(namespace);
+        updateBrokerDispatchThrottlingRateInBytes(initBytes);
     }
 
     /**
@@ -401,7 +402,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
     private void testDispatchRate(SubscriptionType subscription,
                                   int brokerRate, int topicRate, int subRate, int expectRate) throws Exception {
 
-        final String namespace = "my-property/throttling_ns";
+        final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/throttlingAll");
         final String subName = "my-subscriber-name-" + subscription;
 
@@ -419,7 +420,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         admin.namespaces().setSubscriptionDispatchRate(namespace, subscriptionDispatchRate);
         admin.namespaces().setDispatchRate(namespace, topicDispatchRate);
         long initBytes = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInByte();
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", "" + brokerRate);
+        updateBrokerDispatchThrottlingRateInBytes(brokerRate);
 
         final int numProducedMessages = 30;
         final CountDownLatch latch = new CountDownLatch(numProducedMessages);
@@ -450,10 +451,11 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
             Assert.fail("Should only have PersistentDispatcher in this test");
         }
         final DispatchRateLimiter subDispatchRateLimiter = subRateLimiter;
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().atMost(Duration.ofSeconds(15)).untilAsserted(() -> {
             DispatchRateLimiter brokerDispatchRateLimiter = pulsar.getBrokerService().getBrokerDispatchRateLimiter();
-            Assert.assertTrue(brokerDispatchRateLimiter != null
-                    && brokerDispatchRateLimiter.getDispatchRateOnByte() > 0);
+            assertThat(brokerDispatchRateLimiter)
+                    .isNotNull()
+                    .satisfies(l -> assertThat(l.getDispatchRateOnByte()).isEqualTo(brokerRate));
             DispatchRateLimiter topicDispatchRateLimiter = topic.getDispatchRateLimiter().orElse(null);
             Assert.assertTrue(topicDispatchRateLimiter != null
                     && topicDispatchRateLimiter.getDispatchRateOnByte() > 0);
@@ -482,9 +484,18 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
 
         consumer.close();
         producer.close();
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", Long.toString(initBytes));
-        admin.topics().delete(topicName, true);
-        admin.namespaces().deleteNamespace(namespace);
+        updateBrokerDispatchThrottlingRateInBytes(initBytes);
+    }
+
+    private void updateBrokerDispatchThrottlingRateInBytes(long bytes) throws PulsarAdminException {
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", Long.toString(bytes));
+        long expectedBytes = bytes > 0L ? bytes : -1L;
+        await().untilAsserted(() -> {
+            DispatchRateLimiter brokerDispatchRateLimiter = pulsar.getBrokerService().getBrokerDispatchRateLimiter();
+            assertThat(brokerDispatchRateLimiter)
+                    .isNotNull()
+                    .satisfies(l -> assertThat(l.getDispatchRateOnByte()).isEqualTo(expectedBytes));
+        });
     }
 
     /**
@@ -537,7 +548,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
 
         long initBytes = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInByte();
         final int byteRate = 1000;
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", "" + byteRate);
+        updateBrokerDispatchThrottlingRateInBytes(byteRate);
 
         Awaitility.await().untilAsserted(() -> {
             Assert.assertEquals(pulsar.getConfiguration().getDispatchThrottlingRateInByte(), byteRate);
@@ -576,12 +587,6 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1).create();
         Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2).create();
 
-        Awaitility.await().untilAsserted(() -> {
-            DispatchRateLimiter rateLimiter = pulsar.getBrokerService().getBrokerDispatchRateLimiter();
-            Assert.assertTrue(rateLimiter != null
-                    && rateLimiter.getDispatchRateOnByte() > 0);
-        });
-
         long start = System.currentTimeMillis();
         // Asynchronously produce messages
         for (int i = 0; i < numProducedMessagesEachTopic; i++) {
@@ -600,7 +605,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         consumer2.close();
         producer1.close();
         producer2.close();
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", Long.toString(initBytes));
+        updateBrokerDispatchThrottlingRateInBytes(initBytes);
         log.info("-- Exiting {} test --", methodName);
     }
 

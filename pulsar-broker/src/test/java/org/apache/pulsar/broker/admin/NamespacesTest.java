@@ -102,6 +102,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
+import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
@@ -2194,5 +2195,31 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertFalse(admin.namespaces().getDispatcherPauseOnAckStatePersistent(namespace));
 
         admin.namespaces().deleteNamespace(namespace);
+    }
+
+    public void testMigratedInfoIsNotLostDuringOtherLocalPoliciesUpdate() throws Exception {
+        String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
+        admin.namespaces().createNamespace(namespace, Set.of(testLocalCluster));
+
+        admin.namespaces().updateMigrationState(namespace, true);
+        assertTrue(admin.namespaces().getPolicies(namespace).migrated);
+
+        String bookieAffinityGroupPrimary = "group1";
+        admin.namespaces().setBookieAffinityGroup(namespace,
+                BookieAffinityGroupData.builder().bookkeeperAffinityGroupPrimary(bookieAffinityGroupPrimary).build());
+        assertEquals(admin.namespaces().getBookieAffinityGroup(namespace).getBookkeeperAffinityGroupPrimary(),
+                bookieAffinityGroupPrimary);
+        assertTrue(admin.namespaces().getPolicies(namespace).migrated);
+
+        String namespaceAntiAffinityGroup = "group2";
+        admin.namespaces().setNamespaceAntiAffinityGroup(namespace, namespaceAntiAffinityGroup);
+        assertEquals(admin.namespaces().getNamespaceAntiAffinityGroup(namespace), namespaceAntiAffinityGroup);
+        assertTrue(admin.namespaces().getPolicies(namespace).migrated);
+
+        admin.namespaces().deleteBookieAffinityGroup(namespace);
+        assertTrue(admin.namespaces().getPolicies(namespace).migrated);
+
+        admin.namespaces().deleteNamespaceAntiAffinityGroup(namespace);
+        assertTrue(admin.namespaces().getPolicies(namespace).migrated);
     }
 }

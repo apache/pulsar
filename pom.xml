@@ -133,6 +133,7 @@ flexible messaging model and an intuitive client API.</description>
     <docker.tag>latest</docker.tag>
     <skipSourceReleaseAssembly>false</skipSourceReleaseAssembly>
     <skipBuildDistribution>false</skipBuildDistribution>
+    <skipDeployConnector>false</skipDeployConnector>
     <shadePluginPhase>package</shadePluginPhase>
     <narPluginPhase>package</narPluginPhase>
 
@@ -146,12 +147,12 @@ flexible messaging model and an intuitive client API.</description>
     <snappy.version>1.1.10.5</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.7.1</curator.version>
-    <netty.version>4.1.115.Final</netty.version>
-    <netty-iouring.version>0.0.24.Final</netty-iouring.version>
+    <netty.version>4.1.119.Final</netty.version>
+    <netty-iouring.version>0.0.26.Final</netty-iouring.version>
     <jetty.version>9.4.56.v20240826</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.42</jersey.version>
-    <athenz.version>1.10.50</athenz.version>
+    <athenz.version>1.10.62</athenz.version>
     <prometheus.version>0.16.0</prometheus.version>
     <vertx.version>4.5.10</vertx.version>
     <rocksdb.version>7.9.2</rocksdb.version>
@@ -166,7 +167,7 @@ flexible messaging model and an intuitive client API.</description>
     <reflections.version>0.10.2</reflections.version>
     <swagger.version>1.6.2</swagger.version>
     <puppycrawl.checkstyle.version>10.14.2</puppycrawl.checkstyle.version>
-    <docker-maven.version>0.45.0</docker-maven.version>
+    <docker-maven.version>0.45.1</docker-maven.version>
     <docker.verbose>true</docker.verbose>
     <typetools.version>0.5.0</typetools.version>
     <byte-buddy.version>1.14.12</byte-buddy.version>
@@ -196,7 +197,7 @@ flexible messaging model and an intuitive client API.</description>
     <clickhouse-jdbc.version>0.4.6</clickhouse-jdbc.version>
     <mariadb-jdbc.version>2.7.5</mariadb-jdbc.version>
     <openmldb-jdbc.version>0.4.4-hotfix1</openmldb-jdbc.version>
-    <json-smart.version>2.4.10</json-smart.version>
+    <json-smart.version>2.5.2</json-smart.version>
     <opensearch.version>2.16.0</opensearch.version>
     <elasticsearch-java.version>8.12.1</elasticsearch-java.version>
     <debezium.version>1.9.7.Final</debezium.version>
@@ -215,12 +216,12 @@ flexible messaging model and an intuitive client API.</description>
     <prometheus-jmx.version>0.16.1</prometheus-jmx.version>
     <confluent.version>6.2.8</confluent.version>
     <aircompressor.version>0.27</aircompressor.version>
-    <asynchttpclient.version>2.12.1</asynchttpclient.version>
+    <asynchttpclient.version>2.12.4</asynchttpclient.version>
     <commons-lang3.version>3.11</commons-lang3.version>
     <commons-configuration.version>1.10</commons-configuration.version>
-    <commons-io.version>2.14.0</commons-io.version>
+    <commons-io.version>2.18.0</commons-io.version>
     <commons-codec.version>1.15</commons-codec.version>
-    <javax.ws.rs-api.version>2.1</javax.ws.rs-api.version>
+    <jakarta.ws.rs-api.version>2.1.6</jakarta.ws.rs-api.version>
     <hdrHistogram.version>2.1.9</hdrHistogram.version>
     <javax.servlet-api>3.1.0</javax.servlet-api>
     <caffeine.version>2.9.1</caffeine.version>
@@ -230,10 +231,9 @@ flexible messaging model and an intuitive client API.</description>
     <hppc.version>0.9.1</hppc.version>
     <spark-streaming_2.10.version>2.1.0</spark-streaming_2.10.version>
     <assertj-core.version>3.24.2</assertj-core.version>
-    <lombok.version>1.18.32</lombok.version>
-    <javax.annotation-api.version>1.3.2</javax.annotation-api.version>
+    <lombok.version>1.18.36</lombok.version>
+    <jakarta.annotation-api.version>1.3.5</jakarta.annotation-api.version>
     <jaxb-api>2.3.1</jaxb-api>
-    <javax.activation.version>1.2.0</javax.activation.version>
     <jakarta.activation.version>1.2.2</jakarta.activation.version>
     <jakarta.xml.bind.version>2.3.3</jakarta.xml.bind.version>
     <jakarta.validation.version>2.0.2</jakarta.validation.version>
@@ -251,30 +251,29 @@ flexible messaging model and an intuitive client API.</description>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <apache-httpcomponents.version>4.4.15</apache-httpcomponents.version>
     <jetcd.version>0.7.7</jetcd.version>
-    <oxia.version>0.4.9</oxia.version>
+    <oxia.version>0.5.0</oxia.version>
     <snakeyaml.version>2.0</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
     <seancfoley.ipaddress.version>5.5.0</seancfoley.ipaddress.version>
     <disruptor.version>3.4.3</disruptor.version>
     <zstd-jni.version>1.5.2-3</zstd-jni.version>
     <netty-reactive-streams.version>2.0.6</netty-reactive-streams.version>
-    <opentelemetry.version>1.41.0</opentelemetry.version>
+    <opentelemetry.version>1.45.0</opentelemetry.version>
     <opentelemetry.alpha.version>${opentelemetry.version}-alpha</opentelemetry.alpha.version>
     <opentelemetry.instrumentation.version>1.33.6</opentelemetry.instrumentation.version>
     <opentelemetry.instrumentation.alpha.version>${opentelemetry.instrumentation.version}-alpha</opentelemetry.instrumentation.alpha.version>
-    <opentelemetry.semconv.version>1.28.0-alpha</opentelemetry.semconv.version>
+    <opentelemetry.semconv.version>1.29.0-alpha</opentelemetry.semconv.version>
     <picocli.version>4.7.5</picocli.version>
     <re2j.version>1.7</re2j.version>
     <completable-futures.version>0.3.6</completable-futures.version>
     <failsafe.version>3.3.2</failsafe.version>
 
     <!-- test dependencies -->
-    <testcontainers.version>1.18.3</testcontainers.version>
+    <testcontainers.version>1.20.4</testcontainers.version>
+    <!-- Set docker-java.version to the version of docker-java used in org.testcontainers:testcontainers pom -->
+    <docker-java.version>3.4.0</docker-java.version>
     <hamcrest.version>2.2</hamcrest.version>
     <restassured.version>5.4.0</restassured.version>
-
-    <!-- Set docker-java.version to the version of docker-java used in Testcontainers -->
-    <docker-java.version>3.3.0</docker-java.version>
     <kerby.version>1.1.1</kerby.version>
     <testng.version>7.7.1</testng.version>
     <mockito.version>5.6.0</mockito.version>
@@ -317,7 +316,7 @@ flexible messaging model and an intuitive client API.</description>
     <j2objc-annotations.version>1.3</j2objc-annotations.version>
     <lightproto-maven-plugin.version>0.4</lightproto-maven-plugin.version>
     <build-helper-maven-plugin.version>3.6.0</build-helper-maven-plugin.version>
-    <dependency-check-maven.version>10.0.2</dependency-check-maven.version>
+    <dependency-check-maven.version>12.1.0</dependency-check-maven.version>
     <roaringbitmap.version>1.2.0</roaringbitmap.version>
     <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
     <oshi.version>6.4.0</oshi.version>
@@ -326,6 +325,11 @@ flexible messaging model and an intuitive client API.</description>
 
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <groupId>net.minidev</groupId>
+        <artifactId>json-smart</artifactId>
+        <version>${json-smart.version}</version>
+      </dependency>
 
       <dependency>
         <groupId>org.jline</groupId>
@@ -854,9 +858,9 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>javax.ws.rs</groupId>
-        <artifactId>javax.ws.rs-api</artifactId>
-        <version>${javax.ws.rs-api.version}</version>
+        <groupId>jakarta.ws.rs</groupId>
+        <artifactId>jakarta.ws.rs-api</artifactId>
+        <version>${jakarta.ws.rs-api.version}</version>
       </dependency>
 
       <dependency>
@@ -990,6 +994,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>com.yahoo.athenz</groupId>
         <artifactId>athenz-zts-java-client-core</artifactId>
         <version>${athenz.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>javax.ws.rs</groupId>
+            <artifactId>javax.ws.rs-api</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
@@ -1418,9 +1428,9 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>javax.annotation</groupId>
-        <artifactId>javax.annotation-api</artifactId>
-        <version>${javax.annotation-api.version}</version>
+        <groupId>jakarta.annotation</groupId>
+        <artifactId>jakarta.annotation-api</artifactId>
+        <version>${jakarta.annotation-api.version}</version>
       </dependency>
 
       <dependency>
@@ -1433,12 +1443,6 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>jakarta.xml.bind</groupId>
         <artifactId>jakarta.xml.bind-api</artifactId>
         <version>${jakarta.xml.bind.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.sun.activation</groupId>
-        <artifactId>javax.activation</artifactId>
-        <version>${javax.activation.version}</version>
       </dependency>
 
       <dependency>
@@ -1723,11 +1727,6 @@ flexible messaging model and an intuitive client API.</description>
       <artifactId>lombok</artifactId>
       <scope>provided</scope>
     </dependency>
-    <dependency>
-      <groupId>javax.annotation</groupId>
-      <artifactId>javax.annotation-api</artifactId>
-      <scope>provided</scope>
-    </dependency>
 
     <dependency>
       <!-- We use MockedBookKeeper in many unit tests -->
@@ -2003,6 +2002,9 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>src/assemble/LICENSE.bin.txt</exclude>
             <exclude>src/assemble/NOTICE.bin.txt</exclude>
 
+            <!-- exclude services files -->
+            <exclude>**/META-INF/services/*</exclude>
+
             <!-- These files are generated automatically by the Protobuf compiler
                  and are included in source tree for convenience -->
             <exclude>src/main/java/org/apache/bookkeeper/mledger/proto/MLDataFormats.java</exclude>
@@ -2101,6 +2103,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/*.so</exclude>
             <exclude>**/*.so.*</exclude>
             <exclude>**/*.dylib</exclude>
+            <exclude>**/*.patch</exclude>
             <exclude>src/test/resources/*.txt</exclude>
           </excludes>
         </configuration>
@@ -2432,7 +2435,8 @@ flexible messaging model and an intuitive client API.</description>
             <configuration>
               <configLocation>${pulsar.basedir}/buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
               <suppressionsLocation>${pulsar.basedir}/buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
-              <encoding>UTF-8</encoding>
+              <inputEncoding>UTF-8</inputEncoding>
+              <outputEncoding>UTF-8</outputEncoding>
               <excludes>**/proto/*</excludes>
             </configuration>
           </plugin>
@@ -2496,7 +2500,7 @@ flexible messaging model and an intuitive client API.</description>
                          <configuration>
                            <configLocation>${pulsar.basedir}/buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
                            <suppressionsLocation>${pulsar.basedir}/buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
-                           <encoding>UTF-8</encoding>
+                           <inputEncoding>UTF-8</inputEncoding>
                            <excludes>**/proto/*</excludes>
                          </configuration>
                           <goals>
@@ -2581,6 +2585,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-metadata</module>
         <module>jetcd-core-shaded</module>
         <module>jclouds-shaded</module>
+        <module>pulsar-client-dependencies-minimized</module>
 
         <!-- package management releated modules (begin) -->
         <module>pulsar-package-management</module>
@@ -2646,6 +2651,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>distribution</module>
         <module>pulsar-metadata</module>
         <module>jetcd-core-shaded</module>
+        <module>pulsar-client-dependencies-minimized</module>
         <!-- package management releated modules (begin) -->
         <module>pulsar-package-management</module>
         <!-- package management releated modules (end) -->

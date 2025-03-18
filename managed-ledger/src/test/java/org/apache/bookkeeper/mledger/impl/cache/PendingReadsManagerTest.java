@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -91,7 +92,8 @@ public class PendingReadsManagerTest  {
         config.setReadEntryTimeoutSeconds(10000);
         when(rangeEntryCache.getName()).thenReturn("my-topic");
         when(rangeEntryCache.getManagedLedgerConfig()).thenReturn(config);
-        inflighReadsLimiter = new InflightReadsLimiter(0, OpenTelemetry.noop());
+        inflighReadsLimiter = new InflightReadsLimiter(0, 0, 0,
+                mock(ScheduledExecutorService.class), OpenTelemetry.noop());
         when(rangeEntryCache.getPendingReadsLimiter()).thenReturn(inflighReadsLimiter);
         pendingReadsManager = new PendingReadsManager(rangeEntryCache);
         doAnswer(new Answer() {
@@ -108,7 +110,7 @@ public class PendingReadsManagerTest  {
                 return null;
             }
         }).when(rangeEntryCache).asyncReadEntry0(any(), anyLong(), anyLong(),
-                anyBoolean(), any(), any());
+                anyBoolean(), any(), any(), anyBoolean());
 
         lh = mock(ReadHandle.class);
         ml = mock(ManagedLedgerImpl.class);

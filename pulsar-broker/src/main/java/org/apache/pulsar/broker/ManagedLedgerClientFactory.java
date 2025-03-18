@@ -72,8 +72,21 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
         managedLedgerFactoryConfig.setCacheEvictionTimeThresholdMillis(
                 conf.getManagedLedgerCacheEvictionTimeThresholdMillis());
         managedLedgerFactoryConfig.setCopyEntriesInCache(conf.isManagedLedgerCacheCopyEntries());
-        managedLedgerFactoryConfig.setManagedLedgerMaxReadsInFlightSize(
-                conf.getManagedLedgerMaxReadsInFlightSizeInMB() * 1024L * 1024L);
+        long managedLedgerMaxReadsInFlightSizeBytes = conf.getManagedLedgerMaxReadsInFlightSizeInMB() * 1024L * 1024L;
+        if (managedLedgerMaxReadsInFlightSizeBytes > 0 && conf.getDispatcherMaxReadSizeBytes() > 0
+                && managedLedgerMaxReadsInFlightSizeBytes < conf.getDispatcherMaxReadSizeBytes()) {
+            log.warn("Invalid configuration for managedLedgerMaxReadsInFlightSizeInMB: {}, "
+                            + "dispatcherMaxReadSizeBytes: {}. managedLedgerMaxReadsInFlightSizeInMB in bytes should "
+                            + "be greater than dispatcherMaxReadSizeBytes. You should set "
+                            + "managedLedgerMaxReadsInFlightSizeInMB to at least {}",
+                    conf.getManagedLedgerMaxReadsInFlightSizeInMB(), conf.getDispatcherMaxReadSizeBytes(),
+                    (conf.getDispatcherMaxReadSizeBytes() / (1024L * 1024L)) + 1);
+        }
+        managedLedgerFactoryConfig.setManagedLedgerMaxReadsInFlightSize(managedLedgerMaxReadsInFlightSizeBytes);
+        managedLedgerFactoryConfig.setManagedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis(
+                conf.getManagedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis());
+        managedLedgerFactoryConfig.setManagedLedgerMaxReadsInFlightPermitsAcquireQueueSize(
+                conf.getManagedLedgerMaxReadsInFlightPermitsAcquireQueueSize());
         managedLedgerFactoryConfig.setPrometheusStatsLatencyRolloverSeconds(
                 conf.getManagedLedgerPrometheusStatsLatencyRolloverSeconds());
         managedLedgerFactoryConfig.setTraceTaskExecution(conf.isManagedLedgerTraceTaskExecution());
@@ -116,8 +129,8 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
 
         try {
             this.managedLedgerFactory =
-                    new ManagedLedgerFactoryImpl(metadataStore, bkFactory, managedLedgerFactoryConfig, statsLogger,
-                            openTelemetry);
+                    createManagedLedgerFactory(metadataStore, openTelemetry, bkFactory, managedLedgerFactoryConfig,
+                            statsLogger);
         } catch (Exception e) {
             statsProvider.stop();
             defaultBkClient.close();
@@ -145,6 +158,16 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
                 return defaultBkClient;
             }
         };
+    }
+
+    protected ManagedLedgerFactoryImpl createManagedLedgerFactory(MetadataStoreExtended metadataStore,
+                                                                  OpenTelemetry openTelemetry,
+                                                                  BookkeeperFactoryForCustomEnsemblePlacementPolicy
+                                                                          bkFactory,
+                                                                  ManagedLedgerFactoryConfig managedLedgerFactoryConfig,
+                                                                  StatsLogger statsLogger) throws Exception {
+        return new ManagedLedgerFactoryImpl(metadataStore, bkFactory, managedLedgerFactoryConfig, statsLogger,
+                openTelemetry);
     }
 
     @Override

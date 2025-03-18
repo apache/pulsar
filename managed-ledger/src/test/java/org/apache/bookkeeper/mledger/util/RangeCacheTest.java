@@ -20,19 +20,23 @@ package org.apache.bookkeeper.mledger.util;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.ReferenceCounted;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import lombok.Cleanup;
 import lombok.Data;
 import org.apache.commons.lang3.tuple.Pair;
 import org.awaitility.Awaitility;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class RangeCacheTest {
@@ -139,9 +143,14 @@ public class RangeCacheTest {
         assertEquals(cache.getNumberOfEntries(), 2);
     }
 
+    @DataProvider
+    public static Object[][] retainBeforeEviction() {
+        return new Object[][]{ { true }, { false } };
+    }
 
-    @Test
-    public void customTimeExtraction() {
+
+    @Test(dataProvider = "retainBeforeEviction")
+    public void customTimeExtraction(boolean retain) {
         RangeCache<Integer, RefString> cache = new RangeCache<>(value -> value.s.length(), x -> x.s.length());
 
         cache.put(1, new RefString("1"));
@@ -151,13 +160,30 @@ public class RangeCacheTest {
 
         assertEquals(cache.getSize(), 10);
         assertEquals(cache.getNumberOfEntries(), 4);
+        final var retainedEntries = cache.getRange(1, 4444);
+        for (final var entry : retainedEntries) {
+            assertEquals(entry.refCnt(), 2);
+            if (!retain) {
+                entry.release();
+            }
+        }
 
         Pair<Integer, Long> evictedSize = cache.evictLEntriesBeforeTimestamp(3);
         assertEquals(evictedSize.getRight().longValue(), 6);
         assertEquals(evictedSize.getLeft().longValue(), 3);
-
         assertEquals(cache.getSize(), 4);
         assertEquals(cache.getNumberOfEntries(), 1);
+
+        if (retain) {
+            final var valueToRefCnt = retainedEntries.stream().collect(Collectors.toMap(RefString::getS,
+                    AbstractReferenceCounted::refCnt));
+            assertEquals(valueToRefCnt, Map.of("1", 1, "22", 1, "333", 1, "4444", 2));
+            retainedEntries.forEach(AbstractReferenceCounted::release);
+        } else {
+            final var valueToRefCnt = retainedEntries.stream().filter(v -> v.refCnt() > 0).collect(Collectors.toMap(
+                    RefString::getS, AbstractReferenceCounted::refCnt));
+            assertEquals(valueToRefCnt, Map.of("4444", 1));
+        }
     }
 
     @Test
@@ -337,5 +363,21 @@ public class RangeCacheTest {
         value.setMatchingKey(123);
         cache.clear();
         assertEquals(cache.getNumberOfEntries(), 0);
+    }
+
+    @Test
+    public void testGetKeyWithDifferentInstance() {
+        RangeCache<Integer, RefString> cache = new RangeCache<>();
+        Integer key = 129;
+        cache.put(key, new RefString("129"));
+        // create a different instance of the key
+        Integer key2 = Integer.valueOf(129);
+        // key and key2 are different instances but they are equal
+        assertNotSame(key, key2);
+        assertEquals(key, key2);
+        // get the value using key2
+        RefString s = cache.get(key2);
+        // the value should be found
+        assertEquals(s.s, "129");
     }
 }

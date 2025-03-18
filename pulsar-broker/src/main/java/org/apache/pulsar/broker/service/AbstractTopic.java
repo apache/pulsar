@@ -48,6 +48,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.ToLongFunction;
 import javax.annotation.Nonnull;
 import lombok.Getter;
+import lombok.Setter;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
@@ -95,6 +96,13 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
     protected static final long POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS = 60;
 
     protected final String topic;
+
+    // Reference to the CompletableFuture returned when creating this topic in BrokerService.
+    // Used to safely remove the topic from BrokerService's cache by ensuring we remove the exact
+    // topic instance that was created.
+    @Getter
+    @Setter
+    protected volatile CompletableFuture<Optional<Topic>> createFuture;
 
     // Producers currently connected to this topic
     protected final ConcurrentHashMap<String, Producer> producers;
@@ -186,7 +194,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
 
         this.lastActive = System.nanoTime();
         this.preciseTopicPublishRateLimitingEnable = config.isPreciseTopicPublishRateLimiterEnable();
-        topicPublishRateLimiter = new PublishRateLimiterImpl(brokerService.getPulsar().getMonotonicSnapshotClock());
+        topicPublishRateLimiter = new PublishRateLimiterImpl(brokerService.getPulsar().getMonotonicClock());
         updateActiveRateLimiters();
 
         additionalSystemCursorNames = brokerService.pulsar().getConfiguration().getAdditionalSystemCursorNames();
@@ -587,6 +595,14 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
             for (Subscription subscription : subscriptions) {
                 count += subscription.getNumberOfSameAddressConsumers(clientAddress);
             }
+        }
+        return count;
+    }
+
+    protected int getNumberOfConsumers(final Collection<? extends Subscription> subscriptions) {
+        int count = 0;
+        for (Subscription subscription : subscriptions) {
+            count += subscription.getConsumers().size();
         }
         return count;
     }

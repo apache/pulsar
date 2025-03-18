@@ -96,8 +96,8 @@ import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl
 import org.apache.pulsar.broker.lookup.v1.TopicLookup;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.protocol.ProtocolHandlers;
-import org.apache.pulsar.broker.qos.DefaultMonotonicSnapshotClock;
-import org.apache.pulsar.broker.qos.MonotonicSnapshotClock;
+import org.apache.pulsar.broker.qos.DefaultMonotonicClock;
+import org.apache.pulsar.broker.qos.MonotonicClock;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroupService;
 import org.apache.pulsar.broker.resourcegroup.ResourceUsageTopicTransportManager;
 import org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager;
@@ -231,6 +231,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private final ScheduledExecutorService loadManagerExecutor;
     private ScheduledExecutorService compactorExecutor;
     private OrderedScheduler offloaderScheduler;
+    private OrderedScheduler offloaderReadExecutor;
     private OffloadersCache offloadersCache = new OffloadersCache();
     private LedgerOffloader defaultOffloader;
     private LedgerOffloaderStats offloaderStats;
@@ -300,7 +301,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     private TransactionPendingAckStoreProvider transactionPendingAckStoreProvider;
     private final ExecutorProvider transactionExecutorProvider;
-    private final DefaultMonotonicSnapshotClock monotonicSnapshotClock;
+    private final MonotonicClock monotonicClock;
     private String brokerId;
     private final CompletableFuture<Void> readyForIncomingRequestsFuture = new CompletableFuture<>();
     private final List<Runnable> pendingTasksBeforeReadyForIncomingRequests = new ArrayList<>();
@@ -395,8 +396,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         // here in the constructor we don't have the offloader scheduler yet
         this.offloaderStats = LedgerOffloaderStats.create(false, false, null, 0);
 
-        this.monotonicSnapshotClock = new DefaultMonotonicSnapshotClock(TimeUnit.MILLISECONDS.toNanos(
-                DEFAULT_MONOTONIC_CLOCK_GRANULARITY_MILLIS), System::nanoTime);
+        this.monotonicClock = createMonotonicClock(config);
+    }
+
+    protected MonotonicClock createMonotonicClock(ServiceConfiguration config) {
+        return new DefaultMonotonicClock();
     }
 
     public MetadataStore createConfigurationMetadataStore(PulsarMetadataEventSynchronizer synchronizer,
@@ -654,6 +658,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             executorServicesShutdown.shutdown(compactorExecutor);
             executorServicesShutdown.shutdown(offloaderScheduler);
+            executorServicesShutdown.shutdown(offloaderReadExecutor);
             executorServicesShutdown.shutdown(executor);
             executorServicesShutdown.shutdown(orderedExecutor);
 
@@ -701,7 +706,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             brokerClientSharedScheduledExecutorProvider.shutdownNow();
             brokerClientSharedLookupExecutorProvider.shutdownNow();
             brokerClientSharedTimer.stop();
-            monotonicSnapshotClock.close();
+            if (monotonicClock instanceof AutoCloseable c) {
+                c.close();
+            }
 
             if (openTelemetryTransactionPendingAckStoreStats != null) {
                 openTelemetryTransactionPendingAckStoreStats.close();
@@ -979,6 +986,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 this.webSocketService.setLocalCluster(clusterData);
             }
 
+            // Initialize namespace service, after service url assigned. Should init zk and refresh self owner info.
+            this.nsService.initialize();
+
             // Start the leader election service
             startLeaderElectionService();
 
@@ -989,9 +999,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             // The load manager service and its service unit state channel need to be initialized first
             // (namespace service depends on load manager)
             this.startLoadManagementService();
-
-            // Initialize namespace service, after service url assigned. Should init zk and refresh self owner info.
-            this.nsService.initialize();
 
             // Start topic level policies service
             this.topicPoliciesService = initTopicPoliciesService();
@@ -1610,7 +1617,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                                         LedgerOffloader.METADATA_PULSAR_CLUSTER_NAME.toLowerCase(),
                                         config.getClusterName()
                                 ),
-                                schemaStorage, getOffloaderScheduler(offloadPolicies), this.offloaderStats);
+                                schemaStorage, getOffloaderScheduler(offloadPolicies),
+                                getOffloaderReadScheduler(offloadPolicies), this.offloaderStats);
                     } catch (IOException ioe) {
                         throw new PulsarServerException(ioe.getMessage(), ioe.getCause());
                     }
@@ -1680,6 +1688,15 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     .name("offloader").build();
         }
         return this.offloaderScheduler;
+    }
+
+    protected synchronized OrderedScheduler getOffloaderReadScheduler(OffloadPoliciesImpl offloadPolicies) {
+        if (this.offloaderReadExecutor == null) {
+            this.offloaderReadExecutor = OrderedScheduler.newSchedulerBuilder()
+                    .numThreads(offloadPolicies.getManagedLedgerOffloadReadThreads())
+                    .name("offloader-read").build();
+        }
+        return this.offloaderReadExecutor;
     }
 
     public PulsarClientImpl createClientImpl(ClientConfigurationData clientConf)
@@ -1982,8 +1999,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return brokerService.getListenPortTls();
     }
 
-    public MonotonicSnapshotClock getMonotonicSnapshotClock() {
-        return monotonicSnapshotClock;
+    public MonotonicClock getMonotonicClock() {
+        return monotonicClock;
     }
 
     public static WorkerConfig initializeWorkerConfigFromBrokerConfig(ServiceConfiguration brokerConfig,

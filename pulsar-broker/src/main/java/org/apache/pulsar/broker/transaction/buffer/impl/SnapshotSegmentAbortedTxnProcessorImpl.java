@@ -768,8 +768,16 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     try {
                         while (wait(reader.hasMoreEventsAsync(), "has more events")) {
                             final var message = wait(reader.readNextAsync(), "read next");
-                            if (topic.getName().equals(message.getValue().getTopicName())) {
-                                snapshotSegmentsWriter.getFuture().get().write(message.getKey(), null);
+                            final String topicName;
+                            final String key;
+                            try {
+                                topicName = message.getValue().getTopicName();
+                                key = message.getKey();
+                            } finally {
+                                message.release();
+                            }
+                            if (topic.getName().equals(topicName)) {
+                                snapshotSegmentsWriter.getFuture().get().write(key, null);
                             }
                         }
                         future.complete(null);

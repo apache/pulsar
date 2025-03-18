@@ -105,6 +105,16 @@ public class CmdFunctions extends CmdBase {
 
         @Option(names = "--namespace", description = "The namespace of a Pulsar Function")
         protected String namespace;
+
+        @Override
+        public void processArguments() {
+            if (tenant == null) {
+                tenant = PUBLIC_TENANT;
+            }
+            if (namespace == null) {
+                namespace = DEFAULT_NAMESPACE;
+            }
+        }
     }
 
     /**

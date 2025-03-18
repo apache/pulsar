@@ -224,6 +224,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private final CallbackMutex offloadMutex = new CallbackMutex();
     public static final CompletableFuture<Position> NULL_OFFLOAD_PROMISE = CompletableFuture
             .completedFuture(PositionFactory.LATEST);
+    @VisibleForTesting
+    @Getter
     protected volatile LedgerHandle currentLedger;
     protected volatile long currentLedgerEntries = 0;
     protected volatile long currentLedgerSize = 0;
@@ -427,6 +429,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 log.debug("[{}] Opened ledger {}: {}", name, id, BKException.getMessage(rc));
                             }
                             if (rc == BKException.Code.OK) {
+                                if (State.Terminated.equals(state)) {
+                                    currentLedger = lh;
+                                }
                                 LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(id)
                                         .setEntries(lh.getLastAddConfirmed() + 1).setSize(lh.getLength())
                                         .setTimestamp(clock.millis()).build();
@@ -574,6 +579,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             executor.execute(() -> {
                 mbean.endDataLedgerCreateOp();
                 if (rc != BKException.Code.OK) {
+                    log.error("[{}] Error creating ledger rc={} {}", name, rc, BKException.getMessage(rc));
                     callback.initializeFailed(createManagedLedgerException(rc));
                     return;
                 }
@@ -631,7 +637,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     for (final String cursorName : consumers) {
                         log.info("[{}] Loading cursor {}", name, cursorName);
                         final ManagedCursorImpl cursor;
-                        cursor = new ManagedCursorImpl(bookKeeper, ManagedLedgerImpl.this, cursorName);
+                        cursor = createCursor(ManagedLedgerImpl.this.bookKeeper, cursorName);
 
                         cursor.recover(new VoidCallback() {
                             @Override
@@ -662,7 +668,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             log.debug("[{}] Recovering cursor {} lazily", name, cursorName);
                         }
                         final ManagedCursorImpl cursor;
-                        cursor = new ManagedCursorImpl(bookKeeper, ManagedLedgerImpl.this, cursorName);
+                        cursor = createCursor(ManagedLedgerImpl.this.bookKeeper, cursorName);
                         CompletableFuture<ManagedCursor> cursorRecoveryFuture = new CompletableFuture<>();
                         uninitializedCursors.put(cursorName, cursorRecoveryFuture);
 
@@ -1006,7 +1012,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Creating new cursor: {}", name, cursorName);
         }
-        final ManagedCursorImpl cursor = new ManagedCursorImpl(bookKeeper, this, cursorName);
+        final ManagedCursorImpl cursor = createCursor(bookKeeper, cursorName);
         CompletableFuture<ManagedCursor> cursorFuture = new CompletableFuture<>();
         uninitializedCursors.put(cursorName, cursorFuture);
         Position position = InitialPosition.Earliest == initialPosition ? getFirstPosition() : getLastPosition();
@@ -1036,6 +1042,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 callback.openCursorFailed(exception, ctx);
             }
         });
+    }
+
+    protected ManagedCursorImpl createCursor(BookKeeper bookKeeper, String cursorName) {
+        return new ManagedCursorImpl(bookKeeper, this, cursorName);
     }
 
     @Override
@@ -1139,16 +1149,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return cachedCursor;
         }
 
-        NonDurableCursorImpl cursor = new NonDurableCursorImpl(bookKeeper, this, cursorName,
-                startCursorPosition, initialPosition, isReadCompacted);
-        cursor.setActive();
-
-        log.info("[{}] Opened new cursor: {}", name, cursor);
+        // The backlog of a non-durable cursor could be incorrect if the cursor is created before `internalTrimLedgers`
+        // and added to the managed ledger after `internalTrimLedgers`.
+        // For more details, see https://github.com/apache/pulsar/pull/23951.
         synchronized (this) {
+            NonDurableCursorImpl cursor = new NonDurableCursorImpl(bookKeeper, this, cursorName,
+                    startCursorPosition, initialPosition, isReadCompacted);
+            cursor.setActive();
+            log.info("[{}] Opened new cursor: {}", name, cursor);
             addCursor(cursor);
+            return cursor;
         }
-
-        return cursor;
     }
 
     @Override
@@ -4141,7 +4152,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     protected boolean checkAndCompleteLedgerOpTask(int rc, LedgerHandle lh, Object ctx) {
         if (ctx instanceof CompletableFuture) {
             // ledger-creation is already timed out and callback is already completed so, delete this ledger and return.
-            if (((CompletableFuture) ctx).complete(lh)) {
+            if (((CompletableFuture) ctx).complete(lh) || rc == BKException.Code.TimeoutException) {
                 return false;
             } else {
                 if (rc == BKException.Code.OK) {

@@ -526,7 +526,7 @@ public class BacklogQuotaManagerTest {
             assertThat(topicStats.getBacklogSize()).isEqualTo(0);
             assertThat(topicStats.getSubscriptions().get(subName1).getMsgBacklog()).isEqualTo(0);
             assertThat(topicStats.getSubscriptions().get(subName2).getMsgBacklog()).isEqualTo(0);
-            assertThat(topicStats.getOldestBacklogMessageAgeSeconds()).isEqualTo(0);
+            assertThat(topicStats.getOldestBacklogMessageAgeSeconds()).isEqualTo(-1);
             assertThat(topicStats.getOldestBacklogMessageSubscriptionName()).isNull();
 
             metrics = prometheusMetricsClient.getMetrics();
@@ -537,7 +537,7 @@ public class BacklogQuotaManagerTest {
                     entry("cluster", CLUSTER_NAME),
                     entry("namespace", namespace),
                     entry("topic", topic1));
-            assertThat((long) backlogAgeMetric.value).isEqualTo(0);
+            assertThat((long) backlogAgeMetric.value).isEqualTo(-1);
 
             // producer should create success.
             Producer<byte[]> producer2 = createProducer(client, topic1);
@@ -598,7 +598,7 @@ public class BacklogQuotaManagerTest {
             assertThat(topicStats.getBacklogQuotaLimitTime()).isEqualTo(timeLimitSeconds);
             assertThat(topicStats.getBacklogSize()).isEqualTo(0);
             assertThat(topicStats.getSubscriptions().get(subName1).getMsgBacklog()).isEqualTo(0);
-            assertThat(topicStats.getOldestBacklogMessageAgeSeconds()).isEqualTo(0);
+            assertThat(topicStats.getOldestBacklogMessageAgeSeconds()).isEqualTo(-1);
             assertThat(topicStats.getOldestBacklogMessageSubscriptionName()).isNull();
 
             Metric backlogAgeMetric =
@@ -608,7 +608,7 @@ public class BacklogQuotaManagerTest {
                     entry("cluster", CLUSTER_NAME),
                     entry("namespace", namespace),
                     entry("topic", topic1));
-            assertThat((long) backlogAgeMetric.value).isEqualTo(0);
+            assertThat((long) backlogAgeMetric.value).isEqualTo(-1);
 
             // producer should create success.
             Producer<byte[]> producer2 = createProducer(client, topic1);
@@ -616,6 +616,118 @@ public class BacklogQuotaManagerTest {
         }
         config.setPreciseTimeBasedBacklogQuotaCheck(false);
         config.setExposePreciseBacklogInPrometheus(false);
+    }
+
+    @Test
+    public void backlogsAgeMetricsPreciseWithoutBacklogQuota() throws Exception {
+        config.setPreciseTimeBasedBacklogQuotaCheck(true);
+        final String namespace = "prop/ns-quota";
+        assertEquals(admin.namespaces().getBacklogQuotaMap(namespace), new HashMap<>());
+
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString())
+                .statsInterval(0, SECONDS).build()) {
+            final String topic1 = "persistent://prop/ns-quota/topic2" + UUID.randomUUID();
+
+            final String subName1 = "c1";
+            final String subName2 = "c2";
+            final int numMsgs = 4;
+
+            Consumer<byte[]> consumer1 = client.newConsumer().topic(topic1).subscriptionName(subName1)
+                    .acknowledgmentGroupTime(0, SECONDS)
+                    .subscribe();
+            Consumer<byte[]> consumer2 = client.newConsumer().topic(topic1).subscriptionName(subName2)
+                    .acknowledgmentGroupTime(0, SECONDS)
+                    .subscribe();
+            Producer<byte[]> producer = createProducer(client, topic1);
+
+            byte[] content = new byte[1024];
+            for (int i = 0; i < numMsgs; i++) {
+                Thread.sleep(3000); // Guarantees if we use wrong message in age, to show up in failed test
+                producer.send(content);
+            }
+
+            String c1MarkDeletePositionBefore =
+                    admin.topics().getInternalStats(topic1).cursors.get(subName1).markDeletePosition;
+
+            // Move subscription 1, one message, such that subscription 2 is the oldest
+            //  S2  S1
+            //  0   1
+            Message<byte[]> oldestMessage = consumer1.receive();
+            consumer1.acknowledge(oldestMessage);
+            log.info("Subscription 1 moved 1 message. Now subscription 2 is the oldest. Oldest message:"+
+                    oldestMessage.getMessageId());
+
+            c1MarkDeletePositionBefore = waitForMarkDeletePositionToChange(topic1, subName1, c1MarkDeletePositionBefore);
+            waitForQuotaCheckToRunTwice();
+
+            Metrics metrics = prometheusMetricsClient.getMetrics();
+            TopicStats topicStats = getTopicStats(topic1);
+            
+            long expectedMessageAgeSeconds = MILLISECONDS.toSeconds(System.currentTimeMillis() - oldestMessage.getPublishTime());
+            assertThat(topicStats.getOldestBacklogMessageAgeSeconds())
+                    .isCloseTo(expectedMessageAgeSeconds, within(1L));
+            
+            Metric backlogAgeMetric =
+                    metrics.findSingleMetricByNameAndLabels("pulsar_storage_backlog_age_seconds",
+                            Pair.of("topic", topic1));
+            assertThat(backlogAgeMetric.tags).containsExactly(
+                    entry("cluster", CLUSTER_NAME),
+                    entry("namespace", namespace),
+                    entry("topic", topic1));
+            assertThat((long) backlogAgeMetric.value).isCloseTo(expectedMessageAgeSeconds, within(2L));
+        }
+        config.setPreciseTimeBasedBacklogQuotaCheck(false);
+    }
+
+    @Test
+    public void backlogsAgeMetricsNoPreciseWithoutBacklogQuota() throws Exception {
+        config.setPreciseTimeBasedBacklogQuotaCheck(false);
+        final String namespace = "prop/ns-quota";
+        assertEquals(admin.namespaces().getBacklogQuotaMap(namespace), new HashMap<>());
+
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString())
+                .statsInterval(0, SECONDS).build()) {
+            final String topic1 = "persistent://prop/ns-quota/topic2" + UUID.randomUUID();
+
+            final String subName1 = "c1";
+            final int numMsgs = 5;
+
+            Consumer<byte[]> consumer1 = client.newConsumer().topic(topic1).subscriptionName(subName1)
+                    .acknowledgmentGroupTime(0, SECONDS)
+                    .subscribe();
+            Producer<byte[]> producer = createProducer(client, topic1);
+
+            byte[] content = new byte[1024];
+            for (int i = 0; i < numMsgs; i++) {
+                Thread.sleep(3000); // Guarantees if we use wrong message in age, to show up in failed test
+                producer.send(content);
+            }
+
+            Message<byte[]> oldestMessage = consumer1.receive();
+            consumer1.acknowledge(oldestMessage);
+            log.info("Moved subscription 1, by 1 message");
+
+            // Unload topic to trigger the ledger close
+            unloadAndLoadTopic(topic1, producer);
+            long unloadTime = System.currentTimeMillis();
+            waitForQuotaCheckToRunTwice();
+
+            Metrics metrics = prometheusMetricsClient.getMetrics();
+            TopicStats topicStats = getTopicStats(topic1);
+
+            long expectedMessageAgeSeconds = MILLISECONDS.toSeconds(System.currentTimeMillis() - unloadTime);
+            assertThat(topicStats.getOldestBacklogMessageAgeSeconds())
+                    .isCloseTo(expectedMessageAgeSeconds, within(1L));
+
+            Metric backlogAgeMetric =
+                    metrics.findSingleMetricByNameAndLabels("pulsar_storage_backlog_age_seconds",
+                            Pair.of("topic", topic1));
+            assertThat(backlogAgeMetric.tags).containsExactly(
+                    entry("cluster", CLUSTER_NAME),
+                    entry("namespace", namespace),
+                    entry("topic", topic1));
+            assertThat((long) backlogAgeMetric.value).isCloseTo(expectedMessageAgeSeconds, within(2L));
+        }
     }
 
     private long getReadEntries(String topic1) {
@@ -718,6 +830,15 @@ public class BacklogQuotaManagerTest {
             assertThat(topicStats.getOldestBacklogMessageSubscriptionName()).isEqualTo(subName2);
             expectedAge = MILLISECONDS.toSeconds(System.currentTimeMillis() - unloadTime);
             assertThat(topicStats.getOldestBacklogMessageAgeSeconds()).isCloseTo(expectedAge, within(1L));
+            
+            // Unsubscribe consume1 and consumer2
+            consumer1.unsubscribe();
+            consumer2.unsubscribe();
+            waitForQuotaCheckToRunTwice();
+            topicStats = getTopicStats(topic1);
+            assertThat(topicStats.getOldestBacklogMessageSubscriptionName()).isNull();
+            assertThat(topicStats.getOldestBacklogMessageAgeSeconds()).isEqualTo(-1);
+            
             config.setManagedLedgerMaxEntriesPerLedger(MAX_ENTRIES_PER_LEDGER);
         }
     }
@@ -773,11 +894,11 @@ public class BacklogQuotaManagerTest {
             Metrics metrics = prometheusMetricsClient.getMetrics();
             assertEquals(topicStats.getSubscriptions().get(subName1).getMsgBacklog(), 0);
             assertThat(topicStats.getOldestBacklogMessageSubscriptionName()).isNull();
-            assertThat(topicStats.getOldestBacklogMessageAgeSeconds()).isEqualTo(0);
+            assertThat(topicStats.getOldestBacklogMessageAgeSeconds()).isEqualTo(-1);
             Metric backlogAgeMetric =
                     metrics.findSingleMetricByNameAndLabels("pulsar_storage_backlog_age_seconds",
                             Pair.of("topic", topic1));
-            assertThat(backlogAgeMetric.value).isEqualTo(0);
+            assertThat(backlogAgeMetric.value).isEqualTo(-1);
 
             // producer should create success.
             Producer<byte[]> producer2 = createProducer(client, topic1);

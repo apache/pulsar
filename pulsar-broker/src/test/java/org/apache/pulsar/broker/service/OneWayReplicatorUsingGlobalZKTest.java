@@ -156,6 +156,10 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         p1.close();
 
         admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(admin2.topics().getList(ns1).contains(topic1));
+        });
+        admin2.topics().createSubscription(topic1, subscription1, MessageId.earliest);
         org.apache.pulsar.client.api.Consumer<String> c1 = client2.newConsumer(Schema.STRING).topic(topic1)
                 .subscriptionName(subscription1).subscribe();
         Message<String> msg2 = c1.receive(2, TimeUnit.SECONDS);
@@ -203,13 +207,15 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         // The topics under the namespace of the cluster-1 will be deleted.
         // Verify the result.
         admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster2)));
-        Awaitility.await().atMost(Duration.ofSeconds(120)).untilAsserted(() -> {
+        Awaitility.await().atMost(Duration.ofSeconds(60)).ignoreExceptions().untilAsserted(() -> {
             Map<String, CompletableFuture<Optional<Topic>>> tps = pulsar1.getBrokerService().getTopics();
             assertFalse(tps.containsKey(topic));
             assertFalse(tps.containsKey(topicChangeEvents));
-            assertFalse(pulsar1.getNamespaceService().checkTopicExists(TopicName.get(topic)).join().isExists());
+            assertFalse(pulsar1.getNamespaceService().checkTopicExists(TopicName.get(topic))
+                    .get(5, TimeUnit.SECONDS).isExists());
             assertFalse(pulsar1.getNamespaceService()
-                    .checkTopicExists(TopicName.get(topicChangeEvents)).join().isExists());
+                    .checkTopicExists(TopicName.get(topicChangeEvents))
+                    .get(5, TimeUnit.SECONDS).isExists());
         });
 
         // cleanup.

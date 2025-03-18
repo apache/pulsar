@@ -960,7 +960,8 @@ public abstract class NamespacesBase extends AdminResource {
                 LocalPolicies localPolicies = oldPolicies.map(
                         policies -> new LocalPolicies(policies.bundles,
                                 bookieAffinityGroup,
-                                policies.namespaceAntiAffinityGroup))
+                                policies.namespaceAntiAffinityGroup,
+                                policies.migrated))
                         .orElseGet(() -> new LocalPolicies(getBundles(config().getDefaultNumberOfNamespaceBundles()),
                                 bookieAffinityGroup,
                                 null));
@@ -1779,7 +1780,8 @@ public abstract class NamespacesBase extends AdminResource {
             getLocalPolicies().setLocalPoliciesWithCreate(namespaceName, (lp)->
                 lp.map(policies -> new LocalPolicies(policies.bundles,
                         policies.bookieAffinityGroup,
-                        antiAffinityGroup))
+                        antiAffinityGroup,
+                        policies.migrated))
                         .orElseGet(() -> new LocalPolicies(defaultBundle(),
                                 null, antiAffinityGroup))
             );
@@ -1816,7 +1818,8 @@ public abstract class NamespacesBase extends AdminResource {
             getLocalPolicies().setLocalPolicies(namespaceName, (policies)->
                 new LocalPolicies(policies.bundles,
                         policies.bookieAffinityGroup,
-                        null));
+                        null,
+                        policies.migrated));
             log.info("[{}] Successfully removed anti-affinity group for a namespace={}", clientAppId(), namespaceName);
         } catch (Exception e) {
             log.error("[{}] Failed to remove anti-affinity group for namespace {}", clientAppId(), namespaceName, e);
@@ -1990,21 +1993,6 @@ public abstract class NamespacesBase extends AdminResource {
                     validateRetentionPolicies(policies.retention_policies);
                 }
             });
-    }
-
-    protected void validateRetentionPolicies(RetentionPolicies retention) {
-        if (retention == null) {
-            return;
-        }
-        checkArgument(retention.getRetentionSizeInMB() >= -1,
-                "Invalid retention policy: size limit must be >= -1");
-        checkArgument(retention.getRetentionTimeInMinutes() >= -1,
-                "Invalid retention policy: time limit must be >= -1");
-        checkArgument((retention.getRetentionTimeInMinutes() != 0 && retention.getRetentionSizeInMB() != 0)
-                        || (retention.getRetentionTimeInMinutes() == 0 && retention.getRetentionSizeInMB() == 0),
-                "Invalid retention policy: Setting a single time or size limit to 0 is invalid when "
-                        + "one of the limits has a non-zero value. Use the value of -1 instead of 0 to ignore a "
-                        + "specific limit. To disable retention both limits must be set to 0.");
     }
 
     protected void internalSetDeduplicationSnapshotInterval(Integer interval) {
@@ -2765,10 +2753,13 @@ public abstract class NamespacesBase extends AdminResource {
     protected void internalEnableMigration(boolean migrated) {
         validateSuperUserAccess();
         try {
-            getLocalPolicies().setLocalPolicies(namespaceName, (policies) -> {
-                policies.migrated = migrated;
-                return policies;
-            });
+            getLocalPolicies().setLocalPoliciesWithCreate(namespaceName, oldPolicies -> oldPolicies.map(
+                    policies -> new LocalPolicies(policies.bundles,
+                            policies.bookieAffinityGroup,
+                            policies.namespaceAntiAffinityGroup,
+                            migrated))
+                    .orElseGet(() -> new LocalPolicies(getBundles(config().getDefaultNumberOfNamespaceBundles()),
+                            null, null, migrated)));
             log.info("Successfully updated migration on namespace {}", namespaceName);
         } catch (Exception e) {
             log.error("Failed to update migration on namespace {}", namespaceName, e);
