@@ -850,7 +850,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 int maxAdditionalUnackedMessages = Math.max(c.getMaxUnackedMessages() - c.getUnackedMessages(), 0);
                 maxMessagesInThisBatch = Math.min(maxMessagesInThisBatch, maxAdditionalUnackedMessages);
             }
-            int maxEntriesInThisBatch = Math.min(availablePermits,
+            int maxEntriesInThisBatch = Math.min(availablePermits / avgBatchSizePerMsg,
                             // use the average batch size per message to calculate the number of entries to
                             // dispatch. round up to the next integer without using floating point arithmetic.
                             (maxMessagesInThisBatch + avgBatchSizePerMsg - 1) / avgBatchSizePerMsg);
