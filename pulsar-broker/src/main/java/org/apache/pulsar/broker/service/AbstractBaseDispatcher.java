@@ -71,12 +71,12 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
     private final LongAdder filterRejectedMsgs = new LongAdder();
     private final LongAdder filterRescheduledMsgs = new LongAdder();
 
-    public final LongAdder dispatchThrottledMsgEventsBySubscriptionLimit = new LongAdder();
-    public final LongAdder dispatchThrottledMsgEventsByTopicLimit = new LongAdder();
-    public final LongAdder dispatchThrottledMsgEventsByBrokerLimit = new LongAdder();
-    public final LongAdder dispatchThrottledBytesEventsBySubscriptionLimit = new LongAdder();
-    public final LongAdder dispatchThrottledBytesEventsByTopicLimit = new LongAdder();
-    public final LongAdder dispatchThrottledBytesEventsByBrokerLimit = new LongAdder();
+    private final LongAdder dispatchThrottledMsgEventsBySubscriptionLimit = new LongAdder();
+    private final LongAdder dispatchThrottledMsgEventsByTopicLimit = new LongAdder();
+    private final LongAdder dispatchThrottledMsgEventsByBrokerLimit = new LongAdder();
+    private final LongAdder dispatchThrottledBytesEventsBySubscriptionLimit = new LongAdder();
+    private final LongAdder dispatchThrottledBytesEventsByTopicLimit = new LongAdder();
+    private final LongAdder dispatchThrottledBytesEventsByBrokerLimit = new LongAdder();
 
     protected AbstractBaseDispatcher(Subscription subscription, ServiceConfiguration serviceConfig) {
         super(subscription);
