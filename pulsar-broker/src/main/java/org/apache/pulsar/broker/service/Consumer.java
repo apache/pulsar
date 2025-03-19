@@ -559,17 +559,17 @@ public class Consumer {
                 .thenApply(v -> {
                     // The case that is typed individual ack without transaction will deal metrics after a callback
                     // that after cursor deleting positions, so we may receive a 0 value here.
-                    if (v > 0) {
-                        this.messageAckRate.recordEvent(v);
-                        this.messageAckCounter.add(v);
-                    }
+
+                    ackMetricRecord(v);
                     return null;
                 });
     }
 
-    public void ackMetricRecord(int messageCountInRequest) {
-        this.messageAckRate.recordEvent(messageCountInRequest);
-        this.messageAckCounter.add(messageCountInRequest);
+    public void ackMetricRecord(long messageCountInRequest) {
+        if (messageCountInRequest > 0) {
+            this.messageAckRate.recordEvent(messageCountInRequest);
+            this.messageAckCounter.add(messageCountInRequest);
+        }
     }
 
     //this method is for individual ack not carry the transaction
