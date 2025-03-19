@@ -36,6 +36,7 @@ public class EntryCountEstimatorTest {
     private long lastConfirmedLedgerId;
     private long lastLedgerTotalEntries;
     private long lastLedgerTotalSize;
+    private int maxEntries;
 
     @BeforeMethod
     public void setup() {
@@ -57,6 +58,7 @@ public class EntryCountEstimatorTest {
         lastLedgerTotalEntries = 300;
         lastLedgerTotalSize = 36000;
         lastConfirmedLedgerId = lastLedgerId;
+        maxEntries = Integer.MAX_VALUE;
 
         // Create a read position at the beginning of ledger 1
         readPosition = PositionFactory.create(1L, 0);
@@ -72,15 +74,16 @@ public class EntryCountEstimatorTest {
                 .build();
     }
 
-    private long estimateEntryCountByBytesSize(long maxSizeBytes) {
+    private int estimateEntryCountByBytesSize(long maxSizeBytes) {
         return EntryCountEstimator.internalEstimateEntryCountByBytesSize(
-                maxSizeBytes, readPosition, ledgersInfo, lastConfirmedLedgerId, lastLedgerId, lastLedgerTotalEntries,
+                maxEntries, maxSizeBytes, readPosition, ledgersInfo, lastConfirmedLedgerId, lastLedgerId,
+                lastLedgerTotalEntries,
                 lastLedgerTotalSize);
     }
 
     @Test
     public void testZeroMaxSize() {
-        long result = estimateEntryCountByBytesSize(0);
+        int result = estimateEntryCountByBytesSize(0);
         assertEquals(result, 0, "Should return 0 when max size is 0");
     }
 
@@ -90,7 +93,7 @@ public class EntryCountEstimatorTest {
         // Plus overhead: 450 entries * 64 bytes = 28800 bytes of overhead
         long totalSize = 6000 + (450 * BOOKKEEPER_READ_OVERHEAD_PER_ENTRY); // 6000 + 28800 = 34800
 
-        long result = estimateEntryCountByBytesSize(totalSize);
+        int result = estimateEntryCountByBytesSize(totalSize);
         // Should be the sum of first 3 ledger entries: 100+200+150 = 450
         assertEquals(result, 450, "Should return total entry count when maxSize matches total size with overhead");
     }
@@ -98,7 +101,7 @@ public class EntryCountEstimatorTest {
     @Test
     public void testSizeInFirstLedger() {
         long maxSizeBytes = 500;
-        long result = estimateEntryCountByBytesSize(maxSizeBytes);
+        int result = estimateEntryCountByBytesSize(maxSizeBytes);
         long avgSize = (1000 / 100) + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY; // Average size per entry including overhead
         assertEquals(result, maxSizeBytes / avgSize + 1);
     }
@@ -110,7 +113,7 @@ public class EntryCountEstimatorTest {
         // - Overhead for 100 entries (from first ledger): 100 * BOOKKEEPER_READ_OVERHEAD_PER_ENTRY
         // - Additional space for some entries in the second ledger: 1000 bytes
         long maxSizeBytes = 1000 + (100 * BOOKKEEPER_READ_OVERHEAD_PER_ENTRY) + 1000;
-        long result = estimateEntryCountByBytesSize(maxSizeBytes);
+        int result = estimateEntryCountByBytesSize(maxSizeBytes);
         // Average size per entry in second ledger including overhead
         long avgSize = (3000 / 200)
                 + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
@@ -129,7 +132,7 @@ public class EntryCountEstimatorTest {
                 additionalEntries * lastLedgerTotalSize / lastLedgerTotalEntries
                         + additionalEntries * BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
 
-        long result = estimateEntryCountByBytesSize(totalSize + additionalSize);
+        int result = estimateEntryCountByBytesSize(totalSize + additionalSize);
         assertEquals(result, 750 + additionalEntries,
                 "Should include all entries plus additional entries with overhead");
     }
@@ -144,7 +147,7 @@ public class EntryCountEstimatorTest {
         // (500 + 3000 + 2000) bytes + ((50 + 200 + 150) entries * 64 bytes) = 5500 + 25600 = 31100 bytes
         long sizeWithMidPosition = 5500 + (400 * BOOKKEEPER_READ_OVERHEAD_PER_ENTRY);
 
-        long result = estimateEntryCountByBytesSize(sizeWithMidPosition);
+        int result = estimateEntryCountByBytesSize(sizeWithMidPosition);
         // Should skip 50 entries from first ledger: (100-50)+200+150 = 400
         assertEquals(result, 400, "Should account for read position offset with overhead");
     }
@@ -154,7 +157,14 @@ public class EntryCountEstimatorTest {
         // Test with size less than the overhead of first entry
         long tinySize = BOOKKEEPER_READ_OVERHEAD_PER_ENTRY / 2;
 
-        long result = estimateEntryCountByBytesSize(tinySize);
+        int result = estimateEntryCountByBytesSize(tinySize);
         assertEquals(result, 1, "Should return 1 when size is less than overhead for first entry");
+    }
+
+    @Test
+    public void testStopsAtMaxEntries() {
+        maxEntries = 150;
+        int result = estimateEntryCountByBytesSize(Long.MAX_VALUE);
+        assertEquals(result, 150, "Should stop at max entries");
     }
 }

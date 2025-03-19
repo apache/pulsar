@@ -35,12 +35,14 @@ class EntryCountEstimator {
      * Estimates the number of entries that can be read within the specified byte size starting from the given position
      * in the ledger.
      *
+     * @param maxEntries stop further estimation if the number of estimated entries exceeds this value
      * @param maxSizeBytes the maximum size in bytes for the entries to be estimated
      * @param readPosition the position in the ledger from where to start reading
      * @param ml           the {@link ManagedLedgerImpl} instance to use for accessing ledger information
      * @return the estimated number of entries that can be read
      */
-    static long estimateEntryCountByBytesSize(long maxSizeBytes, Position readPosition, ManagedLedgerImpl ml) {
+    static int estimateEntryCountByBytesSize(int maxEntries, long maxSizeBytes, Position readPosition,
+                                              ManagedLedgerImpl ml) {
         LedgerHandle currentLedger = ml.getCurrentLedger();
         // currentLedger is null in ReadOnlyManagedLedgerImpl
         Long lastLedgerId = currentLedger != null ? currentLedger.getId() : null;
@@ -50,7 +52,7 @@ class EntryCountEstimator {
         if (!ml.isValidPosition(readPosition)) {
             readPosition = ml.getNextValidPosition(readPosition);
         }
-        return internalEstimateEntryCountByBytesSize(maxSizeBytes, readPosition, ml.getLedgersInfo(),
+        return internalEstimateEntryCountByBytesSize(maxEntries, maxSizeBytes, readPosition, ml.getLedgersInfo(),
                 ml.getLastConfirmedEntry().getLedgerId(), lastLedgerId, lastLedgerTotalEntries, lastLedgerTotalSize);
     }
 
@@ -58,6 +60,7 @@ class EntryCountEstimator {
      * Internal method to estimate the number of entries that can be read within the specified byte size.
      * This method is used for unit testing to validate the logic without directly accessing {@link ManagedLedgerImpl}.
      *
+     * @param maxEntries             stop further estimation if the number of estimated entries exceeds this value
      * @param maxSizeBytes           the maximum size in bytes for the entries to be estimated
      * @param readPosition           the position in the ledger from where to start reading
      * @param ledgersInfo            a map of ledger ID to {@link MLDataFormats.ManagedLedgerInfo.LedgerInfo} containing
@@ -68,7 +71,7 @@ class EntryCountEstimator {
      * @param lastLedgerTotalSize    the total size in bytes of the last active ledger
      * @return the estimated number of entries that can be read
      */
-    static long internalEstimateEntryCountByBytesSize(long maxSizeBytes, Position readPosition,
+    static int internalEstimateEntryCountByBytesSize(int maxEntries, long maxSizeBytes, Position readPosition,
                                                       NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo>
                                                               ledgersInfo,
                                                       long lastConfirmedLedgerId,
@@ -89,8 +92,9 @@ class EntryCountEstimator {
 
         // calculate the estimated entry count based on the remaining bytes and ledger metadata
         for (MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo : ledgersAfterReadPosition) {
-            if (remainingBytesSize <= 0) {
+            if (remainingBytesSize <= 0 || estimatedEntryCount >= maxEntries) {
                 // Stop processing if there are no more bytes remaining to allocate for entries
+                // or if the estimated entry count exceeds the maximum allowed entries
                 break;
             }
             long ledgerId = ledgerInfo.getLedgerId();
@@ -141,11 +145,11 @@ class EntryCountEstimator {
         }
 
         // Add any remaining bytes to the estimated entry count considering the current average entry size
-        if (remainingBytesSize > 0) {
+        if (remainingBytesSize > 0 && estimatedEntryCount < maxEntries) {
             estimatedEntryCount += remainingBytesSize / currentAvgSize;
         }
 
         // Ensure at least one entry is always returned as the result
-        return Math.max(estimatedEntryCount, 1);
+        return Math.max((int) Math.min(estimatedEntryCount, maxEntries), 1);
     }
 }
