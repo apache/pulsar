@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.mledger.impl.EntryCountEstimator.estimateEntryCountByBytesSize;
 import static org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl.BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.any;
@@ -76,8 +77,8 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerEntry;
-import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
+import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -5174,7 +5175,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final String mlName = "ml-" + UUID.randomUUID().toString().replaceAll("-", "");
         ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName);
         long entryCount0 =
-                EntryCountEstimator.estimateEntryCountByBytesSize(16,
+                estimateEntryCountByBytesSize(16,
                         PositionFactory.create(ml.getCurrentLedger().getId(), 0), ml);
         assertEquals(entryCount0, 1);
         // Avoid trimming ledgers.
@@ -5208,46 +5209,46 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         // Test: the individual ledgers.
         long entryCount1 =
-                EntryCountEstimator.estimateEntryCountByBytesSize(average1 * 16, PositionFactory.create(ledger1, 0),
+                estimateEntryCountByBytesSize(average1 * 16, PositionFactory.create(ledger1, 0),
                         ml);
         assertEquals(entryCount1, 16);
         long entryCount2 =
-                EntryCountEstimator.estimateEntryCountByBytesSize(average2 * 8, PositionFactory.create(ledger2, 0), ml);
+                estimateEntryCountByBytesSize(average2 * 8, PositionFactory.create(ledger2, 0), ml);
         assertEquals(entryCount2, 8);
         long entryCount3 =
-                EntryCountEstimator.estimateEntryCountByBytesSize(average3 * 4, PositionFactory.create(ledger3, 0), ml);
+                estimateEntryCountByBytesSize(average3 * 4, PositionFactory.create(ledger3, 0), ml);
         assertEquals(entryCount3, 4);
 
         // Test: across ledgers.
         long entryCount4 =
-                EntryCountEstimator.estimateEntryCountByBytesSize((average1 * 100) + (average2 * 8),
+                estimateEntryCountByBytesSize((average1 * 100) + (average2 * 8),
                         PositionFactory.create(ledger1, 0), ml);
         assertEquals(entryCount4, 108);
         long entryCount5 =
-                EntryCountEstimator.estimateEntryCountByBytesSize((average2 * 100) + (average3 * 4),
+                estimateEntryCountByBytesSize((average2 * 100) + (average3 * 4),
                         PositionFactory.create(ledger2, 0), ml);
         assertEquals(entryCount5, 104);
         long entryCount6 =
-                EntryCountEstimator.estimateEntryCountByBytesSize((average1 * 100) + (average2 * 100) + (average3 * 4),
+                estimateEntryCountByBytesSize((average1 * 100) + (average2 * 100) + (average3 * 4),
                         PositionFactory.create(ledger1, 0), ml);
         assertEquals(entryCount6, 204);
 
         long entryCount7 =
-                EntryCountEstimator.estimateEntryCountByBytesSize((average1 * 20) + (average2 * 8),
+                estimateEntryCountByBytesSize((average1 * 20) + (average2 * 8),
                         PositionFactory.create(ledger1, 80), ml);
         assertEquals(entryCount7, 28);
         long entryCount8 =
-                EntryCountEstimator.estimateEntryCountByBytesSize((average2 * 20) + (average3 * 4),
+                estimateEntryCountByBytesSize((average2 * 20) + (average3 * 4),
                         PositionFactory.create(ledger2, 80), ml);
         assertEquals(entryCount8, 24);
         long entryCount9 =
-                EntryCountEstimator.estimateEntryCountByBytesSize((average1 * 20) + (average2 * 100) + (average3 * 4),
+                estimateEntryCountByBytesSize((average1 * 20) + (average2 * 100) + (average3 * 4),
                         PositionFactory.create(ledger1, 80), ml);
         assertEquals(entryCount9, 124);
 
         // Test: read more than entries written.
         long entryCount10 =
-                EntryCountEstimator.estimateEntryCountByBytesSize(
+                estimateEntryCountByBytesSize(
                         (average1 * 100) + (average2 * 100) + (average3 * 100) + (average3 * 4),
                         PositionFactory.create(ledger1, 0), ml);
         assertEquals(entryCount10, 304);
