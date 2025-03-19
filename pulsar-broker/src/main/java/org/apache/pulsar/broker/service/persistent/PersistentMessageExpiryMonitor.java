@@ -173,11 +173,12 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
     }
 
 
-    public void updateRates() {
+    private void updateRates() {
         msgExpired.calculateRate();
     }
 
     public double getMessageExpiryRate() {
+        updateRates();
         return msgExpired.getRate();
     }
 
@@ -193,7 +194,6 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
             long numMessagesExpired = (long) ctx - cursor.getNumberOfEntriesInBacklog(false);
             msgExpired.recordMultipleEvents(numMessagesExpired, 0 /* no value stats */);
             totalMsgExpired.add(numMessagesExpired);
-            updateRates();
             // If the subscription is a Key_Shared subscription, we should to trigger message dispatch.
             if (subscription != null && subscription.getType() == SubType.Key_Shared) {
                 subscription.getDispatcher().markDeletePositionMoveForward();
