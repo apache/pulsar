@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import static org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl.BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
 import static org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl.DEFAULT_ESTIMATED_ENTRY_SIZE;
 import java.util.Collection;
+import java.util.Map;
 import java.util.NavigableMap;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.Position;
@@ -49,14 +50,7 @@ class EntryCountEstimator {
         Long lastLedgerId = currentLedger != null ? currentLedger.getId() : null;
         long lastLedgerTotalSize = ml.getCurrentLedgerSize();
         long lastLedgerTotalEntries = ml.getCurrentLedgerEntries();
-        NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgersInfo = ml.getLedgersInfo();
-        // handle EARLIEST and LATEST
-        if (readPosition.getLedgerId() > lastLedgerId) {
-            readPosition = PositionFactory.create(lastLedgerId, lastLedgerTotalEntries - 1);
-        } else if (readPosition.getLedgerId() < ledgersInfo.firstKey()) {
-            readPosition = PositionFactory.create(ledgersInfo.firstKey(), 0);
-        }
-        return internalEstimateEntryCountByBytesSize(maxEntries, maxSizeBytes, readPosition, ledgersInfo,
+        return internalEstimateEntryCountByBytesSize(maxEntries, maxSizeBytes, readPosition, ml.getLedgersInfo(),
                 lastLedgerId, lastLedgerTotalEntries, lastLedgerTotalSize);
     }
 
@@ -83,6 +77,20 @@ class EntryCountEstimator {
             // If the specified maximum size is invalid (e.g., non-positive), return 0
             return 0;
         }
+
+        // Adjust the read position to ensure it falls within the valid range of available ledgers.
+        // This handles special cases such as EARLIEST and LATEST positions by resetting them
+        // to the first available ledger or the last active ledger, respectively.
+        if (lastLedgerId != null && readPosition.getLedgerId() > lastLedgerId.longValue()) {
+            readPosition = PositionFactory.create(lastLedgerId, Math.max(lastLedgerTotalEntries - 1, 0));
+        } else if (lastLedgerId == null && readPosition.getLedgerId() > ledgersInfo.lastKey()) {
+            Map.Entry<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> lastEntry = ledgersInfo.lastEntry();
+            readPosition =
+                    PositionFactory.create(lastEntry.getKey(), Math.max(lastEntry.getValue().getEntries() - 1, 0));
+        } else if (readPosition.getLedgerId() < ledgersInfo.firstKey()) {
+            readPosition = PositionFactory.create(ledgersInfo.firstKey(), 0);
+        }
+
         long estimatedEntryCount = 0;
         long remainingBytesSize = maxSizeBytes;
         // Start with a default estimated average size per entry, including any overhead
