@@ -19,8 +19,11 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl.BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
+import static org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl.DEFAULT_ESTIMATED_ENTRY_SIZE;
 import static org.testng.Assert.assertEquals;
+import java.util.HashSet;
 import java.util.NavigableMap;
+import java.util.Set;
 import java.util.TreeMap;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
@@ -32,7 +35,7 @@ public class EntryCountEstimatorTest {
 
     private NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgersInfo;
     private Position readPosition;
-    private long lastLedgerId;
+    private Long lastLedgerId;
     private long lastLedgerTotalEntries;
     private long lastLedgerTotalSize;
     private int maxEntries;
@@ -164,5 +167,87 @@ public class EntryCountEstimatorTest {
         maxEntries = 150;
         int result = estimateEntryCountByBytesSize(Long.MAX_VALUE);
         assertEquals(result, 150, "Should stop at max entries");
+    }
+
+    @Test
+    public void testWithSizeLargerThanAvailableAndReadPositionEARLIEST() {
+        readPosition = PositionFactory.EARLIEST;
+        // Current size in all ledgers is 42000 bytes + 750  * 64 bytes
+        long totalSize = 42000 + 750 * BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
+        long additionalEntries = 50;
+        long additionalSize =
+                additionalEntries * lastLedgerTotalSize / lastLedgerTotalEntries
+                        + additionalEntries * BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
+
+        int result = estimateEntryCountByBytesSize(totalSize + additionalSize);
+        assertEquals(result, 750 + additionalEntries,
+                "Should include all entries plus additional entries with overhead");
+    }
+
+    @Test
+    public void testWithReadPositionLATEST() {
+        readPosition = PositionFactory.LATEST;
+        long expectedEntries = 50;
+        long requiredSize =
+                expectedEntries * lastLedgerTotalSize / lastLedgerTotalEntries
+                        + expectedEntries * BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
+        int result = estimateEntryCountByBytesSize(requiredSize);
+        assertEquals(result, expectedEntries);
+    }
+
+    @Test
+    public void testWithOnlyLastLedgerWhichIsEmpty() {
+        readPosition = PositionFactory.EARLIEST;
+        // remove all but the last ledger
+        Set<Long> beforeLastKey = new HashSet<>(ledgersInfo.headMap(lastLedgerId).keySet());
+        beforeLastKey.forEach(ledgersInfo::remove);
+        lastLedgerTotalEntries = 0;
+        lastLedgerTotalSize = 0;
+        long expectedEntries = 50;
+        // when last is empty, DEFAULT_ESTIMATED_ENTRY_SIZE + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY is used
+        // for the average size per entry
+        long requiredSize =
+                expectedEntries * (DEFAULT_ESTIMATED_ENTRY_SIZE + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY);
+        int result = estimateEntryCountByBytesSize(requiredSize);
+        assertEquals(result, expectedEntries);
+    }
+
+    @Test
+    public void testWithSizeLargerThanAvailableAndReadPositionEARLIESTAndNullLastLedgerId() {
+        long localLastLedgerTotalSize = lastLedgerTotalSize;
+        long localLastLedgerTotalEntries = lastLedgerTotalEntries;
+        replaceLastLedgerAndSetLedgerIdToNull();
+        readPosition = PositionFactory.EARLIEST;
+        // Current size in all ledgers is 42000 bytes + 750  * 64 bytes
+        long totalSize = 42000 + 750 * BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
+        long additionalEntries = 50;
+        long additionalSize =
+                additionalEntries * localLastLedgerTotalSize / localLastLedgerTotalEntries
+                        + additionalEntries * BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
+
+        int result = estimateEntryCountByBytesSize(totalSize + additionalSize);
+        assertEquals(result, 750 + additionalEntries,
+                "Should include all entries plus additional entries with overhead");
+    }
+
+    private void replaceLastLedgerAndSetLedgerIdToNull() {
+        ledgersInfo.put(lastLedgerId, createLedgerInfo(lastLedgerId, lastLedgerTotalEntries, lastLedgerTotalSize));
+        lastLedgerId = null;
+        lastLedgerTotalSize = 0;
+        lastLedgerTotalEntries = 0;
+    }
+
+    @Test
+    public void testWithReadPositionLATESTAndNullLastLedgerId() {
+        long localLastLedgerTotalSize = lastLedgerTotalSize;
+        long localLastLedgerTotalEntries = lastLedgerTotalEntries;
+        replaceLastLedgerAndSetLedgerIdToNull();
+        readPosition = PositionFactory.LATEST;
+        long expectedEntries = 50;
+        long requiredSize =
+                expectedEntries * localLastLedgerTotalSize / localLastLedgerTotalEntries
+                        + expectedEntries * BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
+        int result = estimateEntryCountByBytesSize(requiredSize);
+        assertEquals(result, expectedEntries);
     }
 }
