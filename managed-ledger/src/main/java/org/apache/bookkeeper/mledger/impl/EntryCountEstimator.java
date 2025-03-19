@@ -42,6 +42,7 @@ class EntryCountEstimator {
      */
     static long estimateEntryCountByBytesSize(long maxSizeBytes, Position readPosition, ManagedLedgerImpl ml) {
         LedgerHandle currentLedger = ml.getCurrentLedger();
+        // currentLedger is null in ReadOnlyManagedLedgerImpl
         Long lastLedgerId = currentLedger != null ? currentLedger.getId() : null;
         long lastLedgerTotalSize = ml.getCurrentLedgerSize();
         long lastLedgerTotalEntries = ml.getCurrentLedgerEntries();
@@ -98,6 +99,7 @@ class EntryCountEstimator {
 
             // Adjust ledger size and total entry count if this is the last active ledger since the
             // ledger metadata doesn't include the current ledger's size and entry count
+            // the lastLedgerId is null in ReadOnlyManagedLedgerImpl
             if (lastLedgerId != null && ledgerId == lastLedgerId.longValue()
                     && lastLedgerTotalSize > 0 && lastLedgerTotalEntries > 0) {
                 ledgerTotalSize = lastLedgerTotalSize;
