@@ -33,7 +33,6 @@ public class EntryCountEstimatorTest {
     private NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgersInfo;
     private Position readPosition;
     private long lastLedgerId;
-    private long lastConfirmedLedgerId;
     private long lastLedgerTotalEntries;
     private long lastLedgerTotalSize;
     private int maxEntries;
@@ -57,7 +56,6 @@ public class EntryCountEstimatorTest {
         ledgersInfo.put(lastLedgerId, createLedgerInfo(lastLedgerId, 0, 0)); // current ledger
         lastLedgerTotalEntries = 300;
         lastLedgerTotalSize = 36000;
-        lastConfirmedLedgerId = lastLedgerId;
         maxEntries = Integer.MAX_VALUE;
 
         // Create a read position at the beginning of ledger 1
@@ -76,7 +74,7 @@ public class EntryCountEstimatorTest {
 
     private int estimateEntryCountByBytesSize(long maxSizeBytes) {
         return EntryCountEstimator.internalEstimateEntryCountByBytesSize(
-                maxEntries, maxSizeBytes, readPosition, ledgersInfo, lastConfirmedLedgerId, lastLedgerId,
+                maxEntries, maxSizeBytes, readPosition, ledgersInfo, lastLedgerId,
                 lastLedgerTotalEntries,
                 lastLedgerTotalSize);
     }

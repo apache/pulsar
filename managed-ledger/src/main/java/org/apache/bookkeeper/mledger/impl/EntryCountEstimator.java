@@ -24,6 +24,7 @@ import java.util.Collection;
 import java.util.NavigableMap;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 
 class EntryCountEstimator {
@@ -48,12 +49,15 @@ class EntryCountEstimator {
         Long lastLedgerId = currentLedger != null ? currentLedger.getId() : null;
         long lastLedgerTotalSize = ml.getCurrentLedgerSize();
         long lastLedgerTotalEntries = ml.getCurrentLedgerEntries();
-        // ensure that readPosition is valid
-        if (!ml.isValidPosition(readPosition)) {
-            readPosition = ml.getNextValidPosition(readPosition);
+        NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgersInfo = ml.getLedgersInfo();
+        // handle EARLIEST and LATEST
+        if (readPosition.getLedgerId() > lastLedgerId) {
+            readPosition = PositionFactory.create(lastLedgerId, lastLedgerTotalEntries - 1);
+        } else if (readPosition.getLedgerId() < ledgersInfo.firstKey()) {
+            readPosition = PositionFactory.create(ledgersInfo.firstKey(), 0);
         }
-        return internalEstimateEntryCountByBytesSize(maxEntries, maxSizeBytes, readPosition, ml.getLedgersInfo(),
-                ml.getLastConfirmedEntry().getLedgerId(), lastLedgerId, lastLedgerTotalEntries, lastLedgerTotalSize);
+        return internalEstimateEntryCountByBytesSize(maxEntries, maxSizeBytes, readPosition, ledgersInfo,
+                lastLedgerId, lastLedgerTotalEntries, lastLedgerTotalSize);
     }
 
     /**
@@ -65,18 +69,16 @@ class EntryCountEstimator {
      * @param readPosition           the position in the ledger from where to start reading
      * @param ledgersInfo            a map of ledger ID to {@link MLDataFormats.ManagedLedgerInfo.LedgerInfo} containing
      *                               metadata for ledgers
-     * @param lastConfirmedLedgerId  the ID of the last confirmed ledger
      * @param lastLedgerId           the ID of the last active ledger in the managed ledger
      * @param lastLedgerTotalEntries the total number of entries in the last active ledger
      * @param lastLedgerTotalSize    the total size in bytes of the last active ledger
      * @return the estimated number of entries that can be read
      */
     static int internalEstimateEntryCountByBytesSize(int maxEntries, long maxSizeBytes, Position readPosition,
-                                                      NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo>
-                                                              ledgersInfo,
-                                                      long lastConfirmedLedgerId,
-                                                      Long lastLedgerId, long lastLedgerTotalEntries,
-                                                      long lastLedgerTotalSize) {
+                                                     NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo>
+                                                             ledgersInfo,
+                                                     Long lastLedgerId, long lastLedgerTotalEntries,
+                                                     long lastLedgerTotalSize) {
         if (maxSizeBytes <= 0) {
             // If the specified maximum size is invalid (e.g., non-positive), return 0
             return 0;
@@ -85,10 +87,9 @@ class EntryCountEstimator {
         long remainingBytesSize = maxSizeBytes;
         // Start with a default estimated average size per entry, including any overhead
         long currentAvgSize = DEFAULT_ESTIMATED_ENTRY_SIZE + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
-        // Get a collection of ledger info starting from the read position up to the last confirmed ledger
+        // Get a collection of ledger info starting from the read position
         Collection<MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgersAfterReadPosition =
-                ledgersInfo.subMap(Long.valueOf(readPosition.getLedgerId()), true,
-                        Long.valueOf(lastConfirmedLedgerId), true).values();
+                ledgersInfo.tailMap(readPosition.getLedgerId(), true).values();
 
         // calculate the estimated entry count based on the remaining bytes and ledger metadata
         for (MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo : ledgersAfterReadPosition) {
@@ -129,7 +130,7 @@ class EntryCountEstimator {
                     || readPosition.getLedgerId() == ledgerId && readPosition.getEntryId() > 0) {
                 long entryCount;
                 if (readPosition.getLedgerId() == ledgerId && readPosition.getEntryId() > 0) {
-                    entryCount = ledgerTotalEntries - readPosition.getEntryId();
+                    entryCount = Math.max(ledgerTotalEntries - readPosition.getEntryId(), 1);
                 } else {
                     entryCount = ledgerTotalEntries;
                 }
