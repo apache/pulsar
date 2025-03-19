@@ -78,6 +78,11 @@ class EntryCountEstimator {
             return 0;
         }
 
+        // If the maximum size is Long.MAX_VALUE, return the maximum number of entries
+        if (maxSizeBytes == Long.MAX_VALUE) {
+            return maxEntries;
+        }
+
         // Adjust the read position to ensure it falls within the valid range of available ledgers.
         // This handles special cases such as EARLIEST and LATEST positions by resetting them
         // to the first available ledger or the last active ledger, respectively.

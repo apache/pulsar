@@ -250,4 +250,11 @@ public class EntryCountEstimatorTest {
         int result = estimateEntryCountByBytesSize(requiredSize);
         assertEquals(result, expectedEntries);
     }
+
+    @Test
+    public void testMaxSizeIsLongMAX_VALUE() {
+        maxEntries = 100;
+        int result = estimateEntryCountByBytesSize(Long.MAX_VALUE);
+        assertEquals(result, maxEntries);
+    }
 }
