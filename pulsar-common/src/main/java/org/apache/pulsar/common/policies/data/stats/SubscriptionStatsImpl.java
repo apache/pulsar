@@ -168,6 +168,24 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
 
     public long filterRescheduledMsgCount;
 
+    /** total number of times message dispatching was throttled on a subscription due to subscription rate limits. */
+    public long dispatchThrottledMsgEventsBySubscriptionLimit;
+
+    /** total number of times bytes dispatching was throttled on a subscription due to subscription rate limits. */
+    public long dispatchThrottledBytesEventsBySubscriptionLimit;
+
+    /** total number of times message dispatching was throttled on a subscription due to topic rate limits. */
+    public long dispatchThrottledMsgEventsByTopicLimit;
+
+    /** total number of times bytes dispatching was throttled on a subscription due to topic rate limits. */
+    public long dispatchThrottledBytesEventsByTopicLimit;
+
+    /** total number of times message dispatching was throttled on a subscription due to broker rate limits. */
+    public long dispatchThrottledMsgEventsByBrokerLimit;
+
+    /** total number of times bytes dispatching was throttled on a subscription due to broker rate limits. */
+    public long dispatchThrottledBytesEventsByBrokerLimit;
+
     public SubscriptionStatsImpl() {
         this.consumers = new ArrayList<>();
         this.consumersAfterMarkDeletePosition = new LinkedHashMap<>();
@@ -208,6 +226,12 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         filterAcceptedMsgCount = 0;
         filterRejectedMsgCount = 0;
         filterRescheduledMsgCount = 0;
+        dispatchThrottledMsgEventsBySubscriptionLimit = 0;
+        dispatchThrottledBytesEventsBySubscriptionLimit = 0;
+        dispatchThrottledMsgEventsByBrokerLimit = 0;
+        dispatchThrottledBytesEventsByBrokerLimit = 0;
+        dispatchThrottledMsgEventsByTopicLimit = 0;
+        dispatchThrottledBytesEventsByTopicLimit = 0;
         bucketDelayedIndexStats.clear();
     }
 
@@ -267,6 +291,12 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         this.filterAcceptedMsgCount += stats.filterAcceptedMsgCount;
         this.filterRejectedMsgCount += stats.filterRejectedMsgCount;
         this.filterRescheduledMsgCount += stats.filterRescheduledMsgCount;
+        this.dispatchThrottledMsgEventsBySubscriptionLimit += stats.dispatchThrottledMsgEventsBySubscriptionLimit;
+        this.dispatchThrottledBytesEventsBySubscriptionLimit += stats.dispatchThrottledBytesEventsBySubscriptionLimit;
+        this.dispatchThrottledMsgEventsByBrokerLimit += stats.dispatchThrottledMsgEventsByBrokerLimit;
+        this.dispatchThrottledBytesEventsByBrokerLimit += stats.dispatchThrottledBytesEventsByBrokerLimit;
+        this.dispatchThrottledMsgEventsByTopicLimit += stats.dispatchThrottledMsgEventsByTopicLimit;
+        this.dispatchThrottledBytesEventsByTopicLimit += stats.dispatchThrottledBytesEventsByTopicLimit;
         stats.bucketDelayedIndexStats.forEach((k, v) -> {
             TopicMetricBean topicMetricBean =
                     this.bucketDelayedIndexStats.computeIfAbsent(k, __ -> new TopicMetricBean());
