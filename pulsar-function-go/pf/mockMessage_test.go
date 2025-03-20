@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/apache/pulsar-client-go/pulsar"
+	"github.com/stretchr/testify/mock"
 )
 
 type MockMessage struct {
@@ -110,7 +111,9 @@ func (m *MockMessageID) PartitionIdx() int32 {
 	return 0
 }
 
-type MockPulsarProducer struct{}
+type MockPulsarProducer struct {
+	mock.Mock
+}
 
 func (producer *MockPulsarProducer) Topic() string {
 	return "publish-topic"
@@ -124,8 +127,9 @@ func (producer *MockPulsarProducer) Send(context.Context, *pulsar.ProducerMessag
 	return nil, nil
 }
 
-func (producer *MockPulsarProducer) SendAsync(context.Context, *pulsar.ProducerMessage,
-	func(pulsar.MessageID, *pulsar.ProducerMessage, error)) {
+func (producer *MockPulsarProducer) SendAsync(ctx context.Context, msg *pulsar.ProducerMessage,
+	cb func(pulsar.MessageID, *pulsar.ProducerMessage, error)) {
+	producer.Called(ctx, msg, cb)
 }
 
 func (producer *MockPulsarProducer) LastSequenceID() int64 {
