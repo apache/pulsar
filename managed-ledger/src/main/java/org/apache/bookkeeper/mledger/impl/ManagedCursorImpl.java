@@ -21,10 +21,10 @@ package org.apache.bookkeeper.mledger.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
+import static org.apache.bookkeeper.mledger.impl.EntryCountEstimator.estimateEntryCountByBytesSize;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_RETRIES;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
-import static org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl.BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
@@ -3711,53 +3711,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (maxSizeBytes == NO_MAX_SIZE_LIMIT) {
             return maxEntries;
         }
-        long estimatedEntryCount = estimateEntryCountBySize(maxSizeBytes, readPosition, ledger);
-        if (estimatedEntryCount > Integer.MAX_VALUE) {
-            return maxEntries;
-        }
-        return Math.min((int) estimatedEntryCount, maxEntries);
-    }
-
-    static long estimateEntryCountBySize(long bytesSize, PositionImpl readPosition, ManagedLedgerImpl ml) {
-        Position posToRead = readPosition;
-        if (!ml.isValidPosition(readPosition)) {
-            posToRead = ml.getNextValidPosition(readPosition);
-        }
-        long result = 0;
-        long remainingBytesSize = bytesSize;
-
-        while (remainingBytesSize > 0) {
-            // Last ledger.
-            if (posToRead.getLedgerId() == ml.getCurrentLedger().getId()) {
-                if (ml.getCurrentLedgerSize() == 0 ||  ml.getCurrentLedgerEntries() == 0) {
-                    // Only read 1 entry if no entries to read.
-                    return 1;
-                }
-                long avg = Math.max(1, ml.getCurrentLedgerSize() / ml.getCurrentLedgerEntries())
-                        + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
-                result += remainingBytesSize / avg;
-                break;
-            }
-            // Skip empty ledger.
-            LedgerInfo ledgerInfo = ml.getLedgersInfo().get(posToRead.getLedgerId());
-            if (ledgerInfo.getSize() == 0 || ledgerInfo.getEntries() == 0) {
-                posToRead = ml.getNextValidPosition(PositionImpl.get(posToRead.getLedgerId(), Long.MAX_VALUE));
-                continue;
-            }
-            // Calculate entries by average of ledgers.
-            long avg = Math.max(1, ledgerInfo.getSize() / ledgerInfo.getEntries()) + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
-            long remainEntriesOfLedger = ledgerInfo.getEntries() - posToRead.getEntryId();
-            if (remainEntriesOfLedger * avg >= remainingBytesSize) {
-                result += remainingBytesSize / avg;
-                break;
-            } else {
-                // Calculate for the next ledger.
-                result += remainEntriesOfLedger;
-                remainingBytesSize -= remainEntriesOfLedger * avg;
-                posToRead = ml.getNextValidPosition(PositionImpl.get(posToRead.getLedgerId(), Long.MAX_VALUE));
-            }
-        }
-        return Math.max(result, 1);
+        int estimatedEntryCount = estimateEntryCountByBytesSize(maxEntries, maxSizeBytes, readPosition, ledger);
+        return Math.min(estimatedEntryCount, maxEntries);
     }
 
     @Override
