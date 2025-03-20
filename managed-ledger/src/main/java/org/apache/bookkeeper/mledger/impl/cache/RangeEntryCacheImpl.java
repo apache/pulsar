@@ -58,7 +58,7 @@ public class RangeEntryCacheImpl implements EntryCache {
      * Overhead per-entry to take into account the envelope.
      */
     public static final long BOOKKEEPER_READ_OVERHEAD_PER_ENTRY = 64;
-    private static final int DEFAULT_ESTIMATED_ENTRY_SIZE = 10 * 1024;
+    public static final int DEFAULT_ESTIMATED_ENTRY_SIZE = 10 * 1024;
     private static final boolean DEFAULT_CACHE_INDIVIDUAL_READ_ENTRY = false;
 
     private final RangeEntryCacheManagerImpl manager;
