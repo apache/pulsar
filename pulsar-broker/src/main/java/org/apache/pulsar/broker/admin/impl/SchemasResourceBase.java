@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javax.ws.rs.core.Response;
+import org.apache.avro.Schema;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
@@ -36,6 +37,7 @@ import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.impl.schema.SchemaUtils;
+import org.apache.pulsar.client.impl.schema.util.SchemaUtil;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
@@ -123,8 +125,28 @@ public class SchemasResourceBase extends AdminResource {
                 });
     }
 
+    protected CompletableFuture<Void> checkSchemaTypeSupported(PostSchemaPayload payload) {
+        switch (SchemaType.valueOf(payload.getType())) {
+            case AVRO : {
+                Schema schema = SchemaUtil.parseAvroSchema(payload.getSchema());
+                try {
+                    // Pulsar only support "RecordSchema" so far. Other types will throw an error when calls
+                    // "getFields".
+                    // Since "RecordSchema" is an avro internal private class, we can not use "instanceof" here.
+                    schema.getFields();
+                } catch (Exception e) {
+                    return CompletableFuture.failedFuture(new RestException(Response.Status.BAD_REQUEST.getStatusCode(),
+                          "[" + String.valueOf(topicName) + "] Avro schema typed [" + schema.getType() + "]"
+                          + " is not supported"));
+                }
+            }
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
     public CompletableFuture<SchemaVersion> postSchemaAsync(PostSchemaPayload payload, boolean authoritative) {
-        return validateOwnershipAndOperationAsync(authoritative, TopicOperation.PRODUCE)
+        return checkSchemaTypeSupported(payload)
+                .thenCompose(__ -> validateOwnershipAndOperationAsync(authoritative, TopicOperation.PRODUCE))
                 .thenCompose(__ -> getSchemaCompatibilityStrategyAsyncWithoutAuth())
                 .thenCompose(schemaCompatibilityStrategy -> {
                     byte[] data;
