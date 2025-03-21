@@ -1348,6 +1348,7 @@ public class PersistentSubscription extends AbstractSubscription {
         }
         subStats.msgBacklogNoDelayed = subStats.msgBacklog - subStats.msgDelayed;
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
+        subStats.msgExpiredCounter = expiryMonitor.getMessageExpiryCount();
         subStats.totalMsgExpired = expiryMonitor.getTotalMessageExpired();
         subStats.isReplicated = isReplicated();
         subStats.subscriptionProperties = subscriptionProperties;
