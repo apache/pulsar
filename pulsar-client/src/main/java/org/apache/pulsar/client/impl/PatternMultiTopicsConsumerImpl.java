@@ -405,11 +405,6 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     }
 
     @VisibleForTesting
-    Timeout getRecheckPatternTimeout() {
-        return recheckPatternTimeout;
-    }
-
-    @VisibleForTesting
     int getRecheckPatternEpoch() {
         return recheckPatternEpoch.get();
     }

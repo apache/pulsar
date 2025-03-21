@@ -590,12 +590,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
 
-        // 5. call recheckTopics to subscribe each added topics above
-        log.debug("recheck topics change");
-        PatternMultiTopicsConsumerImpl<byte[]> consumer1 = ((PatternMultiTopicsConsumerImpl<byte[]>) consumer);
-        consumer1.run(consumer1.getRecheckPatternTimeout());
-
-        // 6. verify consumer get methods, to get number of partitions and topics, value 6=1+2+3.
+        // 5. verify consumer get methods, to get number of partitions and topics, value 6=1+2+3.
         Awaitility.await().untilAsserted(() -> {
             assertSame(pattern.pattern(), ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern().pattern());
             assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions().size(), 6);
@@ -998,7 +993,6 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         // 7. call recheckTopics to subscribe each added topics above, verify topics number: 10=1+2+3+4
         log.debug("recheck topics change");
         PatternMultiTopicsConsumerImpl<byte[]> consumer1 = ((PatternMultiTopicsConsumerImpl<byte[]>) consumer);
-        consumer1.run(consumer1.getRecheckPatternTimeout());
         Awaitility.await().untilAsserted(() -> {
             assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions().size(), 10);
             assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getConsumers().size(), 10);
