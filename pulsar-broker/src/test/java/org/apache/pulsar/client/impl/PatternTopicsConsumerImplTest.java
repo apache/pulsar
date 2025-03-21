@@ -718,6 +718,51 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         pulsarClient.close();
     }
 
+    @Test(timeOut = testTimeout)
+    public void testSubscribePatterBrokerDisable() throws Exception {
+        conf.setEnableBrokerSideSubscriptionPatternEvaluation(false);
+        final String key = "testSubscribePatterWithOutTopicDomain";
+        final String subscriptionName = "my-ex-subscription-" + key;
+        final Pattern pattern = Pattern.compile("my-property/my-ns/test-pattern.*");
+
+        // 0. Create topic1 with 4 partition
+        String topicName1 = "persistent://my-property/my-ns/test-pattern-0" + key;
+        admin.topics().createPartitionedTopic(topicName1, 4);
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topicsPattern(pattern)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .patternAutoDiscoveryPeriod(1, TimeUnit.SECONDS)
+                .receiverQueueSize(4)
+                .subscribe();
+
+        // 1. Need make sure first check complete
+        Awaitility.await().untilAsserted(() -> {
+            int recheckEpoch = ((PatternMultiTopicsConsumerImpl<?>) consumer).getRecheckPatternEpoch();
+            assertTrue(recheckEpoch > 0);
+        });
+
+        // 2. Create topic2 with 4 partition
+        String topicName2 = "persistent://my-property/my-ns/test-pattern" + key;
+        admin.topics().createPartitionedTopic(topicName2, 4);
+
+        // 3. verify will update the partitions and consumers
+        assertSame(pattern.pattern(), ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern().pattern());
+        Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+            assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions().size(), 8);
+            assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getConsumers().size(), 8);
+            assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 2);
+        });
+
+        // cleanup.
+        consumer.close();
+        admin.topics().deletePartitionedTopic(topicName1);
+        admin.topics().deletePartitionedTopic(topicName2);
+        pulsarClient.close();
+        conf.setEnableBrokerSideSubscriptionPatternEvaluation(true);
+    }
+
     @DataProvider(name= "regexpConsumerArgs")
     public Object[][] regexpConsumerArgs(){
         return new Object[][]{
