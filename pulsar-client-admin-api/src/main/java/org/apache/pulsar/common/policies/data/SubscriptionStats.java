@@ -85,9 +85,6 @@ public interface SubscriptionStats {
     /** Total rate of messages expired on this subscription (msg/s). */
     double getMsgRateExpired();
     
-    /** The Count of messages expired on this subscription. */
-    long getMsgExpiredCounter();
-
     /** Total messages expired on this subscription. */
     long getTotalMsgExpired();
 
