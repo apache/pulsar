@@ -662,8 +662,8 @@ public class PersistentSubscription extends AbstractSubscription {
             // Reduce un-acknowledged messages.
             owner.addAndGetUnAckedMsgs(owner, -actualAcked);
             owner.updateBlockedConsumerOnUnackedMsgs(owner);
-            if (log.isInfoEnabled()) {
-                log.info("[{}][{}] {}-{}-{} {}-{}-{} acknowledged {} messages, un-ack-msg: {}, position: {}:{}"
+            if (log.isDebugEnabled()) {
+                log.debug("[{}][{}] {}-{}-{} {}-{}-{} acknowledged {} messages, un-ack-msg: {}, position: {}:{}"
                                 + " batch messages acked: {}, position {}:{} was deleted: {}",
                         topicName, subName, owner.cnx(), owner.consumerId(), owner.consumerName(),
                         ackFrom == null ? "null" : ackFrom.cnx(),
