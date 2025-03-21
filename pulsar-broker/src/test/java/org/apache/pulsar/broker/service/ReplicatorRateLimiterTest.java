@@ -53,7 +53,7 @@ import org.testng.annotations.Test;
 /**
  * Starts 3 brokers that are in 3 different clusters
  */
-@Test(groups = "quarantine")
+@Test(groups = "broker")
 public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
 
     protected String methodName;
@@ -728,15 +728,32 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
                     assertEquals(rateLimiter.get().getDispatchRateOnByte(), byteRate);
                 });
 
-        // r1 -> r2: limits this replication channel by the namespace policy
+        // r1 -> r2: limits this replication channel by default rate limit on the namespace level.
+        long dispatchThrottlingRateInMsgOnNs = 1000;
+        long dispatchThrottlingRateInByteOnNs = 3000;
+        DispatchRate dispatchRateOnNamespace = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg((int) dispatchThrottlingRateInMsgOnNs)
+                .dispatchThrottlingRateInByte(dispatchThrottlingRateInByteOnNs)
+                .ratePeriodInSecond(1)
+                .build();
+        admin1.namespaces().setReplicatorDispatchRate(namespace, dispatchRateOnNamespace);
+        Awaitility.await()
+                .untilAsserted(() -> {
+                    Optional<DispatchRateLimiter> rateLimiter = topic.getReplicators().values().get(0).getRateLimiter();
+                    assertTrue(rateLimiter.isPresent());
+                    assertEquals(rateLimiter.get().getDispatchRateOnByte(), dispatchThrottlingRateInByteOnNs);
+                    assertEquals(rateLimiter.get().getDispatchRateOnMsg(), dispatchThrottlingRateInMsgOnNs);
+                });
+
+        // r1 -> r2: limits this replication channel by the specific cluster on the namespace level.
         long dispatchThrottlingRateInMsgWhenR1ToR2OnNs = 3000;
         long dispatchThrottlingRateInByteWhenR1ToR2OnNs = 2000;
-        DispatchRate dispatchRateOnNamespace = DispatchRate.builder()
+        DispatchRate dispatchThrottlingRateInMsgBetweenR1AndR2OnNs = DispatchRate.builder()
                 .dispatchThrottlingRateInMsg((int) dispatchThrottlingRateInMsgWhenR1ToR2OnNs)
                 .dispatchThrottlingRateInByte(dispatchThrottlingRateInByteWhenR1ToR2OnNs)
                 .ratePeriodInSecond(1)
                 .build();
-        admin1.namespaces().setReplicatorDispatchRate(namespace, "r2", dispatchRateOnNamespace);
+        admin1.namespaces().setReplicatorDispatchRate(namespace, "r2", dispatchThrottlingRateInMsgBetweenR1AndR2OnNs);
         Awaitility.await()
                 .untilAsserted(() -> {
                     Optional<DispatchRateLimiter> rateLimiter = topic.getReplicators().values().get(0).getRateLimiter();
@@ -783,6 +800,56 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
                             dispatchThrottlingRateInByteBetweenR1AndR2OnTopic);
                     assertEquals(rateLimiter.get().getDispatchRateOnMsg(),
                             dispatchThrottlingRateInMsgBetweenR1AndR2OnTopic);
+                });
+
+        // r1 -> r2: removes the specific cluster rate limit from the topic level, and then will use the default rate
+        // limit from the topic level.
+        admin1.topicPolicies().removeReplicatorDispatchRate(topicName, "r2");
+        Awaitility.await()
+                .untilAsserted(() -> {
+                    Optional<DispatchRateLimiter> rateLimiter = topic.getReplicators().values().get(0).getRateLimiter();
+                    assertTrue(rateLimiter.isPresent());
+                    assertEquals(rateLimiter.get().getDispatchRateOnByte(),
+                            defaultDispatchThrottlingRateInByteOnTopic);
+                    assertEquals(rateLimiter.get().getDispatchRateOnMsg(),
+                            defaultDispatchThrottlingRateInMsgOnTopic);
+                });
+
+        // r1 -> r2: removes the default rate limit from the topic level, and then will use the specific cluster rate
+        // limit from the namespace level.
+        admin1.topicPolicies().removeReplicatorDispatchRate(topicName);
+        Awaitility.await()
+                .untilAsserted(() -> {
+                    Optional<DispatchRateLimiter> rateLimiter = topic.getReplicators().values().get(0).getRateLimiter();
+                    assertTrue(rateLimiter.isPresent());
+                    assertEquals(rateLimiter.get().getDispatchRateOnByte(),
+                            dispatchThrottlingRateInByteWhenR1ToR2OnNs);
+                    assertEquals(rateLimiter.get().getDispatchRateOnMsg(),
+                            dispatchThrottlingRateInMsgWhenR1ToR2OnNs);
+                });
+
+        // r1 -> r2: removes the specific cluster rate limit from the namespace level, and then will use the default
+        // rate limit from the namespace level.
+        admin1.namespaces().removeReplicatorDispatchRate(namespace, "r2");
+        Awaitility.await()
+                .untilAsserted(() -> {
+                    Optional<DispatchRateLimiter> rateLimiter = topic.getReplicators().values().get(0).getRateLimiter();
+                    assertTrue(rateLimiter.isPresent());
+                    assertEquals(rateLimiter.get().getDispatchRateOnByte(),
+                            dispatchThrottlingRateInByteOnNs);
+                    assertEquals(rateLimiter.get().getDispatchRateOnMsg(),
+                            dispatchThrottlingRateInMsgOnNs);
+                });
+
+        // r1 -> r2: removes the default cluster rate limit from the namespace level, and then will use the
+        // rate limit from the broker level.
+        admin1.namespaces().removeReplicatorDispatchRate(namespace);
+        Awaitility.await()
+                .untilAsserted(() -> {
+                    Optional<DispatchRateLimiter> rateLimiter = topic.getReplicators().values().get(0).getRateLimiter();
+                    assertTrue(rateLimiter.isPresent());
+                    assertEquals(rateLimiter.get().getDispatchRateOnByte(), -1);
+                    assertEquals(rateLimiter.get().getDispatchRateOnMsg(), -1);
                 });
     }
 

@@ -75,6 +75,7 @@ import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PolicyHierarchyValue;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
@@ -215,11 +216,33 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
     public DispatchRateImpl getReplicatorDispatchRate(String remoteCluster) {
-        Map<String, DispatchRateImpl> dispatchRateMap = topicPolicies.getReplicatorDispatchRate().get();
-        DispatchRateImpl dispatchRate = dispatchRateMap.get(remoteCluster);
-        if (dispatchRate == null) {
-            // Use the default dispatch rate.
-            dispatchRate = dispatchRateMap.get(brokerService.pulsar().getConfiguration().getClusterName());
+        String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
+        PolicyHierarchyValue<DispatchRateImpl> dispatchRatePolicyHierarchyValue =
+                topicPolicies.getReplicatorDispatchRate()
+                        .get(getReplicatorDispatchRateKey(localCluster, remoteCluster));
+        DispatchRateImpl dispatchRate;
+        if (dispatchRatePolicyHierarchyValue != null) {
+            // Topic
+            dispatchRate = dispatchRatePolicyHierarchyValue.getTopicValue();
+            if (dispatchRate == null) {
+                dispatchRate = topicPolicies.getReplicatorDispatchRate().get(localCluster).getTopicValue();
+            }
+            // Namespace
+            if (dispatchRate == null) {
+                dispatchRate = dispatchRatePolicyHierarchyValue.getNamespaceValue();
+            }
+            if (dispatchRate == null) {
+                dispatchRate = topicPolicies.getReplicatorDispatchRate().get(localCluster).getNamespaceValue();
+            }
+            // Broker
+            if (dispatchRate == null) {
+                dispatchRate = dispatchRatePolicyHierarchyValue.getBrokerValue();
+            }
+            if (dispatchRate == null) {
+                dispatchRate = topicPolicies.getReplicatorDispatchRate().get(localCluster).getBrokerValue();
+            }
+        } else {
+            dispatchRate = topicPolicies.getReplicatorDispatchRate().get(localCluster).get();
         }
         return dispatchRate;
     }
@@ -261,13 +284,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         topicPolicies.getMessageTTLInSeconds().updateTopicValue(normalizeValue(data.getMessageTTLInSeconds()));
         topicPolicies.getPublishRate().updateTopicValue(PublishRate.normalize(data.getPublishRate()));
         topicPolicies.getDelayedDeliveryEnabled().updateTopicValue(data.getDelayedDeliveryEnabled());
-        // Backward compatibility.
-        // Default use the current cluster name as key, {@link TopicPolicies#getReplicatorDispatchRate()} is value.
-        HashMap<String, DispatchRateImpl> replicatorDispatchRateMap =
-                new HashMap<>(data.getReplicatorDispatchRateMap());
-        replicatorDispatchRateMap.putIfAbsent(brokerService.pulsar().getConfiguration().getClusterName(),
-                data.getReplicatorDispatchRate());
-        topicPolicies.getReplicatorDispatchRate().updateTopicValue(replicatorDispatchRateMap);
+        updateTopicLevelReplicatorDispatchRate(data.getReplicatorDispatchRateMap(), data.getReplicatorDispatchRate());
         topicPolicies.getDelayedDeliveryTickTimeMillis().updateTopicValue(data.getDelayedDeliveryTickTimeMillis());
         topicPolicies.getSubscribeRate().updateTopicValue(SubscribeRate.normalize(data.getSubscribeRate()));
         topicPolicies.getSubscriptionDispatchRate().updateTopicValue(
@@ -280,6 +297,38 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         topicPolicies.getResourceGroupName().updateTopicValue(data.getResourceGroupName());
 
         updateEntryFilters();
+    }
+
+    private void updateTopicLevelReplicatorDispatchRate(Map<String, DispatchRateImpl> policy,
+                                                        DispatchRateImpl defaultDispatchRate) {
+        Map<String, DispatchRateImpl> dispatchRateMap = new HashMap<>();
+        if (policy != null) {
+            dispatchRateMap.putAll(policy);
+        }
+
+        // Backward compatibility: Default use the current cluster name as key.
+        dispatchRateMap.putIfAbsent(brokerService.pulsar().getConfiguration().getClusterName(), defaultDispatchRate);
+
+        // Process existing topic policies
+        topicPolicies.getReplicatorDispatchRate().forEach((cluster, policyValue) -> {
+            DispatchRateImpl dispatchRate = dispatchRateMap.remove(cluster);
+            policyValue.updateTopicValue(dispatchRate);
+        });
+
+        // Process remaining that weren't in topic policies
+        dispatchRateMap.forEach((cluster, dispatchRate) ->
+                updateReplicatorDispatchRate(cluster, value -> value.updateTopicValue(dispatchRate)));
+    }
+
+    private void updateReplicatorDispatchRate(String cluster,
+                                              java.util.function.Consumer<PolicyHierarchyValue<DispatchRateImpl>> c) {
+        topicPolicies.getReplicatorDispatchRate().compute(cluster, (k, v) -> {
+            if (v == null) {
+                v = new PolicyHierarchyValue<>();
+            }
+            c.accept(v);
+            return v;
+        });
     }
 
     protected void updateTopicPolicyByNamespacePolicy(Policies namespacePolicies) {
@@ -322,7 +371,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                         .map(DelayedDeliveryPolicies::getTickTime).orElse(null));
         topicPolicies.getSubscriptionTypesEnabled().updateNamespaceValue(
                 subTypeStringsToEnumSet(namespacePolicies.subscription_types_enabled));
-        topicPolicies.getReplicatorDispatchRate().updateNamespaceValue(namespacePolicies.replicatorDispatchRate);
+        updateNamespaceLevelReplicatorDispatchRate(namespacePolicies.replicatorDispatchRate);
         Arrays.stream(BacklogQuota.BacklogQuotaType.values()).forEach(
                 type -> this.topicPolicies.getBackLogQuotaMap().get(type)
                         .updateNamespaceValue(MapUtils.getObject(namespacePolicies.backlog_quota_map, type)));
@@ -339,6 +388,23 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     private Integer normalizeValue(Integer policyValue) {
         return policyValue != null && policyValue < 0 ? null : policyValue;
+    }
+
+    private void updateNamespaceLevelReplicatorDispatchRate(Map<String, DispatchRateImpl> policy) {
+        Map<String, DispatchRateImpl> dispatchRateMap = new HashMap<>();
+        if (policy != null) {
+            dispatchRateMap.putAll(policy);
+        }
+
+        // Process existing topic policies.
+        topicPolicies.getReplicatorDispatchRate().forEach((cluster, policyValue) -> {
+            DispatchRateImpl dispatchRate = dispatchRateMap.remove(cluster);
+            policyValue.updateNamespaceValue(dispatchRate);
+        });
+
+        // Process remaining that weren't in topic policies
+        dispatchRateMap.forEach((cluster, dispatchRate) -> updateReplicatorDispatchRate(cluster,
+                value -> value.updateNamespaceValue(dispatchRate)));
     }
 
     private void updateNamespaceDispatchRate(Policies namespacePolicies, String cluster) {
@@ -417,7 +483,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         topicPolicies.getCompactionThreshold().updateBrokerValue(config.getBrokerServiceCompactionThresholdInBytes());
         topicPolicies.getReplicationClusters().updateBrokerValue(Collections.emptyList());
         SchemaCompatibilityStrategy schemaCompatibilityStrategy = config.getSchemaCompatibilityStrategy();
-        topicPolicies.getReplicatorDispatchRate().updateBrokerValue(replicatorDispatchRateInBroker(config));
+        updateBrokerReplicatorDispatchRate();
         if (isSystemTopic()) {
             schemaCompatibilityStrategy = config.getSystemTopicSchemaCompatibilityStrategy();
         }
@@ -456,14 +522,12 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             .build();
     }
 
-    private Map<String, DispatchRateImpl> replicatorDispatchRateInBroker(ServiceConfiguration config) {
-        Map<String, DispatchRateImpl> dispatchRate = new HashMap<>();
-        dispatchRate.put(brokerService.pulsar().getConfiguration().getClusterName(), DispatchRateImpl.builder()
+    private DispatchRateImpl replicatorDispatchRateInBroker(ServiceConfiguration config) {
+        return DispatchRateImpl.builder()
                 .dispatchThrottlingRateInMsg(config.getDispatchThrottlingRatePerReplicatorInMsg())
                 .dispatchThrottlingRateInByte(config.getDispatchThrottlingRatePerReplicatorInByte())
                 .ratePeriodInSecond(1)
-                .build());
-        return dispatchRate;
+                .build();
     }
 
     private EnumSet<SubType> subTypeStringsToEnumSet(Set<String> getSubscriptionTypesEnabled) {
@@ -1404,8 +1468,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
     public void updateBrokerReplicatorDispatchRate() {
-        topicPolicies.getReplicatorDispatchRate().updateBrokerValue(
-            replicatorDispatchRateInBroker(brokerService.pulsar().getConfiguration()));
+        updateReplicatorDispatchRate(brokerService.pulsar().getConfiguration().getClusterName(), v -> {
+            v.updateBrokerValue(replicatorDispatchRateInBroker(brokerService.pulsar().getConfiguration()));
+        });
     }
 
     public void updateBrokerDispatchRate() {
@@ -1450,5 +1515,12 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             log.warn("Failed to get migration cluster URL", e);
         }
         return Optional.empty();
+    }
+
+    public static String getReplicatorDispatchRateKey(String localCluster, String remoteCluster) {
+        if (StringUtils.isNotEmpty(remoteCluster)) {
+            return String.format("%s->%s", remoteCluster, localCluster);
+        }
+        return localCluster;
     }
 }

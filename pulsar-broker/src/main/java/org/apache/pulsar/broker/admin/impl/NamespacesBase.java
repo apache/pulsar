@@ -2621,9 +2621,7 @@ public abstract class NamespacesBase extends AdminResource {
                     log.info("[{}] Set namespace replicator dispatch-rate {}/{}",
                             clientAppId(), namespaceName, dispatchRate);
                 }).thenCompose(__ -> namespaceResources().setPoliciesAsync(namespaceName, policies -> {
-                    policies.replicatorDispatchRate.put(
-                            StringUtils.isNotEmpty(cluster) ? cluster : pulsar().getConfiguration().getClusterName(),
-                            dispatchRate);
+                    policies.replicatorDispatchRate.put(getReplicatorDispatchRateKey(cluster), dispatchRate);
                     return policies;
                 })).thenAccept(__ -> {
                     asyncResponse.resume(Response.noContent().build());
@@ -2647,8 +2645,7 @@ public abstract class NamespacesBase extends AdminResource {
                     if (!policiesOpt.isPresent()) {
                         throw new RestException(Response.Status.NOT_FOUND, "Namespace policies does not exist");
                     }
-                    return policiesOpt.get().replicatorDispatchRate.get(
-                            StringUtils.isNotEmpty(cluster) ? cluster : pulsar().getConfiguration().getClusterName());
+                    return policiesOpt.get().replicatorDispatchRate.get(getReplicatorDispatchRateKey(cluster));
                 }).thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -2664,8 +2661,7 @@ public abstract class NamespacesBase extends AdminResource {
     protected void internalRemoveReplicatorDispatchRate(AsyncResponse asyncResponse, String cluster) {
         validateNamespacePolicyOperationAsync(namespaceName, PolicyName.REPLICATION_RATE, PolicyOperation.WRITE)
                 .thenCompose(__ -> namespaceResources().setPoliciesAsync(namespaceName, policies -> {
-                    policies.replicatorDispatchRate.remove(
-                            StringUtils.isNotEmpty(cluster) ? cluster : pulsar().getConfiguration().getClusterName());
+                    policies.replicatorDispatchRate.remove(getReplicatorDispatchRateKey(cluster));
                     return policies;
                 })).thenAccept(__ -> {
                     asyncResponse.resume(Response.noContent().build());

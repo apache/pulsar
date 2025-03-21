@@ -22,6 +22,7 @@ import com.google.common.collect.ImmutableMap;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.Getter;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
@@ -50,7 +51,7 @@ public class HierarchyTopicPolicies {
     final PolicyHierarchyValue<PublishRate> publishRate;
     final PolicyHierarchyValue<Boolean> delayedDeliveryEnabled;
     final PolicyHierarchyValue<Long> delayedDeliveryTickTimeMillis;
-    final PolicyHierarchyValue<Map<String, DispatchRateImpl>> replicatorDispatchRate;
+    final Map<String, PolicyHierarchyValue<DispatchRateImpl>> replicatorDispatchRate;
     final PolicyHierarchyValue<Integer> maxConsumersPerSubscription;
     final PolicyHierarchyValue<SubscribeRate> subscribeRate;
     final PolicyHierarchyValue<DispatchRateImpl> subscriptionDispatchRate;
@@ -85,7 +86,7 @@ public class HierarchyTopicPolicies {
         publishRate = new PolicyHierarchyValue<>();
         delayedDeliveryEnabled = new PolicyHierarchyValue<>();
         delayedDeliveryTickTimeMillis = new PolicyHierarchyValue<>();
-        replicatorDispatchRate = new PolicyHierarchyValue<>();
+        replicatorDispatchRate = new ConcurrentHashMap<>();
         compactionThreshold = new PolicyHierarchyValue<>();
         subscribeRate = new PolicyHierarchyValue<>();
         subscriptionDispatchRate = new PolicyHierarchyValue<>();
