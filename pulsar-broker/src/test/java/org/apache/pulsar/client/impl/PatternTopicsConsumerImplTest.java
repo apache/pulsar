@@ -684,6 +684,40 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         }
     }
 
+    @Test(timeOut = testTimeout)
+    public void testSubscribePatterWithOutTopicDomain() throws Exception {
+        final String key = "testSubscribePatterWithOutTopicDomain";
+        final String subscriptionName = "my-ex-subscription-" + key;
+        final Pattern pattern = Pattern.compile("my-property/my-ns/test-pattern.*");
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topicsPattern(pattern)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(4)
+                .subscribe();
+
+        // 0. Need make sure topic watcher started
+        waitForTopicListWatcherStarted(consumer);
+
+        // 1. create partition topic
+        String topicName = "persistent://my-property/my-ns/test-pattern" + key;
+        admin.topics().createPartitionedTopic(topicName, 4);
+
+        // 2. verify broker will push the changes to update(CommandWatchTopicUpdate).
+        assertSame(pattern.pattern(), ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern().pattern());
+        Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+            assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions().size(), 4);
+            assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getConsumers().size(), 4);
+            assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 1);
+        });
+
+        // cleanup.
+        consumer.close();
+        admin.topics().deletePartitionedTopic(topicName);
+        pulsarClient.close();
+    }
+
     @DataProvider(name= "regexpConsumerArgs")
     public Object[][] regexpConsumerArgs(){
         return new Object[][]{

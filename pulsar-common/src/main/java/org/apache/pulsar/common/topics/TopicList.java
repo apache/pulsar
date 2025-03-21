@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.topics;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.hash.Hashing;
 import com.google.re2j.Pattern;
 import java.nio.charset.StandardCharsets;
@@ -85,8 +84,7 @@ public class TopicList {
         return s1;
     }
 
-    @VisibleForTesting
-    static String removeTopicDomainScheme(String originalRegexp) {
+    public static String removeTopicDomainScheme(String originalRegexp) {
         if (!originalRegexp.toString().contains(SCHEME_SEPARATOR)) {
             return originalRegexp;
         }

@@ -843,14 +843,14 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                         c, c.getAvailablePermits());
             }
 
-            int maxMessagesInThisBatch =
-                    Math.max(remainingMessages, serviceConfig.getDispatcherMaxRoundRobinBatchSize());
+            int maxMessagesInThisBatch = Math.min(remainingMessages, availablePermits);
             if (c.getMaxUnackedMessages() > 0) {
                 // Calculate the maximum number of additional unacked messages allowed
                 int maxAdditionalUnackedMessages = Math.max(c.getMaxUnackedMessages() - c.getUnackedMessages(), 0);
                 maxMessagesInThisBatch = Math.min(maxMessagesInThisBatch, maxAdditionalUnackedMessages);
             }
-            int maxEntriesInThisBatch = Math.min(availablePermits,
+            // TODO: add tests to verify dispatcherMaxRoundRobinBatchSize is respected
+            int maxEntriesInThisBatch = Math.min(serviceConfig.getDispatcherMaxRoundRobinBatchSize(),
                             // use the average batch size per message to calculate the number of entries to
                             // dispatch. round up to the next integer without using floating point arithmetic.
                             (maxMessagesInThisBatch + avgBatchSizePerMsg - 1) / avgBatchSizePerMsg);

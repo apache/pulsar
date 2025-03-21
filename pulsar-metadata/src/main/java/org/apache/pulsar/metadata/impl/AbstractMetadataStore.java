@@ -156,7 +156,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             }
             // else update the event
             CompletableFuture<?> updateResult = (event.getType() == NotificationType.Deleted)
-                    ? deleteInternal(event.getPath(), Optional.ofNullable(event.getExpectedVersion()))
+                    ? deleteInternal(event.getPath(), Optional.empty())
                     : putInternal(event.getPath(), event.getValue(),
                     Optional.ofNullable(event.getExpectedVersion()), options);
             updateResult.thenApply(stat -> {

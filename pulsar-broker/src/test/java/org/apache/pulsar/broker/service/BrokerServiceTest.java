@@ -85,9 +85,11 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
+import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer.State;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -106,6 +108,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -1549,6 +1552,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         CloseableHttpClient httpClient = HttpClientBuilder.create().build();
         final String metricsEndPoint = getPulsar().getWebServiceAddress() + "/metrics";
         HttpResponse response = httpClient.execute(new HttpGet(metricsEndPoint));
+        assertEquals(response.getEntity().getContentType().getValue(),
+                PrometheusMetricsServlet.PROMETHEUS_CONTENT_TYPE_004);
         InputStream inputStream = response.getEntity().getContent();
         InputStreamReader isReader = new InputStreamReader(inputStream);
         BufferedReader reader = new BufferedReader(isReader);
@@ -2002,5 +2007,22 @@ public class BrokerServiceTest extends BrokerTestBase {
         }
     }
 
+    @Test
+    public void testPulsarMetadataEventSyncProducerCreation() throws Exception {
+        final String topicName = "persistent://prop/usw/my-ns/syncTopic";
+        pulsar.getConfiguration().setMetadataSyncEventTopic(topicName);
+        PulsarMetadataEventSynchronizer sync = new PulsarMetadataEventSynchronizer(pulsar, topicName);
+        // set invalid client for retry
+        PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder().serviceUrl("http://invalidhost:8080")
+                .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
+        sync.client = client;
+        sync.STATE_UPDATER.set(sync, State.Starting_Producer);
+        sync.startProducer();
+        assertNull(sync.getProducer());
+        // update valid client which will set the producer
+        sync.client = (PulsarClientImpl) pulsarClient;
+        retryStrategically((test) -> sync.getProducer() != null, 1000, 10);
+        assertNotNull(sync.getProducer());
+    }
 }
 

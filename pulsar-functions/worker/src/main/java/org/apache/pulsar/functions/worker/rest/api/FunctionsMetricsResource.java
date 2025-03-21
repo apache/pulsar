@@ -32,6 +32,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
@@ -63,7 +64,7 @@ public class FunctionsMetricsResource extends FunctionApiResource {
             };
             return Response
                 .ok(streamOut)
-                .type(MediaType.TEXT_PLAIN_TYPE)
+                .type(PrometheusMetricsServlet.PROMETHEUS_CONTENT_TYPE_004)
                 .build();
         } finally {
             buf.release();

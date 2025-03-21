@@ -363,7 +363,7 @@ public class MessageDeduplication {
             // Message is coming from replication, we need to use the replication's producer name, ledger id and entry
             // id for the purpose of deduplication.
             MessageMetadata md = Commands.peekMessageMetadata(headersAndPayload, "Check-Deduplicate", -1);
-            if (Markers.isReplicationMarker(md.getMarkerType())) {
+            if (md != null && md.hasMarkerType() && Markers.isReplicationMarker(md.getMarkerType())) {
                 publishContext.setProperty(MSG_PROP_IS_REPL_MARKER, "");
             }
             return;
