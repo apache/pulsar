@@ -275,5 +275,20 @@ public class ProducerConsumerInternalTest extends ProducerConsumerBase {
         message = (MessageImpl<byte[]>) consumer.receive();
         compressionType = message.getCompressionType();
         assertEquals(compressionType, CompressionType.LZ4);
+
+        // Verify data integrity
+        String data = "compression test message";
+        producer.conf.setBatchingEnabled(true);
+        producer.getConfiguration().setCompressMinMsgBodySize(1);
+        producer.newMessage().value(data.getBytes()).send();
+        message = (MessageImpl<byte[]>) consumer.receive();
+        assertEquals(new String(message.getData()), data);
+
+        producer.conf.setBatchingEnabled(false);
+        producer.getConfiguration().setCompressMinMsgBodySize(1);
+        producer.newMessage().value(data.getBytes()).send();
+        message = (MessageImpl<byte[]>) consumer.receive();
+        assertEquals(new String(message.getData()), data);
+
     }
 }
