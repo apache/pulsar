@@ -407,4 +407,32 @@ public class ServiceConfigurationTest {
                 ServiceConfiguration.class);
         assertEquals(conf.lookupProperties(), Map.of("lookup.key2", "value2"));
     }
+
+    @Test
+    public void testDispatcherMaxRoundRobinBatchSizeProperty() throws Exception {
+        // 1. set empty value
+        String emptyConf = "dispatcherMaxRoundRobinBatchSize=\n";
+        ServiceConfiguration defaultConfig = PulsarConfigurationLoader.create(
+                new ByteArrayInputStream(emptyConf.getBytes()),
+                ServiceConfiguration.class
+        );
+        assertEquals(defaultConfig.getDispatcherMaxRoundRobinBatchSize(),20);
+
+        // 2. set valid value: 30
+        String validConf = "dispatcherMaxRoundRobinBatchSize=30\n";
+        try (InputStream stream = new ByteArrayInputStream(validConf.getBytes())) {
+            ServiceConfiguration config = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
+            assertEquals(config.getDispatcherMaxRoundRobinBatchSize(),30);
+        }
+
+        // 3. set invalid type: "invalidValueType"
+        String invalidConf = "dispatcherMaxRoundRobinBatchSize=invalidValueType\n";
+        try (InputStream stream = new ByteArrayInputStream(invalidConf.getBytes())) {
+            ServiceConfiguration config = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
+            fail("Expected IllegalArgumentException for negative value");
+        } catch (IllegalArgumentException e) {
+            assertTrue(e.getMessage().contains("failed to initialize dispatcherMaxRoundRobinBatchSize field while setting value invalidValueType"));
+        }
+
+    }
 }
