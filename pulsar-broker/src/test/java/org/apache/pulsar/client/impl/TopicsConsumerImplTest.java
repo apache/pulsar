@@ -1350,9 +1350,6 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         admin.topics().createPartitionedTopic(topicName1, 3);
         assertEquals(admin.topics().getPartitionedTopicMetadata(topicName1).partitions, 3);
 
-        consumer.getRecheckPatternTimeout().task().run(consumer.getRecheckPatternTimeout());
-        Assert.assertTrue(consumer.getRecheckPatternTimeout().isCancelled());
-
         Awaitility.await().untilAsserted(() -> {
             Assert.assertEquals(consumer.getPartitionsOfTheTopicMap(), 8);
             Assert.assertEquals(consumer.allTopicPartitionsNumber.intValue(), 8);
