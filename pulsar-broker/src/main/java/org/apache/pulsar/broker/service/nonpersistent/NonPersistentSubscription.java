@@ -437,7 +437,7 @@ public class NonPersistentSubscription extends AbstractSubscription {
      *
      * @param consumer consumer object that is initiating the unsubscribe operation
      * @param force unsubscribe forcefully by disconnecting consumers and closing subscription
-     * @return CompletableFuture indicating the completion of ubsubscribe operation
+     * @return CompletableFuture indicating the completion of unsubscribe operation
      */
     @Override
     public CompletableFuture<Void> doUnsubscribe(Consumer consumer, boolean force) {
