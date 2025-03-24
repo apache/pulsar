@@ -56,6 +56,8 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     protected NamespaceName namespaceName;
 
     private final AtomicInteger recheckPatternEpoch = new AtomicInteger();
+    // If recheckPatternTimeout is not null, it means the broker's topic watcher is disabled.
+    // The client need falls back to the polling model.
     private volatile Timeout recheckPatternTimeout = null;
     private volatile String topicsHash;
 
@@ -407,6 +409,11 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     @VisibleForTesting
     int getRecheckPatternEpoch() {
         return recheckPatternEpoch.get();
+    }
+
+    @VisibleForTesting
+    Timeout getRecheckPatternTimeout() {
+        return recheckPatternTimeout;
     }
 
     protected void handleSubscribeOneTopicError(String topicName,
