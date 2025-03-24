@@ -592,7 +592,8 @@ public class PersistentSubscription extends AbstractSubscription {
                 // Since we can not get how many msgs that were attempted to ack, just plus 1 into the
                 // "attemptAckMsgs".
                 attemptAckMsgs++;
-                log.warn("[{}][{}]{}-{}-{} is acknowledging {}:{}, which has been acked before. consumer_size: {}",
+                log.info("[{}][{}]{}-{}-{} is acknowledging {}:{}, which has been acked before. consumer_size: {}."
+                                + " It may caused by a repeatedly consumption",
                         topicName, subName,
                         ackFrom == null ? "null" : ackFrom.cnx(),
                         ackFrom == null ? "null" : ackFrom.consumerId(),
@@ -627,8 +628,9 @@ public class PersistentSubscription extends AbstractSubscription {
                 // Since we can not get how many msgs that were attempted to ack, just plus 1 into the
                 // "attemptAckMsgs".
                 attemptAckMsgs++;
-                log.warn("[{}][{}]{}-{}-{} skipped to reduce un-ack-msgs for {}:{}, because could not find the"
-                                + " message's owner. consumer size: {}",
+                log.info("[{}][{}]{}-{}-{} skipped to reduce un-ack-msgs for {}:{}, because could not find the"
+                                + " message's owner. consumer size: {}. It may caused by a concurrency acknowledging"
+                                + " and reconnection",
                         topicName, subName,
                         ackFrom == null ? "null" : ackFrom.cnx(),
                         ackFrom == null ? "null" : ackFrom.consumerId(),
