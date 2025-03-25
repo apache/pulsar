@@ -18,8 +18,11 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.fail;
+import lombok.Cleanup;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.PulsarClientException.NotAllowedException;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -190,5 +193,46 @@ public class ProducerCreationTest extends ProducerConsumerBase {
         }
 
         Assert.assertFalse(admin.topics().getSubscriptions(topic.toString()).contains(initialSubscriptionName));
+    }
+
+    @Test(dataProvider = "topicDomainProvider")
+    public void testCreateProducerWhenTopicTypeMismatch(TopicDomain domain)
+            throws PulsarAdminException, PulsarClientException {
+        String nonPartitionedTopic =
+                TopicName.get(domain.value(), "public", "default",
+                                "testCreateProducerWhenTopicTypeMismatch-nonPartitionedTopic")
+                        .toString();
+        admin.topics().createNonPartitionedTopic(nonPartitionedTopic);
+
+        // Topic type is non-partitioned, trying to create producer on the complete partitioned topic.
+        // Should throw NotAllowedException.
+        assertThrows(NotAllowedException.class, () -> {
+            @Cleanup
+            Producer<byte[]> ignored =
+                    pulsarClient.newProducer().topic(TopicName.get(nonPartitionedTopic).getPartition(2).toString())
+                            .create();
+        });
+
+        // Topic type is partitioned, trying to create producer on the base partitioned topic.
+        String partitionedTopic = TopicName.get(domain.value(), "public", "default",
+                        "testCreateProducerWhenTopicTypeMismatch-partitionedTopic")
+                .toString();
+        admin.topics().createPartitionedTopic(partitionedTopic, 3);
+
+        // Works fine because the lookup can help our to find all the topics.
+        {
+            @Cleanup
+            Producer<byte[]> ignored =
+                    pulsarClient.newProducer().topic(TopicName.get(partitionedTopic).getPartitionedTopicName())
+                            .create();
+        }
+
+        // Partition index is out of range.
+        assertThrows(NotAllowedException.class, () -> {
+            @Cleanup
+            Producer<byte[]> ignored =
+                    pulsarClient.newProducer().topic(TopicName.get(partitionedTopic).getPartition(100).toString())
+                            .create();
+        });
     }
 }

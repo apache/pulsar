@@ -1443,12 +1443,12 @@ public class NamespaceService implements AutoCloseable {
      */
     public CompletableFuture<Boolean> checkNonPersistentNonPartitionedTopicExists(String topic) {
         TopicName topicName = TopicName.get(topic);
-        // "non-partitioned & non-persistent" topics only exist on the owner broker.
+        // "non-partitioned & non-persistent" topics only exist on the cache of the owner broker.
         return checkTopicOwnership(TopicName.get(topic)).thenCompose(isOwned -> {
             // The current broker is the owner.
             if (isOwned) {
                CompletableFuture<Optional<Topic>> nonPersistentTopicFuture = pulsar.getBrokerService()
-                       .getTopic(topic, false);
+                       .getTopics().get(topic);
                if (nonPersistentTopicFuture != null) {
                    return nonPersistentTopicFuture.thenApply(Optional::isPresent);
                } else {
