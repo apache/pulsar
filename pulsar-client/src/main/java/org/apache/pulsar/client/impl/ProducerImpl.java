@@ -542,10 +542,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         boolean compressed = false;
         // Batch will be compressed when closed
         // If a message has a delayed delivery time, we'll always send it individually
-        if (((!isBatchMessagingEnabled() || msgMetadata.hasDeliverAtTime()))) {
-            if (payload.readableBytes() < conf.getCompressMinMsgBodySize()) {
-
-            } else {
+        if (!isBatchMessagingEnabled() || msgMetadata.hasDeliverAtTime()) {
+            if (payload.readableBytes() > conf.getCompressMinMsgBodySize()) {
                 compressedPayload = applyCompression(payload);
                 compressed = true;
 
