@@ -1417,9 +1417,15 @@ public class NamespaceService implements AutoCloseable {
                         topic.isPartitioned() ? TopicName.get(topic.getPartitionedTopicName()) : topic)
                 .thenCompose(metadata -> {
                     if (metadata.partitions > 0) {
-                        return CompletableFuture.completedFuture(
-                                topic.isPartitioned() ? TopicExistsInfo.newNonPartitionedTopicExists() :
-                                        TopicExistsInfo.newPartitionedTopicExists(metadata.partitions));
+                        if (!topic.isPartitioned()) {
+                            return CompletableFuture.completedFuture(
+                                    TopicExistsInfo.newPartitionedTopicExists(metadata.partitions));
+                        } else {
+                            if (topic.getPartitionIndex() < metadata.partitions) {
+                                return CompletableFuture.completedFuture(
+                                        TopicExistsInfo.newNonPartitionedTopicExists());
+                            }
+                        }
                     }
                     // Direct query the single topic.
                     return checkNonPartitionedTopicExists(topic).thenApply(
