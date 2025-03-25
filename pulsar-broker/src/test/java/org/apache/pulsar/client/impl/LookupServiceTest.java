@@ -132,7 +132,7 @@ public class LookupServiceTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "isUsingHttpLookup")
-    public void testGetPartitionedTopicMetadataByPulsarClient(boolean isUsingHttpLookup) {
+    public void testGetPartitionedTopicMetadataByPulsarClient(boolean isUsingHttpLookup) throws PulsarAdminException {
         LookupService lookupService = getLookupService(isUsingHttpLookup);
 
         // metadataAutoCreationEnabled is true.
@@ -167,6 +167,23 @@ public class LookupServiceTest extends ProducerConsumerBase {
                 .failsWithin(3, TimeUnit.SECONDS)
                 .withThrowableThat()
                 .withCauseInstanceOf(expectedExceptionClass);
+
+        // Verify the topic exists, and the metadataAutoCreationEnabled is false.
+        String nonPartitionedTopic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        admin.topics().createNonPartitionedTopic(nonPartitionedTopic);
+        assertThat(lookupService.getPartitionedTopicMetadata(TopicName.get(nonPartitionedTopic), false))
+                .succeedsWithin(3, TimeUnit.SECONDS)
+                .matches(n -> n.partitions == 0);
+
+        String partitionedTopic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        String partitionedTopicWithPartitionIndex = partitionedTopic + "-partition-10";
+        admin.topics().createPartitionedTopic(partitionedTopic, 20);
+        assertThat(lookupService.getPartitionedTopicMetadata(TopicName.get(partitionedTopic), false))
+                .succeedsWithin(3, TimeUnit.SECONDS)
+                .matches(n -> n.partitions == 20);
+        assertThat(lookupService.getPartitionedTopicMetadata(TopicName.get(partitionedTopicWithPartitionIndex), false))
+                .succeedsWithin(3, TimeUnit.SECONDS)
+                .matches(n -> n.partitions == 0);
     }
 
     @Test
