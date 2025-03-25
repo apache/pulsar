@@ -93,4 +93,34 @@ public class ConsumerCreationTest extends ProducerConsumerBase {
                             .subscriptionName("my-sub").subscribe();
         });
     }
+
+    @Test(dataProvider = "topicDomainProvider")
+    public void testCreateConsumerWhenSinglePartitionIsDeleted(TopicDomain domain)
+            throws PulsarAdminException, PulsarClientException {
+        testCreateConsumerWhenSinglePartitionIsDeleted(domain, false);
+        testCreateConsumerWhenSinglePartitionIsDeleted(domain, true);
+    }
+
+    private void testCreateConsumerWhenSinglePartitionIsDeleted(TopicDomain domain, boolean allowAutoTopicCreation)
+            throws PulsarAdminException, PulsarClientException {
+        conf.setAllowAutoTopicCreation(allowAutoTopicCreation);
+
+        String partitionedTopic = TopicName.get(domain.value(), "public", "default",
+                        "testCreateConsumerWhenTopicTypeMismatch-partitionedTopic-" + allowAutoTopicCreation)
+                .toString();
+        admin.topics().createPartitionedTopic(partitionedTopic, 3);
+        admin.topics().delete(TopicName.get(partitionedTopic).getPartition(1).toString());
+
+        if (allowAutoTopicCreation) {
+            @Cleanup
+            Consumer<byte[]> ignored =
+                    pulsarClient.newConsumer().topic(partitionedTopic).subscriptionName("my-sub").subscribe();
+        } else {
+            assertThrows(PulsarClientException.TopicDoesNotExistException.class, () -> {
+                @Cleanup
+                Consumer<byte[]> ignored =
+                        pulsarClient.newConsumer().topic(partitionedTopic).subscriptionName("my-sub").subscribe();
+            });
+        }
+    }
 }

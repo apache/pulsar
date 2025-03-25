@@ -235,4 +235,32 @@ public class ProducerCreationTest extends ProducerConsumerBase {
                             .create();
         });
     }
+
+    @Test(dataProvider = "topicDomainProvider")
+    public void testCreateProducerWhenSinglePartitionIsDeleted(TopicDomain domain)
+            throws PulsarAdminException, PulsarClientException {
+        testCreateProducerWhenSinglePartitionIsDeleted(domain, false);
+        testCreateProducerWhenSinglePartitionIsDeleted(domain, true);
+    }
+
+    private void testCreateProducerWhenSinglePartitionIsDeleted(TopicDomain domain, boolean allowAutoTopicCreation)
+            throws PulsarAdminException, PulsarClientException {
+        conf.setAllowAutoTopicCreation(allowAutoTopicCreation);
+
+        String partitionedTopic = TopicName.get(domain.value(), "public", "default",
+                        "testCreateProducerWhenSinglePartitionIsDeleted-partitionedTopic-" + allowAutoTopicCreation)
+                .toString();
+        admin.topics().createPartitionedTopic(partitionedTopic, 3);
+        admin.topics().delete(TopicName.get(partitionedTopic).getPartition(1).toString());
+
+        if (allowAutoTopicCreation) {
+            @Cleanup
+            Producer<byte[]> ignored = pulsarClient.newProducer().topic(partitionedTopic).create();
+        } else {
+            assertThrows(PulsarClientException.TopicDoesNotExistException.class, () -> {
+                @Cleanup
+                Producer<byte[]> ignored = pulsarClient.newProducer().topic(partitionedTopic).create();
+            });
+        }
+    }
 }
