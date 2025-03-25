@@ -163,4 +163,42 @@ public interface SubscriptionStats {
     long getFilterRescheduledMsgCount();
 
     long getDelayedMessageIndexSizeInBytes();
+
+    /**
+     * Gets the total number of times message dispatching was throttled on a subscription
+     * due to subscription rate limits.
+     * @return the count of throttled message events by subscription limit, default is 0.
+     */
+    long getDispatchThrottledMsgEventsBySubscriptionLimit();
+
+    /**
+     * Gets the total number of times bytes dispatching was throttled on a subscription
+     * due to subscription rate limits.
+     * @return the count of throttled bytes by subscription limit, default is 0.
+     */
+    long getDispatchThrottledBytesEventsBySubscriptionLimit();
+
+    /**
+     * Gets the total number of times message dispatching was throttled on a subscription due to topic rate limits.
+     * @return the count of throttled message events by topic limit, default is 0.
+     */
+    long getDispatchThrottledMsgEventsByTopicLimit();
+
+    /**
+     * Gets the total number of times bytes dispatching was throttled on a subscription due to topic rate limits.
+     * @return the count of throttled bytes events by topic limit, default is 0.
+     */
+    long getDispatchThrottledBytesEventsByTopicLimit();
+
+    /**
+     * Gets the total number of times message dispatching was throttled on a subscription due to broker rate limits.
+     * @return the count of throttled message events by broker limit, default is 0.
+     */
+    long getDispatchThrottledMsgEventsByBrokerLimit();
+
+    /**
+     * Gets the total number of times bytes dispatching was throttled on a subscription due to broker rate limits.
+     * @return the count of throttled bytes count by broker limit, default is 0.
+     */
+    long getDispatchThrottledBytesEventsByBrokerLimit();
 }

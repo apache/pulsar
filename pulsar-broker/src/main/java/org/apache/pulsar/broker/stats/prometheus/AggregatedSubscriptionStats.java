@@ -75,6 +75,24 @@ public class AggregatedSubscriptionStats {
 
     long filterRescheduledMsgCount;
 
+    /** total number of times message dispatching was throttled on a subscription due to broker rate limits. */
+    long dispatchThrottledMsgEventsBySubscriptionLimit;
+
+    /** total number of times bytes dispatching was throttled on a subscription due to broker rate limits. */
+    long dispatchThrottledBytesEventsBySubscriptionLimit;
+
+    /** total number of times message dispatching was throttled on a subscription due to topic rate limits. */
+    long dispatchThrottledMsgEventsByTopicLimit;
+
+    /** total number of times bytes dispatching was throttled on a subscription due to topic rate limits. */
+    long dispatchThrottledBytesEventsByTopicLimit;
+
+    /** total number of times message dispatching was throttled on a subscription due to broker rate limits. */
+    long dispatchThrottledMsgEventsByBrokerLimit;
+
+    /** total number of times bytes dispatching was throttled on a subscription due to broker rate limits. */
+    long dispatchThrottledBytesEventsByBrokerLimit;
+
     public Map<Consumer, AggregatedConsumerStats> consumerStat = new HashMap<>();
 
     long delayedMessageIndexSizeInBytes;
