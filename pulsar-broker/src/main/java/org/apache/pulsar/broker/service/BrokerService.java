@@ -1073,50 +1073,56 @@ public class BrokerService implements Closeable {
      * leading to access errors if not properly handled.
      *
      * @param topicName The topic name to validate
-     * @param metadata  The partition metadata retrieved for this topic
      * @return CompletableFuture that completes normally if validation passes, or
      * completes exceptionally with NotAllowedException if validation fails
      */
-    private CompletableFuture<Void> validateTopicConsistency(TopicName topicName, PartitionedTopicMetadata metadata) {
+    private CompletableFuture<Void> validateTopicConsistency(TopicName topicName) {
         if (NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject())) {
             // Skip validation for heartbeat namespace.
             return CompletableFuture.completedFuture(null);
         }
-
-        if (topicName.isPartitioned()) {
-            if (metadata.partitions == 0) {
-                // Edge case: When a complete partitioned topic name is provided but metadata shows 0 partitions.
-                // This indicates that the partitioned topic metadata doesn't exist.
-                //
-                // Resolution options:
-                // 1. Creates the partitioned topic via admin API.
-                // 2. Uses the basic topic name and then rely on auto-creation if enabled.
-                return FutureUtil.failedFuture(
-                        new BrokerServiceException.NotAllowedException(
-                                "Partition metadata not found for the partitioned topic: " + topicName));
-            }
-            if (topicName.getPartitionIndex() >= metadata.partitions) {
-                final String errorMsg =
-                        String.format(
-                                "Illegal topic partition name %s with max allowed "
-                                        + "%d partitions", topicName,
-                                metadata.partitions);
-                log.warn(errorMsg);
-                return FutureUtil.failedFuture(
-                        new BrokerServiceException.NotAllowedException(errorMsg));
-            }
-        } else if (metadata.partitions > 0) {
-            // Edge case: Non-partitioned topic name was provided, but metadata indicates this is actually a partitioned
-            // topic (partitions > 0).
-            //
-            // Resolution: Must use the complete partitioned topic name('topic-name-partition-N').
-            //
-            // This ensures proper routing to the specific partition and prevents ambiguity in topic addressing.
-            return FutureUtil.failedFuture(new BrokerServiceException.NotAllowedException(
-                    "Found partitioned metadata for non-partitioned topic: " + topicName));
-        }
-
-        return CompletableFuture.completedFuture(null);
+        TopicName baseTopicName =
+                topicName.isPartitioned() ? TopicName.get(topicName.getPartitionedTopicName()) : topicName;
+        return fetchPartitionedTopicMetadataAsync(baseTopicName)
+                .thenCompose(metadata -> {
+                    if (topicName.isPartitioned()) {
+                        if (metadata.partitions == 0) {
+                            // Edge case: When a complete partitioned topic name is provided but metadata shows 0
+                            // partitions.
+                            // This indicates that the partitioned topic metadata doesn't exist.
+                            //
+                            // Resolution options:
+                            // 1. Creates the partitioned topic via admin API.
+                            // 2. Uses the base topic name and then rely on auto-creation the partitioned topic if
+                            // enabled.
+                            return FutureUtil.failedFuture(
+                                    new BrokerServiceException.NotAllowedException(
+                                            "Partition metadata not found for the partitioned topic: " + topicName));
+                        }
+                        if (topicName.getPartitionIndex() >= metadata.partitions) {
+                            final String errorMsg =
+                                    String.format(
+                                            "Illegal topic partition name %s with max allowed "
+                                                    + "%d partitions", topicName,
+                                            metadata.partitions);
+                            log.warn(errorMsg);
+                            return FutureUtil.failedFuture(
+                                    new BrokerServiceException.NotAllowedException(errorMsg));
+                        }
+                    } else if (metadata.partitions > 0) {
+                        // Edge case: Non-partitioned topic name was provided, but metadata indicates this is
+                        // actually a partitioned
+                        // topic (partitions > 0).
+                        //
+                        // Resolution: Must use the complete partitioned topic name('topic-name-partition-N').
+                        //
+                        // This ensures proper routing to the specific partition and prevents ambiguity in topic
+                        // addressing.
+                        return FutureUtil.failedFuture(new BrokerServiceException.NotAllowedException(
+                                "Found partitioned metadata for non-partitioned topic: " + topicName));
+                    }
+                    return CompletableFuture.completedFuture(null);
+                });
     }
 
     /**
@@ -1181,7 +1187,7 @@ public class BrokerService implements Closeable {
                 if (!topics.containsKey(topicName.toString())) {
                     topicEventsDispatcher.notify(topicName.toString(), TopicEvent.LOAD, EventStage.BEFORE);
                 }
-                if (topicName.isPartitioned() || createIfMissing) {
+                if (createIfMissing) {
                     return topics.computeIfAbsent(topicName.toString(), (name) -> {
                         topicEventsDispatcher
                                 .notify(topicName.toString(), TopicEvent.CREATE, EventStage.BEFORE);
@@ -1194,14 +1200,13 @@ public class BrokerService implements Closeable {
                                 .notifyOnCompletion(eventFuture, topicName.toString(), TopicEvent.LOAD);
                         return res;
                     });
-                } else {
-                    CompletableFuture<Optional<Topic>> topicFuture = topics.get(topicName.toString());
-                    if (topicFuture == null) {
-                        topicEventsDispatcher.notify(topicName.toString(), TopicEvent.LOAD, EventStage.FAILURE);
-                        topicFuture = CompletableFuture.completedFuture(Optional.empty());
-                    }
-                    return topicFuture;
                 }
+                CompletableFuture<Optional<Topic>> topicFuture = topics.get(topicName.toString());
+                if (topicFuture == null) {
+                    topicEventsDispatcher.notify(topicName.toString(), TopicEvent.LOAD, EventStage.FAILURE);
+                    topicFuture = CompletableFuture.completedFuture(Optional.empty());
+                }
+                return topicFuture;
             }
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Illegalargument exception when loading topic", topicName, e);
@@ -1375,13 +1380,8 @@ public class BrokerService implements Closeable {
             topicFuture.completeExceptionally(e);
             return topicFuture;
         }
-        CompletableFuture<Void> isOwner = checkTopicNsOwnership(topic);
-        TopicName topicName = TopicName.get(topic);
-        TopicName baseTopicName =
-                topicName.isPartitioned() ? TopicName.get(topicName.getPartitionedTopicName()) : topicName;
-        isOwner.thenCompose(__ -> fetchPartitionedTopicMetadataAsync(baseTopicName))
-                .thenCompose(
-                        (partitionedTopicMetadata) -> validateTopicConsistency(topicName, partitionedTopicMetadata))
+        checkTopicNsOwnership(topic)
+                .thenCompose((__) -> validateTopicConsistency(TopicName.get(topic)))
                 .thenRun(() -> {
             nonPersistentTopic.initialize()
                     .thenCompose(__ -> nonPersistentTopic.checkReplication())
@@ -1786,10 +1786,7 @@ public class BrokerService implements Closeable {
                 : CompletableFuture.completedFuture(null);
 
         CompletableFuture<Void> isTopicAlreadyMigrated = checkTopicAlreadyMigrated(topicName);
-        TopicName baseTopicName =
-                topicName.isPartitioned() ? TopicName.get(topicName.getPartitionedTopicName()) : topicName;
-        maxTopicsCheck.thenCompose(__ -> fetchPartitionedTopicMetadataAsync(baseTopicName))
-                .thenCompose(partitionedTopicMetadata -> validateTopicConsistency(topicName, partitionedTopicMetadata))
+        maxTopicsCheck.thenCompose(partitionedTopicMetadata -> validateTopicConsistency(topicName))
                 .thenCompose(__ -> isTopicAlreadyMigrated)
                 .thenCompose(__ -> getManagedLedgerConfig(topicName, topicPolicies))
         .thenAccept(managedLedgerConfig -> {
