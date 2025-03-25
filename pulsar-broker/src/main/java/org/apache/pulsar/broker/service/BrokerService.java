@@ -1187,7 +1187,7 @@ public class BrokerService implements Closeable {
                 if (!topics.containsKey(topicName.toString())) {
                     topicEventsDispatcher.notify(topicName.toString(), TopicEvent.LOAD, EventStage.BEFORE);
                 }
-                if (createIfMissing) {
+                if (topicName.isPartitioned() || createIfMissing) {
                     return topics.computeIfAbsent(topicName.toString(), (name) -> {
                         topicEventsDispatcher
                                 .notify(topicName.toString(), TopicEvent.CREATE, EventStage.BEFORE);

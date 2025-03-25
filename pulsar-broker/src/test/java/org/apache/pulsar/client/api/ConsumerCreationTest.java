@@ -106,12 +106,13 @@ public class ConsumerCreationTest extends ProducerConsumerBase {
         conf.setAllowAutoTopicCreation(allowAutoTopicCreation);
 
         String partitionedTopic = TopicName.get(domain.value(), "public", "default",
-                        "testCreateConsumerWhenTopicTypeMismatch-partitionedTopic-" + allowAutoTopicCreation)
+                        "testCreateConsumerWhenSinglePartitionIsDeleted-" + allowAutoTopicCreation)
                 .toString();
         admin.topics().createPartitionedTopic(partitionedTopic, 3);
         admin.topics().delete(TopicName.get(partitionedTopic).getPartition(1).toString());
 
-        if (allowAutoTopicCreation) {
+        // Non-persistent topic only have the metadata, and no partition, so it works fine.
+        if (allowAutoTopicCreation || domain.equals(TopicDomain.non_persistent)) {
             @Cleanup
             Consumer<byte[]> ignored =
                     pulsarClient.newConsumer().topic(partitionedTopic).subscriptionName("my-sub").subscribe();
