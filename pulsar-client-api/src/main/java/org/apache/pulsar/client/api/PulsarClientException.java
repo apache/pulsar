@@ -995,8 +995,6 @@ public class PulsarClientException extends IOException {
     public static PulsarClientException unwrap(Throwable t) {
         if (t instanceof PulsarClientException) {
             return (PulsarClientException) t;
-        } else if (t instanceof RuntimeException) {
-            throw (RuntimeException) t;
         } else if (t instanceof InterruptedException) {
             return createPulsarException(t);
         } else if (!(t instanceof ExecutionException)) {
