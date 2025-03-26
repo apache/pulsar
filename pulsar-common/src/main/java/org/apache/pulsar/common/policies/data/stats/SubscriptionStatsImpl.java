@@ -94,7 +94,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     public double msgRateExpired;
 
     /** The count of expired messages on this subscription. */
-    public long msgExpiredCounter;
+    public long msgExpired;
 
     /** Total messages expired on this subscription. */
     public long totalMsgExpired;
@@ -212,7 +212,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         unackedMessages = 0;
         type = null;
         msgRateExpired = 0;
-        msgExpiredCounter = 0;
+        msgExpired = 0;
         totalMsgExpired = 0;
         lastExpireTimestamp = 0L;
         lastMarkDeleteAdvancedTimestamp = 0L;
@@ -258,7 +258,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         this.unackedMessages += stats.unackedMessages;
         this.type = stats.type;
         this.msgRateExpired += stats.msgRateExpired;
-        this.msgExpiredCounter += stats.msgExpiredCounter;
+        this.msgExpired += stats.msgExpired;
         this.totalMsgExpired += stats.totalMsgExpired;
         this.isReplicated |= stats.isReplicated;
         this.isDurable |= stats.isDurable;
