@@ -25,10 +25,13 @@ public class PersistentDispatcherMultipleConsumerMaxEntriesInBatchTest {
                     PersistentDispatcherMultipleConsumers.getMaxEntriesInThisBatch(i, maxUnackedMessages,
                             unackedMessages,
                             avgBatchSizePerMsg, availablePermits, dispatcherMaxRoundRobinBatchSize);
-            if (i / avgBatchSizePerMsg < dispatcherMaxRoundRobinBatchSize) {
+            int entries = i / avgBatchSizePerMsg;
+            // if entries < dispatcherMaxRoundRobinBatchSize,  maxEntriesInThisBatch will be entries itself.
+            if (entries < dispatcherMaxRoundRobinBatchSize) {
                 assertEquals(maxEntriesInThisBatch,
-                        i % avgBatchSizePerMsg == 0 ? i / avgBatchSizePerMsg : i / avgBatchSizePerMsg + 1);
+                        i % avgBatchSizePerMsg == 0 ? entries : entries + 1);
             } else {
+                // as entries getting bigger, will reach the dispatcherMaxRoundRobinBatchSize limitation, so maxEntriesInThisBatch will be dispatcherMaxRoundRobinBatchSize
                 assertEquals(maxEntriesInThisBatch, dispatcherMaxRoundRobinBatchSize);
             }
         }
@@ -53,10 +56,13 @@ public class PersistentDispatcherMultipleConsumerMaxEntriesInBatchTest {
                     PersistentDispatcherMultipleConsumers.getMaxEntriesInThisBatch(i, maxUnackedMessages,
                             unackedMessages,
                             avgBatchSizePerMsg, availablePermits, dispatcherMaxRoundRobinBatchSize);
+            // if remainingMessages less than availablePermits, maxEntriesInThisBatch will be entries itself.
             if (i < availablePermits) {
+                int entries = i / avgBatchSizePerMsg;
                 assertEquals(maxEntriesInThisBatch,
-                        i % avgBatchSizePerMsg == 0 ? i / avgBatchSizePerMsg : i / avgBatchSizePerMsg + 1);
+                        i % avgBatchSizePerMsg == 0 ? entries : entries + 1);
             } else {
+                // as entries getting bigger, will reach the consumer's permits limitation, so maxEntriesInThisBatch will be (availablePermits / avgBatchSizePerMsg)
                 assertEquals(maxEntriesInThisBatch,
                         availablePermits % avgBatchSizePerMsg == 0 ? availablePermits / avgBatchSizePerMsg :
                                 availablePermits / avgBatchSizePerMsg + 1);
@@ -84,11 +90,16 @@ public class PersistentDispatcherMultipleConsumerMaxEntriesInBatchTest {
                     PersistentDispatcherMultipleConsumers.getMaxEntriesInThisBatch(i, maxUnackedMessages,
                             unackedMessages,
                             avgBatchSizePerMsg, availablePermits, dispatcherMaxRoundRobinBatchSize);
-            if (i < (maxUnackedMessages - unackedMessages)) {
+            // if remainingMessages less than maxAdditionalUnackedMessages, maxEntriesInThisBatch will be entries itself.
+            int maxAdditionalUnackedMessages = maxUnackedMessages - unackedMessages;
+
+            if (i < maxAdditionalUnackedMessages) {
+                int entries = i / avgBatchSizePerMsg;
                 assertEquals(maxEntriesInThisBatch,
-                        i % avgBatchSizePerMsg == 0 ? i / avgBatchSizePerMsg : i / avgBatchSizePerMsg + 1);
+                        i % avgBatchSizePerMsg == 0 ? entries : entries + 1);
             } else {
-                assertEquals(maxEntriesInThisBatch, (maxUnackedMessages - unackedMessages) / avgBatchSizePerMsg);
+                // as entries getting bigger, will reach the unAckedMessages limitation, so maxEntriesInThisBatch will be (maxAdditionalUnackedMessages / avgBatchSizePerMsg)
+                assertEquals(maxEntriesInThisBatch, maxAdditionalUnackedMessages / avgBatchSizePerMsg);
             }
         }
     }
