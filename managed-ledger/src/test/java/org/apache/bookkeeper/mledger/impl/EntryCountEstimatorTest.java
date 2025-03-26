@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl.BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
-import static org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl.DEFAULT_ESTIMATED_ENTRY_SIZE;
 import static org.testng.Assert.assertEquals;
 import java.util.HashSet;
 import java.util.NavigableMap;
@@ -32,7 +31,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class EntryCountEstimatorTest {
-
     private NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgersInfo;
     private Position readPosition;
     private Long lastLedgerId;
@@ -203,11 +201,39 @@ public class EntryCountEstimatorTest {
         beforeLastKey.forEach(ledgersInfo::remove);
         lastLedgerTotalEntries = 0;
         lastLedgerTotalSize = 0;
+        int result = estimateEntryCountByBytesSize(Integer.MAX_VALUE);
+        // expect that result is 1 because the estimation couldn't be done
+        assertEquals(result, 1);
+    }
+
+    @Test
+    public void testWithOnlySecondLastLedgerAndEmptyLastLedger() {
+        readPosition = PositionFactory.LATEST;
+        // remove all but the second last and last ledger
+        long secondLastLedgerId = ledgersInfo.lowerKey(lastLedgerId);
+        Set<Long> beforeSecondLastKey = new HashSet<>(ledgersInfo.headMap(secondLastLedgerId).keySet());
+        beforeSecondLastKey.forEach(ledgersInfo::remove);
+        lastLedgerTotalEntries = 0;
+        lastLedgerTotalSize = 0;
         long expectedEntries = 50;
-        // when last is empty, DEFAULT_ESTIMATED_ENTRY_SIZE + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY is used
-        // for the average size per entry
         long requiredSize =
-                expectedEntries * (DEFAULT_ESTIMATED_ENTRY_SIZE + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY);
+                expectedEntries * (2000 / 150 + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY);
+        int result = estimateEntryCountByBytesSize(requiredSize);
+        assertEquals(result, expectedEntries);
+    }
+
+    @Test
+    public void testWithMultipleEmptyLedgers() {
+        readPosition = PositionFactory.LATEST;
+        long secondLastLedgerId = ledgersInfo.lowerKey(lastLedgerId);
+        MLDataFormats.ManagedLedgerInfo.LedgerInfo secondLastLedgerInfo = ledgersInfo.get(secondLastLedgerId);
+        // make the second last ledger empty
+        ledgersInfo.put(secondLastLedgerId, secondLastLedgerInfo.toBuilder().setEntries(0).setSize(0).build());
+        lastLedgerTotalEntries = 0;
+        lastLedgerTotalSize = 0;
+        long expectedEntries = 50;
+        long requiredSize =
+                expectedEntries * (3000 / 200 + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY);
         int result = estimateEntryCountByBytesSize(requiredSize);
         assertEquals(result, expectedEntries);
     }
