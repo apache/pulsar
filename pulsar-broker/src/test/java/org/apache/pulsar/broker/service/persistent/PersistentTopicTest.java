@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Sets;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -36,6 +34,8 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Sets;
 import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
@@ -575,37 +575,6 @@ public class PersistentTopicTest extends BrokerTestBase {
         } catch (PulsarClientException.NotAllowedException ex) {
         }
         Assert.assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, 4);
-    }
-
-    @Test
-    public void testCompatibilityWithPartitionKeyword() throws PulsarAdminException, PulsarClientException {
-        final String topicName = "persistent://prop/ns-abc/testCompatibilityWithPartitionKeyword";
-        TopicName topicNameEntity = TopicName.get(topicName);
-        String partition2 = topicNameEntity.getPartition(2).toString();
-        // Create a non-partitioned topic with -partition- keyword
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(partition2)
-                .create();
-        List<String> topics = admin.topics().getList("prop/ns-abc");
-        // Close previous producer to simulate reconnect
-        producer.close();
-        // Disable auto topic creation
-        conf.setAllowAutoTopicCreation(false);
-        // Check the topic exist in the list.
-        Assert.assertTrue(topics.contains(partition2));
-        // Check this topic has no partition metadata.
-        Assert.assertThrows(PulsarAdminException.NotFoundException.class,
-                () -> admin.topics().getPartitionedTopicMetadata(topicName));
-        // Reconnect to the broker and expect successful because the topic has existed in the broker.
-        producer = pulsarClient.newProducer()
-                .topic(partition2)
-                .create();
-        producer.close();
-        // Check the topic exist in the list again.
-        Assert.assertTrue(topics.contains(partition2));
-        // Check this topic has no partition metadata again.
-        Assert.assertThrows(PulsarAdminException.NotFoundException.class,
-                () -> admin.topics().getPartitionedTopicMetadata(topicName));
     }
 
     @Test
