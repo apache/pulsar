@@ -109,7 +109,9 @@ class ClientCredentialsFlow extends FlowBase {
 
     @Override
     public void close() throws Exception {
-        exchanger.close();
+        if (exchanger != null) {
+            exchanger.close();
+        }
     }
 
     /**
