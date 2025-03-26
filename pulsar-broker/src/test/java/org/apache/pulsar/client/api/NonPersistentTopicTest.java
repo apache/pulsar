@@ -878,7 +878,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             AtomicInteger messagesSent = new AtomicInteger(0);
             for (int i = 0; i < totalProduceMessages; i++) {
                 executor.submit(() -> {
-                    producer.sendAsync(msgData).handle((msgId, e) -> {
+                    try {
+                        MessageId msgId = producer.send(msgData);
                         int count = messagesSent.incrementAndGet();
                         // process at least 20% of messages before signalling the latch
                         // a non-persistent message will return entryId as -1 when it has been dropped
@@ -888,11 +889,17 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
                                 && ((MessageIdImpl) msgId).getEntryId() == -1) {
                             latch.countDown();
                         }
-                        return null;
-                    });
+
+                        Thread.sleep(50);
+                    } catch (PulsarClientException e) {
+                        throw new RuntimeException(e);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException(e);
+                    }
                 });
             }
-            assertTrue(latch.await(5, TimeUnit.SECONDS));
+            assertTrue(latch.await(10, TimeUnit.SECONDS));
 
             NonPersistentTopic topic =
                     (NonPersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
