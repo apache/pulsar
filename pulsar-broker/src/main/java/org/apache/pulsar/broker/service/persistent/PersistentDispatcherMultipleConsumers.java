@@ -834,7 +834,18 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 lastNumberOfEntriesProcessed = (int) totalEntriesProcessed;
                 return false;
             }
-            int maxEntriesInThisBatch = getMaxEntriesInThisBatch(remainingMessages, c, avgBatchSizePerMsg);
+            // round-robin dispatch batch size for this consumer
+            int availablePermits = c.isWritable() ? c.getAvailablePermits() : 1;
+            if (log.isDebugEnabled() && !c.isWritable()) {
+                log.debug("[{}-{}] consumer is not writable. dispatching only 1 message to {}; "
+                                + "availablePermits are {}", topic.getName(), name,
+                        c, c.getAvailablePermits());
+            }
+
+            int maxEntriesInThisBatch = getMaxEntriesInThisBatch(
+                    remainingMessages, c.getMaxUnackedMessages(), c.getUnackedMessages(), avgBatchSizePerMsg,
+                    availablePermits, serviceConfig.getDispatcherMaxRoundRobinBatchSize()
+            );
             int end = Math.min(start + maxEntriesInThisBatch, entries.size());
             List<Entry> entriesForThisConsumer = entries.subList(start, end);
 
@@ -889,22 +900,19 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
 
     @VisibleForTesting
-    int getMaxEntriesInThisBatch(int remainingMessages, Consumer c, int avgBatchSizePerMsg) {
-        // round-robin dispatch batch size for this consumer
-        int availablePermits = c.isWritable() ? c.getAvailablePermits() : 1;
-        if (log.isDebugEnabled() && !c.isWritable()) {
-            log.debug("[{}-{}] consumer is not writable. dispatching only 1 message to {}; "
-                            + "availablePermits are {}", topic.getName(), name,
-                    c, c.getAvailablePermits());
-        }
-
+    static int getMaxEntriesInThisBatch(int remainingMessages,
+                                        int maxUnackedMessages,
+                                        int unackedMessages,
+                                        int avgBatchSizePerMsg,
+                                        int availablePermits,
+                                        int dispatcherMaxRoundRobinBatchSize) {
         int maxMessagesInThisBatch = Math.min(remainingMessages, availablePermits);
-        if (c.getMaxUnackedMessages() > 0) {
+        if (maxUnackedMessages > 0) {
             // Calculate the maximum number of additional unacked messages allowed
-            int maxAdditionalUnackedMessages = Math.max(c.getMaxUnackedMessages() - c.getUnackedMessages(), 0);
+            int maxAdditionalUnackedMessages = Math.max(maxUnackedMessages - unackedMessages, 0);
             maxMessagesInThisBatch = Math.min(maxMessagesInThisBatch, maxAdditionalUnackedMessages);
         }
-        int maxEntriesInThisBatch = Math.min(serviceConfig.getDispatcherMaxRoundRobinBatchSize(),
+        int maxEntriesInThisBatch = Math.min(dispatcherMaxRoundRobinBatchSize,
                 // use the average batch size per message to calculate the number of entries to
                 // dispatch. round up to the next integer without using floating point arithmetic.
                 (maxMessagesInThisBatch + avgBatchSizePerMsg - 1) / avgBatchSizePerMsg);
