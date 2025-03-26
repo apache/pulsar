@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl.BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
-import static org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl.DEFAULT_ESTIMATED_ENTRY_SIZE;
 import java.util.Collection;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -97,8 +96,7 @@ class EntryCountEstimator {
 
         long estimatedEntryCount = 0;
         long remainingBytesSize = maxSizeBytes;
-        // Start with a default estimated average size per entry, including any overhead
-        long currentAvgSize = DEFAULT_ESTIMATED_ENTRY_SIZE + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
+        long currentAvgSize = 0;
         // Get a collection of ledger info starting from the read position
         Collection<MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgersAfterReadPosition =
                 ledgersInfo.tailMap(readPosition.getLedgerId(), true).values();
@@ -159,7 +157,26 @@ class EntryCountEstimator {
 
         // Add any remaining bytes to the estimated entry count considering the current average entry size
         if (remainingBytesSize > 0 && estimatedEntryCount < maxEntries) {
-            estimatedEntryCount += remainingBytesSize / currentAvgSize;
+            // need to find the previous non-empty ledger to find the average size
+            if (currentAvgSize == 0) {
+                Collection<MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgersBeforeReadPosition =
+                        ledgersInfo.headMap(readPosition.getLedgerId(), false).descendingMap().values();
+                for (MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo : ledgersBeforeReadPosition) {
+                    long ledgerTotalSize = ledgerInfo.getSize();
+                    long ledgerTotalEntries = ledgerInfo.getEntries();
+                    // Skip processing ledgers that have no entries or size
+                    if (ledgerTotalEntries == 0 || ledgerTotalSize == 0) {
+                        continue;
+                    }
+                    // Update the average entry size based on the current ledger's size and entry count
+                    currentAvgSize = Math.max(1, ledgerTotalSize / ledgerTotalEntries)
+                            + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
+                    break;
+                }
+            }
+            if (currentAvgSize > 0) {
+                estimatedEntryCount += remainingBytesSize / currentAvgSize;
+            }
         }
 
         // Ensure at least one entry is always returned as the result
