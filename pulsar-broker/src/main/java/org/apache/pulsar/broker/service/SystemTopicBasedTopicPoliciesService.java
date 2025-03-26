@@ -140,6 +140,15 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         CompletableFuture<Boolean> changeEventTopicExists = pulsarService.getPulsarResources().getTopicResources()
                 .persistentTopicExists(changeEvents).thenCompose(nonPartitionedExists -> {
             if (!nonPartitionedExists) {
+                // To check whether partitioned __change_events exists.
+                // Instead of checking partitioned metadata, we check the first partition, because there is a case
+                // does not work if we choose checking partitioned metadata.
+                // The case's details:
+                // 1. Start 2 clusters: c1 and c2.
+                // 2. Enable replication between c1 and c2 with a global ZK.
+                // 3. The partitioned metadata was shared using by c1 and c2.
+                // 4. Pulsar only delete partitions when the topic is deleting from c1, because c2 is still using
+                //    partitioned metadata.
                 return pulsarService.getPulsarResources().getTopicResources()
                         .persistentTopicExists(changeEvents.getPartition(0));
             }
