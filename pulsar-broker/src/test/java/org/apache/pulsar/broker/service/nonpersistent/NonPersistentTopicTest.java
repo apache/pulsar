@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.broker.service.nonpersistent;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertThrows;
+import static org.testng.Assert.assertTrue;
 import java.lang.reflect.Field;
 import java.util.UUID;
 import lombok.Cleanup;
@@ -36,11 +40,6 @@ import org.junit.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.fail;
 
 @Test(groups = "broker")
 public class NonPersistentTopicTest extends BrokerTestBase {
@@ -107,19 +106,16 @@ public class NonPersistentTopicTest extends BrokerTestBase {
     }
 
     @Test
-    public void testCreateNonExistentPartitions() throws PulsarAdminException, PulsarClientException {
+    public void testCreateNonExistentPartitions() throws PulsarAdminException {
         final String topicName = "non-persistent://prop/ns-abc/testCreateNonExistentPartitions";
         admin.topics().createPartitionedTopic(topicName, 4);
         TopicName partition = TopicName.get(topicName).getPartition(4);
-        try {
+        assertThrows(PulsarClientException.NotAllowedException.class, () -> {
             @Cleanup
-            Producer<byte[]> producer = pulsarClient.newProducer()
+            Producer<byte[]> ignored = pulsarClient.newProducer()
                     .topic(partition.toString())
                     .create();
-            fail("unexpected behaviour");
-        } catch (PulsarClientException.TopicDoesNotExistException ignored) {
-
-        }
+        });
         Assert.assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, 4);
     }
 
