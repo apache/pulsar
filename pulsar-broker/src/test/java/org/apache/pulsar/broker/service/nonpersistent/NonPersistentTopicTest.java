@@ -36,6 +36,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -115,7 +116,7 @@ public class NonPersistentTopicTest extends BrokerTestBase {
                     .topic(partition.toString())
                     .create();
         });
-        assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, 4);
+        Assert.assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, 4);
     }
 
     @Test
