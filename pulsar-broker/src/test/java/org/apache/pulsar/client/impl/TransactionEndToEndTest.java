@@ -1295,7 +1295,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             producer.newMessage(transaction).send();
             Assert.fail();
         } catch (Exception e) {
-            Assert.assertTrue(e.getCause().getCause() instanceof TransactionCoordinatorClientException
+            Assert.assertTrue(e.getCause() instanceof TransactionCoordinatorClientException
                     .InvalidTxnStatusException);
         }
         try {
