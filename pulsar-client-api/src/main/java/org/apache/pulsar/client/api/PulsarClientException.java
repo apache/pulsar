@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -959,83 +960,36 @@ public class PulsarClientException extends IOException {
 
     // wrap an exception to enriching more info messages.
     public static Throwable wrap(Throwable t, String msg) {
-        msg += "\n" + t.getMessage();
-        // wrap an exception with new message info
-        if (t instanceof TopicDoesNotExistException) {
-            return new TopicDoesNotExistException(msg);
-        } else if (t instanceof TimeoutException) {
-            return new TimeoutException(msg);
-        } else if (t instanceof InvalidConfigurationException) {
-            return new InvalidConfigurationException(msg);
-        } else if (t instanceof AuthenticationException) {
-            return new AuthenticationException(msg);
-        } else if (t instanceof IncompatibleSchemaException) {
-            return new IncompatibleSchemaException(msg);
-        } else if (t instanceof TooManyRequestsException) {
-            return new TooManyRequestsException(msg);
-        } else if (t instanceof LookupException) {
-            return new LookupException(msg);
-        } else if (t instanceof ConnectException) {
-            return new ConnectException(msg);
-        } else if (t instanceof AlreadyClosedException) {
-            return new AlreadyClosedException(msg);
-        } else if (t instanceof TopicTerminatedException) {
-            return new TopicTerminatedException(msg);
-        } else if (t instanceof AuthorizationException) {
-            return new AuthorizationException(msg);
-        } else if (t instanceof GettingAuthenticationDataException) {
-            return new GettingAuthenticationDataException(msg);
-        } else if (t instanceof UnsupportedAuthenticationException) {
-            return new UnsupportedAuthenticationException(msg);
-        } else if (t instanceof BrokerPersistenceException) {
-            return new BrokerPersistenceException(msg);
-        } else if (t instanceof BrokerMetadataException) {
-            return new BrokerMetadataException(msg);
-        } else if (t instanceof ProducerBusyException) {
-            return new ProducerBusyException(msg);
-        } else if (t instanceof ConsumerBusyException) {
-            return new ConsumerBusyException(msg);
-        } else if (t instanceof NotConnectedException) {
-            return new NotConnectedException();
-        } else if (t instanceof InvalidMessageException) {
-            return new InvalidMessageException(msg);
-        } else if (t instanceof InvalidTopicNameException) {
-            return new InvalidTopicNameException(msg);
-        } else if (t instanceof NotSupportedException) {
-            return new NotSupportedException(msg);
-        } else if (t instanceof NotAllowedException) {
-            return new NotAllowedException(msg);
-        } else if (t instanceof ProducerQueueIsFullError) {
-            return new ProducerQueueIsFullError(msg);
-        } else if (t instanceof ProducerBlockedQuotaExceededError) {
-            return new ProducerBlockedQuotaExceededError(msg);
-        } else if (t instanceof ProducerBlockedQuotaExceededException) {
-            return new ProducerBlockedQuotaExceededException(msg);
-        } else if (t instanceof ChecksumException) {
-            return new ChecksumException(msg);
-        } else if (t instanceof CryptoException) {
-            return new CryptoException(msg);
-        } else if (t instanceof ConsumerAssignException) {
-            return new ConsumerAssignException(msg);
-        } else if (t instanceof MessageAcknowledgeException) {
-            return new MessageAcknowledgeException(msg);
-        } else if (t instanceof TransactionConflictException) {
-            return new TransactionConflictException(msg);
-        } else if (t instanceof  TransactionHasOperationFailedException) {
-            return new TransactionHasOperationFailedException(msg);
-        } else if (t instanceof PulsarClientException) {
-            return new PulsarClientException(msg);
-        } else if (t instanceof CompletionException) {
+        if (t instanceof CompletionException) {
             return t;
-        } else if (t instanceof RuntimeException) {
-            return new RuntimeException(msg, t.getCause());
         } else if (t instanceof InterruptedException) {
             return t;
         } else if (t instanceof ExecutionException) {
             return t;
         }
 
-        return t;
+        try {
+            String combinedMessage = msg;
+            String originalMessage = t.getMessage();
+            if (originalMessage != null) {
+                combinedMessage += "\n" + originalMessage;
+            }
+            Constructor<? extends Throwable> constructor = t.getClass().getConstructor(String.class);
+            Throwable newException = constructor.newInstance(combinedMessage);
+            newException.setStackTrace(t.getStackTrace());
+            if (t.getCause() != null) {
+                newException.initCause(t.getCause());
+            }
+            return newException;
+        } catch (Exception ignored) {
+            return t;
+        }
+    }
+
+    private static PulsarClientException createPulsarException(Throwable throwable) {
+        PulsarClientException exception = new PulsarClientException(throwable.getMessage(), throwable);
+        exception.setStackTrace(throwable.getStackTrace());
+        return exception;
     }
 
     public static PulsarClientException unwrap(Throwable t) {
@@ -1043,93 +997,20 @@ public class PulsarClientException extends IOException {
             return (PulsarClientException) t;
         } else if (t instanceof RuntimeException) {
             throw (RuntimeException) t;
-        }  else if (t instanceof InterruptedException) {
-            return new PulsarClientException(t);
+        } else if (t instanceof InterruptedException) {
+            return createPulsarException(t);
         } else if (!(t instanceof ExecutionException)) {
             // Generic exception
-            return new PulsarClientException(t);
+            return createPulsarException(t);
         }
 
         // Unwrap the exception to keep the same exception type but a stack trace that includes the application calling
         // site
         Throwable cause = t.getCause();
-        String msg = cause.getMessage();
-        PulsarClientException newException;
-        if (cause instanceof TimeoutException) {
-            newException = new TimeoutException(msg);
-        } else if (cause instanceof InvalidConfigurationException) {
-            newException = new InvalidConfigurationException(msg);
-        } else if (cause instanceof AuthenticationException) {
-            newException = new AuthenticationException(msg);
-        } else if (cause instanceof IncompatibleSchemaException) {
-            newException = new IncompatibleSchemaException(msg);
-        } else if (cause instanceof TooManyRequestsException) {
-            newException = new TooManyRequestsException(msg);
-        } else if (cause instanceof LookupException) {
-            newException = new LookupException(msg);
-        } else if (cause instanceof ConnectException) {
-            newException = new ConnectException(msg);
-        } else if (cause instanceof AlreadyClosedException) {
-            newException = new AlreadyClosedException(msg);
-        } else if (cause instanceof TopicTerminatedException) {
-            newException = new TopicTerminatedException(msg);
-        } else if (cause instanceof AuthorizationException) {
-            newException = new AuthorizationException(msg);
-        } else if (cause instanceof GettingAuthenticationDataException) {
-            newException = new GettingAuthenticationDataException(msg);
-        } else if (cause instanceof UnsupportedAuthenticationException) {
-            newException = new UnsupportedAuthenticationException(msg);
-        } else if (cause instanceof BrokerPersistenceException) {
-            newException = new BrokerPersistenceException(msg);
-        } else if (cause instanceof BrokerMetadataException) {
-            newException = new BrokerMetadataException(msg);
-        } else if (cause instanceof ProducerBusyException) {
-            newException = new ProducerBusyException(msg);
-        } else if (cause instanceof ConsumerBusyException) {
-            newException = new ConsumerBusyException(msg);
-        } else if (cause instanceof NotConnectedException) {
-            newException = new NotConnectedException();
-        } else if (cause instanceof InvalidMessageException) {
-            newException = new InvalidMessageException(msg);
-        } else if (cause instanceof InvalidTopicNameException) {
-            newException = new InvalidTopicNameException(msg);
-        } else if (cause instanceof NotSupportedException) {
-            newException = new NotSupportedException(msg);
-        } else if (cause instanceof NotAllowedException) {
-            newException = new NotAllowedException(msg);
-        } else if (cause instanceof ProducerQueueIsFullError) {
-            newException = new ProducerQueueIsFullError(msg);
-        } else if (cause instanceof ProducerBlockedQuotaExceededError) {
-            newException = new ProducerBlockedQuotaExceededError(msg);
-        } else if (cause instanceof ProducerBlockedQuotaExceededException) {
-            newException = new ProducerBlockedQuotaExceededException(msg);
-        } else if (cause instanceof ChecksumException) {
-            newException = new ChecksumException(msg);
-        } else if (cause instanceof CryptoException) {
-            newException = new CryptoException(msg);
-        } else if (cause instanceof ConsumerAssignException) {
-            newException = new ConsumerAssignException(msg);
-        } else if (cause instanceof MessageAcknowledgeException) {
-            newException = new MessageAcknowledgeException(msg);
-        } else if (cause instanceof TransactionConflictException) {
-            newException = new TransactionConflictException(msg);
-        } else if (cause instanceof TopicDoesNotExistException) {
-            newException = new TopicDoesNotExistException(msg);
-        } else if (cause instanceof SubscriptionNotFoundException) {
-            newException = new SubscriptionNotFoundException(msg);
-        } else if (cause instanceof ProducerFencedException) {
-            newException = new ProducerFencedException(msg);
-        } else if (cause instanceof MemoryBufferIsFullError) {
-            newException = new MemoryBufferIsFullError(msg);
-        } else if (cause instanceof NotFoundException) {
-            newException = new NotFoundException(msg);
-        } else if (cause instanceof TransactionHasOperationFailedException) {
-            newException = new TransactionHasOperationFailedException(msg);
-        } else {
-            newException = new PulsarClientException(t);
+        if (cause == null) {
+            return createPulsarException(t);
         }
-
-        return newException;
+        return unwrap(cause);
     }
 
     public long getSequenceId() {
