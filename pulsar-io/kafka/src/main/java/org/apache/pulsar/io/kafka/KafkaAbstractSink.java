@@ -81,11 +81,11 @@ public abstract class KafkaAbstractSink<K, V> implements Sink<byte[]> {
         kafkaSinkConfig = KafkaSinkConfig.load(config, sinkContext);
         if (kafkaSinkConfig.getBatchSize() <= 0) {
             throw new IllegalArgumentException("Invalid Kafka Producer batchSize : "
-                + kafkaSinkConfig.getBatchSize());
+                    + kafkaSinkConfig.getBatchSize());
         }
         if (kafkaSinkConfig.getMaxRequestSize() <= 0) {
             throw new IllegalArgumentException("Invalid Kafka Producer maxRequestSize : "
-                + kafkaSinkConfig.getMaxRequestSize());
+                    + kafkaSinkConfig.getMaxRequestSize());
         }
         if (kafkaSinkConfig.getProducerConfigProperties() != null) {
             props.putAll(kafkaSinkConfig.getProducerConfigProperties());
@@ -122,7 +122,7 @@ public abstract class KafkaAbstractSink<K, V> implements Sink<byte[]> {
 
         producer = new KafkaProducer<>(beforeCreateProducer(props));
 
-        log.info("Kafka sink started : {}.", props);
+        log.info("Kafka sink started : {}.", props.getOrDefault(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, ""));
     }
 
     public abstract KeyValue<K, V> extractKeyValue(Record<byte[]> message);
