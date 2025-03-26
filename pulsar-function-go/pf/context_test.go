@@ -21,6 +21,8 @@ package pf
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -81,4 +83,43 @@ func TestFunctionContext_NewOutputMessage(t *testing.T) {
 
 	actualProducer := fc.NewOutputMessage(publishTopic)
 	assert.IsType(t, &MockPulsarProducer{}, actualProducer)
+}
+
+func TestFunctionContext_NewOutputMessageWithError(t *testing.T) {
+
+	testCases := []struct {
+		name                 string
+		outputFunc           func(topic string) (pulsar.Producer, error)
+		expectedError        bool
+		expectedProducerType *MockPulsarProducer
+	}{
+		{
+			name:                 "Test producer",
+			outputFunc:           func(topic string) (pulsar.Producer, error) { return &MockPulsarProducer{}, nil },
+			expectedError:        false,
+			expectedProducerType: &MockPulsarProducer{},
+		},
+		{
+			name:                 "Test error",
+			outputFunc:           func(topic string) (pulsar.Producer, error) { return nil, errors.New("test error") },
+			expectedError:        false,
+			expectedProducerType: nil,
+		},
+	}
+
+	for i, testCase := range testCases {
+		t.Run(fmt.Sprintf("testCase[%d] %s", i, testCase.name), func(t *testing.T) {
+
+			fc := NewFuncContext()
+			publishTopic := "publish-topic"
+
+			fc.outputMessageWithError = func(topic string) (pulsar.Producer, error) {
+				return &MockPulsarProducer{}, nil
+			}
+
+			actualProducer, err := fc.NewOutputMessageWithError(publishTopic)
+			assert.IsType(t, testCase.expectedProducerType, actualProducer)
+			assert.Equal(t, testCase.expectedError, err != nil)
+		})
+	}
 }
