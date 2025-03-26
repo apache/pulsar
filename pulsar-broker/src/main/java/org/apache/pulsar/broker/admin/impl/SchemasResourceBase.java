@@ -129,15 +129,28 @@ public class SchemasResourceBase extends AdminResource {
         switch (SchemaType.valueOf(payload.getType())) {
             case AVRO : {
                 Schema schema = SchemaUtil.parseAvroSchema(payload.getSchema());
-                try {
-                    // Pulsar only support "RecordSchema" so far. Other types will throw an error when calls
-                    // "getFields".
-                    // Since "RecordSchema" is an avro internal private class, we can not use "instanceof" here.
-                    schema.getFields();
-                } catch (Exception e) {
-                    return CompletableFuture.failedFuture(new RestException(Response.Status.BAD_REQUEST.getStatusCode(),
-                          "[" + String.valueOf(topicName) + "] Avro schema typed [" + schema.getType() + "]"
-                          + " is not supported"));
+                switch (schema.getType()) {
+                    case RECORD: {
+                        break;
+                    }
+                    case UNION: {
+                        return CompletableFuture.failedFuture(new RestException(
+                                Response.Status.BAD_REQUEST.getStatusCode(),
+                                "[" + String.valueOf(topicName) + "] Avro schema typed [UNION] is not supported"));
+                    }
+                    case INT:
+                    case LONG:
+                    case FLOAT:
+                    case DOUBLE:
+                    case BOOLEAN:
+                    case STRING:
+                    case BYTES: {
+                        return CompletableFuture.failedFuture(new RestException(
+                                Response.Status.BAD_REQUEST.getStatusCode(),
+                                "[" + String.valueOf(topicName) + "] Please call"
+                                + " org.apache.pulsar.client.api.Schema." + schema.getType()
+                                + " when using a simple type schema"));
+                    }
                 }
             }
         }
