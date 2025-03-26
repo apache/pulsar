@@ -151,6 +151,11 @@ public class SchemasResourceBase extends AdminResource {
                                 + " org.apache.pulsar.client.api.Schema." + schema.getType()
                                 + " when using a simple type schema"));
                     }
+                    default: {
+                        // ARRAY, MAP, FIXED, NULL.
+                        log.info("[{}] is using a special schema typed [{}]",
+                            String.valueOf(topicName), schema.getType());
+                    }
                 }
             }
         }
