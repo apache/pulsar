@@ -72,8 +72,8 @@ class EntryCountEstimator {
                                                      Long lastLedgerId, long lastLedgerTotalEntries,
                                                      long lastLedgerTotalSize) {
         if (maxSizeBytes <= 0) {
-            // If the specified maximum size is invalid (e.g., non-positive), return 0
-            return 0;
+            // If the specified maximum size is invalid (e.g., non-positive), return 1
+            return 1;
         }
 
         // If the maximum size is Long.MAX_VALUE, return the maximum number of entries
