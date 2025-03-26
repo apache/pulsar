@@ -82,7 +82,13 @@ public class EntryCountEstimatorTest {
     @Test
     public void testZeroMaxSize() {
         int result = estimateEntryCountByBytesSize(0);
-        assertEquals(result, 0, "Should return 0 when max size is 0");
+        assertEquals(result, 1, "Should return 1 when max size is 0");
+    }
+
+    @Test
+    public void testNegativeMaxSize() {
+        int result = estimateEntryCountByBytesSize(-1);
+        assertEquals(result, 1, "Should return 1 when max size is negative");
     }
 
     @Test
