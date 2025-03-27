@@ -1467,7 +1467,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         assertFalse((boolean) isClosingOrDeletingField.get(topic));
 
         metadataStore.failConditional(new MetadataStoreException("injected error"), (op, path) ->
-                op == OperationType.EXISTS && path.equals("/admin/flags/policies-readonly"));
+                op == OperationType.GET && path.equals("/admin/policies/prop/use/ns-abc"));
+        // Remove cache, and then read data from metadata store.
+        brokerService.pulsar().getPulsarResources().getNamespaceResources().getCache()
+                .invalidate("/admin/policies/prop/use/ns-abc");
         try {
             topic.delete().get();
             fail();
