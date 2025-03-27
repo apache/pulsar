@@ -890,7 +890,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
                             latch.countDown();
                         }
 
-                        Thread.sleep(50);
+                        Thread.sleep(10);
                     } catch (PulsarClientException e) {
                         throw new RuntimeException(e);
                     } catch (InterruptedException e) {
