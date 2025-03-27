@@ -60,6 +60,9 @@ type Conf struct {
 	// Deprecated
 	AutoACK     bool  `json:"autoAck" yaml:"autoAck"`
 	Parallelism int32 `json:"parallelism" yaml:"parallelism"`
+	// SecretProvider config
+	SecretsProviderClassName string `json:"secretsProviderClassName" yaml:"secretsProviderClassName"`
+	SecretsProviderConfig    string `json:"secretsProviderConfig" yaml:"secretsProviderConfig"`
 	//source config
 	SubscriptionType     int32  `json:"subscriptionType" yaml:"subscriptionType"`
 	TimeoutMs            uint64 `json:"timeoutMs" yaml:"timeoutMs"`
