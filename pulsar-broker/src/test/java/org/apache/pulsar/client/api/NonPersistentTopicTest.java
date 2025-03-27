@@ -871,7 +871,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
             @Cleanup("shutdownNow")
-            ExecutorService executor = Executors.newFixedThreadPool(5);
+            ExecutorService executor = Executors.newFixedThreadPool(10);
             byte[] msgData = "testData".getBytes();
             final int totalProduceMessages = 1000;
             CountDownLatch latch = new CountDownLatch(1);
