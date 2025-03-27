@@ -899,7 +899,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
                     }
                 });
             }
-            assertTrue(latch.await(10, TimeUnit.SECONDS));
+            assertTrue(latch.await(5, TimeUnit.SECONDS));
 
             NonPersistentTopic topic =
                     (NonPersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
