@@ -485,6 +485,34 @@ public class MessageImplTest {
     }
 
     @Test(timeOut = 30000)
+    public void testDelayMessageConflictWithTtlPolicy() {
+        String data = "test-message";
+        ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(data.length(), data.length());
+        byteBuf.writeBytes(data.getBytes(StandardCharsets.UTF_8));
+
+        long curTime = System.currentTimeMillis();
+        try {
+            MessageMetadata messageMetadata = new MessageMetadata()
+                    .setSequenceId(1)
+                    .setProducerName("testProducer")
+                    .setPartitionKeyB64Encoded(false)
+                    .setPublishTime(1)
+                    .setDeliverAtTime(curTime + 50000);// delay 50s
+            byteBuf = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, byteBuf);
+
+            // when we set the delay message time to 50s, then when the TTL policy is 60s, it is greater than the
+            // time set for the delayed message, so the delayed message can be expired.
+            assertTrue(MessageImpl.isEntryExpired(60, byteBuf));
+
+            // when we set the delay message time to 50s, then when the TTL policy is 40s, it is less than the
+            // time set for the delayed message, so the delayed message cannot be expired.
+            assertFalse(MessageImpl.isEntryExpired(40, byteBuf));
+        } catch (Exception e) {
+            throw new RuntimeException("test delay message conflict with TTL policy error: ", e);
+        }
+    }
+
+    @Test(timeOut = 30000)
     public void testParseMessageMetadataWithBrokerEntryMetadata() {
         int MOCK_BATCH_SIZE = 10;
         String data = "test-message";
