@@ -21,7 +21,7 @@
 ARG PULSAR_ALL_IMAGE
 ARG PULSAR_IMAGE
 
-FROM golang:1.21 as pulsar-function-go
+FROM golang:1.23 as pulsar-function-go
 
 COPY target/pulsar-function-go/ /go/src/github.com/apache/pulsar/pulsar-function-go
 RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go && go install ./...
