@@ -242,13 +242,12 @@ func (gi *goInstance) setupProducer() error {
 		log.Debugf("Setting up producer for topic %s", gi.context.instanceConf.funcDetails.Sink.Topic)
 		producer, err := gi.getProducer(gi.context.instanceConf.funcDetails.Sink.Topic)
 		if err != nil {
-			log.Fatal(err)
+			log.Errorf("Failed to create producer: %v", err)
+			return fmt.Errorf("failed to create producer: %w", err)
 		}
 
 		gi.producer = producer
-		return nil
 	}
-
 	return nil
 }
 
