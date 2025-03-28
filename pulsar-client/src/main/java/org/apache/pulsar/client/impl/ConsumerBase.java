@@ -859,6 +859,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 + '}';
     }
 
+    @Override
+    public <V> Optional<V> getExtension(Class<V> extensionInterface) {
+        return Optional.empty();
+    }
+
     protected Message<T> onArrival(Message<T> message) {
         if (interceptors != null) {
             return interceptors.onArrival(this, message);
