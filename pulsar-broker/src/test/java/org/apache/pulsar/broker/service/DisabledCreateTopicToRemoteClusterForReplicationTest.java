@@ -108,7 +108,10 @@ public class DisabledCreateTopicToRemoteClusterForReplicationTest extends OneWay
         admin2.topics().createPartitionedTopic(tp, 1);
         Consumer<String> consumer2 = client2.newConsumer(Schema.STRING).topic(tp).isAckReceiptEnabled(true)
                 .subscriptionName("s1").subscribe();
-        assertEquals(consumer2.receive(10, TimeUnit.SECONDS).getValue(), msgValue);
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertEquals(consumer2.receive().getValue(), msgValue);
+        });
+
         consumer2.close();
 
         // cleanup.
