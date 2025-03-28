@@ -1160,6 +1160,7 @@ public class PulsarClientException extends IOException {
                 || t instanceof TransactionConflictException
                 || t instanceof ProducerBusyException
                 || t instanceof ConsumerBusyException
+                || t instanceof BrokerMetadataException
                 || t instanceof TransactionHasOperationFailedException) {
             return false;
         }
