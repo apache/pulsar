@@ -28,12 +28,14 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import java.time.Clock;
 import java.util.NavigableSet;
+import java.util.Objects;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.pulsar.broker.delayed.bucket.DelayedOperationType;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.roaringbitmap.longlong.Roaring64Bitmap;
 
@@ -256,6 +258,14 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
                 && messagesHaveFixedDelay
                 && getNumberOfDelayedMessages() >= fixedDelayDetectionLookahead
                 && !hasMessageAvailable();
+    }
+
+    @Override
+    public boolean applyDelayOperation(long ledgerId, long entryId, long deliverAt, DelayedOperationType opType) {
+        if (Objects.requireNonNull(opType) == DelayedOperationType.DELAY) {
+            return addMessage(ledgerId, entryId, deliverAt);
+        }
+        return false;
     }
 
     protected long nextDeliveryTime() {

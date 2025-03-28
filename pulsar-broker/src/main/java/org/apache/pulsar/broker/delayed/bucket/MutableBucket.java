@@ -35,6 +35,7 @@ import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
 import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 import org.apache.pulsar.broker.delayed.proto.SnapshotSegmentMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 import org.roaringbitmap.RoaringBitmap;
 
@@ -42,11 +43,13 @@ import org.roaringbitmap.RoaringBitmap;
 class MutableBucket extends Bucket implements AutoCloseable {
 
     private final TripleLongPriorityQueue priorityQueue;
+    private final ConcurrentLongPairSet canceledOperations;
 
     MutableBucket(String dispatcherName, ManagedCursor cursor, FutureUtil.Sequencer<Void> sequencer,
                   BucketSnapshotStorage bucketSnapshotStorage) {
         super(dispatcherName, cursor, sequencer, bucketSnapshotStorage, -1L, -1L);
         this.priorityQueue = new TripleLongPriorityQueue();
+        this.canceledOperations = ConcurrentLongPairSet.newBuilder().autoShrink(true).build();
     }
 
     Pair<ImmutableBucket, DelayedIndex> sealBucketAndAsyncPersistent(
@@ -96,6 +99,12 @@ class MutableBucket extends Bucket implements AutoCloseable {
 
             final long ledgerId = delayedIndex.getLedgerId();
             final long entryId = delayedIndex.getEntryId();
+
+            if (canceledOperations.contains(delayedIndex.getLedgerId(), delayedIndex.getEntryId())) {
+                delayedIndex.setDelayedOperationType(DelayedIndex.DelayedOperationType.CANCEL);
+            } else {
+                delayedIndex.setDelayedOperationType(DelayedIndex.DelayedOperationType.DELAY);
+            }
 
             removeIndexBit(ledgerId, entryId);
 
@@ -189,7 +198,9 @@ class MutableBucket extends Bucket implements AutoCloseable {
 
             long ledgerId = priorityQueue.peekN2();
             long entryId = priorityQueue.peekN3();
-            sharedBucketPriorityQueue.add(timestamp, ledgerId, entryId);
+            if (!canceledOperations.contains(ledgerId, entryId)) {
+                sharedBucketPriorityQueue.add(timestamp, ledgerId, entryId);
+            }
 
             priorityQueue.pop();
         }
@@ -233,5 +244,21 @@ class MutableBucket extends Bucket implements AutoCloseable {
         }
         this.endLedgerId = ledgerId;
         putIndexBit(ledgerId, entryId);
+    }
+
+    void addMessage(long ledgerId, long entryId, long deliverAt, DelayedOperationType operationType) {
+        switch (operationType) {
+            case CANCEL -> {
+                priorityQueue.add(deliverAt, ledgerId, entryId);
+                canceledOperations.add(ledgerId, entryId);
+                putIndexBit(ledgerId, entryId);
+            }
+            case DELAY -> addMessage(ledgerId, entryId, deliverAt);
+            default -> throw new IllegalArgumentException("Unknown operation type: " + operationType);
+        }
+    }
+
+    void clearCanceledOperations() {
+        canceledOperations.clear();
     }
 }
