@@ -2,6 +2,8 @@ module github.com/apache/pulsar/pulsar-function-go/examples
 
 go 1.23.0
 
+toolchain go1.24.1
+
 require (
 	github.com/apache/pulsar-client-go v0.14.0
 	github.com/apache/pulsar/pulsar-function-go v0.0.0
@@ -19,7 +21,7 @@ require (
 	github.com/danieljoos/wincred v1.1.2 // indirect
 	github.com/dvsekhvalnov/jose2go v1.6.0 // indirect
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
-	github.com/golang-jwt/jwt/v5 v5.2.1 // indirect
+	github.com/golang-jwt/jwt/v5 v5.2.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c // indirect
 	github.com/hamba/avro/v2 v2.22.2-0.20240625062549-66aad10411d9 // indirect
