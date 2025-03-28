@@ -77,6 +77,15 @@ func newGoInstance() *goInstance {
 		return producer
 	}
 
+	goInstance.context.outputMessageWithError = func(topic string) (pulsar.Producer, error) {
+		producer, err := goInstance.getProducer(topic)
+		if err != nil {
+			log.Errorf("getting producer failed, error is:%v", err)
+			return nil, err
+		}
+		return producer, nil
+	}
+
 	goInstance.lastHealthCheckTS = now.UnixNano()
 	goInstance.properties = make(map[string]string)
 	goInstance.stats = NewStatWithLabelValues(goInstance.getMetricsLabels()...)
