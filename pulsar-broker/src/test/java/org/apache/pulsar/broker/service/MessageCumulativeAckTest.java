@@ -20,12 +20,15 @@ package org.apache.pulsar.broker.service;
 
 import static java.util.Collections.emptyMap;
 import static org.apache.pulsar.common.api.proto.CommandAck.AckType.Cumulative;
+import static org.apache.pulsar.common.api.proto.CommandAck.AckType.Individual;
 import static org.apache.pulsar.common.api.proto.CommandSubscribe.SubType.Exclusive;
 import static org.apache.pulsar.common.api.proto.CommandSubscribe.SubType.Failover;
 import static org.apache.pulsar.common.api.proto.CommandSubscribe.SubType.Key_Shared;
 import static org.apache.pulsar.common.api.proto.CommandSubscribe.SubType.Shared;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -47,6 +50,7 @@ import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.naming.TopicName;
+import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -152,5 +156,28 @@ public class MessageCumulativeAckTest {
 
         consumer.messageAcked(commandAck).get();
         verify(sub, never()).acknowledgeMessage(any(), any(), any());
+    }
+
+    @Test
+    public void testMessageAckedCallsUpdateBlockedConsumerOnUnackedMsgs() {
+        Consumer consumer = new Consumer(sub, Shared, "topic-1", consumerId, 0,
+                "Cons2", true, serverCnx, "myrole-1", emptyMap(), false, null,
+                MessageId.latest, DEFAULT_CONSUMER_EPOCH);
+
+        Consumer spyConsumer = Mockito.spy(consumer);
+
+        CommandAck commandAck = new CommandAck();
+        commandAck.setAckType(Individual);
+        commandAck.setConsumerId(consumerId);
+        commandAck.addMessageId().setEntryId(0L).setLedgerId(1L);
+        CommandAck spyCommandAck = Mockito.spy(commandAck);
+
+        PendingAcksMap ownedConsumerPendingAcks = mock(PendingAcksMap.class);
+        when(spyConsumer.getPendingAcks()).thenReturn(ownedConsumerPendingAcks);
+        when(ownedConsumerPendingAcks.remove((anyLong()),anyLong())).thenReturn(true);
+        Mockito.doNothing().when(sub).addUnAckedMessages(anyInt());
+
+        spyConsumer.messageAcked(spyCommandAck);
+        verify(spyConsumer, times(1)).updateBlockedConsumerOnUnackedMsgs(any(Consumer.class));
     }
 }
