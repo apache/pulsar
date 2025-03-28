@@ -48,7 +48,7 @@ public abstract class GenericSchemaImpl extends AvroBaseStructSchema<GenericReco
                     .collect(Collectors.toList());
         } catch (AvroRuntimeException avroRuntimeException) {
             // Rewrite error log.
-            throw new AvroRuntimeException("Schema typed [" + schema.getClass().getName() +"], simple-type:["
+            throw new AvroRuntimeException("Schema typed [" + schema.getClass().getName() + "], simple-type:["
                     + schema.getType() + "] is not supported. schema-content: " + schema);
         }
     }
