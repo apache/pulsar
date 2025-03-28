@@ -81,7 +81,7 @@ public class JsonConverterTests {
         genericRecord.put("arrayavro", new GenericData.Array<>(avroArraySchema, Arrays.asList("toto")));
         genericRecord.put("map", ImmutableMap.of("a",10));
         genericRecord.put("maputf8", ImmutableMap.of(new org.apache.avro.util.Utf8("a"),10));
-        JsonNode jsonNode = JsonConverter.toJson(genericRecord);
+        JsonNode jsonNode = JsonConverter.toJson(genericRecord, false);
         assertEquals(jsonNode.get("n"), NullNode.getInstance());
         assertEquals(jsonNode.get("l").asLong(), 1L);
         assertEquals(jsonNode.get("i").asInt(), 1);
@@ -135,7 +135,7 @@ public class JsonConverterTests {
         genericRecord.put("myuuid", myUuid.toString());
 
         GenericRecord genericRecord2 = deserialize(serialize(genericRecord, schema), schema);
-        JsonNode jsonNode = JsonConverter.toJson(genericRecord2);
+        JsonNode jsonNode = JsonConverter.toJson(genericRecord2, false);
         assertEquals(jsonNode.get("mydate").asInt(), calendar.toInstant().getEpochSecond());
         assertEquals(jsonNode.get("tsmillis").asInt(), (int)calendar.getTimeInMillis());
         assertEquals(jsonNode.get("tsmicros").asLong(), calendar.getTimeInMillis() * 1000);
