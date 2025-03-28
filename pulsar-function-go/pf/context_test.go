@@ -86,22 +86,25 @@ func TestFunctionContext_NewOutputMessage(t *testing.T) {
 }
 
 func TestFunctionContext_NewOutputMessageWithError(t *testing.T) {
+	testErr := errors.New("test error")
+
 	testCases := []struct {
 		name                 string
 		outputFunc           func(topic string) (pulsar.Producer, error)
-		expectedError        bool
+		expectedError        error
 		expectedProducerType *MockPulsarProducer
 	}{
+
 		{
 			name:                 "Test producer",
 			outputFunc:           func(topic string) (pulsar.Producer, error) { return &MockPulsarProducer{}, nil },
-			expectedError:        false,
+			expectedError:        nil,
 			expectedProducerType: &MockPulsarProducer{},
 		},
 		{
 			name:                 "Test error",
 			outputFunc:           func(topic string) (pulsar.Producer, error) { return nil, errors.New("test error") },
-			expectedError:        true,
+			expectedError:        testErr,
 			expectedProducerType: nil,
 		},
 	}
@@ -120,7 +123,7 @@ func TestFunctionContext_NewOutputMessageWithError(t *testing.T) {
 			} else {
 				assert.IsType(t, testCase.expectedProducerType, actualProducer)
 			}
-			assert.Equal(t, testCase.expectedError, err != nil)
+			assert.Equal(t, testCase.expectedError, err)
 		})
 	}
 }
