@@ -1360,6 +1360,93 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
+    public CompletableFuture<Void> asyncAddLedgerProperty(long ledgerId, String key, String value) {
+        CompletableFuture<Void> f = new CompletableFuture<>();
+        // Execute the operation in ML executor to avoid concurrent modifications to ledger info.
+        executor.execute(() -> {
+            if (state.isFenced()) {
+                f.completeExceptionally(new ManagedLedgerFencedException());
+                return;
+            }
+            LedgerInfo li = ledgers.get(ledgerId);
+            if (li == null) {
+                f.completeExceptionally(new ManagedLedgerException("Ledger not found"));
+                return;
+            }
+
+            List<MLDataFormats.KeyValue> oldProperties = li.getPropertiesList();
+            Map<String, String> newPropertiesMap = new HashMap<>();
+            oldProperties.forEach(kv -> newPropertiesMap.put(kv.getKey(), kv.getValue()));
+            newPropertiesMap.put(key, value);
+            updateAndPersistLedgerProperties(newPropertiesMap, li, f);
+        });
+        return f;
+    }
+
+    @Override
+    public CompletableFuture<Void> asyncRemoveLedgerProperty(long ledgerId, String key) {
+        CompletableFuture<Void> f = new CompletableFuture<>();
+        // Execute the operation in ML executor to avoid concurrent modifications to ledger info.
+        executor.execute(() -> {
+            if (state.isFenced()) {
+                f.completeExceptionally(new ManagedLedgerFencedException());
+                return;
+            }
+            LedgerInfo li = ledgers.get(ledgerId);
+            if (li == null) {
+                f.completeExceptionally(new ManagedLedgerException("Ledger not found"));
+                return;
+            }
+            List<MLDataFormats.KeyValue> oldProperties = li.getPropertiesList();
+            Map<String, String> newPropertiesMap = new HashMap<>();
+            oldProperties.forEach(kv -> newPropertiesMap.put(kv.getKey(), kv.getValue()));
+            newPropertiesMap.remove(key);
+            updateAndPersistLedgerProperties(newPropertiesMap, li, f);
+        });
+        return f;
+    }
+
+    @Override
+    public CompletableFuture<String> asyncGetLedgerProperty(long ledgerId, String key) {
+        if (state.isFenced()) {
+            return FutureUtil.failedFuture(new ManagedLedgerFencedException());
+        }
+        LedgerInfo li = ledgers.get(ledgerId);
+        if (li == null) {
+            return FutureUtil.failedFuture(new ManagedLedgerException("Ledger not found"));
+        }
+        if (li.getPropertiesCount() <= 0) {
+            return CompletableFuture.completedFuture(null);
+        }
+        for (MLDataFormats.KeyValue kv : li.getPropertiesList()) {
+            if (kv.getKey().equals(key)) {
+                return CompletableFuture.completedFuture(kv.getValue());
+            }
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
+    private void updateAndPersistLedgerProperties(Map<String, String> newPropertiesMap,
+                                                  LedgerInfo li, CompletableFuture<Void> f) {
+        List<MLDataFormats.KeyValue> newProperties = newPropertiesMap.entrySet().stream()
+                .map(e -> MLDataFormats.KeyValue.newBuilder().setKey(e.getKey()).setValue(e.getValue()).build())
+                .toList();
+        li = li.toBuilder().clearProperties().addAllProperties(newProperties).build();
+        ledgers.put(li.getLedgerId(), li);
+        asyncUpdateProperties(Collections.emptyMap(), false, null, new UpdatePropertiesCallback() {
+            @Override
+            public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                f.complete(null);
+            }
+
+            @Override
+            public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                f.completeExceptionally(exception);
+            }
+        }, null);
+    }
+
+    @Override
     public synchronized void asyncTerminate(TerminateCallback callback, Object ctx) {
         if (state.isFenced()) {
             callback.terminateFailed(new ManagedLedgerFencedException(), ctx);
