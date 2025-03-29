@@ -206,6 +206,9 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                     return excludedBookies;
                 }
                 Set<String> allGroups = allGroupsBookieMapping.keySet();
+                if (allGroups.isEmpty()) {
+                    return excludedBookies;
+                }
                 int totalAvailableBookiesInPrimaryGroup = 0;
                 Set<String> primaryIsolationGroup = Collections.emptySet();
                 Set<String> secondaryIsolationGroup = Collections.emptySet();
@@ -222,9 +225,10 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                         }
                     } else {
                         for (String groupBookie : bookiesInGroup) {
-                            totalAvailableBookiesInPrimaryGroup += knownBookies
-                                .containsKey(BookieId.parse(groupBookie)) ? 1 : 0;
-                            primaryGroupBookies.add(BookieId.parse(groupBookie));
+                            BookieId bookieId = BookieId.parse(groupBookie);
+                            if (primaryGroupBookies.add(bookieId)) {
+                                totalAvailableBookiesInPrimaryGroup += knownBookies.containsKey(bookieId) ? 1 : 0;
+                            }
                         }
                     }
                 }
@@ -256,8 +260,9 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                         Map<String, BookieInfo> bookieGroup = allGroupsBookieMapping.get(group);
                         if (bookieGroup != null && !bookieGroup.isEmpty()) {
                             for (String bookieAddress : bookieGroup.keySet()) {
-                                excludedBookies.remove(BookieId.parse(bookieAddress));
-                                totalAvailableBookiesFromPrimaryAndSecondary += 1;
+                                if (excludedBookies.remove(BookieId.parse(bookieAddress))) {
+                                    totalAvailableBookiesFromPrimaryAndSecondary += 1;
+                                }
                             }
                         }
                     }

@@ -699,4 +699,123 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
                 .newEnsemble(2, 2, 2, Collections.emptyMap(), new HashSet<>()).getResult();
         assertEquals(BookieIdGroup1.containsAll(defaultBookieList),true);
     }
+
+    @Test
+    public void testGetExcludedBookiesWithIsolationGroups() throws Exception {
+        Map<String, Map<String, BookieInfo>> bookieMapping = new HashMap<>();
+        final String isolationGroup1 = "Group1";
+        final String isolationGroup2 = "Group2";
+        final String isolationGroup3 = "Group3";
+
+        Map<String, BookieInfo> group1 = new HashMap<>();
+        group1.put(BOOKIE1, BookieInfo.builder().rack("rack0").build());
+        group1.put(BOOKIE2, BookieInfo.builder().rack("rack0").build());
+
+        Map<String, BookieInfo> group2 = new HashMap<>();
+        group2.put(BOOKIE3, BookieInfo.builder().rack("rack1").build());
+        group2.put(BOOKIE4, BookieInfo.builder().rack("rack1").build());
+
+        bookieMapping.put(isolationGroup1, group1);
+        bookieMapping.put(isolationGroup2, group2);
+
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
+                Optional.empty()).join();
+
+        IsolatedBookieEnsemblePlacementPolicy isolationPolicy = new IsolatedBookieEnsemblePlacementPolicy();
+        ClientConfiguration bkClientConf = new ClientConfiguration();
+        bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
+        bkClientConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, isolationGroup1);
+        bkClientConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS, isolationGroup2);
+        isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL,
+                NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
+        isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
+
+        /* Test common cases */
+        MutablePair<Set<String>, Set<String>> groups = new MutablePair<>();
+        groups.setLeft(Sets.newHashSet(isolationGroup1));
+        groups.setRight(Sets.newHashSet(""));
+        Set<BookieId> blacklist = isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
+        assertEquals(blacklist.size(), 2);
+
+        groups.setLeft(Sets.newHashSet(isolationGroup1));
+        groups.setRight(Sets.newHashSet(isolationGroup2));
+        blacklist = isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
+        assertEquals(blacklist.size(), 2);
+
+        groups.setLeft(Sets.newHashSet(isolationGroup1));
+        groups.setRight(Sets.newHashSet(isolationGroup2));
+        blacklist = isolationPolicy.getExcludedBookiesWithIsolationGroups(3, groups);
+        assertTrue(blacklist.isEmpty());
+
+        /* Test a bookie belongs to multiple isolation groups */
+        group1 = new HashMap<>();
+        group1.put(BOOKIE1, BookieInfo.builder().rack("rack0").build());
+
+        group2 = new HashMap<>();
+        group2.put(BOOKIE2, BookieInfo.builder().rack("rack0").build());
+        group2.put(BOOKIE3, BookieInfo.builder().rack("rack1").build());
+        group2.put(BOOKIE4, BookieInfo.builder().rack("rack1").build());
+
+        Map<String, BookieInfo> group3 = new HashMap<>();
+        group3.put(BOOKIE1, BookieInfo.builder().rack("rack0").build());
+
+        bookieMapping.put(isolationGroup1, group1);
+        bookieMapping.put(isolationGroup2, group2);
+        bookieMapping.put(isolationGroup3, group3);
+
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
+                Optional.empty()).join();
+
+        groups.setLeft(Sets.newHashSet(isolationGroup1, isolationGroup3));
+        groups.setRight(Sets.newHashSet(""));
+        blacklist = isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
+        assertEquals(blacklist.size(), 3);
+
+        /* Test a bookie belongs to multiple isolation groups and totalAvailableBookiesInPrimaryGroup < ensembleSize */
+        groups.setLeft(Sets.newHashSet(isolationGroup1, isolationGroup3));
+        groups.setRight(Sets.newHashSet(isolationGroup2));
+        blacklist = isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
+        assertTrue(blacklist.isEmpty());
+
+        /* Test some bookies not set rack config */
+        group1 = new HashMap<>();
+        group1.put(BOOKIE1, BookieInfo.builder().rack("rack0").build());
+
+        group2 = new HashMap<>();
+        group2.put(BOOKIE2, BookieInfo.builder().rack("rack0").build());
+
+        bookieMapping.put(isolationGroup1, group1);
+        bookieMapping.put(isolationGroup2, group2);
+
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
+                Optional.empty()).join();
+
+        groups.setLeft(Sets.newHashSet(isolationGroup1));
+        groups.setRight(Sets.newHashSet(isolationGroup2));
+        blacklist = isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
+        assertEquals(blacklist.size(), 2);
+
+        groups.setLeft(Sets.newHashSet(isolationGroup1));
+        groups.setRight(Sets.newHashSet(isolationGroup2));
+        blacklist = isolationPolicy.getExcludedBookiesWithIsolationGroups(3, groups);
+        assertTrue(blacklist.isEmpty());
+
+        /* Test some bookies not set rack config and totalAvailableBookiesFromPrimaryAndSecondary < ensembleSize */
+        group1 = new HashMap<>();
+        group1.put(BOOKIE1, BookieInfo.builder().rack("rack0").build());
+
+        group2 = new HashMap<>();
+        group2.put(BOOKIE1, BookieInfo.builder().rack("rack0").build());
+
+        bookieMapping.put(isolationGroup1, group1);
+        bookieMapping.put(isolationGroup2, group2);
+
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
+                Optional.empty()).join();
+
+        groups.setLeft(Sets.newHashSet(isolationGroup1));
+        groups.setRight(Sets.newHashSet(isolationGroup2));
+        blacklist = isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
+        assertTrue(blacklist.isEmpty());
+    }
 }
