@@ -304,11 +304,15 @@ public class PendingAcksMap {
      * @return true if the pending ack was removed, false otherwise
      */
     public boolean remove(long ledgerId, long entryId) {
+        return removeAndReturn(ledgerId, entryId) != null;
+    }
+
+    public IntIntPair removeAndReturn(long ledgerId, long entryId) {
         try {
             writeLock.lock();
             Long2ObjectSortedMap<IntIntPair> ledgerMap = pendingAcks.get(ledgerId);
             if (ledgerMap == null) {
-                return false;
+                return null;
             }
             IntIntPair removedEntry = ledgerMap.remove(entryId);
             boolean removed = removedEntry != null;
@@ -319,7 +323,7 @@ public class PendingAcksMap {
             if (removed && ledgerMap.isEmpty()) {
                 pendingAcks.remove(ledgerId);
             }
-            return removed;
+            return removedEntry;
         } finally {
             writeLock.unlock();
         }
