@@ -256,7 +256,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                     notifyRedeliveryMessageAdded();
                 }
             }
-        } else {
+        } else { //TODO 这里 consumer/producer 的计数，计算几次？
             /**
              * This is not an expected scenario, it will never happen in expected.
              * Just add a defensive code to avoid the topic can not be unloaded anymore: remove the consumers which
