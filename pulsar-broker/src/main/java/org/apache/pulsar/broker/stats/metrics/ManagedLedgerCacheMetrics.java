@@ -18,13 +18,10 @@
  */
 package org.apache.pulsar.broker.stats.metrics;
 
-import io.netty.buffer.PoolArenaMetric;
-import io.netty.buffer.PoolChunkListMetric;
-import io.netty.buffer.PoolChunkMetric;
-import io.netty.buffer.PooledByteBufAllocator;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryMXBean;
+import org.apache.bookkeeper.mledger.impl.cache.PooledByteBufAllocatorStats;
 import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.stats.Metrics;
@@ -57,37 +54,13 @@ public class ManagedLedgerCacheMetrics extends AbstractMetrics {
         m.put("brk_ml_cache_hits_throughput", mlCacheStats.getCacheHitsThroughput());
         m.put("brk_ml_cache_misses_throughput", mlCacheStats.getCacheMissesThroughput());
 
-        PooledByteBufAllocator allocator = RangeEntryCacheImpl.ALLOCATOR;
-        long activeAllocations = 0;
-        long activeAllocationsSmall = 0;
-        long activeAllocationsNormal = 0;
-        long activeAllocationsHuge = 0;
-        long totalAllocated = 0;
-        long totalUsed = 0;
-
-        for (PoolArenaMetric arena : allocator.metric().directArenas()) {
-            activeAllocations += arena.numActiveAllocations();
-            activeAllocationsSmall += arena.numActiveSmallAllocations();
-            activeAllocationsNormal += arena.numActiveNormalAllocations();
-            activeAllocationsHuge += arena.numActiveHugeAllocations();
-
-            for (PoolChunkListMetric list : arena.chunkLists()) {
-                for (PoolChunkMetric chunk : list) {
-                    int size = chunk.chunkSize();
-                    int used = size - chunk.freeBytes();
-
-                    totalAllocated += size;
-                    totalUsed += used;
-                }
-            }
-        }
-
-        m.put("brk_ml_cache_pool_allocated", totalAllocated);
-        m.put("brk_ml_cache_pool_used", totalUsed);
-        m.put("brk_ml_cache_pool_active_allocations", activeAllocations);
-        m.put("brk_ml_cache_pool_active_allocations_small", activeAllocationsSmall);
-        m.put("brk_ml_cache_pool_active_allocations_normal", activeAllocationsNormal);
-        m.put("brk_ml_cache_pool_active_allocations_huge", activeAllocationsHuge);
+        var allocatorStats = new PooledByteBufAllocatorStats(RangeEntryCacheImpl.ALLOCATOR);
+        m.put("brk_ml_cache_pool_allocated", allocatorStats.totalAllocated);
+        m.put("brk_ml_cache_pool_used", allocatorStats.totalUsed);
+        m.put("brk_ml_cache_pool_active_allocations", allocatorStats.activeAllocations);
+        m.put("brk_ml_cache_pool_active_allocations_small", allocatorStats.activeAllocationsSmall);
+        m.put("brk_ml_cache_pool_active_allocations_normal", allocatorStats.activeAllocationsNormal);
+        m.put("brk_ml_cache_pool_active_allocations_huge", allocatorStats.activeAllocationsHuge);
 
         metrics.clear();
         metrics.add(m);

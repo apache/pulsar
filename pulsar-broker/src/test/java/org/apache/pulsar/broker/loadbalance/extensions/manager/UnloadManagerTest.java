@@ -122,11 +122,11 @@ public class UnloadManagerTest {
         assertEquals(inFlightUnloadRequestMap.size(), 1);
 
         manager.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Init, null, srcBroker, VERSION_ID_INIT), null);
+                new ServiceUnitStateData(ServiceUnitState.Free, null, srcBroker, true, VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequestMap.size(), 1);
 
-        manager.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Free, null, srcBroker, VERSION_ID_INIT), null);
+        // Success with Init state.
+        manager.handleEvent(bundle, null, null);
         assertEquals(inFlightUnloadRequestMap.size(), 0);
         future.get();
         assertEquals(counter.getBreakdownCounters().get(Success).get(Admin).get(), 1);
@@ -136,17 +136,30 @@ public class UnloadManagerTest {
                 bundle, unloadDecision, 5, TimeUnit.SECONDS);
         inFlightUnloadRequestMap = getInFlightUnloadRequestMap(manager);
         assertEquals(inFlightUnloadRequestMap.size(), 1);
-
         manager.handleEvent(bundle,
                 new ServiceUnitStateData(ServiceUnitState.Owned, dstBroker, null, VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequestMap.size(), 1);
-
         manager.handleEvent(bundle,
                 new ServiceUnitStateData(ServiceUnitState.Owned, dstBroker, srcBroker, VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequestMap.size(), 0);
-
         future.get();
         assertEquals(counter.getBreakdownCounters().get(Success).get(Admin).get(), 2);
+
+        // Success with Free state.
+        future = manager.waitAsync(CompletableFuture.completedFuture(null),
+                bundle, unloadDecision, 5, TimeUnit.SECONDS);
+        inFlightUnloadRequestMap = getInFlightUnloadRequestMap(manager);
+        assertEquals(inFlightUnloadRequestMap.size(), 1);
+        manager.handleEvent(bundle,
+                new ServiceUnitStateData(ServiceUnitState.Free, dstBroker, srcBroker, true, VERSION_ID_INIT), null);
+        assertEquals(inFlightUnloadRequestMap.size(), 1);
+        manager.handleEvent(bundle,
+                new ServiceUnitStateData(ServiceUnitState.Free, dstBroker, srcBroker, false, VERSION_ID_INIT), null);
+        assertEquals(inFlightUnloadRequestMap.size(), 0);
+        future.get();
+        assertEquals(counter.getBreakdownCounters().get(Success).get(Admin).get(), 3);
+
+
     }
 
     @Test

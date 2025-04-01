@@ -65,7 +65,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  MAVEN_OPTS: -Xss1500k -Xmx1500m -Daether.connector.http.reuseConnections=false -Daether.connector.requestTimeout=60000 -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3 -Dmaven.wagon.http.retryHandler.requestSentEnabled=true -Dmaven.wagon.http.serviceUnavailableRetryStrategy.class=standard -Dmaven.wagon.rto=60000
+  MAVEN_OPTS: -Xss1500k -Xmx2048m -XX:+UnlockDiagnosticVMOptions -XX:GCLockerRetryAllocationCount=100 -Daether.connector.http.reuseConnections=false -Daether.connector.requestTimeout=60000 -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3 -Dmaven.wagon.http.retryHandler.requestSentEnabled=true -Dmaven.wagon.http.serviceUnavailableRetryStrategy.class=standard -Dmaven.wagon.rto=60000
   # defines the retention period for the intermediate build artifacts needed for rerunning a failed build job
   # it's possible to rerun individual failed jobs when the build artifacts are available
   # if the artifacts have already been expired, the complete workflow can be rerun by closing and reopening the PR or by rebasing the PR
@@ -148,7 +148,7 @@ jobs:
     env:
       JOB_NAME: Flaky tests suite
       COLLECT_COVERAGE: "${{ needs.preconditions.outputs.collect_coverage }}"
-      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
       TRACE_TEST_RESOURCE_CLEANUP: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.trace_test_resource_cleanup || 'off' }}
       TRACE_TEST_RESOURCE_CLEANUP_DIR: ${{ github.workspace }}/target/trace-test-resource-cleanup

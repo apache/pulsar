@@ -22,6 +22,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -61,8 +62,10 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
+import org.apache.pulsar.common.functions.BatchingConfig;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.FunctionStatusUtil;
@@ -322,7 +325,17 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 .enableBatching(false)
                 .create();
 
-        for (int i = 0; i < NUM_OF_MESSAGES; i++) {
+        // send 3 messages first, and it won't trigger the window and so these 3 messages will not be acked
+        for (int i = 0; i < 3; i++) {
+            producer.send(String.format("%d", i).getBytes());
+        }
+        TopicStats stats = pulsarAdmin.topics().getStats(inputTopicName, true);
+        SubscriptionStats subStats = stats.getSubscriptions().get("public/default/" + functionName);
+        assertNotNull(subStats);
+        assertEquals(3, subStats.getMsgBacklog());
+        assertEquals(3, subStats.getUnackedMessages());
+
+        for (int i = 3; i < NUM_OF_MESSAGES; i++) {
             producer.send(String.format("%d", i).getBytes());
         }
 
@@ -347,6 +360,13 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // in case last commit is not updated
         assertThat(i).isGreaterThanOrEqualTo(expectedResults.length - 1);
+
+        // test that all messages are acked
+        stats = pulsarAdmin.topics().getStats(inputTopicName, true);
+        subStats = stats.getSubscriptions().get("public/default/" + functionName);
+        assertNotNull(subStats);
+        assertEquals(0, subStats.getMsgBacklog());
+        assertEquals(0, subStats.getUnackedMessages());
 
         deleteFunction(functionName);
 
@@ -677,7 +697,18 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                            boolean pyZip,
                                            boolean multipleInput,
                                            boolean withExtraDeps,
-                                           java.util.function.Consumer<CommandGenerator> commandGeneratorConsumer) throws Exception {
+                                           ProducerConfig producerConfig) throws Exception {
+        testExclamationFunction(runtime, isTopicPattern, pyZip, multipleInput, withExtraDeps, producerConfig, null);
+    }
+
+    protected void testExclamationFunction(Runtime runtime,
+                                           boolean isTopicPattern,
+                                           boolean pyZip,
+                                           boolean multipleInput,
+                                           boolean withExtraDeps,
+                                           ProducerConfig producerConfig,
+                                           java.util.function.Consumer<CommandGenerator> commandGeneratorConsumer)
+            throws Exception {
         if (functionRuntimeType == FunctionRuntimeType.THREAD && (runtime == Runtime.PYTHON || runtime == Runtime.GO)) {
             // python&go can only run on process mode
             return;
@@ -707,10 +738,21 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // submit the exclamation function
         submitExclamationFunction(
-                runtime, inputTopicName, outputTopicName, functionName, pyZip, withExtraDeps, schema, commandGeneratorConsumer);
+                runtime, inputTopicName, outputTopicName, functionName, pyZip, withExtraDeps, schema,
+                commandGeneratorConsumer);
 
         // get function info
         final String info = getFunctionInfoSuccess(functionName);
+        FunctionConfig config = ObjectMapperFactory.getMapper().getObjectMapper().readValue(info, FunctionConfig.class);
+
+        // check batching config
+        if (runtime == Runtime.JAVA) {
+            BatchingConfig batchingConfig = null;
+            if (producerConfig != null && producerConfig.getBatchingConfig() != null) {
+                batchingConfig = producerConfig.getBatchingConfig();
+            }
+            checkBatchingConfig(functionName, batchingConfig, config);
+        }
 
         // get function stats
         getFunctionStatsEmpty(functionName);
@@ -752,8 +794,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 break;
         }
 
-        checkSubscriptionType(inputTopicName,
-                ObjectMapperFactory.getMapper().getObjectMapper().readValue(info, FunctionConfig.class));
+        // check subscription type
+        checkSubscriptionType(inputTopicName, config);
 
         // delete function
         deleteFunction(functionName);
@@ -801,6 +843,26 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         });
     }
 
+    // checking batching config, we can only check this by checking the logs for now
+    private void checkBatchingConfig(String functionName, BatchingConfig config, FunctionConfig functionConfig) {
+        if (config != null) {
+            assertNotNull(functionConfig.getProducerConfig());
+            assertNotNull(functionConfig.getProducerConfig().getBatchingConfig());
+            assertEquals(config.toString(), functionConfig.getProducerConfig().getBatchingConfig().toString());
+        }
+
+        String functionLogs = pulsarCluster.getFunctionLogs(functionName);
+        if (config == null || config.isEnabled()) {
+            BatchingConfig finalConfig = config;
+            if (finalConfig == null) {
+                finalConfig = BatchingConfig.builder().build();
+            }
+            assertTrue(functionLogs.contains(finalConfig.toString()));
+        } else {
+            assertTrue(functionLogs.contains("BatchingConfig(enabled=false"));
+        }
+    }
+
     private void submitExclamationFunction(Runtime runtime,
                                            String inputTopicName,
                                            String outputTopicName,
@@ -819,7 +881,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                            boolean pyZip,
                                            boolean withExtraDeps,
                                            Schema<?> schema,
-                                           java.util.function.Consumer<CommandGenerator> commandGeneratorConsumer) throws Exception {
+                                           java.util.function.Consumer<CommandGenerator> commandGeneratorConsumer)
+            throws Exception {
         submitFunction(
                 runtime,
                 inputTopicName,
@@ -842,7 +905,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                     boolean isPublishFunction,
                                     String functionClass,
                                     Schema<T> inputTopicSchema,
-                                    java.util.function.Consumer<CommandGenerator> commandGeneratorConsumer) throws Exception {
+                                    java.util.function.Consumer<CommandGenerator> commandGeneratorConsumer)
+            throws Exception {
 
         String file = null;
         if (Runtime.JAVA == runtime) {
@@ -876,7 +940,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                     String functionFile,
                                     String functionClass,
                                     Schema<T> inputTopicSchema,
-                                    java.util.function.Consumer<CommandGenerator> commandGeneratorConsumer) throws Exception {
+                                    java.util.function.Consumer<CommandGenerator> commandGeneratorConsumer)
+            throws Exception {
         submitFunction(runtime, inputTopicName, outputTopicName, functionName, functionFile, functionClass,
                 inputTopicSchema, null, null, null, null, null, null,
                 commandGeneratorConsumer);
@@ -895,7 +960,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                     SubscriptionInitialPosition subscriptionInitialPosition,
                                     String inputTypeClassName,
                                     String outputTypeClassName,
-                                    java.util.function.Consumer<CommandGenerator> commandGeneratorConsumer) throws Exception {
+                                    java.util.function.Consumer<CommandGenerator> commandGeneratorConsumer)
+            throws Exception {
 
         if (StringUtils.isNotEmpty(inputTopicName)) {
             ensureSubscriptionCreated(

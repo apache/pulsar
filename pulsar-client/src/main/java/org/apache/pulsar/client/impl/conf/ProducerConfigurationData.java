@@ -189,6 +189,8 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     )
     private CompressionType compressionType = CompressionType.NONE;
 
+    private int compressMinMsgBodySize = 4 * 1024; // 4kb
+
     // Cannot use Optional<Long> since it's not serializable
     private Long initialSequenceId = null;
 
@@ -203,6 +205,10 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     private boolean lazyStartPartitionedProducers = false;
 
     private SortedMap<String, String> properties = new TreeMap<>();
+
+    private boolean isNonPartitionedTopicExpected;
+
+    private boolean isReplProducer;
 
     @ApiModelProperty(
             name = "initialSubscriptionName",

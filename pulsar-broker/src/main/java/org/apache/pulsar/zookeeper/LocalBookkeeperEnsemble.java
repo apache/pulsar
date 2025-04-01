@@ -194,6 +194,7 @@ public class LocalBookkeeperEnsemble {
                 : createTempDirectory("zktest");
 
         if (this.clearOldData) {
+            LOG.info("Wiping Zookeeper data directory at {}", zkDataDir.getAbsolutePath());
             cleanDirectory(zkDataDir);
         }
 
@@ -291,26 +292,21 @@ public class LocalBookkeeperEnsemble {
                     : createTempDirectory("bk" + i + "test");
 
             if (this.clearOldData) {
+                LOG.info("Wiping Bookie data directory at {}", bkDataDir.getAbsolutePath());
                 cleanDirectory(bkDataDir);
             }
 
             int bookiePort = portManager.get();
-
+            String bookieId = "bk" + i + "test";
             // Ensure registration Z-nodes are cleared when standalone service is restarted ungracefully
-            String registrationZnode = String.format("/ledgers/available/%s:%d",
-                    baseConf.getAdvertisedAddress(), bookiePort);
-            if (zkc.exists(registrationZnode, null) != null) {
-                try {
-                    zkc.delete(registrationZnode, -1);
-                } catch (NoNodeException nne) {
-                    // Ignore if z-node was just expired
-                }
-            }
+            deleteBookieRegistrationZnode(
+                    String.format("/ledgers/available/%s:%d", baseConf.getAdvertisedAddress(), bookiePort));
+            deleteBookieRegistrationZnode(String.format("/ledgers/available/%s", bookieId));
 
             bsConfs[i] = new ServerConfiguration(baseConf);
             // override settings
             bsConfs[i].setBookiePort(bookiePort);
-            bsConfs[i].setBookieId("bk" + i + "test");
+            bsConfs[i].setBookieId(bookieId);
             String zkServers = "127.0.0.1:" + zkPort;
             String metadataServiceUriStr = "zk://" + zkServers + "/ledgers";
 
@@ -322,6 +318,16 @@ public class LocalBookkeeperEnsemble {
             bsConfs[i].setAllowEphemeralPorts(true);
 
             startBK(i);
+        }
+    }
+
+    private void deleteBookieRegistrationZnode(String registrationZnode) throws InterruptedException, KeeperException {
+        if (zkc.exists(registrationZnode, null) != null) {
+            try {
+                zkc.delete(registrationZnode, -1);
+            } catch (NoNodeException nne) {
+                // Ignore if z-node was just expired
+            }
         }
     }
 
@@ -358,7 +364,7 @@ public class LocalBookkeeperEnsemble {
         // create a default namespace
         try (StorageAdminClient admin = StorageClientBuilder.newBuilder()
              .withSettings(StorageClientSettings.newBuilder()
-                 .serviceUri("bk://localhost:4181")
+                 .serviceUri("bk://localhost:" + streamStoragePort)
                  .backoffPolicy(Backoff.Jitter.of(
                      Type.EXPONENTIAL,
                      1000,
@@ -498,7 +504,9 @@ public class LocalBookkeeperEnsemble {
         LOG.debug("Local ZK/BK stopping ...");
         for (LifecycleComponent bookie : bookieComponents) {
             try {
-                bookie.close();
+                if (bookie != null) {
+                    bookie.close();
+                }
             } catch (Exception e) {
                 LOG.warn("failed to shutdown bookie", e);
             }

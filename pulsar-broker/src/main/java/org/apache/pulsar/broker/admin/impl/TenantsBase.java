@@ -48,6 +48,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,7 +63,7 @@ public class TenantsBase extends PulsarWebResource {
             @ApiResponse(code = 404, message = "Tenant doesn't exist")})
     public void getTenants(@Suspended final AsyncResponse asyncResponse) {
         final String clientAppId = clientAppId();
-        validateSuperUserAccessAsync()
+        validateBothSuperUserAndTenantOperation(null, TenantOperation.LIST_TENANTS)
                 .thenCompose(__ -> tenantResources().listTenantsAsync())
                 .thenAccept(tenants -> {
                     // deep copy the tenants to avoid concurrent sort exception
@@ -84,7 +85,7 @@ public class TenantsBase extends PulsarWebResource {
     public void getTenantAdmin(@Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "The tenant name") @PathParam("tenant") String tenant) {
         final String clientAppId = clientAppId();
-        validateSuperUserAccessAsync()
+        validateBothSuperUserAndTenantOperation(tenant, TenantOperation.GET_TENANT)
                 .thenCompose(__ -> tenantResources().getTenantAsync(tenant))
                 .thenApply(tenantInfo -> {
                     if (!tenantInfo.isPresent()) {
@@ -103,7 +104,9 @@ public class TenantsBase extends PulsarWebResource {
     @PUT
     @Path("/{tenant}")
     @ApiOperation(value = "Create a new tenant.", notes = "This operation requires Pulsar super-user privileges.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 409, message = "Tenant already exists"),
             @ApiResponse(code = 412, message = "Tenant name is not valid"),
             @ApiResponse(code = 412, message = "Clusters can not be empty"),
@@ -119,9 +122,10 @@ public class TenantsBase extends PulsarWebResource {
             asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED, "Tenant name is not valid"));
             return;
         }
-        validateSuperUserAccessAsync()
+        validateBothSuperUserAndTenantOperation(tenant, TenantOperation.CREATE_TENANT)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> validateClustersAsync(tenantInfo))
+                .thenCompose(__ -> validateAdminRoleAsync(tenantInfo))
                 .thenCompose(__ -> tenantResources().tenantExistsAsync(tenant))
                 .thenAccept(exist -> {
                     if (exist) {
@@ -155,7 +159,9 @@ public class TenantsBase extends PulsarWebResource {
     @Path("/{tenant}")
     @ApiOperation(value = "Update the admins for a tenant.",
             notes = "This operation requires Pulsar super-user privileges.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "Tenant does not exist"),
             @ApiResponse(code = 409, message = "Tenant already exists"),
             @ApiResponse(code = 412, message = "Clusters can not be empty"),
@@ -164,9 +170,10 @@ public class TenantsBase extends PulsarWebResource {
             @ApiParam(value = "The tenant name") @PathParam("tenant") String tenant,
             @ApiParam(value = "TenantInfo") TenantInfoImpl newTenantAdmin) {
         final String clientAppId = clientAppId();
-        validateSuperUserAccessAsync()
+        validateBothSuperUserAndTenantOperation(tenant, TenantOperation.UPDATE_TENANT)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> validateClustersAsync(newTenantAdmin))
+                .thenCompose(__ -> validateAdminRoleAsync(newTenantAdmin))
                 .thenCompose(__ -> tenantResources().getTenantAsync(tenant))
                 .thenCompose(tenantAdmin -> {
                     if (!tenantAdmin.isPresent()) {
@@ -190,7 +197,9 @@ public class TenantsBase extends PulsarWebResource {
     @DELETE
     @Path("/{tenant}")
     @ApiOperation(value = "Delete a tenant and all namespaces and topics under it.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "Tenant does not exist"),
             @ApiResponse(code = 405, message = "Broker doesn't allow forced deletion of tenants"),
             @ApiResponse(code = 409, message = "The tenant still has active namespaces")})
@@ -198,7 +207,7 @@ public class TenantsBase extends PulsarWebResource {
             @PathParam("tenant") @ApiParam(value = "The tenant name") String tenant,
             @QueryParam("force") @DefaultValue("false") boolean force) {
         final String clientAppId = clientAppId();
-        validateSuperUserAccessAsync()
+        validateBothSuperUserAndTenantOperation(tenant, TenantOperation.DELETE_TENANT)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> internalDeleteTenant(tenant, force))
                 .thenAccept(__ -> {
@@ -281,5 +290,56 @@ public class TenantsBase extends PulsarWebResource {
                 throw new RestException(Status.PRECONDITION_FAILED, "Clusters do not exist");
             }
         });
+    }
+
+    private CompletableFuture<Void> validateAdminRoleAsync(TenantInfoImpl info) {
+        if (info.getAdminRoles() != null && !info.getAdminRoles().isEmpty()) {
+            for (String adminRole : info.getAdminRoles()) {
+                if (!StringUtils.trim(adminRole).equals(adminRole)) {
+                    log.warn("[{}] Failed to validate due to adminRole {} contains whitespace in the beginning or end.",
+                            clientAppId(), adminRole);
+                    return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                            "AdminRoles contains whitespace in the beginning or end."));
+                }
+            }
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
+    private CompletableFuture<Boolean> validateBothSuperUserAndTenantOperation(String tenant,
+                                                                               TenantOperation operation) {
+        final var superUserValidationFuture = validateSuperUserAccessAsync();
+        final var tenantOperationValidationFuture = validateTenantOperationAsync(tenant, operation);
+        return CompletableFuture.allOf(superUserValidationFuture, tenantOperationValidationFuture)
+                .handle((__, err) -> {
+                    if (!superUserValidationFuture.isCompletedExceptionally()
+                        || !tenantOperationValidationFuture.isCompletedExceptionally()) {
+                        return true;
+                    }
+                    if (log.isDebugEnabled()) {
+                        Throwable superUserValidationException = null;
+                        try {
+                            superUserValidationFuture.join();
+                        } catch (Throwable ex) {
+                            superUserValidationException = FutureUtil.unwrapCompletionException(ex);
+                        }
+                        Throwable brokerOperationValidationException = null;
+                        try {
+                            tenantOperationValidationFuture.join();
+                        } catch (Throwable ex) {
+                            brokerOperationValidationException = FutureUtil.unwrapCompletionException(ex);
+                        }
+                        log.debug("validateBothTenantOperationAndSuperUser failed."
+                                  + " originalPrincipal={} clientAppId={} operation={} "
+                                  + "superuserValidationError={} tenantOperationValidationError={}",
+                                originalPrincipal(), clientAppId(), operation.toString(),
+                                superUserValidationException, brokerOperationValidationException);
+                    }
+                    throw new RestException(Status.UNAUTHORIZED,
+                            String.format("Unauthorized to validateBothTenantOperationAndSuperUser for"
+                                          + " originalPrincipal [%s] and clientAppId [%s] "
+                                          + "about operation [%s] ",
+                                    originalPrincipal(), clientAppId(), operation.toString()));
+                });
     }
 }

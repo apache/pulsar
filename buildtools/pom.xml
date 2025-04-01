@@ -31,12 +31,19 @@
 
   <groupId>org.apache.pulsar</groupId>
   <artifactId>buildtools</artifactId>
-  <version>3.3.0-SNAPSHOT</version>
+  <version>4.1.0-SNAPSHOT</version>
   <packaging>jar</packaging>
   <name>Pulsar Build Tools</name>
 
+  <developers>
+    <developer>
+      <organization>Apache Pulsar developers</organization>
+      <organizationUrl>http://pulsar.apache.org/</organizationUrl>
+    </developer>
+  </developers>
+
   <properties>
-    <project.build.outputTimestamp>2023-12-28T19:33:08Z</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2024-10-14T13:32:50Z</project.build.outputTimestamp>
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
     <surefire.version>3.1.0</surefire.version>
@@ -47,7 +54,7 @@
     <license-maven-plugin.version>4.1</license-maven-plugin.version>
     <puppycrawl.checkstyle.version>10.14.2</puppycrawl.checkstyle.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
-    <netty.version>4.1.104.Final</netty.version>
+    <netty.version>4.1.119.Final</netty.version>
     <guice.version>4.2.3</guice.version>
     <guava.version>32.1.2-jre</guava.version>
     <ant.version>1.10.12</ant.version>
@@ -63,6 +70,13 @@
 
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-bom</artifactId>
+        <version>${slf4j.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
       <dependency>
         <groupId>org.apache.logging.log4j</groupId>
         <artifactId>log4j-bom</artifactId>
@@ -122,7 +136,6 @@
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>jcl-over-slf4j</artifactId>
-      <version>${slf4j.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.commons</groupId>

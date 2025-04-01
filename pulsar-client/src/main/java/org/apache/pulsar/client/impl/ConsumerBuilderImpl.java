@@ -31,7 +31,9 @@ import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -43,6 +45,7 @@ import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageListener;
+import org.apache.pulsar.client.api.MessageListenerExecutor;
 import org.apache.pulsar.client.api.MessagePayloadProcessor;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidConfigurationException;
@@ -58,9 +61,9 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.TopicConsumerConfigurationData;
 import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
 
+@Slf4j
 @Getter(AccessLevel.PUBLIC)
 public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
@@ -68,6 +71,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     private ConsumerConfigurationData<T> conf;
     private final Schema<T> schema;
     private List<ConsumerInterceptor<T>> interceptorList;
+    private volatile boolean interruptedBeforeConsumerCreation;
 
     private static final long MIN_ACK_TIMEOUT_MILLIS = 1000;
     private static final long MIN_TICK_TIME_MILLIS = 100;
@@ -97,11 +101,59 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public Consumer<T> subscribe() throws PulsarClientException {
+        CompletableFuture<Consumer<T>> future = new CompletableFuture<>();
         try {
-            return subscribeAsync().get();
+            subscribeAsync().whenComplete((c, e) -> {
+                if (e != null) {
+                    // If the subscription fails, there is no need to close the consumer here,
+                    // as it will be handled in the subscribeAsync method.
+                    future.completeExceptionally(e);
+                    return;
+                }
+                if (interruptedBeforeConsumerCreation) {
+                    c.closeAsync().exceptionally(closeEx -> {
+                        log.error("Failed to close consumer after interruption", closeEx.getCause());
+                        return null;
+                    });
+                    future.completeExceptionally(new PulsarClientException(
+                            "Subscription was interrupted before the consumer could be fully created"));
+                } else {
+                    future.complete(c);
+                }
+            });
+            return future.get();
+        } catch (InterruptedException e) {
+            interruptedBeforeConsumerCreation = true;
+            Thread.currentThread().interrupt();
+            throw PulsarClientException.unwrap(e);
         } catch (Exception e) {
             throw PulsarClientException.unwrap(e);
         }
+    }
+
+    private CompletableFuture<Boolean> checkDlqAlreadyExists(String topic) {
+        CompletableFuture<Boolean> existsFuture = new CompletableFuture<>();
+        client.getPartitionedTopicMetadata(topic, false, true).thenAccept(metadata -> {
+            TopicName topicName = TopicName.get(topic);
+            if (topicName.isPersistent()) {
+                // Either partitioned or non-partitioned, it exists.
+                existsFuture.complete(true);
+            } else {
+                // If it is a non-persistent topic, return true only it is a partitioned topic.
+                existsFuture.complete(metadata != null && metadata.partitions > 0);
+            }
+        }).exceptionally(ex -> {
+            Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+            if (actEx instanceof PulsarClientException.NotFoundException
+                    || actEx instanceof PulsarClientException.TopicDoesNotExistException
+                    || actEx instanceof PulsarAdminException.NotFoundException) {
+                existsFuture.complete(false);
+            } else {
+                existsFuture.completeExceptionally(ex);
+            }
+            return null;
+        });
+        return existsFuture;
     }
 
     @Override
@@ -120,31 +172,33 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             return FutureUtil.failedFuture(
                     new InvalidConfigurationException("KeySharedPolicy must set with KeyShared subscription"));
         }
+        if (conf.getBatchReceivePolicy() != null) {
+            conf.setReceiverQueueSize(
+                    Math.max(conf.getBatchReceivePolicy().getMaxNumMessages(), conf.getReceiverQueueSize()));
+        }
         CompletableFuture<Void> applyDLQConfig;
         if (conf.isRetryEnable() && conf.getTopicNames().size() > 0) {
             TopicName topicFirst = TopicName.get(conf.getTopicNames().iterator().next());
             //Issue 9327: do compatibility check in case of the default retry and dead letter topic name changed
-            String oldRetryLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName()
-                    + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
-            String oldDeadLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName()
-                    + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
+            String oldRetryLetterTopic = TopicName.get(topicFirst.getDomain().value(), topicFirst.getNamespaceObject(),
+                    conf.getSubscriptionName() + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX).toString();
+            String oldDeadLetterTopic = TopicName.get(topicFirst.getDomain().value(), topicFirst.getNamespaceObject(),
+                    conf.getSubscriptionName() + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX).toString();
             DeadLetterPolicy deadLetterPolicy = conf.getDeadLetterPolicy();
             if (deadLetterPolicy == null || StringUtils.isBlank(deadLetterPolicy.getRetryLetterTopic())
                     || StringUtils.isBlank(deadLetterPolicy.getDeadLetterTopic())) {
-                CompletableFuture<PartitionedTopicMetadata> retryLetterTopicMetadata =
-                        client.getPartitionedTopicMetadata(oldRetryLetterTopic);
-                CompletableFuture<PartitionedTopicMetadata> deadLetterTopicMetadata =
-                        client.getPartitionedTopicMetadata(oldDeadLetterTopic);
+                CompletableFuture<Boolean> retryLetterTopicMetadata = checkDlqAlreadyExists(oldRetryLetterTopic);
+                CompletableFuture<Boolean> deadLetterTopicMetadata = checkDlqAlreadyExists(oldDeadLetterTopic);
                 applyDLQConfig = CompletableFuture.allOf(retryLetterTopicMetadata, deadLetterTopicMetadata)
                         .thenAccept(__ -> {
-                            String retryLetterTopic = topicFirst + "-" + conf.getSubscriptionName()
-                                    + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
-                            String deadLetterTopic = topicFirst + "-" + conf.getSubscriptionName()
-                                    + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
-                            if (retryLetterTopicMetadata.join().partitions > 0) {
+                            String retryLetterTopic = RetryMessageUtil.getRetryTopic(topicFirst.toString(),
+                                    conf.getSubscriptionName());
+                            String deadLetterTopic = RetryMessageUtil.getDLQTopic(topicFirst.toString(),
+                                    conf.getSubscriptionName());
+                            if (retryLetterTopicMetadata.join()) {
                                 retryLetterTopic = oldRetryLetterTopic;
                             }
-                            if (deadLetterTopicMetadata.join().partitions > 0) {
+                            if (deadLetterTopicMetadata.join()) {
                                 deadLetterTopic = oldDeadLetterTopic;
                             }
                             if (deadLetterPolicy == null) {
@@ -254,6 +308,13 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
+    public ConsumerBuilder<T> negativeAckRedeliveryDelayPrecision(int negativeAckPrecisionBitCount) {
+        checkArgument(negativeAckPrecisionBitCount >= 0, "negativeAckPrecisionBitCount needs to be >= 0");
+        conf.setNegativeAckPrecisionBitCnt(negativeAckPrecisionBitCount);
+        return this;
+    }
+
+    @Override
     public ConsumerBuilder<T> subscriptionType(@NonNull SubscriptionType subscriptionType) {
         conf.setSubscriptionType(subscriptionType);
         return this;
@@ -269,6 +330,13 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public ConsumerBuilder<T> messageListener(@NonNull MessageListener<T> messageListener) {
         conf.setMessageListener(messageListener);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> messageListenerExecutor(MessageListenerExecutor messageListenerExecutor) {
+        checkArgument(messageListenerExecutor != null, "messageListenerExecutor needs to be not null");
+        conf.setMessageListenerExecutor(messageListenerExecutor);
         return this;
     }
 

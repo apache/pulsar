@@ -19,9 +19,10 @@
 package org.apache.pulsar.client.api;
 
 import java.io.IOException;
-import java.util.Collection;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
+import lombok.Getter;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
@@ -33,7 +34,7 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 @SuppressWarnings("serial")
 public class PulsarClientException extends IOException {
     private long sequenceId = -1;
-    private Collection<Throwable> previous;
+    private AtomicInteger previousExceptionAttempt;
 
     /**
      * Constructs an {@code PulsarClientException} with the specified detail message.
@@ -86,47 +87,16 @@ public class PulsarClientException extends IOException {
         super(msg, t);
     }
 
-    /**
-     * Add a list of previous exception which occurred for the same operation
-     * and have been retried.
-     *
-     * @param previous A collection of throwables that triggered retries
-     */
-    public void setPreviousExceptions(Collection<Throwable> previous) {
-        this.previous = previous;
-    }
-
-    /**
-     * Get the collection of previous exceptions which have caused retries
-     * for this operation.
-     *
-     * @return a collection of exception, ordered as they occurred
-     */
-    public Collection<Throwable> getPreviousExceptions() {
-        return this.previous;
+    public void setPreviousExceptionCount(AtomicInteger previousExceptionCount) {
+        this.previousExceptionAttempt = previousExceptionCount;
     }
 
     @Override
     public String toString() {
-        if (previous == null || previous.isEmpty()) {
+        if (previousExceptionAttempt == null || previousExceptionAttempt.get() == 0) {
             return super.toString();
         } else {
-            StringBuilder sb = new StringBuilder(super.toString());
-            int i = 0;
-            boolean first = true;
-            sb.append("{\"previous\":[");
-            for (Throwable t : previous) {
-                if (first) {
-                    first = false;
-                } else {
-                    sb.append(',');
-                }
-                sb.append("{\"attempt\":").append(i++)
-                    .append(",\"error\":\"").append(t.toString().replace("\"", "\\\""))
-                    .append("\"}");
-            }
-            sb.append("]}");
-            return sb.toString();
+            return super.toString() + ", previous-attempt: " + previousExceptionAttempt;
         }
     }
     /**
@@ -742,6 +712,30 @@ public class PulsarClientException extends IOException {
     }
 
     /**
+     * Not supported exception thrown by Pulsar client.
+     */
+    public static class FeatureNotSupportedException extends NotSupportedException {
+
+        @Getter
+        private final FailedFeatureCheck failedFeatureCheck;
+
+        public FeatureNotSupportedException(String msg, FailedFeatureCheck failedFeatureCheck) {
+            super(msg);
+            this.failedFeatureCheck = failedFeatureCheck;
+        }
+    }
+
+    /**
+     * "supports_auth_refresh" was introduced at "2.6" and is no longer supported, so skip this enum.
+     * "supports_broker_entry_metadata" was introduced at "2.8" and is no longer supported, so skip this enum.
+     * "supports_partial_producer" was introduced at "2.10" and is no longer supported, so skip this enum.
+     * "supports_topic_watchers" was introduced at "2.11" and is no longer supported, so skip this enum.
+     */
+    public enum FailedFeatureCheck {
+        SupportsGetPartitionedMetadataWithoutAutoCreation;
+    }
+
+    /**
      * Not allowed exception thrown by Pulsar client.
      */
     public static class NotAllowedException extends PulsarClientException {
@@ -967,7 +961,9 @@ public class PulsarClientException extends IOException {
     public static Throwable wrap(Throwable t, String msg) {
         msg += "\n" + t.getMessage();
         // wrap an exception with new message info
-        if (t instanceof TimeoutException) {
+        if (t instanceof TopicDoesNotExistException) {
+            return new TopicDoesNotExistException(msg);
+        } else if (t instanceof TimeoutException) {
             return new TimeoutException(msg);
         } else if (t instanceof InvalidConfigurationException) {
             return new InvalidConfigurationException(msg);
@@ -1119,6 +1115,8 @@ public class PulsarClientException extends IOException {
             newException = new TransactionConflictException(msg);
         } else if (cause instanceof TopicDoesNotExistException) {
             newException = new TopicDoesNotExistException(msg);
+        } else if (cause instanceof SubscriptionNotFoundException) {
+            newException = new SubscriptionNotFoundException(msg);
         } else if (cause instanceof ProducerFencedException) {
             newException = new ProducerFencedException(msg);
         } else if (cause instanceof MemoryBufferIsFullError) {
@@ -1131,38 +1129,8 @@ public class PulsarClientException extends IOException {
             newException = new PulsarClientException(t);
         }
 
-        Collection<Throwable> previousExceptions = getPreviousExceptions(t);
-        if (previousExceptions != null) {
-            newException.setPreviousExceptions(previousExceptions);
-        }
         return newException;
     }
-
-    public static Collection<Throwable> getPreviousExceptions(Throwable t) {
-        Throwable e = t;
-        for (int maxDepth = 20; maxDepth > 0 && e != null; maxDepth--) {
-            if (e instanceof PulsarClientException) {
-                Collection<Throwable> previous = ((PulsarClientException) e).getPreviousExceptions();
-                if (previous != null) {
-                    return previous;
-                }
-            }
-            e = t.getCause();
-        }
-        return null;
-    }
-
-    public static void setPreviousExceptions(Throwable t, Collection<Throwable> previous) {
-        Throwable e = t;
-        for (int maxDepth = 20; maxDepth > 0 && e != null; maxDepth--) {
-            if (e instanceof PulsarClientException) {
-                ((PulsarClientException) e).setPreviousExceptions(previous);
-                return;
-            }
-            e = t.getCause();
-        }
-    }
-
 
     public long getSequenceId() {
         return sequenceId;
@@ -1197,4 +1165,12 @@ public class PulsarClientException extends IOException {
         }
         return true;
     }
+
+    public static void setPreviousExceptionCount(Throwable e, AtomicInteger previousExceptionCount) {
+        if (e instanceof PulsarClientException) {
+            ((PulsarClientException) e).setPreviousExceptionCount(previousExceptionCount);
+            return;
+        }
+    }
+
 }

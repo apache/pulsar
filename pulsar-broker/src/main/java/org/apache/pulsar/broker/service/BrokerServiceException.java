@@ -146,6 +146,10 @@ public class BrokerServiceException extends Exception {
         public TopicBusyException(String msg) {
             super(msg);
         }
+
+        public TopicBusyException(String msg, Throwable t) {
+            super(msg, t);
+        }
     }
 
     public static class TopicNotFoundException extends BrokerServiceException {
@@ -214,9 +218,9 @@ public class BrokerServiceException extends Exception {
         }
     }
 
-    public static class TopicPoliciesCacheNotInitException extends BrokerServiceException {
-        public TopicPoliciesCacheNotInitException() {
-            super("Topic policies cache have not init.");
+    public static class ConnectionClosedException extends BrokerServiceException {
+        public ConnectionClosedException(String msg) {
+            super(msg);
         }
     }
 

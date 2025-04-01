@@ -117,10 +117,19 @@ public class TopicOwnerTest {
     @AfterMethod(alwaysRun = true)
     void tearDown() throws Exception {
         for (int i = 0; i < BROKER_COUNT; i++) {
-            pulsarServices[i].close();
-            pulsarAdmins[i].close();
+            if (pulsarAdmins[i] != null) {
+                pulsarAdmins[i].close();
+                pulsarAdmins[i] = null;
+            }
+            if (pulsarServices[i] != null) {
+                pulsarServices[i].close();
+                pulsarServices[i] = null;
+            }
         }
-        bkEnsemble.stop();
+        if (bkEnsemble != null) {
+            bkEnsemble.stop();
+            bkEnsemble = null;
+        }
     }
 
     @SuppressWarnings("unchecked")

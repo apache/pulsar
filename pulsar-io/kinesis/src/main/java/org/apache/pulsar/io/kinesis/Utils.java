@@ -222,7 +222,7 @@ public class Utils {
         JsonRecord jsonRecord = new JsonRecord();
         GenericObject value = record.getValue();
         if (value != null) {
-            jsonRecord.setPayload(toJsonSerializable(record.getSchema(), value.getNativeObject()));
+            jsonRecord.setPayload(toJsonSerializable(record.getSchema(), value.getNativeObject(), flatten));
         }
         record.getKey().ifPresent(jsonRecord::setKey);
         record.getTopicName().ifPresent(jsonRecord::setTopicName);
@@ -242,7 +242,7 @@ public class Utils {
                 .orElseThrow(() -> new IllegalArgumentException("Record does not carry message information"));
     }
 
-    private static Object toJsonSerializable(Schema<?> schema, Object val) {
+    private static Object toJsonSerializable(Schema<?> schema, Object val, boolean convertBytesToString) {
         if (schema == null || schema.getSchemaInfo().getType().isPrimitive()) {
             return val;
         }
@@ -254,15 +254,15 @@ public class Utils {
                 Map<String, Object> jsonKeyValue = new HashMap<>();
                 if (keyValue.getKey() != null) {
                     jsonKeyValue.put("key", toJsonSerializable(keyValueSchema.getKeySchema(),
-                            keyValue.getKey().getNativeObject()));
+                            keyValue.getKey().getNativeObject(), convertBytesToString));
                 }
                 if (keyValue.getValue() != null) {
                     jsonKeyValue.put("value", toJsonSerializable(keyValueSchema.getValueSchema(),
-                            keyValue.getValue().getNativeObject()));
+                            keyValue.getValue().getNativeObject(), convertBytesToString));
                 }
                 return jsonKeyValue;
             case AVRO:
-                return JsonConverter.toJson((org.apache.avro.generic.GenericRecord) val);
+                return JsonConverter.toJson((org.apache.avro.generic.GenericRecord) val, convertBytesToString);
             case JSON:
                 return val;
             default:

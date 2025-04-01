@@ -234,6 +234,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         }
 
         // grant topic consume authorization to the subscriptionRole
+        tenantAdmin.topics().createNonPartitionedTopic(topicName);
         tenantAdmin.topics().grantPermission(topicName, subscriptionRole,
                 Collections.singleton(AuthAction.consume));
 
@@ -349,7 +350,8 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         } catch (Exception e) {
             // my-sub1 has no msg backlog, so expire message won't be issued on that subscription
             assertTrue(e.getMessage().startsWith("Expire message by timestamp not issued on topic"));
-        }        sub1Admin.topics().peekMessages(topicName, subscriptionName, 1);
+        }
+        sub1Admin.topics().peekMessages(topicName, subscriptionName, 1);
         sub1Admin.topics().resetCursor(topicName, subscriptionName, 10);
         sub1Admin.topics().resetCursor(topicName, subscriptionName, MessageId.earliest);
 
@@ -773,6 +775,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         admin.tenants().createTenant("my-property",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
+        admin.topics().createNonPartitionedTopic(topic);
         admin.topics().grantPermission(topic, invalidRole, Collections.singleton(AuthAction.produce));
         admin.topics().grantPermission(topic, producerRole, Sets.newHashSet(AuthAction.produce, AuthAction.consume));
 
@@ -987,31 +990,6 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
             }
 
             return isAuthorizedFuture;
-        }
-    }
-
-    /**
-     * This provider always fails authorization on consumer and passes on producer
-     *
-     */
-    public static class TestAuthorizationProvider2 extends TestAuthorizationProvider {
-
-        @Override
-        public CompletableFuture<Boolean> canProduceAsync(TopicName topicName, String role,
-                AuthenticationDataSource authenticationData) {
-            return CompletableFuture.completedFuture(true);
-        }
-
-        @Override
-        public CompletableFuture<Boolean> canConsumeAsync(TopicName topicName, String role,
-                AuthenticationDataSource authenticationData, String subscription) {
-            return CompletableFuture.completedFuture(false);
-        }
-
-        @Override
-        public CompletableFuture<Boolean> canLookupAsync(TopicName topicName, String role,
-                AuthenticationDataSource authenticationData) {
-            return CompletableFuture.completedFuture(true);
         }
     }
 

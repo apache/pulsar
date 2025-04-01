@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.transaction.coordinator.impl;
 
+import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -52,9 +55,10 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.transaction.coordinator.test.MockedBookKeeperTestCase;
@@ -62,8 +66,6 @@ import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
-import static org.testng.Assert.*;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -124,6 +126,14 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                 {128, 1024 * 1024, 1, true, 512, 4, BookieErrorType.NO_ERROR, true},
                 {128, 1024 * 1024, 1, false, 512, 4, BookieErrorType.NO_ERROR, true}
         };
+    }
+
+    @Override
+    protected ManagedLedgerFactoryConfig createManagedLedgerFactoryConfig() {
+        ManagedLedgerFactoryConfig managedLedgerFactoryConfig = super.createManagedLedgerFactoryConfig();
+        // disable the broker cache so that assertAllByteBufHasBeenReleased can work correctly.
+        managedLedgerFactoryConfig.setMaxCacheSize(0);
+        return managedLedgerFactoryConfig;
     }
 
     /**
@@ -194,7 +204,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         // Store the param-context, param-position, param-exception of callback function and complete-count for verify.
         List<Integer> contextArrayOfCallback = Collections.synchronizedList(new ArrayList<>());
         Map<Integer, ManagedLedgerException> exceptionArrayOfCallback = new ConcurrentHashMap<>();
-        Map<PositionImpl, List<Position>> positionsOfCallback = Collections.synchronizedMap(new LinkedHashMap<>());
+        Map<Position, List<Position>> positionsOfCallback = Collections.synchronizedMap(new LinkedHashMap<>());
         AtomicBoolean anyFlushCompleted = new AtomicBoolean();
         TxnLogBufferedWriter.AddDataCallback callback = new TxnLogBufferedWriter.AddDataCallback(){
             @Override
@@ -204,7 +214,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                     return;
                 }
                 contextArrayOfCallback.add((int)ctx);
-                PositionImpl lightPosition = PositionImpl.get(position.getLedgerId(), position.getEntryId());
+                Position lightPosition = PositionFactory.create(position.getLedgerId(), position.getEntryId());
                 positionsOfCallback.computeIfAbsent(lightPosition,
                         p -> Collections.synchronizedList(new ArrayList<>()));
                 positionsOfCallback.get(lightPosition).add(position);
@@ -299,7 +309,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
          * Note2: Verify that all entry was written in strict order.
          */
         if (BookieErrorType.NO_ERROR == bookieErrorType) {
-            Iterator<PositionImpl> callbackPositionIterator = positionsOfCallback.keySet().iterator();
+            Iterator<Position> callbackPositionIterator = positionsOfCallback.keySet().iterator();
             List<String> dataArrayWrite = dataSerializer.getGeneratedJsonArray();
             int entryCounter = 0;
             while (managedCursor.hasMoreEntries()) {
@@ -311,7 +321,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                     // Get data read.
                     Entry entry = entries.get(m);
                     // Assert the position of the read matches the position of the callback.
-                    PositionImpl callbackPosition = callbackPositionIterator.next();
+                    Position callbackPosition = callbackPositionIterator.next();
                     assertEquals(entry.getLedgerId(), callbackPosition.getLedgerId());
                     assertEquals(entry.getEntryId(), callbackPosition.getEntryId());
                     if (exactlyBatched) {
@@ -394,7 +404,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                 dataArrayFlushedToBookie.add(byteBuf.readInt());
                 AsyncCallbacks.AddEntryCallback callback =
                         (AsyncCallbacks.AddEntryCallback) invocation.getArguments()[1];
-                callback.addComplete(PositionImpl.get(1,1), byteBuf,
+                callback.addComplete(PositionFactory.create(1,1), byteBuf,
                         invocation.getArguments()[2]);
                 return null;
             }
@@ -1022,7 +1032,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                 writeCounter.incrementAndGet();
                 AsyncCallbacks.AddEntryCallback callback =
                         (AsyncCallbacks.AddEntryCallback) invocation.getArguments()[1];
-                callback.addComplete(PositionImpl.get(1,1), (ByteBuf)invocation.getArguments()[0],
+                callback.addComplete(PositionFactory.create(1,1), (ByteBuf)invocation.getArguments()[0],
                         invocation.getArguments()[2]);
                 return null;
             }

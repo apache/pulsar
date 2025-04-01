@@ -18,15 +18,15 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static java.util.Objects.requireNonNull;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Range;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
+import java.util.Map;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
+import org.apache.pulsar.common.util.collections.OpenLongPairRangeSet;
+import org.roaringbitmap.RoaringBitSet;
 
 /**
  * Wraps other Range classes, and adds LRU, marking dirty data and other features on this basis.
@@ -38,7 +38,6 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
 
     private final LongPairRangeSet<T> rangeSet;
     private final LongPairConsumer<T> rangeConverter;
-    private final ManagedLedgerConfig config;
     private final boolean enableMultiEntry;
 
     /**
@@ -51,13 +50,19 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
     public RangeSetWrapper(LongPairConsumer<T> rangeConverter,
                            RangeBoundConsumer<T> rangeBoundConsumer,
                            ManagedCursorImpl managedCursor) {
-        requireNonNull(managedCursor);
-        this.config = managedCursor.getConfig();
+        this(rangeConverter, rangeBoundConsumer, managedCursor.getConfig().isUnackedRangesOpenCacheSetEnabled(),
+                managedCursor.getConfig().isPersistentUnackedRangesWithMultipleEntriesEnabled());
+    }
+
+    public RangeSetWrapper(LongPairConsumer<T> rangeConverter,
+                           RangeBoundConsumer<T> rangeBoundConsumer,
+                           boolean unackedRangesOpenCacheSetEnabled,
+                           boolean persistentUnackedRangesWithMultipleEntriesEnabled) {
         this.rangeConverter = rangeConverter;
-        this.rangeSet = config.isUnackedRangesOpenCacheSetEnabled()
-                ? new ConcurrentOpenLongPairRangeSet<>(4096, rangeConverter)
+        this.rangeSet = unackedRangesOpenCacheSetEnabled
+                ? new OpenLongPairRangeSet<>(rangeConverter, RoaringBitSet::new)
                 : new LongPairRangeSet.DefaultRangeSet<>(rangeConverter, rangeBoundConsumer);
-        this.enableMultiEntry = config.isPersistentUnackedRangesWithMultipleEntriesEnabled();
+        this.enableMultiEntry = persistentUnackedRangesWithMultipleEntriesEnabled;
     }
 
     @Override
@@ -142,22 +147,32 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
     }
 
     @Override
+    public Map<Long, long[]> toRanges(int maxRanges) {
+        return rangeSet.toRanges(maxRanges);
+    }
+
+    @Override
+    public void build(Map<Long, long[]> internalRange) {
+        rangeSet.build(internalRange);
+    }
+
+    @Override
     public int cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue) {
         return rangeSet.cardinality(lowerKey, lowerValue, upperKey, upperValue);
     }
 
     @VisibleForTesting
     void add(Range<LongPair> range) {
-        if (!(rangeSet instanceof ConcurrentOpenLongPairRangeSet)) {
+        if (!(rangeSet instanceof OpenLongPairRangeSet)) {
             throw new UnsupportedOperationException("Only ConcurrentOpenLongPairRangeSet support this method");
         }
-        ((ConcurrentOpenLongPairRangeSet<T>) rangeSet).add(range);
+        ((OpenLongPairRangeSet<T>) rangeSet).add(range);
     }
 
     @VisibleForTesting
     void remove(Range<T> range) {
-        if (rangeSet instanceof ConcurrentOpenLongPairRangeSet) {
-            ((ConcurrentOpenLongPairRangeSet<T>) rangeSet).remove((Range<LongPair>) range);
+        if (rangeSet instanceof OpenLongPairRangeSet) {
+            ((OpenLongPairRangeSet<T>) rangeSet).remove((Range<LongPair>) range);
         } else {
             ((DefaultRangeSet<T>) rangeSet).remove(range);
         }
@@ -174,5 +189,23 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
     @Override
     public String toString() {
         return rangeSet.toString();
+    }
+
+    @Override
+    public int hashCode() {
+        return rangeSet.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (!(obj instanceof RangeSetWrapper)) {
+            return false;
+        }
+        if (this == obj) {
+            return true;
+        }
+        @SuppressWarnings("rawtypes")
+        RangeSetWrapper set = (RangeSetWrapper) obj;
+        return this.rangeSet.equals(set.rangeSet);
     }
 }

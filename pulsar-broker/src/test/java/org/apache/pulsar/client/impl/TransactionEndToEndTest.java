@@ -46,7 +46,6 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
@@ -74,7 +73,6 @@ import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
@@ -416,11 +414,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 boolean exist = false;
                 for (int i = 0; i < getPulsarServiceList().size(); i++) {
 
-                    Field field = BrokerService.class.getDeclaredField("topics");
-                    field.setAccessible(true);
-                    ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
-                            (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>) field
-                                    .get(getPulsarServiceList().get(i).getBrokerService());
+                    final var topics = getPulsarServiceList().get(i).getBrokerService().getTopics();
                     CompletableFuture<Optional<Topic>> topicFuture = topics.get(topic);
 
                     if (topicFuture != null) {
@@ -439,7 +433,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                                 //when delete commit marker operation finish, it can run next delete commit marker operation
                                 //so this test may not delete all the position in this manageLedger.
                                 Position markerPosition = ((ManagedLedgerImpl) persistentSubscription.getCursor()
-                                        .getManagedLedger()).getNextValidPosition((PositionImpl) markDeletePosition);
+                                        .getManagedLedger()).getNextValidPosition(markDeletePosition);
                                 //marker is the lastConfirmedEntry, after commit the marker will only be write in
                                 if (!markerPosition.equals(lastConfirmedEntry)) {
                                     log.error("Mark delete position is not commit marker position!");
@@ -723,9 +717,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
             Field field = BrokerService.class.getDeclaredField("topics");
             field.setAccessible(true);
-            ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
-                    (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>) field
-                            .get(getPulsarServiceList().get(i).getBrokerService());
+            final var topics = getPulsarServiceList().get(i).getBrokerService().getTopics();
             CompletableFuture<Optional<Topic>> topicFuture = topics.get(topic);
 
             if (topicFuture != null) {
@@ -744,7 +736,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                         //when delete commit marker operation finish, it can run next delete commit marker operation
                         //so this test may not delete all the position in this manageLedger.
                         Position markerPosition = ((ManagedLedgerImpl) persistentSubscription.getCursor()
-                                .getManagedLedger()).getNextValidPosition((PositionImpl) markDeletePosition);
+                                .getManagedLedger()).getNextValidPosition(markDeletePosition);
                         //marker is the lastConfirmedEntry, after commit the marker will only be write in
                         if (!markerPosition.equals(lastConfirmedEntry)) {
                             log.error("Mark delete position is not commit marker position!");
@@ -1194,9 +1186,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
             Field field = BrokerService.class.getDeclaredField("topics");
             field.setAccessible(true);
-            ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
-                    (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>) field
-                            .get(getPulsarServiceList().get(i).getBrokerService());
+            final var topics = getPulsarServiceList().get(i).getBrokerService().getTopics();
             CompletableFuture<Optional<Topic>> topicFuture = topics.get(topic);
 
             if (topicFuture != null) {
@@ -1510,8 +1500,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         @Cleanup
         Consumer<byte[]> deadLetterConsumer = pulsarClient.newConsumer()
-                .topic(String.format("%s-%s" + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX,
-                        topic, subName))
+                .topic(RetryMessageUtil.getDLQTopic(topic, subName))
                 .subscriptionType(SubscriptionType.Shared)
                 .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(1).build())
                 .subscriptionName("test")
@@ -1546,8 +1535,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         consumer.close();
         deadLetterConsumer.close();
         producer.close();
-        admin.topics().delete(String.format("%s-%s" + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX,
-                topic, subName), true);
+        admin.topics().delete(RetryMessageUtil.getDLQTopic(topic, subName), true);
         admin.topics().delete(topic, true);
     }
 
@@ -1574,8 +1562,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         @Cleanup
         Consumer<byte[]> deadLetterConsumer = pulsarClient.newConsumer()
-                .topic(String.format("%s-%s" + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX,
-                        topic, subName))
+                .topic(RetryMessageUtil.getDLQTopic(topic, subName))
                 .subscriptionType(SubscriptionType.Shared)
                 .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(1).build())
                 .subscriptionName("test")
@@ -1621,8 +1608,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         consumer.close();
         deadLetterConsumer.close();
         producer.close();
-        admin.topics().delete(String.format("%s-%s" + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX,
-                topic, subName), true);
+        admin.topics().delete(RetryMessageUtil.getDLQTopic(topic, subName), true);
         admin.topics().delete(topic, true);
     }
 
@@ -1655,23 +1641,23 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         for (int i = 0; i < 10; i++) {
             producer.newMessage(transaction)
                     .value("msg-" + i)
-                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .deliverAfter(7, TimeUnit.SECONDS)
                     .sendAsync();
         }
 
         producer.flush();
 
         transaction.commit().get();
-
-        // Failover consumer will receive the messages immediately while
-        // the shared consumer will get them after the delay
-        Message<String> msg = sharedConsumer.receive(waitTimeForCannotReceiveMsgInSec, TimeUnit.SECONDS);
-        assertNull(msg);
-
+        Message<String> msg;
         for (int i = 0; i < 10; i++) {
             msg = failoverConsumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS);
             assertEquals(msg.getValue(), "msg-" + i);
         }
+
+        // Failover consumer will receive the messages immediately while
+        // the shared consumer will get them after the delay
+        msg = sharedConsumer.receive(waitTimeForCannotReceiveMsgInSec, TimeUnit.SECONDS);
+        assertNull(msg);
 
         Set<String> receivedMsgs = new TreeSet<>();
         for (int i = 0; i < 10; i++) {

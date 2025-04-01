@@ -18,10 +18,13 @@
  */
 package org.apache.pulsar.metadata.api;
 
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
+import org.apache.pulsar.common.util.BackoffBuilder;
 
 /**
  * The configuration builder for a {@link MetadataCache} config.
@@ -29,8 +32,12 @@ import lombok.ToString;
 @Builder
 @Getter
 @ToString
-public class MetadataCacheConfig {
+public class MetadataCacheConfig<T> {
     private static final long DEFAULT_CACHE_REFRESH_TIME_MILLIS = TimeUnit.MINUTES.toMillis(5);
+    public static final BackoffBuilder DEFAULT_RETRY_BACKOFF_BUILDER =
+            new BackoffBuilder().setInitialTime(5, TimeUnit.MILLISECONDS)
+                    .setMax(3, TimeUnit.SECONDS)
+                    .setMandatoryStop(30, TimeUnit.SECONDS);
 
     /**
      * Specifies that active entries are eligible for automatic refresh once a fixed duration has
@@ -47,4 +54,15 @@ public class MetadataCacheConfig {
      */
     @Builder.Default
     private final long expireAfterWriteMillis = 2 * DEFAULT_CACHE_REFRESH_TIME_MILLIS;
+
+    /**
+     * Specifies cache reload consumer behavior when the cache is refreshed automatically at refreshAfterWriteMillis
+     * frequency.
+     */
+    @Builder.Default
+    private final BiConsumer<String, Optional<CacheGetResult<T>>> asyncReloadConsumer = null;
+
+    @Builder.Default
+    private final BackoffBuilder retryBackoff = DEFAULT_RETRY_BACKOFF_BUILDER;
+
 }

@@ -37,6 +37,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -48,6 +49,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import io.opentelemetry.api.common.Attributes;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -59,6 +61,9 @@ import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil;
+import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.api.MessageId;
@@ -71,6 +76,7 @@ import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -100,6 +106,12 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(myNamespace, Set.of("test"));
     }
 
+    @Override
+    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
+        super.customizeMainPulsarTestContextBuilder(pulsarTestContextBuilder);
+        pulsarTestContextBuilder.enableOpenTelemetry(true);
+    }
+
     @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
@@ -114,6 +126,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
 
         CompletableFuture<Void> promise = new CompletableFuture<>();
         doReturn(promise).when(offloader).offload(any(), any(), any());
+        doReturn(true).when(offloader).isAppendable();
 
         MessageId currentId = MessageId.latest;
         try (Producer<byte[]> p = pulsarClient.newProducer().topic(topicName).enableBatching(false).create()) {
@@ -122,11 +135,21 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
             }
         }
 
-        ManagedLedgerInfo info = pulsar.getManagedLedgerFactory().getManagedLedgerInfo(mlName);
+        ManagedLedgerInfo info = pulsar.getDefaultManagedLedgerFactory().getManagedLedgerInfo(mlName);
         assertEquals(info.ledgers.size(), 2);
 
-        assertEquals(admin.topics().offloadStatus(topicName).getStatus(),
-                            LongRunningProcessStatus.Status.NOT_RUN);
+        assertEquals(admin.topics().offloadStatus(topicName).getStatus(), LongRunningProcessStatus.Status.NOT_RUN);
+        var topicNameObject = TopicName.get(topicName);
+        var attributes = Attributes.builder()
+                .put(OpenTelemetryAttributes.PULSAR_DOMAIN, topicNameObject.getDomain().toString())
+                .put(OpenTelemetryAttributes.PULSAR_TENANT, topicNameObject.getTenant())
+                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, topicNameObject.getNamespace())
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicNameObject.getPartitionedTopicName())
+                .build();
+        // Verify the respective metric is 0 before the offload begins.
+        var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        BrokerOpenTelemetryTestUtil.assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_OFFLOADED_COUNTER,
+                attributes, actual -> assertThat(actual).isZero());
 
         admin.topics().triggerOffload(topicName, currentId);
 
@@ -164,6 +187,11 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         assertEquals(firstUnoffloadedMessage.getEntryId(), 0);
 
         verify(offloader, times(2)).offload(any(), any(), any());
+
+        // Verify the metrics have been updated.
+        metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        BrokerOpenTelemetryTestUtil.assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_OFFLOADED_COUNTER,
+                attributes, actual -> assertThat(actual).isPositive());
     }
 
 

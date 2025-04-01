@@ -44,7 +44,6 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
 
@@ -127,6 +126,10 @@ public interface Topic {
         default void setEntryTimestamp(long entryTimestamp) {
 
         }
+
+        default boolean supportsReplDedupByLidAndEid() {
+            return false;
+        }
     }
 
     CompletableFuture<Void> initialize();
@@ -146,12 +149,11 @@ public interface Topic {
     void removeProducer(Producer producer);
 
     /**
-     * Wait TransactionBuffer Recovers completely.
-     * Take snapshot after TB Recovers completely.
-     * @param isTxnEnabled isTxnEnabled
-     * @return a future which has completely if isTxn = false. Or a future return by takeSnapshot.
+     * Wait TransactionBuffer recovers completely.
+     *
+     * @return a future that will be completed after the transaction buffer recover completely.
      */
-    CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely(boolean isTxnEnabled);
+    CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely();
 
     /**
      * record add-latency.
@@ -184,7 +186,7 @@ public interface Topic {
 
     CompletableFuture<Void> unsubscribe(String subName);
 
-    ConcurrentOpenHashMap<String, ? extends Subscription> getSubscriptions();
+    Map<String, ? extends Subscription> getSubscriptions();
 
     CompletableFuture<Void> delete();
 
@@ -212,6 +214,16 @@ public interface Topic {
     void checkBackloggedCursors();
 
     void checkCursorsToCacheEntries();
+
+    /**
+     * Indicate if the current topic enabled server side deduplication.
+     * This is a dynamic configuration, user may update it by namespace/topic policies.
+     *
+     * @return whether enabled server side deduplication
+     */
+    default boolean isDeduplicationEnabled() {
+        return false;
+    }
 
     void checkDeduplicationSnapshot();
 
@@ -256,9 +268,9 @@ public interface Topic {
 
     Subscription getSubscription(String subscription);
 
-    ConcurrentOpenHashMap<String, ? extends Replicator> getReplicators();
+    Map<String, ? extends Replicator> getReplicators();
 
-    ConcurrentOpenHashMap<String, ? extends Replicator> getShadowReplicators();
+    Map<String, ? extends Replicator> getShadowReplicators();
 
     TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
                             boolean getEarliestTimeInBacklog);
@@ -274,6 +286,13 @@ public interface Topic {
     CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata);
 
     Position getLastPosition();
+
+    /**
+     * Get the last message position that can be dispatch.
+     */
+    default CompletableFuture<Position> getLastDispatchablePosition() {
+        throw new UnsupportedOperationException("getLastDispatchablePosition is not supported by default");
+    }
 
     CompletableFuture<MessageId> getLastMessageId();
 
@@ -367,4 +386,9 @@ public interface Topic {
      */
     HierarchyTopicPolicies getHierarchyTopicPolicies();
 
+    /**
+     * Get OpenTelemetry attribute set.
+     * @return
+     */
+    TopicAttributes getTopicAttributes();
 }

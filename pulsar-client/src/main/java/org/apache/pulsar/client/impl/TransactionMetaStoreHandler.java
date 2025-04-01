@@ -33,6 +33,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -46,6 +47,8 @@ import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.api.proto.Subscription;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.Backoff;
+import org.apache.pulsar.common.util.BackoffBuilder;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -86,6 +89,10 @@ public class TransactionMetaStoreHandler extends HandlerState
     private Timeout requestTimeout;
 
     private final CompletableFuture<Void> connectFuture;
+    private final long lookupDeadline;
+    private final AtomicInteger previousExceptionCount = new AtomicInteger();
+
+
 
     public TransactionMetaStoreHandler(long transactionCoordinatorId, PulsarClientImpl pulsarClient, String topic,
                                        CompletableFuture<Void> connectFuture) {
@@ -107,6 +114,7 @@ public class TransactionMetaStoreHandler extends HandlerState
         this.connectFuture = connectFuture;
         this.internalPinnedExecutor = pulsarClient.getInternalExecutorService();
         this.timer = pulsarClient.timer();
+        this.lookupDeadline = System.currentTimeMillis() + client.getConfiguration().getLookupTimeoutMs();
     }
 
     public void start() {
@@ -115,10 +123,22 @@ public class TransactionMetaStoreHandler extends HandlerState
 
     @Override
     public void connectionFailed(PulsarClientException exception) {
-        LOG.error("Transaction meta handler with transaction coordinator id {} connection failed.",
-            transactionCoordinatorId, exception);
-        if (!this.connectFuture.isDone()) {
-            this.connectFuture.completeExceptionally(exception);
+        boolean nonRetriableError = !PulsarClientException.isRetriableError(exception);
+        boolean timeout = System.currentTimeMillis() > lookupDeadline;
+        if (nonRetriableError || timeout) {
+            exception.setPreviousExceptionCount(previousExceptionCount);
+            if (connectFuture.completeExceptionally(exception)) {
+                if (nonRetriableError) {
+                    LOG.error("Transaction meta handler with transaction coordinator id {} connection failed.",
+                            transactionCoordinatorId, exception);
+                } else {
+                    LOG.error("Transaction meta handler with transaction coordinator id {} connection failed after "
+                            + "timeout", transactionCoordinatorId, exception);
+                }
+                setState(State.Failed);
+            }
+        } else {
+            previousExceptionCount.getAndIncrement();
         }
     }
 

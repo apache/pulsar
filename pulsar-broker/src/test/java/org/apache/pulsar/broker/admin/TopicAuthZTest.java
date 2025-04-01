@@ -19,9 +19,19 @@
 
 package org.apache.pulsar.broker.admin;
 
+import static org.mockito.Mockito.doReturn;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.jsonwebtoken.Jwts;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.reflect.FieldUtils;
@@ -45,6 +55,7 @@ import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
+import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PolicyName;
@@ -53,24 +64,13 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TopicOperation;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import org.apache.pulsar.common.policies.data.NamespaceOperation;
-import org.apache.pulsar.common.policies.data.TopicOperation;
-import org.mockito.Mockito;
-import static org.mockito.Mockito.doReturn;
 
 @Test(groups = "broker-admin")
 public class TopicAuthZTest extends AuthZTest {
@@ -98,12 +98,6 @@ public class TopicAuthZTest extends AuthZTest {
     @SneakyThrows
     @AfterClass(alwaysRun = true)
     public void cleanup() {
-        if (superUserAdmin != null) {
-            superUserAdmin.close();
-        }
-        if (tenantManagerAdmin != null) {
-            tenantManagerAdmin.close();
-        }
         close();
     }
 

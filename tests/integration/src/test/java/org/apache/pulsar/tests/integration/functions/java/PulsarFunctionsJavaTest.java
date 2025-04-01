@@ -23,6 +23,8 @@ import java.util.Collections;
 import java.util.Map;
 import org.apache.commons.collections4.map.HashedMap;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.common.functions.BatchingConfig;
+import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.FunctionStatusUtil;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
@@ -107,6 +109,35 @@ public abstract class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
     @Test(groups = {"java_function", "function"})
     public void testJavaExclamationTopicPatternFunction() throws Exception {
         testExclamationFunction(Runtime.JAVA, true, false, false, false);
+    }
+
+    @Test(groups = {"java_function", "function"})
+    public void testJavaExclamationCustomBatchingFunction() throws Exception {
+        ProducerConfig producerConfig = new ProducerConfig();
+        producerConfig.setBatchingConfig(BatchingConfig.builder()
+                .enabled(true)
+                .batchingMaxPublishDelayMs(5)
+                .batchingMaxMessages(100)
+                .batchingMaxBytes(64 * 1024)
+                .roundRobinRouterBatchingPartitionSwitchFrequency(5)
+                .batchBuilder("KEY_BASED")
+                .build());
+        testExclamationFunction(Runtime.JAVA, false, false, false, false,
+                producerConfig, commandGenerator -> {
+                    commandGenerator.setProducerConfig(producerConfig);
+                });
+    }
+
+    @Test(groups = {"java_function", "function"})
+    public void testJavaExclamationDiableBatchingFunction() throws Exception {
+        ProducerConfig producerConfig = new ProducerConfig();
+        producerConfig.setBatchingConfig(BatchingConfig.builder()
+                .enabled(false)
+                .build());
+        testExclamationFunction(Runtime.JAVA, false, false, false, false,
+                producerConfig, commandGenerator -> {
+                    commandGenerator.setProducerConfig(producerConfig);
+                });
     }
 
     @Test(groups = {"java_function", "function"})

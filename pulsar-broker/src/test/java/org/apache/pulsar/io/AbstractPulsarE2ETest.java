@@ -239,29 +239,35 @@ public abstract class AbstractPulsarE2ETest {
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
         try {
-        	if (fileServer != null) {
-              fileServer.stop();
-        	}
+            if (fileServer != null) {
+                fileServer.stop();
+                fileServer = null;
+            }
 
-        	if (pulsarClient != null) {
-              pulsarClient.close();
-        	}
+            if (pulsarClient != null) {
+                pulsarClient.close();
+                pulsarClient = null;
+            }
 
-        	if (admin != null) {
-              admin.close();
-        	}
+            if (admin != null) {
+                admin.close();
+                admin = null;
+            }
 
-        	if (functionsWorkerService != null) {
-              functionsWorkerService.stop();
-        	}
+            if (functionsWorkerService != null) {
+                functionsWorkerService.stop();
+                functionsWorkerService = null;
+            }
 
-        	if (pulsar != null) {
-              pulsar.close();
-        	}
+            if (pulsar != null) {
+                pulsar.close();
+                pulsar = null;
+            }
 
-        	if (bkEnsemble != null) {
-              bkEnsemble.stop();
-        	}
+            if (bkEnsemble != null) {
+                bkEnsemble.stop();
+                bkEnsemble = null;
+            }
         } finally {
             if (tempDirectory != null) {
                 tempDirectory.delete();

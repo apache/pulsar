@@ -22,6 +22,8 @@ import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ConsumerImpl;
@@ -48,6 +50,7 @@ public class ProxyEnableHAProxyProtocolTest extends MockedPulsarServiceBaseTest 
 
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    private Authentication proxyClientAuthentication;
 
     @Override
     @BeforeClass
@@ -62,8 +65,12 @@ public class ProxyEnableHAProxyProtocolTest extends MockedPulsarServiceBaseTest 
         proxyConfig.setHaProxyProtocolEnabled(true);
         proxyConfig.setClusterName(configClusterName);
 
+        proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
+
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(proxyConfig))));
+                PulsarConfigurationLoader.convertFrom(proxyConfig)), proxyClientAuthentication));
         doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper))).when(proxyService).createLocalMetadataStore();
         doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(proxyService)
                 .createConfigurationMetadataStore();
@@ -77,6 +84,9 @@ public class ProxyEnableHAProxyProtocolTest extends MockedPulsarServiceBaseTest 
         internalCleanup();
 
         proxyService.close();
+        if (proxyClientAuthentication != null) {
+            proxyClientAuthentication.close();
+        }
     }
 
     @Test
@@ -112,11 +122,11 @@ public class ProxyEnableHAProxyProtocolTest extends MockedPulsarServiceBaseTest 
         SubscriptionStats subscriptionStats = topicStats.getSubscriptions().get(subName);
         Assert.assertEquals(subscriptionStats.getConsumers().size(), 1);
         Assert.assertEquals(subscriptionStats.getConsumers().get(0).getAddress(),
-                ((ConsumerImpl) consumer).getClientCnx().ctx().channel().localAddress().toString().replaceFirst("/", ""));
+                ((ConsumerImpl) consumer).getClientCnx().ctx().channel().localAddress().toString());
 
         topicStats = admin.topics().getStats(topicName);
         Assert.assertEquals(topicStats.getPublishers().size(), 1);
         Assert.assertEquals(topicStats.getPublishers().get(0).getAddress(),
-                ((ProducerImpl) producer).getClientCnx().ctx().channel().localAddress().toString().replaceFirst("/", ""));
+                ((ProducerImpl) producer).getClientCnx().ctx().channel().localAddress().toString());
     }
 }

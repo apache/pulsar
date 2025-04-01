@@ -78,6 +78,12 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
 
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
+        initialize(Context.builder().config(config).build());
+    }
+
+    @Override
+    public void initialize(Context context) throws IOException {
+        var config = context.getConfig();
         this.configuration = new HashMap<>();
         final String allowedIdsPatternRegExp = config.getSaslJaasClientAllowedIds();
         configuration.put(JAAS_CLIENT_ALLOWED_IDS, allowedIdsPatternRegExp);
@@ -265,7 +271,7 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
             } else {
                 checkState(request.getHeader(SASL_HEADER_STATE).equalsIgnoreCase(SASL_STATE_SERVER_CHECK_TOKEN));
                 setResponseHeaderState(response, SASL_STATE_COMPLETE);
-                response.setHeader(SASL_STATE_SERVER, request.getHeader(SASL_STATE_SERVER));
+                response.setHeader(SASL_STATE_SERVER, sanitizeHeaderValue(request.getHeader(SASL_STATE_SERVER)));
                 response.setStatus(HttpServletResponse.SC_OK);
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Server side role token verified success: {}", request.getRequestURI(),
@@ -318,5 +324,13 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
                 return false;
             }
         }
+    }
+
+    private String sanitizeHeaderValue(String value) {
+        if (value == null) {
+            return null;
+        }
+        // Remove CRLF and other special characters
+        return value.replaceAll("[\\r\\n]", "").replaceAll("[^\\x20-\\x7E]", "");
     }
 }

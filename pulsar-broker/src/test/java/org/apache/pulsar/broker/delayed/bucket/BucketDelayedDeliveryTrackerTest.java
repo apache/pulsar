@@ -45,12 +45,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.pulsar.broker.delayed.AbstractDeliveryTrackerTest;
 import org.apache.pulsar.broker.delayed.MockBucketSnapshotStorage;
 import org.apache.pulsar.broker.delayed.MockManagedCursor;
-import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.awaitility.Awaitility;
 import org.roaringbitmap.RoaringBitmap;
 import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
@@ -73,7 +74,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
     @DataProvider(name = "delayedTracker")
     public Object[][] provider(Method method) throws Exception {
-        dispatcher = mock(PersistentDispatcherMultipleConsumers.class);
+        dispatcher = mock(AbstractPersistentDispatcherMultipleConsumers.class);
         clock = mock(Clock.class);
         clockTime = new AtomicLong();
         when(clock.millis()).then(x -> clockTime.get());
@@ -165,7 +166,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         assertTrue(tracker.containsMessage(1, 1));
         clockTime.set(20);
 
-        Set<PositionImpl> scheduledMessages = tracker.getScheduledMessages(1);
+        Set<Position> scheduledMessages = tracker.getScheduledMessages(1);
         assertEquals(scheduledMessages.stream().findFirst().get().getEntryId(), 1);
 
         tracker.addMessage(3, 3, 30);
@@ -182,7 +183,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
     }
 
     @Test(dataProvider = "delayedTracker", invocationCount = 10)
-    public void testRecoverSnapshot(BucketDelayedDeliveryTracker tracker) {
+    public void testRecoverSnapshot(BucketDelayedDeliveryTracker tracker) throws Exception {
         for (int i = 1; i <= 100; i++) {
             tracker.addMessage(i, i, i * 10);
         }
@@ -198,7 +199,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         });
 
         assertTrue(tracker.hasMessageAvailable());
-        Set<PositionImpl> scheduledMessages = new TreeSet<>();
+        Set<Position> scheduledMessages = new TreeSet<>();
         Awaitility.await().untilAsserted(() -> {
             scheduledMessages.addAll(tracker.getScheduledMessages(100));
             assertEquals(scheduledMessages.size(), 1);
@@ -219,7 +220,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         clockTime.set(100 * 10);
 
         assertTrue(tracker2.hasMessageAvailable());
-        Set<PositionImpl> scheduledMessages2 = new TreeSet<>();
+        Set<Position> scheduledMessages2 = new TreeSet<>();
 
         Awaitility.await().untilAsserted(() -> {
             scheduledMessages2.addAll(tracker2.getScheduledMessages(70));
@@ -227,8 +228,8 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         });
 
         int i = 31;
-        for (PositionImpl scheduledMessage : scheduledMessages2) {
-            assertEquals(scheduledMessage, PositionImpl.get(i, i));
+        for (Position scheduledMessage : scheduledMessages2) {
+            assertEquals(scheduledMessage, PositionFactory.create(i, i));
             i++;
         }
 
@@ -265,7 +266,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
     }
 
     @Test(dataProvider = "delayedTracker")
-    public void testMergeSnapshot(final BucketDelayedDeliveryTracker tracker) {
+    public void testMergeSnapshot(final BucketDelayedDeliveryTracker tracker) throws Exception {
         for (int i = 1; i <= 110; i++) {
             tracker.addMessage(i, i, i * 10);
             Awaitility.await().untilAsserted(() -> {
@@ -304,21 +305,21 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         clockTime.set(110 * 10);
 
-        NavigableSet<PositionImpl> scheduledMessages = new TreeSet<>();
+        NavigableSet<Position> scheduledMessages = new TreeSet<>();
         Awaitility.await().untilAsserted(() -> {
             scheduledMessages.addAll(tracker2.getScheduledMessages(110));
             assertEquals(scheduledMessages.size(), 110);
         });
         for (int i = 1; i <= 110; i++) {
-            PositionImpl position = scheduledMessages.pollFirst();
-            assertEquals(position, PositionImpl.get(i, i));
+            Position position = scheduledMessages.pollFirst();
+            assertEquals(position, PositionFactory.create(i, i));
         }
 
         tracker2.close();
     }
 
     @Test(dataProvider = "delayedTracker")
-    public void testWithBkException(final BucketDelayedDeliveryTracker tracker) {
+    public void testWithBkException(final BucketDelayedDeliveryTracker tracker) throws Exception {
         MockBucketSnapshotStorage mockBucketSnapshotStorage = (MockBucketSnapshotStorage) bucketSnapshotStorage;
         mockBucketSnapshotStorage.injectCreateException(
                 new BucketSnapshotPersistenceException("Bookie operation timeout, op: Create entry"));
@@ -380,7 +381,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         assertEquals(tracker2.getScheduledMessages(100).size(), 0);
 
-        Set<PositionImpl> scheduledMessages = new TreeSet<>();
+        Set<Position> scheduledMessages = new TreeSet<>();
         Awaitility.await().untilAsserted(() -> {
             scheduledMessages.addAll(tracker2.getScheduledMessages(100));
             assertEquals(scheduledMessages.size(), delayedMessagesInSnapshotValue);
@@ -418,10 +419,10 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         assertEquals(6, tracker.getNumberOfDelayedMessages());
 
-        NavigableSet<PositionImpl> scheduledMessages = tracker.getScheduledMessages(5);
+        NavigableSet<Position> scheduledMessages = tracker.getScheduledMessages(5);
         for (int i = 1; i <= 5; i++) {
-            PositionImpl position = scheduledMessages.pollFirst();
-            assertEquals(position, PositionImpl.get(i, i));
+            Position position = scheduledMessages.pollFirst();
+            assertEquals(position, PositionFactory.create(i, i));
         }
     }
 

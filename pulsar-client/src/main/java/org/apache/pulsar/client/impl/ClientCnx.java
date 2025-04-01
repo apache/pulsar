@@ -119,13 +119,16 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("unchecked")
 public class ClientCnx extends PulsarHandler {
 
+    private static final Logger log = LoggerFactory.getLogger(ClientCnx.class);
     protected final Authentication authentication;
     protected State state;
 
-    private AtomicLong duplicatedResponseCounter = new AtomicLong(0);
+    @VisibleForTesting
+    protected AtomicLong duplicatedResponseCounter = new AtomicLong(0);
 
+    @VisibleForTesting
     @Getter
-    private final ConcurrentLongHashMap<TimedCompletableFuture<? extends Object>> pendingRequests =
+    protected final ConcurrentLongHashMap<TimedCompletableFuture<? extends Object>> pendingRequests =
             ConcurrentLongHashMap.<TimedCompletableFuture<? extends Object>>newBuilder()
                     .expectedItems(16)
                     .concurrencyLevel(1)
@@ -191,6 +194,10 @@ public class ClientCnx extends PulsarHandler {
     protected AuthenticationDataProvider authenticationDataProvider;
     private TransactionBufferHandler transactionBufferHandler;
     private boolean supportsTopicWatchers;
+    @Getter
+    private boolean supportsGetPartitionedMetadataWithoutAutoCreation;
+    @Getter
+    private boolean brokerSupportsReplDedupByLidAndEid;
 
     /** Idle stat. **/
     @Getter
@@ -199,7 +206,7 @@ public class ClientCnx extends PulsarHandler {
     @Getter
     private long lastDisconnectedTimestamp;
 
-    private final String clientVersion;
+    protected final String clientVersion;
 
     protected enum State {
         None, SentConnectFrame, Ready, Failed, Connecting
@@ -400,6 +407,11 @@ public class ClientCnx extends PulsarHandler {
 
         supportsTopicWatchers =
             connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsTopicWatchers();
+        supportsGetPartitionedMetadataWithoutAutoCreation =
+            connected.hasFeatureFlags()
+                    && connected.getFeatureFlags().isSupportsGetPartitionedMetadataWithoutAutoCreation();
+        brokerSupportsReplDedupByLidAndEid =
+            connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsReplDedupByLidAndEid();
 
         // set remote protocol version to the correct version before we complete the connection future
         setRemoteEndpointProtocolVersion(connected.getProtocolVersion());
@@ -469,18 +481,19 @@ public class ClientCnx extends PulsarHandler {
             ledgerId = sendReceipt.getMessageId().getLedgerId();
             entryId = sendReceipt.getMessageId().getEntryId();
         }
-
-        if (ledgerId == -1 && entryId == -1) {
-            log.warn("{} Message with sequence-id {} published by producer {} has been dropped", ctx.channel(),
-                    sequenceId, producerId);
-        }
-
-        if (log.isDebugEnabled()) {
-            log.debug("{} Got receipt for producer: {} -- msg: {} -- id: {}:{}", ctx.channel(), producerId, sequenceId,
-                    ledgerId, entryId);
-        }
-
         ProducerImpl<?> producer = producers.get(producerId);
+        if (ledgerId == -1 && entryId == -1) {
+            log.warn("{} Message with sequence-id {}-{} published by producer [id:{}, name:{}] has been dropped",
+                    ctx.channel(), sequenceId, highestSequenceId, producerId,
+                    producer != null ? producer.getProducerName() : "null");
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("{} Got receipt for producer: [id:{}, name:{}] -- sequence-id: {}-{} -- entry-id: {}:{}",
+                        ctx.channel(), producerId, producer.getProducerName(), sequenceId, highestSequenceId,
+                        ledgerId, entryId);
+            }
+        }
+
         if (producer != null) {
             producer.ackReceived(this, sequenceId, highestSequenceId, ledgerId, entryId);
         } else {
@@ -705,9 +718,12 @@ public class ClientCnx extends PulsarHandler {
     @Override
     protected void handleTopicMigrated(CommandTopicMigrated commandTopicMigrated) {
         final long resourceId = commandTopicMigrated.getResourceId();
-        final String serviceUrl = commandTopicMigrated.getBrokerServiceUrl();
-        final String serviceUrlTls = commandTopicMigrated.getBrokerServiceUrlTls();
-
+        final String serviceUrl = commandTopicMigrated.hasBrokerServiceUrl()
+                ? commandTopicMigrated.getBrokerServiceUrl()
+                : null;
+        final String serviceUrlTls = commandTopicMigrated.hasBrokerServiceUrlTls()
+                ? commandTopicMigrated.getBrokerServiceUrlTls()
+                : null;
         HandlerState resource = commandTopicMigrated.getResourceType() == ResourceType.Producer
                 ? producers.get(resourceId)
                 : consumers.get(resourceId);
@@ -778,11 +794,9 @@ public class ClientCnx extends PulsarHandler {
         case NotAllowedError:
             producers.get(producerId).recoverNotAllowedError(sequenceId, sendError.getMessage());
             break;
-
         default:
-            // By default, for transient error, let the reconnection logic
-            // to take place and re-establish the produce again
-            ctx.close();
+            // don't close this ctx, otherwise it will close all consumers and producers which use this ctx
+            producers.get(producerId).connectionClosed(this, Optional.empty(), Optional.empty());
         }
     }
 
@@ -919,6 +933,7 @@ public class ClientCnx extends PulsarHandler {
             if (maxLookupRequestSemaphore.tryAcquire()) {
                 waitingLookupRequests.add(Pair.of(requestId, Pair.of(request, future)));
             } else {
+                request.release();
                 if (log.isDebugEnabled()) {
                     log.debug("{} Failed to add lookup-request into waiting queue", requestId);
                 }
@@ -1424,7 +1439,13 @@ public class ClientCnx extends PulsarHandler {
         }
     }
 
-    private static final Logger log = LoggerFactory.getLogger(ClientCnx.class);
+    public boolean isProxy() {
+        return proxyToTargetBrokerAddress != null;
+    }
+
+    public SocketAddress getLocalAddress() {
+        return this.localAddress;
+    }
 
     /**
      * Check client connection is now free. This method will not change the state to idle.

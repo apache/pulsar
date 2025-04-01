@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker;
 
 import java.io.IOException;
+import java.util.concurrent.CompletionException;
 
 public class PulsarServerException extends IOException {
     private static final long serialVersionUID = 1;
@@ -43,5 +44,21 @@ public class PulsarServerException extends IOException {
         public NotFoundException(Throwable t) {
             super(t);
         }
+    }
+
+    public static PulsarServerException from(Throwable throwable) {
+        if (throwable instanceof CompletionException) {
+            return from(throwable.getCause());
+        }
+        if (throwable instanceof PulsarServerException pulsarServerException) {
+            return pulsarServerException;
+        } else {
+            return new PulsarServerException(throwable);
+        }
+    }
+
+    // Wrap this checked exception into a specific unchecked exception
+    public static CompletionException toUncheckedException(PulsarServerException e) {
+        return new CompletionException(e);
     }
 }

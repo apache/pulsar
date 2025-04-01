@@ -27,10 +27,11 @@ import static org.testng.Assert.assertTrue;
 import java.lang.reflect.Field;
 import java.util.Set;
 import java.util.TreeSet;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongHashMap;
-import org.apache.pulsar.utils.ConcurrentBitmapSortedLongPairSet;
 import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap;
+import org.apache.pulsar.utils.ConcurrentBitmapSortedLongPairSet;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -224,19 +225,19 @@ public class MessageRedeliveryControllerTest {
 
         if (allowOutOfOrderDelivery) {
             // The entries are sorted by ledger ID but not by entry ID
-            PositionImpl[] actual1 = controller.getMessagesToReplayNow(3).toArray(new PositionImpl[3]);
-            PositionImpl[] expected1 = { PositionImpl.get(1, 1), PositionImpl.get(1, 2), PositionImpl.get(1, 3) };
+            Position[] actual1 = controller.getMessagesToReplayNow(3, item -> true).toArray(new Position[3]);
+            Position[] expected1 = { PositionFactory.create(1, 1), PositionFactory.create(1, 2), PositionFactory.create(1, 3) };
             assertEqualsNoOrder(actual1, expected1);
         } else {
             // The entries are completely sorted
-            Set<PositionImpl> actual2 = controller.getMessagesToReplayNow(6);
-            Set<PositionImpl> expected2 = new TreeSet<>();
-            expected2.add(PositionImpl.get(1, 1));
-            expected2.add(PositionImpl.get(1, 2));
-            expected2.add(PositionImpl.get(1, 3));
-            expected2.add(PositionImpl.get(2, 1));
-            expected2.add(PositionImpl.get(2, 2));
-            expected2.add(PositionImpl.get(3, 1));
+            Set<Position> actual2 = controller.getMessagesToReplayNow(6, item -> true);
+            Set<Position> expected2 = new TreeSet<>();
+            expected2.add(PositionFactory.create(1, 1));
+            expected2.add(PositionFactory.create(1, 2));
+            expected2.add(PositionFactory.create(1, 3));
+            expected2.add(PositionFactory.create(2, 1));
+            expected2.add(PositionFactory.create(2, 2));
+            expected2.add(PositionFactory.create(3, 1));
             assertEquals(actual2, expected2);
         }
     }

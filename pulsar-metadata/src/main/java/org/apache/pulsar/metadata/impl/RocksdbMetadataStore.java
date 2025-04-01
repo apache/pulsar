@@ -112,8 +112,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         // Create a new store instance
         store = new RocksdbMetadataStore(metadataStoreUri, conf);
         // update synchronizer and register sync listener
-        store.synchronizer = conf.getSynchronizer();
-        store.registerSyncListener(Optional.ofNullable(store.synchronizer));
+        store.updateMetadataEventSynchronizer(conf.getSynchronizer());
         instancesCache.put(metadataStoreUri, store);
         return store;
     }
@@ -210,7 +209,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
      */
     private RocksdbMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig)
             throws MetadataStoreException {
-        super(metadataStoreConfig.getMetadataStoreName());
+        super(metadataStoreConfig.getMetadataStoreName(), metadataStoreConfig.getOpenTelemetry());
         this.metadataUrl = metadataURL;
         try {
             RocksDB.loadLibrary();
@@ -376,6 +375,9 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         }
         try {
             dbStateLock.readLock().lock();
+            if (isClosed()) {
+                return alreadyClosedFailedFuture();
+            }
             byte[] value = db.get(optionCache, toBytes(path));
             if (value == null) {
                 return CompletableFuture.completedFuture(Optional.empty());
@@ -408,6 +410,9 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         }
         try {
             dbStateLock.readLock().lock();
+            if (isClosed()) {
+                return alreadyClosedFailedFuture();
+            }
             try (RocksIterator iterator = db.newIterator(optionDontCache)) {
                 Set<String> result = new HashSet<>();
                 String firstKey = path.equals("/") ? path : path + "/";
@@ -450,6 +455,9 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         }
         try {
             dbStateLock.readLock().lock();
+            if (isClosed()) {
+                return alreadyClosedFailedFuture();
+            }
             byte[] value = db.get(optionDontCache, toBytes(path));
             if (log.isDebugEnabled()) {
                 if (value != null) {
@@ -472,6 +480,9 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         }
         try {
             dbStateLock.readLock().lock();
+            if (isClosed()) {
+                return alreadyClosedFailedFuture();
+            }
             try (Transaction transaction = db.beginTransaction(writeOptions)) {
                 byte[] pathBytes = toBytes(path);
                 byte[] oldValueData = transaction.getForUpdate(optionDontCache, pathBytes, true);
@@ -508,6 +519,9 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         }
         try {
             dbStateLock.readLock().lock();
+            if (isClosed()) {
+                return alreadyClosedFailedFuture();
+            }
             try (Transaction transaction = db.beginTransaction(writeOptions)) {
                 byte[] pathBytes = toBytes(path);
                 byte[] oldValueData = transaction.getForUpdate(optionDontCache, pathBytes, true);
@@ -571,6 +585,12 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     @Override
     public Optional<MetadataEventSynchronizer> getMetadataEventSynchronizer() {
         return Optional.ofNullable(synchronizer);
+    }
+
+    @Override
+    public void updateMetadataEventSynchronizer(MetadataEventSynchronizer synchronizer) {
+        this.synchronizer = synchronizer;
+        registerSyncListener(Optional.ofNullable(synchronizer));
     }
 }
 

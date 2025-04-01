@@ -28,6 +28,7 @@ import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
+import org.apache.pulsar.utils.ResourceUtils;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -44,6 +45,13 @@ import java.util.Optional;
 @Slf4j
 @Test(groups = "broker")
 public class BundleSplitterTaskTest {
+
+    public final static String CA_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
+    public final static String BROKER_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
+    public final static String BROKER_KEY_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
 
     private LocalBookkeeperEnsemble bkEnsemble;
 
@@ -67,6 +75,9 @@ public class BundleSplitterTaskTest {
         config.setBrokerServicePort(Optional.of(0));
         config.setBrokerServicePortTls(Optional.of(0));
         config.setWebServicePortTls(Optional.of(0));
+        config.setTlsCertificateFilePath(CA_CERT_FILE_PATH);
+        config.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        config.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         pulsar = new PulsarService(config);
         pulsar.start();
     }
@@ -150,8 +161,14 @@ public class BundleSplitterTaskTest {
     @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
-        pulsar.close();
-        bkEnsemble.stop();
+        if (pulsar != null) {
+            pulsar.close();
+            pulsar = null;
+        }
+        if (bkEnsemble != null) {
+            bkEnsemble.stop();
+            bkEnsemble = null;
+        }
     }
 
 }
