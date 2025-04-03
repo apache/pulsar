@@ -37,7 +37,7 @@ pushd ${ROOT_DIR} > /dev/null
 echo "Performing local publish to determine modules for BOM."
 rm -rf ${LOCAL_DEPLOY_DIR}
 ./mvnw deploy -DaltDeploymentRepository=local::default::file:${LOCAL_DEPLOY_DIR} -DskipTests
-./mvnw deploy -DaltDeploymentRepository=local::default::file:${LOCAL_DEPLOY_DIR} -DskipTests -f tests/pom.xml -pl org.apache.pulsar.tests:tests-parent,org.apache.pulsar.tests:integration
+./mvnw deploy -DaltDeploymentRepository=local::default::file:${LOCAL_DEPLOY_DIR} -DskipTests -f tests/pom.xml -pl com.datastax.oss.tests:tests-parent,com.datastax.oss.tests:integration
 echo "$(ls ${LOCAL_DEPLOY_DIR}/org/apache/pulsar | wc -l) modules locally published to ${LOCAL_DEPLOY_DIR}."
 popd > /dev/null
 
