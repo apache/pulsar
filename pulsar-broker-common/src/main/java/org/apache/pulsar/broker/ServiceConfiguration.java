@@ -697,10 +697,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "Note 1: If `allowAutoTopicCreation` and this option are enabled at the same time,\n"
             + "it may appear that a partitioned topic has just been deleted but is automatically created as a "
             + "non-partitioned topic.\n"
-            + "Note 2: This feature will lead an orphan schema and a topic-level policy if you are enabling "
-            + "binary-way Geo-Replication with a global ZK.\n"
-            + "Note 3: This feature will lead a consumption issue if you are enabling one-way Geo-Replication with a "
-            + "global ZK."
+            + "Note 2: Activating bidirectional geo-replication under global ZooKeeper configuration may lead to schema"
+            + " remnants and abnormal topic-level policies..\n"
+            + "Note 3: Note 3: Activating bidirectional geo-replication under global configuration ZooKeeper may lead"
+            + " to a consumption issue."
     )
     private boolean brokerDeleteInactivePartitionedTopicMetadataEnabled = false;
     @FieldContext(
