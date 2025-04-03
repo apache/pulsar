@@ -21,7 +21,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
-    <groupId>org.apache.pulsar.tests</groupId>
+    <groupId>com.datastax.oss.tests</groupId>
     <artifactId>docker-images</artifactId>
     <version>3.1.4.15-SNAPSHOT</version>
   </parent>
@@ -40,12 +40,12 @@
       </activation>
       <dependencies>
         <dependency>
-          <groupId>org.apache.pulsar.tests</groupId>
+          <groupId>com.datastax.oss.tests</groupId>
           <artifactId>java-test-functions</artifactId>
           <version>${project.parent.version}</version>
         </dependency>
         <dependency>
-          <groupId>org.apache.pulsar.tests</groupId>
+          <groupId>com.datastax.oss.tests</groupId>
           <artifactId>java-test-plugins</artifactId>
           <version>${project.parent.version}</version>
         </dependency>
@@ -77,7 +77,7 @@
                 <configuration>
                   <artifactItems>
                     <artifactItem>
-                      <groupId>org.apache.pulsar.tests</groupId>
+                      <groupId>com.datastax.oss.tests</groupId>
                       <artifactId>java-test-functions</artifactId>
                       <version>${project.parent.version}</version>
                       <type>jar</type>
@@ -86,7 +86,7 @@
                       <destFileName>java-test-functions.jar</destFileName>
                     </artifactItem>
                     <artifactItem>
-                      <groupId>org.apache.pulsar.tests</groupId>
+                      <groupId>com.datastax.oss.tests</groupId>
                       <artifactId>java-test-plugins</artifactId>
                       <version>${project.parent.version}</version>
                       <type>jar</type>

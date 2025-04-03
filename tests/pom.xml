@@ -28,7 +28,7 @@
     <artifactId>pulsar</artifactId>
     <version>3.1.4.15-SNAPSHOT</version>
   </parent>
-  <groupId>org.apache.pulsar.tests</groupId>
+  <groupId>com.datastax.oss.tests</groupId>
   <artifactId>tests-parent</artifactId>
   <name>Apache Pulsar :: Tests</name>
   <build>
