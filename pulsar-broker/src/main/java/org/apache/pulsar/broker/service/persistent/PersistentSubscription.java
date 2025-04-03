@@ -676,7 +676,9 @@ public class PersistentSubscription extends AbstractSubscription {
             }
         }
         // Consumer metrics.
-        ackFrom.ackMetricRecord(attemptAckMsgs);
+        if (ackFrom != null) {
+            ackFrom.ackMetricRecord(attemptAckMsgs);
+        }
     }
 
     private void notifyTheMarkDeletePositionMoveForwardIfNeeded(Position oldPosition) {
