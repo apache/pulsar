@@ -113,7 +113,7 @@ public class VipStatusTest {
                 try {
                     lockA.lock();
                     System.out.println("ThreadOne acquired lockA");
-                    Thread.sleep(100);
+                    Thread.sleep(200);
                     while (!lockB.tryLock(1, TimeUnit.SECONDS)) {
                         System.out.println("ThreadOne acquired lockB");
                     }
@@ -131,7 +131,7 @@ public class VipStatusTest {
                 try {
                     lockB.lock();
                     System.out.println("ThreadOne acquired lockB");
-                    Thread.sleep(100);
+                    Thread.sleep(200);
                     while (!lockA.tryLock(1, TimeUnit.SECONDS)) {
                         System.out.println("ThreadOne acquired lockA");
                     }
