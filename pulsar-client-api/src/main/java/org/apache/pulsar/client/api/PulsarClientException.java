@@ -963,6 +963,8 @@ public class PulsarClientException extends IOException {
         // wrap an exception with new message info
         if (t instanceof NotFoundException) {
             return new NotFoundException(msg);
+        } else if (t instanceof TopicDoesNotExistException) {
+            return new TopicDoesNotExistException(msg);
         } else if (t instanceof TimeoutException) {
             return new TimeoutException(msg);
         } else if (t instanceof InvalidConfigurationException) {
