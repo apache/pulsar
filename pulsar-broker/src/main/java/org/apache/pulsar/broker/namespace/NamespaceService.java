@@ -1416,18 +1416,21 @@ public class NamespaceService implements AutoCloseable {
         return pulsar.getBrokerService().fetchPartitionedTopicMetadataAsync(
                         topic.isPartitioned() ? TopicName.get(topic.getPartitionedTopicName()) : topic)
                 .thenCompose(metadata -> {
+                    // When the topic has metadata:
+                    // - The topic name is non-partitioned, which means that the topic exists.
+                    // - The topic name is partitioned, please check the specific partition.
                     if (metadata.partitions > 0) {
                         if (!topic.isPartitioned()) {
                             return CompletableFuture.completedFuture(
                                     TopicExistsInfo.newPartitionedTopicExists(metadata.partitions));
-                        } else {
-                            if (topic.getPartitionIndex() < metadata.partitions) {
-                                return CompletableFuture.completedFuture(
-                                        TopicExistsInfo.newNonPartitionedTopicExists());
-                            }
+                        }
+                        // The non-persistent partitioned topic doesn't have the partition, quickly return.
+                        if (!topic.isPersistent()) {
+                            return CompletableFuture.completedFuture(topic.getPartitionIndex() < metadata.partitions
+                                    ? TopicExistsInfo.newNonPartitionedTopicExists()
+                                    : TopicExistsInfo.newTopicNotExists());
                         }
                     }
-                    // Direct query the single topic.
                     return checkNonPartitionedTopicExists(topic).thenApply(
                             b -> b ? TopicExistsInfo.newNonPartitionedTopicExists() :
                                     TopicExistsInfo.newTopicNotExists());
