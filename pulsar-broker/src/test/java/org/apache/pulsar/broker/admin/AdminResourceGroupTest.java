@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
@@ -28,6 +29,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
@@ -164,5 +166,33 @@ public class AdminResourceGroupTest extends BrokerTestBase {
         admin.resourcegroups().deleteResourceGroup(resourceGroupName);
         assertThrows(PulsarAdminException.NotFoundException.class,
                 () -> admin.resourcegroups().getResourceGroup(resourceGroupName));
+    }
+
+    @Test
+    public void testReplicatorDispatchRate() throws PulsarAdminException {
+        String resourceGroupName = "rg-" + UUID.randomUUID();
+        ResourceGroup resourceGroup = new ResourceGroup();
+        resourceGroup.setPublishRateInMsgs(1000);
+        resourceGroup.setPublishRateInBytes(100000L);
+        resourceGroup.setDispatchRateInMsgs(2000);
+        resourceGroup.setDispatchRateInBytes(200000L);
+        resourceGroup.setReplicationDispatchRateInMsgs(10L);
+        resourceGroup.setReplicationDispatchRateInBytes(20L);
+
+        admin.resourcegroups().createResourceGroup(resourceGroupName, resourceGroup);
+
+        String targetCluster = "r2";
+        DispatchRate dispatchRate =
+                DispatchRate.builder()
+                        .dispatchThrottlingRateInByte(10)
+                        .dispatchThrottlingRateInByte(20)
+                        .ratePeriodInSecond(100)
+                        .relativeToPublishRate(false)
+                        .build();
+        admin.resourcegroups().setReplicatorDispatchRate(resourceGroupName, targetCluster, dispatchRate);
+        assertThat(admin.resourcegroups().getReplicatorDispatchRate(resourceGroupName, targetCluster))
+                .isEqualTo(dispatchRate);
+        admin.resourcegroups().removeReplicatorDispatchRate(resourceGroupName, targetCluster);
+        assertThat(admin.resourcegroups().getReplicatorDispatchRate(resourceGroupName, targetCluster)).isNull();
     }
 }

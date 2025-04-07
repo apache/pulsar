@@ -64,6 +64,11 @@ public class ResourceGroupResources extends BaseResources<ResourceGroup> {
         set(joinPath(BASE_PATH, resourceGroupName), modifyFunction);
     }
 
+    public CompletableFuture<Void> updateResourceGroupAsync(String resourceGroupName,
+                                                            Function<ResourceGroup, ResourceGroup> modifyFunction) {
+        return setAsync(joinPath(BASE_PATH, resourceGroupName), modifyFunction);
+    }
+
     public List<String> listResourceGroups() throws MetadataStoreException {
         return getChildren(BASE_PATH);
     }

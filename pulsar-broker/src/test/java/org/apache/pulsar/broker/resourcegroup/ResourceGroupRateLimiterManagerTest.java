@@ -106,4 +106,37 @@ public class ResourceGroupRateLimiterManagerTest {
         assertEquals(resourceGroupDispatchLimiter.getAvailableDispatchRateLimitOnMsg(), quota.messages);
         assertEquals(resourceGroupDispatchLimiter.getDispatchRateOnMsg(), quota.messages);
     }
+
+    @Test
+    public void newReplicationDispatchRateLimiterWithValidData() {
+        @Cleanup(value = "shutdown")
+        ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
+        @Cleanup
+        ResourceGroupDispatchLimiter limiter =
+                ResourceGroupRateLimiterManager.newReplicationDispatchRateLimiter(executorService, 100L, 1000L);
+        assertEquals(limiter.getDispatchRateOnMsg(), 100L);
+        assertEquals(limiter.getDispatchRateOnByte(), 1000L);
+    }
+
+    @Test
+    public void newReplicationDispatchRateLimiterWithZeroValues() {
+        @Cleanup(value = "shutdown")
+        ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
+        @Cleanup
+        ResourceGroupDispatchLimiter limiter =
+                ResourceGroupRateLimiterManager.newReplicationDispatchRateLimiter(executorService, 0L, 0L);
+        assertEquals(limiter.getDispatchRateOnMsg(), -1L);
+        assertEquals(limiter.getDispatchRateOnByte(), -1L);
+    }
+
+    @Test
+    public void newReplicationDispatchRateLimiterWithNegativeValues() {
+        @Cleanup(value = "shutdown")
+        ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
+        @Cleanup
+        ResourceGroupDispatchLimiter limiter =
+                ResourceGroupRateLimiterManager.newReplicationDispatchRateLimiter(executorService, -1L, -1L);
+        assertEquals(limiter.getDispatchRateOnMsg(), -1L);
+        assertEquals(limiter.getDispatchRateOnByte(), -1L);
+    }
 }

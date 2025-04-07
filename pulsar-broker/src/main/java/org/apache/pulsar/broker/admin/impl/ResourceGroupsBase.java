@@ -19,17 +19,62 @@
 package org.apache.pulsar.broker.admin.impl;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class ResourceGroupsBase extends AdminResource {
+
+    private String getReplicationDispatchRateKey(String remoteCluster) {
+        return String.format("%s->%s", pulsar().getConfiguration().getClusterName(), remoteCluster);
+    }
+
+    protected CompletableFuture<Void> internalSetReplicatorDispatchRate(String rgName, String remoteCluster,
+                                                                 DispatchRate dispatchRate) {
+        if (remoteCluster == null) {
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                    "Remote cluster name is not provided"));
+        }
+        return validateSuperUserAccessAsync()
+                .thenCompose((__) -> resourceGroupResources()
+                        .updateResourceGroupAsync(rgName, rg -> {
+                            String key = getReplicationDispatchRateKey(remoteCluster);
+                            if (dispatchRate == null) {
+                                rg.getReplicatorDispatchRate().remove(key);
+                            } else {
+                                rg.getReplicatorDispatchRate().put(key, dispatchRate);
+                            }
+                            return rg;
+                        })
+                );
+    }
+
+    protected CompletableFuture<DispatchRate> internalGetReplicatorDispatchRate(String rgName, String remoteCluster) {
+        if (remoteCluster == null) {
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                    "Remote cluster name is not provided"));
+        }
+        return validateSuperUserAccessAsync()
+                .thenCompose((__) -> resourceGroupResources()
+                        .getResourceGroupAsync(rgName))
+                .thenCompose((resourceGroupOptional) -> resourceGroupOptional
+                        .map((rg) -> CompletableFuture.completedFuture(
+                                rg.getReplicatorDispatchRate().get(getReplicationDispatchRateKey(remoteCluster))))
+                        .orElseGet(() -> FutureUtil.failedFuture(
+                                new RestException(Status.NOT_FOUND, "ResourceGroup does not exist")))
+                );
+    }
+
     protected List<String> internalGetResourceGroups() {
         try {
             validateSuperUserAccess();

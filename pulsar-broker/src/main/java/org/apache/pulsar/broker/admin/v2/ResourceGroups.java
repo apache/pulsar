@@ -17,6 +17,7 @@
  * under the License.
  */
 package org.apache.pulsar.broker.admin.v2;
+
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
@@ -26,12 +27,18 @@ import java.util.List;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.admin.impl.ResourceGroupsBase;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
 
 @Path("/resourcegroups")
@@ -80,6 +87,54 @@ public class ResourceGroups extends ResourceGroupsBase {
             @ApiResponse(code = 409, message = "ResourceGroup is in use")})
     public void deleteResourceGroup(@PathParam("resourcegroup") String resourcegroup) {
         internalDeleteResourceGroup(resourcegroup);
+    }
+
+    @POST
+    @Path("/{resourcegroup}/replicatorDispatchRate")
+    @ApiOperation(value = "Set replicator dispatch-rate throttling for a resourcegroup")
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "ResourceGroup doesn't exist")})
+    public void setReplicatorDispatchRate(@Suspended AsyncResponse asyncResponse,
+                                          @PathParam("resourcegroup") String resourcegroup,
+                                          @QueryParam("cluster") String remoteCluster,
+                                          DispatchRate dispatchRate) {
+        internalSetReplicatorDispatchRate(resourcegroup, remoteCluster, dispatchRate)
+                .thenAccept((__) -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @DELETE
+    @Path("/{resourcegroup}/replicatorDispatchRate")
+    @ApiOperation(value = "Delete replicator dispatch-rate throttling for a resourcegroup")
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "ResourceGroup doesn't exist")})
+    public void removeReplicatorDispatchRate(@Suspended AsyncResponse asyncResponse,
+                                             @PathParam("resourcegroup") String resourcegroup,
+                                             @QueryParam("cluster") String remoteCluster,
+                                             DispatchRate dispatchRate) {
+        setReplicatorDispatchRate(asyncResponse, resourcegroup, remoteCluster, null);
+    }
+
+    @GET
+    @Path("/{resourcegroup}/replicatorDispatchRate")
+    @ApiOperation(value = "Get replicator dispatch-rate throttling for a resourcegroup")
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "ResourceGroup doesn't exist")})
+    public void getReplicatorDispatchRate(@Suspended AsyncResponse asyncResponse,
+                                          @PathParam("resourcegroup") String resourcegroup,
+                                          @QueryParam("cluster") String remoteCluster) {
+        internalGetReplicatorDispatchRate(resourcegroup, remoteCluster)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 }
 

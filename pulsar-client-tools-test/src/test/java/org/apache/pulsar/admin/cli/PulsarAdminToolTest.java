@@ -66,6 +66,8 @@ import org.apache.pulsar.client.admin.NonPersistentTopics;
 import org.apache.pulsar.client.admin.ProxyStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.ResourceGroups;
 import org.apache.pulsar.client.admin.ResourceQuotas;
 import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.admin.Tenants;
@@ -2591,6 +2593,28 @@ public class PulsarAdminToolTest {
 
         topicPolicies.run(split("remove-replicator-dispatch-rate tenant1/ns1/topic1 --cluster r1"));
         verify(mockTopicPolicies).removeReplicatorDispatchRate("persistent://tenant1/ns1/topic1", "r1");
+    }
+
+    @Test
+    public void testResourceGroupReplicatorDispatchRate() throws PulsarAdminException {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+        ResourceGroups mockResourceGroups = mock(ResourceGroups.class);
+        when(admin.resourcegroups()).thenReturn(mockResourceGroups);
+
+        CmdResourceGroups cmdResourceGroups = new CmdResourceGroups(() -> admin);
+
+        cmdResourceGroups.run(split("set-replicator-dispatch-rate rg1 -md 10 -bd 11 --cluster r1"));
+        verify(mockResourceGroups).setReplicatorDispatchRate("rg1", "r1",
+                DispatchRate.builder()
+                        .dispatchThrottlingRateInMsg(10)
+                        .dispatchThrottlingRateInByte(11)
+                        .build());
+
+        cmdResourceGroups.run(split("get-replicator-dispatch-rate rg1 --cluster r1"));
+        verify(mockResourceGroups).getReplicatorDispatchRate("rg1", "r1");
+
+        cmdResourceGroups.run(split("remove-replicator-dispatch-rate rg1 --cluster r1"));
+        verify(mockResourceGroups).removeReplicatorDispatchRate("rg1", "r1");
     }
 
     public static class SchemaDemo {

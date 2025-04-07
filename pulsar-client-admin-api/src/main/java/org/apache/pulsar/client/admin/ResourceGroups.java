@@ -20,6 +20,7 @@ package org.apache.pulsar.client.admin;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
 
 /**
@@ -187,4 +188,53 @@ public interface ResourceGroups {
 
         CompletableFuture<Void> deleteResourceGroupAsync(String resourcegroup);
 
+        /**
+         * Set replicator message dispatch rate from a resource group.
+         *
+         * @param resourcegroup Resourcegroup name.
+         * @param cluster The remote cluster for which to set the replicator dispatch rate.
+         */
+        void setReplicatorDispatchRate(String resourcegroup, String cluster, DispatchRate dispatchRate)
+                throws PulsarAdminException;
+
+        /**
+         * Set replicator message dispatch rate from a resource group asynchronously.
+         *
+         * @param resourcegroup Resourcegroup name.
+         * @param cluster The remote cluster for which to set the replicator dispatch rate.
+         */
+        CompletableFuture<Void> setReplicatorDispatchRateAsync(String resourcegroup, String cluster,
+                                                               DispatchRate dispatchRate);
+
+        /**
+         * Remove replicator message dispatch rate from a resource group.
+         *
+         * @param resourcegroup Resourcegroup name.
+         * @param cluster The remote cluster for which to remove the replicator dispatch rate.
+         */
+        void removeReplicatorDispatchRate(String resourcegroup, String cluster) throws PulsarAdminException;
+
+        /**
+         * Remove replicator message dispatch rate from a resource group asynchronously.
+         *
+         * @param resourcegroup Resourcegroup name.
+         * @param cluster The remote cluster for which to remove the replicator dispatch rate.
+         */
+        CompletableFuture<Void> removeReplicatorDispatchRateAsync(String resourcegroup, String cluster);
+
+        /**
+         * Get replicator message dispatch rate for a resource group.
+         *
+         * @param resourcegroup Resourcegroup name.
+         * @param cluster The remote cluster for which to get the replicator dispatch rate.
+         */
+        DispatchRate getReplicatorDispatchRate(String resourcegroup, String cluster) throws PulsarAdminException;
+
+        /**
+         * Get replicator message dispatch rate for a resource group asynchronously.
+         *
+         * @param resourcegroup Resourcegroup name.
+         * @param cluster The remote cluster for which to get the replicator dispatch rate.
+         */
+        CompletableFuture<DispatchRate> getReplicatorDispatchRateAsync(String resourcegroup, String cluster);
 }

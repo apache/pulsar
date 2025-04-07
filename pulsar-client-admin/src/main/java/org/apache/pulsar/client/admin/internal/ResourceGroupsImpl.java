@@ -26,6 +26,7 @@ import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.ResourceGroups;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
 
 
@@ -89,5 +90,43 @@ public class ResourceGroupsImpl extends BaseResource implements ResourceGroups {
     public CompletableFuture<Void> deleteResourceGroupAsync(String name) {
         WebTarget path = adminResourceGroups.path(name);
         return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public void setReplicatorDispatchRate(String resourcegroup, String cluster, DispatchRate dispatchRate)
+            throws PulsarAdminException {
+        sync(() -> setReplicatorDispatchRateAsync(resourcegroup, cluster, dispatchRate));
+    }
+
+    @Override
+    public CompletableFuture<Void> setReplicatorDispatchRateAsync(String resourcegroup, String cluster,
+                                                                  DispatchRate dispatchRate) {
+        WebTarget target =
+                adminResourceGroups.path(resourcegroup).path("replicatorDispatchRate").queryParam("cluster", cluster);
+        return asyncPostRequest(target, Entity.entity(dispatchRate, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void removeReplicatorDispatchRate(String resourcegroup, String cluster) throws PulsarAdminException {
+        sync(() -> removeReplicatorDispatchRateAsync(resourcegroup, cluster));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeReplicatorDispatchRateAsync(String resourcegroup, String cluster) {
+        WebTarget target =
+                adminResourceGroups.path(resourcegroup).path("replicatorDispatchRate").queryParam("cluster", cluster);
+        return asyncDeleteRequest(target);
+    }
+
+    @Override
+    public DispatchRate getReplicatorDispatchRate(String resourcegroup, String cluster) throws PulsarAdminException {
+        return sync(() -> getReplicatorDispatchRateAsync(resourcegroup, cluster));
+    }
+
+    @Override
+    public CompletableFuture<DispatchRate> getReplicatorDispatchRateAsync(String resourcegroup, String cluster) {
+        WebTarget target =
+                adminResourceGroups.path(resourcegroup).path("replicatorDispatchRate").queryParam("cluster", cluster);
+        return asyncGetRequest(target, DispatchRate.class);
     }
 }

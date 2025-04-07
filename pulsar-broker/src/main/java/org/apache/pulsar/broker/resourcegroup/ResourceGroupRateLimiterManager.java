@@ -29,6 +29,11 @@ public class ResourceGroupRateLimiterManager {
             ScheduledExecutorService executorService) {
         long msgs = Optional.ofNullable(resourceGroup.getReplicationDispatchRateInMsgs()).orElse(-1L);
         long bytes = Optional.ofNullable(resourceGroup.getReplicationDispatchRateInBytes()).orElse(-1L);
+        return newReplicationDispatchRateLimiter(executorService, msgs, bytes);
+    }
+
+    static ResourceGroupDispatchLimiter newReplicationDispatchRateLimiter(ScheduledExecutorService executorService,
+                                                                          long msgs, long bytes) {
         return new ResourceGroupDispatchLimiter(executorService, msgs, bytes);
     }
 

@@ -23,6 +23,7 @@ import com.beust.jcommander.Parameters;
 import java.util.function.Supplier;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
 
 @Parameters(commandDescription = "Operations about ResourceGroups")
@@ -153,6 +154,68 @@ public class CmdResourceGroups extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Set replicator rate limiter for a resourcegroup")
+    private class SetReplicatorDispatchRate extends CliCommand {
+        @Parameter(description = "resourcegroup-name", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--msg-dispatch-rate",
+                "-md"}, description = "message-dispatch-rate "
+                + "(default -1 will be overwrite if not passed)", required = false)
+        private int msgDispatchRate = -1;
+
+        @Parameter(names = {"--byte-dispatch-rate",
+                "-bd"}, description = "byte-dispatch-rate (default -1 will be overwrite if not passed)",
+                required = false)
+        private long byteDispatchRate = -1;
+
+        @Parameter(names = "--cluster", description = "The remote cluster for which set the dispatch rate",
+                required = true)
+        private String cluster;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String name = getOneArgument(params);
+            getAdmin().resourcegroups().setReplicatorDispatchRate(name, cluster,
+                    DispatchRate.builder()
+                            .dispatchThrottlingRateInMsg(msgDispatchRate)
+                            .dispatchThrottlingRateInByte(byteDispatchRate)
+                            .build());
+        }
+    }
+
+    @Parameters(commandDescription = "Get replicator rate limiter from a resourcegroup")
+    private class GetReplicatorDispatchRate extends CliCommand {
+        @Parameter(description = "resourcegroup-name", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = "--cluster", description = "The remote cluster for which set the dispatch rate",
+                required = true)
+        private String cluster;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String name = getOneArgument(params);
+            print(getAdmin().resourcegroups().getReplicatorDispatchRate(name, cluster));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove replicator rate limiter from a resourcegroup")
+    private class RemoveReplicatorDispatchRate extends CliCommand {
+        @Parameter(description = "resourcegroup-name", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = "--cluster", description = "The remote cluster for which set the dispatch rate",
+                required = true)
+        private String cluster;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String name = getOneArgument(params);
+            getAdmin().resourcegroups().removeReplicatorDispatchRate(name, cluster);
+        }
+    }
+
 
     public CmdResourceGroups(Supplier<PulsarAdmin> admin) {
         super("resourcegroups", admin);
@@ -161,6 +224,10 @@ public class CmdResourceGroups extends CmdBase {
         jcommander.addCommand("create", new CmdResourceGroups.Create());
         jcommander.addCommand("update", new CmdResourceGroups.Update());
         jcommander.addCommand("delete", new CmdResourceGroups.Delete());
+
+        jcommander.addCommand("get-replicator-dispatch-rate", new GetReplicatorDispatchRate());
+        jcommander.addCommand("set-replicator-dispatch-rate", new SetReplicatorDispatchRate());
+        jcommander.addCommand("remove-replicator-dispatch-rate", new RemoveReplicatorDispatchRate());
     }
 
 

@@ -28,6 +28,7 @@ import com.google.common.collect.Sets;
 import java.lang.reflect.Method;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
@@ -638,6 +639,77 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
         }
 
         Assert.assertTrue(totalReceived.get() < messageRate * 2);
+    }
+
+    @Test
+    public void testLoadResourceGroupReplicatorRateLimiter() throws Exception {
+        final String namespace = "pulsar/replicatormsg-" + System.currentTimeMillis();
+        final String topicName = "persistent://" + namespace + "/" + UUID.randomUUID();
+
+        admin1.namespaces().createNamespace(namespace);
+        // 0. set 2 clusters, there will be 1 replicator in each topic
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+
+        // ResourceGroupDispatchRateLimiter
+        long messageRate = 100;
+        long byteRate = 500000;
+        String resourceGroupName = UUID.randomUUID().toString();
+        ResourceGroup resourceGroup = new ResourceGroup();
+        resourceGroup.setReplicationDispatchRateInMsgs(messageRate);
+        resourceGroup.setReplicationDispatchRateInBytes(byteRate);
+        admin1.resourcegroups().createResourceGroup(resourceGroupName, resourceGroup);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin1.resourcegroups()
+                .getResourceGroup(resourceGroupName)));
+        admin1.namespaces().setNamespaceResourceGroup(namespace, resourceGroupName);
+
+        @Cleanup
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+
+        @Cleanup
+        Producer<byte[]> producer = client1.newProducer().topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+        producer.send(new byte[1]);
+
+        CompletableFuture<Optional<Topic>> topicIfExists = pulsar1.getBrokerService().getTopicIfExists(topicName);
+        assertThat(topicIfExists).succeedsWithin(3, TimeUnit.SECONDS);
+        Optional<Topic> topicOptional = topicIfExists.get();
+        assertTrue(topicOptional.isPresent());
+        PersistentTopic persistentTopic = (PersistentTopic) topicOptional.get();
+
+        Replicator r2Replicator = persistentTopic.getReplicators().get("r2");
+        assertNotNull(r2Replicator);
+        Optional<ResourceGroupDispatchLimiter> resourceGroupDispatchRateLimiter =
+                r2Replicator.getResourceGroupDispatchRateLimiter();
+        assertTrue(resourceGroupDispatchRateLimiter.isPresent());
+        assertEquals(resourceGroupDispatchRateLimiter.get().getDispatchRateOnMsg(), messageRate);
+        assertEquals(resourceGroupDispatchRateLimiter.get().getDispatchRateOnByte(), byteRate);
+
+        // Set up rate limiter for r1 -> r2 channel.
+        long messageRateBetweenR1AndR2 = 1000;
+        long byteRateBetweenR1AndR2 = 5000000;
+        admin1.resourcegroups().setReplicatorDispatchRate(resourceGroupName, "r2",
+                DispatchRate.builder()
+                        .dispatchThrottlingRateInByte(byteRateBetweenR1AndR2)
+                        .dispatchThrottlingRateInMsg((int) messageRateBetweenR1AndR2)
+                        .build());
+        Awaitility.await().untilAsserted(() -> {
+            Optional<ResourceGroupDispatchLimiter> rateLimiter = r2Replicator.getResourceGroupDispatchRateLimiter();
+            assertTrue(rateLimiter.isPresent());
+            assertEquals(rateLimiter.get().getDispatchRateOnMsg(), messageRateBetweenR1AndR2);
+            assertEquals(rateLimiter.get().getDispatchRateOnByte(), byteRateBetweenR1AndR2);
+        });
+
+        // Remove rate limiter for r1 -> r2 channel, and then use the default rate limiter.
+        admin1.resourcegroups().removeReplicatorDispatchRate(resourceGroupName, "r2");
+        Awaitility.await().untilAsserted(() -> {
+            Optional<ResourceGroupDispatchLimiter> rateLimiter = r2Replicator.getResourceGroupDispatchRateLimiter();
+            assertTrue(rateLimiter.isPresent());
+            assertEquals(rateLimiter.get().getDispatchRateOnMsg(), messageRate);
+            assertEquals(rateLimiter.get().getDispatchRateOnByte(), byteRate);
+        });
     }
 
     @Test
