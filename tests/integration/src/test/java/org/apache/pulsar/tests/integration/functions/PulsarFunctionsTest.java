@@ -43,6 +43,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -65,6 +66,7 @@ import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
 import org.apache.pulsar.common.functions.BatchingConfig;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.MessagePayloadProcessorConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
@@ -689,7 +691,16 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                            boolean pyZip,
                                            boolean multipleInput,
                                            boolean withExtraDeps) throws Exception {
-        testExclamationFunction(runtime, isTopicPattern, pyZip, multipleInput, withExtraDeps, null);
+        testExclamationFunction(runtime, isTopicPattern, pyZip, multipleInput, withExtraDeps, null, null, null);
+    }
+
+    protected void testExclamationFunction(Runtime runtime,
+                                           boolean isTopicPattern,
+                                           boolean pyZip,
+                                           boolean multipleInput,
+                                           boolean withExtraDeps,
+                                           ConsumerConfig consumerConfig) throws Exception {
+        testExclamationFunction(runtime, isTopicPattern, pyZip, multipleInput, withExtraDeps, null, null, null);
     }
 
     protected void testExclamationFunction(Runtime runtime,
@@ -698,7 +709,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                            boolean multipleInput,
                                            boolean withExtraDeps,
                                            ProducerConfig producerConfig) throws Exception {
-        testExclamationFunction(runtime, isTopicPattern, pyZip, multipleInput, withExtraDeps, producerConfig, null);
+        testExclamationFunction(runtime, isTopicPattern, pyZip, multipleInput, withExtraDeps, null, producerConfig, null);
     }
 
     protected void testExclamationFunction(Runtime runtime,
@@ -706,6 +717,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                            boolean pyZip,
                                            boolean multipleInput,
                                            boolean withExtraDeps,
+                                           ConsumerConfig consumerConfig,
                                            ProducerConfig producerConfig,
                                            java.util.function.Consumer<CommandGenerator> commandGeneratorConsumer)
             throws Exception {
@@ -752,6 +764,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 batchingConfig = producerConfig.getBatchingConfig();
             }
             checkBatchingConfig(functionName, batchingConfig, config);
+
+            if (consumerConfig != null && consumerConfig.getMessagePayloadProcessorConfig() != null) {
+                checkMessagePayloadProcessorConfig(functionName, consumerConfig.getMessagePayloadProcessorConfig(),
+                        config, inputTopicName);
+            }
         }
 
         // get function stats
@@ -860,6 +877,28 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             assertTrue(functionLogs.contains(finalConfig.toString()));
         } else {
             assertTrue(functionLogs.contains("BatchingConfig(enabled=false"));
+        }
+    }
+
+    // checking message payload processor config
+    private void checkMessagePayloadProcessorConfig(String functionName, MessagePayloadProcessorConfig config,
+                                                    FunctionConfig functionConfig,
+                                                    String topic) {
+        if (config != null) {
+            assertNotNull(functionConfig.getInputSpecs().get(topic));
+            assertNotNull(functionConfig.getInputSpecs().get(topic).getMessagePayloadProcessorConfig());
+            assertEquals(config.toString(), functionConfig.getInputSpecs().get(topic).getMessagePayloadProcessorConfig().toString());
+        }
+
+        String functionLogs = pulsarCluster.getFunctionLogs(functionName);
+        if (config.getConfig() == null || config.getConfig().isEmpty()) {
+            assertTrue(functionLogs.contains("TestPayloadProcessor constructor without configs"));
+        } else {
+            String configs = config.getConfig().entrySet().stream()
+                    .map(entry -> entry.getKey() + "=" + entry.getValue())
+                    .collect(Collectors.joining(", "));
+            String expectedLogs = String.format("TestPayloadProcessor constructor with configs %s", configs);
+            assertTrue(functionLogs.contains(expectedLogs));
         }
     }
 

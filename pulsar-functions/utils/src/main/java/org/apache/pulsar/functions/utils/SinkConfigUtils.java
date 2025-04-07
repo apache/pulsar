@@ -162,6 +162,10 @@ public class SinkConfigUtils {
                 if (spec.getCryptoConfig() != null) {
                     bldr.setCryptoSpec(CryptoUtils.convert(spec.getCryptoConfig()));
                 }
+                if (spec.getMessagePayloadProcessorConfig() != null) {
+                    bldr.setMessagePayloadProcessorSpec(
+                            MessagePayloadProcessorUtils.convert(spec.getMessagePayloadProcessorConfig()));
+                }
                 bldr.putAllConsumerProperties(spec.getConsumerProperties());
                 bldr.setPoolMessages(spec.isPoolMessages());
                 sourceSpecBuilder.putInputSpecs(topic, bldr.build());
@@ -302,6 +306,10 @@ public class SinkConfigUtils {
             }
             if (input.getValue().hasCryptoSpec()) {
                 consumerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(input.getValue().getCryptoSpec()));
+            }
+            if (input.getValue().hasMessagePayloadProcessorSpec()) {
+                consumerConfig.setMessagePayloadProcessorConfig(
+                        MessagePayloadProcessorUtils.convertFromSpec(input.getValue().getMessagePayloadProcessorSpec()));
             }
             consumerConfig.setRegexPattern(input.getValue().getIsRegexPattern());
             consumerConfig.setConsumerProperties(input.getValue().getConsumerPropertiesMap());
@@ -543,6 +551,10 @@ public class SinkConfigUtils {
                 if (consumerSpec.getCryptoConfig() != null) {
                     ValidatorUtils.validateCryptoKeyReader(consumerSpec.getCryptoConfig(),
                             inputFunction.getTypePool(), false);
+                }
+                if (consumerSpec.getMessagePayloadProcessorConfig() != null) {
+                    ValidatorUtils.validateMessagePayloadProcessor(consumerSpec.getMessagePayloadProcessorConfig(),
+                            inputFunction.getTypePool());
                 }
             }
         }

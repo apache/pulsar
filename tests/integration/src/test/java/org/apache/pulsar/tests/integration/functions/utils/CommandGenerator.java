@@ -26,6 +26,7 @@ import lombok.Setter;
 import lombok.ToString;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 
@@ -68,6 +69,7 @@ public class CommandGenerator {
     private Boolean retainOrdering;
     private Boolean retainKeyOrdering;
     private ProducerConfig producerConfig;
+    private ConsumerConfig consumerConfig;
 
     private Map<String, String> userConfig = new HashMap<>();
     public static final String JAVAJAR = "/pulsar/examples/java-test-functions.jar";
@@ -260,6 +262,11 @@ public class CommandGenerator {
         }
         if (producerConfig != null) {
             commandBuilder.append(" --producer-config \'" + new Gson().toJson(producerConfig) + "\'");
+        }
+        if (consumerConfig != null) {
+            Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
+            inputSpecs.put(sourceTopic, consumerConfig);
+            commandBuilder.append(" --input-specs \'" + new Gson().toJson(inputSpecs) + "\'");
         }
         return commandBuilder.toString();
     }
