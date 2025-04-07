@@ -36,8 +36,9 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
-// TODO: This test is disabled until CI is fixed. To be addressed as part of https://github.com/apache/pulsar/pull/24154
-@Test(groups = "broker", enabled = false)
+// TODO: This test is in flaky group until CI is fixed.
+// To be addressed as part of https://github.com/apache/pulsar/pull/24154
+@Test(groups = "flaky")
 public class BrokerServiceChaosTest extends CanReconnectZKClientPulsarServiceBaseTest {
 
     @Override
