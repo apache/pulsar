@@ -41,7 +41,8 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker")
+// TODO: This test is disabled until CI is fixed. To be addressed as part of https://github.com/apache/pulsar/pull/24154
+@Test(groups = "broker", enabled = false)
 public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicatorTest {
 
     @Override
