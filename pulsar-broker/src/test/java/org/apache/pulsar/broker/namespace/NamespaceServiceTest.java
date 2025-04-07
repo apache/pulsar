@@ -947,12 +947,11 @@ public class NamespaceServiceTest extends BrokerTestBase {
         CompletableFuture<TopicExistsInfo> result = pulsar.getNamespaceService().checkTopicExists(topicName);
         assertThat(result)
                 .succeedsWithin(3, TimeUnit.SECONDS)
-                .matches(n -> {
+                .satisfies(n -> {
                     assertTrue(n.isExists());
                     assertEquals(n.getPartitions(), 0);
                     assertEquals(n.getTopicType(), TopicType.NON_PARTITIONED);
                     n.recycle();
-                    return true;
                 });
     }
 
@@ -965,36 +964,33 @@ public class NamespaceServiceTest extends BrokerTestBase {
         CompletableFuture<TopicExistsInfo> result = pulsar.getNamespaceService().checkTopicExists(topicName);
         assertThat(result)
                 .succeedsWithin(3, TimeUnit.SECONDS)
-                .matches(n -> {
+                .satisfies(n -> {
                     assertTrue(n.isExists());
                     assertEquals(n.getPartitions(), 3);
                     assertEquals(n.getTopicType(), TopicType.PARTITIONED);
                     n.recycle();
-                    return true;
                 });
 
         // Check the specific partition.
         result = pulsar.getNamespaceService().checkTopicExists(topicName.getPartition(2));
         assertThat(result)
                 .succeedsWithin(3, TimeUnit.SECONDS)
-                .matches(n -> {
+                .satisfies(n -> {
                     assertTrue(n.isExists());
                     assertEquals(n.getPartitions(), 0);
                     assertEquals(n.getTopicType(), TopicType.NON_PARTITIONED);
                     n.recycle();
-                    return true;
                 });
 
         // Partition index is out of range.
         result = pulsar.getNamespaceService().checkTopicExists(topicName.getPartition(10));
         assertThat(result)
                 .succeedsWithin(3, TimeUnit.SECONDS)
-                .matches(n -> {
+                .satisfies(n -> {
                     assertFalse(n.isExists());
                     assertEquals(n.getPartitions(), 0);
                     assertEquals(n.getTopicType(), TopicType.NON_PARTITIONED);
                     n.recycle();
-                    return true;
                 });
     }
 
@@ -1004,14 +1000,13 @@ public class NamespaceServiceTest extends BrokerTestBase {
         CompletableFuture<TopicExistsInfo> result = pulsar.getNamespaceService().checkTopicExists(topicName);
         assertThat(result)
                 .succeedsWithin(3, TimeUnit.SECONDS)
-                .matches(n -> {
+                .satisfies(n -> {
                     // when using the pulsar client to check non_persistent topic, always return true, so ignore to
                     // check that.
                     if (topicDomain.equals(TopicDomain.persistent)) {
                         assertFalse(n.isExists());
                     }
                     n.recycle();
-                    return true;
                 });
     }
 
@@ -1022,14 +1017,13 @@ public class NamespaceServiceTest extends BrokerTestBase {
         CompletableFuture<TopicExistsInfo> result = pulsar.getNamespaceService().checkTopicExists(topicName);
         assertThat(result)
                 .succeedsWithin(3, TimeUnit.SECONDS)
-                .matches(n -> {
+                .satisfies(n -> {
                     // when using the pulsar client to check non_persistent topic, always return true, so ignore to
                     // check that.
                     if (topicDomain.equals(TopicDomain.persistent)) {
                         assertFalse(n.isExists());
                     }
                     n.recycle();
-                    return true;
                 });
     }
 
