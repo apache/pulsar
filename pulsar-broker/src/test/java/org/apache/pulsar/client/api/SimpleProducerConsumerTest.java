@@ -283,6 +283,29 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
     }
 
+    @Test(timeOut = 30000)
+    public void testSlashSubscriptionName() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("my-property/my-ns/tp");
+        admin.topics().createNonPartitionedTopic(topic);
+        try {
+            admin.topics().createSubscription(topic, "a/b", MessageId.earliest);
+            fail("The creation for the subscription that contains '/' should fail");
+        } catch (PulsarAdminException ex) {
+            assertTrue(ex.getMessage().contains("Subscription does not allow containing"));
+            // Expected.
+        }
+        try {
+            pulsarClient.newConsumer().topic(topic).subscriptionName("b/c").subscribe();
+            fail("The creation for the subscription that contains '/' should fail");
+        } catch (PulsarClientException ex) {
+            assertTrue(ex.getMessage().contains("Subscription does not allow containing"));
+            // Expected.
+        }
+        assertEquals(admin.topics().getStats(topic).getSubscriptions().size(), 0);
+        // cleanup.
+        admin.topics().delete(topic);
+    }
+
     @Test(timeOut = 100000)
     public void testPublishTimestampBatchEnabled() throws Exception {
 
