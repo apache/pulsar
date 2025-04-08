@@ -258,7 +258,7 @@ public class ProducerCreationTest extends ProducerConsumerBase {
             @Cleanup
             Producer<byte[]> ignored = pulsarClient.newProducer().topic(partitionedTopic).create();
         } else {
-            assertThrows(PulsarClientException.TopicDoesNotExistException.class, () -> {
+            assertThrows(PulsarClientException.NotFoundException.class, () -> {
                 @Cleanup
                 Producer<byte[]> ignored = pulsarClient.newProducer().topic(partitionedTopic).create();
             });
