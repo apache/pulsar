@@ -112,6 +112,11 @@ public class CommandGenerator {
         }
         if (StringUtils.isNotEmpty(sourceTopic)) {
             commandBuilder.append(" --inputs " + sourceTopic);
+            if (consumerConfig != null) {
+                Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
+                inputSpecs.put(sourceTopic, consumerConfig);
+                commandBuilder.append(" --input-specs \'" + new Gson().toJson(inputSpecs) + "\'");
+            }
         }
         if (sinkTopic != null) {
             commandBuilder.append(" --output " + sinkTopic);
@@ -178,6 +183,11 @@ public class CommandGenerator {
         }
         if (StringUtils.isNotEmpty(sourceTopic)) {
             commandBuilder.append(" --inputs " + sourceTopic);
+            if (consumerConfig != null) {
+                Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
+                inputSpecs.put(sourceTopic, consumerConfig);
+                commandBuilder.append(" --input-specs \'" + new Gson().toJson(inputSpecs) + "\'");
+            }
         }
         if (sourceTopicPattern != null) {
             commandBuilder.append(" --topics-pattern " + sourceTopicPattern);
@@ -263,11 +273,6 @@ public class CommandGenerator {
         if (producerConfig != null) {
             commandBuilder.append(" --producer-config \'" + new Gson().toJson(producerConfig) + "\'");
         }
-        if (consumerConfig != null) {
-            Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
-            inputSpecs.put(sourceTopic, consumerConfig);
-            commandBuilder.append(" --input-specs \'" + new Gson().toJson(inputSpecs) + "\'");
-        }
         return commandBuilder.toString();
     }
 
@@ -299,6 +304,11 @@ public class CommandGenerator {
         }
         if (StringUtils.isNotEmpty(sourceTopic)) {
             commandBuilder.append(" --inputs " + sourceTopic);
+            if (consumerConfig != null) {
+                Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
+                inputSpecs.put(sourceTopic, consumerConfig);
+                commandBuilder.append(" --input-specs \'" + new Gson().toJson(inputSpecs) + "\'");
+            }
         }
         if (customSerDeSourceTopics != null && !customSerDeSourceTopics.isEmpty()) {
             commandBuilder.append(" --customSerdeInputs \'" + new Gson().toJson(customSerDeSourceTopics) + "\'");

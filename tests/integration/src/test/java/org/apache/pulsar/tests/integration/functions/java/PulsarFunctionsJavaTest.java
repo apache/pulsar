@@ -153,7 +153,7 @@ public abstract class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
                         null
                 )
         );
-        testExclamationFunction(Runtime.JAVA, true, false, false, false,
+        testExclamationFunction(Runtime.JAVA, false, false, false, false,
                 consumerConfig, null, commandGenerator -> {
                     commandGenerator.setConsumerConfig(consumerConfig);
                 });
@@ -169,7 +169,7 @@ public abstract class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
                         new HashMap<>(Map.of("key1", "value1", "key2", "value2"))
                 )
         );
-        testExclamationFunction(Runtime.JAVA, true, false, false, false,
+        testExclamationFunction(Runtime.JAVA, false, false, false, false,
                 consumerConfig, null, commandGenerator -> {
                     commandGenerator.setConsumerConfig(consumerConfig);
                 });

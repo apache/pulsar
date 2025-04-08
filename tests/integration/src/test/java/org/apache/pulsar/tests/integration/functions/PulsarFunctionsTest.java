@@ -757,20 +757,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         final String info = getFunctionInfoSuccess(functionName);
         FunctionConfig config = ObjectMapperFactory.getMapper().getObjectMapper().readValue(info, FunctionConfig.class);
 
-        // check batching config
-        if (runtime == Runtime.JAVA) {
-            BatchingConfig batchingConfig = null;
-            if (producerConfig != null && producerConfig.getBatchingConfig() != null) {
-                batchingConfig = producerConfig.getBatchingConfig();
-            }
-            checkBatchingConfig(functionName, batchingConfig, config);
-
-            if (consumerConfig != null && consumerConfig.getMessagePayloadProcessorConfig() != null) {
-                checkMessagePayloadProcessorConfig(functionName, consumerConfig.getMessagePayloadProcessorConfig(),
-                        config, inputTopicName);
-            }
-        }
-
         // get function stats
         getFunctionStatsEmpty(functionName);
 
@@ -781,6 +767,15 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         } else {
             // golang doesn't support schema
             publishAndConsumeMessagesBytes(inputTopicName, outputTopicName, numMessages);
+        }
+
+        // check batching config
+        if (runtime == Runtime.JAVA) {
+            BatchingConfig batchingConfig = null;
+            if (producerConfig != null && producerConfig.getBatchingConfig() != null) {
+                batchingConfig = producerConfig.getBatchingConfig();
+            }
+            checkLogs(functionName, batchingConfig, consumerConfig, config, inputTopicName);
         }
 
         // get function status
@@ -860,8 +855,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         });
     }
 
-    // checking batching config, we can only check this by checking the logs for now
-    private void checkBatchingConfig(String functionName, BatchingConfig config, FunctionConfig functionConfig) {
+    // checking batching config/consumer config, we can only check this by checking the logs for now
+    private void checkLogs(String functionName, BatchingConfig config, ConsumerConfig consumerConfig,
+                           FunctionConfig functionConfig, String topic) {
         if (config != null) {
             assertNotNull(functionConfig.getProducerConfig());
             assertNotNull(functionConfig.getProducerConfig().getBatchingConfig());
@@ -869,36 +865,65 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
 
         String functionLogs = pulsarCluster.getFunctionLogs(functionName);
+        log.info("====got function logs: {}", functionLogs);
         if (config == null || config.isEnabled()) {
             BatchingConfig finalConfig = config;
             if (finalConfig == null) {
                 finalConfig = BatchingConfig.builder().build();
             }
             assertTrue(functionLogs.contains(finalConfig.toString()));
+
+            // THREAD runtime doesn't include producer&consumer related logs in the function logs
+            if (functionRuntimeType == FunctionRuntimeType.PROCESS) {
+                if (finalConfig.getBatchingMaxMessages() == null) {
+                    finalConfig.setBatchingMaxMessages(1000);
+                }
+                if (finalConfig.getBatchingMaxBytes() == null) {
+                    finalConfig.setBatchingMaxBytes(128 * 1024);
+                }
+                if (finalConfig.getBatchingMaxPublishDelayMs() == null) {
+                    finalConfig.setBatchingMaxPublishDelayMs(10);
+                }
+                if (finalConfig.getRoundRobinRouterBatchingPartitionSwitchFrequency() == null) {
+                    finalConfig.setRoundRobinRouterBatchingPartitionSwitchFrequency(10);
+                }
+                String producerSpec = String.format(
+                        "\"batchingMaxPublishDelayMicros\":%d,\"batchingPartitionSwitchFrequencyByPublishDelay\":%d,"
+                                + "\"batchingMaxMessages\":%d,\"batchingMaxBytes\":%d,\"batchingEnabled\":%s",
+                        finalConfig.getBatchingMaxPublishDelayMs() * 1000,
+                        finalConfig.getRoundRobinRouterBatchingPartitionSwitchFrequency(),
+                        finalConfig.getBatchingMaxMessages(),
+                        finalConfig.getBatchingMaxBytes(), finalConfig.isEnabled());
+                assertTrue(functionLogs.contains(producerSpec));
+            }
         } else {
             assertTrue(functionLogs.contains("BatchingConfig(enabled=false"));
+            // THREAD runtime doesn't include producer&consumer related logs in the function logs
+            if (functionRuntimeType == FunctionRuntimeType.PROCESS) {
+                assertTrue(functionLogs.contains("\"batchingEnabled\":false"));
+            }
         }
-    }
 
-    // checking message payload processor config
-    private void checkMessagePayloadProcessorConfig(String functionName, MessagePayloadProcessorConfig config,
-                                                    FunctionConfig functionConfig,
-                                                    String topic) {
-        if (config != null) {
+        if (consumerConfig != null && consumerConfig.getMessagePayloadProcessorConfig() != null) {
+            MessagePayloadProcessorConfig payloadProcessorConfig = consumerConfig.getMessagePayloadProcessorConfig();
             assertNotNull(functionConfig.getInputSpecs().get(topic));
             assertNotNull(functionConfig.getInputSpecs().get(topic).getMessagePayloadProcessorConfig());
-            assertEquals(config.toString(), functionConfig.getInputSpecs().get(topic).getMessagePayloadProcessorConfig().toString());
-        }
+            assertEquals(payloadProcessorConfig.toString(),
+                    functionConfig.getInputSpecs().get(topic).getMessagePayloadProcessorConfig().toString());
 
-        String functionLogs = pulsarCluster.getFunctionLogs(functionName);
-        if (config.getConfig() == null || config.getConfig().isEmpty()) {
-            assertTrue(functionLogs.contains("TestPayloadProcessor constructor without configs"));
-        } else {
-            String configs = config.getConfig().entrySet().stream()
-                    .map(entry -> entry.getKey() + "=" + entry.getValue())
-                    .collect(Collectors.joining(", "));
-            String expectedLogs = String.format("TestPayloadProcessor constructor with configs %s", configs);
-            assertTrue(functionLogs.contains(expectedLogs));
+            // THREAD runtime doesn't include producer&consumer related logs in the function logs
+            if (functionRuntimeType == FunctionRuntimeType.PROCESS) {
+                assertTrue(functionLogs.contains("Processing message using TestPayloadProcessor"));
+            }
+            if (payloadProcessorConfig.getConfig() == null || payloadProcessorConfig.getConfig().isEmpty()) {
+                assertTrue(functionLogs.contains("TestPayloadProcessor constructor without configs"));
+            } else {
+                String configs = payloadProcessorConfig.getConfig().entrySet().stream()
+                        .map(entry -> entry.getKey() + "=" + entry.getValue())
+                        .collect(Collectors.joining(", "));
+                String expectedLogs = String.format("TestPayloadProcessor constructor with configs %s", configs);
+                assertTrue(functionLogs.contains(expectedLogs));
+            }
         }
     }
 

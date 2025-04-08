@@ -119,7 +119,7 @@ public class ValidatorUtils {
         }
 
         boolean hasConstructor;
-        if (conf.getConfig() != null || conf.getConfig().isEmpty()) {
+        if (conf.getConfig() == null || conf.getConfig().isEmpty()) {
             hasConstructor = payloadProcessorClass.getDeclaredMethods().stream()
                     .anyMatch(method -> method.isConstructor() && method.getParameters().size() == 0);
         } else {

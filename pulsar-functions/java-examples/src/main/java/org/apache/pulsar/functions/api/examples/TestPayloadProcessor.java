@@ -45,6 +45,7 @@ public class TestPayloadProcessor implements MessagePayloadProcessor {
     @Override
     public <T> void process(MessagePayload payload, MessagePayloadContext context, Schema<T> schema,
                             Consumer<Message<T>> messageConsumer) throws Exception {
+        log.info("Processing message using TestPayloadProcessor");
         if (context.isBatch()) {
             final int numMessages = context.getNumMessages();
             for (int i = 0; i < numMessages; i++) {
