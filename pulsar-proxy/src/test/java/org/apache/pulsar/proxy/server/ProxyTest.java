@@ -64,6 +64,7 @@ import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandActiveConsumerChange;
+import org.apache.pulsar.common.api.proto.FeatureFlags;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.naming.TopicName;
@@ -464,13 +465,13 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
                                 Commands.newConnectWithoutSerialize(authentication.getAuthMethodName(), authData,
                                         this.protocolVersion, clientVersion, proxyToTargetBrokerAddress,
                                         null, null, null, null, null);
-                        cmd.getConnect().getFeatureFlags().setSupportsAuthRefresh(supported);
-                        cmd.getConnect().getFeatureFlags().setSupportsBrokerEntryMetadata(supported);
-                        cmd.getConnect().getFeatureFlags().setSupportsPartialProducer(supported);
-                        cmd.getConnect().getFeatureFlags().setSupportsTopicWatchers(supported);
-                        cmd.getConnect().getFeatureFlags().setSupportsReplDedupByLidAndEid(supported);
-                        cmd.getConnect().getFeatureFlags()
-                                .setSupportsGetPartitionedMetadataWithoutAutoCreation(supported);
+                        FeatureFlags featureFlags = cmd.getConnect().getFeatureFlags();
+                        featureFlags.setSupportsAuthRefresh(supported);
+                        featureFlags.setSupportsBrokerEntryMetadata(supported);
+                        featureFlags.setSupportsPartialProducer(supported);
+                        featureFlags.setSupportsTopicWatchers(supported);
+                        featureFlags.setSupportsReplDedupByLidAndEid(supported);
+                        featureFlags.setSupportsGetPartitionedMetadataWithoutAutoCreation(supported);
                         return Commands.serializeWithSize(cmd);
                     }
                 };
@@ -480,12 +481,13 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         Producer<byte[]> producer = injectedClient.newProducer().topic(topic).create();
         ServerCnx serverCnx = (ServerCnx) pulsar.getBrokerService().getTopic(topic, false).get().get()
                 .getProducers().values().iterator().next().getCnx();
-        assertEquals(serverCnx.getFeatures().isSupportsAuthRefresh(), supported);
-        assertEquals(serverCnx.getFeatures().isSupportsBrokerEntryMetadata(), supported);
-        assertEquals(serverCnx.getFeatures().isSupportsPartialProducer(), supported);
-        assertEquals(serverCnx.getFeatures().isSupportsTopicWatchers(), supported);
-        assertEquals(serverCnx.getFeatures().isSupportsReplDedupByLidAndEid(), supported);
-        assertEquals(serverCnx.getFeatures().isSupportsGetPartitionedMetadataWithoutAutoCreation(), supported);
+        FeatureFlags featureFlags = serverCnx.getFeatures();
+        assertEquals(featureFlags.isSupportsAuthRefresh(), supported);
+        assertEquals(featureFlags.isSupportsBrokerEntryMetadata(), supported);
+        assertEquals(featureFlags.isSupportsPartialProducer(), supported);
+        assertEquals(featureFlags.isSupportsTopicWatchers(), supported);
+        assertEquals(featureFlags.isSupportsReplDedupByLidAndEid(), supported);
+        assertEquals(featureFlags.isSupportsGetPartitionedMetadataWithoutAutoCreation(), supported);
 
         // cleanup.
         producer.close();
