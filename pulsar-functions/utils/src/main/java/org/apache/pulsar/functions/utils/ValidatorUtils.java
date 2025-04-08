@@ -114,8 +114,8 @@ public class ValidatorUtils {
                     String.format("The message payload processor class %s does not exist", payloadProcessorClassName));
         }
         if (!payloadProcessorClass.asErasure().isAssignableTo(MessagePayloadProcessor.class)) {
-            throw new IllegalArgumentException(
-                    String.format("%s does not implement %s", payloadProcessorClassName, MessagePayloadProcessor.class.getName()));
+            throw new IllegalArgumentException(String.format("%s does not implement %s", payloadProcessorClassName,
+                    MessagePayloadProcessor.class.getName()));
         }
 
         boolean hasConstructor;

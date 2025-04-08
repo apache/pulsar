@@ -308,8 +308,8 @@ public class SinkConfigUtils {
                 consumerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(input.getValue().getCryptoSpec()));
             }
             if (input.getValue().hasMessagePayloadProcessorSpec()) {
-                consumerConfig.setMessagePayloadProcessorConfig(
-                        MessagePayloadProcessorUtils.convertFromSpec(input.getValue().getMessagePayloadProcessorSpec()));
+                consumerConfig.setMessagePayloadProcessorConfig(MessagePayloadProcessorUtils.convertFromSpec(
+                        input.getValue().getMessagePayloadProcessorSpec()));
             }
             consumerConfig.setRegexPattern(input.getValue().getIsRegexPattern());
             consumerConfig.setConsumerProperties(input.getValue().getConsumerPropertiesMap());
@@ -360,7 +360,7 @@ public class SinkConfigUtils {
         if (!org.apache.commons.lang3.StringUtils.isEmpty(functionDetails.getSink().getConfigs())) {
             TypeReference<HashMap<String, Object>> typeRef =
                     new TypeReference<HashMap<String, Object>>() {
-            };
+                    };
             Map<String, Object> configMap;
             try {
                 configMap =
@@ -521,9 +521,9 @@ public class SinkConfigUtils {
         }
 
         if (sinkConfig.getTopicToSerdeClassName() != null) {
-           for (String serdeClassName : sinkConfig.getTopicToSerdeClassName().values()) {
-               ValidatorUtils.validateSerde(serdeClassName, typeArg, inputFunction.getTypePool(), true);
-           }
+            for (String serdeClassName : sinkConfig.getTopicToSerdeClassName().values()) {
+                ValidatorUtils.validateSerde(serdeClassName, typeArg, inputFunction.getTypePool(), true);
+            }
         }
 
         if (sinkConfig.getTopicToSchemaType() != null) {

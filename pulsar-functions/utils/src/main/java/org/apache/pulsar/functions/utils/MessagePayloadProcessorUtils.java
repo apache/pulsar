@@ -31,7 +31,8 @@ import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.functions.proto.Function;
 
 public class MessagePayloadProcessorUtils {
-    public static MessagePayloadProcessor getMessagePayloadProcessorInstance(String className, Map<String, Object> configs,
+    public static MessagePayloadProcessor getMessagePayloadProcessorInstance(String className,
+                                                                             Map<String, Object> configs,
                                                                              ClassLoader classLoader) {
         Class<?> payloadProcessorClass;
         try {
@@ -65,7 +66,8 @@ public class MessagePayloadProcessorUtils {
             return null;
         }
 
-        MessagePayloadProcessorConfig.MessagePayloadProcessorConfigBuilder bldr = MessagePayloadProcessorConfig.builder();
+        MessagePayloadProcessorConfig.MessagePayloadProcessorConfigBuilder bldr =
+                MessagePayloadProcessorConfig.builder();
 
         Type type = new TypeToken<Map<String, Object>>() {
         }.getType();
@@ -80,7 +82,7 @@ public class MessagePayloadProcessorUtils {
         Function.MessagePayloadProcessorSpec.Builder bldr = Function.MessagePayloadProcessorSpec.newBuilder()
                 .setClassName(config.getClassName());
 
-        if (config.getConfig()  != null) {
+        if (config.getConfig() != null) {
             Type type = new TypeToken<Map<String, Object>>() {
             }.getType();
             String readerConfigString = new Gson().toJson(config.getConfig(), type);

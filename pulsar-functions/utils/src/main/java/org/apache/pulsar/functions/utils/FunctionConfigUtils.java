@@ -414,8 +414,8 @@ public class FunctionConfigUtils {
                 consumerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(input.getValue().getCryptoSpec()));
             }
             if (input.getValue().hasMessagePayloadProcessorSpec()) {
-                consumerConfig.setMessagePayloadProcessorConfig(
-                        MessagePayloadProcessorUtils.convertFromSpec(input.getValue().getMessagePayloadProcessorSpec()));
+                consumerConfig.setMessagePayloadProcessorConfig(MessagePayloadProcessorUtils.convertFromSpec(
+                        input.getValue().getMessagePayloadProcessorSpec()));
             }
             consumerConfig.setRegexPattern(input.getValue().getIsRegexPattern());
             consumerConfig.setSchemaProperties(input.getValue().getSchemaPropertiesMap());
