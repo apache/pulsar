@@ -106,7 +106,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     private static final int OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS = 5000;
     private static final int OWNERSHIP_CLEAN_UP_WAIT_RETRY_DELAY_IN_MILLIS = 100;
-    private static final int MAX_CONCURRENT_OWNERSHIP_OVERRIDE = 500;
     public static final long VERSION_ID_INIT = 1; // initial versionId
     public static final long MAX_CLEAN_UP_DELAY_TIME_IN_SECS = 3 * 60; // 3 mins
     private static final long MIN_CLEAN_UP_DELAY_TIME_IN_SECS = 0; // 0 secs to clean immediately
@@ -1503,7 +1502,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     private void tryWaitForOverrides(List<CompletableFuture<Void>> overrideFutures, boolean force) {
-        if (overrideFutures.size() > MAX_CONCURRENT_OWNERSHIP_OVERRIDE || force) {
+        if (overrideFutures.size() >= config.getLoadBalancerServiceUnitStateMaxConcurrentOverrides() || force) {
             try {
                 FutureUtil.waitForAll(overrideFutures)
                         .get(config.getMetadataStoreOperationTimeoutSeconds(), SECONDS);
