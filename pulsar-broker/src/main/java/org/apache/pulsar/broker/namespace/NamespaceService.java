@@ -1424,8 +1424,9 @@ public class NamespaceService implements AutoCloseable {
                             return CompletableFuture.completedFuture(
                                     TopicExistsInfo.newPartitionedTopicExists(metadata.partitions));
                         }
-                        // The non-persistent partitioned topic doesn't have the partition, quickly return.
                         if (!topic.isPersistent()) {
+                            // A non-persistent partitioned topic contains only metadata.
+                            // Since no actual partitions are created, there's no need to check under /managed-ledgers.
                             return CompletableFuture.completedFuture(topic.getPartitionIndex() < metadata.partitions
                                     ? TopicExistsInfo.newNonPartitionedTopicExists()
                                     : TopicExistsInfo.newTopicNotExists());
