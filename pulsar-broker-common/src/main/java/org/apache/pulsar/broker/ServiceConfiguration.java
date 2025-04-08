@@ -3031,7 +3031,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "It identifies orphan bundle ownerships by periodically scanning ownership data "
                     + "and monitoring for broker shutdowns or inactive states."
     )
-    private int loadBalancerServiceUnitStateMaxConcurrentOverrides = 10;
+    private int loadBalancerServiceUnitStateMaxConcurrentOverrides = 64;
 
     /**** --- Replication. --- ****/
     @FieldContext(
