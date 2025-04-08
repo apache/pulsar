@@ -699,7 +699,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "non-partitioned topic.\n"
             + "Note 2: Activating bidirectional geo-replication under global ZooKeeper configuration may lead to schema"
             + " remnants and abnormal topic-level policies.\n"
-            + "Note 3: Note 3: Activating bidirectional geo-replication under global configuration ZooKeeper may lead"
+            + "Note 3: Activating bidirectional geo-replication under global configuration ZooKeeper may lead"
             + " to a consumption issue."
     )
     private boolean brokerDeleteInactivePartitionedTopicMetadataEnabled = false;
