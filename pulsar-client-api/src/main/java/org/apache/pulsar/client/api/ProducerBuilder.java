@@ -293,6 +293,8 @@ public interface ProducerBuilder<T> extends Cloneable {
      */
     ProducerBuilder<T> compressionType(CompressionType compressionType);
 
+    ProducerBuilder<T> compressionMinMsgBodySize(int compressionMinMsgBodySize);
+
     /**
      * Set a custom message routing policy by passing an implementation of MessageRouter.
      *

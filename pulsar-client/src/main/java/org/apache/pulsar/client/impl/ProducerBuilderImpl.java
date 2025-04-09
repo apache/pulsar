@@ -174,6 +174,11 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         return this;
     }
 
+    public ProducerBuilder<T> compressionMinMsgBodySize(int compressionMinMsgBodySize) {
+        conf.setCompressMinMsgBodySize(compressionMinMsgBodySize);
+        return this;
+    }
+
     @Override
     public ProducerBuilder<T> hashingScheme(@NonNull HashingScheme hashingScheme) {
         conf.setHashingScheme(hashingScheme);
