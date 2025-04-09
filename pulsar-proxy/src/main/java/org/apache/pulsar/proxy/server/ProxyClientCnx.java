@@ -73,7 +73,7 @@ public class ProxyClientCnx extends ClientCnx {
         AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
         return Commands.newConnect(authentication.getAuthMethodName(), authData, protocolVersion,
                 proxyConnection.clientVersion, proxyToTargetBrokerAddress, clientAuthRole, clientAuthData,
-                clientAuthMethod, PulsarVersion.getVersion());
+                clientAuthMethod, PulsarVersion.getVersion(), null);
     }
 
     @Override

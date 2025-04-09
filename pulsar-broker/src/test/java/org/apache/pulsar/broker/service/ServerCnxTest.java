@@ -327,7 +327,7 @@ public class ServerCnxTest {
         assertEquals(serverCnx.getState(), State.Start);
 
         ByteBuf clientCommand = Commands.newConnect("none", null, 1, null, null, null, null, null,
-                "my-pulsar-proxy");
+                "my-pulsar-proxy", null);
         channel.writeInbound(clientCommand);
 
         assertEquals(serverCnx.getState(), State.Connected);
@@ -601,7 +601,7 @@ public class ServerCnxTest {
         assertEquals(serverCnx.getState(), State.Start);
 
         ByteBuf clientCommand = Commands.newConnect(authMethodName, AuthData.of("pass.pass".getBytes()),
-                1, null, null, null, null, null, "my-pulsar-proxy");
+                1, null, null, null, null, null, "my-pulsar-proxy", null);
         channel.writeInbound(clientCommand);
         Object response = getResponse();
         assertTrue(response instanceof CommandError);
