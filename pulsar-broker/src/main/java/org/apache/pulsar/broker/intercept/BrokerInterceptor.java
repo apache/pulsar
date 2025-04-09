@@ -32,6 +32,7 @@ import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricStreams;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -222,6 +223,13 @@ public interface BrokerInterceptor extends AutoCloseable {
             throws IOException, ServletException {
         // Just continue the chain by default.
         chain.doFilter(request, response);
+    }
+    /**
+     * Add customize metrics to PrometheusMetricStreams.
+     * @param metricStreams
+     * @param pulsar
+     */
+    default void addCustomizedMetrics(PrometheusMetricStreams metricStreams, PulsarService pulsar){
     }
 
     /**
