@@ -77,12 +77,15 @@ import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
+import org.apache.pulsar.client.api.DeadLetterProducerBuilderContext;
+import org.apache.pulsar.client.api.DeadLetterProducerBuilderCustomizer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.TopicDoesNotExistException;
 import org.apache.pulsar.client.api.Schema;
@@ -121,6 +124,7 @@ import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
+import org.apache.pulsar.common.naming.Metadata;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -187,7 +191,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final MessageCrypto msgCrypto;
 
-    private final Map<String, String> metadata;
+    private Map<String, String> metadata;
 
     private final boolean readCompacted;
     private final boolean resetIncludeHead;
@@ -361,7 +365,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (conf.getProperties().isEmpty()) {
             metadata = Collections.emptyMap();
         } else {
-            metadata = Collections.unmodifiableMap(new HashMap<>(conf.getProperties()));
+            metadata = new HashMap<>(conf.getProperties());
         }
 
         this.connectionHandler = new ConnectionHandler(this,
@@ -392,24 +396,22 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             } else {
                 this.deadLetterPolicy = DeadLetterPolicy.builder()
                         .maxRedeliverCount(conf.getDeadLetterPolicy().getMaxRedeliverCount())
-                        .deadLetterTopic(String.format("%s-%s" + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX,
-                                topic, subscription))
+                        .deadLetterTopic(RetryMessageUtil.getDLQTopic(topic, subscription))
                         .build();
             }
-
             if (StringUtils.isNotBlank(conf.getDeadLetterPolicy().getRetryLetterTopic())) {
                 this.deadLetterPolicy.setRetryLetterTopic(conf.getDeadLetterPolicy().getRetryLetterTopic());
             } else {
-                this.deadLetterPolicy.setRetryLetterTopic(String.format(
-                        "%s-%s" + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX,
-                        topic, subscription));
+                this.deadLetterPolicy.setRetryLetterTopic(RetryMessageUtil.getRetryTopic(topic, subscription));
             }
-
             if (StringUtils.isNotBlank(conf.getDeadLetterPolicy().getInitialSubscriptionName())) {
                 this.deadLetterPolicy.setInitialSubscriptionName(
                         conf.getDeadLetterPolicy().getInitialSubscriptionName());
             }
-
+            this.deadLetterPolicy.setRetryLetterProducerBuilderCustomizer(
+                    conf.getDeadLetterPolicy().getRetryLetterProducerBuilderCustomizer());
+            this.deadLetterPolicy.setDeadLetterProducerBuilderCustomizer(
+                    conf.getDeadLetterPolicy().getDeadLetterProducerBuilderCustomizer());
         } else {
             deadLetterPolicy = null;
             possibleSendToDeadLetterTopicMessages = null;
@@ -716,6 +718,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                             .value(retryMessage.getData())
                                             .properties(propertiesMap);
                             copyMessageKeysIfNeeded(message, typedMessageBuilderNew);
+                            copyMessageEventTime(message, typedMessageBuilderNew);
                             typedMessageBuilderNew.sendAsync().thenAccept(msgId -> {
                                 consumerDlqMessagesCounter.increment();
 
@@ -748,6 +751,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                 typedMessageBuilderNew.deliverAfter(delayTime, unit);
                             }
                             copyMessageKeysIfNeeded(message, typedMessageBuilderNew);
+                            copyMessageEventTime(message, typedMessageBuilderNew);
                             typedMessageBuilderNew.sendAsync()
                                     .thenCompose(
                                             __ -> doAcknowledge(finalMessageId, ackType, Collections.emptyMap(), null))
@@ -821,6 +825,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return (MessageImpl<?>) message;
         }
         return null;
+    }
+
+    private static void copyMessageEventTime(Message<?> message,
+                                             TypedMessageBuilder<byte[]> typedMessageBuilderNew) {
+        typedMessageBuilderNew.eventTime(message.getEventTime());
     }
 
     @Override
@@ -910,6 +919,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // synchronized this, because redeliverUnAckMessage eliminate the epoch inconsistency between them
         final CompletableFuture<Void> future = new CompletableFuture<>();
         synchronized (this) {
+            updateProxyMetadataIfNeeded(cnx);
             ByteBuf request = Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(),
                     priorityLevel, consumerName, isDurable, startMessageIdData, metadata, readCompacted,
                     conf.getReplicateSubscriptionState(),
@@ -2240,6 +2250,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                         .value(message.getData())
                                         .properties(getPropertiesMap(message, originMessageIdStr, originTopicNameStr));
                         copyMessageKeysIfNeeded(message, typedMessageBuilderNew);
+                        copyMessageEventTime(message, typedMessageBuilderNew);
                         typedMessageBuilderNew.sendAsync()
                                 .thenAccept(messageIdInDLQ -> {
                                     possibleSendToDeadLetterTopicMessages.remove(messageId);
@@ -2286,6 +2297,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return result;
     }
 
+    private void customizeDeadLetterProducerBuilder(DeadLetterProducerBuilderCustomizer customizer,
+                                                    String deadLetterOrRetryLetterTopic,
+                                                    ProducerBuilder<byte[]> builder) {
+        if (customizer != null) {
+            DeadLetterProducerBuilderContext context = new DeadLetterProducerBuilderContextImpl(
+                    deadLetterOrRetryLetterTopic, topic, subscription, consumerName);
+            customizer.customize(context, builder);
+        }
+    }
+
     private CompletableFuture<Producer<byte[]>> initDeadLetterProducerIfNeeded() {
         CompletableFuture<Producer<byte[]>> p = deadLetterProducer;
         if (p == null || p.isCompletedExceptionally()) {
@@ -2294,7 +2315,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 p = deadLetterProducer;
                 if (p == null || p.isCompletedExceptionally()) {
                     p = createProducerWithBackOff(() -> {
-                        CompletableFuture<Producer<byte[]>> newProducer =
+                        ProducerBuilder<byte[]> builder =
                                 ((ProducerBuilderImpl<byte[]>) client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema)))
                                         .initialSubscriptionName(this.deadLetterPolicy.getInitialSubscriptionName())
                                         .topic(this.deadLetterPolicy.getDeadLetterTopic())
@@ -2303,8 +2324,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                         this.consumerName, RandomStringUtils.randomAlphanumeric(5)))
                                         .blockIfQueueFull(false)
                                         .enableBatching(false)
-                                        .enableChunking(true)
-                                        .createAsync();
+                                        .enableChunking(true);
+                        customizeDeadLetterProducerBuilder(deadLetterPolicy.getDeadLetterProducerBuilderCustomizer(),
+                                deadLetterPolicy.getDeadLetterTopic(), builder);
+                        CompletableFuture<Producer<byte[]>> newProducer = builder.createAsync();
                         newProducer.whenComplete((producer, ex) -> {
                             if (ex != null) {
                                 log.error("[{}] [{}] [{}] Failed to create dead letter producer for topic {}",
@@ -2364,13 +2387,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 p = retryLetterProducer;
                 if (p == null || p.isCompletedExceptionally()) {
                     p = createProducerWithBackOff(() -> {
-                        CompletableFuture<Producer<byte[]>> newProducer = client
+                        ProducerBuilder<byte[]> builder = client
                                 .newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
                                 .topic(this.deadLetterPolicy.getRetryLetterTopic())
                                 .enableBatching(false)
                                 .enableChunking(true)
-                                .blockIfQueueFull(false)
-                                .createAsync();
+                                .blockIfQueueFull(false);
+                        customizeDeadLetterProducerBuilder(deadLetterPolicy.getRetryLetterProducerBuilderCustomizer(),
+                                deadLetterPolicy.getRetryLetterTopic(), builder);
+                        CompletableFuture<Producer<byte[]>> newProducer = builder.createAsync();
                         newProducer.whenComplete((producer, ex) -> {
                             if (ex != null) {
                                 log.error("[{}] [{}] [{}] Failed to create retry letter producer for topic {}",
@@ -3134,6 +3159,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return cmd;
     }
 
+    private void updateProxyMetadataIfNeeded(ClientCnx cnx) {
+        boolean isProxy = cnx.isProxy() || client.getConfiguration().getProxyServiceUrl() != null;
+        if (isProxy && cnx.getLocalAddress() != null) {
+            metadata = metadata.isEmpty() ? new HashMap<>() : metadata;
+            metadata.put(Metadata.CLIENT_IP, cnx.getLocalAddress().toString());
+        }
+    }
+
     private CompletableFuture<Void> doTransactionAcknowledgeForResponse(List<MessageId> messageIds, AckType ackType,
                                                                         Map<String, Long> properties, TxnID txnID) {
         long requestId = client.newRequestId();
@@ -3193,5 +3226,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         NOT_STARTED,
         IN_PROGRESS,
         COMPLETED
+    }
+
+    @VisibleForTesting
+    public Producer<byte[]> getRetryLetterProducer() {
+        return (retryLetterProducer == null || !retryLetterProducer.isDone()) ? null : retryLetterProducer.join();
+    }
+
+    @VisibleForTesting
+    public Producer<byte[]> getDeadLetterProducer() throws ExecutionException, InterruptedException {
+        return (deadLetterProducer == null || !deadLetterProducer.isDone()) ? null : deadLetterProducer.get();
     }
 }

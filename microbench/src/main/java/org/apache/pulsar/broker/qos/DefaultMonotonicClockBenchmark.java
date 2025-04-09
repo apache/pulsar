@@ -23,36 +23,33 @@ import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
-import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.State;
-import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
+/**
+ * On MacOS, the performance of System.nanoTime() is not great. Running benchmarks on Linux is recommended due
+ * to the bottleneck of System.nanoTime() implementation on MacOS.
+ */
 @Fork(3)
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.SECONDS)
 @State(Scope.Thread)
-public class DefaultMonotonicSnapshotClockBenchmark {
-    private DefaultMonotonicSnapshotClock monotonicSnapshotClock =
-            new DefaultMonotonicSnapshotClock(TimeUnit.MILLISECONDS.toNanos(1), System::nanoTime);
-
-    @TearDown(Level.Iteration)
-    public void teardown() {
-        monotonicSnapshotClock.close();
-    }
+public class DefaultMonotonicClockBenchmark {
+    private DefaultMonotonicClock monotonicSnapshotClock =
+            new DefaultMonotonicClock();
 
     @Threads(1)
     @Benchmark
     @Measurement(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
     @Warmup(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
     public void getTickNanos001Threads(Blackhole blackhole) {
-        consumeTokenAndGetTokens(blackhole, false);
+        blackhole.consume(monotonicSnapshotClock.getTickNanos());
     }
 
     @Threads(10)
@@ -60,7 +57,7 @@ public class DefaultMonotonicSnapshotClockBenchmark {
     @Measurement(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
     @Warmup(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
     public void getTickNanos010Threads(Blackhole blackhole) {
-        consumeTokenAndGetTokens(blackhole, false);
+        blackhole.consume(monotonicSnapshotClock.getTickNanos());
     }
 
     @Threads(100)
@@ -68,35 +65,6 @@ public class DefaultMonotonicSnapshotClockBenchmark {
     @Measurement(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
     @Warmup(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
     public void getTickNanos100Threads(Blackhole blackhole) {
-        consumeTokenAndGetTokens(blackhole, false);
-    }
-
-    @Threads(1)
-    @Benchmark
-    @Measurement(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
-    @Warmup(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
-    public void getTickNanosRequestSnapshot001Threads(Blackhole blackhole) {
-        consumeTokenAndGetTokens(blackhole, true);
-    }
-
-    @Threads(10)
-    @Benchmark
-    @Measurement(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
-    @Warmup(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
-    public void getTickNanosRequestSnapshot010Threads(Blackhole blackhole) {
-        consumeTokenAndGetTokens(blackhole, true);
-    }
-
-    @Threads(100)
-    @Benchmark
-    @Measurement(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
-    @Warmup(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
-    public void getTickNanosRequestSnapshot100Threads(Blackhole blackhole) {
-        consumeTokenAndGetTokens(blackhole, true);
-    }
-
-    private void consumeTokenAndGetTokens(Blackhole blackhole, boolean requestSnapshot) {
-        // blackhole is used to ensure that the compiler doesn't do dead code elimination
-        blackhole.consume(monotonicSnapshotClock.getTickNanos(requestSnapshot));
+        blackhole.consume(monotonicSnapshotClock.getTickNanos());
     }
 }

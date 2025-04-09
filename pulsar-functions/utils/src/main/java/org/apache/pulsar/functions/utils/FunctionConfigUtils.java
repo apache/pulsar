@@ -524,6 +524,9 @@ public class FunctionConfigUtils {
         if (producerConf.getBatchBuilder() != null) {
             builder.setBatchBuilder(producerConf.getBatchBuilder());
         }
+        if (producerConf.getBatchingConfig() != null) {
+            builder.setBatchingSpec(BatchingUtils.convert(producerConf.getBatchingConfig()));
+        }
         if (producerConf.getCompressionType() != null) {
             builder.setCompressionType(convertFromCompressionType(producerConf.getCompressionType()));
         } else {
@@ -545,6 +548,9 @@ public class FunctionConfigUtils {
         }
         if (spec.getBatchBuilder() != null) {
             producerConfig.setBatchBuilder(spec.getBatchBuilder());
+        }
+        if (spec.hasBatchingSpec()) {
+            producerConfig.setBatchingConfig(BatchingUtils.convertFromSpec(spec.getBatchingSpec()));
         }
         producerConfig.setUseThreadLocalProducers(spec.getUseThreadLocalProducers());
         producerConfig.setCompressionType(convertFromFunctionDetailsCompressionType(spec.getCompressionType()));

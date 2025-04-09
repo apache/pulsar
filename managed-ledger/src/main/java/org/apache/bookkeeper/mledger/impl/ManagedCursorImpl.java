@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
+import static org.apache.bookkeeper.mledger.impl.EntryCountEstimator.estimateEntryCountByBytesSize;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_RETRIES;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
@@ -3810,26 +3811,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (maxSizeBytes == NO_MAX_SIZE_LIMIT) {
             return maxEntries;
         }
-
-        double avgEntrySize = ledger.getStats().getEntrySizeAverage();
-        if (!Double.isFinite(avgEntrySize)) {
-            // We don't have yet any stats on the topic entries. Let's try to use the cursor avg size stats
-            avgEntrySize = (double) entriesReadSize / (double) entriesReadCount;
-        }
-
-        if (!Double.isFinite(avgEntrySize)) {
-            // If we still don't have any information, it means this is the first time we attempt reading
-            // and there are no writes. Let's start with 1 to avoid any overflow and start the avg stats
-            return 1;
-        }
-
-        int maxEntriesBasedOnSize = (int) (maxSizeBytes / avgEntrySize);
-        if (maxEntriesBasedOnSize < 1) {
-            // We need to read at least one entry
-            return 1;
-        }
-
-        return Math.min(maxEntriesBasedOnSize, maxEntries);
+        int estimatedEntryCount = estimateEntryCountByBytesSize(maxEntries, maxSizeBytes, readPosition, ledger);
+        return Math.min(estimatedEntryCount, maxEntries);
     }
 
     @Override

@@ -39,6 +39,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import javax.ws.rs.BadRequestException;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -85,9 +86,11 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
+import org.apache.pulsar.common.policies.data.SubscriptionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.assertj.core.api.Assertions;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
@@ -632,6 +635,35 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getRetention(testTopic), retention));
 
         admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testRetentionPolicyValidation() throws Exception {
+        // should pass
+        admin.topicPolicies().setRetention(testTopic, new RetentionPolicies());
+        admin.topicPolicies().setRetention(testTopic, new RetentionPolicies(-1, -1));
+        admin.topicPolicies().setRetention(testTopic, new RetentionPolicies(1, 1));
+
+        // should not pass validation
+        assertInvalidRetentionPolicy(testTopic, 1, 0);
+        assertInvalidRetentionPolicy(testTopic, 0, 1);
+        assertInvalidRetentionPolicy(testTopic, -1, 0);
+        assertInvalidRetentionPolicy(testTopic, 0, -1);
+        assertInvalidRetentionPolicy(testTopic, -2, 1);
+        assertInvalidRetentionPolicy(testTopic, 1, -2);
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    private void assertInvalidRetentionPolicy(String topicName, int retentionTimeInMinutes, int retentionSizeInMB) {
+        try {
+            RetentionPolicies retention = new RetentionPolicies(retentionTimeInMinutes, retentionSizeInMB);
+            admin.topicPolicies().setRetention(topicName, retention);
+            fail("Validation should have failed for " + retention);
+        } catch (PulsarAdminException e) {
+            assertTrue(e.getCause() instanceof BadRequestException);
+            assertTrue(e.getMessage().startsWith("Invalid retention policy"));
+        }
     }
 
     @Test
@@ -3185,7 +3217,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         admin.topics().delete(topic, true);
     }
-    
+
     @Test
     public void testUpdateRetentionWithPartialFailure() throws Exception {
         String tpName = BrokerTestUtil.newUniqueName("persistent://" + myNamespace + "/tp");
@@ -3228,5 +3260,41 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         subscriptions.clear();
         admin.namespaces().removeRetention(myNamespace);
         admin.topics().delete(tpName, false);
+    }
+
+    @Test
+    public void testTopicPoliciesGetSubscriptionPolicies() throws Exception {
+        TopicPolicies topicPolicies = TopicPolicies.builder()
+                .maxProducerPerTopic(10).subscriptionPolicies(null).build();
+        Assert.assertNotNull(topicPolicies.getSubscriptionPolicies());
+        Assert.assertEquals(topicPolicies.getMaxProducerPerTopic(), 10);
+        Assert.assertTrue(topicPolicies.getSubscriptionPolicies().isEmpty());
+        topicPolicies.getSubscriptionPolicies().computeIfAbsent("sub", k ->
+                new SubscriptionPolicies()).setDispatchRate(new DispatchRateImpl());
+        Assert.assertEquals(topicPolicies.getSubscriptionPolicies().get("sub").getDispatchRate()
+                .getDispatchThrottlingRateInByte(), 0);
+    }
+
+    @Test
+    public void testSetSubRateWithNoSub() throws Exception {
+        String topic = "persistent://" + myNamespace + "/testSetSubRateWithNoSub";
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topicPolicies().setSubscriptionDispatchRate(topic, DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(10)
+                .dispatchThrottlingRateInByte(10)
+                .ratePeriodInSecond(10)
+                .build());
+    }
+
+    @Test
+    public void testSetSubRateWithSub() throws Exception {
+        String topic = "persistent://" + myNamespace + "/testSetSubRateWithSub";
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().createSubscription(topic, "sub1", MessageId.earliest);
+        admin.topicPolicies().setSubscriptionDispatchRate(topic, "sub1", DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(10)
+                .dispatchThrottlingRateInByte(10)
+                .ratePeriodInSecond(10)
+                .build());
     }
 }

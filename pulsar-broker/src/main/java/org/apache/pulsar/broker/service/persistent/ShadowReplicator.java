@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 
+import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SOURCE_POSITION;
 import io.netty.buffer.ByteBuf;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -76,6 +77,18 @@ public class ShadowReplicator extends PersistentReplicator {
                     continue;
                 }
 
+                if (msg.isExpired(messageTTLInSeconds)) {
+                    msgExpired.recordEvent(0 /* no value stat */);
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Discarding expired message at position {}, replicateTo {}",
+                                replicatorId, entry.getPosition(), msg.getReplicateTo());
+                    }
+                    cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
+                    entry.release();
+                    msg.recycle();
+                    continue;
+                }
+
                 if (STATE_UPDATER.get(this) != State.Started || isLocalMessageSkippedOnce) {
                     // The producer is not ready yet after having stopped/restarted. Drop the message because it will
                     // recovered when the producer is ready
@@ -98,6 +111,9 @@ public class ShadowReplicator extends PersistentReplicator {
                 msg.setReplicatedFrom(localCluster);
 
                 msg.setMessageId(new MessageIdImpl(entry.getLedgerId(), entry.getEntryId(), -1));
+                // Add props for sequence checking.
+                msg.getMessageBuilder().addProperty().setKey(MSG_PROP_REPL_SOURCE_POSITION)
+                        .setValue(String.format("%s:%s", entry.getLedgerId(), entry.getEntryId()));
 
                 headersAndPayload.retain();
 

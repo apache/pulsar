@@ -21,10 +21,8 @@ package org.apache.pulsar.broker.qos;
 
 // CHECKSTYLE.OFF: ClassTypeParameterName
 public abstract class AsyncTokenBucketBuilder<SELF extends AsyncTokenBucketBuilder<SELF>> {
-    protected MonotonicSnapshotClock clock = AsyncTokenBucket.DEFAULT_SNAPSHOT_CLOCK;
-    protected long resolutionNanos = AsyncTokenBucket.defaultResolutionNanos;
-    protected boolean consistentConsumedTokens;
-    protected boolean consistentAddedTokens;
+    protected MonotonicClock clock = AsyncTokenBucket.DEFAULT_SNAPSHOT_CLOCK;
+    protected long addTokensResolutionNanos = AsyncTokenBucket.DEFAULT_ADD_TOKENS_RESOLUTION_NANOS;
 
     protected AsyncTokenBucketBuilder() {
     }
@@ -34,44 +32,21 @@ public abstract class AsyncTokenBucketBuilder<SELF extends AsyncTokenBucketBuild
     }
 
     /**
-     * Set the clock source for the token bucket. It's recommended to use the {@link DefaultMonotonicSnapshotClock}
+     * Set the clock source for the token bucket. It's recommended to use the {@link DefaultMonotonicClock}
      * for most use cases.
      */
-    public SELF clock(MonotonicSnapshotClock clock) {
+    public SELF clock(MonotonicClock clock) {
         this.clock = clock;
         return self();
     }
 
     /**
-     * By default, AsyncTokenBucket is eventually consistent. This means that the token balance is updated, when time
-     * advances more than the configured resolution. This setting determines the duration of the increment.
-     * Setting this value to 0 will make the token balance fully consistent. There's a performance trade-off
-     * when setting this value to 0.
+     * This setting determines the minimum time interval that must pass since the last operation
+     * before new tokens are added to the token balance.
+     * Setting this value to 0 ensures the token balance is always up-to-date, but it may slightly impact performance.
      */
-    public SELF resolutionNanos(long resolutionNanos) {
-        this.resolutionNanos = resolutionNanos;
-        return self();
-    }
-
-    /**
-     * By default, AsyncTokenBucket is eventually consistent. This means that the consumed tokens are subtracted from
-     * the total amount of tokens at most once during each "increment", when time advances more than the configured
-     * resolution. This setting determines if the consumed tokens are subtracted from tokens balance consistently.
-     * For high performance, it is recommended to keep this setting as false.
-     */
-    public SELF consistentConsumedTokens(boolean consistentConsumedTokens) {
-        this.consistentConsumedTokens = consistentConsumedTokens;
-        return self();
-    }
-
-    /**
-     * By default, AsyncTokenBucket is eventually consistent. This means that the added tokens are calculated based
-     * on elapsed time at most once during each "increment", when time advances more than the configured
-     * resolution. This setting determines if the added tokens are calculated and added to tokens balance consistently.
-     * For high performance, it is recommended to keep this setting as false.
-     */
-    public SELF consistentAddedTokens(boolean consistentAddedTokens) {
-        this.consistentAddedTokens = consistentAddedTokens;
+    public SELF addTokensResolutionNanos(long addTokensResolutionNanos) {
+        this.addTokensResolutionNanos = addTokensResolutionNanos;
         return self();
     }
 

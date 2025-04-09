@@ -194,7 +194,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
 
         this.lastActive = System.nanoTime();
         this.preciseTopicPublishRateLimitingEnable = config.isPreciseTopicPublishRateLimiterEnable();
-        topicPublishRateLimiter = new PublishRateLimiterImpl(brokerService.getPulsar().getMonotonicSnapshotClock());
+        topicPublishRateLimiter = new PublishRateLimiterImpl(brokerService.getPulsar().getMonotonicClock());
         updateActiveRateLimiters();
 
         additionalSystemCursorNames = brokerService.pulsar().getConfiguration().getAdditionalSystemCursorNames();
@@ -595,6 +595,14 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
             for (Subscription subscription : subscriptions) {
                 count += subscription.getNumberOfSameAddressConsumers(clientAddress);
             }
+        }
+        return count;
+    }
+
+    protected int getNumberOfConsumers(final Collection<? extends Subscription> subscriptions) {
+        int count = 0;
+        for (Subscription subscription : subscriptions) {
+            count += subscription.getConsumers().size();
         }
         return count;
     }

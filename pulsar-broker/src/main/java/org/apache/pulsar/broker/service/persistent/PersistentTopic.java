@@ -130,7 +130,6 @@ import org.apache.pulsar.broker.service.SubscriptionOption;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.TransportCnx;
-import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.NotExistSchemaException;
@@ -495,7 +494,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             // dispatch rate limiter for topic
             if (!dispatchRateLimiter.isPresent()
                 && DispatchRateLimiter.isDispatchRateEnabled(topicPolicies.getDispatchRate().get())) {
-                this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(this, Type.TOPIC));
+                this.dispatchRateLimiter = Optional.of(
+                        getBrokerService().getDispatchRateLimiterFactory().createTopicDispatchRateLimiter(this));
             }
         }
     }
@@ -1398,7 +1398,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     log.debug("[{}][{}] Error deleting cursor for subscription",
                             topic, subscriptionName, exception);
                 }
-                if (exception instanceof ManagedLedgerException.ManagedLedgerNotFoundException) {
+                if (exception instanceof ManagedLedgerException.ManagedLedgerNotFoundException
+                        || exception instanceof ManagedLedgerException.CursorNotFoundException) {
+                    removeSubscription(subscriptionName);
                     unsubscribeFuture.complete(null);
                     lastActive = System.nanoTime();
                     return;
@@ -2034,6 +2036,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                    sub.expireMessages(messageTtlInSeconds);
                 }
             });
+            replicators.forEach((__, replicator)
+                    -> ((PersistentReplicator) replicator).expireMessages(messageTtlInSeconds));
+            shadowReplicators.forEach((__, replicator)
+                    -> ((PersistentReplicator) replicator).expireMessages(messageTtlInSeconds));
         }
     }
 
@@ -2284,11 +2290,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public int getNumberOfConsumers() {
-        int count = 0;
-        for (PersistentSubscription subscription : subscriptions.values()) {
-            count += subscription.getConsumers().size();
-        }
-        return count;
+        return getNumberOfConsumers(subscriptions.values());
     }
 
     @Override
@@ -2482,7 +2484,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 // Populate subscription specific stats here
                 topicStatsStream.writePair("msgBacklog",
                         subscription.getNumberOfEntriesInBacklog(true));
-                subscription.getExpiryMonitor().updateRates();
                 topicStatsStream.writePair("msgRateExpired", subscription.getExpiredMessageRate());
                 topicStatsStream.writePair("msgRateOut", subMsgRateOut);
                 topicStatsStream.writePair("messageAckRate", subMsgAckRate);
@@ -3271,8 +3272,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                             String.format("Another partition exists for [%s].",
                                                                     topicName));
                                                 } else {
-                                                    return partitionedTopicResources
-                                                            .deletePartitionedTopicAsync(topicName);
+                                                    try {
+                                                        return brokerService.getPulsar().getAdminClient().topics()
+                                                                .deletePartitionedTopicAsync(topicName.toString());
+                                                    } catch (PulsarServerException e) {
+                                                        log.info("[{}] Delete topic metadata failed due to failed to"
+                                                                + " get internal admin client.", topicName, e);
+                                                        return CompletableFuture.failedFuture(e);
+                                                    }
                                                 }
                                             });
                                 }))

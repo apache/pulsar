@@ -71,7 +71,7 @@ import org.apache.commons.lang3.RandomUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
+import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.OpenTelemetryReplicatorStats;
@@ -405,9 +405,9 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         int lastId = -1;
         for (int i = 0; i < totalMessages; i++) {
-            Message<GenericRecord> msg1 = consumer1.receive();
-            Message<GenericRecord> msg2 = consumer2.receive();
-            Message<GenericRecord> msg3 = consumer3.receive();
+            Message<GenericRecord> msg1 = consumer1.receive(10, TimeUnit.SECONDS);
+            Message<GenericRecord> msg2 = consumer2.receive(10, TimeUnit.SECONDS);
+            Message<GenericRecord> msg3 = consumer3.receive(10, TimeUnit.SECONDS);
             assertTrue(msg1 != null && msg2 != null && msg3 != null);
             GenericRecord record1 = msg1.getValue();
             GenericRecord record2 = msg2.getValue();
@@ -1208,7 +1208,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
             if (!isPartitionedTopic) {
                 fail("Topic creation should not fail without any partitioned topic");
             }
-            assertTrue(e.getCause() instanceof NamingException);
+            assertTrue(e.getCause() instanceof NotAllowedException);
         }
 
         // non-persistent topic test
@@ -1221,7 +1221,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
             if (!isPartitionedTopic) {
                 fail("Topic creation should not fail without any partitioned topic");
             }
-            assertTrue(e.getCause() instanceof NamingException);
+            assertTrue(e.getCause() instanceof NotAllowedException);
         }
 
     }
@@ -1781,36 +1781,36 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         @Cleanup
         Producer<byte[]> persistentProducer1 = client1.newProducer().topic(topic.toString()).create();
+        // Send V1 message, which will be replicated to the remote cluster by the replicator.
         persistentProducer1.send("V1".getBytes());
-
         waitReplicateFinish(topic, admin1);
 
+        // Pause replicator
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsar1.getBrokerService().getTopicReference(topic.toString()).get();
         persistentTopic.getReplicators().forEach((cluster, replicator) -> {
             PersistentReplicator persistentReplicator = (PersistentReplicator) replicator;
-            // Pause replicator
             pauseReplicator(persistentReplicator);
         });
 
+        // Send V2 and V3 messages, then let them expire. These messages will not be replicated to the remote cluster.
         persistentProducer1.send("V2".getBytes());
         persistentProducer1.send("V3".getBytes());
-
         Thread.sleep(1000);
-
         admin1.topics().expireMessagesForAllSubscriptions(topic.toString(), 1);
 
+        // Start replicator
         persistentTopic.getReplicators().forEach((cluster, replicator) -> {
             PersistentReplicator persistentReplicator = (PersistentReplicator) replicator;
             persistentReplicator.startProducer();
         });
-
         waitReplicateFinish(topic, admin1);
 
+        // Send V4 message, which will be replicated to the remote cluster.
         persistentProducer1.send("V4".getBytes());
-
         waitReplicateFinish(topic, admin1);
 
+        // Receive messages from the remote cluster: only V1 and V4 messages should be received.
         @Cleanup
         PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
@@ -1828,7 +1828,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
             result.add(new String(receive.getValue()));
         }
 
-        assertEquals(result, Lists.newArrayList("V1", "V2", "V3", "V4"));
+        assertEquals(result, Lists.newArrayList("V1", "V4"));
     }
 
     @Test

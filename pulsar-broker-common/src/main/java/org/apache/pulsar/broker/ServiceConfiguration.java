@@ -640,7 +640,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @Deprecated
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "@deprecated - Use backlogQuotaDefaultLimitByte instead."
+        doc = "@deprecated - Use backlogQuotaDefaultLimitBytes instead."
     )
     private double backlogQuotaDefaultLimitGB = -1;
 
@@ -694,9 +694,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_POLICIES,
             dynamic = true,
             doc = "Metadata of inactive partitioned topic will not be automatically cleaned up by default.\n"
-            + "Note: If `allowAutoTopicCreation` and this option are enabled at the same time,\n"
+            + "Note 1: If `allowAutoTopicCreation` and this option are enabled at the same time,\n"
             + "it may appear that a partitioned topic has just been deleted but is automatically created as a "
-                    + "non-partitioned topic."
+            + "non-partitioned topic.\n"
+            + "Note 2: Activating bidirectional geo-replication under global ZooKeeper configuration may lead to schema"
+            + " remnants and abnormal topic-level policies.\n"
+            + "Note 3: Activating bidirectional geo-replication under global configuration ZooKeeper may lead"
+            + " to a consumption issue."
     )
     private boolean brokerDeleteInactivePartitionedTopicMetadataEnabled = false;
     @FieldContext(
@@ -1042,6 +1046,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Enable precise rate limit for topic publish"
     )
     private boolean preciseTopicPublishRateLimiterEnable = false;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
@@ -1064,6 +1069,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "when broker publish rate limiting enabled. (Disable byte rate limit with value 0)"
     )
     private long brokerPublisherThrottlingMaxByteRate = 0;
+
+    @FieldContext(category = CATEGORY_SERVER, doc =
+            "The class name of the factory that creates DispatchRateLimiter implementations. Current options are "
+                    + "org.apache.pulsar.broker.service.persistent.DispatchRateLimiterFactoryAsyncTokenBucket "
+                    + "(default, PIP-322 implementation) "
+                    + "org.apache.pulsar.broker.service.persistent.DispatchRateLimiterFactoryClassic (legacy "
+                    + "implementation)")
+    private String dispatchRateLimiterFactoryClassName =
+            "org.apache.pulsar.broker.service.persistent.DispatchRateLimiterFactoryAsyncTokenBucket";
+
     @FieldContext(
             category = CATEGORY_SERVER,
             dynamic = true,
@@ -3012,6 +3027,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private ServiceUnitTableViewSyncerType loadBalancerServiceUnitTableViewSyncer = ServiceUnitTableViewSyncerType.None;
 
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Specify the maximum number of concurrent orphan bundle ownership overrides. "
+                    + "The leader broker triggers these overrides upon detecting orphaned bundles. "
+                    + "It identifies orphan bundle ownerships by periodically scanning ownership data "
+                    + "and monitoring for broker shutdowns or inactive states."
+    )
+    private int loadBalancerServiceUnitStateMaxConcurrentOverrides = 64;
+
     /**** --- Replication. --- ****/
     @FieldContext(
         category = CATEGORY_REPLICATION,
@@ -3383,6 +3408,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Maximum number of thread pool threads for ledger offloading"
     )
     private int managedLedgerOffloadMaxThreads = 2;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_OFFLOADING,
+            doc = "Maximum number of thread pool threads for offloaded ledger reading"
+    )
+    private int managedLedgerOffloadReadThreads = 2;
 
     @FieldContext(
         category = CATEGORY_STORAGE_OFFLOADING,
