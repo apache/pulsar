@@ -865,7 +865,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
 
         String functionLogs = pulsarCluster.getFunctionLogs(functionName);
-        log.info("====got function logs: {}", functionLogs);
         if (config == null || config.isEnabled()) {
             BatchingConfig finalConfig = config;
             if (finalConfig == null) {
