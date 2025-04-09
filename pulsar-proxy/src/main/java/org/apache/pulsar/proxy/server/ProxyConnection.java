@@ -435,7 +435,7 @@ public class ProxyConnection extends PulsarHandler {
     private void connectToBroker(InetSocketAddress brokerAddress) {
         assert ctx.executor().inEventLoop();
         DirectProxyHandler directProxyHandler = new DirectProxyHandler(service, this);
-        directProxyHandler.connect(proxyToBrokerUrl, brokerAddress, protocolVersionToAdvertise);
+        directProxyHandler.connect(proxyToBrokerUrl, brokerAddress, protocolVersionToAdvertise, features);
     }
 
     public void brokerConnected(DirectProxyHandler directProxyHandler, CommandConnected connected) {
