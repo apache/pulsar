@@ -174,6 +174,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         return this;
     }
 
+    @Override
     public ProducerBuilder<T> compressionMinMsgBodySize(int compressionMinMsgBodySize) {
         conf.setCompressMinMsgBodySize(compressionMinMsgBodySize);
         return this;
