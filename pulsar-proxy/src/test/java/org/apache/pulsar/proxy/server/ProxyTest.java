@@ -23,6 +23,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.List;
@@ -38,9 +40,11 @@ import org.apache.avro.reflect.Nullable;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.InjectedClientCnxClientBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
@@ -48,16 +52,21 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.common.api.AuthData;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandActiveConsumerChange;
+import org.apache.pulsar.common.api.proto.FeatureFlags;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
@@ -376,6 +385,64 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
 
         Assert.assertEquals(admin.topics().getStats(topic).getSubscriptions().get(subName).getConsumers()
                 .get(0).getClientVersion(), String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
+    }
+
+    @DataProvider
+    public Object[][] booleanValues() {
+        return new Object[][]{
+                {true},
+                {false}
+        };
+    }
+
+    @Test(dataProvider = "booleanValues")
+    public void testConnectedWithClientSideFeatures(boolean supported) throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        admin.topics().createNonPartitionedTopic(topic);
+
+        // Create a client as a old version, which does not support "supportsReplDedupByLidAndEid".
+        ClientBuilderImpl clientBuilder2 =
+                (ClientBuilderImpl) PulsarClient.builder().serviceUrl(proxyService.getServiceUrl());
+        PulsarClientImpl injectedClient = InjectedClientCnxClientBuilder.create(clientBuilder2,
+            (conf, eventLoopGroup) -> {
+                return new ClientCnx(conf, eventLoopGroup) {
+
+                    @Override
+                    protected ByteBuf newConnectCommand() throws Exception {
+                        authenticationDataProvider = authentication.getAuthData(remoteHostName);
+                        AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
+                        BaseCommand cmd =
+                                Commands.newConnectWithoutSerialize(authentication.getAuthMethodName(), authData,
+                                        this.protocolVersion, clientVersion, proxyToTargetBrokerAddress,
+                                        null, null, null, null, null);
+                        FeatureFlags featureFlags = cmd.getConnect().getFeatureFlags();
+                        featureFlags.setSupportsAuthRefresh(supported);
+                        featureFlags.setSupportsBrokerEntryMetadata(supported);
+                        featureFlags.setSupportsPartialProducer(supported);
+                        featureFlags.setSupportsTopicWatchers(supported);
+                        featureFlags.setSupportsReplDedupByLidAndEid(supported);
+                        featureFlags.setSupportsGetPartitionedMetadataWithoutAutoCreation(supported);
+                        return Commands.serializeWithSize(cmd);
+                    }
+                };
+            });
+
+        // Verify: the broker will create a connection, which disabled "supportsReplDedupByLidAndEid".
+        Producer<byte[]> producer = injectedClient.newProducer().topic(topic).create();
+        ServerCnx serverCnx = (ServerCnx) pulsar.getBrokerService().getTopic(topic, false).get().get()
+                .getProducers().values().iterator().next().getCnx();
+        FeatureFlags featureFlags = serverCnx.getFeatures();
+        assertEquals(featureFlags.isSupportsAuthRefresh(), supported);
+        assertEquals(featureFlags.isSupportsBrokerEntryMetadata(), supported);
+        assertEquals(featureFlags.isSupportsPartialProducer(), supported);
+        assertEquals(featureFlags.isSupportsTopicWatchers(), supported);
+        assertEquals(featureFlags.isSupportsReplDedupByLidAndEid(), supported);
+        assertEquals(featureFlags.isSupportsGetPartitionedMetadataWithoutAutoCreation(), supported);
+
+        // cleanup.
+        producer.close();
+        injectedClient.close();
+        admin.topics().delete(topic);
     }
 
     private static PulsarClient getClientActiveConsumerChangeNotSupported(ClientConfigurationData conf)
