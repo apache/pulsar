@@ -35,12 +35,14 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.apache.zookeeper.ClientCnxn;
 import org.apache.zookeeper.ZooKeeper;
+import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 
 @Slf4j
@@ -65,6 +67,7 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
     protected PulsarAdmin admin;
     protected PulsarClient client;
     protected ZooKeeper localZkOfBroker;
+    protected volatile SessionEvent sessionEvent;
     protected Object localMetaDataStoreClientCnx;
     protected final AtomicBoolean connectionTerminationThreadKeepRunning = new AtomicBoolean();
     private volatile Thread connectionTerminationThread;
@@ -87,6 +90,10 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
         broker = pulsar.getBrokerService();
         ZKMetadataStore zkMetadataStore = (ZKMetadataStore) pulsar.getLocalMetadataStore();
         localZkOfBroker = zkMetadataStore.getZkClient();
+        zkMetadataStore.registerSessionListener(n -> {
+            log.info("Received session event: {}", n);
+            sessionEvent = n;
+        });
         ClientCnxn cnxn = WhiteboxImpl.getInternalState(localZkOfBroker, "cnxn");
         Object sendThread = WhiteboxImpl.getInternalState(cnxn, "sendThread");
         localMetaDataStoreClientCnx = WhiteboxImpl.getInternalState(sendThread, "clientCnxnSocket");
@@ -157,6 +164,7 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
             connectionTerminationThread.join();
             connectionTerminationThread = null;
         }
+        Awaitility.await().until(() -> SessionEvent.Reconnected.equals(sessionEvent));
     }
 
     protected void createDefaultTenantsAndClustersAndNamespace() throws Exception {
