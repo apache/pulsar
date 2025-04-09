@@ -43,6 +43,8 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class CompactionConcurrencyTest extends ProducerConsumerBase {
+    // don't make this over 2000ms, otherwise the test will be flaky due to ZKSessionWatcher
+    static final int DELETE_OPERATION_DELAY_MS = 1900;
 
     @BeforeClass
     @Override
@@ -99,10 +101,10 @@ public class CompactionConcurrencyTest extends ProducerConsumerBase {
         String cursorPath = String.format("/managed-ledgers/%s/__compaction",
                 TopicName.get(topicName).getPersistenceNamingEncoding());
         admin.topicPolicies().removeCompactionThreshold(topicName);
-        mockZooKeeper.delay(5000, (op, path) -> {
+        mockZooKeeper.delay(DELETE_OPERATION_DELAY_MS, (op, path) -> {
             return op == MockZooKeeper.Op.DELETE && cursorPath.equals(path) && times.incrementAndGet() == 1;
         });
-        mockZooKeeperGlobal.delay(5000, (op, path) -> {
+        mockZooKeeperGlobal.delay(DELETE_OPERATION_DELAY_MS, (op, path) -> {
             return op == MockZooKeeper.Op.DELETE && cursorPath.equals(path) && times.incrementAndGet() == 1;
         });
         AtomicReference<CompletableFuture<Void>> f1 = new AtomicReference<CompletableFuture<Void>>();
