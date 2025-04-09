@@ -78,6 +78,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -1393,5 +1394,64 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             });
         });
         assertThat(admin1.topics().getList(ns)).doesNotContain(tp);
+    }
+
+    @Test
+    public void testReplicatorWhenPartitionCountsDiffer() throws Exception {
+        String ns = defaultTenant + "/" + UUID.randomUUID().toString().replace("-", "");
+        admin1.namespaces().createNamespace(ns);
+        admin2.namespaces().createNamespace(ns);
+
+        final String tp = BrokerTestUtil.newUniqueName("persistent://" + ns + "/tp_");
+        admin1.topics().createPartitionedTopic(tp, 4);
+        admin2.topics().createPartitionedTopic(tp, 8);
+
+        admin1.namespaces().setNamespaceReplicationClusters(ns, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+        admin2.namespaces().setNamespaceReplicationClusters(ns, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic persistentTopic =
+                    (PersistentTopic) broker1.getTopic(TopicName.get(tp).getPartition(0).toString(), false).join()
+                            .get();
+            assertFalse(persistentTopic.getReplicators().isEmpty());
+        });
+
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic persistentTopic =
+                    (PersistentTopic) broker2.getTopic(TopicName.get(tp).getPartition(0).toString(), false).join()
+                            .get();
+            assertFalse(persistentTopic.getReplicators().isEmpty());
+        });
+
+        // Trigger the replicator.
+        @Cleanup
+        Producer<String> p1 = client1.newProducer(Schema.STRING).topic(tp).create();
+        p1.send("msg-p1-1");
+        @Cleanup
+        Producer<String> p2 = client2.newProducer(Schema.STRING).topic(tp).create();
+        p2.send("msg-p2-1");
+
+        // Topic partition counts differ between the local and remote clusters.
+        // The replicator should not replicate the messages.
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic persistentTopic =
+                    (PersistentTopic) broker1.getTopic(TopicName.get(tp).getPartition(0).toString(), false).join()
+                            .get();
+            persistentTopic.getReplicators().forEach((key, value) -> {
+                assertFalse(value.isConnected());
+            });
+        });
+
+        @Cleanup
+        Consumer<String> c2 = client2.newConsumer(Schema.STRING).topic(tp).subscriptionName("test-sub")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe();
+
+        while (true) {
+            Message<String> receive = c2.receive(3, TimeUnit.SECONDS);
+            if (receive == null) {
+                break;
+            }
+            assertEquals(receive.getValue(), "msg-p2-1");
+        }
     }
 }

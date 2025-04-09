@@ -157,6 +157,18 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                                                     }
                                                     return CompletableFuture.completedFuture(null);
                                                 });
+                                    } else {
+                                        if (localMetadata.partitions != remoteMetadata.partitions) {
+                                            return FutureUtil.failedFuture(
+                                                    new PulsarClientException.NotAllowedException(
+                                                            "The number of topic partitions is inconsistent between "
+                                                                    + "local and"
+                                                                    + " remote "
+                                                                    + "clusters: local partitions: "
+                                                                    + localMetadata.partitions
+                                                                    + ", remote partitions: "
+                                                                    + remoteMetadata.partitions));
+                                        }
                                     }
                                 }
                                 return CompletableFuture.completedFuture(null);

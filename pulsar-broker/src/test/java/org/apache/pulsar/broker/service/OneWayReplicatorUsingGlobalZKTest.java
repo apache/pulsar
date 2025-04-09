@@ -231,4 +231,10 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
     public void testReplicatorCreateTopicWhenTopicExistsWithDifferentTypeAcrossClusters() throws Exception {
         super.testReplicatorCreateTopicWhenTopicExistsWithDifferentTypeAcrossClusters();
     }
+
+    @Test(enabled = false)
+    @Override
+    public void testReplicatorWhenPartitionCountsDiffer() throws Exception {
+        super.testReplicatorWhenPartitionCountsDiffer();
+    }
 }
