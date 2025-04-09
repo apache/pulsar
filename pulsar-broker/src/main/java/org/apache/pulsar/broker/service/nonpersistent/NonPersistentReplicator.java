@@ -30,6 +30,7 @@ import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -50,9 +51,10 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
     private final NonPersistentReplicatorStatsImpl stats = new NonPersistentReplicatorStatsImpl();
 
     public NonPersistentReplicator(NonPersistentTopic topic, String localCluster, String remoteCluster,
-            BrokerService brokerService, PulsarClientImpl replicationClient) throws PulsarServerException {
+                                   BrokerService brokerService, PulsarClientImpl replicationClient,
+                                   PulsarAdmin replicationAdmin) throws PulsarServerException {
         super(localCluster, topic, remoteCluster, topic.getName(), topic.getReplicatorPrefix(), brokerService,
-                replicationClient);
+                replicationClient, replicationAdmin);
 
         producerBuilder.blockIfQueueFull(false);
 

@@ -204,4 +204,9 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
         admin2.topics().delete(topic);
         admin2.namespaces().deleteNamespace(ns1);
     }
+
+    @Test(enabled = false)
+    public void testReplicatorCreateTopicWhenTopicExistsWithDifferentTypeAcrossClusters() throws Exception {
+        super.testReplicatorCreateTopicWhenTopicExistsWithDifferentTypeAcrossClusters();
+    }
 }

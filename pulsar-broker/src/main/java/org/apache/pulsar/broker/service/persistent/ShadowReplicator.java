@@ -27,6 +27,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -39,11 +40,12 @@ import org.apache.pulsar.common.util.Codec;
 public class ShadowReplicator extends PersistentReplicator {
 
     public ShadowReplicator(String shadowTopic, PersistentTopic sourceTopic, ManagedCursor cursor,
-                            BrokerService brokerService, PulsarClientImpl replicationClient)
+                            BrokerService brokerService, PulsarClientImpl replicationClient,
+                            PulsarAdmin replicationAdmin)
             throws PulsarServerException {
         super(brokerService.pulsar().getConfiguration().getClusterName(), sourceTopic, cursor,
                 brokerService.pulsar().getConfiguration().getClusterName(), shadowTopic, brokerService,
-                replicationClient);
+                replicationClient, replicationAdmin);
     }
 
     /**

@@ -223,4 +223,10 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         admin2.topics().delete(topic);
         admin2.namespaces().deleteNamespace(ns1);
     }
+
+    @Test(enabled = false)
+    @Override
+    public void testReplicatorCreateTopicWhenTopicExistsWithDifferentTypeAcrossClusters() throws Exception {
+        super.testReplicatorCreateTopicWhenTopicExistsWithDifferentTypeAcrossClusters();
+    }
 }
