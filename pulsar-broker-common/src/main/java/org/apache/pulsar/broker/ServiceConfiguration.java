@@ -3022,6 +3022,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private ServiceUnitTableViewSyncerType loadBalancerServiceUnitTableViewSyncer = ServiceUnitTableViewSyncerType.None;
 
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Specify the maximum number of concurrent orphan bundle ownership overrides. "
+                    + "The leader broker triggers these overrides upon detecting orphaned bundles. "
+                    + "It identifies orphan bundle ownerships by periodically scanning ownership data "
+                    + "and monitoring for broker shutdowns or inactive states."
+    )
+    private int loadBalancerServiceUnitStateMaxConcurrentOverrides = 64;
+
     /**** --- Replication. --- ****/
     @FieldContext(
         category = CATEGORY_REPLICATION,
