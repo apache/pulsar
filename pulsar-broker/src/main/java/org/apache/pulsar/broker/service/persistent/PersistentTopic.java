@@ -229,9 +229,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     protected final MessageDeduplication messageDeduplication;
 
     private static final long COMPACTION_NEVER_RUN = -0xfebecffeL;
-    private volatile CompletableFuture<Long> currentCompaction = CompletableFuture.completedFuture(
+    volatile CompletableFuture<Long> currentCompaction = CompletableFuture.completedFuture(
             COMPACTION_NEVER_RUN);
     private final CompactedTopic compactedTopic;
+    final AtomicBoolean disablingCompaction = new AtomicBoolean(false);
 
     // TODO: Create compaction strategy from topic policy when exposing strategic compaction to users.
     private static Map<String, TopicCompactionStrategy> strategicCompactionMap = Map.of(
@@ -1305,18 +1306,42 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return;
         }
 
-        currentCompaction.handle((__, e) -> {
-            if (e != null) {
+        // Avoid concurrently execute compaction and unsubscribing.
+        synchronized (this) {
+            if (!disablingCompaction.compareAndSet(false, true)) {
+                unsubscribeFuture.completeExceptionally(
+                        new SubscriptionBusyException("the subscription is deleting by another task"));
+                return;
+            }
+        }
+        // Unsubscribe compaction cursor and delete compacted ledger.
+        currentCompaction.thenCompose(__ -> {
+            asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+            return unsubscribeFuture;
+        }).thenAccept(__ -> {
+            try {
+                ((CompactorSubscription) subscription).cleanCompactedLedger();
+            } catch (Exception ex) {
+                Long compactedLedger = null;
+                Optional<CompactedTopicContext> compactedTopicContext = getCompactedTopicContext();
+                if (compactedTopicContext.isPresent() && compactedTopicContext.get().getLedger() != null) {
+                    compactedLedger = compactedTopicContext.get().getLedger().getId();
+                }
+                log.error("[{}][{}][{}] Error cleaning compacted ledger", topic, subscriptionName, compactedLedger, ex);
+            } finally {
+                // Reset the variable: disablingCompaction,
+                disablingCompaction.compareAndSet(true, false);
+            }
+        }).exceptionally(ex -> {
+            if (currentCompaction.isCompletedExceptionally()) {
                 log.warn("[{}][{}] Last compaction task failed", topic, subscriptionName);
-            }
-            return ((CompactorSubscription) subscription).cleanCompactedLedger();
-        }).whenComplete((__, ex) -> {
-            if (ex != null) {
-                log.error("[{}][{}] Error cleaning compacted ledger", topic, subscriptionName, ex);
-                unsubscribeFuture.completeExceptionally(ex);
             } else {
-                asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+                log.warn("[{}][{}] Failed to delete cursor task failed", topic, subscriptionName);
             }
+            // Reset the variable: disablingCompaction,
+            disablingCompaction.compareAndSet(true, false);
+            unsubscribeFuture.completeExceptionally(ex);
+            return null;
         });
     }
 
@@ -3676,6 +3701,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             try {
                 if (isClosingOrDeleting) {
                     log.info("[{}] Topic is closing or deleting, skip triggering compaction", topic);
+                    return;
+                }
+                if (disablingCompaction.get()) {
+                    log.info("[{}] Compaction is disabling, skip triggering compaction", topic);
                     return;
                 }
 
