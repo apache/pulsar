@@ -36,10 +36,12 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -96,6 +98,9 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
     private static final String TENANT_ADMIN_TOKEN = Jwts.builder()
             .claim("sub", TENANT_ADMIN_SUBJECT).signWith(SECRET_KEY).compact();
 
+    private volatile Consumer<InvocationOnMock> allowNamespacePolicyOperationAsyncHandler;
+    private volatile Consumer<InvocationOnMock> allowNamespaceOperationAsyncHandler;
+
     @SneakyThrows
     @BeforeClass
     public void setup() {
@@ -118,9 +123,28 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                 .authentication(new AuthenticationToken(TENANT_ADMIN_TOKEN))
                 .build();
         this.pulsarClient = super.getPulsarService().getClient();
-        this.authorizationService = Mockito.spy(getPulsarService().getBrokerService().getAuthorizationService());
+        this.authorizationService = BrokerTestUtil.spyWithoutRecordingInvocations(
+                getPulsarService().getBrokerService().getAuthorizationService());
         FieldUtils.writeField(getPulsarService().getBrokerService(), "authorizationService",
                 authorizationService, true);
+        Mockito.doAnswer(invocationOnMock -> {
+            Consumer<InvocationOnMock> localAllowNamespacePolicyOperationAsyncHandler =
+                    allowNamespacePolicyOperationAsyncHandler;
+            if (localAllowNamespacePolicyOperationAsyncHandler != null) {
+                localAllowNamespacePolicyOperationAsyncHandler.accept(invocationOnMock);
+            }
+            return invocationOnMock.callRealMethod();
+        }).when(authorizationService).allowNamespacePolicyOperationAsync(Mockito.any(), Mockito.any(), Mockito.any(),
+                Mockito.any(), Mockito.any());
+        Mockito.doAnswer(invocationOnMock -> {
+            Consumer<InvocationOnMock> localAllowNamespaceOperationAsyncHandler =
+                    allowNamespaceOperationAsyncHandler;
+            if (localAllowNamespaceOperationAsyncHandler != null) {
+                localAllowNamespaceOperationAsyncHandler.accept(invocationOnMock);
+            }
+            return invocationOnMock.callRealMethod();
+        }).when(authorizationService).allowNamespaceOperationAsync(Mockito.any(), Mockito.any(), Mockito.any(),
+                Mockito.any());
     }
 
 
@@ -144,33 +168,31 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
     public void after() throws Exception {
         deleteNamespaceWithRetry("public/default", true, superUserAdmin);
         superUserAdmin.namespaces().createNamespace("public/default");
+        allowNamespacePolicyOperationAsyncHandler = null;
+        allowNamespaceOperationAsyncHandler = null;
     }
 
     private AtomicBoolean setAuthorizationOperationChecker(String role, NamespaceOperation operation) {
         AtomicBoolean execFlag = new AtomicBoolean(false);
-        Mockito.doAnswer(invocationOnMock -> {
+        allowNamespaceOperationAsyncHandler = invocationOnMock -> {
             String role_ = invocationOnMock.getArgument(2);
             if (role.equals(role_)) {
                 NamespaceOperation operation_ = invocationOnMock.getArgument(1);
                 Assert.assertEquals(operation_, operation);
             }
             execFlag.set(true);
-            return invocationOnMock.callRealMethod();
-        }).when(authorizationService).allowNamespaceOperationAsync(Mockito.any(), Mockito.any(), Mockito.any(),
-                Mockito.any());
-         return execFlag;
+        };
+        return execFlag;
     }
 
     private void clearAuthorizationOperationChecker() {
-        Mockito.doAnswer(InvocationOnMock::callRealMethod).when(authorizationService)
-                .allowNamespaceOperationAsync(Mockito.any(), Mockito.any(), Mockito.any(),
-                        Mockito.any());
+        allowNamespaceOperationAsyncHandler = null;
     }
 
     private AtomicBoolean setAuthorizationPolicyOperationChecker(String role, Object policyName, Object operation) {
         AtomicBoolean execFlag = new AtomicBoolean(false);
         if (operation instanceof PolicyOperation) {
-            Mockito.doAnswer(invocationOnMock -> {
+            allowNamespacePolicyOperationAsyncHandler = invocationOnMock -> {
                 String role_ = invocationOnMock.getArgument(3);
                 if (role.equals(role_)) {
                     PolicyName policyName_ = invocationOnMock.getArgument(1);
@@ -179,9 +201,7 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
                     assertEquals(policyName_, policyName);
                 }
                 execFlag.set(true);
-                return invocationOnMock.callRealMethod();
-            }).when(authorizationService).allowNamespacePolicyOperationAsync(Mockito.any(), Mockito.any(), Mockito.any(),
-                    Mockito.any(), Mockito.any());
+            };
         } else {
             throw new IllegalArgumentException("");
         }
