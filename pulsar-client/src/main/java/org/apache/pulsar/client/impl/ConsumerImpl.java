@@ -124,7 +124,6 @@ import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
-import org.apache.pulsar.common.naming.Metadata;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -191,7 +190,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final MessageCrypto msgCrypto;
 
-    private Map<String, String> metadata;
+    private final Map<String, String> metadata;
 
     private final boolean readCompacted;
     private final boolean resetIncludeHead;
@@ -365,7 +364,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (conf.getProperties().isEmpty()) {
             metadata = Collections.emptyMap();
         } else {
-            metadata = new HashMap<>(conf.getProperties());
+            metadata = Collections.unmodifiableMap(new HashMap<>(conf.getProperties()));
         }
 
         this.connectionHandler = new ConnectionHandler(this,
@@ -919,7 +918,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // synchronized this, because redeliverUnAckMessage eliminate the epoch inconsistency between them
         final CompletableFuture<Void> future = new CompletableFuture<>();
         synchronized (this) {
-            updateProxyMetadataIfNeeded(cnx);
             ByteBuf request = Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(),
                     priorityLevel, consumerName, isDurable, startMessageIdData, metadata, readCompacted,
                     conf.getReplicateSubscriptionState(),
@@ -3157,14 +3155,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         return cmd;
-    }
-
-    private void updateProxyMetadataIfNeeded(ClientCnx cnx) {
-        boolean isProxy = cnx.isProxy() || client.getConfiguration().getProxyServiceUrl() != null;
-        if (isProxy && cnx.getLocalAddress() != null) {
-            metadata = metadata.isEmpty() ? new HashMap<>() : metadata;
-            metadata.put(Metadata.CLIENT_IP, cnx.getLocalAddress().toString());
-        }
     }
 
     private CompletableFuture<Void> doTransactionAcknowledgeForResponse(List<MessageId> messageIds, AckType ackType,
