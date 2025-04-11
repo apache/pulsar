@@ -58,5 +58,10 @@ public enum SubscriptionType {
      *
      * <p>Use ordering_key to overwrite the message key for message ordering.
      */
-    Key_Shared
+    Key_Shared,
+    /**
+     * FetchConsumer is a special type of consumer that allows the user to fetch messages from the server
+     * FetchConsumer does not support receive messages, it only supports fetch messages.
+     */
+    Fetch,
 }

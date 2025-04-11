@@ -84,6 +84,8 @@ public interface Subscription extends MessageExpirer {
 
     CompletableFuture<Void> resetCursor(Position position);
 
+    CompletableFuture<Void> resetCursorByIndex(long index);
+
     CompletableFuture<Entry> peekNthMessage(int messagePosition);
 
     void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch);

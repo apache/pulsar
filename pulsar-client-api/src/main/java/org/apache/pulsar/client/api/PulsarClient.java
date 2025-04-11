@@ -119,6 +119,8 @@ public interface PulsarClient extends Closeable {
      */
     ConsumerBuilder<byte[]> newConsumer();
 
+    FetchConsumerBuilder<byte[]> newFetchConsumer();
+
     /**
      * Create a consumer builder with a specific schema for subscribing on a specific topic
      *
@@ -145,6 +147,8 @@ public interface PulsarClient extends Closeable {
      * @since 2.0.0
      */
     <T> ConsumerBuilder<T> newConsumer(Schema<T> schema);
+
+    <T> FetchConsumerBuilder<T> newFetchConsumer(Schema<T> schema);
 
     /**
      * Create a topic reader builder with no schema ({@link Schema#BYTES}) to read from the specified topic.

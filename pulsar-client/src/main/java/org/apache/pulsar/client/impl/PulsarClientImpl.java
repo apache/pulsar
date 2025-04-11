@@ -58,6 +58,8 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.FetchConsumer;
+import org.apache.pulsar.client.api.FetchConsumerBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -317,8 +319,18 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     @Override
+    public FetchConsumerBuilder<byte[]> newFetchConsumer() {
+        return new FetchConsumerBuilderImpl<>(this, Schema.BYTES);
+    }
+
+    @Override
     public <T> ConsumerBuilder<T> newConsumer(Schema<T> schema) {
         return new ConsumerBuilderImpl<>(this, schema);
+    }
+
+    @Override
+    public <T> FetchConsumerBuilder<T> newFetchConsumer(Schema<T> schema) {
+        return new FetchConsumerBuilderImpl<>(this, schema);
     }
 
     @Override
@@ -521,12 +533,28 @@ public class PulsarClientImpl implements PulsarClient {
                 interceptors, overrideProducerName);
     }
 
-    public CompletableFuture<Consumer<byte[]>> subscribeAsync(ConsumerConfigurationData<byte[]> conf) {
-        return subscribeAsync(conf, Schema.BYTES, null);
+    public CompletableFuture<FetchConsumer<byte[]>> fetchConsumerSubscribeAsync(
+            ConsumerConfigurationData<byte[]> conf) {
+        return fetchConsumerSubscribeAsync(conf, Schema.BYTES, null);
     }
 
-    public <T> CompletableFuture<Consumer<T>> subscribeAsync(ConsumerConfigurationData<T> conf, Schema<T> schema,
-                                                             ConsumerInterceptors<T> interceptors) {
+    <T> CompletableFuture<FetchConsumer<T>> fetchConsumerSubscribeAsync(ConsumerConfigurationData<T> conf,
+                                                                        Schema<T> schema,
+                                                                        ConsumerInterceptors<T> interceptors) {
+        return verifyConsumerConfig(conf).thenCompose(k -> {
+            if (conf.getTopicsPattern() != null) {
+                return FutureUtil.failedFuture(new PulsarClientException(
+                        "FetchConsumer does not support topicsPattern subscription"));
+            } else if (conf.getTopicNames().size() == 1) {
+                return fetchSingleTopicSubscribeAsync(conf, schema, interceptors);
+            } else {
+                return fetchMultiTopicSubscribeAsync(conf, schema, interceptors);
+            }
+        });
+    }
+
+    private <T> CompletableFuture<FetchConsumer<T>> verifyConsumerConfig(
+            ConsumerConfigurationData<T> conf) {
         if (state.get() != State.Open) {
             return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
         }
@@ -551,7 +579,7 @@ public class PulsarClientImpl implements PulsarClient {
         if (conf.isReadCompacted() && (!conf.getTopicNames().stream()
                 .allMatch(topic -> TopicName.get(topic).getDomain() == TopicDomain.persistent)
                 || (conf.getSubscriptionType() != SubscriptionType.Exclusive
-                        && conf.getSubscriptionType() != SubscriptionType.Failover))) {
+                && conf.getSubscriptionType() != SubscriptionType.Failover))) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
                     "Read compacted can only be used with exclusive or failover persistent subscriptions"));
         }
@@ -560,19 +588,29 @@ public class PulsarClientImpl implements PulsarClient {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
                     "Active consumer listener is only supported for failover subscription"));
         }
+        return CompletableFuture.completedFuture(null);
+    }
 
-        if (conf.getTopicsPattern() != null) {
-            // If use topicsPattern, we should not use topic(), and topics() method.
-            if (!conf.getTopicNames().isEmpty()){
-                return FutureUtil
-                    .failedFuture(new IllegalArgumentException("Topic names list must be null when use topicsPattern"));
+    public CompletableFuture<Consumer<byte[]>> subscribeAsync(ConsumerConfigurationData<byte[]> conf) {
+        return subscribeAsync(conf, Schema.BYTES, null);
+    }
+
+    public <T> CompletableFuture<Consumer<T>> subscribeAsync(ConsumerConfigurationData<T> conf, Schema<T> schema,
+                                                             ConsumerInterceptors<T> interceptors) {
+        return verifyConsumerConfig(conf).thenCompose(k -> {
+            if (conf.getTopicsPattern() != null) {
+                // If use topicsPattern, we should not use topic(), and topics() method.
+                if (!conf.getTopicNames().isEmpty()){
+                    return FutureUtil.failedFuture(
+                            new IllegalArgumentException("Topic names list must be null when use topicsPattern"));
+                }
+                return patternTopicSubscribeAsync(conf, schema, interceptors);
+            } else if (conf.getTopicNames().size() == 1) {
+                return singleTopicSubscribeAsync(conf, schema, interceptors);
+            } else {
+                return multiTopicSubscribeAsync(conf, schema, interceptors);
             }
-            return patternTopicSubscribeAsync(conf, schema, interceptors);
-        } else if (conf.getTopicNames().size() == 1) {
-            return singleTopicSubscribeAsync(conf, schema, interceptors);
-        } else {
-            return multiTopicSubscribeAsync(conf, schema, interceptors);
-        }
+        });
     }
 
     private <T> CompletableFuture<Consumer<T>> singleTopicSubscribeAsync(ConsumerConfigurationData<T> conf,
@@ -612,6 +650,45 @@ public class PulsarClientImpl implements PulsarClient {
         });
 
         return consumerSubscribedFuture;
+    }
+
+    private <T> CompletableFuture<FetchConsumer<T>> doFetchSingleTopicSubscribeAsync(ConsumerConfigurationData<T> conf,
+                                                                           Schema<T> schema,
+                                                                           ConsumerInterceptors<T> interceptors) {
+        CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
+
+        String topic = conf.getSingleTopic();
+
+        getPartitionedTopicMetadata(topic, true, false).thenAccept(metadata -> {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Received topic metadata. partitions: {}", topic, metadata.partitions);
+            }
+
+            ConsumerBase<T> consumer;
+            if (metadata.partitions > 0) {
+                consumer = MultiTopicsConsumerImpl.createPartitionedConsumer(PulsarClientImpl.this, conf,
+                        externalExecutorProvider, consumerSubscribedFuture, metadata.partitions, schema, interceptors);
+            } else {
+                int partitionIndex = TopicName.getPartitionIndex(topic);
+                consumer = FetchConsumerImpl.create(PulsarClientImpl.this, topic, conf, externalExecutorProvider,
+                        partitionIndex, false, consumerSubscribedFuture, null, 0, schema, interceptors,
+                        true /* createTopicIfDoesNotExist */);
+            }
+            consumers.add(consumer);
+        }).exceptionally(ex -> {
+            log.warn("[{}] Failed to get partitioned topic metadata", topic, ex);
+            consumerSubscribedFuture.completeExceptionally(ex);
+            return null;
+        });
+
+        return consumerSubscribedFuture.thenCompose(consumer -> {
+            if (consumer instanceof FetchConsumer) {
+                return CompletableFuture.completedFuture((FetchConsumer<T>) consumer);
+            } else {
+                return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
+                        "Fail to create fetch consumer"));
+            }
+        });
     }
 
     private <T> CompletableFuture<Consumer<T>> multiTopicSubscribeAsync(ConsumerConfigurationData<T> conf,
@@ -683,6 +760,34 @@ public class PulsarClientImpl implements PulsarClient {
             });
 
         return consumerSubscribedFuture;
+    }
+
+    private <T> CompletableFuture<FetchConsumer<T>> fetchMultiTopicSubscribeAsync(ConsumerConfigurationData<T> conf,
+                                                                        Schema<T> schema,
+                                                                        ConsumerInterceptors<T> interceptors) {
+        CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
+
+        ConsumerBase<T> consumer = new MultiTopicsConsumerImpl<>(PulsarClientImpl.this, conf,
+                externalExecutorProvider, consumerSubscribedFuture, schema, interceptors,
+                true /* createTopicIfDoesNotExist */);
+
+        consumers.add(consumer);
+
+        return consumerSubscribedFuture.thenCompose(consumer1 -> {
+            if (consumer1 instanceof FetchConsumer) {
+                return CompletableFuture.completedFuture((FetchConsumer<T>) consumer1);
+            } else {
+                return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
+                        "Fail to create fetch consumer"));
+            }
+        });
+    }
+
+    private <T> CompletableFuture<FetchConsumer<T>> fetchSingleTopicSubscribeAsync(ConsumerConfigurationData<T> conf,
+                                                                         Schema<T> schema,
+                                                                         ConsumerInterceptors<T> interceptors) {
+        return preProcessSchemaBeforeSubscribe(this, schema, conf.getSingleTopic())
+                .thenCompose(schemaClone -> doFetchSingleTopicSubscribeAsync(conf, schemaClone, interceptors));
     }
 
     public CompletableFuture<Reader<byte[]>> createReaderAsync(ReaderConfigurationData<byte[]> conf) {

@@ -84,6 +84,10 @@ public interface MessageIdAdv extends MessageId {
         return null;
     }
 
+    default long getOffset() {
+        return -1;
+    }
+
     /**
      * Get the message ID of the first chunk if the current message ID represents the position of a chunked message.
      *

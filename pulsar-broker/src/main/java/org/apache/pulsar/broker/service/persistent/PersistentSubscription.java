@@ -940,6 +940,57 @@ public class PersistentSubscription extends AbstractSubscription {
     }
 
     @Override
+    public CompletableFuture<Void> resetCursorByIndex(long index) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+
+        PersistentMessageFinderByIndex finder = new PersistentMessageFinderByIndex(topicName, cursor);
+
+        if (log.isDebugEnabled()) {
+            log.debug("[{}][{}] Resetting subscription to index {}", topicName, subName, index);
+        }
+        finder.findMessagesByIndex(index, new AsyncCallbacks.FindEntryCallback() {
+            @Override
+            public void findEntryComplete(Position position, Object ctx) {
+                if (position == null) {
+                    log.info("[{}][{}] Unable to find position for index {}.", topicName, subName, index);
+                    position = cursor.getFirstPosition();
+                    if (position == null) {
+                        log.warn("[{}][{}] Unable to find position for index {}."
+                                        + " Unable to reset cursor to first position",
+                                topicName, subName, index);
+                        future.completeExceptionally(
+                                new SubscriptionInvalidCursorPosition("Unable to find position for specified index"));
+                        return;
+                    }
+                    log.info("[{}][{}] Unable to find position for index {}. "
+                                    + "Resetting cursor to first position {} in ledger",
+                            topicName, subName, index, position);
+                } else {
+                    position = position.getNext();
+                }
+                resetCursor(position).whenComplete((f, ex) -> {
+                    if (ex != null) {
+                        future.completeExceptionally(ex);
+                    } else {
+                        future.complete(null);
+                    }
+                });
+            }
+
+            @Override
+            public void findEntryFailed(ManagedLedgerException exception,
+                                        Optional<Position> failedReadPosition, Object ctx) {
+                if (exception instanceof ConcurrentFindCursorPositionException) {
+                    future.completeExceptionally(new SubscriptionBusyException(exception.getMessage()));
+                } else {
+                    future.completeExceptionally(new BrokerServiceException(exception));
+                }
+            }
+        });
+        return future;
+    }
+
+    @Override
     public CompletableFuture<Entry> peekNthMessage(int messagePosition) {
         CompletableFuture<Entry> future = new CompletableFuture<>();
 

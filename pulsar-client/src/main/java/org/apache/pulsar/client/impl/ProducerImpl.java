@@ -1262,8 +1262,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
         }
     }
-
     protected void ackReceived(ClientCnx cnx, long sequenceId, long highestSequenceId, long ledgerId, long entryId) {
+        ackReceived(cnx, sequenceId, highestSequenceId, ledgerId, entryId, -1);
+    }
+    protected void ackReceived(ClientCnx cnx, long sequenceId, long highestSequenceId, long ledgerId, long entryId,
+                               long index) {
         OpSendMsg op = null;
         synchronized (this) {
             op = pendingMessages.peek();
