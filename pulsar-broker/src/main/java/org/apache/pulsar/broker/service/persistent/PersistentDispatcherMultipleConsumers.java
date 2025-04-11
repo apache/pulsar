@@ -256,7 +256,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                     notifyRedeliveryMessageAdded();
                 }
             }
-        } else {
+        } else { //TODO 这里 consumer/producer 的计数，计算几次？
             /**
              * This is not an expected scenario, it will never happen in expected.
              * Just add a defensive code to avoid the topic can not be unloaded anymore: remove the consumers which
@@ -362,10 +362,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         Position markDeletePosition = cursor.getMarkDeletedPosition();
         if (lastMarkDeletePositionBeforeReadMoreEntries != markDeletePosition) {
             redeliveryMessages.removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
-            for (Consumer consumer : consumerList) {
-                consumer.getPendingAcks()
-                        .removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
-            }
             lastMarkDeletePositionBeforeReadMoreEntries = markDeletePosition;
         }
 
@@ -779,9 +775,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
      * if you need to change it.
      */
     protected synchronized boolean trySendMessagesToConsumers(ReadType readType, List<Entry> entries) {
-        if (needTrimAckedMessages()) {
-            cursor.trimDeletedEntries(entries);
-        }
+        cursor.trimDeletedEntries(entries);
         lastNumberOfEntriesProcessed = 0;
 
         int entriesToDispatch = entries.size();
