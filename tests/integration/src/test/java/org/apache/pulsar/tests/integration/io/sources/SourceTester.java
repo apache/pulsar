@@ -53,12 +53,18 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> i
     protected int numEntriesToInsert = 1;
     protected int numEntriesExpectAfterStart = 9;
 
+    /*
+     *In Debezium 2.5, they introduced several new timestamp fields,
+     * ts_us, and ts_ns, which represent the millisecond-based time values in microseconds and nanoseconds respectively.
+     */
     public static final Set<String> DEBEZIUM_FIELD_SET = new HashSet<String>() {{
         add("before");
         add("after");
         add("source");
         add("op");
         add("ts_ms");
+        add("ts_us");
+        add("ts_ns");
         add("transaction");
     }};
 
