@@ -25,7 +25,6 @@ import java.util.Map;
  */
 public class Metadata {
 
-    public static final String CLIENT_IP = "X-Pulsar-Client-IP";
     private Metadata() {}
 
     public static void validateMetadata(Map<String, String> metadata,
