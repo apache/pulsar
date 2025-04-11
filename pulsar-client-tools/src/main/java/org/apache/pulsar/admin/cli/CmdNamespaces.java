@@ -883,7 +883,7 @@ public class CmdNamespaces extends CmdBase {
         private String namespaceName;
 
         @Option(names = { "--bundle",
-                "-b" }, description = "{start-boundary}_{end-boundary} "
+                "-b" }, description = "{start-boundary}_{end-boundary} or just {start-boundary} "
                         + "(mutually exclusive with --bundle-type)", required = false)
         private String bundle;
 
@@ -916,12 +916,58 @@ public class CmdNamespaces extends CmdBase {
                 throw new ParameterException("--bundle and --bundle-type are mutually exclusive");
             }
             bundle = bundleType != null ? bundleType.toString() : bundle;
+
+            // Format bundle parameter if needed (to handle single hash value)
+            bundle = validateAndFormatBundle(namespace, bundle);
+
             if (splitBoundaries == null || splitBoundaries.size() == 0) {
                 getAdmin().namespaces().splitNamespaceBundle(
                         namespace, bundle, unload, splitAlgorithmName);
             } else {
                 getAdmin().namespaces().splitNamespaceBundle(
                         namespace, bundle, unload, splitAlgorithmName, splitBoundaries);
+            }
+        }
+
+        /**
+         * Validates and formats the bundle parameter to ensure it matches the expected format.
+         * If a single hash value is provided, it will try to find the corresponding bundle range.
+         *
+         * @param namespace The namespace
+         * @param bundleParam The bundle parameter from command line
+         * @return Properly formatted bundle string
+         * @throws PulsarAdminException if validation fails or bundle cannot be found
+         */
+        private String validateAndFormatBundle(String namespace, String bundleParam)
+                throws PulsarAdminException {
+            // If it already contains an underscore, it's already in the right format
+            if (bundleParam.contains("_")) {
+                return bundleParam;
+            }
+
+            // Otherwise, it's a single hash value and we need to find the full bundle range
+            try {
+                // Parse the hash value to make sure it's a valid hexadecimal
+                Long.decode(bundleParam);
+
+                // Get all bundles for the namespace
+                BundlesData bundles = getAdmin().namespaces().getBundles(namespace);
+
+                // Find the bundle with this hash as the lower boundary
+                List<String> bundleBoundaries = bundles.getBoundaries();
+                for (int i = 0; i < bundleBoundaries.size() - 1; i++) {
+                    if (bundleBoundaries.get(i).equals(bundleParam)) {
+                        // Found a matching bundle, return the proper bundle range format
+                        return bundleBoundaries.get(i) + "_" + bundleBoundaries.get(i + 1);
+                    }
+                }
+
+                // If we get here, we couldn't find a bundle with this hash as a lower boundary
+                throw new PulsarAdminException("Cannot find bundle in the bundles list with lower bound "
+                        + bundleParam + " in namespace " + namespace);
+            } catch (NumberFormatException e) {
+                throw new PulsarAdminException("Invalid bundle range format. Expected a hex value (e.g., 0x00000000) "
+                        + "or a bundle range (e.g., 0x00000000_0xffffffff)");
             }
         }
     }
