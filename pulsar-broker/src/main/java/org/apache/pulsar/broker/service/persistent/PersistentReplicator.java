@@ -55,6 +55,7 @@ import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.MessageExpirer;
 import org.apache.pulsar.broker.service.Replicator;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -118,11 +119,12 @@ public abstract class PersistentReplicator extends AbstractReplicator
     private volatile boolean waitForCursorRewinding = false;
 
     public PersistentReplicator(String localCluster, PersistentTopic localTopic, ManagedCursor cursor,
-                                   String remoteCluster, String remoteTopic,
-                                   BrokerService brokerService, PulsarClientImpl replicationClient)
+                                String remoteCluster, String remoteTopic,
+                                BrokerService brokerService, PulsarClientImpl replicationClient,
+                                PulsarAdmin replicationAdmin)
             throws PulsarServerException {
         super(localCluster, localTopic, remoteCluster, remoteTopic, localTopic.getReplicatorPrefix(),
-                brokerService, replicationClient);
+                brokerService, replicationClient, replicationAdmin);
         this.topic = localTopic;
         this.cursor = Objects.requireNonNull(cursor);
         this.expiryMonitor = new PersistentMessageExpiryMonitor(localTopic,
