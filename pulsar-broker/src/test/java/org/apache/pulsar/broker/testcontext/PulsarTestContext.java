@@ -424,11 +424,13 @@ public class PulsarTestContext implements AutoCloseable {
         public Builder reuseMockBookkeeperAndMetadataStores(PulsarTestContext otherContext) {
             bookKeeperClient(otherContext.getBookKeeperClient());
             if (otherContext.getMockZooKeeper() != null) {
+                withMockZooKeeperOrTestZKServer = null;
                 mockZooKeeper(otherContext.getMockZooKeeper());
                 if (otherContext.getMockZooKeeperGlobal() != null) {
                     mockZooKeeperGlobal(otherContext.getMockZooKeeperGlobal());
                 }
             } else if (otherContext.getTestZKServer() != null) {
+                withMockZooKeeperOrTestZKServer = null;
                 testZKServer(otherContext.getTestZKServer());
                 if (otherContext.getTestZKServerGlobal() != null) {
                     testZKServerGlobal(otherContext.getTestZKServerGlobal());
@@ -641,16 +643,32 @@ public class PulsarTestContext implements AutoCloseable {
             int sessionTimeout = (int) super.config.getMetadataStoreSessionTimeoutMillis();
             try {
                 if (withMockZooKeeperOrTestZKServer.isMockZooKeeper()) {
-                    mockZooKeeper(createMockZooKeeper(sessionTimeout));
+                    if (super.mockZooKeeper == null) {
+                        mockZooKeeper(createMockZooKeeper(sessionTimeout));
+                    } else {
+                        log.warn("Skipping creating mockZooKeeper, already set");
+                    }
                     if (withMockZooKeeperOrTestZKServer
                             == WithMockZooKeeperOrTestZKServer.MOCKZOOKEEPER_SEPARATE_GLOBAL) {
-                        mockZooKeeperGlobal(createMockZooKeeper(sessionTimeout));
+                        if (super.mockZooKeeperGlobal == null) {
+                            mockZooKeeperGlobal(createMockZooKeeper(sessionTimeout));
+                        } else {
+                            log.warn("Skipping creating mockZooKeeperGlobal, already set");
+                        }
                     }
                 } else if (withMockZooKeeperOrTestZKServer.isTestZKServer()) {
-                    testZKServer(createTestZookeeper(sessionTimeout));
+                    if (super.testZKServer == null) {
+                        testZKServer(createTestZookeeper(sessionTimeout));
+                    } else {
+                        log.warn("Skipping creating testZKServer, already set");
+                    }
                     if (withMockZooKeeperOrTestZKServer
                             == WithMockZooKeeperOrTestZKServer.TEST_ZK_SERVER_SEPARATE_GLOBAL) {
-                        testZKServerGlobal(createTestZookeeper(sessionTimeout));
+                        if (super.testZKServerGlobal == null) {
+                            testZKServerGlobal(createTestZookeeper(sessionTimeout));
+                        } else {
+                            log.warn("Skipping creating testZKServerGlobal, already set");
+                        }
                     }
                 }
             } catch (Exception e) {
