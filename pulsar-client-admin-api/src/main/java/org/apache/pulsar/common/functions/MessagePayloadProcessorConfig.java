@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.functions;
 
-import java.util.HashMap;
 import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -26,30 +25,12 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
-
-/**
- * Configuration of a consumer.
- */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode
-public class ConsumerConfig {
-    private String schemaType;
-    private String serdeClassName;
-    private boolean isRegexPattern;
-    @Builder.Default
-    private Map<String, String> schemaProperties = new HashMap<>();
-    @Builder.Default
-    private Map<String, String> consumerProperties = new HashMap<>();
-    private Integer receiverQueueSize;
-    private CryptoConfig cryptoConfig;
-    private MessagePayloadProcessorConfig messagePayloadProcessorConfig;
-    private boolean poolMessages;
-
-    public ConsumerConfig(String schemaType) {
-        this.schemaType = schemaType;
-    }
-
+public class MessagePayloadProcessorConfig {
+    private String className;
+    private Map<String, Object> config;
 }

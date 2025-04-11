@@ -104,6 +104,7 @@ import org.apache.pulsar.functions.source.batch.BatchSourceExecutor;
 import org.apache.pulsar.functions.utils.BatchingUtils;
 import org.apache.pulsar.functions.utils.CryptoUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.functions.utils.MessagePayloadProcessorUtils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
@@ -792,6 +793,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 }
                 if (conf.hasCryptoSpec()) {
                     consumerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(conf.getCryptoSpec()));
+                }
+                if (conf.hasMessagePayloadProcessorSpec()) {
+                    consumerConfig.setMessagePayloadProcessorConfig(
+                            MessagePayloadProcessorUtils.convertFromSpec(conf.getMessagePayloadProcessorSpec()));
                 }
                 consumerConfig.setPoolMessages(conf.getPoolMessages());
 
