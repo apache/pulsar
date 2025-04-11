@@ -102,6 +102,7 @@ flexible messaging model and an intuitive client API.</description>
     -->
     <docker.platforms></docker.platforms>
     <docker.skip.push>true</docker.skip.push>
+    <docker.skip.tag>false</docker.skip.tag>
 
     <!-- required for running tests on JDK11+ -->
     <test.additional.args>
