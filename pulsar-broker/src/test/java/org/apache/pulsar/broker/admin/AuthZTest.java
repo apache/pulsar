@@ -23,6 +23,7 @@ import io.jsonwebtoken.Jwts;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import lombok.SneakyThrows;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
@@ -34,7 +35,6 @@ import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 
 public abstract class AuthZTest extends MockedPulsarStandalone {
 
@@ -43,8 +43,6 @@ public abstract class AuthZTest extends MockedPulsarStandalone {
     protected PulsarAdmin tenantManagerAdmin;
 
     protected AuthorizationService authorizationService;
-
-    protected AuthorizationService orignalAuthorizationService;
 
     protected static final String TENANT_ADMIN_SUBJECT =  UUID.randomUUID().toString();
     protected static final String TENANT_ADMIN_TOKEN = Jwts.builder()
@@ -63,15 +61,19 @@ public abstract class AuthZTest extends MockedPulsarStandalone {
             tenantManagerAdmin.close();
             tenantManagerAdmin = null;
         }
-        authorizationService = null;
-        orignalAuthorizationService = null;
+        if (authorizationService != null) {
+            Mockito.reset(authorizationService);
+            authorizationService = null;
+        }
         super.close();
     }
 
-    @BeforeMethod(alwaysRun = true)
-    public void before() throws IllegalAccessException {
-        orignalAuthorizationService = getPulsarService().getBrokerService().getAuthorizationService();
-        authorizationService = BrokerTestUtil.spyWithoutRecordingInvocations(orignalAuthorizationService);
+    @SneakyThrows
+    @Override
+    protected void start() {
+        super.start();
+        authorizationService = BrokerTestUtil.spyWithoutRecordingInvocations(
+                getPulsarService().getBrokerService().getAuthorizationService());
         FieldUtils.writeField(getPulsarService().getBrokerService(), "authorizationService",
                 authorizationService, true);
         Mockito.doAnswer(invocationOnMock -> {
@@ -98,8 +100,6 @@ public abstract class AuthZTest extends MockedPulsarStandalone {
 
     @AfterMethod(alwaysRun = true)
     public void after() throws IllegalAccessException {
-        FieldUtils.writeField(getPulsarService().getBrokerService(), "authorizationService",
-                orignalAuthorizationService, true);
         allowNamespaceOperationAsyncHandler = null;
         allowTopicOperationAsyncHandler = null;
     }
