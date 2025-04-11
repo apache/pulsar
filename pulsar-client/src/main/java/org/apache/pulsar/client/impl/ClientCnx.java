@@ -477,9 +477,11 @@ public class ClientCnx extends PulsarHandler {
         long highestSequenceId = sendReceipt.getHighestSequenceId();
         long ledgerId = -1;
         long entryId = -1;
+        long index = -1;
         if (sendReceipt.hasMessageId()) {
             ledgerId = sendReceipt.getMessageId().getLedgerId();
             entryId = sendReceipt.getMessageId().getEntryId();
+            index = sendReceipt.getMessageId().getIndex();
         }
         ProducerImpl<?> producer = producers.get(producerId);
         if (ledgerId == -1 && entryId == -1) {
@@ -495,7 +497,7 @@ public class ClientCnx extends PulsarHandler {
         }
 
         if (producer != null) {
-            producer.ackReceived(this, sequenceId, highestSequenceId, ledgerId, entryId);
+            producer.ackReceived(this, sequenceId, highestSequenceId, ledgerId, entryId, index);
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("Producer is {} already closed, ignore published message [{}-{}]", producerId, ledgerId,

@@ -2573,6 +2573,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (msgId.getFirstChunkMessageId() != null) {
             seek = Commands.newSeek(consumerId, requestId, firstChunkMsgId.getLedgerId(),
                     firstChunkMsgId.getEntryId(), new long[0]);
+        } else if (msgId.getOffset() > 0) {
+            seek = Commands.newSeek(consumerId, requestId, msgId.getOffset());
         } else {
             final long[] ackSetArr;
             if (MessageIdAdvUtils.isBatch(msgId)) {

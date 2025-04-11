@@ -65,6 +65,7 @@ message MessageIdData {
 
     // For the chunk message id, we need to specify the first chunk message id.
     optional MessageIdData first_chunk_message_id = 7;
+    optional int64 index = 8;
 }
 
 message KeyValue {
@@ -265,6 +266,7 @@ enum ProtocolVersion {
     v19 = 19; // Add CommandTcClientConnectRequest and CommandTcClientConnectResponse
     v20 = 20; // Add client support for topic migration redirection CommandTopicMigrated
     v21 = 21; // Carry the AUTO_CONSUME schema to the Broker after this version
+    V22 = 22; // Add index in MessageIdData.
 }
 
 message CommandConnect {
