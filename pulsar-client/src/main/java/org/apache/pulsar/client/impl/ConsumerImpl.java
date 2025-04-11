@@ -3163,7 +3163,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         boolean isProxy = cnx.isProxy() || client.getConfiguration().getProxyServiceUrl() != null;
         if (isProxy && cnx.getLocalAddress() != null) {
             metadata = metadata.isEmpty() ? new HashMap<>() : metadata;
-            metadata.put(Metadata.CLIENT_IP, cnx.getLocalAddress().toString());
+            metadata.putIfAbsent(Metadata.CLIENT_IP, cnx.getLocalAddress().toString());
         }
     }
 

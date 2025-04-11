@@ -2032,7 +2032,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         boolean isProxy = cnx.isProxy() || client.getConfiguration().getProxyServiceUrl() != null;
         if (isProxy && cnx.getLocalAddress() != null) {
             metadata = metadata.isEmpty() ? new HashMap<>() : metadata;
-            metadata.put(Metadata.CLIENT_IP, cnx.getLocalAddress().toString());
+            metadata.putIfAbsent(Metadata.CLIENT_IP, cnx.getLocalAddress().toString());
         }
     }
 
