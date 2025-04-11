@@ -245,6 +245,7 @@ public class ProducerConsumerInternalTest extends ProducerConsumerBase {
                 .topic(topicName)
                 .producerName("producer")
                 .compressionType(CompressionType.LZ4)
+                .compressionMinMsgBodySize(1024)
                 .create();
         @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
@@ -252,8 +253,6 @@ public class ProducerConsumerInternalTest extends ProducerConsumerBase {
                 .subscriptionName("sub")
                 .subscribe();
 
-        producer.conf.setCompressMinMsgBodySize(1024);
-        producer.conf.setCompressionType(CompressionType.LZ4);
         // disable batch
         producer.conf.setBatchingEnabled(false);
         producer.newMessage().value(msg1024).send();
