@@ -120,7 +120,7 @@
             </AppenderRef>
         </Logger>
         <Root>
-            <level>info</level>
+            <level>${sys:pulsar.log.level}</level>
             <AppenderRef>
                 <ref>${sys:pulsar.log.appender}</ref>
                 <level>${sys:pulsar.log.level}</level>
