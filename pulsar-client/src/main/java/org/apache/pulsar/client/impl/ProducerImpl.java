@@ -2558,7 +2558,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 // after users changed the compatibility strategy to make the schema is compatible.
                 tryRegisterSchema(cnx, loopEndDueToSchemaRegisterNeeded.msg, loopEndDueToSchemaRegisterNeeded.callback,
                     expectedEpoch);
-            } else if (!needStuckIfSchemaIncompatible && compareAndSetState(State.RegisteringSchema, State.Ready)) {
+            } else if (!failedIncompatibleSchema && compareAndSetState(State.RegisteringSchema, State.Ready)) {
                 // "Event 2-1" or "Event 3-2".
                 // "pendingMessages" has more messages to register new schema.
                 // This operation will not be conflict with another schema registration because both operations are
