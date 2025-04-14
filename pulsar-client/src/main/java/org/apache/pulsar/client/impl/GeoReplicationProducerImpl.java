@@ -108,6 +108,15 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
         if (pendingLId != null && pendingEId != null
                 && (pendingLId < lastPersistedSourceLedgerId || (pendingLId.longValue() == lastPersistedSourceLedgerId
                   && pendingEId.longValue() <= lastPersistedSourceEntryId))) {
+            if (MessageImpl.SchemaState.Broken.equals(op.msg.getSchemaState())) {
+                log.error("[{}] [{}] Replication due to incompatible schem and the replicator will be stuck by producer"
+                                + " queue size limitation."
+                                + " Latest published entry {}:{}, Entry who has broken schema: {}:{},"
+                                + " latest persisted source entry: {}:{}, pending queue size: {}.",
+                        topic, producerName, sourceLId, sourceEId, pendingLId, pendingEId,
+                        lastPersistedSourceLedgerId, lastPersistedSourceEntryId, pendingMessages.messagesCount());
+                return;
+            }
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Received an msg send receipt[pending send is repeated due to repl cursor rewind]:"
                                 + " source entry {}:{}, pending send: {}:{}, latest persisted: {}:{}",
