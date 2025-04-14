@@ -1359,11 +1359,11 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         producer1.newMessage(Schema.BOOL).value(false).send();
         producer1.newMessage(Schema.STRING).value("msg3").send();
         // 3. several unloading, which causes replicator internal producer reconnects.
-//        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 3; i++) {
             Thread.sleep(2000);
             admin2.topics().unload(topicName);
             waitReplicatorStarted(topicName);
-//        }
+        }
         // Verify: no individual acks.
         Awaitility.await().untilAsserted(() -> {
            PersistentTopic persistentTopic2 =
@@ -1375,7 +1375,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic1.getManagedLedger();
             ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().get("pulsar.repl.r2");
             assertEquals(cursor.getTotalNonContiguousDeletedMessagesRange(), 0);
-            //assertTrue(cursor.getMarkDeletedPosition().compareTo(ml.getLastConfirmedEntry()) < 0);
+            assertTrue(cursor.getMarkDeletedPosition().compareTo(ml.getLastConfirmedEntry()) < 0);
         });
         // 4. Adjust schema compatibility and unload topic on the remote side, which will solve the replication stuck
         // issue.
@@ -1404,8 +1404,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             if (message == null) {
                 break;
             }
-//            SchemaType schemaType = message.getValue().getSchemaType();
-//            assertTrue(schemaType.equals(SchemaType.STRING) || schemaType.equals(SchemaType.BOOLEAN));
+            SchemaType schemaType = message.getValue().getSchemaType();
+            assertTrue(schemaType.equals(SchemaType.STRING) || schemaType.equals(SchemaType.BOOLEAN));
             msgReceived.add(message.getValue().getNativeObject().toString());
             log.info("received msg: {}", message.getValue().getNativeObject().toString());
         }
