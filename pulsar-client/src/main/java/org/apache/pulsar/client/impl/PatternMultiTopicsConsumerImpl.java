@@ -34,6 +34,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.validation.constraints.NotNull;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -62,6 +63,8 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     private volatile String topicsHash;
 
     private PatternConsumerUpdateQueue updateTaskQueue;
+
+    private final Set<String> blockedTopics = new HashSet<>();
 
     /***
      * @param topicsPattern The regexp for the topic name(not contains partition suffix).
@@ -158,7 +161,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
 
                     final List<String> oldTopics = new ArrayList<>(getPartitions());
                     return updateSubscriptions(topicsPattern, this::setTopicsHash, getTopicsResult,
-                            topicsChangeListener, oldTopics, subscription);
+                            topicsChangeListener, oldTopics, subscription, blockedTopics);
                 }
             }).thenAccept(__ -> {
                 if (recheckPatternTimeout != null) {
@@ -168,12 +171,23 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
             });
     }
 
+    @VisibleForTesting
     static CompletableFuture<Void> updateSubscriptions(Pattern topicsPattern,
                                                        java.util.function.Consumer<String> topicsHashSetter,
                                                        GetTopicsResult getTopicsResult,
                                                        TopicsChangedListener topicsChangedListener,
                                                        List<String> oldTopics,
                                                        String subscriptionForLog) {
+        return updateSubscriptions(topicsPattern, topicsHashSetter, getTopicsResult, topicsChangedListener, oldTopics,
+                subscriptionForLog, Collections.emptySet());
+    }
+
+    static CompletableFuture<Void> updateSubscriptions(Pattern topicsPattern,
+                                                       java.util.function.Consumer<String> topicsHashSetter,
+                                                       GetTopicsResult getTopicsResult,
+                                                       TopicsChangedListener topicsChangedListener,
+                                                       List<String> oldTopics,
+                                                       String subscriptionForLog, Set<String> blockedTopics) {
         topicsHashSetter.accept(getTopicsResult.getTopicsHash());
         if (!getTopicsResult.isChanged()) {
             return CompletableFuture.completedFuture(null);
@@ -189,6 +203,10 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         final List<CompletableFuture<?>> listenersCallback = new ArrayList<>(2);
         Set<String> topicsAdded = TopicList.minus(newTopics, oldTopics);
         Set<String> topicsRemoved = TopicList.minus(oldTopics, newTopics);
+        if (!blockedTopics.isEmpty()) {
+            topicsAdded.removeAll(blockedTopics);
+        }
+
         if (log.isDebugEnabled()) {
             log.debug("Pattern consumer [{}] Recheck pattern consumer's topics. topicsAdded: {}, topicsRemoved: {}",
                     subscriptionForLog, topicsAdded, topicsRemoved);
@@ -256,6 +274,9 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                     unsubscribeList.add(unsubscribeFuture);
                     partialRemoved.add(topicName.getPartitionedTopicName());
                     partialRemovedForLog.add(topicName.toString());
+                } else {
+                    // If the topic to be blocked does not exist, it is simply ignored.
+                    blockedTopics.remove(tp);
                 }
             }
             if (log.isDebugEnabled()) {
@@ -420,6 +441,25 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                                                 Throwable error,
                                                 CompletableFuture<Void> subscribeFuture) {
         subscribeFuture.completeExceptionally(error);
+    }
+
+    protected void blockTopics(@NotNull Set<String> topicNames) {
+        if (!topicNames.isEmpty()) {
+            blockedTopics.addAll(topicNames);
+            updateTaskQueue.appendTopicsRemovedOp(topicNames);
+        }
+    }
+
+    protected void unBlockTopics(@NotNull Set<String> topicNames) {
+        topicNames.retainAll(blockedTopics);
+        if (!topicNames.isEmpty()) {
+            updateTaskQueue.appendTopicsAddedOp(topicNames);
+            blockedTopics.removeAll(topicNames);
+        }
+    }
+
+    protected Set<String> getBlockedTopics() {
+        return blockedTopics;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PatternMultiTopicsConsumerImpl.class);
