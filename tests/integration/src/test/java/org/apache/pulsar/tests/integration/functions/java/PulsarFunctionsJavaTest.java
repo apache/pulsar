@@ -20,13 +20,17 @@ package org.apache.pulsar.tests.integration.functions.java;
 
 import static org.testng.Assert.assertEquals;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import org.apache.commons.collections4.map.HashedMap;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.functions.BatchingConfig;
+import org.apache.pulsar.common.functions.ConsumerConfig;
+import org.apache.pulsar.common.functions.MessagePayloadProcessorConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.FunctionStatusUtil;
+import org.apache.pulsar.functions.api.examples.TestPayloadProcessor;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.functions.PulsarFunctionsTest;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
@@ -122,7 +126,7 @@ public abstract class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
                 .roundRobinRouterBatchingPartitionSwitchFrequency(5)
                 .batchBuilder("KEY_BASED")
                 .build());
-        testExclamationFunction(Runtime.JAVA, false, false, false, false,
+        testExclamationFunction(Runtime.JAVA, false, false, false, false, null,
                 producerConfig, commandGenerator -> {
                     commandGenerator.setProducerConfig(producerConfig);
                 });
@@ -134,9 +138,40 @@ public abstract class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
         producerConfig.setBatchingConfig(BatchingConfig.builder()
                 .enabled(false)
                 .build());
-        testExclamationFunction(Runtime.JAVA, false, false, false, false,
+        testExclamationFunction(Runtime.JAVA, false, false, false, false, null,
                 producerConfig, commandGenerator -> {
                     commandGenerator.setProducerConfig(producerConfig);
+                });
+    }
+
+    @Test(groups = {"java_function", "function"})
+    public void testJavaExclamationMessagePayloadProcessor() throws Exception {
+        ConsumerConfig consumerConfig = new ConsumerConfig();
+        consumerConfig.setMessagePayloadProcessorConfig(
+                new MessagePayloadProcessorConfig(
+                        TestPayloadProcessor.class.getName(),
+                        null
+                )
+        );
+        testExclamationFunction(Runtime.JAVA, false, false, false, false,
+                consumerConfig, null, commandGenerator -> {
+                    commandGenerator.setConsumerConfig(consumerConfig);
+                });
+    }
+
+
+    @Test(groups = {"java_function", "function"})
+    public void testJavaExclamationMessagePayloadProcessorWithConfigs() throws Exception {
+        ConsumerConfig consumerConfig = new ConsumerConfig();
+        consumerConfig.setMessagePayloadProcessorConfig(
+                new MessagePayloadProcessorConfig(
+                        TestPayloadProcessor.class.getName(),
+                        new HashMap<>(Map.of("key1", "value1", "key2", "value2"))
+                )
+        );
+        testExclamationFunction(Runtime.JAVA, false, false, false, false,
+                consumerConfig, null, commandGenerator -> {
+                    commandGenerator.setConsumerConfig(consumerConfig);
                 });
     }
 

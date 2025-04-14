@@ -159,6 +159,10 @@ public class FunctionConfigUtils {
                 if (consumerConf.getCryptoConfig() != null) {
                     bldr.setCryptoSpec(CryptoUtils.convert(consumerConf.getCryptoConfig()));
                 }
+                if (consumerConf.getMessagePayloadProcessorConfig() != null) {
+                    bldr.setMessagePayloadProcessorSpec(
+                            MessagePayloadProcessorUtils.convert(consumerConf.getMessagePayloadProcessorConfig()));
+                }
                 bldr.putAllConsumerProperties(consumerConf.getConsumerProperties());
                 bldr.setPoolMessages(consumerConf.isPoolMessages());
                 sourceSpecBuilder.putInputSpecs(topicName, bldr.build());
@@ -408,6 +412,10 @@ public class FunctionConfigUtils {
             }
             if (input.getValue().hasCryptoSpec()) {
                 consumerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(input.getValue().getCryptoSpec()));
+            }
+            if (input.getValue().hasMessagePayloadProcessorSpec()) {
+                consumerConfig.setMessagePayloadProcessorConfig(MessagePayloadProcessorUtils.convertFromSpec(
+                        input.getValue().getMessagePayloadProcessorSpec()));
             }
             consumerConfig.setRegexPattern(input.getValue().getIsRegexPattern());
             consumerConfig.setSchemaProperties(input.getValue().getSchemaPropertiesMap());
@@ -684,6 +692,10 @@ public class FunctionConfigUtils {
                     ValidatorUtils.validateCryptoKeyReader(conf.getCryptoConfig(),
                             validatableFunctionPackage.getTypePool(), false);
                 }
+                if (conf.getMessagePayloadProcessorConfig() != null) {
+                    ValidatorUtils.validateMessagePayloadProcessor(conf.getMessagePayloadProcessorConfig(),
+                            validatableFunctionPackage.getTypePool());
+                }
             });
         }
 
@@ -899,6 +911,11 @@ public class FunctionConfigUtils {
                 if (conf.getCryptoConfig() != null && isBlank(conf.getCryptoConfig().getCryptoKeyReaderClassName())) {
                     throw new IllegalArgumentException(
                             "CryptoKeyReader class name required");
+                }
+                if (conf.getMessagePayloadProcessorConfig() != null && isBlank(
+                        conf.getMessagePayloadProcessorConfig().getClassName())) {
+                    throw new IllegalArgumentException(
+                            "MessagePayloadProcessor class name required");
                 }
             });
         }
