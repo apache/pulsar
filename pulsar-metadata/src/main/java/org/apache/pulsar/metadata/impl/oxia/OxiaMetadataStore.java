@@ -120,7 +120,7 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
                             NotificationType.Deleted, keyDeleted.key()));
             notifyParentChildrenChanged(keyDeleted.key());
         } else {
-            log.error("Unknown notification type {}", notification);
+            log.warn("Unknown notification type {}", notification);
         }
     }
 

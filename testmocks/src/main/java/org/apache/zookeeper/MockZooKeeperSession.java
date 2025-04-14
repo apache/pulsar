@@ -48,6 +48,8 @@ public class MockZooKeeperSession extends ZooKeeper {
 
     private boolean closeMockZooKeeperOnClose;
 
+    private int sessionTimeout = -1;
+
     public static MockZooKeeperSession newInstance(MockZooKeeper mockZooKeeper) {
         return newInstance(mockZooKeeper, true);
     }
@@ -74,7 +76,15 @@ public class MockZooKeeperSession extends ZooKeeper {
 
     @Override
     public int getSessionTimeout() {
-        return mockZooKeeper.getSessionTimeout();
+        if (sessionTimeout > 0) {
+            return sessionTimeout;
+        } else {
+            return mockZooKeeper.getSessionTimeout();
+        }
+    }
+
+    public void setSessionTimeout(int sessionTimeout) {
+        this.sessionTimeout = sessionTimeout;
     }
 
     @Override

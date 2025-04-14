@@ -294,6 +294,19 @@ public interface ProducerBuilder<T> extends Cloneable {
     ProducerBuilder<T> compressionType(CompressionType compressionType);
 
     /**
+     * Sets the minimum uncompressed message body size required to enable compression.
+     * <p>
+     * When a message's body size exceeds this threshold (in bytes), compression will be applied
+     * using the configured {@link #compressionType(CompressionType)}. Messages smaller than this
+     * threshold will not be compressed.
+     * <p>
+     * Default: 4 KB
+     *
+     * @param compressionMinMsgBodySize the minimum uncompressed message body size required to enable compression
+     */
+    ProducerBuilder<T> compressionMinMsgBodySize(int compressionMinMsgBodySize);
+
+    /**
      * Set a custom message routing policy by passing an implementation of MessageRouter.
      *
      * @param messageRouter

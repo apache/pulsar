@@ -222,9 +222,18 @@ public class PulsarClusterMetadataTeardown {
             if (log.isDebugEnabled()) {
                 log.debug("Delete ledger id: {}", ledgerId);
             }
-        } catch (InterruptedException | BKException e) {
-            log.error("Failed to delete ledger {}: {}", ledgerId, e);
-            throw new RuntimeException(e);
+        } catch (InterruptedException | BKException ex) {
+            if (ex instanceof BKException bkException) {
+                switch (bkException.getCode()) {
+                    case BKException.Code.NoSuchLedgerExistsException:
+                    case BKException.Code.NoSuchLedgerExistsOnMetadataServerException:
+                        log.warn("Failed to delete deleted ledger. ledgerId={} errorCode={}",
+                                ledgerId, bkException.getCode());
+                        return;
+                }
+            }
+            log.error("Failed to delete ledger {}: {}", ledgerId, ex);
+            throw new RuntimeException(ex);
         }
     }
 

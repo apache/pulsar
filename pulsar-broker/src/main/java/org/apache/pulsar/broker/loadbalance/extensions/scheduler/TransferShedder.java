@@ -463,8 +463,10 @@ public class TransferShedder implements NamespaceUnloadStrategy {
 
                 Optional<TopBundlesLoadData> bundlesLoadData = context.topBundleLoadDataStore().get(maxBroker);
                 if (bundlesLoadData.isEmpty() || bundlesLoadData.get().getTopBundlesLoadData().isEmpty()) {
-                    log.error(String.format(CANNOT_UNLOAD_BROKER_MSG
-                            + " TopBundlesLoadData is empty.", maxBroker));
+                    if (debugMode) {
+                        log.info(String.format(CANNOT_UNLOAD_BROKER_MSG
+                                + " TopBundlesLoadData is empty.", maxBroker));
+                    }
                     numOfBrokersWithEmptyLoadData++;
                     continue;
                 }

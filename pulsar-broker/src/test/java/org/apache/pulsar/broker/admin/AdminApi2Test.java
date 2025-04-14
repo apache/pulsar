@@ -3744,4 +3744,18 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         Assert.assertTrue(permissions11.isEmpty());
         Assert.assertTrue(permissions22.isEmpty());
     }
+
+    @Test
+    public void testDeletePatchyPartitionedTopic() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName(defaultNamespace + "/tp");
+        admin.topics().createPartitionedTopic(topic, 2);
+        Producer producer = pulsarClient.newProducer().topic(TopicName.get(topic).getPartition(0).toString())
+                .create();
+        // Mock a scenario that "-partition-1" has been removed due to topic GC.
+        pulsar.getBrokerService().getTopic(TopicName.get(topic).getPartition(1).toString(), false)
+                .get().get().delete().join();
+        // Verify: delete partitioned topic.
+        producer.close();
+        admin.topics().deletePartitionedTopicAsync(topic, false).get();
+    }
 }

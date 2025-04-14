@@ -221,7 +221,8 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                     authenticationDataProvider = authentication.getAuthData(remoteHostName);
                     AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
                     BaseCommand cmd = Commands.newConnectWithoutSerialize(authentication.getAuthMethodName(), authData,
-                            this.protocolVersion, clientVersion, proxyToTargetBrokerAddress, null, null, null, null);
+                            this.protocolVersion, clientVersion, proxyToTargetBrokerAddress,
+                            null, null, null, null, null);
                     cmd.getConnect().getFeatureFlags().setSupportsReplDedupByLidAndEid(false);
                     return Commands.serializeWithSize(cmd);
                 }

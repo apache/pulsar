@@ -88,6 +88,20 @@ func (m *MockMessage) GetEncryptionContext() *pulsar.EncryptionContext {
 	return nil
 }
 
+func (m *MockMessage) BrokerPublishTime() *time.Time {
+	t := time.Time{}
+	return &t
+}
+
+func (m *MockMessage) Index() *uint64 {
+	var index uint64 = 0
+	return &index
+}
+
+func (m *MockMessage) SchemaVersion() []byte {
+	return []byte{}
+}
+
 type MockMessageID struct{}
 
 func (m *MockMessageID) Serialize() []byte {
@@ -108,6 +122,14 @@ func (m *MockMessageID) BatchIdx() int32 {
 
 func (m *MockMessageID) PartitionIdx() int32 {
 	return 0
+}
+
+func (m *MockMessageID) BatchSize() int32 {
+	return 0
+}
+
+func (m *MockMessageID) String() string {
+	return "mock-message-id"
 }
 
 type MockPulsarProducer struct{}
@@ -137,4 +159,8 @@ func (producer *MockPulsarProducer) Flush() error {
 }
 
 func (producer *MockPulsarProducer) Close() {
+}
+
+func (producer *MockPulsarProducer) FlushWithCtx(context.Context) error {
+	return nil
 }

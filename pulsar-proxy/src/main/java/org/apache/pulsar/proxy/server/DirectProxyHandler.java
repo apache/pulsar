@@ -58,6 +58,7 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
 import org.apache.pulsar.common.api.proto.CommandConnected;
+import org.apache.pulsar.common.api.proto.FeatureFlags;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarDecoder;
 import org.apache.pulsar.common.stats.Rate;
@@ -107,7 +108,8 @@ public class DirectProxyHandler {
         this.pulsarSslFactoryMap = new ConcurrentHashMap<>();
     }
 
-    public void connect(String brokerHostAndPort, InetSocketAddress targetBrokerAddress, int protocolVersion) {
+    public void connect(String brokerHostAndPort, InetSocketAddress targetBrokerAddress, int protocolVersion,
+                        final FeatureFlags featureFlags) {
         String remoteHost;
         try {
             remoteHost = parseHost(brokerHostAndPort);
@@ -182,7 +184,7 @@ public class DirectProxyHandler {
                         service.getConfiguration().getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0,
                         4));
                 ch.pipeline().addLast("proxyOutboundHandler",
-                        (ChannelHandler) new ProxyBackendHandler(config, protocolVersion, remoteHost));
+                        (ChannelHandler) new ProxyBackendHandler(config, protocolVersion, remoteHost, featureFlags));
             }
         });
 
@@ -276,11 +278,14 @@ public class DirectProxyHandler {
         protected ChannelHandlerContext ctx;
         private final ProxyConfiguration config;
         private final int protocolVersion;
+        private final FeatureFlags featureFlags;
 
-        public ProxyBackendHandler(ProxyConfiguration config, int protocolVersion, String remoteHostName) {
+        public ProxyBackendHandler(ProxyConfiguration config, int protocolVersion, String remoteHostName,
+                                   FeatureFlags featureFlags) {
             this.config = config;
             this.protocolVersion = protocolVersion;
             this.remoteHostName = remoteHostName;
+            this.featureFlags = featureFlags;
         }
 
         @Override
@@ -297,7 +302,7 @@ public class DirectProxyHandler {
             ByteBuf command = Commands.newConnect(
                     authentication.getAuthMethodName(), authData, protocolVersion,
                     proxyConnection.clientVersion, null /* target broker */,
-                    originalPrincipal, clientAuthData, clientAuthMethod, PulsarVersion.getVersion());
+                    originalPrincipal, clientAuthData, clientAuthMethod, PulsarVersion.getVersion(), featureFlags);
             writeAndFlush(command);
             isTlsOutboundChannel = ProxyConnection.isTlsChannel(inboundChannel);
         }

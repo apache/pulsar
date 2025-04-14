@@ -161,6 +161,18 @@ public class NamespaceStatsAggregator {
         subsStats.filterRescheduledMsgCount = subscriptionStats.filterRescheduledMsgCount;
         subsStats.delayedMessageIndexSizeInBytes = subscriptionStats.delayedMessageIndexSizeInBytes;
         subsStats.bucketDelayedIndexStats = subscriptionStats.bucketDelayedIndexStats;
+        subsStats.dispatchThrottledMsgEventsBySubscriptionLimit =
+                subscriptionStats.dispatchThrottledMsgEventsBySubscriptionLimit;
+        subsStats.dispatchThrottledBytesEventsBySubscriptionLimit =
+                subscriptionStats.dispatchThrottledBytesEventsBySubscriptionLimit;
+        subsStats.dispatchThrottledMsgEventsByTopicLimit =
+                subscriptionStats.dispatchThrottledMsgEventsByTopicLimit;
+        subsStats.dispatchThrottledBytesEventsByTopicLimit =
+                subscriptionStats.dispatchThrottledBytesEventsByTopicLimit;
+        subsStats.dispatchThrottledMsgEventsByBrokerLimit =
+                subscriptionStats.dispatchThrottledMsgEventsByBrokerLimit;
+        subsStats.dispatchThrottledBytesEventsByBrokerLimit =
+                subscriptionStats.dispatchThrottledBytesEventsByBrokerLimit;
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")

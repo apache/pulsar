@@ -20,7 +20,7 @@
 ARG PULSAR_ALL_IMAGE
 
 # build go lang examples first in a separate layer
-FROM golang:1.21-alpine as pulsar-function-go
+FROM golang:1.23-alpine as pulsar-function-go
 
 COPY target/pulsar-function-go/ /go/src/github.com/apache/pulsar/pulsar-function-go
 RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go && go install ./...

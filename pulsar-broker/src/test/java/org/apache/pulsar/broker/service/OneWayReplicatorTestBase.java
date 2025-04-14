@@ -480,4 +480,21 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
             admin2.topics().delete(topicName.toString());
         }
     }
+
+    protected void waitReplicatorStopped(PulsarService sourceCluster, PulsarService targetCluster, String topicName) {
+        Awaitility.await().atMost(Duration.ofSeconds(60)).untilAsserted(() -> {
+            Optional<Topic> topicOptional2 = targetCluster.getBrokerService().getTopic(topicName, false).get();
+            assertTrue(topicOptional2.isPresent());
+            PersistentTopic persistentTopic2 = (PersistentTopic) topicOptional2.get();
+            for (org.apache.pulsar.broker.service.Producer producer : persistentTopic2.getProducers().values()) {
+                assertFalse(producer.getProducerName()
+                        .startsWith(targetCluster.getConfiguration().getReplicatorPrefix()));
+            }
+            Optional<Topic> topicOptional1 = sourceCluster.getBrokerService().getTopic(topicName, false).get();
+            assertTrue(topicOptional1.isPresent());
+            PersistentTopic persistentTopic1 = (PersistentTopic) topicOptional1.get();
+            assertTrue(persistentTopic1.getReplicators().isEmpty()
+                    || !persistentTopic1.getReplicators().get(targetCluster.getConfig().getClusterName()).isConnected());
+        });
+    }
 }
