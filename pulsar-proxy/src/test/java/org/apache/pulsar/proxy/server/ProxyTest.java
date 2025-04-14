@@ -24,6 +24,7 @@ import static java.util.Objects.requireNonNull;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -52,6 +53,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -68,6 +70,7 @@ import org.apache.pulsar.common.api.proto.FeatureFlags;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -75,6 +78,7 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.mockito.Mockito;
@@ -138,6 +142,13 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
                 proxyConfig.getBrokerClientAuthenticationParameters());
         proxyClientAuthentication.start();
+    }
+
+    @Override
+    protected void doInitConf() throws Exception {
+        super.doInitConf();
+        conf.setAllowAutoTopicCreationType(TopicType.PARTITIONED);
+        conf.setDefaultNumPartitions(1);
     }
 
     @Override
@@ -413,6 +424,35 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
             requireNonNull(msg);
             consumer.acknowledge(msg);
         }
+    }
+
+    @Test
+    public void testGetPartitionedMetadataErrorCode() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        // Trigger partitioned metadata creation.
+        PulsarClientImpl brokerClient = (PulsarClientImpl) pulsarClient;
+        PartitionedTopicMetadata brokerMetadata =
+                brokerClient.getPartitionedTopicMetadata(topic, true, true).get();
+        assertEquals(brokerMetadata.partitions, 1);
+        assertEquals(pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                .getPartitionedTopicMetadataAsync(TopicName.get(topic)).get().get().partitions, 1);
+        // Verify: Proxy never rewrite error code.
+        ClientConfigurationData proxyClientConf = new ClientConfigurationData();
+        proxyClientConf.setServiceUrl(proxyService.getServiceUrl());
+        PulsarClientImpl proxyClient =
+                (PulsarClientImpl) getClientActiveConsumerChangeNotSupported(proxyClientConf);
+        PartitionedTopicMetadata proxyMetadata =
+                proxyClient.getPartitionedTopicMetadata(topic, false, false).get();
+        assertEquals(proxyMetadata.partitions, 1);
+        try {
+            proxyClient.getPartitionedTopicMetadata(topic + "-partition-0", false, false).get();
+        } catch (Exception ex) {
+            assertTrue(FutureUtil.unwrapCompletionException(ex)
+                    instanceof PulsarClientException.TopicDoesNotExistException);
+        }
+        // cleanup.
+        proxyClient.close();
+        admin.topics().deletePartitionedTopic(topic);
     }
 
     @Test
