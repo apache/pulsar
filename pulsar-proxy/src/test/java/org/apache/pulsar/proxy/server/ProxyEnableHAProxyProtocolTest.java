@@ -122,11 +122,11 @@ public class ProxyEnableHAProxyProtocolTest extends MockedPulsarServiceBaseTest 
         SubscriptionStats subscriptionStats = topicStats.getSubscriptions().get(subName);
         Assert.assertEquals(subscriptionStats.getConsumers().size(), 1);
         Assert.assertEquals(subscriptionStats.getConsumers().get(0).getAddress(),
-                ((ConsumerImpl) consumer).getClientCnx().ctx().channel().localAddress().toString());
+                ((ConsumerImpl) consumer).getClientCnx().ctx().channel().localAddress().toString().replaceFirst("/", ""));
 
         topicStats = admin.topics().getStats(topicName);
         Assert.assertEquals(topicStats.getPublishers().size(), 1);
         Assert.assertEquals(topicStats.getPublishers().get(0).getAddress(),
-                ((ProducerImpl) producer).getClientCnx().ctx().channel().localAddress().toString());
+                ((ProducerImpl) producer).getClientCnx().ctx().channel().localAddress().toString().replaceFirst("/", ""));
     }
 }
