@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javax.ws.rs.core.Response;
-import org.apache.avro.Schema;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
@@ -37,7 +36,6 @@ import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.impl.schema.SchemaUtils;
-import org.apache.pulsar.client.impl.schema.util.SchemaUtil;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
@@ -125,46 +123,8 @@ public class SchemasResourceBase extends AdminResource {
                 });
     }
 
-    protected CompletableFuture<Void> checkSchemaTypeSupported(PostSchemaPayload payload) {
-        switch (SchemaType.valueOf(payload.getType())) {
-            case AVRO : {
-                Schema schema = SchemaUtil.parseAvroSchema(payload.getSchema());
-                switch (schema.getType()) {
-                    case RECORD: {
-                        break;
-                    }
-                    case UNION: {
-                        return CompletableFuture.failedFuture(new RestException(
-                                Response.Status.BAD_REQUEST.getStatusCode(),
-                                "[" + String.valueOf(topicName) + "] Avro schema typed [UNION] is not supported"));
-                    }
-                    case INT:
-                    case LONG:
-                    case FLOAT:
-                    case DOUBLE:
-                    case BOOLEAN:
-                    case STRING:
-                    case BYTES: {
-                        return CompletableFuture.failedFuture(new RestException(
-                                Response.Status.BAD_REQUEST.getStatusCode(),
-                                "[" + String.valueOf(topicName) + "] Please call"
-                                + " org.apache.pulsar.client.api.Schema." + schema.getType()
-                                + " when using a simple type schema"));
-                    }
-                    default: {
-                        // ARRAY, MAP, FIXED, NULL.
-                        log.info("[{}] is using a special schema typed [{}]",
-                            String.valueOf(topicName), schema.getType());
-                    }
-                }
-            }
-        }
-        return CompletableFuture.completedFuture(null);
-    }
-
     public CompletableFuture<SchemaVersion> postSchemaAsync(PostSchemaPayload payload, boolean authoritative) {
-        return checkSchemaTypeSupported(payload)
-                .thenCompose(__ -> validateOwnershipAndOperationAsync(authoritative, TopicOperation.PRODUCE))
+        return validateOwnershipAndOperationAsync(authoritative, TopicOperation.PRODUCE)
                 .thenCompose(__ -> getSchemaCompatibilityStrategyAsyncWithoutAuth())
                 .thenCompose(schemaCompatibilityStrategy -> {
                     byte[] data;

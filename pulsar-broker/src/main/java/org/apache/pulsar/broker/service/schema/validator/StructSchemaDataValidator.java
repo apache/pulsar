@@ -51,7 +51,10 @@ class StructSchemaDataValidator implements SchemaDataValidator {
         try {
             Schema.Parser avroSchemaParser = new Schema.Parser();
             avroSchemaParser.setValidateDefaults(false);
-            avroSchemaParser.parse(new String(data, UTF_8));
+            Schema schema = avroSchemaParser.parse(new String(data, UTF_8));
+            if (SchemaType.AVRO.equals(schemaData.getType())) {
+                checkAvroSchemaTypeSupported(schema);
+            }
         } catch (SchemaParseException e) {
             if (schemaData.getType() == SchemaType.JSON) {
                 // we used JsonSchema for storing the definition of a JSON schema
@@ -68,6 +71,33 @@ class StructSchemaDataValidator implements SchemaDataValidator {
         } catch (Exception e) {
             throwInvalidSchemaDataException(schemaData, e);
         }
+    }
+
+    static void checkAvroSchemaTypeSupported(Schema schema) throws InvalidSchemaDataException {
+            switch (schema.getType()) {
+                case RECORD: {
+                    break;
+                }
+                case UNION: {
+                    throw new InvalidSchemaDataException(
+                            "Avro schema typed [UNION] is not supported");
+                }
+                case INT:
+                case LONG:
+                case FLOAT:
+                case DOUBLE:
+                case BOOLEAN:
+                case STRING:
+                case BYTES: {
+                    throw new InvalidSchemaDataException("Please call"
+                            + " org.apache.pulsar.client.api.Schema." + schema.getType()
+                            + " when using a simple type schema");
+                }
+                default: {
+                    // ARRAY, MAP, FIXED, NULL.
+                    logger.info("Registering a special avro schema typed [{}]", schema.getType());
+                }
+            }
     }
 
     private static void throwInvalidSchemaDataException(SchemaData schemaData,
