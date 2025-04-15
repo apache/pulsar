@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
  */
 public interface SchemaDataValidator {
 
-    Logger logger = LoggerFactory.getLogger(SchemaDataValidator.class);
+    Logger LOGGER = LoggerFactory.getLogger(SchemaDataValidator.class);
 
     /**
      * Validate if the schema data is well formed.

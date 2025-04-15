@@ -95,7 +95,7 @@ class StructSchemaDataValidator implements SchemaDataValidator {
                 }
                 default: {
                     // ARRAY, MAP, FIXED, NULL.
-                    logger.info("Registering a special avro schema typed [{}]", schema.getType());
+                    LOGGER.info("Registering a special avro schema typed [{}]", schema.getType());
                 }
             }
     }
