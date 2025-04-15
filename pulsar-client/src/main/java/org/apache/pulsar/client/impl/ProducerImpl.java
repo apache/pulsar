@@ -2431,7 +2431,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
      *   2-2. {@link #pendingMessages} has no other messages that need to register new schema.
      * 3. If using multiple version producer, the new schema was failed to registered.
      *   3-1. If the new schema is incompatible.
-     *     3-1-1. If {@link #pauseSendingToPreservePublishOrderOnSchemaRegFailure} is true stuck all following
+     *     3-1-1. If {@link #pauseSendingToPreservePublishOrderOnSchemaRegFailure} is true pause all following
      *       publishing to avoid out-of-order issue.
      *     3-1-2. Otherwise, discard the failed message anc continuously publishing the following messages.
      *   3-2. The new schema registration failed due to other error, retry registering.
