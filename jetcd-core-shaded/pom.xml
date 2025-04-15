@@ -140,12 +140,12 @@
                 <!-- relocate to use grpc-netty-shaded packages -->
                 <relocation>
                   <pattern>io.grpc.netty</pattern>
-                  <shadedPattern>io.grpc.netty.shaded.io.grpc.netty</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shaded.io.grpc.netty</shadedPattern>
                 </relocation>
                 <!-- relocate to use grpc-netty-shaded packages -->
                 <relocation>
                   <pattern>io.netty</pattern>
-                  <shadedPattern>io.grpc.netty.shaded.io.netty</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shaded.io.netty</shadedPattern>
                 </relocation>
               </relocations>
               <filters>
