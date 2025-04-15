@@ -200,9 +200,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         this.userProvidedProducerName = StringUtils.isNotBlank(producerName);
         this.partitionIndex = partitionIndex;
         this.pendingMessages = createPendingMessagesQueue();
-        // Replication needs to be paused when a message can not be replicated due to failed schema registration. Otherwise,
-        // it may cause an out-of-order issue, and it may lead to a messages lost issue if users enabled deduplication
-        // on the remote side.
+        // Replication needs to be paused when a message can not be replicated due to failed schema registration.
+        // Otherwise, it may cause an out-of-order issue, and it may lead to a messages lost issue if users enabled
+        // deduplication on the remote side.
         this.pauseSendingToPreservePublishOrderOnSchemaRegFailure = conf.isReplProducer();
         if (conf.getMaxPendingMessages() > 0) {
             this.semaphore = Optional.of(new Semaphore(conf.getMaxPendingMessages(), true));
