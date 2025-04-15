@@ -17,7 +17,7 @@
 # under the License.
 #
 
-ARG ALPINE_VERSION=3.20
+ARG ALPINE_VERSION=3.21
 
 # Builds an Alpine image with kinesis_producer compiled for Alpine Linux / musl
 
