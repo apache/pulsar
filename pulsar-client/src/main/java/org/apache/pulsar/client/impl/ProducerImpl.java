@@ -2488,11 +2488,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     SchemaInfo msgSchemaInfo = op.msg.hasReplicateFrom() ? op.msg.getSchemaInfoForReplicator()
                             : op.msg.getSchemaInfo();
                     // Event 3-1-1.
-                    // New schema is incompatible, if users need to guarantee the publishing ordering, we should let
-                    // the producer be stuck until user changed the compatibility policy and unload the target topic.
+                    // When a schema is incompatible, we need to pause the producer to preserve message order.
+                    // Otherwise, subsequent messages with compatible schemas would be delivered while this message
+                    // remains stuck, causing out-of-order delivery or potential message loss with deduplication.                    
                     if (pauseSendingToPreservePublishOrderOnSchemaRegFailure) {
-                        log.error("[{}] [{}] Producer was stuck due to incompatible schem, please adjust your"
-                                + " schema compatibility strategy and unload the topic on the target cluster. {}",
+                        log.error("[{}] [{}] Publishing paused: message schema incompatible with target cluster."
+                                + " To resume publishing: 1) Adjust schema compatibility strategy on target cluster"
+                                + " 2) Unload topic on target cluster. Schema details: {}",
                                 topic, producerName, String.valueOf(msgSchemaInfo));
                         loopEndDueToSchemaRegisterNeeded = op;
                         break;
