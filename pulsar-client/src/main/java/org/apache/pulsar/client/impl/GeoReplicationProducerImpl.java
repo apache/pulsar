@@ -109,7 +109,7 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
                 && (pendingLId < lastPersistedSourceLedgerId || (pendingLId.longValue() == lastPersistedSourceLedgerId
                   && pendingEId.longValue() <= lastPersistedSourceEntryId))) {
             if (MessageImpl.SchemaState.Broken.equals(op.msg.getSchemaState())) {
-                log.error("[{}] [{}] Replication is stuck because there is a schema is incompatible with the remote"
+                log.error("[{}] [{}] Replication is paused because the schema is incompatible with the remote"
                                 + " cluster, please modify the schema compatibility for the remote cluster."
                                 + " Latest published entry {}:{}, Entry who has broken schema: {}:{},"
                                 + " latest persisted source entry: {}:{}, pending queue size: {}.",
