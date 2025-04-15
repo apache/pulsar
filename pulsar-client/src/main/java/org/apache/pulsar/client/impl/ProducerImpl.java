@@ -2445,8 +2445,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             // called again once the new connection registers the producer with the broker.
             log.info("[{}][{}] Producer epoch mismatch or the current connection is null. Skip re-sending the "
                             + " {} pending messages since they will deliver using another connection.", topic,
-                    producerName,
-                    pendingMessages.messagesCount());
+                    producerName, pendingMessages.messagesCount());
             return;
         }
         final boolean stripChecksum = cnx.getRemoteEndpointProtocolVersion() < brokerChecksumSupportedVersion();
