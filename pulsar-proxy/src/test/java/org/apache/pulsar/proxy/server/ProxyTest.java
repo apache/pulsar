@@ -62,7 +62,6 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.AuthData;
-import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.FeatureFlags;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
@@ -461,18 +460,15 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
                     protected ByteBuf newConnectCommand() throws Exception {
                         authenticationDataProvider = authentication.getAuthData(remoteHostName);
                         AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
-                        BaseCommand cmd =
-                                Commands.newConnectWithoutSerialize(authentication.getAuthMethodName(), authData,
-                                        this.protocolVersion, clientVersion, proxyToTargetBrokerAddress,
-                                        null, null, null, null, null);
-                        FeatureFlags featureFlags = cmd.getConnect().getFeatureFlags();
+                        FeatureFlags featureFlags = new FeatureFlags();
                         featureFlags.setSupportsAuthRefresh(supported);
                         featureFlags.setSupportsBrokerEntryMetadata(supported);
                         featureFlags.setSupportsPartialProducer(supported);
                         featureFlags.setSupportsTopicWatchers(supported);
-                        featureFlags.setSupportsReplDedupByLidAndEid(supported);
                         featureFlags.setSupportsGetPartitionedMetadataWithoutAutoCreation(supported);
-                        return Commands.serializeWithSize(cmd);
+                        return Commands.newConnect(authentication.getAuthMethodName(), authData,
+                                        this.protocolVersion, null, proxyToTargetBrokerAddress,
+                                        null, null, null, null, featureFlags);
                     }
                 };
             });
@@ -486,7 +482,6 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         assertEquals(featureFlags.isSupportsBrokerEntryMetadata(), supported);
         assertEquals(featureFlags.isSupportsPartialProducer(), supported);
         assertEquals(featureFlags.isSupportsTopicWatchers(), supported);
-        assertEquals(featureFlags.isSupportsReplDedupByLidAndEid(), supported);
         assertEquals(featureFlags.isSupportsGetPartitionedMetadataWithoutAutoCreation(), supported);
 
         // cleanup.
