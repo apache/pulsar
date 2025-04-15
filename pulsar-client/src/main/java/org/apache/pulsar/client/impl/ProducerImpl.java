@@ -189,7 +189,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private final Counter producersOpenedCounter;
     private final Counter producersClosedCounter;
-    private final boolean needStuckForOrderingIfSchemaRegFailed;
+    private final boolean pauseSendingToPreservePublishOrderOnSchemaRegFailure;
 
     public ProducerImpl(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
                         CompletableFuture<Producer<T>> producerCreatedFuture, int partitionIndex, Schema<T> schema,
@@ -203,7 +203,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         // Replication need be stuck when a message can not be replicated due to failed schema registration. Otherwise,
         // it may cause an out-of-order issue, and it may lead to a messages lost issue if users enabled deduplication
         // on the remote side.
-        this.needStuckForOrderingIfSchemaRegFailed = conf.isReplProducer();
+        this.pauseSendingToPreservePublishOrderOnSchemaRegFailure = conf.isReplProducer();
         if (conf.getMaxPendingMessages() > 0) {
             this.semaphore = Optional.of(new Semaphore(conf.getMaxPendingMessages(), true));
         } else {
@@ -2431,8 +2431,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
      *   2-2. {@link #pendingMessages} has no other messages that need to register new schema.
      * 3. If using multiple version producer, the new schema was failed to registered.
      *   3-1. If the new schema is incompatible.
-     *     3-1-1. If {@link #needStuckForOrderingIfSchemaRegFailed} is true stuck all following publishing to avoid
-     *            out-of-order issue.
+     *     3-1-1. If {@link #pauseSendingToPreservePublishOrderOnSchemaRegFailure} is true stuck all following
+     *       publishing to avoid out-of-order issue.
      *     3-1-2. Otherwise, discard the failed message anc continuously publishing the following messages.
      *   3-2. The new schema registration failed due to other error, retry registering.
      * Note: Since the current method accesses & modifies {@link #pendingMessages}, you should acquire a lock on
@@ -2466,7 +2466,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 if (Broken.equals(op.msg.getSchemaState())) {
                     // "Event 1-1" happens after "Event 3-1-1".
                     // Maybe user has changed the schema compatibility strategy, will retry to register the new schema.
-                    if (needStuckForOrderingIfSchemaRegFailed) {
+                    if (pauseSendingToPreservePublishOrderOnSchemaRegFailure) {
                         loopEndDueToSchemaRegisterNeeded = op;
                         break;
                     } else {
@@ -2490,7 +2490,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     // Event 3-1-1.
                     // New schema is incompatible, if users need to guarantee the publishing ordering, we should let
                     // the producer be stuck until user changed the compatibility policy and unload the target topic.
-                    if (needStuckForOrderingIfSchemaRegFailed) {
+                    if (pauseSendingToPreservePublishOrderOnSchemaRegFailure) {
                         log.error("[{}] [{}] Producer was stuck due to incompatible schem, please adjust your"
                                 + " schema compatibility strategy and unload the topic on the target cluster. {}",
                                 topic, producerName, String.valueOf(msgSchemaInfo));
