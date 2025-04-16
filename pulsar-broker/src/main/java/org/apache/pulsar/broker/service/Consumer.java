@@ -620,6 +620,7 @@ public class Consumer {
                     if (((PersistentSubscription) subscription)
                             .checkIsCanDeleteConsumerPendingAck(position)) {
                         removePendingAcks(ackOwnerConsumer, position);
+                        updateBlockedConsumerOnUnackedMsgs(ackOwnerConsumer);
                     }
                 }
             }));
@@ -693,6 +694,7 @@ public class Consumer {
                             if (((PersistentSubscription) subscription)
                                     .checkIsCanDeleteConsumerPendingAck(positionLongMutablePair.left)) {
                                 removePendingAcks(ackOwnerConsumer, positionLongMutablePair.left);
+                                updateBlockedConsumerOnUnackedMsgs(ackOwnerConsumer);
                             }
                         }
                     }));
@@ -1082,7 +1084,6 @@ public class Consumer {
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] consumer {} received ack {}", topicName, subscription, consumerId, position);
         }
-        updateBlockedConsumerOnUnackedMsgs(ackOwnedConsumer);
         return true;
     }
 
