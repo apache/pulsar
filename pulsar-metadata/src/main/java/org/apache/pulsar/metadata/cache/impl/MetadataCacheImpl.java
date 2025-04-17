@@ -165,6 +165,11 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
     @Override
     public CompletableFuture<T> readModifyUpdateOrCreate(String path, Function<Optional<T>, T> modifyFunction) {
+        return executeWithRetry(() -> readModifyUpdateOrCreateOnce(path, modifyFunction), path);
+    }
+
+    @Override
+    public CompletableFuture<T> readModifyUpdateOrCreateOnce(String path, Function<Optional<T>, T> modifyFunction) {
         return executeWithRetry(() -> objCache.get(path)
                 .thenCompose(optEntry -> {
                     Optional<T> currentValue;

@@ -299,14 +299,23 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
 
     public CompletableFuture<Void> put(String key, T value) {
         String path = getPath(key);
-        return cache.readModifyUpdateOrCreate(path, (old) -> {
-            if (conflictResolver.test(old.orElse(null), value)) {
-                return value;
-            } else {
-                throw new ConflictException(
-                        String.format("Failed to update from old:%s to value:%s", old, value));
-            }
-        }).thenCompose(__ -> doHandleNotification(path)); // immediately notify local tableview
+        return cache.readModifyUpdateOrCreateOnce(path, (old) -> {
+                    if (conflictResolver.test(old.orElse(null), value)) {
+                        return value;
+                    } else {
+                        throw new ConflictException(
+                                String.format("Failed to update from old:%s to value:%s", old, value));
+                    }
+                })
+                .thenCompose(__ -> doHandleNotification(path))  // immediately notify local tableview
+                .exceptionally(e -> {
+                    if (e.getCause() instanceof MetadataStoreException.BadVersionException) {
+                        throw FutureUtil.wrapToCompletionException(new ConflictException(
+                                String.format("Failed to update to value:%s", value)));
+                    }
+
+                    throw FutureUtil.wrapToCompletionException(e.getCause());
+                });
     }
 
     public CompletableFuture<Void> delete(String key) {
