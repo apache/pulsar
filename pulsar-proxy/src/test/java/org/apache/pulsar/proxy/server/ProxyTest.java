@@ -25,6 +25,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -446,6 +447,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         assertEquals(proxyMetadata.partitions, 1);
         try {
             proxyClient.getPartitionedTopicMetadata(topic + "-partition-0", false, false).get();
+            fail("expected a TopicDoesNotExistException");
         } catch (Exception ex) {
             assertTrue(FutureUtil.unwrapCompletionException(ex)
                     instanceof PulsarClientException.TopicDoesNotExistException);
