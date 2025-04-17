@@ -321,7 +321,31 @@ public class PulsarRegistrationClient implements RegistrationClient {
         if (info != null) {
             return completedFuture(info);
         } else {
-            return FutureUtils.exception(new BKException.BKBookieHandleNotAvailableException());
+            // In some scenarios, if the watch event of bookie changed fails to execute and leads to
+            // cache update failure. There is a phenomenon where the bookie is running normally and
+            // there is also bookie information on the metadata store, but the cache doesn't have it.
+            // So, we need to update cache manually.
+            // The purpose of use synchronized updating is to avoid multiple requests being sent to the metadata server.
+            synchronized (this) {
+                if ((info = writableBookieInfo.get(bookieId)) == null) {
+                    log.warn("Bookie {} not found from all cache, now update writableBookieInfo cache "
+                            + "and then try to get from writableBookieInfo cache.", bookieId);
+                    readBookieInfoAsWritableBookie(bookieId);
+                    info = writableBookieInfo.get(bookieId);
+                    if (info == null) {
+                        log.warn("Bookie {} not found from writableBookieInfo cache, now update readOnlyBookieInfo "
+                                + "cache and then try to get from readOnlyBookieInfo cache.", bookieId);
+                        readBookieInfoAsReadonlyBookie(bookieId);
+                        info = readOnlyBookieInfo.get(bookieId);
+                    }
+                }
+            }
+            if (info != null) {
+                return completedFuture(info);
+            } else {
+                log.error("Bookie {} not found from all cache, maybe it's not ready or shutdown.", bookieId);
+                return FutureUtils.exception(new BKException.BKBookieHandleNotAvailableException());
+            }
         }
     }
 
