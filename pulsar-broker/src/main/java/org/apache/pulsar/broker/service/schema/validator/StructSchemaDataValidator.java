@@ -84,18 +84,8 @@ class StructSchemaDataValidator implements SchemaDataValidator {
                     throw new InvalidSchemaDataException(
                             "Avro schema typed [UNION] is not supported");
                 }
-                case INT:
-                case LONG:
-                case FLOAT:
-                case DOUBLE:
-                case BOOLEAN:
-                case STRING:
-                case BYTES: {
-                    throw new InvalidSchemaDataException("Please call"
-                            + " org.apache.pulsar.client.api.Schema." + schema.getType()
-                            + " when using a simple type schema");
-                }
                 default: {
+                    // INT, LONG, FLOAT, DOUBLE, BOOLEAN, STRING, BYTES.
                     // ARRAY, MAP, FIXED, NULL.
                     LOGGER.info("Registering a special avro schema typed [{}]", schema.getType());
                 }

@@ -563,28 +563,6 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testAddSimpleSchema() throws Exception {
-        String namespaceName = PUBLIC_TENANT + "/" + DEFAULT_NAMESPACE;
-        String topicName = BrokerTestUtil.newUniqueName(namespaceName + "/tp");
-        admin.topics().createNonPartitionedTopic(topicName);
-
-        // Create a simple type schema.
-        try {
-            admin.schemas().createSchema(topicName, Schema.AVRO(String.class).getSchemaInfo());
-            fail("avro simple schema is not supported");
-        } catch (PulsarAdminException e) {
-            assertTrue(e.getMessage().contains("org.apache.pulsar.client.api.Schema"));
-        }
-
-        // Create a producer with auto_produce schema.
-        Producer producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topicName).create();
-
-        // Cleanup.
-        producer.close();
-        admin.topics().delete(topicName, false);
-    }
-
-    @Test
     public void testAutoProduceSchemaAlwaysCompatible() throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String topic = "topic" + randomName(16);
