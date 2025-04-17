@@ -20,17 +20,20 @@ package org.apache.pulsar.client.impl.schema.generic;
 
 import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.AvroRuntimeException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
+import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.Test;
 
 import java.util.List;
@@ -42,6 +45,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 /**
  * Unit testing generic schemas.
@@ -62,6 +66,29 @@ public class GenericSchemaTest {
         Schema<Foo> encodeSchema = Schema.JSON(Foo.class);
         GenericSchema decodeSchema = GenericJsonSchema.of(encodeSchema.getSchemaInfo());
         testEncodeAndDecodeGenericRecord(encodeSchema, decodeSchema);
+    }
+
+    @Test
+    public void testUnionSchema() {
+        SchemaInfoImpl schemaInfo = new SchemaInfoImpl();
+        schemaInfo.setType(SchemaType.AVRO);
+        schemaInfo.setSchema(("[{\n"
+                + "\"namespace\": \"org.apache.pulsar.schema.compatibility.TestA\",\n"
+                + "\"type\": \"enum\",\n"
+                + "\"name\": \"EventSource\",\n"
+                + "\"symbols\": [\"AUTO_EVENTING\", \"HOODLUM\", \"OPTA\", \"ISD\", \"LIVE_STATS\", \"NGSS\", \"UNIFIED\"]\n"
+                + "}, {\n"
+                + "\"namespace\": \"org.apache.pulsar.schema.compatibility.TestB\",\n"
+                + "\"type\": \"enum\",\n"
+                + "\"name\": \"PeriodType\",\n"
+                + "\"symbols\": [\"REGULAR\", \"EXTRA_TIME\"]\n"
+                + "}]").getBytes(UTF_8));
+        try {
+            GenericJsonSchema.of(schemaInfo);
+            fail("expected an not-supported exception");
+        } catch (AvroRuntimeException e) {
+            assertTrue(e.getMessage().contains("simple-type:[UNION] is not supported"));
+        }
     }
 
     @Test
