@@ -2489,7 +2489,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     // Event 3-1-1.
                     // When a schema is incompatible, we need to pause the producer to preserve message order.
                     // Otherwise, subsequent messages with compatible schemas would be delivered while this message
-                    // remains stuck, causing out-of-order delivery or potential message loss with deduplication.                    
+                    // remains stuck, causing out-of-order delivery or potential message loss with deduplication.
                     if (pauseSendingToPreservePublishOrderOnSchemaRegFailure) {
                         log.error("[{}] [{}] Publishing paused: message schema incompatible with target cluster."
                                 + " To resume publishing: 1) Adjust schema compatibility strategy on target cluster"
