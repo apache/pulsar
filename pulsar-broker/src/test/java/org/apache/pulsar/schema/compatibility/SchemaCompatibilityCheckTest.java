@@ -19,15 +19,19 @@
 package org.apache.pulsar.schema.compatibility;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
 import java.util.Collections;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
@@ -36,6 +40,7 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -68,6 +73,8 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
                 .allowedClusters(Collections.singleton(CLUSTER_NAME))
                 .build();
         admin.tenants().createTenant(PUBLIC_TENANT, tenantInfo);
+        String namespaceName = PUBLIC_TENANT + "/" + DEFAULT_NAMESPACE;
+        admin.namespaces().createNamespace(namespaceName, Sets.newHashSet(CLUSTER_NAME));
     }
 
     @AfterMethod(alwaysRun = true)
@@ -483,9 +490,8 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testSchemaLedgerAutoRelease() throws Exception {
-        String namespaceName = PUBLIC_TENANT + "/default";
-        String topicName = "persistent://" + namespaceName + "/tp";
-        admin.namespaces().createNamespace(namespaceName, Sets.newHashSet(CLUSTER_NAME));
+        String namespaceName = PUBLIC_TENANT + "/" + DEFAULT_NAMESPACE;
+        String topicName = BrokerTestUtil.newUniqueName("persistent://" + namespaceName + "/tp");
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
         // Update schema 100 times.
         for (int i = 0; i < 100; i++){
@@ -514,6 +520,46 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
                 .filter(ledger -> !ledger.isFenced())
                 .collect(Collectors.toList()).size() < 20);
         admin.topics().delete(topicName, true);
+    }
+
+    @Test
+    public void testAddUnionAvroSchema() throws Exception {
+        String namespaceName = PUBLIC_TENANT + "/" + DEFAULT_NAMESPACE;
+        String topicName = BrokerTestUtil.newUniqueName(namespaceName + "/tp");
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        // Create a union type schema.
+        SchemaInfoImpl schemaInfo = new SchemaInfoImpl();
+        schemaInfo.setType(SchemaType.AVRO);
+        schemaInfo.setSchema(
+            """
+            [{
+                "namespace": "org.apache.pulsar.schema.compatibility.TestA",
+                "type": "enum",
+                "name": "EventSource",
+                "symbols": ["AUTO_EVENTING", "HOODLUM", "OPTA", "ISD", "LIVE_STATS", "NGSS", "UNIFIED"]
+             }, {
+                "namespace": "org.apache.pulsar.schema.compatibility.TestB",
+                "type": "enum",
+                "name": "PeriodType",
+                "symbols": ["REGULAR", "EXTRA_TIME"]
+             }]
+            """.getBytes(UTF_8));
+        schemaInfo.setName(topicName);
+        schemaInfo.setTimestamp(System.currentTimeMillis());
+        try {
+            admin.schemas().createSchema(topicName, schemaInfo);
+            fail("avro-union schema is not supported");
+        } catch (PulsarAdminException e) {
+            assertTrue(e.getMessage().contains("Avro schema typed [UNION] is not supported"));
+        }
+
+        // Create a producer with auto_produce schema.
+        Producer producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topicName).create();
+
+        // Cleanup.
+        producer.close();
+        admin.topics().delete(topicName, false);
     }
 
     @Test
