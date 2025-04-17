@@ -32,7 +32,6 @@ import static org.testng.Assert.fail;
 import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Sets;
-import io.swagger.models.auth.In;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Serializable;
