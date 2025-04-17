@@ -256,7 +256,8 @@ public class DefaultLookupProxyHandler implements LookupProxyHandler {
                 if (t != null) {
                     log.warn("[{}] failed to get Partitioned metadata : {}", topicName.toString(),
                             t.getMessage(), t);
-                    writeAndFlush(Commands.newLookupErrorResponse(getServerError(t),
+                    PulsarClientException pce = PulsarClientException.unwrap(t);
+                    writeAndFlush(Commands.newLookupErrorResponse(clientCnx.revertClientExToErrorCode(pce),
                             t.getMessage(), clientRequestId));
                 } else {
                     writeAndFlush(
