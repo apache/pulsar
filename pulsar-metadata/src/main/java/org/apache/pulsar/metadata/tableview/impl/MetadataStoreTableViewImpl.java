@@ -111,6 +111,7 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
                 MetadataCacheConfig.<T>builder()
                         .expireAfterWriteMillis(-1)
                         .refreshAfterWriteMillis(CACHE_REFRESH_FREQUENCY_IN_MILLIS)
+                        .retryBackoff(MetadataCacheConfig.NO_RETRY_BACKOFF_BUILDER)
                         .asyncReloadConsumer(this::consumeAsyncReload)
                         .build());
         store.registerListener(this::handleNotification);

@@ -103,22 +103,6 @@ public interface MetadataCache<T> {
     CompletableFuture<T> readModifyUpdateOrCreate(String path, Function<Optional<T>, T> modifyFunction);
 
     /**
-     * Perform an atomic read-modify-update of the value with the cached version.
-     * <p>
-     * This fail-fasts without retries (e.g. fail-fast upon BadVersionException)
-     * <p>
-     * If the object does not exist yet, the <code>modifyFunction</code> will get passed an {@link Optional#empty()}
-     * object.
-     *
-     * @param path
-     *            the path of the object in the metadata store
-     * @param modifyFunction
-     *            a function that will be passed the current value and returns a modified value to be stored
-     * @return a future to track the completion of the operation
-     */
-    CompletableFuture<T> readModifyUpdateOrCreateOnce(String path, Function<Optional<T>, T> modifyFunction);
-
-    /**
      * Perform an atomic read-modify-update of the value.
      * <p>
      * The modify function can potentially be called multiple times if there are concurrent updates happening.

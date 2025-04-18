@@ -702,4 +702,41 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         assertEquals(backoff.getMax(), 3000);
         assertEquals(backoff.getMandatoryStop(), 30_000);
     }
+
+    @Test
+    public void testNoBackoffMetadataCacheConfig() {
+        final var config = MetadataCacheConfig.builder().retryBackoff(
+                MetadataCacheConfig.NO_RETRY_BACKOFF_BUILDER).build();
+
+        final var backoff = config.getRetryBackoff().create();
+
+        assertEquals(backoff.getInitial(), 0);
+        assertEquals(backoff.getMax(),0);
+        assertEquals(backoff.getMandatoryStop(), 0);
+        assertTrue(backoff.isMandatoryStopMade());
+        assertEquals(backoff.getFirstBackoffTimeInMillis(), 0);
+        assertEquals(backoff.next(), 0);
+        assertEquals(backoff.next(), 0);
+        assertEquals(backoff.next(), 0);
+        assertTrue(backoff.isMandatoryStopMade());
+        assertEquals(backoff.getFirstBackoffTimeInMillis(), 0);
+
+        backoff.reduceToHalf();
+        assertTrue(backoff.isMandatoryStopMade());
+        assertEquals(backoff.getFirstBackoffTimeInMillis(), 0);
+        assertEquals(backoff.next(), 0);
+        assertEquals(backoff.next(), 0);
+        assertEquals(backoff.next(), 0);
+        assertTrue(backoff.isMandatoryStopMade());
+        assertEquals(backoff.getFirstBackoffTimeInMillis(), 0);
+
+        backoff.reset();
+        assertTrue(backoff.isMandatoryStopMade());
+        assertEquals(backoff.getFirstBackoffTimeInMillis(), 0);
+        assertEquals(backoff.next(), 0);
+        assertEquals(backoff.next(), 0);
+        assertEquals(backoff.next(), 0);
+        assertTrue(backoff.isMandatoryStopMade());
+        assertEquals(backoff.getFirstBackoffTimeInMillis(), 0);
+    }
 }
