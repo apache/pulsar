@@ -39,6 +39,11 @@ public class MetadataCacheConfig<T> {
                     .setMax(3, TimeUnit.SECONDS)
                     .setMandatoryStop(30, TimeUnit.SECONDS);
 
+    public static final BackoffBuilder NO_RETRY_BACKOFF_BUILDER =
+            new BackoffBuilder().setInitialTime(0, TimeUnit.MILLISECONDS)
+                    .setMax(0, TimeUnit.SECONDS)
+                    .setMandatoryStop(0, TimeUnit.SECONDS);
+
     /**
      * Specifies that active entries are eligible for automatic refresh once a fixed duration has
      * elapsed after the entry's creation, or the most recent replacement of its value.

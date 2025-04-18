@@ -339,8 +339,12 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                 objCache.synchronous().invalidate(key);
                 long elapsed = System.currentTimeMillis() - backoff.getFirstBackoffTimeInMillis();
                 if (backoff.isMandatoryStopMade()) {
-                    result.completeExceptionally(new TimeoutException(
-                            String.format("Timeout to update key %s. Elapsed time: %d ms", key, elapsed)));
+                    if (backoff.getFirstBackoffTimeInMillis() == 0) {
+                        result.completeExceptionally(ex.getCause());
+                    } else {
+                        result.completeExceptionally(new TimeoutException(
+                                String.format("Timeout to update key %s. Elapsed time: %d ms", key, elapsed)));
+                    }
                     return null;
                 }
                 final var next = backoff.next();

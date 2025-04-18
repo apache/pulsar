@@ -43,9 +43,13 @@ public class Backoff {
             TimeUnit unitMandatoryStop, Clock clock) {
         this.initial = unitInitial.toMillis(initial);
         this.max = unitMax.toMillis(max);
+        if (initial == 0 && max == 0 && mandatoryStop == 0) {
+            this.mandatoryStopMade = true;
+        }
         this.next = this.initial;
         this.mandatoryStop = unitMandatoryStop.toMillis(mandatoryStop);
         this.clock = clock;
+        this.firstBackoffTimeInMillis = 0;
     }
 
     public Backoff(long initial, TimeUnit unitInitial, long max, TimeUnit unitMax, long mandatoryStop,
@@ -91,7 +95,11 @@ public class Backoff {
 
     public void reset() {
         this.next = this.initial;
-        this.mandatoryStopMade = false;
+        if (initial == 0 && max == 0 && mandatoryStop == 0) {
+            this.mandatoryStopMade = true;
+        } else {
+            this.mandatoryStopMade = false;
+        }
     }
 
     public static boolean shouldBackoff(long initialTimestamp, TimeUnit unitInitial, int failedAttempts,
