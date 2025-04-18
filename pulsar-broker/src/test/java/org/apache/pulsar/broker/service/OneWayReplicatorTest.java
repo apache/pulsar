@@ -38,10 +38,13 @@ import io.netty.util.concurrent.FastThreadLocalThread;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -79,6 +82,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -88,9 +92,12 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
@@ -1323,5 +1330,96 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         // cleanup.
         admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
         admin1.topics().delete(topicName, false);
+    }
+
+    @DataProvider
+    public Object[][] enableDeduplication() {
+        return new Object[][] {
+            {false},
+            {true},
+        };
+    }
+
+    @Test(dataProvider = "enableDeduplication")
+    public void testIncompatibleMultiVersionSchema(boolean enableDeduplication) throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://"
+                + sourceClusterAlwaysSchemaCompatibleNamespace + "/tp_");
+        final String subscriptionName = "s1";
+        // 1.Create topic.
+        admin1.topics().createNonPartitionedTopic(topicName);
+        Producer<byte[]> producer1 = client1.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topicName).create();
+        waitReplicatorStarted(topicName);
+        admin1.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+        admin2.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+        if (enableDeduplication) {
+            admin2.topicPolicies().setDeduplicationStatus(topicName, true);
+        }
+        // 2. Publish messages with multiple schemas.
+        producer1.newMessage(Schema.STRING).value("msg1").send();
+        producer1.newMessage(Schema.BOOL).value(false).send();
+        producer1.newMessage(Schema.STRING).value("msg3").send();
+        // 3. several unloading, which causes replicator internal producer reconnects.
+        for (int i = 0; i < 3; i++) {
+            Thread.sleep(2000);
+            admin2.topics().unload(topicName);
+            waitReplicatorStarted(topicName);
+        }
+        // Verify: no individual acks.
+        Awaitility.await().untilAsserted(() -> {
+           PersistentTopic persistentTopic2 =
+                   (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
+           assertTrue(
+           persistentTopic2.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(true) > 0);
+            PersistentTopic persistentTopic1 =
+                    (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
+            ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic1.getManagedLedger();
+            ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().get("pulsar.repl.r2");
+            assertEquals(cursor.getTotalNonContiguousDeletedMessagesRange(), 0);
+            assertTrue(cursor.getMarkDeletedPosition().compareTo(ml.getLastConfirmedEntry()) < 0);
+        });
+        // 4. Adjust schema compatibility and unload topic on the remote side, which will solve the replication stuck
+        // issue.
+        admin2.namespaces().setSchemaCompatibilityStrategy(sourceClusterAlwaysSchemaCompatibleNamespace,
+                SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+        admin2.topics().unload(topicName);
+        admin1.topics().unload(topicName);
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic persistentTopic1 =
+                    (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
+            ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic1.getManagedLedger();
+            ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().get("pulsar.repl.r2");
+            assertTrue(cursor.getMarkDeletedPosition().compareTo(ml.getLastConfirmedEntry()) >= 0);
+        });
+        // Verify: no out-of-order; schemas are as expected.
+        Consumer<GenericRecord> consumer2 = client2.newConsumer(Schema.AUTO_CONSUME()).topic(topicName)
+                .subscriptionName(subscriptionName).subscribe();
+        Collection<String> msgReceived;
+        if (enableDeduplication) {
+            msgReceived = new ArrayList<>();
+        } else {
+            msgReceived = new LinkedHashSet<>();
+        }
+        while (true) {
+            Message<GenericRecord> message = consumer2.receive(2, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            SchemaType schemaType = message.getValue().getSchemaType();
+            assertTrue(schemaType.equals(SchemaType.STRING) || schemaType.equals(SchemaType.BOOLEAN));
+            msgReceived.add(message.getValue().getNativeObject().toString());
+            log.info("received msg: {}", message.getValue().getNativeObject().toString());
+        }
+        assertEquals(msgReceived, Arrays.asList("msg1", "false", "msg3"));
+        List<SchemaInfo> schemaInfoList = admin2.schemas().getAllSchemas(topicName);
+        assertEquals(schemaInfoList.size(), 2);
+        assertEquals(schemaInfoList.get(0).getType(), SchemaType.STRING);
+        assertEquals(schemaInfoList.get(1).getType(), SchemaType.BOOLEAN);
+
+        // cleanup.
+        consumer2.close();
+        producer1.close();
+        admin2.topics().deleteSubscription(topicName, subscriptionName);
+        admin2.namespaces().setSchemaCompatibilityStrategy(sourceClusterAlwaysSchemaCompatibleNamespace,
+                SchemaCompatibilityStrategy.FORWARD);
     }
 }

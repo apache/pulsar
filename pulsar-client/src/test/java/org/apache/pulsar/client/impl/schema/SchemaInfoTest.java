@@ -286,7 +286,7 @@ public class SchemaInfoTest {
 
     @Test(dataProvider = "schemas")
     public void testSchemaInfoToString(SchemaInfo si, String jsonifiedStr) {
-        assertEquals(si.toString(), jsonifiedStr);
+        assertEquals(si.toString(), removeBlank(jsonifiedStr));
     }
 
     public static class SchemaInfoBuilderTest {
@@ -335,7 +335,11 @@ public class SchemaInfoTest {
                     .build();
 
             // null key will be skipped by Gson when serializing JSON to String
-            assertEquals(si.toString(), INT32_SCHEMA_INFO);
+            assertEquals(si.toString(), removeBlank(INT32_SCHEMA_INFO));
         }
+    }
+
+    private static String removeBlank(String src) {
+        return src.replaceAll(" ", "").replaceAll("\n", "").replaceAll("\t", "");
     }
 }
