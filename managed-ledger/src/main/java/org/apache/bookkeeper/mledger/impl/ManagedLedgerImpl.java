@@ -1360,46 +1360,62 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     public CompletableFuture<Void> asyncAddLedgerProperty(long ledgerId, String key, String value) {
         CompletableFuture<Void> f = new CompletableFuture<>();
         // Execute the operation in ML executor to avoid concurrent modifications to ledger info.
-        executor.execute(() -> {
-            if (state.isFenced()) {
-                f.completeExceptionally(new ManagedLedgerFencedException());
-                return;
-            }
-            LedgerInfo li = ledgers.get(ledgerId);
-            if (li == null) {
-                f.completeExceptionally(new ManagedLedgerException("Ledger not found"));
-                return;
-            }
+        if (state.isFenced()) {
+            f.completeExceptionally(new ManagedLedgerFencedException());
+            return f;
+        }
+        LedgerInfo li = ledgers.get(ledgerId);
+        if (li == null) {
+            f.completeExceptionally(new ManagedLedgerException("Ledger not found"));
+            return f;
+        }
 
-            List<MLDataFormats.KeyValue> oldProperties = li.getPropertiesList();
-            Map<String, String> newPropertiesMap = new HashMap<>();
-            oldProperties.forEach(kv -> newPropertiesMap.put(kv.getKey(), kv.getValue()));
-            newPropertiesMap.put(key, value);
-            updateAndPersistLedgerProperties(newPropertiesMap, li, f);
-        });
+        synchronized (this) {
+            if (!metadataMutex.tryLock()) {
+                // retry in 100 milliseconds
+                scheduledExecutor.schedule(
+                        () -> asyncAddLedgerProperty(ledgerId, key, value), 100,
+                        TimeUnit.MILLISECONDS);
+            } else {
+                f.whenComplete((v, t) -> metadataMutex.unlock());
+                List<MLDataFormats.KeyValue> oldProperties = li.getPropertiesList();
+                Map<String, String> newPropertiesMap = new HashMap<>();
+                oldProperties.forEach(kv -> newPropertiesMap.put(kv.getKey(), kv.getValue()));
+                newPropertiesMap.put(key, value);
+                updateAndPersistLedgerProperties(newPropertiesMap, li, f);
+            }
+        }
         return f;
     }
 
     @Override
     public CompletableFuture<Void> asyncRemoveLedgerProperty(long ledgerId, String key) {
         CompletableFuture<Void> f = new CompletableFuture<>();
-        // Execute the operation in ML executor to avoid concurrent modifications to ledger info.
-        executor.execute(() -> {
-            if (state.isFenced()) {
-                f.completeExceptionally(new ManagedLedgerFencedException());
-                return;
+        if (state.isFenced()) {
+            f.completeExceptionally(new ManagedLedgerFencedException());
+            return f;
+        }
+        LedgerInfo li = ledgers.get(ledgerId);
+        if (li == null) {
+            f.completeExceptionally(new ManagedLedgerException("Ledger not found"));
+            return f;
+        }
+
+        synchronized (this) {
+            if (!metadataMutex.tryLock()) {
+                // retry in 100 milliseconds
+                scheduledExecutor.schedule(
+                        () -> asyncRemoveLedgerProperty(ledgerId, key), 100,
+                        TimeUnit.MILLISECONDS);
+            } else {
+                f.whenComplete((v, t) -> metadataMutex.unlock());
+                List<MLDataFormats.KeyValue> oldProperties = li.getPropertiesList();
+                Map<String, String> newPropertiesMap = new HashMap<>();
+                oldProperties.forEach(kv -> newPropertiesMap.put(kv.getKey(), kv.getValue()));
+                newPropertiesMap.remove(key);
+                updateAndPersistLedgerProperties(newPropertiesMap, li, f);
             }
-            LedgerInfo li = ledgers.get(ledgerId);
-            if (li == null) {
-                f.completeExceptionally(new ManagedLedgerException("Ledger not found"));
-                return;
-            }
-            List<MLDataFormats.KeyValue> oldProperties = li.getPropertiesList();
-            Map<String, String> newPropertiesMap = new HashMap<>();
-            oldProperties.forEach(kv -> newPropertiesMap.put(kv.getKey(), kv.getValue()));
-            newPropertiesMap.remove(key);
-            updateAndPersistLedgerProperties(newPropertiesMap, li, f);
-        });
+        }
         return f;
     }
 
