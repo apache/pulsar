@@ -1794,7 +1794,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         public Iterator<OpSendMsg> iterator() {
             Iterator<OpSendMsg> delegateIterator = delegate.iterator();
             return new Iterator<OpSendMsg>() {
-
+                OpSendMsg currentOp;
+                
                 @Override
                 public boolean hasNext() {
                     return delegateIterator.hasNext();
@@ -1802,13 +1803,17 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
                 @Override
                 public OpSendMsg next() {
-                    return delegateIterator.next();
+                    currentOp = delegateIterator.next();
+                    return currentOp;
                 }
 
                 @Override
                 public void remove() {
                     delegateIterator.remove();
-                    messagesCount.addAndGet(-1);
+                    if (currentOp != null) {
+                       messagesCount.addAndGet(-currentOp.numMessagesInBatch);
+                       currentOp = null;
+                     }
                 }
 
                 @Override
