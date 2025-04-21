@@ -1023,7 +1023,8 @@ public class ClientCnx extends PulsarHandler {
         return ctx;
     }
 
-    Channel channel() {
+    @VisibleForTesting
+    protected Channel channel() {
         return ctx.channel();
     }
 
