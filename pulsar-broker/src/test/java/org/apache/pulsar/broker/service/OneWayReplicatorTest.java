@@ -34,6 +34,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
+import io.netty.channel.Channel;
 import io.netty.util.concurrent.FastThreadLocalThread;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -68,21 +69,27 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
+import org.apache.pulsar.broker.service.persistent.InternalMethodInvoker;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.InjectedClientCnxClientBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.ClientBuilderImpl;
+import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
+import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -1323,5 +1330,118 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         // cleanup.
         admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
         admin1.topics().delete(topicName, false);
+    }
+
+    @Test
+    public void testConcurrencyReplicationReadEntries() throws Exception {
+        String originalReplicationStartAt = pulsar1.getConfig().getReplicationStartAt();
+        int originalDispatcherMaxReadBatchSize = pulsar1.getConfig().getDispatcherMaxReadBatchSize();
+        int originalDispatcherMinReadBatchSize = pulsar1.getConfig().getDispatcherMinReadBatchSize();
+        int originalReplicationProducerQueueSize = pulsar1.getConfig().getReplicationProducerQueueSize();
+        admin1.brokers().updateDynamicConfiguration("replicationStartAt", "earliest");
+        admin1.brokers().updateDynamicConfiguration("dispatcherMaxReadBatchSize", "10");
+        admin1.brokers().updateDynamicConfiguration("dispatcherMinReadBatchSize", "10");
+        admin1.brokers().updateDynamicConfiguration("replicationProducerQueueSize", "10");
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(pulsar1.getConfig().getReplicationStartAt(), "earliest");
+            assertEquals(pulsar1.getConfig().getDispatcherMaxReadBatchSize(), 10);
+            assertEquals(pulsar1.getConfig().getDispatcherMinReadBatchSize(), 10);
+            assertEquals(pulsar1.getConfig().getReplicationProducerQueueSize(), 10);
+        });
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + nonReplicatedNamespace + "/tp_");
+        final String subscriptionName = "s1";
+        admin1.topics().createNonPartitionedTopic(topicName);
+        admin2.topics().createNonPartitionedTopic(topicName);
+        admin1.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+        admin2.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+
+        // Publish messages.
+        Producer<byte[]> producer1 = client1.newProducer().topic(topicName).enableBatching(false).create();
+        CompletableFuture<MessageId> latestSend = null;
+        for (int i = 0; i < 1000; i++) {
+            latestSend = producer1.sendAsync(new byte[]{1});
+        }
+        latestSend.join();
+        log.info("Cluster: {}, Publish finished", cluster1);
+
+        // Inject two delay:
+        // 1. delay publish responding,
+        // 2. delay switch concurrent mechanism of "replicator.readMoreEntries".
+        ClientBuilderImpl clientBuilder2 = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(url2.toString());
+        PulsarClient injectedReplClient2 = InjectedClientCnxClientBuilder.create(clientBuilder2,
+                (conf, eventLoopGroup) -> {
+           return new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
+
+               @Override
+               protected void handleSendReceipt(CommandSendReceipt sendReceipt) {
+                   ctx().executor().schedule(() -> super.handleSendReceipt(sendReceipt), 3600, TimeUnit.SECONDS);
+               }
+
+               @Override
+               protected Channel channel() {
+                   boolean delay = false;
+                   StackTraceElement[] stacks = Thread.currentThread().getStackTrace();
+                   for (StackTraceElement stack : stacks) {
+                       if (stack.toString().contains("readMoreEntries")) {
+                           delay = true;
+                           break;
+                       }
+                   }
+                   if (!delay) {
+                       return super.ctx().channel();
+                   }
+                   try {
+                       Thread.sleep(3000);
+                   } catch (InterruptedException e) {
+                       throw new RuntimeException(e);
+                   }
+                   return super.ctx().channel();
+               }
+            };
+        });
+        PulsarClient originalReplClient2 = pulsar1.getBrokerService().getReplicationClients()
+                .put(cluster2, injectedReplClient2);
+
+        // Start replication and inject race conditions of "replicator.readMoreEntries".
+        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
+        PersistentTopic persistentTopic1 =
+                (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
+        waitReplicatorStarted(topicName);
+        GeoPersistentReplicator replicator =
+                (GeoPersistentReplicator) persistentTopic1.getReplicators().values().iterator().next();
+        for (int i = 0; i < 10; i++) {
+            new Thread(() -> {
+                InternalMethodInvoker.replicatorReadMoreEntries(replicator);
+            }).start();
+        }
+
+        // Verify: after a few seconds, there is no "pending queue is full" error.
+        Thread.sleep(10_000);
+        assertEquals(replicator.producer.getPendingQueueFullCount(), 0);
+
+        // cleanup.
+        producer1.close();
+        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
+        waitReplicatorStopped(topicName);
+        admin1.topics().delete(topicName, false);
+        if (originalReplClient2 == null) {
+            pulsar1.getBrokerService().getReplicationClients().remove(cluster2);
+        } else {
+            pulsar1.getBrokerService().getReplicationClients().put(cluster2, originalReplClient2);
+        }
+        injectedReplClient2.close();
+        admin1.brokers().updateDynamicConfiguration("replicationStartAt", originalReplicationStartAt);
+        admin1.brokers().updateDynamicConfiguration("dispatcherMaxReadBatchSize",
+                originalDispatcherMaxReadBatchSize + "");
+        admin1.brokers().updateDynamicConfiguration("dispatcherMinReadBatchSize",
+                originalDispatcherMinReadBatchSize + "");
+        admin1.brokers().updateDynamicConfiguration("replicationProducerQueueSize",
+                originalReplicationProducerQueueSize + "");
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(pulsar1.getConfig().getReplicationStartAt(), originalReplicationStartAt);
+            assertEquals(pulsar1.getConfig().getDispatcherMaxReadBatchSize(), originalDispatcherMaxReadBatchSize);
+            assertEquals(pulsar1.getConfig().getDispatcherMinReadBatchSize(), originalDispatcherMinReadBatchSize);
+            assertEquals(pulsar1.getConfig().getReplicationProducerQueueSize(), originalReplicationProducerQueueSize);
+        });
     }
 }
