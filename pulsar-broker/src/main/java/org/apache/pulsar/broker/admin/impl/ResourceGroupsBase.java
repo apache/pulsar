@@ -19,7 +19,9 @@
 package org.apache.pulsar.broker.admin.impl;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -45,6 +47,9 @@ public abstract class ResourceGroupsBase extends AdminResource {
                 .thenCompose((__) -> resourceGroupResources()
                         .updateResourceGroupAsync(rgName, rg -> {
                             String key = getReplicatorDispatchRateKey(remoteCluster);
+                            if (rg.getReplicatorDispatchRate() == null) {
+                                rg.setReplicatorDispatchRate(new ConcurrentHashMap<>());
+                            }
                             if (dispatchRate == null) {
                                 rg.getReplicatorDispatchRate().remove(key);
                             } else {
@@ -64,8 +69,15 @@ public abstract class ResourceGroupsBase extends AdminResource {
                 .thenCompose((__) -> resourceGroupResources()
                         .getResourceGroupAsync(rgName))
                 .thenCompose((resourceGroupOptional) -> resourceGroupOptional
-                        .map((rg) -> CompletableFuture.completedFuture(
-                                rg.getReplicatorDispatchRate().get(getReplicatorDispatchRateKey(remoteCluster))))
+                        .map((rg) -> {
+                            Map<String, DispatchRate> replicatorDispatchRate = rg.getReplicatorDispatchRate();
+                            DispatchRate dispatchRate = null;
+                            if (replicatorDispatchRate != null) {
+                                dispatchRate = rg.getReplicatorDispatchRate()
+                                        .get(getReplicatorDispatchRateKey(remoteCluster));
+                            }
+                            return CompletableFuture.completedFuture(dispatchRate);
+                        })
                         .orElseGet(() -> FutureUtil.failedFuture(
                                 new RestException(Status.NOT_FOUND, "ResourceGroup does not exist")))
                 );

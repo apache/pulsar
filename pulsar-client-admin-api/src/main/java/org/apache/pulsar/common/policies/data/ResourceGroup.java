@@ -32,9 +32,5 @@ public class ResourceGroup {
     private Long replicationDispatchRateInMsgs;
     private Long replicationDispatchRateInBytes;
 
-    private Map<String, DispatchRate> replicatorDispatchRate;
-
-    public Map<String, DispatchRate> getReplicatorDispatchRate() {
-        return replicatorDispatchRate != null ? replicatorDispatchRate : new ConcurrentHashMap<>();
-    }
+    private Map<String, DispatchRate> replicatorDispatchRate = new ConcurrentHashMap<>();
 }

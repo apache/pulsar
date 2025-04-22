@@ -3819,15 +3819,18 @@ public class PersistentTopicsBase extends AdminResource {
                     // cluster.
                     // If `applied` is true, we also need to consider the default cluster rate and finally fallback
                     // to `getReplicatorDispatchRate()` for backward compatibility.
-                    DispatchRateImpl dispatchRate =
-                            n.getReplicatorDispatchRateMap().get(getReplicatorDispatchRateKey(cluster));
+                    Map<String, DispatchRateImpl> dispatchRateMap = new HashMap<>();
+                    if (n.getReplicatorDispatchRateMap() != null) {
+                        dispatchRateMap = n.getReplicatorDispatchRateMap();
+                    }
+                    DispatchRateImpl dispatchRate = dispatchRateMap.get(getReplicatorDispatchRateKey(cluster));
                     if (dispatchRate != null) {
                         return dispatchRate;
                     }
 
                     if (applied || StringUtils.isEmpty(cluster)) {
                         dispatchRate =
-                                n.getReplicatorDispatchRateMap().get(pulsar().getConfiguration().getClusterName());
+                                dispatchRateMap.get(pulsar().getConfiguration().getClusterName());
                         if (dispatchRate != null) {
                             return dispatchRate;
                         }
@@ -3853,6 +3856,9 @@ public class PersistentTopicsBase extends AdminResource {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
                 .thenCompose(op -> {
                     TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    if (topicPolicies.getReplicatorDispatchRateMap() == null) {
+                        topicPolicies.setReplicatorDispatchRateMap(new HashMap<>());
+                    }
                     if (dispatchRate == null) {
                         topicPolicies.getReplicatorDispatchRateMap()
                                 .remove(getReplicatorDispatchRateKey(cluster));

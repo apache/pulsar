@@ -285,7 +285,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         topicPolicies.getMessageTTLInSeconds().updateTopicValue(normalizeValue(data.getMessageTTLInSeconds()));
         topicPolicies.getPublishRate().updateTopicValue(PublishRate.normalize(data.getPublishRate()));
         topicPolicies.getDelayedDeliveryEnabled().updateTopicValue(data.getDelayedDeliveryEnabled());
-        updateTopicLevelReplicatorDispatchRate(data.getReplicatorDispatchRateMap(), data.getReplicatorDispatchRate());
+        updateTopicLevelReplicatorDispatchRate(
+                data.getReplicatorDispatchRateMap() != null ? data.getReplicatorDispatchRateMap() : new HashMap<>(),
+                data.getReplicatorDispatchRate());
         topicPolicies.getDelayedDeliveryTickTimeMillis().updateTopicValue(data.getDelayedDeliveryTickTimeMillis());
         topicPolicies.getSubscribeRate().updateTopicValue(SubscribeRate.normalize(data.getSubscribeRate()));
         topicPolicies.getSubscriptionDispatchRate().updateTopicValue(
