@@ -1077,7 +1077,8 @@ public class BrokerService implements Closeable {
      * completes exceptionally with NotAllowedException if validation fails
      */
     private CompletableFuture<Void> validateTopicConsistency(TopicName topicName) {
-        if (NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject())) {
+        if (!pulsar.getConfig().isValidatePartitionMetadataConsistency()
+                || NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject())) {
             // Skip validation for heartbeat namespace.
             return CompletableFuture.completedFuture(null);
         }
@@ -1171,9 +1172,30 @@ public class BrokerService implements Closeable {
                         throw FutureUtil.wrapToCompletionException(new ServiceUnitNotReadyException(errorInfo));
                     }).thenCompose(optionalTopicPolicies -> {
                         final TopicPolicies topicPolicies = optionalTopicPolicies.orElse(null);
-                        return topics.computeIfAbsent(topicName.toString(),
-                                (tpName) -> loadOrCreatePersistentTopic(tpName, createIfMissing, properties,
-                                        topicPolicies));
+                        if (topicName.isPartitioned()) {
+                            final TopicName topicNameEntity = TopicName.get(topicName.getPartitionedTopicName());
+                            return fetchPartitionedTopicMetadataAsync(topicNameEntity)
+                                    .thenCompose((metadata) -> {
+                                        // Allow creating non-partitioned persistent topic that name includes
+                                        // `partition`
+                                        if (metadata.partitions == 0
+                                                || topicName.getPartitionIndex() < metadata.partitions) {
+                                            return topics.computeIfAbsent(topicName.toString(), (tpName) ->
+                                                    loadOrCreatePersistentTopic(tpName,
+                                                            createIfMissing, properties, topicPolicies));
+                                        } else {
+                                            final String errorMsg =
+                                                    String.format("Illegal topic partition name %s with max allowed "
+                                                            + "%d partitions", topicName, metadata.partitions);
+                                            log.warn(errorMsg);
+                                            return FutureUtil.failedFuture(
+                                                    new BrokerServiceException.NotAllowedException(errorMsg));
+                                        }
+                                    });
+                        } else {
+                            return topics.computeIfAbsent(topicName.toString(), (tpName) ->
+                                    loadOrCreatePersistentTopic(tpName, createIfMissing, properties, topicPolicies));
+                        }
                     });
                 });
             } else {
@@ -1187,10 +1209,46 @@ public class BrokerService implements Closeable {
                 if (!topics.containsKey(topicName.toString())) {
                     topicEventsDispatcher.notify(topicName.toString(), TopicEvent.LOAD, EventStage.BEFORE);
                 }
-                if (topicName.isPartitioned() || createIfMissing) {
+                if (pulsar.getConfig().isValidatePartitionMetadataConsistency()) {
+                    if (topicName.isPartitioned() || createIfMissing) {
+                        return topics.computeIfAbsent(topicName.toString(), (name) -> {
+                            topicEventsDispatcher.notify(topicName.toString(), TopicEvent.CREATE, EventStage.BEFORE);
+
+                            CompletableFuture<Optional<Topic>> res = createNonPersistentTopic(name);
+
+                            CompletableFuture<Optional<Topic>> eventFuture = topicEventsDispatcher
+                                    .notifyOnCompletion(res, topicName.toString(), TopicEvent.CREATE);
+                            topicEventsDispatcher
+                                    .notifyOnCompletion(eventFuture, topicName.toString(), TopicEvent.LOAD);
+                            return res;
+                        });
+                    }
+                    CompletableFuture<Optional<Topic>> topicFuture = topics.get(topicName.toString());
+                    if (topicFuture == null) {
+                        topicEventsDispatcher.notify(topicName.toString(), TopicEvent.LOAD, EventStage.FAILURE);
+                        topicFuture = CompletableFuture.completedFuture(Optional.empty());
+                    }
+                    return topicFuture;
+                }
+                if (topicName.isPartitioned()) {
+                    final TopicName partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
+                    return this.fetchPartitionedTopicMetadataAsync(partitionedTopicName).thenCompose((metadata) -> {
+                            return topics.computeIfAbsent(topicName.toString(), (name) -> {
+                                topicEventsDispatcher
+                                        .notify(topicName.toString(), TopicEvent.CREATE, EventStage.BEFORE);
+
+                                CompletableFuture<Optional<Topic>> res = createNonPersistentTopic(name);
+
+                                CompletableFuture<Optional<Topic>> eventFuture = topicEventsDispatcher
+                                        .notifyOnCompletion(res, topicName.toString(), TopicEvent.CREATE);
+                                topicEventsDispatcher
+                                        .notifyOnCompletion(eventFuture, topicName.toString(), TopicEvent.LOAD);
+                                return res;
+                            });
+                    });
+                } else if (createIfMissing) {
                     return topics.computeIfAbsent(topicName.toString(), (name) -> {
-                        topicEventsDispatcher
-                                .notify(topicName.toString(), TopicEvent.CREATE, EventStage.BEFORE);
+                        topicEventsDispatcher.notify(topicName.toString(), TopicEvent.CREATE, EventStage.BEFORE);
 
                         CompletableFuture<Optional<Topic>> res = createNonPersistentTopic(name);
 
@@ -1200,13 +1258,14 @@ public class BrokerService implements Closeable {
                                 .notifyOnCompletion(eventFuture, topicName.toString(), TopicEvent.LOAD);
                         return res;
                     });
+                } else {
+                    CompletableFuture<Optional<Topic>> topicFuture = topics.get(topicName.toString());
+                    if (topicFuture == null) {
+                        topicEventsDispatcher.notify(topicName.toString(), TopicEvent.LOAD, EventStage.FAILURE);
+                        topicFuture = CompletableFuture.completedFuture(Optional.empty());
+                    }
+                    return topicFuture;
                 }
-                CompletableFuture<Optional<Topic>> topicFuture = topics.get(topicName.toString());
-                if (topicFuture == null) {
-                    topicEventsDispatcher.notify(topicName.toString(), TopicEvent.LOAD, EventStage.FAILURE);
-                    topicFuture = CompletableFuture.completedFuture(Optional.empty());
-                }
-                return topicFuture;
             }
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Illegalargument exception when loading topic", topicName, e);
@@ -1399,7 +1458,22 @@ public class BrokerService implements Closeable {
                 return null;
             });
         }).exceptionally(e -> {
-            topicFuture.completeExceptionally(FutureUtil.unwrapCompletionException(e));
+            if (pulsar.getConfig().isValidatePartitionMetadataConsistency()) {
+                topicFuture.completeExceptionally(e);
+                return null;
+            }
+
+            log.warn("CheckTopicNsOwnership fail when createNonPersistentTopic! {}", topic, e.getCause());
+            // CheckTopicNsOwnership fail dont create nonPersistentTopic, when topic do lookup will find the correct
+            // broker. When client get non-persistent-partitioned topic
+            // metadata will the non-persistent-topic will be created.
+            // so we should add checkTopicNsOwnership logic otherwise the topic will be created
+            // if it dont own by this broker,we should return success
+            // otherwise it will keep retrying getPartitionedTopicMetadata
+            topicFuture.complete(Optional.of(nonPersistentTopic));
+            // after get metadata return success, we should delete this topic from this broker, because this topic not
+            // owner by this broker and it don't initialize and checkReplication
+            pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
             return null;
         });
 

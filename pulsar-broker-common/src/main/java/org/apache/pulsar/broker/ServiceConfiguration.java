@@ -3611,10 +3611,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // TODO: this config is added for backward compatibility. It might be removed after a new PIP is added in future.
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "Whether to allow a partition to be produced or consumed when the topic's partition metadata does"
-                    + "not exist"
+            doc = """
+                    Whether to validate the partition metadata consistency. If it's true, perform the following \
+                    validations:
+                    For partitions of a partitioned topic, if the partition metadata exists, reject the produce and\
+                     consume operations.
+                    For partitioned topics, if the partition metadata does not exist, reject the produce and consume\
+                     operations"""
     )
-    private boolean performTopicConsistencyCheck = false;
+    private boolean validatePartitionMetadataConsistency = false;
 
     /**** --- KeyStore TLS config variables. --- ****/
     @FieldContext(
