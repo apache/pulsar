@@ -1600,7 +1600,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         // clean system bundles in the end
         var orphanSystemServiceUnitIter = orphanSystemServiceUnits.entrySet().iterator();
         while (orphanSystemServiceUnitIter.hasNext()) {
-            var orphanSystemServiceUnit = iter.next();
+            var orphanSystemServiceUnit = orphanSystemServiceUnitIter.next();
             log.info("Overriding orphan system service unit:{}", orphanSystemServiceUnit.getKey());
             overrideFutures.add(
                     overrideOwnership(orphanSystemServiceUnit.getKey(), orphanSystemServiceUnit.getValue(), broker,

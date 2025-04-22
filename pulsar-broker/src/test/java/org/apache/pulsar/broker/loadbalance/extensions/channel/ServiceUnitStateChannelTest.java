@@ -1897,6 +1897,26 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                         TimeUnit.SECONDS).get(2, TimeUnit.SECONDS);
     }
 
+    @Test(priority = 23)
+    public void testCleanSystemTopicOwnership()
+            throws Exception {
+        String topic = "persistent://pulsar/system/test-system-topic";
+        NamespaceBundle bundleName = pulsar.getNamespaceService().getBundle(TopicName.get(topic));
+        var releasing = new ServiceUnitStateData(Releasing, pulsar2.getBrokerId(), pulsar1.getBrokerId(), 1);
+        doReturn(CompletableFuture.completedFuture(Optional.of(brokerId1)))
+                .when(loadManager).selectAsync(any(), any(), any());
+
+        try {
+            disableChannels();
+            overrideTableView(channel1, bundleName.toString(), releasing);
+        } finally {
+            enableChannels();
+        }
+
+        channel1.cleanOwnerships();
+        channel2.cleanOwnerships();
+    }
+
 
     private static ConcurrentHashMap<String, CompletableFuture<Optional<String>>> getOwnerRequests(
             ServiceUnitStateChannel channel) throws IllegalAccessException {
