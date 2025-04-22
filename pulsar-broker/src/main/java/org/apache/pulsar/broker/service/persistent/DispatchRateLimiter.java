@@ -22,6 +22,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -33,6 +34,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class DispatchRateLimiter {
+
+    public static String getReplicatorDispatchRateKey(String localCluster, String remoteCluster) {
+        if (StringUtils.isNotEmpty(remoteCluster)) {
+            return String.format("%s->%s", localCluster, remoteCluster);
+        }
+        return localCluster;
+    }
 
     public enum Type {
         TOPIC,

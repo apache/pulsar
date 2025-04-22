@@ -35,10 +35,6 @@ import org.slf4j.LoggerFactory;
 
 public abstract class ResourceGroupsBase extends AdminResource {
 
-    private String getReplicationDispatchRateKey(String remoteCluster) {
-        return String.format("%s->%s", pulsar().getConfiguration().getClusterName(), remoteCluster);
-    }
-
     protected CompletableFuture<Void> internalSetReplicatorDispatchRate(String rgName, String remoteCluster,
                                                                  DispatchRate dispatchRate) {
         if (remoteCluster == null) {
@@ -48,7 +44,7 @@ public abstract class ResourceGroupsBase extends AdminResource {
         return validateSuperUserAccessAsync()
                 .thenCompose((__) -> resourceGroupResources()
                         .updateResourceGroupAsync(rgName, rg -> {
-                            String key = getReplicationDispatchRateKey(remoteCluster);
+                            String key = getReplicatorDispatchRateKey(remoteCluster);
                             if (dispatchRate == null) {
                                 rg.getReplicatorDispatchRate().remove(key);
                             } else {
@@ -69,7 +65,7 @@ public abstract class ResourceGroupsBase extends AdminResource {
                         .getResourceGroupAsync(rgName))
                 .thenCompose((resourceGroupOptional) -> resourceGroupOptional
                         .map((rg) -> CompletableFuture.completedFuture(
-                                rg.getReplicatorDispatchRate().get(getReplicationDispatchRateKey(remoteCluster))))
+                                rg.getReplicatorDispatchRate().get(getReplicatorDispatchRateKey(remoteCluster))))
                         .orElseGet(() -> FutureUtil.failedFuture(
                                 new RestException(Status.NOT_FOUND, "ResourceGroup does not exist")))
                 );

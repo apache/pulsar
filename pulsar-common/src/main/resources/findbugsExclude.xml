@@ -53,4 +53,8 @@
         <Class name="org.apache.pulsar.common.policies.data.NonPersistentTopicStats"/>
         <Bug pattern="MF_CLASS_MASKS_FIELD"/>
     </Match>
+    <Match>
+        <Class name="org.apache.pulsar.common.policies.data.TopicPolicies"/>
+        <Bug pattern="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE"/>
+    </Match>
 </FindBugsFilter>

@@ -44,9 +44,9 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resources.ClusterResources;
-import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.TopicEventsListener.EventStage;
 import org.apache.pulsar.broker.service.TopicEventsListener.TopicEvent;
+import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.plugin.InvalidEntryFilterException;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
@@ -939,6 +939,7 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected String getReplicatorDispatchRateKey(String remoteCluster) {
-        return AbstractTopic.getReplicatorDispatchRateKey(pulsar().getConfiguration().getClusterName(), remoteCluster);
+        return DispatchRateLimiter.getReplicatorDispatchRateKey(pulsar().getConfiguration().getClusterName(),
+                remoteCluster);
     }
 }

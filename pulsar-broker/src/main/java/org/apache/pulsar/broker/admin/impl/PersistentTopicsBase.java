@@ -3853,18 +3853,14 @@ public class PersistentTopicsBase extends AdminResource {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
                 .thenCompose(op -> {
                     TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
-                    boolean usingDefaultCluster = StringUtils.isEmpty(cluster);
                     if (dispatchRate == null) {
                         topicPolicies.getReplicatorDispatchRateMap()
-                                .remove(usingDefaultCluster ? pulsar().getConfiguration().getClusterName() :
-                                        getReplicatorDispatchRateKey(cluster));
+                                .remove(getReplicatorDispatchRateKey(cluster));
                     } else {
                         topicPolicies.getReplicatorDispatchRateMap()
-                                .put(usingDefaultCluster ? pulsar().getConfiguration().getClusterName() :
-                                                getReplicatorDispatchRateKey(cluster),
-                                        dispatchRate);
+                                .put(getReplicatorDispatchRateKey(cluster), dispatchRate);
                     }
-                    if (usingDefaultCluster) {
+                    if (StringUtils.isEmpty(cluster)) {
                         topicPolicies.setReplicatorDispatchRate(dispatchRate);
                     }
                     topicPolicies.setIsGlobal(isGlobal);

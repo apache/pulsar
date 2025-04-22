@@ -36,6 +36,7 @@ import lombok.ToString;
 import lombok.val;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroupService.ResourceGroupOpStatus;
+import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.resource.usage.NetworkUsage;
 import org.apache.pulsar.broker.service.resource.usage.ResourceUsage;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -212,7 +213,8 @@ public class ResourceGroup {
     }
 
     private String getReplicatorDispatchRateLimiterKey(String remoteCluster) {
-        return String.format("%s->%s", rgs.getPulsar().getConfiguration().getClusterName(), remoteCluster);
+        return DispatchRateLimiter.getReplicatorDispatchRateKey(rgs.getPulsar().getConfiguration().getClusterName(),
+                remoteCluster);
     }
 
     private ResourceGroupDispatchLimiter createNewReplicatorLimiter(String key) {

@@ -61,6 +61,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ProducerBusyExcep
 import org.apache.pulsar.broker.service.BrokerServiceException.ProducerFencedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicMigratedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
+import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
@@ -219,7 +220,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
         PolicyHierarchyValue<DispatchRateImpl> dispatchRatePolicyHierarchyValue =
                 topicPolicies.getReplicatorDispatchRate()
-                        .get(getReplicatorDispatchRateKey(localCluster, remoteCluster));
+                        .get(DispatchRateLimiter.getReplicatorDispatchRateKey(localCluster, remoteCluster));
         DispatchRateImpl dispatchRate;
         if (dispatchRatePolicyHierarchyValue != null) {
             // Topic
@@ -1515,12 +1516,5 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             log.warn("Failed to get migration cluster URL", e);
         }
         return Optional.empty();
-    }
-
-    public static String getReplicatorDispatchRateKey(String localCluster, String remoteCluster) {
-        if (StringUtils.isNotEmpty(remoteCluster)) {
-            return String.format("%s->%s", remoteCluster, localCluster);
-        }
-        return localCluster;
     }
 }

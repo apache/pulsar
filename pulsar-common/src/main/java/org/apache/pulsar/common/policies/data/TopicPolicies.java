@@ -206,4 +206,8 @@ public class TopicPolicies {
         }
         return subscriptionPolicies;
     }
+
+    public Map<String, DispatchRateImpl> getReplicatorDispatchRateMap() {
+        return replicatorDispatchRateMap != null ? replicatorDispatchRateMap : new HashMap<>();
+    }
 }
