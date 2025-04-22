@@ -103,14 +103,16 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
 
         final String partition = "persistent://" + namespaceName + "/test-partitioned-topi-auto-creation-partition-0";
 
-        // The Pulsar doesn't automatically create the metadata for the single partition, so the producer creation
-        // will fail.
-        assertThrows(NotAllowedException.class, () -> {
-            @Cleanup
-            Producer<byte[]> ignored = pulsarClient.newProducer()
-                    .topic(partition)
-                    .create();
-        });
+        producer = pulsarClient.newProducer()
+                .topic(partition)
+                .create();
+
+        partitionedTopics = admin.topics().getPartitionedTopicList(namespaceName);
+        topics = admin.topics().getList(namespaceName);
+        assertEquals(partitionedTopics.size(), 0);
+        assertEquals(topics.size(), 1);
+
+        producer.close();
     }
 
 

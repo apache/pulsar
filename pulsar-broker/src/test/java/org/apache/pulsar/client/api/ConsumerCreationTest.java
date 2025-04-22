@@ -36,6 +36,7 @@ public class ConsumerCreationTest extends ProducerConsumerBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
+        conf.setPerformTopicConsistencyCheck(true);
         super.internalSetup();
         super.producerBaseSetup();
     }

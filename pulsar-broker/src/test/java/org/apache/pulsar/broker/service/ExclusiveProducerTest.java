@@ -331,14 +331,9 @@ public class ExclusiveProducerTest extends BrokerTestBase {
             admin.topics().delete(topic, true);
         }
 
-        if (!partitioned) {
-            // The producer should be able to publish again on the topic
-            p1.send("msg-2");
-        } else {
-            // The partitioned topic is deleted, the producer should not be able to publish again on the topic.
-            // Partitioned metadata is required to publish messages to the topic.
-            assertThrows(TimeoutException.class, () -> p1.send("msg-2"));
-        }
+
+        // The producer should be able to publish again on the topic
+        p1.send("msg-2");
     }
 
     @Test(dataProvider = "topics")

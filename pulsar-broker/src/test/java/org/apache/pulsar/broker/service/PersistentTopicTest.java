@@ -127,6 +127,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ProducerAccessMode;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
@@ -140,7 +141,7 @@ import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.CompactorMXBean;
 import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore.OperationType;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -1463,6 +1464,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(CompletableFuture.completedFuture(null)).when(ledgerMock).asyncTruncate();
 
         // create topic
+        brokerService.pulsar().getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                .createPartitionedTopic(TopicName.get(successTopicName), new PartitionedTopicMetadata(2));
         PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
 
         Field isFencedField = AbstractTopic.class.getDeclaredField("isFenced");
@@ -1474,7 +1477,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         assertFalse((boolean) isClosingOrDeletingField.get(topic));
 
         metadataStore.failConditional(new MetadataStoreException("injected error"), (op, path) ->
-                op == OperationType.EXISTS && path.equals("/admin/flags/policies-readonly"));
+                op == FaultInjectionMetadataStore.OperationType.PUT &&
+                        path.equals("/admin/partitioned-topics/prop/use/ns-abc/persistent/successTopic"));
         try {
             topic.delete().get();
             fail();

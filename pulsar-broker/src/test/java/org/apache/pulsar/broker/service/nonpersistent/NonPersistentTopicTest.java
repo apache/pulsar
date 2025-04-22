@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service.nonpersistent;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import java.lang.reflect.Field;
 import java.util.Optional;
@@ -112,16 +111,18 @@ public class NonPersistentTopicTest extends BrokerTestBase {
     }
 
     @Test
-    public void testCreateNonExistentPartitions() throws PulsarAdminException {
+    public void testCreateNonExistentPartitions() throws PulsarAdminException, PulsarClientException {
         final String topicName = "non-persistent://prop/ns-abc/testCreateNonExistentPartitions";
         admin.topics().createPartitionedTopic(topicName, 4);
         TopicName partition = TopicName.get(topicName).getPartition(4);
-        assertThrows(PulsarClientException.NotAllowedException.class, () -> {
+        try {
             @Cleanup
-            Producer<byte[]> ignored = pulsarClient.newProducer()
+            Producer<byte[]> producer = pulsarClient.newProducer()
                     .topic(partition.toString())
                     .create();
-        });
+        } catch (PulsarClientException.TopicDoesNotExistException ignored) {
+
+        }
         assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, 4);
     }
 

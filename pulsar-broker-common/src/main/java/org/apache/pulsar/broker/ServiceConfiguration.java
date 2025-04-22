@@ -3608,6 +3608,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean allowAclChangesOnNonExistentTopics = false;
 
+    // TODO: this config is added for backward compatibility. It might be removed after a new PIP is added in future.
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Whether to allow a partition to be produced or consumed when the topic's partition metadata does"
+                    + "not exist"
+    )
+    private boolean performTopicConsistencyCheck = false;
+
     /**** --- KeyStore TLS config variables. --- ****/
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
