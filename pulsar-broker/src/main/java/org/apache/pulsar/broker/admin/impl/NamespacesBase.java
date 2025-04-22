@@ -1419,8 +1419,8 @@ public abstract class NamespacesBase extends AdminResource {
         try {
             quota.validate();
         } catch (IllegalArgumentException e) {
-            RestException restException = new RestException(Status.BAD_REQUEST, String.format("Set namespace[%s] backlog"
-                + " quota failed because the data validation failed. %s", namespaceName, e.getMessage()));
+            RestException restException = new RestException(Status.BAD_REQUEST, String.format("Set namespace[%s]"
+                + " backlog quota failed because the data validation failed. %s", namespaceName, e.getMessage()));
             return CompletableFuture.failedFuture(restException);
         }
         return namespaceResources().setPoliciesAsync(namespaceName, policies -> {

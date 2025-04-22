@@ -3307,8 +3307,8 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             backlogQuota.validate();
         } catch (IllegalArgumentException e) {
-            RestException restException = new RestException(Status.BAD_REQUEST, String.format("Set namespace[%s] backlog"
-                    + " quota failed because the data validation failed. %s", namespaceName, e.getMessage()));
+            RestException restException = new RestException(Status.BAD_REQUEST, String.format("Set namespace[%s]"
+                + " backlog quota failed because the data validation failed. %s", namespaceName, e.getMessage()));
             return CompletableFuture.failedFuture(restException);
         }
 
