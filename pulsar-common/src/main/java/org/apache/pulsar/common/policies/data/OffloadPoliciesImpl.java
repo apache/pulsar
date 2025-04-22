@@ -95,8 +95,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
             "managedLedgerOffloadAutoTriggerSizeThresholdBytes";
     public static final String DELETION_LAG_NAME_IN_CONF_FILE = "managedLedgerOffloadDeletionLagMs";
     public static final String DATA_READ_PRIORITY_NAME_IN_CONF_FILE = "managedLedgerDataReadPriority";
-    public static final OffloadedReadPriority DEFAULT_OFFLOADED_READ_PRIORITY =
-            OffloadedReadPriority.TIERED_STORAGE_FIRST;
+    public static final OffloadedReadPriority DEFAULT_OFFLOADED_READ_PRIORITY = null;
 
     // common config
     @Configuration
