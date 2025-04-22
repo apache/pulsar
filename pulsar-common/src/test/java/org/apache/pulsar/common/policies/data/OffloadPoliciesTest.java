@@ -20,6 +20,8 @@ package org.apache.pulsar.common.policies.data;
 
 import static org.apache.pulsar.common.policies.data.OffloadPoliciesImpl.EXTRA_CONFIG_PREFIX;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.IOException;
@@ -471,5 +473,14 @@ public class OffloadPoliciesTest {
         extraConfiguration.put("key2", "value2");
         offloadPolicies.setManagedLedgerExtraConfigurations(extraConfiguration); 
         assertEquals(offloadPolicies, OffloadPoliciesImpl.create(offloadPolicies.toProperties()));
+    }
+
+    @Test
+    public void testDefaultOffloadPolicies() {
+        OffloadPoliciesImpl offloadPolicies = new OffloadPoliciesImpl();
+        assertNull(offloadPolicies.getManagedLedgerOffloadedReadPriority());
+        assertNull(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis());
+        assertNull(offloadPolicies.getManagedLedgerOffloadThresholdInSeconds());
+        assertNull(offloadPolicies.getManagedLedgerOffloadThresholdInBytes());
     }
 }
