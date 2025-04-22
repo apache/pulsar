@@ -3305,7 +3305,10 @@ public class PersistentTopicsBase extends AdminResource {
         BacklogQuota.BacklogQuotaType finalBacklogQuotaType = backlogQuotaType == null
                 ? BacklogQuota.BacklogQuotaType.destination_storage : backlogQuotaType;
         try {
-            backlogQuota.validate();
+            // Null value means delete backlog quota.
+            if (backlogQuota != null) {
+                backlogQuota.validate();
+            }
         } catch (IllegalArgumentException e) {
             RestException restException = new RestException(Status.BAD_REQUEST, String.format("Set namespace[%s]"
                 + " backlog quota failed because the data validation failed. %s", namespaceName, e.getMessage()));
