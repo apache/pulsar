@@ -511,7 +511,6 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
                         featureFlags.setSupportsBrokerEntryMetadata(supported);
                         featureFlags.setSupportsPartialProducer(supported);
                         featureFlags.setSupportsTopicWatchers(supported);
-                        featureFlags.setSupportsReplDedupByLidAndEid(supported);
                         featureFlags.setSupportsGetPartitionedMetadataWithoutAutoCreation(supported);
                         return Commands.serializeWithSize(cmd);
                     }
@@ -527,7 +526,6 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         assertEquals(featureFlags.isSupportsBrokerEntryMetadata(), supported);
         assertEquals(featureFlags.isSupportsPartialProducer(), supported);
         assertEquals(featureFlags.isSupportsTopicWatchers(), supported);
-        assertEquals(featureFlags.isSupportsReplDedupByLidAndEid(), supported);
         assertEquals(featureFlags.isSupportsGetPartitionedMetadataWithoutAutoCreation(), supported);
 
         // cleanup.

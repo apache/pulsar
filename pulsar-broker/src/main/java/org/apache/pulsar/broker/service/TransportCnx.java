@@ -23,6 +23,7 @@ import io.netty.util.concurrent.Promise;
 import java.net.SocketAddress;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.common.api.proto.FeatureFlags;
 
 public interface TransportCnx {
 
@@ -79,6 +80,8 @@ public interface TransportCnx {
     HAProxyMessage getHAProxyMessage();
 
     String clientSourceAddress();
+
+    FeatureFlags getFeatures();
 
     /***
      * Check if the connection is still alive

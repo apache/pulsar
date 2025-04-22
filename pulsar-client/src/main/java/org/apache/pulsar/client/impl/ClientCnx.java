@@ -196,7 +196,7 @@ public class ClientCnx extends PulsarHandler {
     @Getter
     private long lastDisconnectedTimestamp;
 
-    private final String clientVersion;
+    protected final String clientVersion;
 
     protected enum State {
         None, SentConnectFrame, Ready, Failed, Connecting
