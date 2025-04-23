@@ -450,16 +450,25 @@ public class KafkaSourceTest extends PulsarFunctionsTestBase {
         // we are writing the serialized values to the stdin of kafka-avro-console-producer
         // the only way to do it with TestContainers is actually to create a bash script
         // and execute it
-        String bashFileTemplate = "echo '"+payload+"' " +
-                "| /usr/bin/kafka-avro-console-producer " +
+        createProduceScriptAndExecute("/usr/bin/kafka-avro-console-producer", payload.toString(), schemaDef, topic,
+                numMessages
+        );
+        return written;
+    }
+
+    private void createProduceScriptAndExecute(String scriptName, String payload, String schemaDef, String topic,
+                                               int numMessages)
+            throws IOException, InterruptedException {
+        String bashFileTemplate = "echo '" + payload + "' " +
+                "| " + scriptName + " " +
                 "--broker-list " + getBootstrapServersOnDockerNetwork() + " " +
                 "--property 'value.schema=" + schemaDef + "' " +
-                "--property schema.registry.url="+ getRegistryAddressInDockerNetwork() +" " +
-                "--topic "+ topic;
+                "--property schema.registry.url=" + getRegistryAddressInDockerNetwork() + " " +
+                "--topic " + topic;
         String file = "/home/appuser/produceRecords.sh";
 
         schemaRegistryContainer.copyFileToContainer(Transferable
-                        .of(bashFileTemplate.getBytes(StandardCharsets.UTF_8), 0777), file);
+                .of(bashFileTemplate.getBytes(StandardCharsets.UTF_8), 0777), file);
 
         ExecResult cat = schemaRegistryContainer.execInContainer("cat", file);
         log.info("cat results: {}", cat.getStdout());
@@ -469,7 +478,8 @@ public class KafkaSourceTest extends PulsarFunctionsTestBase {
 
         log.info("script results: {}", execResult.getStdout());
         log.info("script stderr: {}", execResult.getStderr());
-        assertTrue(execResult.getStdout().contains("Closing the Kafka producer"), execResult.getStdout()+" "+execResult.getStderr());
+        assertTrue(execResult.getStdout().contains("Closing the Kafka producer"),
+                execResult.getStdout() + " " + execResult.getStderr());
         // filter out the SLF4J warnings
         String stderrFiltered = execResult.getStderr()
                 .replaceAll("(?m)^SLF4J: .*?[\\r\\n]+", "")
@@ -477,7 +487,6 @@ public class KafkaSourceTest extends PulsarFunctionsTestBase {
         assertTrue(stderrFiltered.isEmpty(), stderrFiltered);
 
         log.info("Successfully produced {} messages to kafka topic {}", numMessages, topic);
-        return written;
     }
 
     public void produceProtoMessages(int numMessages, String topic) throws Exception{
@@ -503,29 +512,9 @@ public class KafkaSourceTest extends PulsarFunctionsTestBase {
         // we are writing the serialized values to the stdin of kafka-avro-console-producer
         // the only way to do it with TestContainers is actually to create a bash script
         // and execute it
-        String bashFileTemplate = "echo '"+payload+"' " +
-                "| /usr/bin/kafka-protobuf-console-producer " +
-                "--broker-list " + getBootstrapServersOnDockerNetwork() + " " +
-                "--property 'value.schema=" + schemaDef + "' " +
-                "--property schema.registry.url="+ getRegistryAddressInDockerNetwork() +" " +
-                "--topic "+ topic;
-        String file = "/home/appuser/produceRecords.sh";
-
-        schemaRegistryContainer.copyFileToContainer(Transferable
-                .of(bashFileTemplate.getBytes(StandardCharsets.UTF_8), 0777), file);
-
-        ExecResult cat = schemaRegistryContainer.execInContainer("cat", file);
-        log.info("cat results: {}", cat.getStdout());
-        log.info("cat stderr: {}", cat.getStderr());
-
-        ExecResult execResult = schemaRegistryContainer.execInContainer("/bin/bash", file);
-
-        log.info("script results: {}", execResult.getStdout());
-        log.info("script stderr: {}", execResult.getStderr());
-        assertTrue(execResult.getStdout().contains("Closing the Kafka producer"), execResult.getStdout()+" "+execResult.getStderr());
-        assertTrue(execResult.getStderr().isEmpty(), execResult.getStderr());
-
-        log.info("Successfully produced {} messages to kafka topic {}", numMessages, topic);
+        createProduceScriptAndExecute("/usr/bin/kafka-protobuf-console-producer", payload.toString(), schemaDef, topic,
+                numMessages
+        );
     }
 
     private static String serializeBeanUsingAvro(org.apache.avro.Schema schema, MyBean bean) throws IOException {
