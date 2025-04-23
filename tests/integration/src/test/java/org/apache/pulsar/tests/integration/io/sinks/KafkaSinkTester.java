@@ -78,8 +78,8 @@ public class KafkaSinkTester extends SinkTester<KafkaContainer> {
         ExecResult execResult = serviceContainer.execInContainer(
                 "/usr/bin/kafka-topics",
                 "--create",
-                "--zookeeper",
-                "localhost:2181",
+                "--bootstrap-server",
+                "localhost:9092",
                 "--partitions",
                 "1",
                 "--replication-factor",
