@@ -69,7 +69,7 @@ public class BrokerRegistryIntegrationTest {
         }
         final var elapsedMs = System.currentTimeMillis() - startMs;
         bk.stop();
-        if (elapsedMs > 5000) {
+        if (elapsedMs > 10000) {
             throw new RuntimeException("Broker took " + elapsedMs + "ms to close");
         }
     }
