@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.admin.internal;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -27,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -1208,6 +1210,11 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public void triggerOffload(String topic, long sizeThreshold) throws PulsarAdminException {
+        sync(() -> triggerOffloadAsync(topic, sizeThreshold));
+    }
+
+    @Override
     public CompletableFuture<Void> triggerOffloadAsync(String topic, MessageId messageId) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "offload");
@@ -1229,6 +1236,48 @@ public class TopicsImpl extends BaseResource implements Topics {
             future.completeExceptionally(cae);
         }
         return future;
+    }
+
+    @Override
+    public CompletableFuture<Void> triggerOffloadAsync(String topic, long sizeThreshold) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        try {
+            validatePersistentTopic(topic);
+            PersistentTopicInternalStats stats = getInternalStats(topic);
+            if (stats.ledgers.size() < 1) {
+                throw new PulsarAdminException("Topic doesn't have any data");
+            }
+            LinkedList<PersistentTopicInternalStats.LedgerInfo> ledgers = new LinkedList(stats.ledgers);
+            ledgers.get(ledgers.size() - 1).size = stats.currentLedgerSize; // doesn't get filled in now it seems
+            MessageId messageId = findFirstLedgerWithinThreshold(ledgers, sizeThreshold);
+            future = triggerOffloadAsync(topic, messageId);
+        } catch (PulsarAdminException e) {
+            future.completeExceptionally(getApiException(e));
+        }
+        return future;
+    }
+
+    private MessageId findFirstLedgerWithinThreshold(List<PersistentTopicInternalStats.LedgerInfo> ledgers,
+                                                     long sizeThreshold) {
+        long suffixSize = 0L;
+
+        ledgers = Lists.reverse(ledgers);
+        long previousLedger = ledgers.get(0).ledgerId;
+        for (PersistentTopicInternalStats.LedgerInfo l : ledgers) {
+            suffixSize += l.size;
+            if (suffixSize > sizeThreshold) {
+                return new MessageIdImpl(previousLedger, 0L, -1);
+            }
+            previousLedger = l.ledgerId;
+        }
+        return null;
+    }
+
+    private void validatePersistentTopic(String topic) throws PulsarAdminException {
+        TopicName topicName = TopicName.get(topic);
+        if (topicName.getDomain() != TopicDomain.persistent) {
+            throw new PulsarAdminException("Need to provide a persistent topic name");
+        }
     }
 
     @Override
