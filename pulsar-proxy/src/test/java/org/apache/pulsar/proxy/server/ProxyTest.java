@@ -245,6 +245,8 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
      **/
     @Test
     public void testAutoCreateTopic() throws Exception{
+        TopicType originalAllowAutoTopicCreationType = pulsar.getConfiguration().getAllowAutoTopicCreationType();
+        int originalDefaultNumPartitions = pulsar.getConfiguration().getDefaultNumPartitions();
         int defaultPartition = 2;
         int defaultNumPartitions = pulsar.getConfiguration().getDefaultNumPartitions();
         pulsar.getConfiguration().setAllowAutoTopicCreationType(TopicType.PARTITIONED);
@@ -256,10 +258,10 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
             String topic = "persistent://sample/test/local/partitioned-proxy-topic";
             CompletableFuture<List<String>> partitionNamesFuture = client.getPartitionsForTopic(topic);
             List<String> partitionNames = partitionNamesFuture.get(30000, TimeUnit.MILLISECONDS);
-            Assert.assertEquals(partitionNames.size(), defaultPartition);
+            assertEquals(partitionNames.size(), defaultPartition);
         } finally {
-            pulsar.getConfiguration().setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
-            pulsar.getConfiguration().setDefaultNumPartitions(defaultNumPartitions);
+            pulsar.getConfiguration().setAllowAutoTopicCreationType(originalAllowAutoTopicCreationType);
+            pulsar.getConfiguration().setDefaultNumPartitions(originalDefaultNumPartitions);
         }
     }
 
@@ -395,7 +397,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         SchemaInfo schemaInfo = ((PulsarClientImpl) client).getLookup()
                 .getSchema(TopicName.get("persistent://sample/test/local/get-schema"), schemaVersion)
                 .get().orElse(null);
-        Assert.assertEquals(new String(schemaInfo.getSchema()), new String(schema.getSchemaInfo().getSchema()));
+        assertEquals(new String(schemaInfo.getSchema()), new String(schema.getSchemaInfo().getSchema()));
     }
 
     @Test
@@ -463,7 +465,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
                 .build();
 
-        String topic = "persistent://sample/test/local/testGetClientVersion";
+        String topic = BrokerTestUtil.newUniqueName("persistent://sample/test/local/testGetClientVersion");
         String subName = "test-sub";
 
         @Cleanup
@@ -474,8 +476,8 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
 
         consumer.receiveAsync();
 
-
-        Assert.assertEquals(admin.topics().getStats(topic).getSubscriptions().get(subName).getConsumers()
+        String partition = TopicName.get(topic).getPartition(0).toString();
+        assertEquals(admin.topics().getStats(partition).getSubscriptions().get(subName).getConsumers()
                 .get(0).getClientVersion(), String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
     }
 
