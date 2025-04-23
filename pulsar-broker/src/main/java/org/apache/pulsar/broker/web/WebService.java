@@ -399,6 +399,9 @@ public class WebService implements AutoCloseable {
             }
 
             server.setHandler(stats);
+            server.setStopTimeout(5000); // 5 seconds
+            // Ensures Jetty shuts down automatically when the JVM exits.
+            server.setStopAtShutdown(true);
             server.start();
 
             if (httpConnector != null) {
