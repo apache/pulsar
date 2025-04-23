@@ -23,7 +23,6 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import java.net.InetSocketAddress;
 import java.util.List;
@@ -40,7 +39,6 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.PulsarClientException.NotAllowedException;
 import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.client.impl.LookupTopicResult;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -103,14 +101,16 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
 
         final String partition = "persistent://" + namespaceName + "/test-partitioned-topi-auto-creation-partition-0";
 
-        // The Pulsar doesn't automatically create the metadata for the single partition, so the producer creation
-        // will fail.
-        assertThrows(NotAllowedException.class, () -> {
-            @Cleanup
-            Producer<byte[]> ignored = pulsarClient.newProducer()
-                    .topic(partition)
-                    .create();
-        });
+        producer = pulsarClient.newProducer()
+                .topic(partition)
+                .create();
+
+        partitionedTopics = admin.topics().getPartitionedTopicList(namespaceName);
+        topics = admin.topics().getList(namespaceName);
+        assertEquals(partitionedTopics.size(), 0);
+        assertEquals(topics.size(), 1);
+
+        producer.close();
     }
 
 
