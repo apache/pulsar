@@ -117,7 +117,7 @@ public class ConsumerCreationTest extends ProducerConsumerBase {
             Consumer<byte[]> ignored =
                     pulsarClient.newConsumer().topic(partitionedTopic).subscriptionName("my-sub").subscribe();
         } else {
-            assertThrows(PulsarClientException.NotFoundException.class, () -> {
+            assertThrows(PulsarClientException.TopicDoesNotExistException.class, () -> {
                 @Cleanup
                 Consumer<byte[]> ignored =
                         pulsarClient.newConsumer().topic(partitionedTopic).subscriptionName("my-sub").subscribe();
