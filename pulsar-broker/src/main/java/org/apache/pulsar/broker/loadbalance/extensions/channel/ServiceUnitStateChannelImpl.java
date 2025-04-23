@@ -1532,7 +1532,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (!gracefully) {
             try {
                 healthCheckBrokerAsync(broker).get(
-                        pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
+                        MAX_BROKER_HEALTH_CHECK_DELAY_IN_MILLIS * (MAX_BROKER_HEALTH_CHECK_RETRY + 1)
+                        , MILLISECONDS);
                 log.warn("Found that the broker to clean is healthy. Skip the broker:{}'s orphan bundle cleanup",
                         broker);
                 return;
