@@ -346,7 +346,7 @@ public class TransactionProduceTest extends TransactionTestBase {
                 .topic(ACK_ABORT_TOPIC)
                 .subscriptionName(subscriptionName)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .enableBatchIndexAcknowledgment(true)
+                .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
         Awaitility.await().until(consumer::isConnected);
 
