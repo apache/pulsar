@@ -1278,6 +1278,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
         if (!cleanupJobs.isEmpty() && cleanupJobs.containsKey(broker)) {
             healthCheckBrokerAsync(broker)
+                    .orTimeout(MAX_BROKER_HEALTH_CHECK_DELAY_IN_MILLIS * (MAX_BROKER_HEALTH_CHECK_RETRY + 1)
+                            , MILLISECONDS)
                     .thenAccept(__ -> {
                         CompletableFuture<Void> future = cleanupJobs.remove(broker);
                         if (future != null) {

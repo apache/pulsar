@@ -330,7 +330,8 @@ public class ClientCnx extends PulsarHandler {
         lastDisconnectedTimestamp = System.currentTimeMillis();
         log.info("{} Disconnected", ctx.channel());
         if (!connectionFuture.isDone()) {
-            connectionFuture.completeExceptionally(new PulsarClientException("Connection already closed"));
+            connectionFuture.completeExceptionally(
+                    new PulsarClientException.AlreadyClosedException("Connection already closed"));
         }
 
         ConnectException e = new ConnectException(

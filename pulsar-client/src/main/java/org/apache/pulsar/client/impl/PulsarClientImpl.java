@@ -1216,7 +1216,8 @@ public class PulsarClientImpl implements PulsarClient {
             // `TooManyRequestsException`
             boolean isLookupThrottling = !PulsarClientException.isRetriableError(e.getCause())
                 || e.getCause() instanceof PulsarClientException.AuthenticationException
-                || e.getCause() instanceof PulsarClientException.NotFoundException;
+                || e.getCause() instanceof PulsarClientException.NotFoundException
+                || e.getCause() instanceof PulsarClientException.AlreadyClosedException;
             if (nextDelay <= 0 || isLookupThrottling) {
                 PulsarClientException.setPreviousExceptionCount(e, previousExceptionCount);
                 future.completeExceptionally(e);
