@@ -155,12 +155,11 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     @Override
     @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
-        internalCleanup();
-
         proxyService.close();
         if (proxyClientAuthentication != null) {
             proxyClientAuthentication.close();
         }
+        internalCleanup();
     }
 
     @Test
@@ -319,8 +318,9 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         };
     }
 
-    @Test(timeOut = 60_000, dataProvider = "topicTypes", invocationCount = 100)
+    @Test(timeOut = 60_000, dataProvider = "topicTypes")
     public void testRegexSubscriptionWithTopicDiscovery(TopicType topicType) throws Exception {
+        @Cleanup
         final PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();
         final int topics = 10;
         final String subName = "s1";
