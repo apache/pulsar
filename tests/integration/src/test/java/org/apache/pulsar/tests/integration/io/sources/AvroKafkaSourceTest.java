@@ -397,7 +397,11 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         log.info("script results: "+execResult.getStdout());
         log.info("script stderr: "+execResult.getStderr());
         assertTrue(execResult.getStdout().contains("Closing the Kafka producer"), execResult.getStdout()+" "+execResult.getStderr());
-        assertTrue(execResult.getStderr().isEmpty(), execResult.getStderr());
+        // filter out the SLF4J warnings
+        String stderrFiltered = execResult.getStderr()
+                .replaceAll("(?m)^SLF4J: .*?[\\r\\n]+", "")
+                .trim();
+        assertTrue(stderrFiltered.isEmpty(), stderrFiltered);
 
         log.info("Successfully produced {} messages to kafka topic {}", numMessages, kafkaTopicName);
         return written;
