@@ -139,12 +139,12 @@ flexible messaging model and an intuitive client API.</description>
     <narPluginPhase>package</narPluginPhase>
 
     <!-- apache commons -->
-    <commons-compress.version>1.26.0</commons-compress.version>
+    <commons-compress.version>1.27.0</commons-compress.version>
 
     <bookkeeper.version>4.17.1</bookkeeper.version>
     <zookeeper.version>3.9.3</zookeeper.version>
-    <commons-cli.version>1.5.0</commons-cli.version>
-    <commons-text.version>1.10.0</commons-text.version>
+    <commons-cli.version>1.9.0</commons-cli.version>
+    <commons-text.version>1.13.1</commons-text.version>
     <snappy.version>1.1.10.5</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.7.1</curator.version>
@@ -218,10 +218,10 @@ flexible messaging model and an intuitive client API.</description>
     <confluent.version>6.2.8</confluent.version>
     <aircompressor.version>0.27</aircompressor.version>
     <asynchttpclient.version>2.12.4</asynchttpclient.version>
-    <commons-lang3.version>3.11</commons-lang3.version>
+    <commons-lang3.version>3.17.0</commons-lang3.version>
     <commons-configuration.version>1.10</commons-configuration.version>
-    <commons-io.version>2.18.0</commons-io.version>
-    <commons-codec.version>1.15</commons-codec.version>
+    <commons-io.version>2.19.0</commons-io.version>
+    <commons-codec.version>1.18.0</commons-codec.version>
     <jakarta.ws.rs-api.version>2.1.6</jakarta.ws.rs-api.version>
     <hdrHistogram.version>2.1.9</hdrHistogram.version>
     <javax.servlet-api>3.1.0</javax.servlet-api>
