@@ -71,7 +71,7 @@ import static org.testng.Assert.*;
  */
 @Slf4j
 public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
-    public static final String CONFLUENT_PLATFORM_VERSION = System.getProperty("confluent.version", "6.2.8");
+    public static final String CONFLUENT_PLATFORM_VERSION = System.getProperty("confluent.version", "7.8.2");
 
     private static final String SOURCE_TYPE = "kafka";
 
