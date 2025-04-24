@@ -3315,6 +3315,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .post(Entity.json(backlogQuotaWithNonPolicy));
         assertEquals(response2.getStatus(), 400);
         assertTrue(response2.getStatusInfo().getReasonPhrase().contains("policy cannot be null"));
+        // cleanup.
+        httpClient.close();
 
     }
 
