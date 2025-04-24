@@ -48,13 +48,17 @@ import java.util.zip.ZipInputStream;
  *     10. Apache Commons Compress (dependency of AVRO)
  *     11. Apache Commons Lang (dependency of Apache Commons Compress)
  *     12. Apache Commons IO (dependency of Apache Commons Compress)
+ *     13. Apache Commons Codec
+ *        - this gets included possibly due to a maven-assembly-plugin bug since there is no direct or transitive
+ *          dependency in pulsar-functions/runtime-all to this library for runtime scope. In the test scope, it is
+ *          present.
  */
 public class JavaInstanceDepsTest {
 
     @Test
     public void testInstanceJarDeps() throws IOException {
         File jar = new File("target/java-instance.jar");
-        
+
         @Cleanup
         ZipInputStream zip = new ZipInputStream(jar.toURI().toURL().openStream());
 
@@ -75,6 +79,7 @@ public class JavaInstanceDepsTest {
                         && !name.startsWith("org/apache/commons/compress")
                         && !name.startsWith("org/apache/commons/lang3")
                         && !name.startsWith("org/apache/commons/io")
+                        && !name.startsWith("org/apache/commons/codec")
                         && !name.startsWith("com/google")
                         && !name.startsWith("org/checkerframework")
                         && !name.startsWith("javax/annotation")
