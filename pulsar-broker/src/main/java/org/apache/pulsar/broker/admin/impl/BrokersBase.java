@@ -49,7 +49,6 @@ import org.apache.pulsar.broker.PulsarService.State;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
-import org.apache.pulsar.broker.service.HealthChecker;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.naming.TopicVersion;
@@ -416,7 +415,7 @@ public class BrokersBase extends AdminResource {
     }
 
     private CompletableFuture<Void> internalRunHealthCheck(TopicVersion topicVersion) {
-        return HealthChecker.internalRunHealthCheck(topicVersion, pulsar(), clientAppId());
+        return pulsar().runHealthCheck(topicVersion, clientAppId());
     }
 
     private CompletableFuture<Void> internalDeleteDynamicConfigurationOnMetadataAsync(String configName) {

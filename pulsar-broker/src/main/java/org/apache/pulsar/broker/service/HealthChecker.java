@@ -34,14 +34,16 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.util.FutureUtil;
 
 @Slf4j
-public class HealthChecker {
+public class HealthChecker implements AutoCloseable{
     public static final String HEALTH_CHECK_TOPIC_SUFFIX = "healthcheck";
     // there is a timeout of 60 seconds default in the client(readTimeoutMs), so we need to set the timeout
     // a bit shorter than 60 seconds to avoid the client timeout exception thrown before the server timeout exception.
@@ -49,6 +51,12 @@ public class HealthChecker {
     private static final Duration HEALTH_CHECK_READ_TIMEOUT = Duration.ofSeconds(58);
     private static final TimeoutException HEALTH_CHECK_TIMEOUT_EXCEPTION =
             FutureUtil.createTimeoutException("Timeout", HealthChecker.class, "healthCheckRecursiveReadNext(...)");
+    private final PulsarService pulsar;
+    private final String heartbeatTopicV1;
+    private final String heartbeatTopicV2;
+    private final PulsarClient client;
+    private final ScheduledExecutorProvider lookupExecutor;
+    private final ScheduledExecutorProvider scheduledExecutorProvider;
 
     public static String getHeartbeatTopicName(String brokerId, ServiceConfiguration configuration, boolean isV2) {
         NamespaceName namespaceName = isV2
@@ -57,14 +65,26 @@ public class HealthChecker {
         return String.format("persistent://%s/%s", namespaceName, HEALTH_CHECK_TOPIC_SUFFIX);
     }
 
-    public static CompletableFuture<Void> internalRunHealthCheck(TopicVersion topicVersion, PulsarService pulsar,
-                                                                 String clientAppId) {
-        NamespaceName namespaceName = (topicVersion == TopicVersion.V2)
-                ? NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(), pulsar.getConfiguration())
-                : NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(), pulsar.getConfiguration());
-        String brokerId = pulsar.getBrokerId();
-        final String topicName =
-                getHeartbeatTopicName(brokerId, pulsar.getConfiguration(), (topicVersion == TopicVersion.V2));
+    public HealthChecker(PulsarService pulsar) throws PulsarServerException {
+        this.pulsar = pulsar;
+        this.heartbeatTopicV1 = getHeartbeatTopicName(pulsar.getBrokerId(), pulsar.getConfiguration(), false);
+        this.heartbeatTopicV2 = getHeartbeatTopicName(pulsar.getBrokerId(), pulsar.getConfiguration(), true);
+        this.lookupExecutor =
+                new ScheduledExecutorProvider(1, "health-checker-client-lookup-executor");
+        this.scheduledExecutorProvider =
+                new ScheduledExecutorProvider(1, "health-checker-client-scheduled-executor");
+        try {
+            this.client = pulsar.createClientImpl(builder -> {
+                builder.lookupExecutorProvider(lookupExecutor);
+                builder.scheduledExecutorProvider(scheduledExecutorProvider);
+            });
+        } catch (PulsarClientException e) {
+            throw new PulsarServerException("Error creating client for HealthChecker", e);
+        }
+    }
+
+    public CompletableFuture<Void> checkHealth(TopicVersion topicVersion, String clientAppId) {
+        final String topicName = topicVersion == TopicVersion.V2 ? heartbeatTopicV2 : heartbeatTopicV1;
         log.info("[{}] Running healthCheck with topic={}", clientAppId, topicName);
         final String messageStr = UUID.randomUUID().toString();
         final String subscriptionName = "healthCheck-" + messageStr;
@@ -76,13 +96,6 @@ public class HealthChecker {
                                 clientAppId, topicName);
                         return CompletableFuture.failedFuture(new BrokerServiceException.TopicNotFoundException(
                                 String.format("Topic [%s] not found after create.", topicName)));
-                    }
-                    PulsarClient client;
-                    try {
-                        client = pulsar.getClient();
-                    } catch (PulsarServerException e) {
-                        log.error("[{}] Fail to run health check while get client.", clientAppId);
-                        return CompletableFuture.failedFuture(e);
                     }
                     CompletableFuture<Void> resultFuture = new CompletableFuture<>();
                     client.newProducer(Schema.STRING).topic(topicName).createAsync()
@@ -178,5 +191,24 @@ public class HealthChecker {
                     }
                     return CompletableFuture.completedFuture(null);
                 });
+    }
+
+    @Override
+    public void close() throws Exception {
+        try {
+            scheduledExecutorProvider.shutdownNow();
+        } catch (Exception e) {
+            log.warn("Failed to shutdown scheduled executor", e);
+        }
+        try {
+            lookupExecutor.shutdownNow();
+        } catch (Exception e) {
+            log.warn("Failed to shutdown lookup executor", e);
+        }
+        try {
+            client.close();
+        } catch (PulsarClientException e) {
+            log.warn("Failed to close pulsar client", e);
+        }
     }
 }
