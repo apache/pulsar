@@ -86,6 +86,7 @@ import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
 import org.apache.pulsar.client.impl.metrics.Unit;
 import org.apache.pulsar.client.impl.metrics.UpDownCounter;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
+import org.apache.pulsar.client.impl.schema.SchemaUtils;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.MathUtils;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -2475,7 +2476,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                                 : op.msg.getSchemaInfo();
                         log.error("[{}] [{}] A message attempts to register new schema, but failed. It should be"
                             + " removed from the pending queue but not, which is not expected. {}",
-                            topic, producerName, String.valueOf(msgSchemaInfo));
+                            topic, producerName, SchemaUtils.jsonifySchemaInfo(msgSchemaInfo, false));
                         releaseSemaphoreForSendOp(op);
                         msgIterator.remove();
                         op.recycle();
@@ -2494,7 +2495,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         log.error("[{}] [{}] Publishing paused: message schema incompatible with target cluster."
                                 + " To resume publishing: 1) Adjust schema compatibility strategy on target cluster"
                                 + " 2) Unload topic on target cluster. Schema details: {}",
-                                topic, producerName, String.valueOf(msgSchemaInfo));
+                                topic, producerName, SchemaUtils.jsonifySchemaInfo(msgSchemaInfo, false));
                         loopEndDueToSchemaRegisterNeeded = op;
                         break;
                     }

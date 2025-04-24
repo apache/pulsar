@@ -286,8 +286,8 @@ public final class SchemaUtils {
                     KeyValue<SchemaInfo, SchemaInfo> schemaInfoKeyValue =
                         DefaultImplementation.getDefaultImplementation().decodeKeyValueSchemaInfo(schemaInfo);
                     JsonObject obj = new JsonObject();
-                    String keyJson = jsonifySchemaInfo(schemaInfoKeyValue.getKey(), false);
-                    String valueJson = jsonifySchemaInfo(schemaInfoKeyValue.getValue(), false);
+                    String keyJson = jsonifySchemaInfo(schemaInfoKeyValue.getKey(), true);
+                    String valueJson = jsonifySchemaInfo(schemaInfoKeyValue.getValue(), true);
                     obj.add("key", toJsonElement(keyJson));
                     obj.add("value", toJsonElement(valueJson));
                     return obj;
@@ -313,7 +313,7 @@ public final class SchemaUtils {
                                      Type type,
                                      JsonSerializationContext jsonSerializationContext) {
             // schema will not a json, so use toJsonElement
-            return toJsonElement(jsonifySchemaInfo(schemaInfo, false));
+            return toJsonElement(jsonifySchemaInfo(schemaInfo, true));
         }
     }
 

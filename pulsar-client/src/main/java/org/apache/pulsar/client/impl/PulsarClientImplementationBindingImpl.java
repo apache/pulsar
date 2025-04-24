@@ -327,7 +327,7 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
      * @return the jsonified schema info
      */
     public String jsonifySchemaInfo(SchemaInfo schemaInfo) {
-        return SchemaUtils.jsonifySchemaInfo(schemaInfo, false);
+        return SchemaUtils.jsonifySchemaInfo(schemaInfo, true);
     }
 
     /**
