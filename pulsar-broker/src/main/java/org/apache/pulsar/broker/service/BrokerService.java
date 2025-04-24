@@ -679,6 +679,9 @@ public class BrokerService implements Closeable {
     }
 
     public CompletableFuture<Void> checkHealth() {
+        if (!pulsar().isRunning()) {
+            return CompletableFuture.completedFuture(null);
+        }
         return internalRunHealthCheck(TopicVersion.V2, pulsar(), null).thenAccept(__ -> {
             this.pulsarStats.getBrokerOperabilityMetrics().recordHealthCheckStatusSuccess();
         }).exceptionally(ex -> {

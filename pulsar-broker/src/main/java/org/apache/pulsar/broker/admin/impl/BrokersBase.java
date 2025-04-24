@@ -385,16 +385,21 @@ public class BrokersBase extends AdminResource {
         @ApiResponse(code = 307, message = "Current broker is not the target broker"),
         @ApiResponse(code = 403, message = "Don't have admin permission"),
         @ApiResponse(code = 404, message = "Cluster doesn't exist"),
-        @ApiResponse(code = 500, message = "Internal server error")})
+        @ApiResponse(code = 500, message = "Internal server error"),
+        @ApiResponse(code = 503, message = "Service unavailable")})
     public void healthCheck(@Suspended AsyncResponse asyncResponse,
                             @ApiParam(value = "Topic Version")
                             @QueryParam("topicVersion") TopicVersion topicVersion,
                             @QueryParam("brokerId") String brokerId) {
+        if (pulsar().getState() == State.Closed || pulsar().getState() == State.Closing) {
+            asyncResponse.resume(Response.status(Status.SERVICE_UNAVAILABLE).build());
+            return;
+        }
         validateBothSuperuserAndBrokerOperation(pulsar().getConfig().getClusterName(), StringUtils.isBlank(brokerId)
                 ? pulsar().getBrokerId() : brokerId, BrokerOperation.HEALTH_CHECK)
-                .thenAccept(__ -> checkDeadlockedThreads())
                 .thenCompose(__ -> maybeRedirectToBroker(
                         StringUtils.isBlank(brokerId) ? pulsar().getBrokerId() : brokerId))
+                .thenAccept(__ -> checkDeadlockedThreads())
                 .thenCompose(__ -> internalRunHealthCheck(topicVersion))
                 .thenAccept(__ -> {
                     LOG.info("[{}] Successfully run health check.", clientAppId());
