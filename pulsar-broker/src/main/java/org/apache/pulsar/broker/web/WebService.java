@@ -399,7 +399,6 @@ public class WebService implements AutoCloseable {
             }
 
             server.setHandler(stats);
-            server.setStopTimeout(5000); // 5 seconds
             server.start();
 
             if (httpConnector != null) {

@@ -1530,6 +1530,23 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             return;
         }
 
+        try {
+            final var availableBrokers = brokerRegistry.getAvailableBrokersAsync()
+                    .get(config.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
+            if (broker.equals(brokerId) && (availableBrokers.isEmpty() || (availableBrokers.size() == 1
+                    && availableBrokers.contains(brokerId)))) {
+                log.warn("This broker is the leader and trying to clean its ownerships, but there are not enough "
+                                + "brokers to assign new ownerships[availableBrokers:{}]. "
+                                + "Skip the inactive broker:{}'s orphan bundle cleanup",
+                        availableBrokers, broker);
+                return;
+            }
+        } catch (Exception e) {
+            log.error("Failed to get available brokers. Skip the inactive broker:{}'s orphan bundle cleanup", broker);
+            return;
+        }
+
+
         // if not gracefully, verify the broker is inactive by health-check.
         if (!gracefully) {
             try {
