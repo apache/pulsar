@@ -47,21 +47,59 @@ import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 
+/**
+ * The HealthChecker class provides functionality to monitor and verify the health of a Pulsar broker.
+ * It performs health checks by creating test topics, producing and consuming messages to verify broker functionality.
+ * This class implements AutoCloseable to ensure proper cleanup of resources when the broker is shut down.
+ */
 @Slf4j
 public class HealthChecker implements AutoCloseable{
+    /**
+     * Suffix used for health check topic names.
+     */
     public static final String HEALTH_CHECK_TOPIC_SUFFIX = "healthcheck";
-    // there is a timeout of 60 seconds default in the client(readTimeoutMs), so we need to set the timeout
-    // a bit shorter than 60 seconds to avoid the client timeout exception thrown before the server timeout exception.
-    // or we can't propagate the server timeout exception to the client.
+    /**
+     * Timeout duration for health check operations.
+     * Set to 58 seconds to be shorter than the client's default 60-second timeout,
+     * allowing server timeout exceptions to propagate properly to the client.
+     */
     private static final Duration HEALTH_CHECK_READ_TIMEOUT = Duration.ofSeconds(58);
+    /**
+     * Pre-created timeout exception for health check operations.
+     */
     private static final TimeoutException HEALTH_CHECK_TIMEOUT_EXCEPTION =
             FutureUtil.createTimeoutException("Timeout", HealthChecker.class, "healthCheckRecursiveReadNext(...)");
+    /**
+     * Reference to the main Pulsar service.
+     */
     private final PulsarService pulsar;
+    /**
+     * Topic name for v1 heartbeat checks.
+     */
     private final String heartbeatTopicV1;
+    /**
+     * Topic name for v2 heartbeat checks.
+     */
     private final String heartbeatTopicV2;
+    /**
+     * Pulsar client instance for health check operations.
+     * A separate client is needed so that it can be shutdown before the webservice is closed.
+     * Pending requests for healthchecks to the /health endpoint can be cancelled this way.
+     */
     private final PulsarClient client;
+    /**
+     * Executor for lookup operations.
+     * This is also needed so that pending healthchecks can be properly cancelled at shutdown.
+     */
     private final ScheduledExecutorProvider lookupExecutor;
+    /**
+     * Executor for scheduled tasks.
+     * This is also needed so that pending healthchecks can be properly cancelled at shutdown.
+     */
     private final ScheduledExecutorProvider scheduledExecutorProvider;
+    /**
+     * Set of pending health check operations.
+     */
     private final Set<CompletableFuture<Void>> pendingFutures = new HashSet<>();
 
     public HealthChecker(PulsarService pulsar) throws PulsarServerException {
@@ -89,6 +127,17 @@ public class HealthChecker implements AutoCloseable{
         return String.format("persistent://%s/%s", namespaceName, HEALTH_CHECK_TOPIC_SUFFIX);
     }
 
+    /**
+     * Performs a health check on the broker by verifying message production and consumption.
+     * The health check process includes:
+     * 1. Producing a test message
+     * 2. Reading the message back to verify end-to-end functionality
+     *
+     * @param topicVersion The version of the topic to use (V1 or V2)
+     * @param clientAppId  The identifier of the client application requesting the health check
+     * @return A CompletableFuture that completes when the health check is successful, or completes exceptionally if the
+     * check fails
+     */
     public CompletableFuture<Void> checkHealth(TopicVersion topicVersion, String clientAppId) {
         final String topicName = topicVersion == TopicVersion.V2 ? heartbeatTopicV2 : heartbeatTopicV1;
         log.info("[{}] Running healthCheck with topic={}", clientAppId, topicName);
@@ -232,34 +281,23 @@ public class HealthChecker implements AutoCloseable{
                 });
     }
 
-    private void deleteHeartbeatResource() {
-        log.info("forcefully delete heartbeat topic when close broker");
+    private void deleteHeartbeatTopics() {
+        log.info("forcefully deleting heartbeat topics");
+        deleteTopic(heartbeatTopicV1);
+        deleteTopic(heartbeatTopicV2);
+        log.info("finish forcefully deleting heartbeat topics");
+    }
 
+    private void deleteTopic(String heartbeatTopicV1) {
         try {
             pulsar.getBrokerService().deleteTopic(heartbeatTopicV1, true).get();
         } catch (Exception e) {
-            if (!isManagedLedgerNotFoundException(e)) {
-                log.error("Closed with errors in delete heartbeat topic [{}]",
-                        heartbeatTopicV1, e);
+            Throwable realCause = e.getCause();
+            if (!(realCause instanceof ManagedLedgerException.MetadataNotFoundException
+                    || realCause instanceof MetadataStoreException.NotFoundException)) {
+                log.error("Errors in deleting heartbeat topic [{}]", heartbeatTopicV1, e);
             }
         }
-
-        try {
-            pulsar.getBrokerService().deleteTopic(heartbeatTopicV2, true).get();
-        } catch (Exception e) {
-            if (!isManagedLedgerNotFoundException(e)) {
-                log.error("Closed with errors in delete heartbeat topic [{}]",
-                        heartbeatTopicV2, e);
-            }
-        }
-
-        log.info("finish forcefully delete heartbeat topic when close broker");
-    }
-
-    private boolean isManagedLedgerNotFoundException(Throwable e) {
-        Throwable realCause = e.getCause();
-        return realCause instanceof ManagedLedgerException.MetadataNotFoundException
-                || realCause instanceof MetadataStoreException.NotFoundException;
     }
 
     @Override
@@ -285,6 +323,6 @@ public class HealthChecker implements AutoCloseable{
                         new PulsarClientException.AlreadyClosedException("HealthChecker is closed"));
             }
         }
-        deleteHeartbeatResource();
+        deleteHeartbeatTopics();
     }
 }
