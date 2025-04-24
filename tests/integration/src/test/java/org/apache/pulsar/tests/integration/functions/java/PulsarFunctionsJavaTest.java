@@ -282,4 +282,8 @@ public abstract class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
         testAvroSchemaFunction(Runtime.JAVA);
     }
 
+    @Test(groups = {"java_function", "function"})
+    public void testConcurrentDeleteFunction() throws Exception {
+        testDeleteFunctionsConcurrently(Runtime.JAVA);
+    }
 }

@@ -41,6 +41,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -2189,6 +2191,52 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         getFunctionInfoNotFound(functionName);
         log.info("finish merge function test.");
+    }
+
+    protected void testDeleteFunctionsConcurrently(Runtime runtime) throws Exception {
+        if (Runtime.JAVA != runtime) {
+            return;
+        }
+
+        String inputTopicName = "persistent://public/default/test-cc-delete-" + runtime + "-input-" + randomName(8);
+        String outputTopicName = "test-cc-delete-" + runtime + "-output-" + randomName(8);
+        Schema<?> schema = Schema.STRING;
+
+        // create 10 functions sequentially
+        for (int i = 0; i < 10; i++) {
+            String functionName = "test-cc-delete-" + i;
+            submitFunction(
+                    runtime, inputTopicName, outputTopicName, functionName, null, EXCEPTION_JAVA_CLASS,
+                    schema, null);
+        }
+
+        // test functions are created successfully
+        for (int i = 0; i < 10; i++) {
+            String functionName = "test-cc-delete-" + i;
+            getFunctionInfoSuccess(functionName);
+        }
+
+        // delete 10 functions concurrently
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            String functionName = "test-cc-delete-" + i;
+            futures.add(CompletableFuture.runAsync(() -> {
+                try {
+                    deleteFunction(functionName);
+                } catch (Exception e) {
+                    log.error("Failed to delete function", e);
+                }
+            }));
+        }
+
+        CompletableFuture<Void> allOf = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+        allOf.join();
+
+        // test functions are deleted successfully
+        for (int i = 0; i < 10; i++) {
+            String functionName = "test-cc-delete-" + i;
+            getFunctionInfoNotFound(functionName);
+        }
     }
 
     private void prepareDataForMergeFunction(String ns,
