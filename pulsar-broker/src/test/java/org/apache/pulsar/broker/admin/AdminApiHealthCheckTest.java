@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.service.HealthChecker.HEALTH_CHECK_TOPIC_
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
 import java.lang.reflect.Field;
@@ -33,9 +34,9 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.service.HealthChecker;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -231,17 +232,23 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
     public void testHealthCheckTimeOut() throws Exception {
         final String testHealthCheckTopic = String.format("persistent://pulsar/localhost:%s/healthcheck",
                 pulsar.getConfig().getWebServicePort().get());
-        PulsarClient client = pulsar.getClient();
+        HealthChecker healthChecker = pulsar.getHealthChecker();
+        Field clientField = HealthChecker.class.getDeclaredField("client");
+        clientField.setAccessible(true);
+        PulsarClient client = (PulsarClient) clientField.get(healthChecker);
         PulsarClient spyClient = Mockito.spy(client);
         Mockito.doReturn(new DummyProducerBuilder<>((PulsarClientImpl) spyClient, Schema.BYTES))
                 .when(spyClient).newProducer(Schema.STRING);
-        // use reflection to replace the client in the broker
-        Field field = PulsarService.class.getDeclaredField("client");
-        field.setAccessible(true);
-        field.set(pulsar, spyClient);
+        clientField.set(healthChecker, spyClient);
+
+        // change timeout to 1 second to speed up test
+        Field timeoutField = HealthChecker.class.getDeclaredField("timeout");
+        timeoutField.setAccessible(true);
+        timeoutField.set(healthChecker, Duration.ofSeconds(1));
+
         try {
             admin.brokers().healthcheck(TopicVersion.V2);
-            throw new Exception("Should not reach here");
+            fail("Should not reach here");
         } catch (PulsarAdminException e) {
             log.info("Exception caught", e);
             assertTrue(e.getMessage().contains("LowOverheadTimeoutException"));

@@ -2178,11 +2178,20 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         if (!isRunning()) {
             return CompletableFuture.failedFuture(new PulsarServerException("Broker is not running"));
         }
+        HealthChecker localHealthChecker = getHealthChecker();
+        if (localHealthChecker == null) {
+            return CompletableFuture.failedFuture(new PulsarServerException("Broker is not running"));
+        }
+        return localHealthChecker.checkHealth(topicVersion, clientId);
+    }
+
+    @VisibleForTesting
+    public HealthChecker getHealthChecker() {
         if (healthChecker == null) {
             synchronized (this) {
                 if (healthChecker == null) {
                     if (!isRunning()) {
-                        return CompletableFuture.failedFuture(new PulsarServerException("Broker is not running"));
+                        return null;
                     }
                     try {
                         healthChecker = new HealthChecker(this);
@@ -2193,6 +2202,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 }
             }
         }
-        return healthChecker.checkHealth(topicVersion, clientId);
+        return healthChecker;
     }
 }

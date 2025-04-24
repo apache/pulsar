@@ -63,7 +63,7 @@ public class HealthChecker implements AutoCloseable{
      * Set to 58 seconds to be shorter than the client's default 60-second timeout,
      * allowing server timeout exceptions to propagate properly to the client.
      */
-    private static final Duration HEALTH_CHECK_READ_TIMEOUT = Duration.ofSeconds(58);
+    private static final Duration DEFAULT_HEALTH_CHECK_READ_TIMEOUT = Duration.ofSeconds(58);
     /**
      * Pre-created timeout exception for health check operations.
      */
@@ -101,6 +101,8 @@ public class HealthChecker implements AutoCloseable{
      * Set of pending health check operations.
      */
     private final Set<CompletableFuture<Void>> pendingFutures = new HashSet<>();
+
+    private final Duration timeout = DEFAULT_HEALTH_CHECK_READ_TIMEOUT;
 
     public HealthChecker(PulsarService pulsar) throws PulsarServerException {
         this.pulsar = pulsar;
@@ -199,7 +201,7 @@ public class HealthChecker implements AutoCloseable{
                         }).thenCompose(reader -> producer.sendAsync(messageStr)
                                 .thenCompose(__ -> FutureUtil.addTimeoutHandling(
                                         healthCheckRecursiveReadNext(reader, messageStr),
-                                        HEALTH_CHECK_READ_TIMEOUT, pulsar.getBrokerService().executor(),
+                                        timeout, pulsar.getBrokerService().executor(),
                                         () -> HEALTH_CHECK_TIMEOUT_EXCEPTION))
                                 .whenComplete((__, ex) -> {
                                             closeAndReCheck(producer, reader, topicName,
