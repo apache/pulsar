@@ -2509,6 +2509,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     if (op.cmd == null) {
                         op.rePopulate.run();
                     }
+                    msgIterator.remove();
                     ReferenceCountUtil.safeRelease(op.cmd);
                     try {
                         // Need to protect ourselves from any exception being thrown in the future handler from the
@@ -2518,7 +2519,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         log.warn("Got exception while completing the failed publishing: {}", failedMsg, t);
                     }
                     releaseSemaphoreForSendOp(op);
-                    msgIterator.remove();
                     op.recycle();
                     continue;
                 } else if (op.msg.getSchemaState() == None) {
