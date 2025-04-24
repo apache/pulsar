@@ -21,8 +21,11 @@ package org.apache.pulsar.broker.service;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
@@ -57,6 +60,7 @@ public class HealthChecker implements AutoCloseable{
     private final PulsarClient client;
     private final ScheduledExecutorProvider lookupExecutor;
     private final ScheduledExecutorProvider scheduledExecutorProvider;
+    private final Set<CompletableFuture<Void>> pendingFutures = new HashSet<>();
 
     public static String getHeartbeatTopicName(String brokerId, ServiceConfiguration configuration, boolean isV2) {
         NamespaceName namespaceName = isV2
@@ -89,48 +93,79 @@ public class HealthChecker implements AutoCloseable{
         final String messageStr = UUID.randomUUID().toString();
         final String subscriptionName = "healthCheck-" + messageStr;
         // create non-partitioned topic manually and close the previous reader if present.
-        return pulsar.getBrokerService().getTopic(topicName, true)
-                .thenCompose(topicOptional -> {
-                    if (!topicOptional.isPresent()) {
-                        log.error("[{}] Fail to run health check while get topic {}. because get null value.",
-                                clientAppId, topicName);
-                        return CompletableFuture.failedFuture(new BrokerServiceException.TopicNotFoundException(
-                                String.format("Topic [%s] not found after create.", topicName)));
-                    }
-                    CompletableFuture<Void> resultFuture = new CompletableFuture<>();
-                    client.newProducer(Schema.STRING).topic(topicName).createAsync()
-                            .thenCompose(producer -> client.newReader(Schema.STRING).topic(topicName)
-                                    .subscriptionName(subscriptionName)
-                                    .startMessageId(MessageId.latest)
-                                    .createAsync().exceptionally(createException -> {
-                                        producer.closeAsync().exceptionally(ex -> {
-                                            log.error("[{}] Close producer fail while heath check.", clientAppId);
-                                            return null;
-                                        });
-                                        throw FutureUtil.wrapToCompletionException(createException);
-                                    }).thenCompose(reader -> producer.sendAsync(messageStr)
-                                            .thenCompose(__ -> FutureUtil.addTimeoutHandling(
-                                                    healthCheckRecursiveReadNext(reader, messageStr),
-                                                    HEALTH_CHECK_READ_TIMEOUT, pulsar.getBrokerService().executor(),
-                                                    () -> HEALTH_CHECK_TIMEOUT_EXCEPTION))
-                                            .whenComplete((__, ex) -> {
-                                                        closeAndReCheck(producer, reader, topicOptional.get(),
-                                                                subscriptionName,
-                                                                clientAppId)
-                                                                .whenComplete((unused, innerEx) -> {
-                                                                    if (ex != null) {
-                                                                        resultFuture.completeExceptionally(ex);
-                                                                    } else {
-                                                                        resultFuture.complete(null);
-                                                                    }
-                                                                });
-                                                    }
-                                            ))
-                            ).exceptionally(ex -> {
-                                resultFuture.completeExceptionally(ex);
+        CompletableFuture<Void> resultFuture = new CompletableFuture<>();
+        addToPending(resultFuture);
+        resultFuture.whenComplete((result, ex) -> {
+            removeFromPending(resultFuture);
+        });
+        try {
+            pulsar.getBrokerService().getTopic(topicName, true)
+                    .thenCompose(topicOptional -> {
+                        if (!topicOptional.isPresent()) {
+                            log.error("[{}] Fail to run health check while get topic {}. because get null value.",
+                                    clientAppId, topicName);
+                            return CompletableFuture.failedFuture(new BrokerServiceException.TopicNotFoundException(
+                                    String.format("Topic [%s] not found after create.", topicName)));
+                        }
+                        return doHealthCheck(clientAppId, topicName, subscriptionName, messageStr, resultFuture);
+                    }).whenComplete((result, t) -> {
+                        if (t != null) {
+                            resultFuture.completeExceptionally(t);
+                        } else {
+                            if (!resultFuture.isDone()) {
+                                resultFuture.complete(null);
+                            }
+                        }
+                    });
+        } catch (Exception e) {
+            log.error("[{}] Fail to run health check while get topic {}. because get exception.",
+                    clientAppId, topicName, e);
+            resultFuture.completeExceptionally(e);
+        }
+        return resultFuture;
+    }
+
+    private synchronized void addToPending(CompletableFuture<Void> resultFuture) {
+        pendingFutures.add(resultFuture);
+    }
+
+    private synchronized void removeFromPending(CompletableFuture<Void> resultFuture) {
+        pendingFutures.remove(resultFuture);
+    }
+
+    private CompletableFuture<Void> doHealthCheck(String clientAppId, String topicName, String subscriptionName,
+                                                  String messageStr, CompletableFuture<Void> resultFuture) {
+        return client.newProducer(Schema.STRING).topic(topicName).createAsync()
+                .thenCompose(producer -> client.newReader(Schema.STRING).topic(topicName)
+                        .subscriptionName(subscriptionName)
+                        .startMessageId(MessageId.latest)
+                        .createAsync().exceptionally(createException -> {
+                            producer.closeAsync().exceptionally(ex -> {
+                                log.error("[{}] Close producer fail while heath check.", clientAppId);
                                 return null;
                             });
-                    return resultFuture;
+                            throw FutureUtil.wrapToCompletionException(createException);
+                        }).thenCompose(reader -> producer.sendAsync(messageStr)
+                                .thenCompose(__ -> FutureUtil.addTimeoutHandling(
+                                        healthCheckRecursiveReadNext(reader, messageStr),
+                                        HEALTH_CHECK_READ_TIMEOUT, pulsar.getBrokerService().executor(),
+                                        () -> HEALTH_CHECK_TIMEOUT_EXCEPTION))
+                                .whenComplete((__, ex) -> {
+                                            closeAndReCheck(producer, reader, topicName,
+                                                    subscriptionName,
+                                                    clientAppId)
+                                                    .whenComplete((unused, innerEx) -> {
+                                                        if (ex != null) {
+                                                            resultFuture.completeExceptionally(ex);
+                                                        } else {
+                                                            resultFuture.complete(null);
+                                                        }
+                                                    });
+                                        }
+                                ))
+                ).exceptionally(ex -> {
+                    resultFuture.completeExceptionally(ex);
+                    return null;
                 });
     }
 
@@ -143,11 +178,10 @@ public class HealthChecker implements AutoCloseable{
      *
      * @param producer         Producer
      * @param reader           Reader
-     * @param topic            Topic
      * @param subscriptionName Subscription name
      */
-    private static CompletableFuture<Void> closeAndReCheck(Producer<String> producer, Reader<String> reader,
-                                                           Topic topic, String subscriptionName, String clientAppId) {
+    private CompletableFuture<Void> closeAndReCheck(Producer<String> producer, Reader<String> reader,
+                                                    String topicName, String subscriptionName, String clientAppId) {
         // no matter exception or success, we still need to
         // close producer/reader
         CompletableFuture<Void> producerFuture = producer.closeAsync();
@@ -158,22 +192,25 @@ public class HealthChecker implements AutoCloseable{
         return FutureUtil.waitForAll(Collections.unmodifiableList(futures))
                 .exceptionally(closeException -> {
                     if (readerFuture.isCompletedExceptionally()) {
-                        log.error("[{}] Close reader fail while heath check.", clientAppId);
-                        Subscription subscription =
-                                topic.getSubscription(subscriptionName);
-                        // re-check subscription after reader close
-                        if (subscription != null) {
-                            log.warn("[{}] Force delete subscription {} "
-                                            + "when it still exists after the"
-                                            + " reader is closed.",
-                                    clientAppId, subscription);
-                            subscription.deleteForcefully()
-                                    .exceptionally(ex -> {
-                                        log.error("[{}] Force delete subscription fail"
-                                                        + " while health check",
-                                                clientAppId, ex);
-                                        return null;
-                                    });
+                        log.error("[{}] Close reader fail while health check.", clientAppId);
+                        Optional<Topic> topic = pulsar.getBrokerService().getTopicReference(topicName);
+                        if (topic.isPresent()) {
+                            Subscription subscription =
+                                    topic.get().getSubscription(subscriptionName);
+                            // re-check subscription after reader close
+                            if (subscription != null) {
+                                log.warn("[{}] Force delete subscription {} "
+                                                + "when it still exists after the"
+                                                + " reader is closed.",
+                                        clientAppId, subscription);
+                                subscription.deleteForcefully()
+                                        .exceptionally(ex -> {
+                                            log.error("[{}] Force delete subscription fail"
+                                                            + " while health check",
+                                                    clientAppId, ex);
+                                            return null;
+                                        });
+                            }
                         }
                     } else {
                         // producer future fail.
@@ -194,7 +231,7 @@ public class HealthChecker implements AutoCloseable{
     }
 
     @Override
-    public void close() throws Exception {
+    public synchronized void close() throws Exception {
         try {
             scheduledExecutorProvider.shutdownNow();
         } catch (Exception e) {
@@ -209,6 +246,12 @@ public class HealthChecker implements AutoCloseable{
             client.close();
         } catch (PulsarClientException e) {
             log.warn("Failed to close pulsar client", e);
+        }
+        for (CompletableFuture<Void> pendingFuture : new ArrayList<>(pendingFutures)) {
+            if (!pendingFuture.isDone()) {
+                pendingFuture.completeExceptionally(
+                        new PulsarClientException.AlreadyClosedException("HealthChecker is closed"));
+            }
         }
     }
 }
