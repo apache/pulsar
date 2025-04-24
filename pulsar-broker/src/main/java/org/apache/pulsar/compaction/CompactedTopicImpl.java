@@ -84,13 +84,20 @@ public class CompactedTopicImpl implements CompactedTopic {
 
             // delete the ledger from the old context once the new one is open
             return compactedTopicContext.thenCompose(ctx -> {
-                if (ctx != null && ctx.getLedger() != null && ctx.getLedger().getId() == compactedLedgerId) {
-                    // Print an error log here, which is not expected.
-                    log.error("[__compaction] Using the same compacted ledger to override the old one, which is not"
-                                    + " expected and it may cause a ledger lost error. {} -> {}", compactedLedgerId,
-                            ctx.getLedger().getId());
+                if (previousContext != null) {
+                    previousContext.thenAccept(previousCtx -> {
+                        // Print an error log here, which is not expected.
+                        if (previousCtx != null && previousCtx.getLedger() != null
+                                && previousCtx.getLedger().getId() == compactedLedgerId) {
+                            log.error("[__compaction] Using the same compacted ledger to override the old one, which is"
+                                + " not expected and it may cause a ledger lost error. {} -> {}", compactedLedgerId,
+                                ctx.getLedger().getId());
+                        }
+                    });
+                    return previousContext;
+                } else {
+                    return CompletableFuture.completedFuture(null);
                 }
-                return previousContext != null ? previousContext : CompletableFuture.completedFuture(null);
             });
         }
     }
