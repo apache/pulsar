@@ -22,7 +22,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateMetadataStoreTableViewImpl;
 import org.testng.annotations.Test;
 
-@Test(groups = "flaky")
+@Test(groups = "broker")
 public class BrokerRegistryMetadataStoreIntegrationTest extends BrokerRegistryIntegrationTest {
 
     @Override
