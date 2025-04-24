@@ -30,6 +30,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -44,6 +45,7 @@ import org.apache.pulsar.client.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 
 @Slf4j
 public class HealthChecker implements AutoCloseable{
@@ -62,13 +64,6 @@ public class HealthChecker implements AutoCloseable{
     private final ScheduledExecutorProvider scheduledExecutorProvider;
     private final Set<CompletableFuture<Void>> pendingFutures = new HashSet<>();
 
-    public static String getHeartbeatTopicName(String brokerId, ServiceConfiguration configuration, boolean isV2) {
-        NamespaceName namespaceName = isV2
-                ? NamespaceService.getHeartbeatNamespaceV2(brokerId, configuration)
-                : NamespaceService.getHeartbeatNamespace(brokerId, configuration);
-        return String.format("persistent://%s/%s", namespaceName, HEALTH_CHECK_TOPIC_SUFFIX);
-    }
-
     public HealthChecker(PulsarService pulsar) throws PulsarServerException {
         this.pulsar = pulsar;
         this.heartbeatTopicV1 = getHeartbeatTopicName(pulsar.getBrokerId(), pulsar.getConfiguration(), false);
@@ -85,6 +80,13 @@ public class HealthChecker implements AutoCloseable{
         } catch (PulsarClientException e) {
             throw new PulsarServerException("Error creating client for HealthChecker", e);
         }
+    }
+
+    private static String getHeartbeatTopicName(String brokerId, ServiceConfiguration configuration, boolean isV2) {
+        NamespaceName namespaceName = isV2
+                ? NamespaceService.getHeartbeatNamespaceV2(brokerId, configuration)
+                : NamespaceService.getHeartbeatNamespace(brokerId, configuration);
+        return String.format("persistent://%s/%s", namespaceName, HEALTH_CHECK_TOPIC_SUFFIX);
     }
 
     public CompletableFuture<Void> checkHealth(TopicVersion topicVersion, String clientAppId) {
@@ -230,6 +232,36 @@ public class HealthChecker implements AutoCloseable{
                 });
     }
 
+    private void deleteHeartbeatResource() {
+        log.info("forcefully delete heartbeat topic when close broker");
+
+        try {
+            pulsar.getBrokerService().deleteTopic(heartbeatTopicV1, true).get();
+        } catch (Exception e) {
+            if (!isManagedLedgerNotFoundException(e)) {
+                log.error("Closed with errors in delete heartbeat topic [{}]",
+                        heartbeatTopicV1, e);
+            }
+        }
+
+        try {
+            pulsar.getBrokerService().deleteTopic(heartbeatTopicV2, true).get();
+        } catch (Exception e) {
+            if (!isManagedLedgerNotFoundException(e)) {
+                log.error("Closed with errors in delete heartbeat topic [{}]",
+                        heartbeatTopicV2, e);
+            }
+        }
+
+        log.info("finish forcefully delete heartbeat topic when close broker");
+    }
+
+    private boolean isManagedLedgerNotFoundException(Throwable e) {
+        Throwable realCause = e.getCause();
+        return realCause instanceof ManagedLedgerException.MetadataNotFoundException
+                || realCause instanceof MetadataStoreException.NotFoundException;
+    }
+
     @Override
     public synchronized void close() throws Exception {
         try {
@@ -253,5 +285,6 @@ public class HealthChecker implements AutoCloseable{
                         new PulsarClientException.AlreadyClosedException("HealthChecker is closed"));
             }
         }
+        deleteHeartbeatResource();
     }
 }
