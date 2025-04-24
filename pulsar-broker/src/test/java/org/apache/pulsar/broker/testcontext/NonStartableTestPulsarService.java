@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
@@ -116,13 +117,16 @@ class NonStartableTestPulsarService extends AbstractTestPulsarService {
     }
 
     @Override
-    public PulsarClientImpl createClientImpl(ClientConfigurationData clientConf) throws PulsarClientException {
+    public PulsarClientImpl createClientImpl(ClientConfigurationData clientConf,
+                                             Consumer<PulsarClientImpl.PulsarClientImplBuilder> customizer)
+            throws PulsarClientException {
         try {
             return (PulsarClientImpl) getClient();
         } catch (PulsarServerException e) {
             throw new PulsarClientException(e);
         }
     }
+
     @Override
     protected BrokerService newBrokerService(PulsarService pulsar) throws Exception {
         return getBrokerService();
