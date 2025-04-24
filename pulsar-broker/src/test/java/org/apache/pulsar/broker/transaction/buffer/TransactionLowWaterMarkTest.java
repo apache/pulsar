@@ -117,7 +117,6 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
                 .topic(TOPIC)
                 .subscriptionName("test")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Failover)
                 .subscribe();
         final String TEST1 = "test1";
@@ -196,7 +195,6 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
                 .topic(TOPIC)
                 .subscriptionName(subName)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Failover)
                 .subscribe();
         final String TEST1 = "test1";
