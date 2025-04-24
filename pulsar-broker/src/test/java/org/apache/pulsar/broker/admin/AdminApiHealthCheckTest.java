@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import static org.apache.pulsar.broker.admin.impl.BrokersBase.HEALTH_CHECK_TOPIC_SUFFIX;
+import static org.apache.pulsar.broker.service.HealthChecker.HEALTH_CHECK_TOPIC_SUFFIX;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
