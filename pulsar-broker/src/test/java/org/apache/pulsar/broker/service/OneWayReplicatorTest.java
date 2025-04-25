@@ -105,7 +105,7 @@ import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker")
-public final class OneWayReplicatorTest extends OneWayReplicatorTestBase {
+public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
 
     @Override
     @BeforeClass(alwaysRun = true, timeOut = 300000)
