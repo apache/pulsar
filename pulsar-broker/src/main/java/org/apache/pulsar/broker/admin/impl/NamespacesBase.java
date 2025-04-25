@@ -1339,6 +1339,13 @@ public abstract class NamespacesBase extends AdminResource {
     }
     protected CompletableFuture<Void> setBacklogQuotaAsync(BacklogQuotaType backlogQuotaType,
                                                            BacklogQuota quota) {
+        try {
+            quota.validate();
+        } catch (IllegalArgumentException e) {
+            RestException restException = new RestException(Status.BAD_REQUEST, String.format("Set namespace[%s]"
+                + " backlog quota failed because the data validation failed. %s", namespaceName, e.getMessage()));
+            return CompletableFuture.failedFuture(restException);
+        }
         return namespaceResources().setPoliciesAsync(namespaceName, policies -> {
             RetentionPolicies retentionPolicies = policies.retention_policies;
             final BacklogQuotaType quotaType = backlogQuotaType != null ? backlogQuotaType
@@ -2663,8 +2670,10 @@ public abstract class NamespacesBase extends AdminResource {
                             namespaceName, backlogQuota);
                 }).exceptionally(ex -> {
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
-                    log.error("[{}] Failed to update backlog quota map for namespace {}",
-                            clientAppId(), namespaceName, ex);
+                    if (isNot307And404And400Exception(ex)) {
+                        log.error("[{}] Failed to update backlog quota map for namespace {}",
+                                clientAppId(), namespaceName, ex);
+                    }
                     return null;
                 });
     }
