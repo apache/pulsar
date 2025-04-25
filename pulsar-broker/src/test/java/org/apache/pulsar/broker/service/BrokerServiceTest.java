@@ -2040,6 +2040,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         pulsar.getConfiguration().setMetadataSyncEventTopic(topicName);
         PulsarMetadataEventSynchronizer sync = new PulsarMetadataEventSynchronizer(pulsar, topicName);
         // set invalid client for retry
+        @Cleanup
         PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder().serviceUrl("http://invalidhost:8080")
                 .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
         sync.client = client;
