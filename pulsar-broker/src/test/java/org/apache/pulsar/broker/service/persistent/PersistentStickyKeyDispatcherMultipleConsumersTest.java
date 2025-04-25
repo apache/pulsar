@@ -66,6 +66,7 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.util.AbstractCASReferenceCounted;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -202,7 +203,15 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         consumerMockAvailablePermits = new AtomicInteger(1000);
         doAnswer(invocation -> consumerMockAvailablePermits.get()).when(consumerMock).getAvailablePermits();
         doReturn(true).when(consumerMock).isWritable();
-        doReturn(channelMock).when(consumerMock).sendMessages(
+        doAnswer(invocation -> {
+            List<Entry> entries = invocation.getArgument(0);
+            for (Entry entry : entries) {
+                if (entry != null) {
+                    entry.release();
+                }
+            }
+            return channelMock;
+        }).when(consumerMock).sendMessages(
                 anyList(),
                 any(EntryBatchSizes.class),
                 any(EntryBatchIndexesAcks.class),
@@ -332,6 +341,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         // add entries to redeliver and read target
         final List<Entry> redeliverEntries = new ArrayList<>();
         redeliverEntries.add(createEntry(1, 1, "message1", 1, "key123"));
+        redeliverEntries.forEach(entry -> {
+            EntryImpl entryImpl = (EntryImpl) entry;
+            entryImpl.retain();
+        });
         final List<Entry> readEntries = new ArrayList<>();
         readEntries.add(createEntry(1, 2, "message2", 2, "key123"));
         readEntries.add(createEntry(1, 3, "message3", 3, "key222"));
@@ -340,10 +353,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
             Field totalAvailablePermitsField = PersistentDispatcherMultipleConsumers.class.getDeclaredField("totalAvailablePermits");
             totalAvailablePermitsField.setAccessible(true);
             totalAvailablePermitsField.set(persistentDispatcher, 1000);
-
             doAnswer(invocationOnMock -> {
+                List<Entry> entries = new ArrayList<>(readEntries);
+                entries.forEach(entry -> ((EntryImpl) ((EntryAndMetadata) entry).unwrap()).retain());
                 ((PersistentStickyKeyDispatcherMultipleConsumers) invocationOnMock.getArgument(2))
-                        .readEntriesComplete(readEntries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
+                        .readEntriesComplete(entries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
                 return null;
             }).when(cursorMock).asyncReadEntriesOrWait(
                     anyInt(), anyLong(), any(PersistentStickyKeyDispatcherMultipleConsumers.class),
@@ -356,7 +370,15 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         try {
             doReturn("consumer2").when(slowConsumerMock).consumerName();
             doReturn(true).when(slowConsumerMock).isWritable();
-            doReturn(slowChannelMock).when(slowConsumerMock).sendMessages(
+            doAnswer(invocation -> {
+                List<Entry> entries = invocation.getArgument(0);
+                for (Entry entry : entries) {
+                    if (entry != null) {
+                        entry.release();
+                    }
+                }
+                return slowChannelMock;
+            }).when(slowConsumerMock).sendMessages(
                     anyList(),
                     any(EntryBatchSizes.class),
                     any(EntryBatchIndexesAcks.class),
@@ -403,6 +425,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 anyLong(),
                 any(RedeliveryTracker.class)
         );
+        readEntries.forEach(Entry::release);
+        redeliverEntries.forEach(Entry::release);
     }
 
     @Test(timeOut = 30000)
@@ -425,6 +449,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
             for (Entry entry : entries) {
                 remainingEntriesNum.decrementAndGet();
                 actualEntriesToConsumer1.add(entry.getPosition());
+                entry.release();
             }
             return channelMock;
         }).when(consumer1).sendMessages(anyList(), any(EntryBatchSizes.class), any(EntryBatchIndexesAcks.class),
@@ -439,6 +464,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
             for (Entry entry : entries) {
                 remainingEntriesNum.decrementAndGet();
                 actualEntriesToConsumer2.add(entry.getPosition());
+                entry.release();
             }
             return channelMock;
         }).when(consumer2).sendMessages(anyList(), any(EntryBatchSizes.class), any(EntryBatchIndexesAcks.class),
@@ -488,6 +514,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
             alreadyReceived.addAll(actualEntriesToConsumer2);
             List<Entry> entries = allEntries.stream().filter(entry -> positions.contains(entry.getPosition())
                             && !alreadyReceived.contains(entry.getPosition()))
+                    .map(entry -> {
+                        EntryImpl entryImpl = (EntryImpl) ((EntryAndMetadata) entry).unwrap();
+                        entryImpl.retain();
+                        return entry;
+                    })
                     .collect(Collectors.toList());
             PersistentStickyKeyDispatcherMultipleConsumers dispatcher = invocationOnMock.getArgument(1);
             dispatcher.readEntriesComplete(entries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Replay);
