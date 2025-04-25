@@ -273,15 +273,25 @@ public class TenantsBase extends PulsarWebResource {
     }
 
     private CompletableFuture<Void> validateClustersAsync(TenantInfo info) {
-        // empty cluster shouldn't be allowed
-        if (info == null || info.getAllowedClusters().stream().filter(c -> !StringUtils.isBlank(c))
-                .collect(Collectors.toSet()).isEmpty()
-                || info.getAllowedClusters().stream().anyMatch(ac -> StringUtils.isBlank(ac))) {
-            log.warn("[{}] Failed to validate due to clusters are empty", clientAppId());
-            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED, "Clusters can not be empty"));
+        if (info == null) {
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED, "TenantInfo is null"));
         }
+
+        Set<String> allowedClusters = info.getAllowedClusters();
+        if (allowedClusters == null) {
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED, "Clusters cannot be null"));
+        }
+
+        Set<String> cleanedClusters = allowedClusters.stream()
+                .filter(c -> !StringUtils.isBlank(c))
+                .collect(Collectors.toSet());
+        if (cleanedClusters.isEmpty() || allowedClusters.stream().anyMatch(StringUtils::isBlank)) {
+            log.warn("[{}] Validation failed: allowed clusters are empty or contain blanks", clientAppId());
+            return FutureUtil.failedFuture(
+                    new RestException(Status.PRECONDITION_FAILED, "Clusters cannot be empty or blank"));
+        }
+
         return clusterResources().listAsync().thenAccept(availableClusters -> {
-            Set<String> allowedClusters = info.getAllowedClusters();
             List<String> nonexistentClusters = allowedClusters.stream()
                     .filter(cluster -> !(availableClusters.contains(cluster) || GLOBAL_CLUSTER.equals(cluster)))
                     .collect(Collectors.toList());
