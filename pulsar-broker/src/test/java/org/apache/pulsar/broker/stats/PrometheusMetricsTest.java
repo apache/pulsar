@@ -1781,6 +1781,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         Clock clock = mock(Clock.class);
         when(clock.millis()).thenAnswer(invocation -> currentTimeMillis.get());
 
+        @Cleanup
         PrometheusMetricsGenerator prometheusMetricsGenerator =
                 new PrometheusMetricsGenerator(pulsar, true, false, false,
                         false, clock);

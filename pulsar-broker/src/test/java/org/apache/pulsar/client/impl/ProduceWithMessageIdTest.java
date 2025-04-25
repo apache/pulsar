@@ -48,7 +48,7 @@ public class ProduceWithMessageIdTest {
     }
 
     @AfterClass(alwaysRun = true)
-    public void teardown() {
+    public void cleanup() throws Exception {
         if (mockBrokerService != null) {
             mockBrokerService.stop();
             mockBrokerService = null;
