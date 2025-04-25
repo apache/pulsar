@@ -196,6 +196,10 @@ public class PulsarClientImpl implements PulsarClient {
         EventLoopGroup eventLoopGroupReference = null;
         ConnectionPool connectionPoolReference = null;
         try {
+            if (conf == null || isBlank(conf.getServiceUrl())) {
+                throw new PulsarClientException.InvalidConfigurationException("Invalid client configuration");
+            }
+            this.conf = conf;
             this.createdEventLoopGroup = eventLoopGroup == null;
             this.createdCnxPool = connectionPool == null;
             if ((externalExecutorProvider == null) != (internalExecutorProvider == null)) {
@@ -207,10 +211,6 @@ public class PulsarClientImpl implements PulsarClient {
             this.createdLookupProviders = lookupExecutorProvider == null;
             eventLoopGroupReference = eventLoopGroup != null ? eventLoopGroup : getEventLoopGroup(conf);
             this.eventLoopGroup = eventLoopGroupReference;
-            if (conf == null || isBlank(conf.getServiceUrl())) {
-                throw new PulsarClientException.InvalidConfigurationException("Invalid client configuration");
-            }
-            this.conf = conf;
             clientClock = conf.getClock();
             conf.getAuthentication().start();
             connectionPoolReference =
