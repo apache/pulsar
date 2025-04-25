@@ -35,6 +35,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
@@ -81,6 +82,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         BacklogQuotaImpl backlogQuota = new BacklogQuotaImpl();
         backlogQuota.setLimitSize(1);
         backlogQuota.setLimitTime(2);
+        backlogQuota.setPolicy(BacklogQuota.RetentionPolicy.producer_exception);
         // local
         admin1.topicPolicies().setBacklogQuota(topic, backlogQuota);
         Awaitility.await().untilAsserted(() ->

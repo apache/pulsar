@@ -88,4 +88,10 @@ public interface BacklogQuota {
         /** Policy which evicts the oldest message from the slowest consumer's backlog. */
         consumer_backlog_eviction,
     }
+
+    default void validate() {
+        if (getPolicy() == null) {
+            throw new IllegalArgumentException("the attribute policy cannot be null");
+        }
+    }
 }
