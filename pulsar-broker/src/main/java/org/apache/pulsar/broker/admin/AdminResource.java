@@ -930,8 +930,19 @@ public abstract class AdminResource extends PulsarWebResource {
                 == Status.CONFLICT.getStatusCode();
     }
 
+    protected static boolean isBadRequest(Throwable ex) {
+        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+        return realCause instanceof WebApplicationException
+                && ((WebApplicationException) realCause).getResponse().getStatus()
+                == Status.BAD_REQUEST.getStatusCode();
+    }
+
     protected static boolean isNot307And404Exception(Throwable ex) {
         return !isRedirectException(ex) && !isNotFoundException(ex);
+    }
+
+    protected static boolean isNot307And404And400Exception(Throwable ex) {
+        return !isRedirectException(ex) && !isNotFoundException(ex) && !isBadRequest(ex);
     }
 
     protected static String getTopicNotFoundErrorMessage(String topic) {
