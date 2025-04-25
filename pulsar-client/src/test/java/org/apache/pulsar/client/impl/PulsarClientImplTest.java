@@ -183,11 +183,11 @@ public class PulsarClientImplTest {
         ConnectionPool pool = Mockito.spy(new ConnectionPool(conf, eventLoop));
         conf.setServiceUrl("pulsar://localhost:6650");
 
+        @Cleanup("stop")
         HashedWheelTimer timer = new HashedWheelTimer();
         PulsarClientImpl client = new PulsarClientImpl(conf, eventLoop, pool, timer);
 
         client.shutdown();
-        client.timer().stop();
     }
 
     @Test

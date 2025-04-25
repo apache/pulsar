@@ -41,7 +41,6 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 @Slf4j
 public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
-
     @Override
     protected void setup() throws Exception {
         //No-op
@@ -115,6 +114,8 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
         } catch (TimeoutException e) {
             // No-op
         }
+        // Close the PulsarClient gracefully to avoid ByteBuf leak
+        pulsarClient.close();
     }
 
     @Test
@@ -166,6 +167,8 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
             // No-op
         }
         Assert.assertNotNull(messageId);
+        // Close the PulsarClient gracefully to avoid ByteBuf leak
+        pulsarClient.close();
     }
 
     @Test
