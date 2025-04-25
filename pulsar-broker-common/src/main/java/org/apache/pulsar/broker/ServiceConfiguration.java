@@ -423,7 +423,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long delayedDeliveryMaxDelayInMillis = 0;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the acknowledge of batch local index")
-    private boolean acknowledgmentAtBatchIndexLevelEnabled = false;
+    private boolean acknowledgmentAtBatchIndexLevelEnabled = true;
 
     @FieldContext(
         category = CATEGORY_WEBSOCKET,

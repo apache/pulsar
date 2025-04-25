@@ -34,9 +34,9 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.commons.lang.RandomStringUtils;
 import org.apache.commons.lang3.reflect.MethodUtils;
-import org.apache.pulsar.broker.admin.impl.BrokersBase;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.HealthChecker;
 import org.apache.pulsar.broker.service.TopicPolicyTestUtils;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -168,7 +168,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
     public void testHealthCheckTopicNotOffload() throws Exception {
         NamespaceName namespaceName = NamespaceService.getHeartbeatNamespaceV2(pulsar.getBrokerId(),
                 pulsar.getConfig());
-        TopicName topicName = TopicName.get("persistent", namespaceName, BrokersBase.HEALTH_CHECK_TOPIC_SUFFIX);
+        TopicName topicName = TopicName.get("persistent", namespaceName, HealthChecker.HEALTH_CHECK_TOPIC_SUFFIX);
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
                 .getTopic(topicName.toString(), true).get().get();
         ManagedLedgerConfig config = persistentTopic.getManagedLedger().getConfig();
@@ -194,7 +194,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         Assert.assertTrue(optionalTopic.isEmpty());
 
         TopicName heartbeatTopicName = TopicName.get("persistent",
-                namespaceName, BrokersBase.HEALTH_CHECK_TOPIC_SUFFIX);
+                namespaceName, HealthChecker.HEALTH_CHECK_TOPIC_SUFFIX);
         admin.topics().getRetention(heartbeatTopicName.toString());
         optionalTopic = pulsar.getBrokerService()
                 .getTopic(topicName.getPartition(1).toString(), false).join();
@@ -221,7 +221,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         admin.brokers().healthcheck(TopicVersion.V2);
         NamespaceName namespaceName = NamespaceService.getHeartbeatNamespaceV2(pulsar.getBrokerId(),
                 pulsar.getConfig());
-        TopicName heartbeatTopicName = TopicName.get("persistent", namespaceName, BrokersBase.HEALTH_CHECK_TOPIC_SUFFIX);
+        TopicName heartbeatTopicName = TopicName.get("persistent", namespaceName, HealthChecker.HEALTH_CHECK_TOPIC_SUFFIX);
 
         List<String> topics = getPulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join();
         Assert.assertEquals(topics.size(), 1);
@@ -246,7 +246,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         List<String> topics = getPulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join();
         Assert.assertEquals(topics.size(), 1);
         TopicName heartbeatTopicName = TopicName.get("persistent",
-                namespaceName, BrokersBase.HEALTH_CHECK_TOPIC_SUFFIX);
+                namespaceName, HealthChecker.HEALTH_CHECK_TOPIC_SUFFIX);
         Assert.assertEquals(topics.get(0), heartbeatTopicName.toString());
     }
 

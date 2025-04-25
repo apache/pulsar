@@ -397,7 +397,6 @@ public class TransactionTest extends TransactionTestBase {
                 .topic(topicName)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Shared)
-                .enableBatchIndexAcknowledgment(true)
                 .subscribe();
     }
 
@@ -1450,9 +1449,6 @@ public class TransactionTest extends TransactionTestBase {
     @Test
     public void testPendingAckBatchMessageCommit() throws Exception {
         String topic = NAMESPACE1 + "/testPendingAckBatchMessageCommit";
-
-        // enable batch index ack
-        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient

@@ -75,7 +75,6 @@ public abstract class OwnerShipForCurrentServerTestBase {
             conf.setConfigurationMetadataStoreUrl("zk:localhost:3181");
             conf.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
             conf.setBookkeeperClientExposeStatsToPrometheus(true);
-            conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
 
             conf.setBrokerShutdownTimeoutMs(0L);
             conf.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));

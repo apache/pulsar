@@ -1278,6 +1278,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
         if (!cleanupJobs.isEmpty() && cleanupJobs.containsKey(broker)) {
             healthCheckBrokerAsync(broker)
+                    .orTimeout(MAX_BROKER_HEALTH_CHECK_DELAY_IN_MILLIS * (MAX_BROKER_HEALTH_CHECK_RETRY + 1)
+                            , MILLISECONDS)
                     .thenAccept(__ -> {
                         CompletableFuture<Void> future = cleanupJobs.remove(broker);
                         if (future != null) {
@@ -1528,11 +1530,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             return;
         }
 
+
         // if not gracefully, verify the broker is inactive by health-check.
         if (!gracefully) {
             try {
                 healthCheckBrokerAsync(broker).get(
-                        pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
+                        MAX_BROKER_HEALTH_CHECK_DELAY_IN_MILLIS * (MAX_BROKER_HEALTH_CHECK_RETRY + 1)
+                        , MILLISECONDS);
                 log.warn("Found that the broker to clean is healthy. Skip the broker:{}'s orphan bundle cleanup",
                         broker);
                 return;
@@ -1600,7 +1604,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         // clean system bundles in the end
         var orphanSystemServiceUnitIter = orphanSystemServiceUnits.entrySet().iterator();
         while (orphanSystemServiceUnitIter.hasNext()) {
-            var orphanSystemServiceUnit = iter.next();
+            var orphanSystemServiceUnit = orphanSystemServiceUnitIter.next();
             log.info("Overriding orphan system service unit:{}", orphanSystemServiceUnit.getKey());
             overrideFutures.add(
                     overrideOwnership(orphanSystemServiceUnit.getKey(), orphanSystemServiceUnit.getValue(), broker,
