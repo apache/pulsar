@@ -32,7 +32,6 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class TopicPublishRateThrottleTest extends BrokerTestBase{
-
     @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
@@ -71,6 +70,8 @@ public class TopicPublishRateThrottleTest extends BrokerTestBase{
         } catch (TimeoutException e) {
             // No-op
         }
+        // Close the PulsarClient gracefully to avoid ByteBuf leak
+        pulsarClient.close();
     }
 
     @Test
@@ -122,6 +123,8 @@ public class TopicPublishRateThrottleTest extends BrokerTestBase{
             // No-op
         }
         Assert.assertNotNull(messageId);
+        // Close the PulsarClient gracefully to avoid ByteBuf leak
+        pulsarClient.close();
     }
 
     @Test
