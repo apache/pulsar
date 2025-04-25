@@ -180,12 +180,12 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                 dispatchRateLimiter.ifPresent(rateLimiter -> rateLimiter.consumeDispatchQuota(1, entry.getLength()));
                 msg.setReplicatedFrom(localCluster);
 
-                headersAndPayload.retain();
+                //headersAndPayload.retain();
 
                 CompletableFuture<SchemaInfo> schemaFuture = getSchemaInfo(msg);
                 if (!schemaFuture.isDone() || schemaFuture.isCompletedExceptionally()) {
                     entry.release();
-                    headersAndPayload.release();
+                    //headersAndPayload.release();
                     msg.recycle();
                     // Mark the replicator is fetching the schema for now and rewind the cursor
                     // and trigger the next read after complete the schema fetching.
