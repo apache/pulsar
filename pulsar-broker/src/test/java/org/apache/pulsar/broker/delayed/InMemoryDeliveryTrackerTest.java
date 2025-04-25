@@ -38,6 +38,7 @@ import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
+import lombok.Cleanup;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -209,6 +210,7 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
 
     @Test
     public void testClose() throws Exception {
+        @Cleanup("stop")
         Timer timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-in-memory-delayed-delivery-test"),
                 1, TimeUnit.MILLISECONDS);
 
@@ -245,7 +247,5 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
         tracker.close();
 
         assertNull(exceptions[0]);
-
-        timer.stop();
     }
 }
