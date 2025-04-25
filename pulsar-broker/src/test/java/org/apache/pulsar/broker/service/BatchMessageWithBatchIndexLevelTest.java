@@ -84,7 +84,7 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
                 .newConsumer()
                 .topic(topicName)
                 .subscriptionName(subscriptionName)
-                .receiverQueueSize(50)
+                .receiverQueueSize(numMsgs)
                 .subscriptionType(SubscriptionType.Shared)
                 .negativeAckRedeliveryDelay(100, TimeUnit.MILLISECONDS)
                 .subscribe();
