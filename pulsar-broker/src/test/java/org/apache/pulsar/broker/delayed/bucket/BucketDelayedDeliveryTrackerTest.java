@@ -424,6 +424,8 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
             Position position = scheduledMessages.pollFirst();
             assertEquals(position, PositionFactory.create(i, i));
         }
+
+        tracker.close();
     }
 
     @Test(dataProvider = "delayedTracker")

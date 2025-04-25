@@ -54,16 +54,13 @@ public class ProduceWithMessageIdTest extends ProducerConsumerBase {
     }
 
     @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
-
     @AfterClass(alwaysRun = true)
-    public void teardown() {
+    public void cleanup() throws Exception {
         if (mockBrokerService != null) {
             mockBrokerService.stop();
             mockBrokerService = null;
         }
+        super.internalCleanup();
     }
 
     @Test

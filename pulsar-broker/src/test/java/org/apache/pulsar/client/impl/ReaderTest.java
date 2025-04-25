@@ -954,6 +954,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setRetention(ns, retention);
         String badUrl = "pulsar://bad-host:8080";
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(badUrl).build();
 
         ReaderBuilder<byte[]> readerBuilder = client.newReader().topic(topic).startMessageFromRollbackDuration(100,

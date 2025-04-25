@@ -39,6 +39,7 @@ import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
+import lombok.Cleanup;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
@@ -668,6 +669,7 @@ public class BlockAwareSegmentInputStreamTest {
         ReadHandle readHandle = new MockReadHandle(ledgerId, entrySize, lac, () -> (byte)r.nextInt());
 
         int blockSize = DataBlockHeaderImpl.getDataStartOffset() + entrySize * 2;
+        @Cleanup
         BlockAwareSegmentInputStreamImpl inputStream = new BlockAwareSegmentInputStreamImpl(readHandle, 0, blockSize);
 
         int bytesRead = 0;
@@ -692,6 +694,7 @@ public class BlockAwareSegmentInputStreamTest {
         ReadHandle readHandle = new MockReadHandle(ledgerId, entrySize, lac, () -> (byte)r.nextInt());
 
         int blockSize = DataBlockHeaderImpl.getDataStartOffset() + entrySize * 2;
+        @Cleanup
         BlockAwareSegmentInputStreamImpl inputStream = new BlockAwareSegmentInputStreamImpl(readHandle, 0, blockSize);
 
         int bytesRead = 0;
@@ -723,6 +726,7 @@ public class BlockAwareSegmentInputStreamTest {
 
         // set block size equals to (header + lac_entry) size.
         int blockSize = DataBlockHeaderImpl.getDataStartOffset() + (1 + lac) * (entrySize + 4 + 8);
+        @Cleanup
         BlockAwareSegmentInputStreamImpl inputStream = new BlockAwareSegmentInputStreamImpl(readHandle, 0, blockSize);
         int expectedEntryCount = (blockSize - DataBlockHeaderImpl.getDataStartOffset()) / (entrySize + 4 + 8);
 
@@ -804,6 +808,7 @@ public class BlockAwareSegmentInputStreamTest {
     public void testCloseReleaseResources() throws Exception {
         ReadHandle readHandle = new MockReadHandle(1, 10, 10);
 
+        @Cleanup
         BlockAwareSegmentInputStreamImpl inputStream = new BlockAwareSegmentInputStreamImpl(readHandle, 0, 1024);
         inputStream.read();
         Field field = BlockAwareSegmentInputStreamImpl.class.getDeclaredField("paddingBuf");

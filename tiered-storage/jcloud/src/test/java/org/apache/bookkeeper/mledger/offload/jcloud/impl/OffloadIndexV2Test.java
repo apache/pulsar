@@ -113,7 +113,7 @@ public class OffloadIndexV2Test {
         assertEquals(dataObjectLength, 1);
         assertEquals(dataHeaderLength, 23455);
 
-        wrapper.readBytes(segmentMetadataLength);
+        wrapper.skipBytes(segmentMetadataLength);
         log.debug("magic: {}, blockLength: {}, metadataLength: {}, indexCount: {}",
                 magic, indexBlockLength, segmentMetadataLength, indexEntryCount);
 
@@ -262,7 +262,7 @@ public class OffloadIndexV2Test {
         assertEquals(dataObjectLength, 1);
         assertEquals(dataHeaderLength, 23455);
 
-        wrapper.readBytes(segmentMetadataLength);
+        wrapper.skipBytes(segmentMetadataLength);
         log.debug("magic: {}, blockLength: {}, metadataLength: {}, indexCount: {}",
                 magic, indexBlockLength, segmentMetadataLength, indexEntryCount);
 
@@ -280,7 +280,7 @@ public class OffloadIndexV2Test {
         int indexEntryCount2 = wrapper.readInt();
         assertEquals(indexEntryCount2, 2);
         int segmentMetadataLength2 = wrapper.readInt();
-        wrapper.readBytes(segmentMetadataLength2);
+        wrapper.skipBytes(segmentMetadataLength2);
 
         OffloadIndexEntry e2 = OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(),
                 wrapper.readLong(), dataHeaderLength);

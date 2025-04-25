@@ -41,22 +41,29 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public abstract class AbstractDeliveryTrackerTest {
 
-    // Create a single shared timer for the test.
-    protected final Timer timer =
-            new HashedWheelTimer(new DefaultThreadFactory("pulsar-in-memory-delayed-delivery-test"),
-                    500, TimeUnit.MILLISECONDS);
+    protected Timer timer;
     protected AbstractPersistentDispatcherMultipleConsumers dispatcher;
     protected Clock clock;
 
     protected AtomicLong clockTime;
 
+    @BeforeClass(alwaysRun = true)
+    public void createTimer() {
+        timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-in-memory-delayed-delivery-test"),
+                        500, TimeUnit.MILLISECONDS);
+    }
+
     @AfterClass(alwaysRun = true)
-    public void cleanup() {
-        timer.stop();
+    public void stopTimer() {
+        if (timer != null) {
+            timer.stop();
+            timer = null;
+        }
     }
 
     @Test(dataProvider = "delayedTracker")
