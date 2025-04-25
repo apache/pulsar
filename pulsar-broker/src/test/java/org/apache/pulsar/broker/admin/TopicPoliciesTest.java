@@ -40,6 +40,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import javax.ws.rs.BadRequestException;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.Response;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -92,6 +94,8 @@ import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.assertj.core.api.Assertions;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
+import org.glassfish.jersey.client.JerseyClient;
+import org.glassfish.jersey.client.JerseyClientBuilder;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -3218,7 +3222,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         admin.topics().delete(topic, true);
     }
-    
+
     @Test
     public void testUpdateRetentionWithPartialFailure() throws Exception {
         String tpName = BrokerTestUtil.newUniqueName("persistent://" + myNamespace + "/tp");
@@ -3262,5 +3266,34 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         subscriptions.clear();
         admin.namespaces().removeRetention(myNamespace);
         admin.topics().delete(tpName, false);
+    }
+
+    /**
+     * Verify: {@link BacklogQuota#getPolicy()} can not be null.
+     */
+    @Test
+    public void testSetNonBacklogQuotType() throws Exception {
+        final NamespaceName ns = NamespaceName.get(myNamespace);
+        final String hostAndPort = pulsar.getWebServiceAddress();
+        final String nsPath = "/admin/v2/namespaces/" + ns + "/backlogQuota";
+        final String topicPath = "/admin/v2/persistent/" + ns + "/test-set-backlog-quota/backlogQuota";
+        admin.namespaces().setBacklogQuota(ns.toString(), BacklogQuota.builder().limitTime(1).limitSize(1).retentionPolicy(
+                BacklogQuota.RetentionPolicy.consumer_backlog_eviction).build());
+        BacklogQuota backlogQuotaWithNonPolicy = BacklogQuota.builder().limitTime(1).limitSize(1).build();
+        JerseyClient httpClient = JerseyClientBuilder.createClient();
+        // Namespace level.
+        Response response1 = httpClient.target(hostAndPort).path(nsPath).request()
+                .header("Content-Type", "application/json")
+                .post(Entity.json(backlogQuotaWithNonPolicy));
+        assertEquals(response1.getStatus(), 400);
+        assertTrue(response1.getStatusInfo().getReasonPhrase().contains("policy cannot be null"));
+        // Topic level.
+        Response response2 = httpClient.target(hostAndPort).path(topicPath).request()
+                .header("Content-Type", "application/json")
+                .post(Entity.json(backlogQuotaWithNonPolicy));
+        assertEquals(response2.getStatus(), 400);
+        assertTrue(response2.getStatusInfo().getReasonPhrase().contains("policy cannot be null"));
+        // cleanup.
+        httpClient.close();
     }
 }
