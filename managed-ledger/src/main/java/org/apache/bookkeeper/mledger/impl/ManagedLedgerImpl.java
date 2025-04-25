@@ -1366,7 +1366,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         LedgerInfo li = ledgers.get(ledgerId);
         if (li == null) {
-            f.completeExceptionally(new ManagedLedgerException("Ledger not found"));
+            f.completeExceptionally(new ManagedLedgerNotFoundException("Ledger not found"));
             return f;
         }
 
@@ -1397,7 +1397,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         LedgerInfo li = ledgers.get(ledgerId);
         if (li == null) {
-            f.completeExceptionally(new ManagedLedgerException("Ledger not found"));
+            f.completeExceptionally(new ManagedLedgerNotFoundException("Ledger not found"));
             return f;
         }
 
@@ -1412,6 +1412,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 List<MLDataFormats.KeyValue> oldProperties = li.getPropertiesList();
                 Map<String, String> newPropertiesMap = new HashMap<>();
                 oldProperties.forEach(kv -> newPropertiesMap.put(kv.getKey(), kv.getValue()));
+                if (!newPropertiesMap.containsKey(key)) {
+                    f.complete(null);
+                    return f;
+                }
                 newPropertiesMap.remove(key);
                 updateAndPersistLedgerProperties(newPropertiesMap, li, f);
             }
@@ -1426,7 +1430,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         LedgerInfo li = ledgers.get(ledgerId);
         if (li == null) {
-            return FutureUtil.failedFuture(new ManagedLedgerException("Ledger not found"));
+            return FutureUtil.failedFuture(new ManagedLedgerNotFoundException("Ledger not found"));
         }
         if (li.getPropertiesCount() <= 0) {
             return CompletableFuture.completedFuture(null);
