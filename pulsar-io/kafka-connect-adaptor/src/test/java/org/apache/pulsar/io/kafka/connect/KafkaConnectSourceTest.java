@@ -21,8 +21,10 @@ package org.apache.pulsar.io.kafka.connect;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertEquals;
 import java.io.File;
 import java.io.OutputStream;
 import java.nio.file.Files;
@@ -31,6 +33,7 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.file.FileStreamSourceConnector;
 import org.apache.kafka.connect.runtime.TaskConfig;
+import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.schema.KeyValue;
@@ -99,6 +102,45 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
                 "org.apache.kafka.connect.file.FileStreamSourceTask");
 
         testOpenAndReadTask(config);
+    }
+
+    @Test
+    void testCastTransformation() throws Exception{
+        // Config for Cast SMT to cast "myField" to int32
+        Map<String, Object> config = getConfig();
+        config.put(TaskConfig.TASK_CLASS_CONFIG,
+                   "org.apache.kafka.connect.file.FileStreamSourceTask");
+        config.put("transforms", "Cast");
+        config.put("transforms.Cast.type", "org.apache.kafka.connect.transforms.Cast$Value");
+        config.put("transforms.Cast.spec", "myField:int32");
+
+        // Instantiate the source and initialize transformations
+        kafkaConnectSource = new KafkaConnectSource();
+        kafkaConnectSource.open(config, context);
+
+        // Test source record
+        Map<String, Object> value = new HashMap<>();
+        value.put("myField", "42");
+        SourceRecord record = new SourceRecord(
+                null,
+                null,
+                "test-topic",
+                null,
+                null, // key schema
+                null, // key
+                null, // value schema
+                value // value
+        );
+
+        // Apply transforms
+        SourceRecord transformed = kafkaConnectSource.applyTransforms(record);
+
+        // Assert "myField" is now an Integer with value 42
+        @SuppressWarnings("unchecked")
+        Map<String, Object> transformedValue = (Map<String, Object>) transformed.value();
+        assertNotNull(transformedValue);
+        assertEquals(42, transformedValue.get("myField"));
+        assertTrue(transformedValue.get("myField") instanceof Integer);
     }
 
     private Map<String, Object> getConfig() {
