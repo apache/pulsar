@@ -99,7 +99,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.Stat;
-import org.testcontainers.shaded.org.awaitility.Awaitility;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -1458,9 +1458,9 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
     }
 
     /**
-     * This test validates that consumer/producers should recover on topic whose 
+     * This test validates that consumer/producers should recover on topic whose
      * schema ledgers are not able to open due to non-recoverable error.
-     * 
+     *
      * @throws Exception
      */
     @Test

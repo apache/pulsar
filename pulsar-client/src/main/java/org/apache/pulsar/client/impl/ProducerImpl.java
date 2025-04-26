@@ -1795,7 +1795,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             Iterator<OpSendMsg> delegateIterator = delegate.iterator();
             return new Iterator<OpSendMsg>() {
                 OpSendMsg currentOp;
-                
+
                 @Override
                 public boolean hasNext() {
                     return delegateIterator.hasNext();
