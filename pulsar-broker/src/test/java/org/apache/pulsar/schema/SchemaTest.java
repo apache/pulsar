@@ -425,7 +425,35 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         // JSON schema with primitive class can consume
         assertEquals(consumer.receive().getValue().getNativeObject(), producerJsonIntegerValue);
         assertArrayEquals((byte[])  consumer.receive().getValue().getNativeObject(), producerJsonBytesValue);
-}
+    }
+
+    @Test
+    public void testAvroIntSchema() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + PUBLIC_TENANT + "/my-ns/tp");
+
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.AVRO(Integer.class)).topic(topicName).create();
+        Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.AVRO(Integer.class)).topic(topicName)
+                .subscriptionName("sub").subscribe();
+
+        producer.send(1);
+        producer.send(2);
+        producer.send(3);
+
+        Message<Integer> msg1 = consumer.receive(2, TimeUnit.SECONDS);
+        assertNotNull(msg1);
+        assertEquals(msg1.getValue(), 1);
+        Message<Integer> msg2 = consumer.receive(2, TimeUnit.SECONDS);
+        assertNotNull(msg2);
+        assertEquals(msg2.getValue(), 2);
+        Message<Integer> msg3 = consumer.receive(2, TimeUnit.SECONDS);
+        assertNotNull(msg3);
+        assertEquals(msg3.getValue(), 3);
+
+        // cleanup.
+        consumer.close();
+        producer.close();
+        admin.topics().delete(topicName, false);
+    }
 
     @Test
     public void testJSONSchemaDeserialize() throws Exception {

@@ -111,6 +111,7 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
                 MetadataCacheConfig.<T>builder()
                         .expireAfterWriteMillis(-1)
                         .refreshAfterWriteMillis(CACHE_REFRESH_FREQUENCY_IN_MILLIS)
+                        .retryBackoff(MetadataCacheConfig.NO_RETRY_BACKOFF_BUILDER)
                         .asyncReloadConsumer(this::consumeAsyncReload)
                         .build());
         store.registerListener(this::handleNotification);
@@ -306,7 +307,15 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
                 throw new ConflictException(
                         String.format("Failed to update from old:%s to value:%s", old, value));
             }
-        }).thenCompose(__ -> doHandleNotification(path)); // immediately notify local tableview
+        }).thenCompose(__ -> doHandleNotification(path)) // immediately notify local tableview
+        .exceptionally(e -> {
+            if (e.getCause() instanceof MetadataStoreException.BadVersionException) {
+                throw FutureUtil.wrapToCompletionException(new ConflictException(
+                        String.format("Failed to update to value:%s", value)));
+            }
+
+            throw FutureUtil.wrapToCompletionException(e.getCause());
+        });
     }
 
     public CompletableFuture<Void> delete(String key) {
