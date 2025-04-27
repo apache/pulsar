@@ -72,6 +72,7 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
                             ledgerCloseTimestampMaxClockSkewMillis);
             cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, entry -> {
                 try {
+                    // Find the latest entry that is earlier than the target timestamp.
                     long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
                     return MessageImpl.isEntryPublishedEarlierThan(entryTimestamp, timestamp);
                 } catch (Exception e) {
@@ -92,6 +93,12 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
         }
     }
 
+    /**
+     * The range may be across multi ledgers:
+     *   - start: the latest ledger that closed before {@param targetTimestamp}.
+     *     - only the latest entry is useful.
+     *   - end: the earliest ledger that is larger than the target timestamp.
+     */
     @VisibleForTesting
     public static Pair<Position, Position> getFindPositionRange(Iterable<LedgerInfo> ledgerInfos,
                                                                 Position lastConfirmedEntry, long targetTimestamp,
@@ -107,6 +114,10 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
         Position start = null;
         Position end = null;
 
+        // We do not use binary search here:
+        // Since "managedLedger.ledgers" os a map, we can hardly use a binary search except to copy items to an array,
+        // which causes frequently young GC. And "collection.toArray()" also loops the collection once, which does not
+        // benefit performance anymore.
         for (LedgerInfo info : ledgerInfos) {
             if (!info.hasTimestamp()) {
                 // unexpected case, don't set start and end
@@ -119,7 +130,9 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
                 break;
             }
             if (closeTimestamp <= targetTimestampMin) {
-                start = PositionFactory.create(info.getLedgerId(), 0);
+                // Since we have "broker.conf -> managedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis", which
+                // already expanded the scope for searching, the entries before the latest one is not useful.
+                start = PositionFactory.create(info.getLedgerId(), info.getEntries() - 1);
             } else if (closeTimestamp > targetTimestampMax) {
                 // If the close timestamp is greater than the timestamp
                 end = PositionFactory.create(info.getLedgerId(), info.getEntries() - 1);
