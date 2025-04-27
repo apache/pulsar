@@ -275,6 +275,8 @@ public class CmdTopics extends CmdBase {
         addCommand("set-schema-validation-enforce", new SetSchemaValidationEnforced());
 
         addCommand("trim-topic", new TrimTopic());
+
+        addCommand("get-message-id-by-offset", new GetMessageIdByOffset());
     }
 
     @Command(description = "Get the list of topics under a namespace.")
@@ -3056,6 +3058,22 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String topic = validateTopicName(topicName);
             getAdmin().topics().trimTopic(topic);
+        }
+    }
+
+    @Command(description = "Get message id by offset")
+    private class GetMessageIdByOffset extends CliCommand {
+
+        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
+
+        @Option(names = { "--offset", "-o" }, description = "Offset to get message id for the topic", required = true)
+        private Long offset;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(topicName);
+            getAdmin().topics().getMessageIdByOffset(topic, offset);
         }
     }
 }
