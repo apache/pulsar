@@ -1645,7 +1645,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
      * This queue is not thread safe.
      */
     protected static class OpSendMsgQueue implements Iterable<OpSendMsg> {
-        private final Queue<OpSendMsg> delegate = new ArrayDeque<>();
+        @VisibleForTesting
+        final Queue<OpSendMsg> delegate = new ArrayDeque<>();
         private int forEachDepth = 0;
         private List<OpSendMsg> postponedOpSendMgs;
         private final AtomicInteger messagesCount = new AtomicInteger(0);
@@ -1702,7 +1703,35 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         @Override
         public Iterator<OpSendMsg> iterator() {
-            return delegate.iterator();
+            Iterator<OpSendMsg> delegateIterator = delegate.iterator();
+            return new Iterator<OpSendMsg>() {
+                OpSendMsg currentOp;
+
+                @Override
+                public boolean hasNext() {
+                    return delegateIterator.hasNext();
+                }
+
+                @Override
+                public OpSendMsg next() {
+                    currentOp = delegateIterator.next();
+                    return currentOp;
+                }
+
+                @Override
+                public void remove() {
+                    delegateIterator.remove();
+                    if (currentOp != null) {
+                       messagesCount.addAndGet(-currentOp.numMessagesInBatch);
+                       currentOp = null;
+                     }
+                }
+
+                @Override
+                public void forEachRemaining(Consumer<? super OpSendMsg> action) {
+                    delegateIterator.forEachRemaining(action);
+                }
+            };
         }
     }
 
