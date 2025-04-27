@@ -1545,9 +1545,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         }
         Awaitility.await().untilAsserted(() -> {
             assertTrue(latestSend.get().isDone());
+            assertEquals(producer.getPendingQueueSize(), 0);
         });
-
-        assertEquals(producer.getPendingQueueSize(), 0);
 
         // cleanup.
         producer.close();
