@@ -32,6 +32,7 @@ public class MessageIdImpl implements MessageIdAdv {
     protected final long ledgerId;
     protected final long entryId;
     protected final int partitionIndex;
+    protected final long offset;
 
     // Private constructor used only for json deserialization
     @SuppressWarnings("unused")
@@ -43,6 +44,21 @@ public class MessageIdImpl implements MessageIdAdv {
         this.ledgerId = ledgerId;
         this.entryId = entryId;
         this.partitionIndex = partitionIndex;
+        this.offset = -1;
+    }
+
+    public MessageIdImpl(long offset) {
+        this.ledgerId = -1;
+        this.entryId = -1;
+        this.partitionIndex = -1;
+        this.offset = offset;
+    }
+
+    public MessageIdImpl(long ledgerId, long entryId, int partitionIndex, long offset) {
+        this.ledgerId = ledgerId;
+        this.entryId = entryId;
+        this.partitionIndex = partitionIndex;
+        this.offset = offset;
     }
 
     @Override
@@ -58,6 +74,11 @@ public class MessageIdImpl implements MessageIdAdv {
     @Override
     public int getPartitionIndex() {
         return partitionIndex;
+    }
+
+    @Override
+    public long getOffset() {
+        return offset;
     }
 
     @Override

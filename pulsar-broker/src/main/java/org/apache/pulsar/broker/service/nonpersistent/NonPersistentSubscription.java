@@ -559,6 +559,12 @@ public class NonPersistentSubscription extends AbstractSubscription {
     }
 
     @Override
+    public CompletableFuture<Void> resetCursorByIndex(long index) {
+        // No-op
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
     public CompletableFuture<Void> endTxn(long txnidMostBits, long txnidLeastBits, int txnAction, long lowWaterMark) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         completableFuture.completeExceptionally(

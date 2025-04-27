@@ -113,30 +113,31 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     MultiTopicsConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf,
             ExecutorProvider executorProvider, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
             ConsumerInterceptors<T> interceptors, boolean createTopicIfDoesNotExist) {
-        this(client, DUMMY_TOPIC_NAME_PREFIX + RandomStringUtils.randomAlphanumeric(5), conf, executorProvider,
-                subscribeFuture, schema, interceptors, createTopicIfDoesNotExist);
+        this(client, DUMMY_TOPIC_NAME_PREFIX + RandomStringUtils.randomAlphanumeric(5), conf,
+                executorProvider, subscribeFuture, schema, interceptors, createTopicIfDoesNotExist);
     }
 
     MultiTopicsConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf,
             ExecutorProvider executorProvider, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
             ConsumerInterceptors<T> interceptors, boolean createTopicIfDoesNotExist, MessageId startMessageId,
             long startMessageRollbackDurationInSec) {
-        this(client, DUMMY_TOPIC_NAME_PREFIX + RandomStringUtils.randomAlphanumeric(5), conf, executorProvider,
-                subscribeFuture, schema, interceptors, createTopicIfDoesNotExist, startMessageId,
-                startMessageRollbackDurationInSec);
+        this(client, DUMMY_TOPIC_NAME_PREFIX + RandomStringUtils.randomAlphanumeric(5), conf,
+                executorProvider, subscribeFuture, schema, interceptors, createTopicIfDoesNotExist, startMessageId,
+                startMessageRollbackDurationInSec, true);
     }
 
     MultiTopicsConsumerImpl(PulsarClientImpl client, String singleTopic, ConsumerConfigurationData<T> conf,
             ExecutorProvider executorProvider, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
             ConsumerInterceptors<T> interceptors, boolean createTopicIfDoesNotExist) {
         this(client, singleTopic, conf, executorProvider, subscribeFuture, schema, interceptors,
-                createTopicIfDoesNotExist, null, 0);
+                createTopicIfDoesNotExist, null, 0, true);
     }
 
     MultiTopicsConsumerImpl(PulsarClientImpl client, String singleTopic, ConsumerConfigurationData<T> conf,
-            ExecutorProvider executorProvider, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
-            ConsumerInterceptors<T> interceptors, boolean createTopicIfDoesNotExist, MessageId startMessageId,
-            long startMessageRollbackDurationInSec) {
+                            ExecutorProvider executorProvider, CompletableFuture<Consumer<T>> subscribeFuture,
+                            Schema<T> schema, ConsumerInterceptors<T> interceptors, boolean createTopicIfDoesNotExist,
+                            MessageId startMessageId, long startMessageRollbackDurationInSec,
+                            boolean startClusterMultiPartitionMsg) {
         super(client, singleTopic, conf, Math.max(2, conf.getReceiverQueueSize()), executorProvider, subscribeFuture,
                 schema, interceptors);
         if (interceptors != null) {
@@ -188,7 +189,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 }
                 setState(State.Ready);
                 // We have successfully created N consumers, so we can start receiving messages now
-                startReceivingMessages(new ArrayList<>(consumers.values()));
+                if (startClusterMultiPartitionMsg) {
+                    startReceivingMessages(new ArrayList<>(consumers.values()));
+                }
                 log.info("[{}] [{}] Created topics consumer with {} sub-consumers",
                     topic, subscription, allTopicPartitionsNumber.get());
                 subscribeFuture().complete(MultiTopicsConsumerImpl.this);
