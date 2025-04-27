@@ -618,7 +618,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertNotNull(range);
         assertNotNull(range.getLeft());
         assertNull(range.getRight());
-        assertEquals(range.getLeft(), new PositionImpl(2, 0));
+        assertEquals(range.getLeft(), new PositionImpl(2, 9));
     }
 
     @Test
@@ -636,7 +636,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertNotNull(range);
         assertNotNull(range.getLeft());
         assertNull(range.getRight());
-        assertEquals(range.getLeft(), new PositionImpl(2, 0));
+        assertEquals(range.getLeft(), new PositionImpl(2, 9));
     }
 
     @Test
@@ -654,7 +654,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertNotNull(range);
         assertNotNull(range.getLeft());
         assertNull(range.getRight());
-        assertEquals(range.getLeft(), new PositionImpl(2, 0));
+        assertEquals(range.getLeft(), new PositionImpl(2, 9));
     }
 
     @Test
@@ -689,7 +689,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertNotNull(range);
         assertNotNull(range.getLeft());
         assertNotNull(range.getRight());
-        assertEquals(range.getLeft(), new PositionImpl(2, 0));
+        assertEquals(range.getLeft(), new PositionImpl(2, 9));
         assertEquals(range.getRight(), new PositionImpl(3, 9));
     }
 
@@ -709,7 +709,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertNotNull(range);
         assertNotNull(range.getLeft());
         assertNotNull(range.getRight());
-        assertEquals(range.getLeft(), new PositionImpl(3, 0));
+        assertEquals(range.getLeft(), new PositionImpl(3, 9));
         // there might be entries in the next ledger with the same timestamp as the target timestamp, even though
         // the close timestamp of ledger 3 is equals to the target timestamp
         assertEquals(range.getRight(), new PositionImpl(4, 9));
@@ -732,7 +732,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertNotNull(range);
         assertNotNull(range.getLeft());
         assertNotNull(range.getRight());
-        assertEquals(range.getLeft(), new PositionImpl(1, 0));
+        assertEquals(range.getLeft(), new PositionImpl(1, 9));
         assertEquals(range.getRight(), new PositionImpl(4, 9));
     }
 
@@ -753,7 +753,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertNotNull(range);
         assertNotNull(range.getLeft());
         assertNotNull(range.getRight());
-        assertEquals(range.getLeft(), new PositionImpl(2, 0));
+        assertEquals(range.getLeft(), new PositionImpl(2, 9));
         assertEquals(range.getRight(), new PositionImpl(4, 9));
     }
 
@@ -774,7 +774,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertNotNull(range);
         assertNotNull(range.getLeft());
         assertNotNull(range.getRight());
-        assertEquals(range.getLeft(), new PositionImpl(2, 0));
+        assertEquals(range.getLeft(), new PositionImpl(2, 9));
         assertEquals(range.getRight(), new PositionImpl(4, 9));
     }
 
@@ -825,6 +825,6 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertNotNull(range);
         assertNotNull(range.getLeft());
         assertNull(range.getRight());
-        assertEquals(range.getLeft(), new PositionImpl(1, 0));
+        assertEquals(range.getLeft(), new PositionImpl(1, 9));
     }
 }
