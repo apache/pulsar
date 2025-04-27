@@ -183,33 +183,35 @@ public class ResourceGroup {
     private void updateReplicationDispatchLimiters(org.apache.pulsar.common.policies.data.ResourceGroup rgConfig) {
         ResourceGroupRateLimiterManager
                 .updateReplicationDispatchRateLimiter(resourceGroupReplicationDispatchLimiter, rgConfig);
-        replicatorDispatchRateLimiterMap.forEach((key, oldLimiter) ->
-                replicatorDispatchRateLimiterMap.computeIfPresent(key,
-                        (k, old) -> updateReplicatorLimiter(k, old, rgConfig))
-        );
+        synchronized (replicatorDispatchRateLock) {
+            replicatorDispatchRateLimiterMap.forEach((key, oldLimiter) ->
+                    replicatorDispatchRateLimiterMap.computeIfPresent(key,
+                            (k, curr) -> updateReplicatorLimiter(k, curr, rgConfig))
+            );
+        }
     }
 
-    private ResourceGroupDispatchLimiter updateReplicatorLimiter(String key, ResourceGroupDispatchLimiter oldLimiter,
+    private ResourceGroupDispatchLimiter updateReplicatorLimiter(String key, ResourceGroupDispatchLimiter currLimiter,
                                                  org.apache.pulsar.common.policies.data.ResourceGroup rgConfig) {
         DispatchRate dispatchRate = rgConfig.getReplicatorDispatchRate().get(key);
         if (dispatchRate == null) {
             // Specific rate-limiter for this cluster is removed in the new config.
             // use the default rate-limiter, notify the rate-limiter consumers.
-            if (oldLimiter != resourceGroupReplicationDispatchLimiter) {
+            if (currLimiter != resourceGroupReplicationDispatchLimiter) {
                 notifyReplicatorDispatchRateLimiterConsumer(key, resourceGroupReplicationDispatchLimiter);
                 return resourceGroupReplicationDispatchLimiter;
             }
-        } else if (oldLimiter == resourceGroupReplicationDispatchLimiter) {
+        } else if (currLimiter == resourceGroupReplicationDispatchLimiter) {
             // Specific rate-limiter for this cluster is provided in the new config.
             // When rate-limiter is default, new a rate-limiter.
             ResourceGroupDispatchLimiter newLimiter = createNewReplicatorLimiter(key);
             notifyReplicatorDispatchRateLimiterConsumer(key, newLimiter);
             return newLimiter;
         } else {
-            oldLimiter.update(dispatchRate.getDispatchThrottlingRateInMsg(),
+            currLimiter.update(dispatchRate.getDispatchThrottlingRateInMsg(),
                     dispatchRate.getDispatchThrottlingRateInByte());
         }
-        return oldLimiter;
+        return currLimiter;
     }
 
     private String getReplicatorDispatchRateLimiterKey(String remoteCluster) {
@@ -237,27 +239,31 @@ public class ResourceGroup {
     public void registerReplicatorDispatchRateLimiter(String remoteCluster,
                                                       Consumer<ResourceGroupDispatchLimiter> consumer) {
         String key = getReplicatorDispatchRateLimiterKey(remoteCluster);
-        ResourceGroupDispatchLimiter limiter =
-                replicatorDispatchRateLimiterMap.computeIfAbsent(key, __ -> createNewReplicatorLimiter(key));
-        consumer.accept(limiter);
-        // Must use compute instead of computeIfAbsent to avoid the notifyReplicatorDispatchRateLimiterConsumer
-        // concurrent access.
-        replicatorDispatchRateLimiterConsumerMap.compute(key, (__, old) -> {
-            if (old == null) {
-                old = ConcurrentHashMap.newKeySet();
-            }
-            old.add(consumer);
-            return old;
-        });
+        synchronized (replicatorDispatchRateLock) {
+            ResourceGroupDispatchLimiter limiter =
+                    replicatorDispatchRateLimiterMap.computeIfAbsent(key, __ -> createNewReplicatorLimiter(key));
+            consumer.accept(limiter);
+            // Must use compute instead of computeIfAbsent to avoid the notifyReplicatorDispatchRateLimiterConsumer
+            // concurrent access.
+            replicatorDispatchRateLimiterConsumerMap.compute(key, (__, old) -> {
+                if (old == null) {
+                    old = ConcurrentHashMap.newKeySet();
+                }
+                old.add(consumer);
+                return old;
+            });
+        }
     }
 
     public void unregisterReplicatorDispatchRateLimiter(String remoteCluster,
                                                         Consumer<ResourceGroupDispatchLimiter> consumer) {
         String key = getReplicatorDispatchRateLimiterKey(remoteCluster);
-        replicatorDispatchRateLimiterConsumerMap.computeIfPresent(key, (__, old) -> {
-            old.remove(consumer);
-            return old;
-        });
+        synchronized (replicatorDispatchRateLock) {
+            replicatorDispatchRateLimiterConsumerMap.computeIfPresent(key, (__, old) -> {
+                old.remove(consumer);
+                return old;
+            });
+        }
     }
 
     protected long getResourceGroupNumOfNSRefs() {
@@ -808,6 +814,8 @@ public class ResourceGroup {
             .register();
 
     private org.apache.pulsar.common.policies.data.ResourceGroup rgConfig;
+
+    private final Object replicatorDispatchRateLock = new Object();
 
     // Publish rate limiter for the resource group
     @Getter
