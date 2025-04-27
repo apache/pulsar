@@ -5489,4 +5489,53 @@ public class PersistentTopicsBase extends AdminResource {
                             return null;
                         }));
     }
+
+    protected CompletableFuture<MessageId> internalGetMessageIDByOffsetAsync(Long offset, boolean authoritative) {
+        int partitionIndex = topicName.getPartitionIndex();
+        CompletableFuture<Void> future = validateTopicOperationAsync(topicName, TopicOperation.PEEK_MESSAGES);
+        return future.thenCompose(__ -> {
+                    if (topicName.isGlobal()) {
+                        return validateGlobalNamespaceOwnershipAsync(namespaceName);
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                }).thenCompose(__ -> {
+                    if (topicName.isPartitioned()) {
+                        return CompletableFuture.completedFuture(null);
+                    } else {
+                        return getPartitionedTopicMetadataAsync(topicName, authoritative, false)
+                                .thenAccept(topicMetadata -> {
+                                    if (topicMetadata.partitions > 0) {
+                                        log.warn("[{}] Not supported getMessageIdByOffset operation on "
+                                                        + "partitioned-topic {}", clientAppId(), topicName);
+                                        throw new RestException(Status.METHOD_NOT_ALLOWED,
+                                                "GetMessageIDByOffset is not allowed on partitioned-topic");
+                                    }
+                                });
+                    }
+                }).thenCompose(ignore -> validateTopicOwnershipAsync(topicName, authoritative))
+                .thenCompose(__ -> getTopicReferenceAsync(topicName))
+                .thenCompose(topic -> {
+            if (!(topic instanceof PersistentTopic persistentTopic)) {
+                log.error("[{}] Get message id by offset on a non-persistent topic {} is not allowed",
+                        clientAppId(), topicName);
+                return FutureUtil.failedFuture(new RestException(Status.METHOD_NOT_ALLOWED,
+                        "Get message id by offset on a non-persistent topic is not allowed"));
+            }
+            ManagedLedger managedLedger = persistentTopic.getManagedLedger();
+            return managedLedger.asyncFindPosition(entry -> {
+                try {
+                    BrokerEntryMetadata brokerEntryMetadata =
+                            Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
+                    return brokerEntryMetadata.getIndex() < offset;
+                } catch (Exception e) {
+                    log.error("Error deserialize message for message position find", e);
+                } finally {
+                    entry.release();
+                }
+                return false;
+            });
+        }).thenCompose(position -> CompletableFuture
+                .completedFuture(new MessageIdImpl(position.getLedgerId(), position.getEntryId(), partitionIndex)));
+    }
 }

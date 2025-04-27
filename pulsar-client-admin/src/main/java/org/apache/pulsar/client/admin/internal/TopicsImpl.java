@@ -2819,5 +2819,31 @@ public class TopicsImpl extends BaseResource implements Topics {
         });
     }
 
+    @Override
+    public MessageId getMessageIdByOffset(String topicName, long offset) throws PulsarAdminException {
+        return sync(() -> getMessageIdByOffsetAsync(topicName, offset));
+    }
+
+    @Override
+    public CompletableFuture<MessageId> getMessageIdByOffsetAsync(String topicName, long offset) {
+        final CompletableFuture<MessageId> messageIdCompletableFuture = new CompletableFuture<>();
+        TopicName topic = validateTopic(topicName);
+        WebTarget path = topicPath(topic, "getMessageIdByOffset");
+        path = path.queryParam("offset", offset);
+        asyncGetRequest(path, new InvocationCallback<MessageIdImpl>(){
+
+            @Override
+            public void completed(MessageIdImpl messageId) {
+                messageIdCompletableFuture.complete(messageId);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                messageIdCompletableFuture.completeExceptionally(throwable);
+            }
+        });
+        return messageIdCompletableFuture;
+    }
+
     private static final Logger log = LoggerFactory.getLogger(TopicsImpl.class);
 }

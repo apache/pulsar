@@ -4558,4 +4558,20 @@ public interface Topics {
     default CompletableFuture<Void> createShadowTopicAsync(String shadowTopic, String sourceTopic) {
         return createShadowTopicAsync(shadowTopic, sourceTopic, null);
     }
+
+    /**
+     * Get the message id by offset.
+     * @param topicName the partitioned topic name or non-partitioned topic name
+     * @param offset the offset of a message
+     * @return the message id of the message
+     */
+    MessageId getMessageIdByOffset(String topicName, long offset) throws PulsarAdminException;
+
+    /**
+     * Get the message id by offset asynchronously.
+     * @param topicName the topic name
+     * @param offset the offset of a message
+     * @return the message id of the message
+     */
+    CompletableFuture<MessageId> getMessageIdByOffsetAsync(String topicName, long offset);
 }
