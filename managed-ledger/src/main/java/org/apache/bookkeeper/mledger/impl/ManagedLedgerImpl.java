@@ -1450,17 +1450,20 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 .toList();
         li = li.toBuilder().clearProperties().addAllProperties(newProperties).build();
         ledgers.put(li.getLedgerId(), li);
-        asyncUpdateProperties(Collections.emptyMap(), false, null, new UpdatePropertiesCallback() {
+        store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat, new MetaStoreCallback<>() {
             @Override
-            public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+            public void operationComplete(Void result, Stat version) {
+                ledgersStat = version;
                 f.complete(null);
             }
 
             @Override
-            public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
-                f.completeExceptionally(exception);
+            public void operationFailed(MetaStoreException e) {
+                log.error("[{}] Update managedLedger's properties failed", name, e);
+                handleBadVersion(e);
+                f.completeExceptionally(e);
             }
-        }, null);
+        });
     }
 
     @Override
