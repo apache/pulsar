@@ -4560,18 +4560,18 @@ public interface Topics {
     }
 
     /**
-     * Get the message id by offset.
+     * Get the message id by index.
      * @param topicName the partitioned topic name or non-partitioned topic name
-     * @param offset the offset of a message
+     * @param index the index of a message
      * @return the message id of the message
      */
-    MessageId getMessageIdByOffset(String topicName, long offset) throws PulsarAdminException;
+    MessageId getMessageIdByIndex(String topicName, long index) throws PulsarAdminException;
 
     /**
-     * Get the message id by offset asynchronously.
+     * Get the message id by index asynchronously.
      * @param topicName the topic name
-     * @param offset the offset of a message
+     * @param index the index of a message
      * @return the message id of the message
      */
-    CompletableFuture<MessageId> getMessageIdByOffsetAsync(String topicName, long offset);
+    CompletableFuture<MessageId> getMessageIdByIndexAsync(String topicName, long index);
 }

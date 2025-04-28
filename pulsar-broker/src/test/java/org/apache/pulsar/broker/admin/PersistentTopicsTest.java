@@ -2012,22 +2012,4 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
             assertEquals(batchMessage.getProperties().get("BaTcH-kEy3"), "BaTcH-vAlUe3");
         }
     }
-
-    @Test
-    public void testGetMessageIdByOffset() throws Exception {
-        String topicName = "persistent://" + testTenant + "/" + testNamespaceLocal + "/testGetMessageIdByOffset";
-        admin.topics().createNonPartitionedTopic(topicName);
-        @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(topicName)
-                .enableBatching(false)
-                .create();
-        MessageIdImpl messageId = (MessageIdImpl) producer.send("test");
-        producer.send("test");
-        Message<byte[]>
-                message = admin.topics().getMessagesById(topicName, messageId.getLedgerId(), messageId.getEntryId()).get(0);
-        long offset = message.getIndex().get();
-        MessageIdImpl messageIdByOffset = (MessageIdImpl) admin.topics().getMessageIdByOffset(topicName, offset);
-        Assert.assertEquals(messageIdByOffset, messageId);
-    }
 }

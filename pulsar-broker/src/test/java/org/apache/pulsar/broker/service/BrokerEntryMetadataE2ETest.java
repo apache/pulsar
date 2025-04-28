@@ -422,7 +422,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
     }
 
     @Test
-    public void testGetMessageIdByOffset() throws Exception {
+    public void testGetMessageIdByIndex() throws Exception {
         // 1. test no partitioned topic
         final String topicName = newTopicName();
         admin.topics().createNonPartitionedTopic(topicName);
@@ -434,9 +434,9 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         MessageIdImpl messageId = (MessageIdImpl) producer.send("test");
         Message<byte[]>
                 message = admin.topics().getMessagesById(topicName, messageId.getLedgerId(), messageId.getEntryId()).get(0);
-        long offset = message.getIndex().get();
-        MessageIdImpl messageIdByOffset = (MessageIdImpl) admin.topics().getMessageIdByOffset(topicName, offset);
-        Assert.assertEquals(messageIdByOffset, messageId);
+        long index = message.getIndex().get();
+        MessageIdImpl messageIdByIndex = (MessageIdImpl) admin.topics().getMessageIdByIndex(topicName, index);
+        Assert.assertEquals(messageIdByIndex, messageId);
 
         // 2. test partitioned topic
         final String topicName2 = newTopicName();
@@ -458,8 +458,8 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         Message<byte[]>
                 message2 = admin.topics().getMessagesById(partitionedTopicName,
                 messageId2.getLedgerId(), messageId2.getEntryId()).get(0);
-        long offset2 = message2.getIndex().get();
-        MessageIdImpl messageIdByOffset2 = (MessageIdImpl) admin.topics().getMessageIdByOffset(partitionedTopicName, offset2);
-        Assert.assertEquals(messageIdByOffset2, messageId2);
+        long index2 = message2.getIndex().get();
+        MessageIdImpl messageIdByIndex2 = (MessageIdImpl) admin.topics().getMessageIdByIndex(partitionedTopicName, index2);
+        Assert.assertEquals(messageIdByIndex2, messageId2);
     }
 }

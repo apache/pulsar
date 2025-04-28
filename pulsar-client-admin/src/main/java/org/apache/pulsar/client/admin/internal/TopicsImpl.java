@@ -2820,12 +2820,12 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public MessageId getMessageIdByOffset(String topicName, long offset) throws PulsarAdminException {
-        return sync(() -> getMessageIdByOffsetAsync(topicName, offset));
+    public MessageId getMessageIdByIndex(String topicName, long offset) throws PulsarAdminException {
+        return sync(() -> getMessageIdByIndexAsync(topicName, offset));
     }
 
     @Override
-    public CompletableFuture<MessageId> getMessageIdByOffsetAsync(String topicName, long offset) {
+    public CompletableFuture<MessageId> getMessageIdByIndexAsync(String topicName, long offset) {
         final CompletableFuture<MessageId> messageIdCompletableFuture = new CompletableFuture<>();
         TopicName topic = validateTopic(topicName);
         WebTarget path = topicPath(topic, "getMessageIdByOffset");

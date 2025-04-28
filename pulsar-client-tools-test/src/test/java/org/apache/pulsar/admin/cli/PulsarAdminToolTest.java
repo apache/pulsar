@@ -2090,8 +2090,8 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("get-shadow-source persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getShadowSource("persistent://myprop/clust/ns1/ds1");
 
-        cmdTopics.run(split("get-message-id-by-offset persistent://myprop/clust/ns1/ds1 -o 0"));
-        verify(mockTopics).getMessageIdByOffset("persistent://myprop/clust/ns1/ds1", 0);
+        cmdTopics.run(split("get-message-id-by-index persistent://myprop/clust/ns1/ds1 -i 0"));
+        verify(mockTopics).getMessageIdByIndex("persistent://myprop/clust/ns1/ds1", 0);
 
     }
 

@@ -5016,29 +5016,29 @@ public class PersistentTopics extends PersistentTopicsBase {
     }
 
     @GET
-    @Path("/{tenant}/{namespace}/{topic}/getMessageIdByOffset")
-    @ApiOperation(hidden = true, value = "Get Message ID by offset.",
-            notes = "If the specified offset is a system message, "
+    @Path("/{tenant}/{namespace}/{topic}/getMessageIdByIndex")
+    @ApiOperation(hidden = true, value = "Get Message ID by index.",
+            notes = "If the specified index is a system message, "
                     + "it will return the message id of the later message.")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or partitioned topic does not exist, "
-                    + "or the offset is invalid")})
-    public void getMessageIDByOffsetAndPartitionID(@Suspended final AsyncResponse asyncResponse,
+                    + "or the index is invalid")})
+    public void getMessageIDByIndexAndPartitionID(@Suspended final AsyncResponse asyncResponse,
                                                    @PathParam("tenant") String tenant,
                                                    @PathParam("namespace") String namespace,
                                                    @PathParam("topic") @Encoded String encodedTopic,
-                                                   @QueryParam("offset") long offset,
+                                                   @QueryParam("index") long index,
                                                    @QueryParam("authoritative") @DefaultValue("false")
                                                    boolean authoritative){
         validateTopicName(tenant, namespace, encodedTopic);
-        internalGetMessageIDByOffsetAsync(offset, authoritative)
+        internalGetMessageIDByIndexAsync(index, authoritative)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     if (!isRedirectException(ex)) {
-                        log.error("[{}] Failed to get message id by offset for topic {}, partition id {}, offset {}",
-                                clientAppId(), topicName, offset, ex);
+                        log.error("[{}] Failed to get message id by index for topic {}, partition id {}, index {}",
+                                clientAppId(), topicName, index, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;

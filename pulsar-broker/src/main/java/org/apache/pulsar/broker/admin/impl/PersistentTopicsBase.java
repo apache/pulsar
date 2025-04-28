@@ -5490,7 +5490,7 @@ public class PersistentTopicsBase extends AdminResource {
                         }));
     }
 
-    protected CompletableFuture<MessageId> internalGetMessageIDByOffsetAsync(Long offset, boolean authoritative) {
+    protected CompletableFuture<MessageId> internalGetMessageIDByIndexAsync(Long offset, boolean authoritative) {
         int partitionIndex = topicName.getPartitionIndex();
         CompletableFuture<Void> future = validateTopicOperationAsync(topicName, TopicOperation.PEEK_MESSAGES);
         return future.thenCompose(__ -> {
@@ -5506,10 +5506,10 @@ public class PersistentTopicsBase extends AdminResource {
                         return getPartitionedTopicMetadataAsync(topicName, authoritative, false)
                                 .thenAccept(topicMetadata -> {
                                     if (topicMetadata.partitions > 0) {
-                                        log.warn("[{}] Not supported getMessageIdByOffset operation on "
+                                        log.warn("[{}] Not supported getMessageIdByIndex operation on "
                                                         + "partitioned-topic {}", clientAppId(), topicName);
                                         throw new RestException(Status.METHOD_NOT_ALLOWED,
-                                                "GetMessageIDByOffset is not allowed on partitioned-topic");
+                                                "GetMessageIDByIndex is not allowed on partitioned-topic");
                                     }
                                 });
                     }
