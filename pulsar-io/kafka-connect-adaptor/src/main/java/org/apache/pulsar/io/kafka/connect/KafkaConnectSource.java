@@ -58,7 +58,13 @@ public class KafkaConnectSource extends AbstractKafkaConnectSource<KeyValue<byte
     private static final String JSON_WITH_ENVELOPE_CONFIG = "json-with-envelope";
 
     private Map<String, Predicate<SourceRecord>> predicates = new HashMap<>();
-private List<Pair<Predicate<SourceRecord>, Transformation<SourceRecord>>> transformations = new ArrayList<>();
+    
+    private record PredicatedTransform(
+            Predicate<SourceRecord> predicate,
+            Transformation<SourceRecord> transform,
+            boolean negated
+    ) {}
+    private List<PredicatedTransform> transformations = new ArrayList<>();
 
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         if (config.get(JSON_WITH_ENVELOPE_CONFIG) != null) {
@@ -135,6 +141,7 @@ private List<Pair<Predicate<SourceRecord>, Transformation<SourceRecord>>> transf
                         ));
                     log.info("transform config: {}", transformConfig);
                     String predicateName = (String) transformConfig.get("predicate");
+                    boolean negated = (boolean) transformConfig.getOrDefault("negated", false);
                     Predicate<SourceRecord> predicate = null;
                     if (predicateName != null) {
                         predicate = predicates.get(predicateName);
@@ -144,7 +151,7 @@ private List<Pair<Predicate<SourceRecord>, Transformation<SourceRecord>>> transf
                         }
                     }
                     transform.configure(transformConfig);
-                    transformations.add(Pair.of(predicate, transform));
+                    transformations.add(new PredicatedTransform(predicate, transform, negated));
                 } catch (Exception e) {
                     throw new RuntimeException("Failed to instantiate SMT: " + className, e);
                 }
@@ -166,19 +173,16 @@ private List<Pair<Predicate<SourceRecord>, Transformation<SourceRecord>>> transf
 
     public SourceRecord applyTransforms(SourceRecord record) {
         SourceRecord current = record;
-        for (Pair<Predicate<SourceRecord>, Transformation<SourceRecord>> pair : transformations) {
+        for (PredicatedTransform pt : transformations) {
             if (current == null) {
                 break;
             }
             
-            Predicate<SourceRecord> predicate = pair.getLeft();
-            Transformation<SourceRecord> transform = pair.getRight();
-            
-            if (predicate != null && !predicate.test(current)) {
+            if (pt.predicate != null && (pt.negated != pt.predicate.test(current))) {
                 continue;
             }
             
-            current = transform.apply(current);
+            current = pt.transform.apply(current);
         }
         return current;
     }
