@@ -71,6 +71,7 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
+import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.broker.service.plugin.EntryFilterProvider;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
@@ -102,6 +103,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
 
     final String topicName = "persistent://public/default/testTopic";
     final String subscriptionName = "testSubscription";
+    private AtomicInteger consumerMockAvailablePermits;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -145,7 +147,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
         doReturn(null).when(cursorMock).getLastIndividualDeletedRange();
         doReturn(subscriptionName).when(cursorMock).getName();
 
-        consumerMock = mock(Consumer.class);
+        consumerMock = createMockConsumer();
         EventExecutor eventExecutor = mock(EventExecutor.class);
         doAnswer(invocation -> {
             invocation.getArgument(0, Runnable.class).run();
@@ -154,7 +156,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
         doReturn(false).when(eventExecutor).inEventLoop();
         succeededFuture = new SucceededFuture<>(eventExecutor, null);
         doReturn("consumer1").when(consumerMock).consumerName();
-        doReturn(1000).when(consumerMock).getAvailablePermits();
+        consumerMockAvailablePermits = new AtomicInteger(1000);
+        doAnswer(invocation -> consumerMockAvailablePermits.get()).when(consumerMock).getAvailablePermits();
         doReturn(true).when(consumerMock).isWritable();
         mockSendMessages(consumerMock, null);
 
@@ -184,6 +187,16 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
         );
     }
 
+    protected static Consumer createMockConsumer() {
+        Consumer consumerMock = mock(Consumer.class);
+        TransportCnx transportCnx = mock(TransportCnx.class);
+        doReturn(transportCnx).when(consumerMock).cnx();
+        doReturn(true).when(transportCnx).isActive();
+        doReturn(100).when(consumerMock).getMaxUnackedMessages();
+        doReturn(1).when(consumerMock).getAvgMessagesPerEntry();
+        return consumerMock;
+    }
+
     @AfterMethod(alwaysRun = true)
     public void cleanup() {
         if (persistentDispatcher != null && !persistentDispatcher.isClosed()) {
@@ -198,7 +211,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
     @Test(timeOut = 10000)
     public void testAddConsumerWhenClosed() throws Exception {
         persistentDispatcher.close().get();
-        Consumer consumer = mock(Consumer.class);
+        Consumer consumer = createMockConsumer();
         persistentDispatcher.addConsumer(consumer);
         verify(consumer, times(1)).disconnect();
         assertEquals(0, persistentDispatcher.getConsumers().size());
@@ -212,19 +225,19 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
                 topicMock, cursorMock, subscriptionMock, configMock,
                 new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT));
 
-        Consumer consumer0 = mock(Consumer.class);
+        Consumer consumer0 = createMockConsumer();
         when(consumer0.consumerName()).thenReturn("c0-1");
-        Consumer consumer1 = mock(Consumer.class);
+        Consumer consumer1 = createMockConsumer();
         when(consumer1.consumerName()).thenReturn("c1");
-        Consumer consumer2 = mock(Consumer.class);
+        Consumer consumer2 = createMockConsumer();
         when(consumer2.consumerName()).thenReturn("c2");
-        Consumer consumer3 = mock(Consumer.class);
+        Consumer consumer3 = createMockConsumer();
         when(consumer3.consumerName()).thenReturn("c3");
-        Consumer consumer4 = mock(Consumer.class);
+        Consumer consumer4 = createMockConsumer();
         when(consumer4.consumerName()).thenReturn("c4");
-        Consumer consumer5 = mock(Consumer.class);
+        Consumer consumer5 = createMockConsumer();
         when(consumer5.consumerName()).thenReturn("c5");
-        Consumer consumer6 = mock(Consumer.class);
+        Consumer consumer6 = createMockConsumer();
         when(consumer6.consumerName()).thenReturn("c6");
 
         when(cursorMock.getNumberOfEntriesSinceFirstNotAckedMessage()).thenReturn(100L);
@@ -344,7 +357,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
                     .setStart(0)
                     .setEnd(9);
 
-            Consumer consumerMock = mock(Consumer.class);
+            Consumer consumerMock = createMockConsumer();
             doReturn(keySharedMeta).when(consumerMock).getKeySharedMeta();
             mockSendMessages(consumerMock, null);
             persistentDispatcher.addConsumer(consumerMock);
@@ -370,7 +383,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
 
     @Test
     public void testSkipRedeliverTemporally() {
-        final Consumer slowConsumerMock = mock(Consumer.class);
+        final Consumer slowConsumerMock = createMockConsumer();
         // add entries to redeliver and read target
         final List<Entry> redeliverEntries = new ArrayList<>();
         redeliverEntries.add(createEntry(1, 1, "message1", 1, "key1"));
@@ -489,7 +502,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
         final List<Entry> readEntries = new ArrayList<>();
         readEntries.add(allEntries.get(2)); // message3
 
-        final Consumer consumer1 = mock(Consumer.class);
+        final Consumer consumer1 = createMockConsumer();
         doReturn("consumer1").when(consumer1).consumerName();
         // Change availablePermits of consumer1 to 0 and then back to normal
         when(consumer1.getAvailablePermits()).thenReturn(0).thenReturn(10);
@@ -501,7 +514,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
             }
         });
 
-        final Consumer consumer2 = mock(Consumer.class);
+        final Consumer consumer2 = createMockConsumer();
         doReturn("consumer2").when(consumer2).consumerName();
         when(consumer2.getAvailablePermits()).thenReturn(10);
         doReturn(true).when(consumer2).isWritable();
