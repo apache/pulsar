@@ -143,6 +143,93 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
         assertTrue(transformedValue.get("myField") instanceof Integer);
     }
 
+    @Test
+    void testTransformationWithPredicate() throws Exception{
+        // Config for Cast SMT to cast "myField" to int32
+        Map<String, Object> config = getConfig();
+        config.put(TaskConfig.TASK_CLASS_CONFIG,
+                   "org.apache.kafka.connect.file.FileStreamSourceTask");
+        config.put("predicates", "TopicMatch");
+        config.put("predicates.TopicMatch.type", "org.apache.kafka.connect.transforms.predicates.TopicNameMatches");
+        config.put("predicates.TopicMatch.pattern", "test-topic");
+        config.put("transforms", "Cast");
+        config.put("transforms.Cast.type", "org.apache.kafka.connect.transforms.Cast$Value");
+        config.put("transforms.Cast.spec", "myField:int32");
+        config.put("transforms.Cast.predicate", "TopicMatch");
+
+        // Instantiate the source and initialize transformations
+        kafkaConnectSource = new KafkaConnectSource();
+        kafkaConnectSource.open(config, context);
+
+        // Test source record
+        Map<String, Object> value = new HashMap<>();
+        value.put("myField", "42");
+        SourceRecord record = new SourceRecord(
+                null,
+                null,
+                "test-topic",
+                null,
+                null, // key schema
+                null, // key
+                null, // value schema
+                value // value
+        );
+
+        // Apply transforms
+        SourceRecord transformed = kafkaConnectSource.applyTransforms(record);
+
+        // Assert "myField" is now an Integer with value 42
+        @SuppressWarnings("unchecked")
+        Map<String, Object> transformedValue = (Map<String, Object>) transformed.value();
+        assertNotNull(transformedValue);
+        assertEquals(42, transformedValue.get("myField"));
+        assertTrue(transformedValue.get("myField") instanceof Integer);
+    }
+
+    @Test
+    void testTransformationWithNegatedPredicate() throws Exception{
+        // Config for Cast SMT to cast "myField" to int32
+        Map<String, Object> config = getConfig();
+        config.put(TaskConfig.TASK_CLASS_CONFIG,
+                   "org.apache.kafka.connect.file.FileStreamSourceTask");
+        config.put("predicates", "TopicMatch");
+        config.put("predicates.TopicMatch.type", "org.apache.kafka.connect.transforms.predicates.TopicNameMatches");
+        config.put("predicates.TopicMatch.pattern", "test-topic");
+        config.put("transforms", "Cast");
+        config.put("transforms.Cast.type", "org.apache.kafka.connect.transforms.Cast$Value");
+        config.put("transforms.Cast.spec", "myField:int32");
+        config.put("transforms.Cast.predicate", "TopicMatch");
+        config.put("transforms.Cast.negate", "true");
+
+        // Instantiate the source and initialize transformations
+        kafkaConnectSource = new KafkaConnectSource();
+        kafkaConnectSource.open(config, context);
+
+        // Test source record
+        Map<String, Object> value = new HashMap<>();
+        value.put("myField", "42");
+        SourceRecord record = new SourceRecord(
+                null,
+                null,
+                "test-topic",
+                null,
+                null, // key schema
+                null, // key
+                null, // value schema
+                value // value
+        );
+
+        // Apply transforms
+        SourceRecord transformed = kafkaConnectSource.applyTransforms(record);
+
+        // Assert "myField" is now an Integer with value 42
+        @SuppressWarnings("unchecked")
+        Map<String, Object> transformedValue = (Map<String, Object>) transformed.value();
+        assertNotNull(transformedValue);
+        assertEquals("42", transformedValue.get("myField"));
+        assertTrue(transformedValue.get("myField") instanceof String);
+    }
+
     private Map<String, Object> getConfig() {
         Map<String, Object> config = new HashMap<>();
 
