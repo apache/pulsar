@@ -1358,68 +1358,71 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public CompletableFuture<Void> asyncAddLedgerProperty(long ledgerId, String key, String value) {
-        CompletableFuture<Void> f = new CompletableFuture<>();
-        // Execute the operation in ML executor to avoid concurrent modifications to ledger info.
         if (state.isFenced()) {
-            f.completeExceptionally(new ManagedLedgerFencedException());
-            return f;
+            return CompletableFuture.failedFuture(new ManagedLedgerFencedException());
         }
         LedgerInfo li = ledgers.get(ledgerId);
         if (li == null) {
-            f.completeExceptionally(new ManagedLedgerNotFoundException("Ledger not found"));
-            return f;
+            return CompletableFuture.failedFuture(new ManagedLedgerNotFoundException("Ledger not found"));
         }
 
-        synchronized (this) {
-            if (!metadataMutex.tryLock()) {
-                // retry in 100 milliseconds
-                scheduledExecutor.schedule(
-                        () -> asyncAddLedgerProperty(ledgerId, key, value), 100,
-                        TimeUnit.MILLISECONDS);
-            } else {
-                f.whenComplete((v, t) -> metadataMutex.unlock());
-                List<MLDataFormats.KeyValue> oldProperties = li.getPropertiesList();
-                Map<String, String> newPropertiesMap = new HashMap<>();
-                oldProperties.forEach(kv -> newPropertiesMap.put(kv.getKey(), kv.getValue()));
-                newPropertiesMap.put(key, value);
-                updateAndPersistLedgerProperties(newPropertiesMap, li, f);
-            }
-        }
+        CompletableFuture<Void> f = new CompletableFuture<>();
+        transformLedgerInfo(ledgerId,
+                oldInfo -> {
+                    List<MLDataFormats.KeyValue> oldProperties = oldInfo.getPropertiesList();
+                    Map<String, String> newPropertiesMap = new HashMap<>();
+                    oldProperties.forEach(kv -> newPropertiesMap.put(kv.getKey(), kv.getValue()));
+                    newPropertiesMap.put(key, value);
+                    List<MLDataFormats.KeyValue> newProperties = newPropertiesMap.entrySet().stream()
+                            .map(e -> MLDataFormats.KeyValue.newBuilder()
+                                    .setKey(e.getKey()).setValue(e.getValue()).build()).toList();
+                    return oldInfo.toBuilder().clearProperties().addAllProperties(newProperties).build();
+                })
+                .thenAccept(v -> f.complete(null))
+                .exceptionally(t -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(t);
+                    if (cause instanceof OffloadConflict) {
+                        f.completeExceptionally(new ManagedLedgerNotFoundException("Offload conflict detected"));
+                    } else {
+                        f.completeExceptionally(cause);
+                    }
+                    return null;
+                });
         return f;
     }
 
     @Override
     public CompletableFuture<Void> asyncRemoveLedgerProperty(long ledgerId, String key) {
-        CompletableFuture<Void> f = new CompletableFuture<>();
         if (state.isFenced()) {
-            f.completeExceptionally(new ManagedLedgerFencedException());
-            return f;
+            return CompletableFuture.failedFuture(new ManagedLedgerFencedException());
         }
         LedgerInfo li = ledgers.get(ledgerId);
         if (li == null) {
-            f.completeExceptionally(new ManagedLedgerNotFoundException("Ledger not found"));
-            return f;
+            return CompletableFuture.failedFuture(new ManagedLedgerNotFoundException("Ledger not found"));
         }
 
-        synchronized (this) {
-            if (!metadataMutex.tryLock()) {
-                // retry in 100 milliseconds
-                scheduledExecutor.schedule(
-                        () -> asyncRemoveLedgerProperty(ledgerId, key), 100,
-                        TimeUnit.MILLISECONDS);
-            } else {
-                f.whenComplete((v, t) -> metadataMutex.unlock());
-                List<MLDataFormats.KeyValue> oldProperties = li.getPropertiesList();
-                Map<String, String> newPropertiesMap = new HashMap<>();
-                oldProperties.forEach(kv -> newPropertiesMap.put(kv.getKey(), kv.getValue()));
-                if (!newPropertiesMap.containsKey(key)) {
-                    f.complete(null);
-                    return f;
-                }
-                newPropertiesMap.remove(key);
-                updateAndPersistLedgerProperties(newPropertiesMap, li, f);
-            }
-        }
+        CompletableFuture<Void> f = new CompletableFuture<>();
+        transformLedgerInfo(ledgerId,
+                oldInfo -> {
+                    List<MLDataFormats.KeyValue> oldProperties = oldInfo.getPropertiesList();
+                    Map<String, String> newPropertiesMap = new HashMap<>();
+                    oldProperties.forEach(kv -> newPropertiesMap.put(kv.getKey(), kv.getValue()));
+                    newPropertiesMap.remove(key);
+                    List<MLDataFormats.KeyValue> newProperties = newPropertiesMap.entrySet().stream()
+                            .map(e -> MLDataFormats.KeyValue.newBuilder()
+                                    .setKey(e.getKey()).setValue(e.getValue()).build()).toList();
+                    return oldInfo.toBuilder().clearProperties().addAllProperties(newProperties).build();
+                })
+                .thenAccept(v -> f.complete(null))
+                .exceptionally(t -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(t);
+                    if (cause instanceof OffloadConflict) {
+                        f.completeExceptionally(new ManagedLedgerNotFoundException("Offload conflict detected"));
+                    } else {
+                        f.completeExceptionally(cause);
+                    }
+                    return null;
+                });
         return f;
     }
 
@@ -1441,29 +1444,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
         }
         return CompletableFuture.completedFuture(null);
-    }
-
-    private void updateAndPersistLedgerProperties(Map<String, String> newPropertiesMap,
-                                                  LedgerInfo li, CompletableFuture<Void> f) {
-        List<MLDataFormats.KeyValue> newProperties = newPropertiesMap.entrySet().stream()
-                .map(e -> MLDataFormats.KeyValue.newBuilder().setKey(e.getKey()).setValue(e.getValue()).build())
-                .toList();
-        li = li.toBuilder().clearProperties().addAllProperties(newProperties).build();
-        ledgers.put(li.getLedgerId(), li);
-        store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat, new MetaStoreCallback<>() {
-            @Override
-            public void operationComplete(Void result, Stat version) {
-                ledgersStat = version;
-                f.complete(null);
-            }
-
-            @Override
-            public void operationFailed(MetaStoreException e) {
-                log.error("[{}] Update managedLedger's properties failed", name, e);
-                handleBadVersion(e);
-                f.completeExceptionally(e);
-            }
-        });
     }
 
     @Override
