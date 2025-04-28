@@ -43,7 +43,6 @@ import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelPromise;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.Future;
@@ -290,7 +289,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         entries.add(createEntry(1, 6, "message5", 5));
 
         try {
-            persistentDispatcher.readEntriesComplete(entries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
+            persistentDispatcher.readEntriesComplete(copyEntries(entries),
+                    PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
         } catch (Exception e) {
             fail("Failed to readEntriesComplete.", e);
         }
@@ -310,6 +310,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
             List<Integer> allTotalMessagesCaptor = totalMessagesCaptor.getAllValues();
             Assert.assertEquals(allTotalMessagesCaptor.get(0).intValue(), 5);
         });
+
+        entries.forEach(Entry::release);
+    }
+
+    private static List<Entry> copyEntries(List<Entry> entries) {
+        return entries.stream().map(entry -> EntryImpl.create((EntryImpl) entry)).collect(Collectors.toList());
     }
 
     @Test(timeOut = 10000)
@@ -324,6 +330,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
 
             Consumer consumerMock = createMockConsumer();
             doReturn(keySharedMeta).when(consumerMock).getKeySharedMeta();
+            mockSendMessages(consumerMock, null);
             persistentDispatcher.addConsumer(consumerMock);
             persistentDispatcher.consumerFlow(consumerMock, 1000);
         } catch (Exception e) {
@@ -336,10 +343,13 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
 
         try {
             //Should success,see issue #8960
-            persistentDispatcher.readEntriesComplete(entries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
+            persistentDispatcher.readEntriesComplete(copyEntries(entries),
+                    PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
         } catch (Exception e) {
             fail("Failed to readEntriesComplete.", e);
         }
+
+        entries.forEach(Entry::release);
     }
 
     @Test
@@ -347,8 +357,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         final Consumer slowConsumerMock = createMockConsumer();
         AtomicInteger slowConsumerPermits = new AtomicInteger(0);
         doAnswer(invocation -> slowConsumerPermits.get()).when(slowConsumerMock).getAvailablePermits();
-
-        final ChannelPromise slowChannelMock = mock(ChannelPromise.class);
         // add entries to redeliver and read target
         final List<Entry> redeliverEntries = new ArrayList<>();
         redeliverEntries.add(createEntry(1, 1, "message1", 1, "key123"));
@@ -381,23 +389,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         try {
             doReturn("consumer2").when(slowConsumerMock).consumerName();
             doReturn(true).when(slowConsumerMock).isWritable();
-            doAnswer(invocation -> {
-                List<Entry> entries = invocation.getArgument(0);
-                for (Entry entry : entries) {
-                    if (entry != null) {
-                        entry.release();
-                    }
-                }
-                return slowChannelMock;
-            }).when(slowConsumerMock).sendMessages(
-                    anyList(),
-                    any(EntryBatchSizes.class),
-                    any(EntryBatchIndexesAcks.class),
-                    anyInt(),
-                    anyLong(),
-                    anyLong(),
-                    any(RedeliveryTracker.class)
-            );
+            mockSendMessages(slowConsumerMock, null);
 
             persistentDispatcher.addConsumer(consumerMock);
             persistentDispatcher.addConsumer(slowConsumerMock);
@@ -410,7 +402,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         // Change slowConsumer availablePermits to 1
         // run PersistentStickyKeyDispatcherMultipleConsumers#sendMessagesToConsumers internally
         // and then stop to dispatch to slowConsumer
-        persistentDispatcher.readEntriesComplete(redeliverEntries,
+        persistentDispatcher.readEntriesComplete(copyEntries(redeliverEntries),
                 PersistentDispatcherMultipleConsumers.ReadType.Replay);
         verify(consumerMock, times(1)).sendMessages(
                 argThat(arg -> {
@@ -455,31 +447,23 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         // Change availablePermits of consumer1 to 0 and then back to normal
         when(consumer1.getAvailablePermits()).thenReturn(0).thenReturn(10);
         doReturn(true).when(consumer1).isWritable();
-        doAnswer(invocationOnMock -> {
-            List<Entry> entries = invocationOnMock.getArgument(0);
+        mockSendMessages(consumer1, entries -> {
             for (Entry entry : entries) {
                 remainingEntriesNum.decrementAndGet();
                 actualEntriesToConsumer1.add(entry.getPosition());
-                entry.release();
             }
-            return succeededFuture;
-        }).when(consumer1).sendMessages(anyList(), any(EntryBatchSizes.class), any(EntryBatchIndexesAcks.class),
-                anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));
+        });
 
         final Consumer consumer2 = createMockConsumer();
         doReturn("consumer2").when(consumer2).consumerName();
         when(consumer2.getAvailablePermits()).thenReturn(10);
         doReturn(true).when(consumer2).isWritable();
-        doAnswer(invocationOnMock -> {
-            List<Entry> entries = invocationOnMock.getArgument(0);
+        mockSendMessages(consumer2, entries -> {
             for (Entry entry : entries) {
                 remainingEntriesNum.decrementAndGet();
                 actualEntriesToConsumer2.add(entry.getPosition());
-                entry.release();
             }
-            return succeededFuture;
-        }).when(consumer2).sendMessages(anyList(), any(EntryBatchSizes.class), any(EntryBatchIndexesAcks.class),
-                anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));
+        });
 
         persistentDispatcher.addConsumer(consumer1);
         persistentDispatcher.addConsumer(consumer2);
