@@ -140,7 +140,7 @@ public class KafkaConnectSource extends AbstractKafkaConnectSource<KeyValue<byte
                         ));
                     log.info("transform config: {}", transformConfig);
                     String predicateName = (String) transformConfig.get("predicate");
-                    boolean negated = (boolean) transformConfig.getOrDefault("negated", false);
+                    boolean negated = Boolean.parseBoolean(String.valueOf(transformConfig.getOrDefault("negated", "false")));
                     Predicate<SourceRecord> predicate = null;
                     if (predicateName != null) {
                         predicate = predicates.get(predicateName);
