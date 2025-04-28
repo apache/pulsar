@@ -23,16 +23,19 @@ import com.google.common.cache.CacheBuilder;
 import io.confluent.connect.avro.AvroData;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.json.JsonConverterConfig;
 import org.apache.kafka.connect.source.SourceRecord;
+import org.apache.kafka.connect.transforms.predicates.Predicate;
 import org.apache.kafka.connect.transforms.Transformation;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.KeyValue;
@@ -54,7 +57,8 @@ public class KafkaConnectSource extends AbstractKafkaConnectSource<KeyValue<byte
     private boolean jsonWithEnvelope = false;
     private static final String JSON_WITH_ENVELOPE_CONFIG = "json-with-envelope";
 
-    private List<Transformation<SourceRecord>> transformations = new ArrayList<>();
+    private Map<String, Predicate<SourceRecord>> predicates = new HashMap<>();
+private List<Pair<Predicate<SourceRecord>, Transformation<SourceRecord>>> transformations = new ArrayList<>();
 
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         if (config.get(JSON_WITH_ENVELOPE_CONFIG) != null) {
@@ -65,8 +69,43 @@ public class KafkaConnectSource extends AbstractKafkaConnectSource<KeyValue<byte
         }
         log.info("jsonWithEnvelope: {}", jsonWithEnvelope);
 
+        initPredicates(config);
         initTransforms(config);
         super.open(config, sourceContext);
+    }
+
+    private void initPredicates(Map<String, Object> config) {
+        Object predicatesListObj = config.get("predicates");
+        if (predicatesListObj != null) {
+            String predicatesList = predicatesListObj.toString();
+            for (String predicateName : predicatesList.split(",")) {
+                predicateName = predicateName.trim();
+                String prefix = "predicates." + predicateName + ".";
+                String typeKey = prefix + "type";
+                Object classNameObj = config.get(typeKey);
+                if (classNameObj == null) {
+                    continue;
+                }
+                String className = classNameObj.toString();
+                try {
+                    @SuppressWarnings("unchecked")
+                    Class<Predicate<SourceRecord>> clazz =
+                        (Class<Predicate<SourceRecord>>) Class.forName(className);
+                    Predicate<SourceRecord> predicate = clazz.getDeclaredConstructor().newInstance();
+                    java.util.Map<String, Object> predicateConfig = config.entrySet().stream()
+                        .filter(e -> e.getKey().startsWith(prefix))
+                        .collect(java.util.stream.Collectors.toMap(
+                            e -> e.getKey().substring(prefix.length()),
+                            java.util.Map.Entry::getValue
+                        ));
+                    log.info("predicate config: {}", predicateConfig);
+                    predicate.configure(predicateConfig);
+                    predicates.put(predicateName, predicate);
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to instantiate predicate: " + className, e);
+                }
+            }
+        }
     }
 
     private void initTransforms(Map<String, Object> config) {
@@ -95,8 +134,17 @@ public class KafkaConnectSource extends AbstractKafkaConnectSource<KeyValue<byte
                             java.util.Map.Entry::getValue
                         ));
                     log.info("transform config: {}", transformConfig);
+                    String predicateName = (String) transformConfig.get("predicate");
+                    Predicate<SourceRecord> predicate = null;
+                    if (predicateName != null) {
+                        predicate = predicates.get(predicateName);
+                        if (predicate == null) {
+                            log.warn("Transform {} references non-existent predicate: {}",
+                                    transformName, predicateName);
+                        }
+                    }
                     transform.configure(transformConfig);
-                    transformations.add(transform);
+                    transformations.add(Pair.of(predicate, transform));
                 } catch (Exception e) {
                     throw new RuntimeException("Failed to instantiate SMT: " + className, e);
                 }
@@ -118,10 +166,18 @@ public class KafkaConnectSource extends AbstractKafkaConnectSource<KeyValue<byte
 
     public SourceRecord applyTransforms(SourceRecord record) {
         SourceRecord current = record;
-        for (Transformation<SourceRecord> transform : transformations) {
+        for (Pair<Predicate<SourceRecord>, Transformation<SourceRecord>> pair : transformations) {
             if (current == null) {
                 break;
             }
+            
+            Predicate<SourceRecord> predicate = pair.getLeft();
+            Transformation<SourceRecord> transform = pair.getRight();
+            
+            if (predicate != null && !predicate.test(current)) {
+                continue;
+            }
+            
             current = transform.apply(current);
         }
         return current;
