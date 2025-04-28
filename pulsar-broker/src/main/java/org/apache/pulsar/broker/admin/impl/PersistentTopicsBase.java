@@ -5535,7 +5535,15 @@ public class PersistentTopicsBase extends AdminResource {
                 }
                 return false;
             });
-        }).thenCompose(position -> CompletableFuture
-                .completedFuture(new MessageIdImpl(position.getLedgerId(), position.getEntryId(), partitionIndex)));
+        }).thenCompose(position -> {
+            if (position == null) {
+                return FutureUtil.failedFuture(new RestException(Status.NOT_FOUND,
+                        "Message not found for offset " + offset));
+            } else {
+                return CompletableFuture
+                        .completedFuture(new MessageIdImpl(position.getLedgerId(), position.getEntryId(),
+                                partitionIndex));
+            }
+        });
     }
 }
