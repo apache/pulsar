@@ -45,12 +45,15 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.EventLoopGroup;
+import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
+import io.netty.util.concurrent.SucceededFuture;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
 import java.util.TreeSet;
@@ -66,7 +69,6 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.util.AbstractCASReferenceCounted;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -103,7 +105,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
     private PersistentTopic topicMock;
     private PersistentSubscription subscriptionMock;
     private ServiceConfiguration configMock;
-    private ChannelPromise channelMock;
+    private Future<Void> succeededFuture;
     private OrderedExecutor orderedExecutor;
 
     private PersistentStickyKeyDispatcherMultipleConsumers persistentDispatcher;
@@ -198,19 +200,34 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         }).when(cursorMock).applyMaxSizeCap(anyInt(), anyLong());
 
         consumerMock = createMockConsumer();
-        channelMock = mock(ChannelPromise.class);
+        EventExecutor eventExecutor = mock(EventExecutor.class);
+        doAnswer(invocation -> {
+            invocation.getArgument(0, Runnable.class).run();
+            return null;
+        }).when(eventExecutor).execute(any(Runnable.class));
+        doReturn(false).when(eventExecutor).inEventLoop();
+        succeededFuture = new SucceededFuture<>(eventExecutor, null);
         doReturn("consumer1").when(consumerMock).consumerName();
         consumerMockAvailablePermits = new AtomicInteger(1000);
         doAnswer(invocation -> consumerMockAvailablePermits.get()).when(consumerMock).getAvailablePermits();
         doReturn(true).when(consumerMock).isWritable();
+        mockSendMessages(consumerMock, null);
+
+        subscriptionMock = mock(PersistentSubscription.class);
+        when(subscriptionMock.getTopic()).thenReturn(topicMock);
+        persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
+                topicMock, cursorMock, subscriptionMock, configMock,
+                new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT));
+    }
+
+    private void mockSendMessages(Consumer consumerMock, java.util.function.Consumer<List<Entry>> entryConsumer) {
         doAnswer(invocation -> {
             List<Entry> entries = invocation.getArgument(0);
-            for (Entry entry : entries) {
-                if (entry != null) {
-                    entry.release();
-                }
+            if (entryConsumer != null) {
+                entryConsumer.accept(entries);
             }
-            return channelMock;
+            entries.stream().filter(Objects::nonNull).forEach(Entry::release);
+            return succeededFuture;
         }).when(consumerMock).sendMessages(
                 anyList(),
                 any(EntryBatchSizes.class),
@@ -220,12 +237,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 anyLong(),
                 any(RedeliveryTracker.class)
         );
-
-        subscriptionMock = mock(PersistentSubscription.class);
-        when(subscriptionMock.getTopic()).thenReturn(topicMock);
-        persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
-                topicMock, cursorMock, subscriptionMock, configMock,
-                new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT));
     }
 
     protected static Consumer createMockConsumer() {
@@ -451,7 +462,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 actualEntriesToConsumer1.add(entry.getPosition());
                 entry.release();
             }
-            return channelMock;
+            return succeededFuture;
         }).when(consumer1).sendMessages(anyList(), any(EntryBatchSizes.class), any(EntryBatchIndexesAcks.class),
                 anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));
 
@@ -466,7 +477,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 actualEntriesToConsumer2.add(entry.getPosition());
                 entry.release();
             }
-            return channelMock;
+            return succeededFuture;
         }).when(consumer2).sendMessages(anyList(), any(EntryBatchSizes.class), any(EntryBatchIndexesAcks.class),
                 anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));
 
@@ -808,8 +819,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
             Future<Void> future = mock(Future.class);
             when(future.isDone()).thenReturn(true);
             listener.operationComplete(future);
-            return channelMock;
-        }).when(channelMock).addListener(any());
+            return succeededFuture;
+        }).when(succeededFuture).addListener(any());
 
         // add a consumer with permits
         consumerMockAvailablePermits.set(1000);
