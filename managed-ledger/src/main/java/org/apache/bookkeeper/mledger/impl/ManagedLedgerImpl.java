@@ -1382,7 +1382,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 .exceptionally(t -> {
                     Throwable cause = FutureUtil.unwrapCompletionException(t);
                     if (cause instanceof OffloadConflict) {
-                        f.completeExceptionally(new ManagedLedgerNotFoundException("Offload conflict detected"));
+                        f.completeExceptionally(new ManagedLedgerNotFoundException(cause.getMessage()));
                     } else {
                         f.completeExceptionally(cause);
                     }
@@ -1417,7 +1417,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 .exceptionally(t -> {
                     Throwable cause = FutureUtil.unwrapCompletionException(t);
                     if (cause instanceof OffloadConflict) {
-                        f.completeExceptionally(new ManagedLedgerNotFoundException("Offload conflict detected"));
+                        f.completeExceptionally(new ManagedLedgerNotFoundException(cause.getMessage()));
                     } else {
                         f.completeExceptionally(cause);
                     }
