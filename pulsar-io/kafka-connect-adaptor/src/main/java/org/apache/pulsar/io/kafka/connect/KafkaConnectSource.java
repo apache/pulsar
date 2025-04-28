@@ -30,13 +30,12 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.json.JsonConverterConfig;
 import org.apache.kafka.connect.source.SourceRecord;
-import org.apache.kafka.connect.transforms.predicates.Predicate;
 import org.apache.kafka.connect.transforms.Transformation;
+import org.apache.kafka.connect.transforms.predicates.Predicate;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
@@ -58,7 +57,7 @@ public class KafkaConnectSource extends AbstractKafkaConnectSource<KeyValue<byte
     private static final String JSON_WITH_ENVELOPE_CONFIG = "json-with-envelope";
 
     private Map<String, Predicate<SourceRecord>> predicates = new HashMap<>();
-    
+
     private record PredicatedTransform(
             Predicate<SourceRecord> predicate,
             Transformation<SourceRecord> transform,
@@ -177,11 +176,11 @@ public class KafkaConnectSource extends AbstractKafkaConnectSource<KeyValue<byte
             if (current == null) {
                 break;
             }
-            
+
             if (pt.predicate != null && (pt.negated != pt.predicate.test(current))) {
                 continue;
             }
-            
+
             current = pt.transform.apply(current);
         }
         return current;
