@@ -442,6 +442,41 @@ public interface ManagedLedger {
 
     CompletableFuture<Position> asyncMigrate();
 
+
+    /**
+     * Add a property to the specified LedgerInfo.
+     *
+     * @param ledgerId the ledger id
+     * @param key      the key of the property to add
+     * @param value    the value of the property to add
+     * @return
+     * @throws ManagedLedgerException.ManagedLedgerFencedException if the ledger is fenced
+     * @throws ManagedLedgerException if the ledger is not found or persistent failure
+     */
+    CompletableFuture<Void> asyncAddLedgerProperty(long ledgerId, String key, String value);
+
+    /**
+     * Remove a property from the specified LedgerInfo.
+     *
+     * @param ledgerId the ledger id
+     * @param key      the key of the property to remove
+     * @return
+     * @throws ManagedLedgerException.ManagedLedgerFencedException if the ledger is fenced
+     * @throws ManagedLedgerException if the ledger is not found or persistent failure
+     */
+    CompletableFuture<Void> asyncRemoveLedgerProperty(long ledgerId, String key);
+
+    /**
+     * Get the value of the specified property from the specified LedgerInfo.
+     *
+     * @param ledgerId the ledger id
+     * @param key      the key of the property to get
+     * @return the value of the property
+     * @throws ManagedLedgerException.ManagedLedgerFencedException if the ledger is fenced
+     * @throws ManagedLedgerException if the ledger is not found or persistent failure
+     */
+    CompletableFuture<String> asyncGetLedgerProperty(long ledgerId, String key);
+
     /**
      * Terminate the managed ledger and return the last committed entry.
      *
