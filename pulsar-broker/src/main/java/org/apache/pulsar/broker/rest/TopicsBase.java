@@ -282,19 +282,21 @@ public class TopicsBase extends PersistentTopicsBase {
                 pulsar().getBrokerService().getOwningTopics().get(topicName.getPartitionedTopicName())
                         .remove(topicName.getPartitionIndex());
             } else {
-                ByteBuf headersAndPayload = messageToByteBuf(message);
                 try {
-                    Topic topicObj = t.get();
-                    topicObj.publishMessage(headersAndPayload,
-                            RestMessagePublishContext.get(publishResult, topicObj, System.nanoTime()));
+                    ByteBuf headersAndPayload = messageToByteBuf(message);
+                    try {
+                        Topic topicObj = t.get();
+                        topicObj.publishMessage(headersAndPayload,
+                                RestMessagePublishContext.get(publishResult, topicObj, System.nanoTime()));
+                    } finally {
+                        headersAndPayload.release();
+                    }
                 } catch (Exception e) {
                     if (log.isDebugEnabled()) {
                         log.debug("Fail to publish single messages to topic  {}: {} ",
                                 topicName, e.getCause());
                     }
                     publishResult.completeExceptionally(e);
-                } finally {
-                    headersAndPayload.release();
                 }
             }
         });
