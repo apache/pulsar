@@ -774,7 +774,7 @@ public class TransactionMetaStoreHandler extends HandlerState
                     if (op != null && !op.callback.isDone()) {
                         op.callback.completeExceptionally(new PulsarClientException.TimeoutException(
                             String.format("%s failed due to timeout. connection: %s. pending-queue: %s",
-                                op.description, op.clientCnx. pendingRequests.size())));
+                                op.description, op.clientCnx, pendingRequests.size())));
                         if (LOG.isDebugEnabled()) {
                             LOG.debug("Transaction coordinator request {} is timeout.", lastPolled.requestId);
                         }
