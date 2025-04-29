@@ -1242,14 +1242,15 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<Void> triggerOffloadAsync(String topic, long sizeThreshold) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         try {
-            validatePersistentTopic(topic);
             PersistentTopicInternalStats stats = getInternalStats(topic);
             if (stats.ledgers.size() < 1) {
                 throw new PulsarAdminException("Topic doesn't have any data");
             }
             LinkedList<PersistentTopicInternalStats.LedgerInfo> ledgers = new LinkedList(stats.ledgers);
-            ledgers.get(ledgers.size() - 1).size = stats.currentLedgerSize; // doesn't get filled in now it seems
             MessageId messageId = findFirstLedgerWithinThreshold(ledgers, sizeThreshold);
+            if (messageId == null) {
+                return CompletableFuture.completedFuture(null);
+            }
             future = triggerOffloadAsync(topic, messageId);
         } catch (PulsarAdminException e) {
             future.completeExceptionally(getApiException(e));
@@ -1271,13 +1272,6 @@ public class TopicsImpl extends BaseResource implements Topics {
             previousLedger = l.ledgerId;
         }
         return null;
-    }
-
-    private void validatePersistentTopic(String topic) throws PulsarAdminException {
-        TopicName topicName = TopicName.get(topic);
-        if (topicName.getDomain() != TopicDomain.persistent) {
-            throw new PulsarAdminException("Need to provide a persistent topic name");
-        }
     }
 
     @Override
