@@ -163,11 +163,13 @@ public class KafkaConnectSource extends AbstractKafkaConnectSource<KeyValue<byte
 
     public synchronized KafkaSourceRecord processSourceRecord(final SourceRecord srcRecord) {
         SourceRecord transformedRecord = applyTransforms(srcRecord);
+
+        offsetWriter.offset(srcRecord.sourcePartition(), srcRecord.sourceOffset());
         if (transformedRecord == null) {
             return null;
         }
+
         KafkaSourceRecord record = new KafkaSourceRecord(transformedRecord);
-        offsetWriter.offset(transformedRecord.sourcePartition(), transformedRecord.sourceOffset());
         return record;
     }
 
