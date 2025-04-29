@@ -261,6 +261,7 @@ public class ResourceGroup {
         synchronized (replicatorDispatchRateLock) {
             replicatorDispatchRateLimiterConsumerMap.computeIfPresent(key, (__, old) -> {
                 old.remove(consumer);
+                consumer.accept(null);
                 return old;
             });
         }

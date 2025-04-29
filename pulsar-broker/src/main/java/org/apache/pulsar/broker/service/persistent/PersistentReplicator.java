@@ -82,7 +82,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
     protected final ManagedCursor cursor;
 
     protected Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
-    protected Optional<ResourceGroupDispatchLimiter> resourceGroupDispatchRateLimiter = Optional.empty();
+    protected volatile Optional<ResourceGroupDispatchLimiter> resourceGroupDispatchRateLimiter = Optional.empty();
     private final Consumer<ResourceGroupDispatchLimiter> resourceGroupDispatchRateLimiterConsumer = (v) ->
             resourceGroupDispatchRateLimiter = Optional.ofNullable(v);
     private final Object dispatchRateLimiterLock = new Object();
@@ -761,6 +761,9 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
             String resourceGroupName = topic.getHierarchyTopicPolicies().getResourceGroupName().get();
             if (resourceGroupName != null) {
+                if (usedResourceGroupName != null) {
+                    unregisterReplicatorDispatchRateLimiter();
+                }
                 usedResourceGroupName = resourceGroupName;
                 ResourceGroup resourceGroup =
                         brokerService.getPulsar().getResourceGroupServiceManager().resourceGroupGet(resourceGroupName);
@@ -769,18 +772,23 @@ public abstract class PersistentReplicator extends AbstractReplicator
                             resourceGroupDispatchRateLimiterConsumer);
                 }
             } else {
-                if (resourceGroupDispatchRateLimiter.isPresent()) {
-                    ResourceGroup resourceGroup =
-                            brokerService.getPulsar().getResourceGroupServiceManager()
-                                    .resourceGroupGet(usedResourceGroupName);
-                    if (resourceGroup != null) {
-                        resourceGroup.unregisterReplicatorDispatchRateLimiter(remoteCluster,
-                                resourceGroupDispatchRateLimiterConsumer);
-                    }
-                    resourceGroupDispatchRateLimiter = Optional.empty();
-                }
+                unregisterReplicatorDispatchRateLimiter();
             }
         }
+    }
+
+    private void unregisterReplicatorDispatchRateLimiter() {
+        if (usedResourceGroupName == null) {
+            return;
+        }
+        ResourceGroup resourceGroup =
+                brokerService.getPulsar().getResourceGroupServiceManager()
+                        .resourceGroupGet(usedResourceGroupName);
+        if (resourceGroup != null) {
+            resourceGroup.unregisterReplicatorDispatchRateLimiter(remoteCluster,
+                    resourceGroupDispatchRateLimiterConsumer);
+        }
+        usedResourceGroupName = null;
     }
 
     @Override
