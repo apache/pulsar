@@ -178,7 +178,7 @@ public class KafkaConnectSource extends AbstractKafkaConnectSource<KeyValue<byte
                 break;
             }
 
-            if (pt.predicate != null && (pt.negated != pt.predicate.test(current))) {
+            if (pt.predicate != null && !(pt.negated != pt.predicate.test(current))) {
                 continue;
             }
 
