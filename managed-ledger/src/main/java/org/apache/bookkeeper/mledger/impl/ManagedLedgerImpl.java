@@ -1360,6 +1360,96 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
+    public CompletableFuture<Void> asyncAddLedgerProperty(long ledgerId, String key, String value) {
+        if (state.isFenced()) {
+            return CompletableFuture.failedFuture(new ManagedLedgerFencedException());
+        }
+        LedgerInfo li = ledgers.get(ledgerId);
+        if (li == null) {
+            return CompletableFuture.failedFuture(new ManagedLedgerNotFoundException("Ledger not found"));
+        }
+
+        CompletableFuture<Void> f = new CompletableFuture<>();
+        transformLedgerInfo(ledgerId,
+                oldInfo -> {
+                    List<MLDataFormats.KeyValue> oldProperties = oldInfo.getPropertiesList();
+                    Map<String, String> newPropertiesMap = new HashMap<>();
+                    oldProperties.forEach(kv -> newPropertiesMap.put(kv.getKey(), kv.getValue()));
+                    newPropertiesMap.put(key, value);
+                    List<MLDataFormats.KeyValue> newProperties = newPropertiesMap.entrySet().stream()
+                            .map(e -> MLDataFormats.KeyValue.newBuilder()
+                                    .setKey(e.getKey()).setValue(e.getValue()).build()).toList();
+                    return oldInfo.toBuilder().clearProperties().addAllProperties(newProperties).build();
+                })
+                .thenAccept(v -> f.complete(null))
+                .exceptionally(t -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(t);
+                    if (cause instanceof OffloadConflict) {
+                        f.completeExceptionally(new ManagedLedgerNotFoundException(cause.getMessage()));
+                    } else {
+                        f.completeExceptionally(cause);
+                    }
+                    return null;
+                });
+        return f;
+    }
+
+    @Override
+    public CompletableFuture<Void> asyncRemoveLedgerProperty(long ledgerId, String key) {
+        if (state.isFenced()) {
+            return CompletableFuture.failedFuture(new ManagedLedgerFencedException());
+        }
+        LedgerInfo li = ledgers.get(ledgerId);
+        if (li == null) {
+            return CompletableFuture.failedFuture(new ManagedLedgerNotFoundException("Ledger not found"));
+        }
+
+        CompletableFuture<Void> f = new CompletableFuture<>();
+        transformLedgerInfo(ledgerId,
+                oldInfo -> {
+                    List<MLDataFormats.KeyValue> oldProperties = oldInfo.getPropertiesList();
+                    Map<String, String> newPropertiesMap = new HashMap<>();
+                    oldProperties.forEach(kv -> newPropertiesMap.put(kv.getKey(), kv.getValue()));
+                    newPropertiesMap.remove(key);
+                    List<MLDataFormats.KeyValue> newProperties = newPropertiesMap.entrySet().stream()
+                            .map(e -> MLDataFormats.KeyValue.newBuilder()
+                                    .setKey(e.getKey()).setValue(e.getValue()).build()).toList();
+                    return oldInfo.toBuilder().clearProperties().addAllProperties(newProperties).build();
+                })
+                .thenAccept(v -> f.complete(null))
+                .exceptionally(t -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(t);
+                    if (cause instanceof OffloadConflict) {
+                        f.completeExceptionally(new ManagedLedgerNotFoundException(cause.getMessage()));
+                    } else {
+                        f.completeExceptionally(cause);
+                    }
+                    return null;
+                });
+        return f;
+    }
+
+    @Override
+    public CompletableFuture<String> asyncGetLedgerProperty(long ledgerId, String key) {
+        if (state.isFenced()) {
+            return FutureUtil.failedFuture(new ManagedLedgerFencedException());
+        }
+        LedgerInfo li = ledgers.get(ledgerId);
+        if (li == null) {
+            return FutureUtil.failedFuture(new ManagedLedgerNotFoundException("Ledger not found"));
+        }
+        if (li.getPropertiesCount() <= 0) {
+            return CompletableFuture.completedFuture(null);
+        }
+        for (MLDataFormats.KeyValue kv : li.getPropertiesList()) {
+            if (kv.getKey().equals(key)) {
+                return CompletableFuture.completedFuture(kv.getValue());
+            }
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
     public synchronized void asyncTerminate(TerminateCallback callback, Object ctx) {
         if (state.isFenced()) {
             callback.terminateFailed(new ManagedLedgerFencedException(), ctx);
