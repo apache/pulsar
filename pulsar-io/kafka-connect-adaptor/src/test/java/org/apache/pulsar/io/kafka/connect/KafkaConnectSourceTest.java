@@ -105,129 +105,71 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
     }
 
     @Test
-    void testCastTransformation() throws Exception{
-        // Config for Cast SMT to cast "myField" to int32
-        Map<String, Object> config = getConfig();
-        config.put(TaskConfig.TASK_CLASS_CONFIG,
-                   "org.apache.kafka.connect.file.FileStreamSourceTask");
-        config.put("transforms", "Cast");
-        config.put("transforms.Cast.type", "org.apache.kafka.connect.transforms.Cast$Value");
-        config.put("transforms.Cast.spec", "myField:int32");
-
-        // Instantiate the source and initialize transformations
-        kafkaConnectSource = new KafkaConnectSource();
-        kafkaConnectSource.open(config, context);
-
-        // Test source record
-        Map<String, Object> value = new HashMap<>();
-        value.put("myField", "42");
-        SourceRecord record = new SourceRecord(
-                null,
-                null,
-                "test-topic",
-                null,
-                null, // key schema
-                null, // key
-                null, // value schema
-                value // value
-        );
-
-        // Apply transforms
-        SourceRecord transformed = kafkaConnectSource.applyTransforms(record);
-
-        // Assert "myField" is now an Integer with value 42
-        @SuppressWarnings("unchecked")
-        Map<String, Object> transformedValue = (Map<String, Object>) transformed.value();
-        assertNotNull(transformedValue);
-        assertEquals(42, transformedValue.get("myField"));
-        assertTrue(transformedValue.get("myField") instanceof Integer);
+    void testTransformation() throws Exception {
+        Map<String, Object> config = setupTransformConfig(false, false);
+        runTransformTest(config, true);
     }
 
     @Test
-    void testTransformationWithPredicate() throws Exception{
-        // Config for Cast SMT to cast "myField" to int32
-        Map<String, Object> config = getConfig();
-        config.put(TaskConfig.TASK_CLASS_CONFIG,
-                   "org.apache.kafka.connect.file.FileStreamSourceTask");
-        config.put("predicates", "TopicMatch");
-        config.put("predicates.TopicMatch.type", "org.apache.kafka.connect.transforms.predicates.TopicNameMatches");
-        config.put("predicates.TopicMatch.pattern", "test-topic");
-        config.put("transforms", "Cast");
-        config.put("transforms.Cast.type", "org.apache.kafka.connect.transforms.Cast$Value");
-        config.put("transforms.Cast.spec", "myField:int32");
-        config.put("transforms.Cast.predicate", "TopicMatch");
-
-        // Instantiate the source and initialize transformations
-        kafkaConnectSource = new KafkaConnectSource();
-        kafkaConnectSource.open(config, context);
-
-        // Test source record
-        Map<String, Object> value = new HashMap<>();
-        value.put("myField", "42");
-        SourceRecord record = new SourceRecord(
-                null,
-                null,
-                "test-topic",
-                null,
-                null, // key schema
-                null, // key
-                null, // value schema
-                value // value
-        );
-
-        // Apply transforms
-        SourceRecord transformed = kafkaConnectSource.applyTransforms(record);
-
-        // Assert "myField" is now an Integer with value 42
-        @SuppressWarnings("unchecked")
-        Map<String, Object> transformedValue = (Map<String, Object>) transformed.value();
-        assertNotNull(transformedValue);
-        assertEquals(42, transformedValue.get("myField"));
-        assertTrue(transformedValue.get("myField") instanceof Integer);
+    void testTransformationWithPredicate() throws Exception {
+        Map<String, Object> config = setupTransformConfig(true, false);
+        runTransformTest(config, true);
     }
 
     @Test
-    void testTransformationWithNegatedPredicate() throws Exception{
-        // Config for Cast SMT to cast "myField" to int32
+    void testTransformationWithNegatedPredicate() throws Exception {
+        Map<String, Object> config = setupTransformConfig(true, true);
+        runTransformTest(config, false);
+    }
+
+    private Map<String, Object> setupTransformConfig(boolean withPredicate, boolean negated) {
         Map<String, Object> config = getConfig();
-        config.put(TaskConfig.TASK_CLASS_CONFIG,
-                   "org.apache.kafka.connect.file.FileStreamSourceTask");
-        config.put("predicates", "TopicMatch");
-        config.put("predicates.TopicMatch.type", "org.apache.kafka.connect.transforms.predicates.TopicNameMatches");
-        config.put("predicates.TopicMatch.pattern", "test-topic");
+        config.put(TaskConfig.TASK_CLASS_CONFIG, "org.apache.kafka.connect.file.FileStreamSourceTask");
+
+        if (withPredicate) {
+            config.put("predicates", "TopicMatch");
+            config.put("predicates.TopicMatch.type", "org.apache.kafka.connect.transforms.predicates.TopicNameMatches");
+            config.put("predicates.TopicMatch.pattern", "test-topic");
+        }
+
         config.put("transforms", "Cast");
         config.put("transforms.Cast.type", "org.apache.kafka.connect.transforms.Cast$Value");
         config.put("transforms.Cast.spec", "myField:int32");
-        config.put("transforms.Cast.predicate", "TopicMatch");
-        config.put("transforms.Cast.negate", "true");
 
-        // Instantiate the source and initialize transformations
+        if (withPredicate) {
+            config.put("transforms.Cast.predicate", "TopicMatch");
+            if (negated) {
+                config.put("transforms.Cast.negate", "true");
+            }
+        }
+
+        return config;
+    }
+
+    private void runTransformTest(Map<String, Object> config, boolean expectTransformed) throws Exception {
         kafkaConnectSource = new KafkaConnectSource();
         kafkaConnectSource.open(config, context);
 
-        // Test source record
         Map<String, Object> value = new HashMap<>();
         value.put("myField", "42");
         SourceRecord record = new SourceRecord(
-                null,
-                null,
-                "test-topic",
-                null,
-                null, // key schema
-                null, // key
-                null, // value schema
-                value // value
+            null, null, "test-topic", null,
+            null, null, null, value
         );
 
-        // Apply transforms
         SourceRecord transformed = kafkaConnectSource.applyTransforms(record);
 
-        // Assert "myField" is now an Integer with value 42
         @SuppressWarnings("unchecked")
         Map<String, Object> transformedValue = (Map<String, Object>) transformed.value();
         assertNotNull(transformedValue);
-        assertEquals("42", transformedValue.get("myField"));
-        assertTrue(transformedValue.get("myField") instanceof String);
+
+        if (expectTransformed) {
+            assertEquals(42, ((Number)transformedValue.get("myField")).intValue());
+            assertTrue(transformedValue.get("myField") instanceof Number);
+        } else {
+            assertEquals("42", transformedValue.get("myField"));
+            assertTrue(transformedValue.get("myField") instanceof String);
+        }
     }
 
     private Map<String, Object> getConfig() {
