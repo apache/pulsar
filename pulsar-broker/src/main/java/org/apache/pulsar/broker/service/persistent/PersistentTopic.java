@@ -1996,7 +1996,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         .persistentTopicExists(partitionedName.getPartition(i)).thenAccept(b -> {
                             if (!b) {
                                 int leftPartitions = checkedCounter.decrementAndGet();
-                                log.info("[{}] partitions: {}, left: {}", tName, metadataOp.get().partitions, leftPartitions);
+                                log.info("[{}] partitions: {}, left: {}", tName, metadataOp.get().partitions,
+                                    leftPartitions);
                                 if (leftPartitions == 0) {
                                     brokerService.getPulsar().getSchemaStorage()
                                         .delete(partitionedName.getSchemaName())
