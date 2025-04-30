@@ -176,7 +176,7 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
             }
             if (currentBatch.hasNext()) {
                 AbstractKafkaSourceRecord<T> processRecord = processSourceRecord(currentBatch.next());
-                if (processRecord.isEmpty()) {
+                if (processRecord == null || processRecord.isEmpty()) {
                     outstandingRecords.decrementAndGet();
                     continue;
                 } else {
