@@ -52,6 +52,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -1931,7 +1932,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             if (!success) {
                 // if local cluster is removed from global namespace cluster-list : then delete topic forcefully
                 // because pulsar doesn't serve global topic without local repl-cluster configured.
-                return deleteForcefully();
+                return deleteForcefully().thenCompose(ignore -> {
+                    return deleteSchemaAndPoliciesIfClusterRemoved();
+                });
             }
 
             int newMessageTTLInSeconds = topicPolicies.getMessageTTLInSeconds().get();
@@ -1972,6 +1975,55 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
             return FutureUtil.waitForAll(futures);
         });
+    }
+
+    CompletableFuture<Void> deleteSchemaAndPoliciesIfClusterRemoved() {
+        TopicName tName = TopicName.get(topic);
+        if (!tName.isPartitioned()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        TopicName partitionedName = TopicName.get(tName.getPartitionedTopicName());
+        return brokerService.getPulsar().getPulsarResources().getNamespaceResources()
+            .getPartitionedTopicResources()
+            .getPartitionedTopicMetadataAsync(partitionedName)
+            .thenApply(metadataOp -> {
+                if (metadataOp.isEmpty()) {
+                    return null;
+                }
+                AtomicInteger checkedCounter = new AtomicInteger(metadataOp.get().partitions);
+                for (int i = 0; i < metadataOp.get().partitions; i++) {
+                    brokerService.getPulsar().getPulsarResources().getTopicResources()
+                        .persistentTopicExists(partitionedName.getPartition(i)).thenAccept(b -> {
+                            if (!b) {
+                                int leftPartitions = checkedCounter.decrementAndGet();
+                                log.info("[{}] partitions: {}, left: {}", tName, metadataOp.get().partitions,
+                                    leftPartitions);
+                                if (leftPartitions == 0) {
+                                    brokerService.getPulsar().getSchemaStorage()
+                                        .delete(partitionedName.getSchemaName())
+                                        .whenComplete((schemaVersion, ex) -> {
+                                            if (ex == null) {
+                                                log.info("Deleted schema[{}] after all partitions[{}] were removed"
+                                                    + " because the current cluster has bee removed from"
+                                                    + " topic/namespace policies",
+                                                    partitionedName, metadataOp.get().partitions);
+                                            } else {
+                                                log.error("Failed to delete schema[{}] after all partitions[{}] were"
+                                                    + " removed,  when the current cluster has bee removed from"
+                                                    + " topic/namespace policies",
+                                                    partitionedName, metadataOp.get().partitions, ex);
+                                            }
+
+                                    });
+                                    // TODO regarding the topic level policies, it will be deleted at a seperate PR.
+                                    //   Because there is an issue related to Global policies has not been solved so
+                                    //   far.
+                                }
+                            }
+                        });
+                }
+                return null;
+            });
     }
 
     private CompletableFuture<Boolean> checkAllowedCluster(String localCluster) {
