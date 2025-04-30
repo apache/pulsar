@@ -23,10 +23,10 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -38,6 +38,7 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import org.apache.avro.reflect.Nullable;
 import org.apache.pulsar.PulsarVersion;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.service.ServerCnx;
@@ -58,12 +59,13 @@ import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.AuthData;
-import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.FeatureFlags;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.Commands;
@@ -76,6 +78,7 @@ import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class ProxyTest extends MockedPulsarServiceBaseTest {
@@ -123,6 +126,13 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
                 proxyConfig.getBrokerClientAuthenticationParameters());
         proxyClientAuthentication.start();
+
+        // create default resources.
+        admin.clusters().createCluster(conf.getClusterName(),
+            ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        TenantInfo tenantInfo = new TenantInfoImpl(Collections.emptySet(), Collections.singleton(conf.getClusterName()));
+        admin.tenants().createTenant("public", tenantInfo);
+        admin.namespaces().createNamespace("public/default");
     }
 
     @Override
@@ -411,18 +421,15 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
                     protected ByteBuf newConnectCommand() throws Exception {
                         authenticationDataProvider = authentication.getAuthData(remoteHostName);
                         AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
-                        BaseCommand cmd =
-                                Commands.newConnectWithoutSerialize(authentication.getAuthMethodName(), authData,
-                                        this.protocolVersion, clientVersion, proxyToTargetBrokerAddress,
-                                        null, null, null, null, null);
-                        FeatureFlags featureFlags = cmd.getConnect().getFeatureFlags();
+                        FeatureFlags featureFlags = new FeatureFlags();
                         featureFlags.setSupportsAuthRefresh(supported);
                         featureFlags.setSupportsBrokerEntryMetadata(supported);
                         featureFlags.setSupportsPartialProducer(supported);
                         featureFlags.setSupportsTopicWatchers(supported);
-                        featureFlags.setSupportsReplDedupByLidAndEid(supported);
                         featureFlags.setSupportsGetPartitionedMetadataWithoutAutoCreation(supported);
-                        return Commands.serializeWithSize(cmd);
+                        return Commands.newConnect(authentication.getAuthMethodName(), authData,
+                            this.protocolVersion, null, proxyToTargetBrokerAddress,
+                            null, null, null, null, featureFlags);
                     }
                 };
             });
@@ -436,7 +443,6 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         assertEquals(featureFlags.isSupportsBrokerEntryMetadata(), supported);
         assertEquals(featureFlags.isSupportsPartialProducer(), supported);
         assertEquals(featureFlags.isSupportsTopicWatchers(), supported);
-        assertEquals(featureFlags.isSupportsReplDedupByLidAndEid(), supported);
         assertEquals(featureFlags.isSupportsGetPartitionedMetadataWithoutAutoCreation(), supported);
 
         // cleanup.
