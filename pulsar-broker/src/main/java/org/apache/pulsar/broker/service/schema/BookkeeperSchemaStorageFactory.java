@@ -25,7 +25,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 @SuppressWarnings("unused")
 public class BookkeeperSchemaStorageFactory implements SchemaStorageFactory {
     @Override
-    @NotNull
+    @NonNull
     public SchemaStorage create(PulsarService pulsar) {
         return new BookkeeperSchemaStorage(pulsar);
     }

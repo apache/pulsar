@@ -23,6 +23,6 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 
 public interface SchemaStorageFactory {
-    @NotNull
+    @NonNull
     SchemaStorage create(PulsarService pulsar) throws Exception;
 }

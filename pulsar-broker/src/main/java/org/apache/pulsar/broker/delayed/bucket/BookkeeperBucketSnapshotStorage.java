@@ -165,7 +165,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
         return snapshotMetadataList;
     }
 
-    @NotNull
+    @NonNull
     private CompletableFuture<LedgerHandle> createLedger(String bucketKey, String topicName, String cursorName) {
         CompletableFuture<LedgerHandle> future = new CompletableFuture<>();
         Map<String, byte[]> metadata = LedgerMetadataUtils.buildMetadataForDelayedIndexBucket(bucketKey,

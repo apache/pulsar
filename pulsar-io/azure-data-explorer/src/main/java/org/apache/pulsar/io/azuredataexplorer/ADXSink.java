@@ -54,7 +54,7 @@ import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 
 @Connector(
         name = "adx",
@@ -177,7 +177,7 @@ public class ADXSink implements Sink<byte[]> {
         }
     }
 
-    private boolean hasStreamingSucceeded(@NotNull IngestionStatus status) {
+    private boolean hasStreamingSucceeded(@NonNull IngestionStatus status) {
         switch (status.status) {
             case Succeeded:
             case Queued:
@@ -230,7 +230,7 @@ public class ADXSink implements Sink<byte[]> {
         }
     }
 
-    private @NotNull ADXPulsarEvent getADXPulsarEvent(@NotNull Record<byte[]> record) throws Exception {
+    private @NonNull ADXPulsarEvent getADXPulsarEvent(@NonNull Record<byte[]> record) throws Exception {
         ADXPulsarEvent event = new ADXPulsarEvent();
         record.getEventTime().ifPresent(time -> event.setEventTime(Instant.ofEpochMilli(time)));
         record.getKey().ifPresent(event::setKey);
@@ -254,7 +254,7 @@ public class ADXSink implements Sink<byte[]> {
         };
     }
 
-    private ConnectionStringBuilder getConnectionStringBuilder(@NotNull ADXSinkConfig adxConfig) {
+    private ConnectionStringBuilder getConnectionStringBuilder(@NonNull ADXSinkConfig adxConfig) {
 
         if (adxConfig.getManagedIdentityId() != null) {
             if ("system".equalsIgnoreCase(adxConfig.getManagedIdentityId())) {

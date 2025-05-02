@@ -55,7 +55,7 @@ public class NamespaceEphemeralData {
         }
     }
 
-    @NotNull
+    @NonNull
     public Map<String, AdvertisedListener> getAdvertisedListeners() {
         if (this.advertisedListeners == null) {
             return Collections.emptyMap();

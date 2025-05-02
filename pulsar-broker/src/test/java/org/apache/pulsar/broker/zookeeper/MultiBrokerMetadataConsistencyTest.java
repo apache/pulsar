@@ -31,7 +31,7 @@ import org.apache.pulsar.metadata.TestZKServer;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -93,7 +93,7 @@ public class MultiBrokerMetadataConsistencyTest extends MultiBrokerBaseTest {
                 .configurationMetadataStore(configurationStore);
     }
 
-    @NotNull
+    @NonNull
     protected MetadataStoreExtended createMetadataStore(String name) {
         try {
             return MetadataStoreExtended.create(testZKServer.getConnectionString(),
