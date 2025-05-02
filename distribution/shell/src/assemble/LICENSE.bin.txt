@@ -328,8 +328,8 @@ The Apache Software License, Version 2.0
  * Gson
     - gson-2.8.9.jar
  * Guava
-    - guava-32.1.2-jre.jar
-    - failureaccess-1.0.1.jar
+    - guava-33.4.8-jre.jar
+    - failureaccess-1.0.3.jar
     - listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
  * J2ObjC Annotations -- j2objc-annotations-1.3.jar
  * Netty Reactive Streams -- netty-reactive-streams-2.0.6.jar

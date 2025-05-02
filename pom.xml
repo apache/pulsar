@@ -214,7 +214,7 @@ flexible messaging model and an intuitive client API.</description>
     <dnsjava3.version>3.6.2</dnsjava3.version>
     <hdfs-offload-version3>${hadoop3.version}</hdfs-offload-version3>
     <hbase.version>2.6.0-hadoop3</hbase.version>
-    <guava.version>32.1.2-jre</guava.version>
+    <guava.version>33.4.8-jre</guava.version>
     <jcip.version>1.0</jcip.version>
     <prometheus-jmx.version>0.16.1</prometheus-jmx.version>
     <confluent.version>7.8.2</confluent.version>
