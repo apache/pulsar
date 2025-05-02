@@ -49,7 +49,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import javax.annotation.Nonnull;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
@@ -151,6 +150,7 @@ import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -357,7 +357,7 @@ public class PersistentTopicsBase extends AdminResource {
      * @exception RestException Unprocessable entity, status code: 422. throw it when some pre-check failed.
      * @exception RestException Internal Server Error, status code: 500. throw it when get unknown Exception
      */
-    protected @Nonnull CompletableFuture<Void> internalUpdatePartitionedTopicAsync(int expectPartitions,
+    protected @NonNull CompletableFuture<Void> internalUpdatePartitionedTopicAsync(int expectPartitions,
                                                                                    boolean updateLocal,
                                                                                    boolean force) {
         PulsarService pulsarService = pulsar();

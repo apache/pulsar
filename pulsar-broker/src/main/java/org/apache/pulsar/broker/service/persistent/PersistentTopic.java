@@ -57,7 +57,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.BiFunction;
-import javax.annotation.Nonnull;
 import lombok.Getter;
 import lombok.Value;
 import org.apache.bookkeeper.client.BKException.BKNoSuchLedgerExistsException;
@@ -199,6 +198,7 @@ import org.apache.pulsar.compaction.TopicCompactionService;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -550,7 +550,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      * @throws SubscriptionConflictUnloadException Conflict topic-close, topic-delete, another-subscribe-unload,
      *     cannot unload subscription now
      */
-    public CompletableFuture<Void> unloadSubscription(@Nonnull String subName) {
+    public CompletableFuture<Void> unloadSubscription(@NonNull String subName) {
         final PersistentSubscription sub = subscriptions.get(subName);
         if (sub == null) {
             return CompletableFuture.failedFuture(
@@ -3435,7 +3435,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public CompletableFuture<Void> onPoliciesUpdate(@Nonnull Policies data) {
+    public CompletableFuture<Void> onPoliciesUpdate(@NonNull Policies data) {
         requireNonNull(data);
         if (log.isDebugEnabled()) {
             log.debug("[{}] isEncryptionRequired changes: {} -> {}", topic, isEncryptionRequired,
