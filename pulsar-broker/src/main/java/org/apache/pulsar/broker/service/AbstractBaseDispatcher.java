@@ -53,7 +53,7 @@ import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.compaction.Compactor;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jspecify.annotations.Nullable;
 
 @Slf4j
 public abstract class AbstractBaseDispatcher extends EntryFilterSupport implements Dispatcher {
