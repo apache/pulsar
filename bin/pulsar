@@ -298,6 +298,8 @@ OPTS="$OPTS -Dorg.apache.pulsar.shade.io.netty.tryReflectionSetAccessible=true"
 OPTS="$OPTS --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
 # Required by LinuxInfoUtils
 OPTS="$OPTS --add-opens java.base/jdk.internal.platform=ALL-UNNAMED"
+# Required by RocksDB java.lang.System::loadLibrary call
+OPTS="$OPTS --enable-native-access=ALL-UNNAMED"
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
 
