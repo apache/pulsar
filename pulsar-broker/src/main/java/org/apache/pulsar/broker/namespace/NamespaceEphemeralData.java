@@ -21,10 +21,10 @@ package org.apache.pulsar.broker.namespace;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import javax.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
+import org.jspecify.annotations.NonNull;
 
 @Data
 @NoArgsConstructor

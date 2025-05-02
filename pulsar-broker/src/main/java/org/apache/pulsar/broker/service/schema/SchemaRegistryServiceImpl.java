@@ -39,7 +39,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-import javax.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
@@ -60,6 +59,7 @@ import org.apache.pulsar.common.protocol.schema.StoredSchema;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.jspecify.annotations.NonNull;
 
 @Slf4j
 public class SchemaRegistryServiceImpl implements SchemaRegistryService {
