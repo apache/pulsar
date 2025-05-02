@@ -2131,8 +2131,8 @@ flexible messaging model and an intuitive client API.</description>
               <configuration>
                 <rules>
                   <requireJavaVersion>
-                    <version>[17,18),[21,22)</version>
-                    <message>Java 17 or Java 21 is required to build Pulsar.</message>
+                    <version>[17,18),[21,22),[24,26)</version>
+                    <message>Java 17, 21, 24 or 25 is required to build Pulsar.</message>
                   </requireJavaVersion>
                   <requireMavenVersion>
                     <version>3.6.1</version>
