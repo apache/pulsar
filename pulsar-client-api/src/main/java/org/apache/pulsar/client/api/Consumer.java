@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api;
 import java.io.Closeable;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -640,4 +641,6 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
      * @return The last disconnected timestamp of the consumer
      */
     long getLastDisconnectedTimestamp();
+
+    <V> Optional<V> getExtension(Class<V> extensionInterface);
 }

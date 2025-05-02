@@ -24,7 +24,6 @@ import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import lombok.Cleanup;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.client.impl.PatternMultiTopicsConsumerImpl.TopicsChangedListener;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
