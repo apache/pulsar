@@ -202,6 +202,11 @@ OPTS="-cp $BOOKIE_CLASSPATH $OPTS"
 
 # Disable ipv6 as it can cause issues
 OPTS="-Djava.net.preferIPv4Stack=true $OPTS"
+# Required to allow sun.misc.Unsafe on JDK 24 without warnings
+# Also required for enabling unsafe memory access for Netty since 4.1.121.Final
+if [[ $JAVA_MAJOR_VERSION -ge 23 ]]; then
+  OPTS="--sun-misc-unsafe-memory-access=allow $OPTS"
+fi
 
 OPTS="$OPTS $BOOKIE_MEM $BOOKIE_GC $BOOKIE_GC_LOG $BOOKIE_EXTRA_OPTS"
 
