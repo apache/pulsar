@@ -54,7 +54,7 @@ PULSAR_MEM=${PULSAR_MEM:-"-Xmx128m -XX:MaxDirectMemorySize=128m"}
 # Garbage collection options
 if [ -z "$PULSAR_GC" ]; then
   PULSAR_GC="-XX:+PerfDisableSharedMem -XX:+AlwaysPreTouch"
-  if [[ $JAVA_MAJOR_VERSION -ge 21 ]]; then
+  if [[ $JAVA_MAJOR_VERSION -eq 21 || $JAVA_MAJOR_VERSION -eq 22 ]]; then
     PULSAR_GC="-XX:+UseZGC -XX:+ZGenerational ${PULSAR_GC}"
   else
     PULSAR_GC="-XX:+UseZGC ${PULSAR_GC}"
@@ -132,6 +132,11 @@ fi
 # rarely needed when trying to list many z-nodes under a
 # directory)
 OPTS="-Djava.net.preferIPv4Stack=true $OPTS -Djute.maxbuffer=10485760"
+# Required to allow sun.misc.Unsafe on JDK 24 without warnings
+# Also required for enabling unsafe memory access for Netty since 4.1.121.Final
+if [[ $JAVA_MAJOR_VERSION -ge 23 ]]; then
+  OPTS="--sun-misc-unsafe-memory-access=allow $OPTS"
+fi
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
 

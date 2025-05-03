@@ -197,11 +197,18 @@ OPTS="$OPTS --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java
 # https://github.com/netty/netty/blob/4.1/common/src/main/java/io/netty/util/internal/PlatformDependent0.java
 # https://github.com/netty/netty/issues/12265
 OPTS="$OPTS --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
+# Required by RocksDB java.lang.System::loadLibrary call
+OPTS="$OPTS --enable-native-access=ALL-UNNAMED"
 
 OPTS="-cp $BOOKIE_CLASSPATH $OPTS"
 
 # Disable ipv6 as it can cause issues
 OPTS="-Djava.net.preferIPv4Stack=true $OPTS"
+# Required to allow sun.misc.Unsafe on JDK 24 without warnings
+# Also required for enabling unsafe memory access for Netty since 4.1.121.Final
+if [[ $JAVA_MAJOR_VERSION -ge 23 ]]; then
+  OPTS="--sun-misc-unsafe-memory-access=allow $OPTS"
+fi
 
 OPTS="$OPTS $BOOKIE_MEM $BOOKIE_GC $BOOKIE_GC_LOG $BOOKIE_EXTRA_OPTS"
 
