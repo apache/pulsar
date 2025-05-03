@@ -274,6 +274,12 @@ OPTS="$OPTS -Dlog4j.configurationFile=`basename $PULSAR_LOG_CONF`"
 # rarely needed when trying to list many z-nodes under a
 # directory)
 OPTS="-Djava.net.preferIPv4Stack=true $OPTS -Djute.maxbuffer=10485760"
+# Required to allow sun.misc.Unsafe on JDK 24 without warnings
+# Also required for enabling unsafe memory access for Netty since 4.1.121.Final
+if [[ $JAVA_MAJOR_VERSION -ge 23 ]]; then
+  OPTS="--sun-misc-unsafe-memory-access=allow $OPTS"
+fi
+
 # Enable TCP keepalive for all Zookeeper client connections
 OPTS="$OPTS -Dzookeeper.clientTcpKeepAlive=true"
 
@@ -292,6 +298,8 @@ OPTS="$OPTS -Dorg.apache.pulsar.shade.io.netty.tryReflectionSetAccessible=true"
 OPTS="$OPTS --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
 # Required by LinuxInfoUtils
 OPTS="$OPTS --add-opens java.base/jdk.internal.platform=ALL-UNNAMED"
+# Required by RocksDB java.lang.System::loadLibrary call
+OPTS="$OPTS --enable-native-access=ALL-UNNAMED"
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
 

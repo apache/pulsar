@@ -66,6 +66,12 @@ REM Allow Netty to use reflection access
 set "OPTS=%OPTS% -Dio.netty.tryReflectionSetAccessible=true"
 set "OPTS=%OPTS% -Dorg.apache.pulsar.shade.io.netty.tryReflectionSetAccessible=true"
 
+if %JAVA_MAJOR_VERSION% GTR 23 (
+  REM Required to allow sun.misc.Unsafe on JDK 24 without warnings
+  REM Also required for enabling unsafe memory access for Netty since 4.1.121.Final
+  set "OPTS=--sun-misc-unsafe-memory-access=allow %OPTS%"
+)
+
 if %JAVA_MAJOR_VERSION% GTR 8 (
   set "OPTS=%OPTS% --add-opens java.base/sun.net=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED"
   REM Required by Pulsar client optimized checksum calculation on other than Linux x86_64 platforms
