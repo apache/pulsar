@@ -34,8 +34,8 @@ import java.util.function.Supplier;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.common.api.proto.MessageIdData;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 

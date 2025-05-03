@@ -82,6 +82,7 @@ public class JavaInstanceDepsTest {
                         && !name.startsWith("org/apache/commons/codec")
                         && !name.startsWith("com/google")
                         && !name.startsWith("org/checkerframework")
+                        && !name.startsWith("org/jspecify/annotations")
                         && !name.startsWith("javax/annotation")
                         && !name.startsWith("org/apache/logging/slf4j")
                         && !name.startsWith("org/apache/logging/log4j")) {
