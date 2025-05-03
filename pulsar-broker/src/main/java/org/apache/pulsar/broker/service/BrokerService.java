@@ -74,8 +74,6 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -187,6 +185,8 @@ import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1179,7 +1179,7 @@ public class BrokerService implements Closeable {
         }
     }
 
-    private CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesBypassSystemTopic(@Nonnull TopicName topicName) {
+    private CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesBypassSystemTopic(@NonNull TopicName topicName) {
         Objects.requireNonNull(topicName);
         final ServiceConfiguration serviceConfiguration = pulsar.getConfiguration();
         if (serviceConfiguration.isSystemTopicAndTopicLevelPoliciesEnabled()
@@ -1873,14 +1873,14 @@ public class BrokerService implements Closeable {
         return result;
     }
 
-    public CompletableFuture<ManagedLedgerConfig> getManagedLedgerConfig(@Nonnull TopicName topicName) {
+    public CompletableFuture<ManagedLedgerConfig> getManagedLedgerConfig(@NonNull TopicName topicName) {
         final CompletableFuture<Optional<TopicPolicies>> topicPoliciesFuture =
                 getTopicPoliciesBypassSystemTopic(topicName);
         return topicPoliciesFuture.thenCompose(optionalTopicPolicies ->
                 getManagedLedgerConfig(topicName, optionalTopicPolicies.orElse(null)));
     }
 
-    private CompletableFuture<ManagedLedgerConfig> getManagedLedgerConfig(@Nonnull TopicName topicName,
+    private CompletableFuture<ManagedLedgerConfig> getManagedLedgerConfig(@NonNull TopicName topicName,
                                                                           @Nullable TopicPolicies topicPolicies) {
         requireNonNull(topicName);
         NamespaceName namespace = topicName.getNamespaceObject();
@@ -3635,7 +3635,7 @@ public class BrokerService implements Closeable {
         return null;
     }
 
-    public @Nonnull CompletionStage<Boolean> isAllowAutoSubscriptionCreationAsync(@Nonnull TopicName tpName) {
+    public @NonNull CompletionStage<Boolean> isAllowAutoSubscriptionCreationAsync(@NonNull TopicName tpName) {
         requireNonNull(tpName);
         // topic level policies
         final var topicPolicies = getTopicPolicies(tpName);

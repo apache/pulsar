@@ -73,7 +73,7 @@ import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.MockZooKeeperSession;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 import org.mockito.Mockito;
 import org.mockito.internal.util.MockUtil;
 
@@ -982,7 +982,7 @@ public class PulsarTestContext implements AutoCloseable {
         }
     }
 
-    @NotNull
+    @NonNull
     private static ManagedLedgerStorage createManagedLedgerClientFactory(BookKeeper bookKeeperClient,
                                                                          ManagedLedgerFactory managedLedgerFactory) {
         return new ManagedLedgerStorage() {

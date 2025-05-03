@@ -43,7 +43,6 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.ToLongFunction;
-import javax.annotation.Nonnull;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
@@ -84,6 +83,7 @@ import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1152,7 +1152,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         updateResourceGroupLimiter(policies);
     }
 
-    public void updateResourceGroupLimiter(@Nonnull Policies namespacePolicies) {
+    public void updateResourceGroupLimiter(@NonNull Policies namespacePolicies) {
         requireNonNull(namespacePolicies);
         // attach the resource-group level rate limiters, if set
         String rgName = namespacePolicies.resource_group_name;
