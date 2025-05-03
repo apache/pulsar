@@ -32,7 +32,7 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Range;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Represents the hash ranges assigned to each consumer in a {@link StickyKeyConsumerSelector} at a point in time.
@@ -86,7 +86,7 @@ public class ConsumerHashAssignmentsSnapshot {
         return cachedRangesByConsumer;
     }
 
-    private @NotNull Map<Consumer, List<Range>> internalGetRangesByConsumer() {
+    private @NonNull Map<Consumer, List<Range>> internalGetRangesByConsumer() {
         Map<Consumer, SortedSet<Range>> rangesByConsumer = new IdentityHashMap<>();
         hashRangeAssignments.forEach(entry -> {
             Range range = entry.range();

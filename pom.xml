@@ -1639,6 +1639,11 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>checker-qual</artifactId>
         <version>${checkerframework.version}</version>
       </dependency>
+      <dependency>
+        <groupId>org.jspecify</groupId>
+        <artifactId>jspecify</artifactId>
+        <version>1.0.0</version>
+      </dependency>
 
       <dependency>
         <groupId>io.rest-assured</groupId>

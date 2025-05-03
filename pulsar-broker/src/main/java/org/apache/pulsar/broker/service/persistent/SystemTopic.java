@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service.persistent;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import javax.annotation.Nonnull;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -33,6 +32,7 @@ import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.jspecify.annotations.NonNull;
 
 public class SystemTopic extends PersistentTopic {
 
@@ -123,7 +123,7 @@ public class SystemTopic extends PersistentTopic {
     }
 
     @Override
-    public void updateResourceGroupLimiter(@Nonnull Policies namespacePolicies) {
+    public void updateResourceGroupLimiter(@NonNull Policies namespacePolicies) {
         // nothing todo.
     }
 

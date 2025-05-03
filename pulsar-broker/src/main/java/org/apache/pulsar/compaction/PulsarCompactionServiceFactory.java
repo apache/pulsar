@@ -22,12 +22,12 @@ import com.google.common.annotations.VisibleForTesting;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import lombok.AccessLevel;
 import lombok.Getter;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 public class PulsarCompactionServiceFactory implements CompactionServiceFactory {
 
@@ -60,14 +60,14 @@ public class PulsarCompactionServiceFactory implements CompactionServiceFactory 
     }
 
     @Override
-    public CompletableFuture<Void> initialize(@Nonnull PulsarService pulsarService) {
+    public CompletableFuture<Void> initialize(@NonNull PulsarService pulsarService) {
         Objects.requireNonNull(pulsarService);
         this.pulsarService = pulsarService;
         return CompletableFuture.completedFuture(null);
     }
 
     @Override
-    public CompletableFuture<TopicCompactionService> newTopicCompactionService(@Nonnull String topic) {
+    public CompletableFuture<TopicCompactionService> newTopicCompactionService(@NonNull String topic) {
         Objects.requireNonNull(topic);
         PulsarTopicCompactionService pulsarTopicCompactionService =
                 new PulsarTopicCompactionService(topic, pulsarService.getBookKeeperClient(), () -> {
