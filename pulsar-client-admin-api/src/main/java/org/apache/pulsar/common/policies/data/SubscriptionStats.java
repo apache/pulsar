@@ -63,8 +63,11 @@ public interface SubscriptionStats {
     /** Flag to verify if subscription is blocked due to reaching threshold of unacked messages. */
     boolean isBlockedSubscriptionOnUnackedMsgs();
 
-    /** Number of delayed messages currently being tracked. */
+    /** Number of delayed messages. */
     long getMsgDelayed();
+
+    /** Number of delayed messages currently being tracked. */
+    long getMsgDelayedInMemory();
 
     /** Number of messages registered for replay. */
     long getMsgInReplay();
