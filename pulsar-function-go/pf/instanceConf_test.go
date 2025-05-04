@@ -20,6 +20,7 @@
 package pf
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -319,4 +320,27 @@ func TestInstanceConf_WithEmptyOrInvalidDetails(t *testing.T) {
 			assert.Equal(t, retryDetails.String(), instanceConf.funcDetails.RetryDetails.String())
 		})
 	}
+}
+
+func TestInstanceConf_WithOAuth2Parameters(t *testing.T) {
+	cfg := &cfg.Conf{
+		AutoACK:                    true,
+		ClientAuthenticationPlugin: "org.apache.pulsar.client.impl.auth.AuthenticationOAuth2",
+		ClientAuthenticationParameters: `{"issuerUrl":"https://test.com","audience":"test-audience",
+"scope":"test-scope","privateKey":"/mnt/secrets/auth.json","type":"client_credentials","clientId":"test-client-id"}`,
+	}
+
+	instanceConf := newInstanceConfWithConf(cfg)
+	assert.Equal(t, cfg.ClientAuthenticationPlugin, instanceConf.authPlugin)
+	var authMap map[string]string
+	err := json.Unmarshal([]byte(instanceConf.authParams), &authMap)
+	assert.Equal(t, err, nil)
+	assert.Equal(t, authMap, map[string]string{
+		"issuerUrl":  "https://test.com",
+		"audience":   "test-audience",
+		"scope":      "test-scope",
+		"privateKey": "/mnt/secrets/auth.json",
+		"type":       "client_credentials",
+		"clientId":   "test-client-id",
+	})
 }
