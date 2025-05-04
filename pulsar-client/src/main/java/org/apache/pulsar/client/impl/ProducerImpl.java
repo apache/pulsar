@@ -188,6 +188,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private final Counter producersOpenedCounter;
     private final Counter producersClosedCounter;
+    // This variable can be exposed as a metrics in the future, a PIP is needed.
+    private final AtomicInteger pendingQueueFullCounter;
 
     public ProducerImpl(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
                         CompletableFuture<Producer<T>> producerCreatedFuture, int partitionIndex, Schema<T> schema,
@@ -302,11 +304,17 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 "The number of producer sessions opened", topic, Attributes.empty());
         producersClosedCounter = ip.newCounter("pulsar.client.producer.closed", Unit.Sessions,
                 "The number of producer sessions closed", topic, Attributes.empty());
+        pendingQueueFullCounter = new AtomicInteger();
 
         this.connectionHandler = initConnectionHandler();
         setChunkMaxMessageSize();
         grabCnx();
         producersOpenedCounter.increment();
+    }
+
+    @VisibleForTesting
+    public int getPendingQueueFullCount() {
+        return pendingQueueFullCounter.get();
     }
 
     ConnectionHandler initConnectionHandler() {
@@ -1059,6 +1067,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 client.getMemoryLimitController().reserveMemory(payloadSize);
             } else {
                 if (!semaphore.map(Semaphore::tryAcquire).orElse(true)) {
+                    pendingQueueFullCounter.incrementAndGet();
                     callback.sendComplete(new PulsarClientException.ProducerQueueIsFullError(
                             "Producer send queue is full", sequenceId), null);
                     return false;

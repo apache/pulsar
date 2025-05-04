@@ -55,7 +55,7 @@ public class ShadowReplicator extends PersistentReplicator {
     }
 
     @Override
-    protected boolean replicateEntries(List<Entry> entries) {
+    protected boolean replicateEntries(List<Entry> entries, InFlightTask inFlightTask) {
         boolean atLeastOneMessageSentForReplication = false;
 
         try {
@@ -73,6 +73,7 @@ public class ShadowReplicator extends PersistentReplicator {
                     log.error("[{}] Failed to deserialize message at {} (buffer size: {}): {}", replicatorId,
                             entry.getPosition(), length, t.getMessage(), t);
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
+                    inFlightTask.incCompletedEntries();
                     entry.release();
                     continue;
                 }
@@ -84,6 +85,7 @@ public class ShadowReplicator extends PersistentReplicator {
                                 replicatorId, entry.getPosition(), msg.getReplicateTo());
                     }
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
+                    inFlightTask.incCompletedEntries();
                     entry.release();
                     msg.recycle();
                     continue;
@@ -97,6 +99,7 @@ public class ShadowReplicator extends PersistentReplicator {
                                 replicatorId, entry.getPosition());
                     }
                     isLocalMessageSkippedOnce = true;
+                    inFlightTask.incCompletedEntries();
                     entry.release();
                     msg.recycle();
                     continue;
@@ -118,7 +121,6 @@ public class ShadowReplicator extends PersistentReplicator {
                 headersAndPayload.retain();
 
                 // Increment pending messages for messages produced locally
-                PENDING_MESSAGES_UPDATER.incrementAndGet(this);
                 producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg));
                 atLeastOneMessageSentForReplication = true;
             }
