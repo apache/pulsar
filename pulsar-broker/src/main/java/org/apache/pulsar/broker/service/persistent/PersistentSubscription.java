@@ -1349,9 +1349,9 @@ public class PersistentSubscription extends AbstractSubscription {
         subStats.msgBacklogNoDelayed = subStats.msgBacklog - subStats.msgDelayed;
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
         subStats.totalMsgExpired = expiryMonitor.getTotalMessageExpired();
-        subStats.isReplicated = isReplicated();
+        subStats.replicated = isReplicated();
         subStats.subscriptionProperties = subscriptionProperties;
-        subStats.isDurable = cursor.isDurable();
+        subStats.durable = cursor.isDurable();
         if (getType() == SubType.Key_Shared && dispatcher instanceof StickyKeyDispatcher) {
             StickyKeyDispatcher keySharedDispatcher = (StickyKeyDispatcher) dispatcher;
             subStats.allowOutOfOrderDelivery = keySharedDispatcher.isAllowOutOfOrderDelivery();
