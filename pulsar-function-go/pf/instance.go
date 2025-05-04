@@ -320,6 +320,23 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 		subscriptionName = funcDetails.Source.SubscriptionName
 	}
 
+	subscriptionPosition := pulsar.SubscriptionPositionLatest
+	if gi.context.instanceConf.funcDetails.Source.SubscriptionPosition == pb.SubscriptionPosition_EARLIEST {
+		subscriptionPosition = pulsar.SubscriptionPositionEarliest
+	}
+
+	var dlqPolicy *pulsar.DLQPolicy
+	retryDetails := gi.context.instanceConf.funcDetails.RetryDetails
+	if retryDetails != nil && retryDetails.DeadLetterTopic != "" {
+		dlqPolicy = &pulsar.DLQPolicy{
+			DeadLetterTopic: retryDetails.DeadLetterTopic,
+		}
+
+		if retryDetails.MaxMessageRetries >= 0 {
+			dlqPolicy.MaxDeliveries = uint32(retryDetails.MaxMessageRetries)
+		}
+	}
+
 	properties := getProperties(getDefaultSubscriptionName(
 		funcDetails.Tenant,
 		funcDetails.Namespace,
@@ -343,39 +360,47 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 		if consumerConf.ReceiverQueueSize != nil {
 			if consumerConf.IsRegexPattern {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					TopicsPattern:     topicName.Name,
-					ReceiverQueueSize: int(consumerConf.ReceiverQueueSize.Value),
-					SubscriptionName:  subscriptionName,
-					Properties:        properties,
-					Type:              subscriptionType,
-					MessageChannel:    channel,
+					TopicsPattern:               topicName.Name,
+					ReceiverQueueSize:           int(consumerConf.ReceiverQueueSize.Value),
+					SubscriptionName:            subscriptionName,
+					Properties:                  properties,
+					Type:                        subscriptionType,
+					MessageChannel:              channel,
+					SubscriptionInitialPosition: subscriptionPosition,
+					DLQ:                         dlqPolicy,
 				})
 			} else {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					Topic:             topicName.Name,
-					SubscriptionName:  subscriptionName,
-					Properties:        properties,
-					Type:              subscriptionType,
-					ReceiverQueueSize: int(consumerConf.ReceiverQueueSize.Value),
-					MessageChannel:    channel,
+					Topic:                       topicName.Name,
+					SubscriptionName:            subscriptionName,
+					Properties:                  properties,
+					Type:                        subscriptionType,
+					ReceiverQueueSize:           int(consumerConf.ReceiverQueueSize.Value),
+					MessageChannel:              channel,
+					SubscriptionInitialPosition: subscriptionPosition,
+					DLQ:                         dlqPolicy,
 				})
 			}
 		} else {
 			if consumerConf.IsRegexPattern {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					TopicsPattern:    topicName.Name,
-					SubscriptionName: subscriptionName,
-					Properties:       properties,
-					Type:             subscriptionType,
-					MessageChannel:   channel,
+					TopicsPattern:               topicName.Name,
+					SubscriptionName:            subscriptionName,
+					Properties:                  properties,
+					Type:                        subscriptionType,
+					MessageChannel:              channel,
+					SubscriptionInitialPosition: subscriptionPosition,
+					DLQ:                         dlqPolicy,
 				})
 			} else {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					Topic:            topicName.Name,
-					SubscriptionName: subscriptionName,
-					Properties:       properties,
-					Type:             subscriptionType,
-					MessageChannel:   channel,
+					Topic:                       topicName.Name,
+					SubscriptionName:            subscriptionName,
+					Properties:                  properties,
+					Type:                        subscriptionType,
+					MessageChannel:              channel,
+					SubscriptionInitialPosition: subscriptionPosition,
+					DLQ:                         dlqPolicy,
 				})
 
 			}
