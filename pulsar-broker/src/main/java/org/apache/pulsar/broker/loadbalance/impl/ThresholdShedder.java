@@ -108,7 +108,9 @@ public class ThresholdShedder implements LoadSheddingStrategy {
                     (brokerCurrentThroughput - minimumThroughputToOffload) / MB, localData.printResourceUsage());
 
             if (localData.getBundles().size() > 1) {
-                filterAndSelectBundle(loadData, recentlyUnloadedBundles, broker, localData, minimumThroughputToOffload);
+                MutableBoolean atLeastOneBundleSelected = new MutableBoolean(conf.isAtLeastOneBundleSelected());
+                filterAndSelectBundle(loadData, recentlyUnloadedBundles, broker, localData,
+                        minimumThroughputToOffload, atLeastOneBundleSelected);
             } else if (localData.getBundles().size() == 1) {
                 log.warn(
                         "HIGH USAGE WARNING : Sole namespace bundle {} is overloading broker {}. "
@@ -125,9 +127,9 @@ public class ThresholdShedder implements LoadSheddingStrategy {
     }
 
     private void filterAndSelectBundle(LoadData loadData, Map<String, Long> recentlyUnloadedBundles, String broker,
-                                       LocalBrokerData localData, double minimumThroughputToOffload) {
+                                       LocalBrokerData localData, double minimumThroughputToOffload,
+                                       MutableBoolean atLeastOneBundleSelected) {
         MutableDouble trafficMarkedToOffload = new MutableDouble(0);
-        MutableBoolean atLeastOneBundleSelected = new MutableBoolean(false);
         loadData.getBundleDataForLoadShedding().entrySet().stream()
                 .map((e) -> {
                     String bundle = e.getKey();
@@ -143,10 +145,10 @@ public class ThresholdShedder implements LoadSheddingStrategy {
                         Double.compare(e2.getRight(), e1.getRight())
                 ).forEach(e -> {
                     if (trafficMarkedToOffload.doubleValue() < minimumThroughputToOffload
-                            || atLeastOneBundleSelected.isFalse()) {
+                            || atLeastOneBundleSelected.isTrue()) {
                         selectedBundlesCache.put(broker, e.getLeft());
                         trafficMarkedToOffload.add(e.getRight());
-                        atLeastOneBundleSelected.setTrue();
+                        atLeastOneBundleSelected.setFalse();
                     }
                 });
     }
@@ -210,8 +212,9 @@ public class ThresholdShedder implements LoadSheddingStrategy {
                     maxUsageBroker, minimumThroughputToOffload / MB, minThroughputThreshold / MB);
             return;
         }
+        MutableBoolean atLeastOneBundleSelected = new MutableBoolean(conf.isAtLeastOneBundleSelected());
         filterAndSelectBundle(loadData, loadData.getRecentlyUnloadedBundles(), maxUsageBroker, localData,
-                minimumThroughputToOffload);
+                minimumThroughputToOffload, atLeastOneBundleSelected);
     }
 
     private Pair<Boolean, String> getMaxUsageBroker(
