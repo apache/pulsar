@@ -37,6 +37,7 @@ import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
 import lombok.Getter;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Message;
@@ -284,6 +285,35 @@ public class MessageImpl<T> implements Message<T> {
     public static boolean isEntryExpired(int messageTTLInSeconds, long entryTimestamp) {
         return messageTTLInSeconds != 0
                 && (System.currentTimeMillis() > entryTimestamp + TimeUnit.SECONDS.toMillis(messageTTLInSeconds));
+    }
+
+    public static boolean isEntryExpired(int messageTTLInSeconds, ByteBuf headersAndPayloadWithBrokerEntryMetadata) {
+        long entryTimestamp = 0;
+        long delayTime = 0;
+
+        // get broker timestamp first if BrokerEntryMetadata is enabled with AppendBrokerTimestampMetadataInterceptor
+        BrokerEntryMetadata brokerEntryMetadata =
+                Commands.parseBrokerEntryMetadataIfExist(headersAndPayloadWithBrokerEntryMetadata);
+        MessageMetadata messageMetadata =
+                Commands.parseMessageMetadata(headersAndPayloadWithBrokerEntryMetadata);
+        if (messageMetadata.hasDeliverAtTime()) {
+            delayTime = messageMetadata.getDeliverAtTime();
+        }
+
+        if (brokerEntryMetadata != null && brokerEntryMetadata.hasBrokerTimestamp()) {
+            entryTimestamp = brokerEntryMetadata.getBrokerTimestamp();
+        } else {
+            // otherwise get the publish_time
+            entryTimestamp = messageMetadata.getPublishTime();
+        }
+
+        if (delayTime == 0) {
+            return isEntryExpired(messageTTLInSeconds, entryTimestamp);
+        }
+
+        return messageTTLInSeconds != 0
+                && (System.currentTimeMillis() > entryTimestamp + TimeUnit.SECONDS.toMillis(messageTTLInSeconds))
+                && (delayTime - System.currentTimeMillis() < TimeUnit.SECONDS.toMillis(messageTTLInSeconds));
     }
 
     public static boolean isEntryPublishedEarlierThan(long entryTimestamp, long timestamp) {
