@@ -34,6 +34,7 @@ import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.EntryFilters;
@@ -4675,6 +4676,28 @@ public interface Namespaces {
      *             Unexpected error
      */
     void updateMigrationState(String namespace, boolean migrated) throws PulsarAdminException;
+
+    /**
+     * Update migration state for a namespace.
+     * @param namespace
+     *            Namespace name
+     * @param migrated
+     *            Flag to determine namespace is migrated or not
+     * @param clusterUrl
+     *            Cluster url data
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void updateMigrationState(String namespace, boolean migrated, ClusterUrl clusterUrl) throws PulsarAdminException;
+
+    /**
+     * Update migration state for a namespace asynchronously.
+     */
+    CompletableFuture<Void> updateMigrationStateAsync(String namespace, boolean migrated, ClusterUrl clusterUrl);
 
     /**
      * Set DispatcherPauseOnAckStatePersistent for a namespace asynchronously.

@@ -47,6 +47,7 @@ import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.EntryFilters;
@@ -2553,10 +2554,24 @@ public class CmdNamespaces extends CmdBase {
         @Option(names = "--migrated", description = "Is namespace migrated")
         private boolean migrated;
 
+        @Option(names = "--service-url", description = "New migrated cluster service url")
+        private String serviceUrl;
+
+        @Option(names = "--service-url-secure",
+                description = "New migrated cluster service url secure")
+        private String serviceUrlTls;
+
+        @Option(names = "--broker-url", description = "New migrated cluster broker service url")
+        private String brokerServiceUrl;
+
+        @Option(names = "--broker-url-secure", description = "New migrated cluster broker service url secure")
+        private String brokerServiceUrlTls;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(namespaceName);
-            getAdmin().namespaces().updateMigrationState(namespace, migrated);
+            ClusterUrl clusterUrl = new ClusterUrl(serviceUrl, serviceUrlTls, brokerServiceUrl, brokerServiceUrlTls);
+            getAdmin().namespaces().updateMigrationState(namespace, migrated, clusterUrl);
         }
     }
 
