@@ -16,16 +16,31 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.cassandra;
+package org.apache.pulsar.io.cassandra.util;
 
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.cassandra.util.RecordWrapper;
-import org.apache.pulsar.io.cassandra.util.StringRecordWrapper;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import java.util.HashMap;
+import java.util.Map;
 
-public class CassandraStringSink extends CassandraSink<String> {
+public class StringRecordWrapper extends RecordWrapper<String> {
+
+    private static final Gson gson = new Gson();
+    private Map<String, Object> valuesMap;
+
+    public StringRecordWrapper(String jsonString) {
+        super(jsonString);
+        valuesMap = gson.fromJson(jsonString,
+                new TypeToken<HashMap<String, Object>>() {}.getType());
+    }
 
     @Override
-    RecordWrapper<String> wrapRecord(Record<String> record) {
-        return new StringRecordWrapper(record.getValue());
+    public Object get(TableMetadataProvider.ColumnId column) {
+        return getValueAsExpectedType(valuesMap.get(column.getName()), column);
+    }
+
+    @Override
+    public boolean containsKey(String name) {
+        return valuesMap.containsKey(name);
     }
 }
