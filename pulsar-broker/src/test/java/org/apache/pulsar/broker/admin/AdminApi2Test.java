@@ -1445,7 +1445,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 30000)
-    public void testConsumerStatsLastTimestamp() throws PulsarClientException, PulsarAdminException, InterruptedException {
+    public void testConsumerStatsTimestamps() throws PulsarClientException, PulsarAdminException, InterruptedException {
         long timestamp = System.currentTimeMillis();
         final String topicName = "consumer-stats-" + timestamp;
         final String subscribeName = topicName + "-test-stats-sub";
@@ -1506,6 +1506,9 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         consumerStats = subscriptionStats.getConsumers().get(0);
         long consumedTimestamp = consumerStats.getLastConsumedTimestamp();
         long ackedTimestamp = consumerStats.getLastAckedTimestamp();
+        final long firstConsumedTimestamp = consumerStats.getFirstConsumedTimestamp();
+        final long firstConsumedFlowTimestamp = consumerStats.getFirstConsumedFlowTimestamp();
+
 
         // The lastConsumedTimestamp should same as the last time because the broker does not push any messages and the
         // consumer does not pull any messages.
@@ -1513,6 +1516,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertTrue(startAckedTimestampInConsumerStats < ackedTimestamp);
         assertNotEquals(0, consumedFlowTimestamp);
         assertTrue(startAckedTimestampInSubStats < ackedTimestampInSubStats);
+        assertNotEquals(0, firstConsumedFlowTimestamp);
+        assertNotEquals(0, firstConsumedTimestamp);
 
         // d. Send another messages. The lastConsumedTimestamp should be updated.
         producer.send("message-2".getBytes(StandardCharsets.UTF_8));
@@ -1538,6 +1543,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         consumerStats = subscriptionStats.getConsumers().get(0);
         long lastConsumedTimestamp = consumerStats.getLastConsumedTimestamp();
         long lastAckedTimestamp = consumerStats.getLastAckedTimestamp();
+        final long firstConsumedTimestamp2 = consumerStats.getFirstConsumedTimestamp();
+        final long firstConsumedFlowTimestamp2 = consumerStats.getFirstConsumedFlowTimestamp();
 
         assertTrue(consumedTimestamp < lastConsumedTimestamp);
         assertTrue(ackedTimestamp < lastAckedTimestamp);
@@ -1545,6 +1552,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertEquals(lastConsumedFlowTimestamp, consumedFlowTimestamp);
         assertTrue(ackedTimestampInSubStats < lastAckedTimestampInSubStats);
         assertEquals(lastConsumedTimestamp, lastConsumedTimestampInSubStats);
+        assertEquals(firstConsumedFlowTimestamp, firstConsumedFlowTimestamp2);
+        assertEquals(firstConsumedTimestamp, firstConsumedTimestamp2);
 
         consumer.close();
         producer.close();
