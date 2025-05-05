@@ -2682,6 +2682,7 @@ flexible messaging model and an intuitive client API.</description>
 
          usage example:
          echo lombok.addJavaxGeneratedAnnotation=true >> lombok.config
+         echo lombok.addNullAnnotations=jspecify >> lombok.config
          mvn -Perrorprone,main compile
 
          Revisiting warnings and errors is possible in IntelliJ after activating
@@ -2744,6 +2745,20 @@ flexible messaging model and an intuitive client API.</description>
           </plugin>
         </plugins>
       </build>
+      <dependencies>
+        <!-- required for "lombok.addJavaxGeneratedAnnotation=true" support -->
+        <dependency>
+          <groupId>jakarta.annotation</groupId>
+          <artifactId>jakarta.annotation-api</artifactId>
+          <scope>provided</scope>
+        </dependency>
+        <!-- required for lombok.addNullAnnotations=jspecify support -->
+        <dependency>
+          <groupId>org.jspecify</groupId>
+          <artifactId>jspecify</artifactId>
+          <scope>provided</scope>
+        </dependency>
+      </dependencies>
     </profile>
     <profile>
       <id>integrationTests</id>
