@@ -324,7 +324,6 @@ public class BrokerService implements Closeable {
     private Channel listenChannel;
     private Channel listenChannelTls;
 
-    private boolean preciseTopicPublishRateLimitingEnable;
     private BrokerInterceptor interceptor;
     private final EntryFilterProvider entryFilterProvider;
     private TopicFactory topicFactory;
@@ -340,8 +339,6 @@ public class BrokerService implements Closeable {
         this.clock = pulsar.getClock();
         this.dynamicConfigurationMap = prepareDynamicConfigurationMap();
         this.brokerPublishRateLimiter = new PublishRateLimiterImpl(pulsar.getMonotonicClock());
-        this.preciseTopicPublishRateLimitingEnable =
-                pulsar.getConfiguration().isPreciseTopicPublishRateLimiterEnable();
         this.dispatchRateLimiterFactory = createDispatchRateLimiterFactory(pulsar.getConfig());
         this.managedLedgerStorage = pulsar.getManagedLedgerStorage();
         this.keepAliveIntervalSeconds = pulsar.getConfiguration().getKeepAliveIntervalSeconds();
