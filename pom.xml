@@ -2707,6 +2707,7 @@ flexible messaging model and an intuitive client API.</description>
               <maxmem>1024m</maxmem>
               <compilerArgs combine.children="append">
                 <arg>-XDcompilePolicy=simple</arg>
+                <arg>--should-stop=ifError=FLOW</arg>
                 <arg>-Xlint:-options</arg>
                 <!-- configure Error Prone . Disable some checks that crash the compiler or are annoying -->
                 <!-- the following argument must be kept on one line when building with JDK8 -->
