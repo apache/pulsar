@@ -37,6 +37,9 @@ import org.apache.commons.lang3.ThreadUtils;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.IClass;
+import org.testng.ISuite;
+import org.testng.ISuiteListener;
 
 /**
  * Detects new threads that have been created during the test execution. This is useful to detect thread leaks.
@@ -44,7 +47,7 @@ import org.slf4j.LoggerFactory;
  * is set to a positive value. A recommended value is 10000 for THREAD_LEAK_DETECTOR_WAIT_MILLIS. This will ensure
  * that any asynchronous operations should have completed before the detector determines that it has found a leak.
  */
-public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapter {
+public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapter implements ISuiteListener {
     private static final Logger LOG = LoggerFactory.getLogger(ThreadLeakDetectorListener.class);
     private static final long WAIT_FOR_THREAD_TERMINATION_MILLIS =
             Long.parseLong(System.getenv().getOrDefault("THREAD_LEAK_DETECTOR_WAIT_MILLIS", "0"));
@@ -71,7 +74,17 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
     }
 
     @Override
-    protected void onBetweenTestClasses(Class<?> endedTestClass, Class<?> startedTestClass) {
+    public void onStart(ISuite suite) {
+        // capture the initial set of threads
+        detectLeakedThreads(null);
+    }
+
+    @Override
+    protected void onBetweenTestClasses(IClass testClass) {
+        detectLeakedThreads(testClass.getRealClass());
+    }
+
+    private void detectLeakedThreads(Class<?> endedTestClass) {
         LOG.info("Capturing identifiers of running threads.");
         MutableBoolean differenceDetected = new MutableBoolean();
         Set<ThreadKey> currentThreadKeys =
