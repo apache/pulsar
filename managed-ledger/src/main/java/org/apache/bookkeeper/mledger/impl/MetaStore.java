@@ -184,4 +184,11 @@ public interface MetaStore {
      * @return a future represents the result of the operation.
      */
     CompletableFuture<Map<String, String>> getManagedLedgerPropertiesAsync(String name);
+
+    /**
+     * Close the store.
+     */
+    default void close() {
+        // Default implementation does nothing
+    }
 }

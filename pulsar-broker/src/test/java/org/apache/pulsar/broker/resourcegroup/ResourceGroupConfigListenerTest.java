@@ -251,7 +251,7 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
     public void testResourceGroupUpdateLoop() throws PulsarAdminException {
 
         ResourceGroup zooRg = new ResourceGroup();
-        pulsar.getPulsarResources().getResourcegroupResources().getStore().registerListener(
+        pulsar.getPulsarResources().getResourcegroupResources().getStore().registerCancellableListener(
           notification -> {
               String notifyPath = notification.getPath();
               if (!ResourceGroupResources.isResourceGroupPath(notifyPath)) {

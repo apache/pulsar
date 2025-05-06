@@ -44,7 +44,7 @@ public class TopicResourcesTest {
 
     @Test
     public void testConstructorRegistersAsListener() {
-        verify(metadataStore).registerListener(any());
+        verify(metadataStore).registerCancellableListener(any());
     }
 
     @Test

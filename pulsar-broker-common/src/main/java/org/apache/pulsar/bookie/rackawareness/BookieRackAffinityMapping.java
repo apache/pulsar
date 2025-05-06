@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
 import org.apache.bookkeeper.client.DefaultBookieAddressResolver;
 import org.apache.bookkeeper.client.ITopologyAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackChangeNotifier;
@@ -62,6 +63,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
 
     public static final String BOOKIE_INFO_ROOT_PATH = "/bookies";
     public static final String METADATA_STORE_INSTANCE = "METADATA_STORE_INSTANCE";
+    public static final String ADD_TO_CLEANUP_CONSUMER_INSTANCE = "ADD_TO_CLEANUP_CONSUMER";
 
     private MetadataCache<BookiesRackConfiguration> bookieMappingCache = null;
     private ITopologyAwareEnsemblePlacementPolicy<BookieNode> rackawarePolicy = null;
@@ -122,7 +124,12 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         }
 
         bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
-        store.registerListener(this::handleUpdates);
+        Runnable cancelMetadataStoreListener = store.registerCancellableListener(this::handleUpdates);
+        Consumer<Runnable> addToCleanupConsumer =
+                (Consumer<Runnable>) conf.getProperty(ADD_TO_CLEANUP_CONSUMER_INSTANCE);
+        if (addToCleanupConsumer != null) {
+            addToCleanupConsumer.accept(cancelMetadataStoreListener);
+        }
 
         try {
             var racksWithHost = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH)

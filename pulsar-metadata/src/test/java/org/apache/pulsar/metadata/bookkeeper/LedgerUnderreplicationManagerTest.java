@@ -665,7 +665,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         final CountDownLatch znodeLatch = new CountDownLatch(2);
         String urledgerA = StringUtils.substringAfterLast(znodeA, "/");
         String urLockLedgerA = basePath + "/locks/" + urledgerA;
-        store.registerListener(n -> {
+        store.registerCancellableListener(n -> {
             if (n.getType() == NotificationType.Created && n.getPath().equals(urLockLedgerA)) {
                 znodeLatch.countDown();
                 log.debug("Recieved node creation event for the zNodePath:"
