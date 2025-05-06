@@ -5491,6 +5491,10 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<MessageId> internalGetMessageIDByIndexAsync(Long offset, boolean authoritative) {
+        if (pulsar().getBrokerService().isBrokerEntryMetadataEnabled()) {
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                    "GetMessageIDByIndex is not allowed when broker entry metadata is enabled"));
+        }
         int partitionIndex = topicName.getPartitionIndex();
         CompletableFuture<Void> future = validateTopicOperationAsync(topicName, TopicOperation.PEEK_MESSAGES);
         return future.thenCompose(__ -> {
