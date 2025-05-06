@@ -187,8 +187,8 @@ public abstract class AbstractReplicator implements Replicator {
             Pair<Boolean, State> setDisconnectedRes = compareSetAndGetState(State.Starting, State.Disconnected);
             if (setDisconnectedRes.getLeft()) {
                 long waitTimeMs = backOff.next();
-                log.warn("[{}] Failed to create remote producer ({}), retrying in {} s",
-                        replicatorId, ex.getMessage(), waitTimeMs / 1000.0);
+                log.warn("[{}] Failed to create remote producer, retrying in {} s",
+                        replicatorId, waitTimeMs / 1000.0, ex);
                 // BackOff before retrying
                 scheduleCheckTopicActiveAndStartProducer(waitTimeMs);
             } else {
