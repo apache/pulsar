@@ -38,6 +38,9 @@ public class PolicyHierarchyValue<T> {
     @Getter
     private volatile T topicValue;
 
+    @Getter
+    private volatile T topicGlobalValue;
+
     private volatile T value;
 
     public PolicyHierarchyValue() {
@@ -53,8 +56,12 @@ public class PolicyHierarchyValue<T> {
         updateValue();
     }
 
-    public void updateTopicValue(T topicValue) {
-        this.topicValue = topicValue;
+    public void updateTopicValue(T topicValue, boolean isGlobalPolicy) {
+        if (isGlobalPolicy) {
+            this.topicGlobalValue = topicValue;
+        } else {
+            this.topicValue = topicValue;
+        }
         updateValue();
     }
 
@@ -62,6 +69,8 @@ public class PolicyHierarchyValue<T> {
         VALUE_UPDATER.updateAndGet(this, (preValue) -> {
             if (topicValue != null) {
                 return topicValue;
+            } else if (topicGlobalValue != null) {
+                return topicGlobalValue;
             } else if (namespaceValue != null) {
                 return namespaceValue;
             } else {
