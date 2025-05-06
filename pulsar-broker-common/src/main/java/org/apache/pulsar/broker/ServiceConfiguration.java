@@ -1474,13 +1474,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int maxMessagePublishBufferSizeInMB = Math.max(64,
         (int) (DirectMemoryUtils.jvmMaxDirectMemory() / 2 / (1024 * 1024)));
 
-    @FieldContext(
-        category = CATEGORY_SERVER,
-        doc = "Interval between checks to see if message publish buffer size is exceed the max message publish "
-                + "buffer size"
-    )
-    private int messagePublishBufferCheckIntervalInMillis = 100;
-
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to recover cursors lazily when trying to recover a "
             + "managed ledger backing a persistent topic. It can improve write availability of topics.\n"
             + "The caveat is now when recovered ledger is ready to write we're not sure if all old consumers last mark "
