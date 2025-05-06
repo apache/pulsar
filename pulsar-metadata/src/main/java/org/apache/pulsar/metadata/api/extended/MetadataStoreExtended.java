@@ -86,7 +86,7 @@ public interface MetadataStoreExtended extends MetadataStore {
      *             the ability to unregister the listener
      */
     @Deprecated
-    default void addSessionListener(Consumer<SessionEvent> listener) {
+    default void registerSessionListener(Consumer<SessionEvent> listener) {
         registerCancellableSessionListener(listener);
     }
 
