@@ -66,6 +66,7 @@
       --add-opens java.base/java.lang=ALL-UNNAMED <!--Mockito-->
       --add-opens java.base/jdk.internal.platform=ALL-UNNAMED <!--LinuxInfoUtils-->
     </test.additional.args>
+    <redirectTestOutputToFile>true</redirectTestOutputToFile>
   </properties>
 
   <dependencyManagement>
@@ -196,6 +197,7 @@
           <argLine>
             ${test.additional.args}
           </argLine>
+          <redirectTestOutputToFile>${redirectTestOutputToFile}</redirectTestOutputToFile>
         </configuration>
         <dependencies>
           <dependency>

@@ -21,6 +21,7 @@ package org.apache.pulsar.tests;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.IClass;
 
 /**
  * Cleanup Mockito's Thread Local state that leaks memory
@@ -39,7 +40,7 @@ public class MockitoCleanupListener extends BetweenTestClassesListenerAdapter {
             "Cleaning up Mockito's ThreadSafeMockingProgress.MOCKING_PROGRESS_PROVIDER thread local state.";
 
     @Override
-    protected void onBetweenTestClasses(Class<?> endedTestClass, Class<?> startedTestClass) {
+    protected void onBetweenTestClasses(IClass testClass) {
         if (MOCKITO_CLEANUP_ENABLED) {
             try {
                 if (MockitoThreadLocalStateCleaner.INSTANCE.isEnabled()) {

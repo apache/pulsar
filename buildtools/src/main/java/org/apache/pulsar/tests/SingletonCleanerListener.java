@@ -24,6 +24,7 @@ import java.lang.reflect.Method;
 import org.apache.commons.lang3.ClassUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.IClass;
 
 /**
  * This TestNG listener contains cleanup for some singletons or caches.
@@ -76,7 +77,7 @@ public class SingletonCleanerListener extends BetweenTestClassesListenerAdapter 
     }
 
     @Override
-    protected void onBetweenTestClasses(Class<?> endedTestClass, Class<?> startedTestClass) {
+    protected void onBetweenTestClasses(IClass testClass) {
         objectMapperFactoryClearCaches();
         jsonSchemaClearCaches();
     }
