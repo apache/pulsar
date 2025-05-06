@@ -26,17 +26,30 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.ThreadUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.IClass;
+import org.testng.ISuite;
+import org.testng.ISuiteListener;
 
 /**
  * Detects new threads that have been created during the test execution.
  */
-public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapter {
+public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapter implements ISuiteListener {
     private static final Logger LOG = LoggerFactory.getLogger(ThreadLeakDetectorListener.class);
 
     private Set<ThreadKey> capturedThreadKeys;
 
     @Override
-    protected void onBetweenTestClasses(Class<?> endedTestClass, Class<?> startedTestClass) {
+    public void onStart(ISuite suite) {
+        // capture the initial set of threads
+        detectLeakedThreads(null);
+    }
+
+    @Override
+    protected void onBetweenTestClasses(IClass testClass) {
+        detectLeakedThreads(testClass.getRealClass());
+    }
+
+    private void detectLeakedThreads(Class<?> endedTestClass) {
         LOG.info("Capturing identifiers of running threads.");
         capturedThreadKeys = compareThreads(capturedThreadKeys, endedTestClass);
     }
