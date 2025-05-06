@@ -819,6 +819,10 @@ public class BrokerService implements Closeable {
         try {
             log.info("Shutting down Pulsar Broker service");
 
+            // unregister non-static metrics collectors
+            pendingTopicLoadRequests.unregister();
+            pendingLookupRequests.unregister();
+
             // unloads all namespaces gracefully without disrupting mutually
             unloadNamespaceBundlesGracefully();
 
