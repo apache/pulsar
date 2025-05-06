@@ -203,10 +203,6 @@ import org.slf4j.LoggerFactory;
 @Setter(AccessLevel.PROTECTED)
 public class BrokerService implements Closeable {
     private static final Logger log = LoggerFactory.getLogger(BrokerService.class);
-    private static final Duration FUTURE_DEADLINE_TIMEOUT_DURATION = Duration.ofSeconds(60);
-    private static final TimeoutException FUTURE_DEADLINE_TIMEOUT_EXCEPTION =
-            FutureUtil.createTimeoutException("Future didn't finish within deadline", BrokerService.class,
-                    "futureWithDeadline(...)");
     private static final TimeoutException FAILED_TO_LOAD_TOPIC_TIMEOUT_EXCEPTION =
             FutureUtil.createTimeoutException("Failed to load topic within timeout", BrokerService.class,
                     "futureWithDeadline(...)");
