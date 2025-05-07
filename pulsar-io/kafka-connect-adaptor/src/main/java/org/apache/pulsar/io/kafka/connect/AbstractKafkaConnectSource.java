@@ -46,6 +46,7 @@ import org.apache.kafka.connect.storage.OffsetBackingStore;
 import org.apache.kafka.connect.storage.OffsetStorageReader;
 import org.apache.kafka.connect.storage.OffsetStorageReaderImpl;
 import org.apache.kafka.connect.storage.OffsetStorageWriter;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Source;
 import org.apache.pulsar.io.core.SourceContext;
@@ -243,7 +244,17 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
         KafkaSchemaWrappedSchema valueSchema;
 
         AbstractKafkaSourceRecord(SourceRecord srcRecord) {
-            this.destinationTopic = Optional.of("persistent://" + topicNamespace + "/" + srcRecord.topic());
+            String topic = srcRecord.topic();
+            if (topic.contains("://")) {
+                try {
+                    TopicName.get(topic);
+                    this.destinationTopic = Optional.of(topic);
+                } catch (IllegalArgumentException e) {
+                    this.destinationTopic = Optional.of("persistent://" + topicNamespace + "/" + topic);
+                }
+            } else {
+                this.destinationTopic = Optional.of("persistent://" + topicNamespace + "/" + topic);
+            }
             this.partitionIndex = Optional.ofNullable(srcRecord.kafkaPartition());
         }
 
