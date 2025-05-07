@@ -438,6 +438,176 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
+    @DataProvider(name = "clientRequestType")
+    public Object[][] clientRequestType() {
+        return new Object[][]{
+            {"PULSAR_ADMIN"},
+            {"HTTP"}
+        };
+    }
+
+    @Test(dataProvider = "clientRequestType")
+    public void testPriorityOfGlobalPolicies(String clientRequestType) throws Exception {
+        final SystemTopicBasedTopicPoliciesService topicPoliciesService
+                = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        final JerseyClient httpClient = JerseyClientBuilder.createClient();
+        // create topic and load it up.
+        final String namespace = myNamespace;
+        final String topic = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp");
+        final TopicName topicName = TopicName.get(topic);
+        final String hostAndPort = pulsar.getWebServiceAddress();
+        final String httpPath = "/admin/v2/persistent/" + namespace + "/" + TopicName.get(topic).getLocalName()
+                + "/maxConsumers";
+        admin.topics().createNonPartitionedTopic(topic);
+        Producer producer = pulsarClient.newProducer().topic(topic).create();
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopics().get(topic).get().get();
+
+        // Set non global policy.
+        // Verify: it affects.
+        if ("PULSAR_ADMIN".equals(clientRequestType)) {
+            admin.topicPolicies(false).setMaxConsumers(topic, 10);
+        } else {
+            Response res = httpClient.target(hostAndPort).path(httpPath)
+                    .queryParam("isGlobal", "false")
+                    .request()
+                    .header("Content-Type", "application/json")
+                    .post(Entity.json(10));
+            assertTrue(res.getStatus() == 200 || res.getStatus() == 204);
+        }
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, false).join().get()
+                    .getMaxConsumerPerTopic(), 10);
+            HierarchyTopicPolicies hierarchyTopicPolicies = persistentTopic.getHierarchyTopicPolicies();
+            assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 10);
+        });
+
+        // Set global policy.
+        // Verify: topic policies has higher priority than global policies.
+        if ("PULSAR_ADMIN".equals(clientRequestType)) {
+            admin.topicPolicies(true).setMaxConsumers(topic, 20);
+        } else {
+            Response globalRes = httpClient.target(hostAndPort).path(httpPath)
+                    .queryParam("isGlobal", "true")
+                    .request()
+                    .header("Content-Type", "application/json")
+                    .post(Entity.json(20));
+            assertTrue(globalRes.getStatus() == 200 || globalRes.getStatus() == 204);
+        }
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, false).join().get()
+                    .getMaxConsumerPerTopic(), 10);
+            assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, true).join().get()
+                    .getMaxConsumerPerTopic(), 20);
+            HierarchyTopicPolicies hierarchyTopicPolicies = persistentTopic.getHierarchyTopicPolicies();
+            assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 10);
+        });
+
+        // Remove non-global policy.
+        // Verify: global policy affects.
+        if ("PULSAR_ADMIN".equals(clientRequestType)) {
+            admin.topicPolicies(false).removeMaxConsumers(topic);
+        } else {
+            Response removeRes = httpClient.target(hostAndPort).path(httpPath)
+                    .queryParam("isGlobal", "false")
+                    .request()
+                    .header("Content-Type", "application/json")
+                    .delete();
+            assertTrue(removeRes.getStatus() == 200 || removeRes.getStatus() == 204);
+        }
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, true).join().get()
+                    .getMaxConsumerPerTopic(), 20);
+            HierarchyTopicPolicies hierarchyTopicPolicies = persistentTopic.getHierarchyTopicPolicies();
+            assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 20);
+        });
+
+        // cleanup.
+        producer.close();
+        admin.topics().delete(topic, false);
+    }
+
+    @Test(dataProvider = "clientRequestType")
+    public void testPriorityOfGlobalPolicies2(String clientRequestType) throws Exception {
+        final SystemTopicBasedTopicPoliciesService topicPoliciesService
+                = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        final JerseyClient httpClient = JerseyClientBuilder.createClient();
+        // create topic and load it up.
+        final String namespace = myNamespace;
+        final String topic = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp");
+        final TopicName topicName = TopicName.get(topic);
+        final String hostAndPort = pulsar.getWebServiceAddress();
+        final String httpPath = "/admin/v2/persistent/" + namespace + "/" + TopicName.get(topic).getLocalName()
+                + "/maxConsumers";
+        admin.topics().createNonPartitionedTopic(topic);
+        Producer producer = pulsarClient.newProducer().topic(topic).create();
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopics().get(topic).get().get();
+
+        // Set global policy.
+        // Verify: it affects.
+        if ("PULSAR_ADMIN".equals(clientRequestType)) {
+            admin.topicPolicies(true).setMaxConsumers(topic, 20);
+        } else {
+            Response globalRes = httpClient.target(hostAndPort).path(httpPath)
+                    .queryParam("isGlobal", "true")
+                    .request()
+                    .header("Content-Type", "application/json")
+                    .post(Entity.json(20));
+            assertTrue(globalRes.getStatus() == 200 || globalRes.getStatus() == 204);
+        }
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, true).join().get()
+                    .getMaxConsumerPerTopic(), 20);
+            HierarchyTopicPolicies hierarchyTopicPolicies = persistentTopic.getHierarchyTopicPolicies();
+            assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 20);
+        });
+
+        // Set non global policy.
+        // Verify: topic policies has higher priority than global policies.
+        if ("PULSAR_ADMIN".equals(clientRequestType)) {
+            admin.topicPolicies(false).setMaxConsumers(topic, 10);
+        } else {
+            Response res = httpClient.target(hostAndPort).path(httpPath)
+                    .queryParam("isGlobal", "false")
+                    .request()
+                    .header("Content-Type", "application/json")
+                    .post(Entity.json(10));
+            assertTrue(res.getStatus() == 200 || res.getStatus() == 204);
+        }
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, false).join().get()
+                    .getMaxConsumerPerTopic(), 10);
+            assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, true).join().get()
+                    .getMaxConsumerPerTopic(), 20);
+            HierarchyTopicPolicies hierarchyTopicPolicies = persistentTopic.getHierarchyTopicPolicies();
+            assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 10);
+        });
+
+        // Remove global policy.
+        // Verify: non-global policy affects.
+        if ("PULSAR_ADMIN".equals(clientRequestType)) {
+            admin.topicPolicies(true).removeMaxConsumers(topic);
+        } else {
+            Response removeRes = httpClient.target(hostAndPort).path(httpPath)
+                    .queryParam("isGlobal", "true")
+                    .request()
+                    .header("Content-Type", "application/json")
+                    .delete();
+            assertTrue(removeRes.getStatus() == 200 || removeRes.getStatus() == 204);
+        }
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, false).join().get()
+                    .getMaxConsumerPerTopic(), 10);
+            HierarchyTopicPolicies hierarchyTopicPolicies = persistentTopic.getHierarchyTopicPolicies();
+            assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 10);
+        });
+
+        // cleanup.
+        producer.close();
+        admin.topics().delete(topic, false);
+    }
+
     @Test(timeOut = 20000)
     public void testGetSizeBasedBacklogQuotaApplied() throws Exception {
         final String topic = testTopic + UUID.randomUUID();

@@ -230,52 +230,64 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
     protected void updateTopicPolicy(TopicPolicies data) {
+        boolean isGlobalPolicies = data.isGlobalPolicies();
         if (!isSystemTopic()) {
             // Only use namespace level setting for system topic.
-            topicPolicies.getReplicationClusters().updateTopicValue(data.getReplicationClusters());
+            topicPolicies.getReplicationClusters().updateTopicValue(data.getReplicationClusters(), isGlobalPolicies);
             topicPolicies.getSchemaCompatibilityStrategy()
-                    .updateTopicValue(formatSchemaCompatibilityStrategy(data.getSchemaCompatibilityStrategy()));
+                    .updateTopicValue(formatSchemaCompatibilityStrategy(data.getSchemaCompatibilityStrategy()),
+                            isGlobalPolicies);
         }
-        topicPolicies.getRetentionPolicies().updateTopicValue(data.getRetentionPolicies());
+        topicPolicies.getRetentionPolicies().updateTopicValue(data.getRetentionPolicies(), isGlobalPolicies);
         topicPolicies.getDispatcherPauseOnAckStatePersistentEnabled()
-                .updateTopicValue(data.getDispatcherPauseOnAckStatePersistentEnabled());
+                .updateTopicValue(data.getDispatcherPauseOnAckStatePersistentEnabled(), isGlobalPolicies);
         topicPolicies.getMaxSubscriptionsPerTopic()
-                .updateTopicValue(normalizeValue(data.getMaxSubscriptionsPerTopic()));
+                .updateTopicValue(normalizeValue(data.getMaxSubscriptionsPerTopic()), isGlobalPolicies);
         topicPolicies.getMaxUnackedMessagesOnConsumer()
-                .updateTopicValue(normalizeValue(data.getMaxUnackedMessagesOnConsumer()));
+                .updateTopicValue(normalizeValue(data.getMaxUnackedMessagesOnConsumer()), isGlobalPolicies);
         topicPolicies.getMaxUnackedMessagesOnSubscription()
-                .updateTopicValue(normalizeValue(data.getMaxUnackedMessagesOnSubscription()));
-        topicPolicies.getMaxProducersPerTopic().updateTopicValue(normalizeValue(data.getMaxProducerPerTopic()));
-        topicPolicies.getMaxConsumerPerTopic().updateTopicValue(normalizeValue(data.getMaxConsumerPerTopic()));
+                .updateTopicValue(normalizeValue(data.getMaxUnackedMessagesOnSubscription()), isGlobalPolicies);
+        topicPolicies.getMaxProducersPerTopic().updateTopicValue(normalizeValue(data.getMaxProducerPerTopic()),
+                isGlobalPolicies);
+        topicPolicies.getMaxConsumerPerTopic().updateTopicValue(normalizeValue(data.getMaxConsumerPerTopic()),
+                isGlobalPolicies);
         topicPolicies.getMaxConsumersPerSubscription()
-                .updateTopicValue(normalizeValue(data.getMaxConsumersPerSubscription()));
-        topicPolicies.getInactiveTopicPolicies().updateTopicValue(data.getInactiveTopicPolicies());
-        topicPolicies.getDeduplicationEnabled().updateTopicValue(data.getDeduplicationEnabled());
+                .updateTopicValue(normalizeValue(data.getMaxConsumersPerSubscription()), isGlobalPolicies);
+        topicPolicies.getInactiveTopicPolicies().updateTopicValue(data.getInactiveTopicPolicies(), isGlobalPolicies);
+        topicPolicies.getDeduplicationEnabled().updateTopicValue(data.getDeduplicationEnabled(), isGlobalPolicies);
         topicPolicies.getDeduplicationSnapshotIntervalSeconds().updateTopicValue(
-                data.getDeduplicationSnapshotIntervalSeconds());
+                data.getDeduplicationSnapshotIntervalSeconds(), isGlobalPolicies);
         topicPolicies.getSubscriptionTypesEnabled().updateTopicValue(
                 CollectionUtils.isEmpty(data.getSubscriptionTypesEnabled()) ? null :
-                        EnumSet.copyOf(data.getSubscriptionTypesEnabled()));
+                        EnumSet.copyOf(data.getSubscriptionTypesEnabled()), isGlobalPolicies);
         Arrays.stream(BacklogQuota.BacklogQuotaType.values()).forEach(type ->
                 this.topicPolicies.getBackLogQuotaMap().get(type).updateTopicValue(
-                        data.getBackLogQuotaMap() == null ? null : data.getBackLogQuotaMap().get(type.toString())));
-        topicPolicies.getTopicMaxMessageSize().updateTopicValue(normalizeValue(data.getMaxMessageSize()));
-        topicPolicies.getMessageTTLInSeconds().updateTopicValue(normalizeValue(data.getMessageTTLInSeconds()));
-        topicPolicies.getPublishRate().updateTopicValue(PublishRate.normalize(data.getPublishRate()));
-        topicPolicies.getDelayedDeliveryEnabled().updateTopicValue(data.getDelayedDeliveryEnabled());
+                        data.getBackLogQuotaMap() == null ? null : data.getBackLogQuotaMap().get(type.toString()),
+                        isGlobalPolicies));
+        topicPolicies.getTopicMaxMessageSize().updateTopicValue(normalizeValue(data.getMaxMessageSize()),
+                isGlobalPolicies);
+        topicPolicies.getMessageTTLInSeconds().updateTopicValue(normalizeValue(data.getMessageTTLInSeconds()),
+                isGlobalPolicies);
+        topicPolicies.getPublishRate().updateTopicValue(PublishRate.normalize(data.getPublishRate()), isGlobalPolicies);
+        topicPolicies.getDelayedDeliveryEnabled().updateTopicValue(data.getDelayedDeliveryEnabled(), isGlobalPolicies);
         topicPolicies.getReplicatorDispatchRate().updateTopicValue(
-            DispatchRateImpl.normalize(data.getReplicatorDispatchRate()));
-        topicPolicies.getDelayedDeliveryTickTimeMillis().updateTopicValue(data.getDelayedDeliveryTickTimeMillis());
-        topicPolicies.getDelayedDeliveryMaxDelayInMillis().updateTopicValue(data.getDelayedDeliveryMaxDelayInMillis());
-        topicPolicies.getSubscribeRate().updateTopicValue(SubscribeRate.normalize(data.getSubscribeRate()));
+            DispatchRateImpl.normalize(data.getReplicatorDispatchRate()), isGlobalPolicies);
+        topicPolicies.getDelayedDeliveryTickTimeMillis().updateTopicValue(data.getDelayedDeliveryTickTimeMillis(),
+                isGlobalPolicies);
+        topicPolicies.getDelayedDeliveryMaxDelayInMillis().updateTopicValue(data.getDelayedDeliveryMaxDelayInMillis(),
+                isGlobalPolicies);
+        topicPolicies.getSubscribeRate().updateTopicValue(
+                SubscribeRate.normalize(data.getSubscribeRate()), isGlobalPolicies);
         topicPolicies.getSubscriptionDispatchRate().updateTopicValue(
-            DispatchRateImpl.normalize(data.getSubscriptionDispatchRate()));
-        topicPolicies.getCompactionThreshold().updateTopicValue(data.getCompactionThreshold());
-        topicPolicies.getDispatchRate().updateTopicValue(DispatchRateImpl.normalize(data.getDispatchRate()));
-        topicPolicies.getSchemaValidationEnforced().updateTopicValue(data.getSchemaValidationEnforced());
-        topicPolicies.getEntryFilters().updateTopicValue(data.getEntryFilters());
+            DispatchRateImpl.normalize(data.getSubscriptionDispatchRate()), isGlobalPolicies);
+        topicPolicies.getCompactionThreshold().updateTopicValue(data.getCompactionThreshold(), isGlobalPolicies);
+        topicPolicies.getDispatchRate().updateTopicValue(DispatchRateImpl.normalize(data.getDispatchRate()),
+                isGlobalPolicies);
+        topicPolicies.getSchemaValidationEnforced().updateTopicValue(data.getSchemaValidationEnforced(),
+                isGlobalPolicies);
+        topicPolicies.getEntryFilters().updateTopicValue(data.getEntryFilters(), isGlobalPolicies);
         topicPolicies.getDispatcherPauseOnAckStatePersistentEnabled()
-                .updateTopicValue(data.getDispatcherPauseOnAckStatePersistentEnabled());
+                .updateTopicValue(data.getDispatcherPauseOnAckStatePersistentEnabled(), isGlobalPolicies);
         this.subscriptionPolicies = data.getSubscriptionPolicies();
 
         updateEntryFilters();
