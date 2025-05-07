@@ -1004,6 +1004,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         long lastActive = cursor.getLastActive();
 
+        // ensure that the next last active time will be greater than the current one
+        Thread.sleep(1L);
+
         cursor.asyncResetCursor(lastPosition, false, new AsyncCallbacks.ResetCursorCallback() {
             @Override
             public void resetComplete(Object ctx) {
@@ -1843,6 +1846,12 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         Position pos4 = ledger.addEntry("dummy-entry-4".getBytes(Encoding));
         Position pos5 = ledger.addEntry("dummy-entry-5".getBytes(Encoding));
 
+        // Wait until a new ledger is created after the previous one has been closed.
+        // This happens because maxEntriesPerLedger is set to 5, so a new ledger is opened after every 5 entries.
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(ledger.getLedgersInfo().lastEntry().getKey() > pos5.getLedgerId());
+        });
+
         // delete individual messages
         c1.delete(pos2);
         c1.delete(pos4);
@@ -1852,19 +1861,25 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(c1.getReadPosition(), PositionFactory.create(pos5.getLedgerId() + 1, 0));
         assertEquals(c1.getMarkDeletedPosition(), pos5);
 
-        pos1 = ledger.addEntry("dummy-entry-1".getBytes(Encoding));
-        pos2 = ledger.addEntry("dummy-entry-2".getBytes(Encoding));
-        pos3 = ledger.addEntry("dummy-entry-3".getBytes(Encoding));
-        pos4 = ledger.addEntry("dummy-entry-4".getBytes(Encoding));
-        pos5 = ledger.addEntry("dummy-entry-5".getBytes(Encoding));
+        Position pos6 = ledger.addEntry("dummy-entry-1".getBytes(Encoding));
+        Position pos7 = ledger.addEntry("dummy-entry-2".getBytes(Encoding));
+        Position pos8 = ledger.addEntry("dummy-entry-3".getBytes(Encoding));
+        Position pos9 = ledger.addEntry("dummy-entry-4".getBytes(Encoding));
+        Position pos10 = ledger.addEntry("dummy-entry-5".getBytes(Encoding));
 
-        c1.delete(pos2);
-        c1.delete(pos4);
+        // Wait until a new ledger is created after the previous one has been closed.
+        // This happens because maxEntriesPerLedger is set to 5, so a new ledger is opened after every 5 entries.
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(ledger.getLedgersInfo().lastEntry().getKey() > pos10.getLedgerId());
+        });
+
+        c1.delete(pos7);
+        c1.delete(pos9);
 
         c1.skipEntries(4, IndividualDeletedEntries.Include);
         assertEquals(c1.getNumberOfEntries(), 1);
-        assertEquals(c1.getReadPosition(), pos5);
-        assertEquals(c1.getMarkDeletedPosition(), pos4);
+        assertEquals(c1.getReadPosition(), pos10);
+        assertEquals(c1.getMarkDeletedPosition(), pos9);
     }
 
     @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
