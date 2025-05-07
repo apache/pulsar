@@ -27,7 +27,7 @@ body:
   - type: checkboxes
     id: confirmSearch
     attributes:
-      label: Search before asking
+      label: Search before reporting
       description: >
         Please search [issues](https://github.com/apache/pulsar/issues) to check if your issue has already been reported. First search with the test method name and then with the test class name to see if there are reports for the same test method or the same test class.
       options:
