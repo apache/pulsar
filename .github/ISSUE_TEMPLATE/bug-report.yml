@@ -62,7 +62,7 @@ body:
         - Client library type (Java/Python/Go/C++/C#/Node.js/etc)
         - Client library version
         - Client Operating system and hardware type (check with `uname -a`/`systeminfo`)
-        - Client Java version for the Java client (`java -version`)
+        - Client Java version (if using Java client) (`java -version`)
     validations:
       required: true
   - type: textarea
@@ -76,6 +76,7 @@ body:
           - What did you expect to happen?
           - What actually happened instead?
         - Why do you believe this is a bug?
+        - Please prefer using text in markdown code blocks instead of screenshots of console output since screenshots are not searchable.
     validations:
       required: true
   - type: textarea
@@ -84,8 +85,9 @@ body:
       label: Error messages
       description: |
         Were there any error messages or stack traces in the logs? 
-          - If yes, please include them in a markdown code block, limited to 100 lines maximum.
+          - If yes, please include them, limited to 100 lines maximum.
           - For longer stack traces, please share them in a [GitHub Gist](https://gist.github.com/) and provide the link.
+          - You can also attach logs to the additional information section below.
           - Remember to obfuscate any sensitive information before sharing.
       render: text
       placeholder: Copy-paste the error messages or stack traces (max 100 lines) here, or provide a link to the GitHub Gist.
@@ -104,12 +106,20 @@ body:
           - Any error messages, stacktraces or logs. Obfuscate any sensitive information before sharing.
           - Test data or files needed (if applicable)
           - Please use [GitHub Gist](https://gist.github.com/) to share larger text files
+          - Please prefer using text in markdown code blocks instead of screenshots of console output since screenshots are not searchable.
     validations:
       required: true
   - type: textarea
     id: additionalInformation
     attributes:
       label: Additional information
+      description: |
+        Please provide any additional information that may help us understand the issue better. This could include:
+        - Any other relevant details or context
+        - Links to related issues or discussions
+        - Any other information you think might be helpful
+        - Attachments (e.g. logs)
+        - Remember to obfuscate any sensitive information before sharing.
   - type: checkboxes
     id: willSubmitPR
     attributes:
