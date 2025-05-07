@@ -31,6 +31,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.AllArgsConstructor;
@@ -42,25 +43,33 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema.Parser;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.pulsar.TestNGInstanceOrder;
+import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidMessageException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService;
+import org.apache.pulsar.client.impl.ClientBuilderImpl;
+import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.HttpLookupService;
 import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.client.impl.schema.reader.AvroReader;
 import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
+import org.apache.pulsar.common.api.proto.CommandGetOrCreateSchemaResponse;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
@@ -76,6 +85,8 @@ import org.testng.annotations.Test;
 public class SimpleSchemaTest extends ProducerConsumerBase {
 
     private static final String NAMESPACE = "my-property/my-ns";
+    private static final String NAMESPACE_ALWAYS_COMPATIBLE = "my-property/always-compatible";
+    private static final String NAMESPACE_NEVER_COMPATIBLE = "my-property/never-compatible";
 
     @DataProvider(name = "batchingModes")
     public static Object[][] batchingModes() {
@@ -124,6 +135,12 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         this.isTcpLookup = true;
         super.internalSetup();
         super.producerBaseSetup();
+        admin.namespaces().createNamespace(NAMESPACE_ALWAYS_COMPATIBLE);
+        admin.namespaces().setSchemaCompatibilityStrategy(NAMESPACE_ALWAYS_COMPATIBLE,
+                SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+        admin.namespaces().createNamespace(NAMESPACE_NEVER_COMPATIBLE);
+        admin.namespaces().setSchemaCompatibilityStrategy(NAMESPACE_NEVER_COMPATIBLE,
+                SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
     }
 
     @AfterClass(alwaysRun = true)
@@ -338,6 +355,78 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                 }
             }
         }
+    }
+
+    @Test
+    public void testProducerConnectStateWhenRegisteringSchema() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName(NAMESPACE_ALWAYS_COMPATIBLE + "/tp");
+        final String subscription = "s1";
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().createSubscription(topic, subscription, MessageId.earliest);
+
+        // Create a pulsar client with a delayed response of "getOrCreateSchemaResponse"
+        CompletableFuture<Void> responseSignal = new CompletableFuture<>();
+        ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(lookupUrl.toString());
+        PulsarClient client = InjectedClientCnxClientBuilder.create(clientBuilder, (conf, eventLoopGroup) ->
+            new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
+                protected void handleGetOrCreateSchemaResponse(
+                        CommandGetOrCreateSchemaResponse commandGetOrCreateSchemaResponse) {
+                    responseSignal.join();
+                    super.handleGetOrCreateSchemaResponse(commandGetOrCreateSchemaResponse);
+                }
+            });
+        Producer producer = client.newProducer(Schema.AUTO_PRODUCE_BYTES()).enableBatching(false).topic(topic).create();
+        producer.newMessage(Schema.STRING).value("msg").sendAsync();
+
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).get().get();
+        assertEquals(persistentTopic.getProducers().size(), 1);
+        assertTrue(producer.isConnected());
+
+        // cleanup.
+        responseSignal.complete(null);
+        producer.close();
+        client.close();
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(persistentTopic.getProducers().size(), 0);
+        });
+        admin.topics().delete(topic);
+    }
+
+    @Test
+    public void testNoMemoryLeakIfSchemaIncompatible() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName(NAMESPACE_NEVER_COMPATIBLE + "/tp");
+        final String subscription = "s1";
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().createSubscription(topic, subscription, MessageId.earliest);
+
+        // Create a pulsar client with a delayed response of "getOrCreateSchemaResponse"
+        CompletableFuture<Void> responseSignal = new CompletableFuture<>();
+        ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(lookupUrl.toString());
+        PulsarClient client = InjectedClientCnxClientBuilder.create(clientBuilder, (conf, eventLoopGroup) ->
+            new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
+                protected void handleGetOrCreateSchemaResponse(
+                        CommandGetOrCreateSchemaResponse commandGetOrCreateSchemaResponse) {
+                    responseSignal.join();
+                    super.handleGetOrCreateSchemaResponse(commandGetOrCreateSchemaResponse);
+                }
+            });
+        Producer producer = client.newProducer(Schema.AUTO_PRODUCE_BYTES()).enableBatching(false).topic(topic).create();
+        producer.newMessage(Schema.STRING).value("msg").sendAsync();
+
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).get().get();
+        assertEquals(persistentTopic.getProducers().size(), 1);
+        assertTrue(producer.isConnected());
+
+        // cleanup.
+        responseSignal.complete(null);
+        producer.close();
+        client.close();
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(persistentTopic.getProducers().size(), 0);
+        });
+        admin.topics().delete(topic);
     }
 
     @Test

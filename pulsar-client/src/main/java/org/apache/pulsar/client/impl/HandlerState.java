@@ -68,6 +68,10 @@ abstract class HandlerState {
                 || STATE_UPDATER.compareAndSet(this, State.RegisteringSchema, State.Ready));
     }
 
+    protected boolean compareAndSetState(State expect, State update) {
+        return STATE_UPDATER.compareAndSet(this, expect, update);
+    }
+
     protected boolean changeToRegisteringSchemaState() {
         return STATE_UPDATER.compareAndSet(this, State.Ready, State.RegisteringSchema);
     }
