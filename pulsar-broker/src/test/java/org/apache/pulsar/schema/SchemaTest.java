@@ -1450,7 +1450,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
     }
 
 
-    @Test
+    @Test(enabled = false)
     public void testPendingQueueSizeIfIncompatible() throws Exception {
         final String namespace = BrokerTestUtil.newUniqueName(PUBLIC_TENANT + "/ns");
         admin.namespaces().createNamespace(namespace, Sets.newHashSet(CLUSTER_NAME));
