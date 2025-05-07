@@ -48,7 +48,7 @@ body:
         Please check the [supported Pulsar versions in the release policy](https://pulsar.apache.org/contribute/release-policy/#supported-versions).
       options:
         - label: >
-            I understand that unsupported versions don't get bug fixes. I will attempt to reproduce the issue on a supported version of Pulsar client and Pulsar broker.
+            I understand that [unsupported versions](https://pulsar.apache.org/contribute/release-policy/#supported-versions) don't get bug fixes. I will attempt to reproduce the issue on a supported version of Pulsar client and Pulsar broker.
           required: true
   - type: textarea
     id: userEnvironment
