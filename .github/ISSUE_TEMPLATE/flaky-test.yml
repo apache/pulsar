@@ -25,6 +25,7 @@ body:
       value: |
         Thank you very much for reporting flaky tests!
   - type: checkboxes
+    id: confirmSearch
     attributes:
       label: Search before asking
       description: >
@@ -34,6 +35,7 @@ body:
             I searched in the [issues](https://github.com/apache/pulsar/issues) and found nothing similar.
           required: true
   - type: input
+    id: failureUrl
     attributes:
       label: Example failure
       description: |
@@ -42,6 +44,7 @@ body:
     validations:
       required: true
   - type: textarea
+    id: stacktrace
     attributes:
       label: Exception stacktrace
       description: |
@@ -54,6 +57,7 @@ body:
     validations:
       required: true
   - type: checkboxes
+    id: willSubmitPR
     attributes:
       label: Are you willing to submit a PR?
       description: >
