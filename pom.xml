@@ -114,6 +114,7 @@ flexible messaging model and an intuitive client API.</description>
       --add-opens java.management/sun.management=ALL-UNNAMED <!--JvmDefaultGCMetricsLogger & MBeanStatsGenerator-->
       --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED <!--MBeanStatsGenerator-->
       --add-opens java.base/jdk.internal.platform=ALL-UNNAMED <!--LinuxInfoUtils-->
+      -XX:+EnableDynamicAgentLoading <!-- byte-buddy-agent and mockito-core agent dynamic loading -->
     </test.additional.args>
     <testMaxHeapSize>1300M</testMaxHeapSize>
     <testReuseFork>true</testReuseFork>
@@ -171,7 +172,8 @@ flexible messaging model and an intuitive client API.</description>
     <docker-maven.version>0.45.1</docker-maven.version>
     <docker.verbose>true</docker.verbose>
     <typetools.version>0.5.0</typetools.version>
-    <byte-buddy.version>1.14.12</byte-buddy.version>
+    <!-- match the byte-buddy version used by the mockito-core pom -->
+    <byte-buddy.version>1.15.11</byte-buddy.version>
     <zt-zip.version>1.17</zt-zip.version>
     <protobuf3.version>3.25.5</protobuf3.version>
     <protoc3.version>${protobuf3.version}</protoc3.version>
@@ -277,7 +279,7 @@ flexible messaging model and an intuitive client API.</description>
     <restassured.version>5.4.0</restassured.version>
     <kerby.version>1.1.1</kerby.version>
     <testng.version>7.7.1</testng.version>
-    <mockito.version>5.6.0</mockito.version>
+    <mockito.version>5.17.0</mockito.version>
     <javassist.version>3.25.0-GA</javassist.version>
     <skyscreamer.version>1.5.0</skyscreamer.version>
     <objenesis.version>3.3</objenesis.version> <!-- should match mockito-core objenesis version -->
@@ -386,8 +388,10 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>org.mockito</groupId>
-        <artifactId>mockito-core</artifactId>
+        <artifactId>mockito-bom</artifactId>
         <version>${mockito.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
 
       <dependency>
