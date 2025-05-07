@@ -1004,6 +1004,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         long lastActive = cursor.getLastActive();
 
+        // ensure that the next last active time will be greater than the current one
+        Thread.sleep(1L);
+
         cursor.asyncResetCursor(lastPosition, false, new AsyncCallbacks.ResetCursorCallback() {
             @Override
             public void resetComplete(Object ctx) {
