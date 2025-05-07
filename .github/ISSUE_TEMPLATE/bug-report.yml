@@ -27,7 +27,7 @@ body:
 
         For suggestions or help, please consider:
         1. [User Mail List](mailto:users@pulsar.apache.org) ([subscribe](https://pulsar.apache.org/contact/#subscribing-to-a-mailing-list));
-        2. [Github Discussion](https://github.com/apache/pulsar/discussions).
+        2. [Github Discussion Q&A](https://github.com/apache/pulsar/discussions/categories/q-a).
 
         If you are reporting a security vulnerability, please instead follow the [security policy](https://pulsar.apache.org/en/security/).
   - type: checkboxes
