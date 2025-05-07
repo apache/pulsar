@@ -88,6 +88,7 @@ body:
           - For longer stack traces, please share them in a [GitHub Gist](https://gist.github.com/) and provide the link.
           - Remember to obfuscate any sensitive information before sharing.
       render: text
+      placeholder: Copy-paste the error messages or stack traces (max 100 lines) here, or provide a link to the GitHub Gist.
   - type: textarea
     id: reproduce
     attributes:
