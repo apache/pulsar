@@ -441,8 +441,16 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
-    @Test
-    public void testPriorityOfGlobalPolicies() throws Exception {
+    @DataProvider(name = "clientRequestType")
+    public Object[][] clientRequestType() {
+        return new Object[][]{
+            {"PULSAR_ADMIN"},
+            {"HTTP"}
+        };
+    }
+
+    @Test(dataProvider = "clientRequestType")
+    public void testPriorityOfGlobalPolicies(String clientRequestType) throws Exception {
         final SystemTopicBasedTopicPoliciesService topicPoliciesService
                 = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
         final JerseyClient httpClient = JerseyClientBuilder.createClient();
@@ -460,12 +468,16 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         // Set non global policy.
         // Verify: it affects.
-        Response res = httpClient.target(hostAndPort).path(httpPath)
-                .queryParam("isGlobal", "false")
-                .request()
-                .header("Content-Type", "application/json")
-                .post(Entity.json(10));
-        assertTrue(res.getStatus() == 200 || res.getStatus() == 204);
+        if ("PULSAR_ADMIN".equals(clientRequestType)) {
+            admin.topicPolicies(false).setMaxConsumers(topic, 10);
+        } else {
+            Response res = httpClient.target(hostAndPort).path(httpPath)
+                    .queryParam("isGlobal", "false")
+                    .request()
+                    .header("Content-Type", "application/json")
+                    .post(Entity.json(10));
+            assertTrue(res.getStatus() == 200 || res.getStatus() == 204);
+        }
         Awaitility.await().untilAsserted(() -> {
             assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, LOCAL_ONLY).join().get()
                     .getMaxConsumerPerTopic(), 10);
@@ -475,12 +487,16 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         // Set global policy.
         // Verify: topic policies has higher priority than global policies.
-        Response globalRes = httpClient.target(hostAndPort).path(httpPath)
-                .queryParam("isGlobal", "true")
-                .request()
-                .header("Content-Type", "application/json")
-                .post(Entity.json(20));
-        assertTrue(globalRes.getStatus() == 200 || globalRes.getStatus() == 204);
+        if ("PULSAR_ADMIN".equals(clientRequestType)) {
+            admin.topicPolicies(true).setMaxConsumers(topic, 20);
+        } else {
+            Response globalRes = httpClient.target(hostAndPort).path(httpPath)
+                    .queryParam("isGlobal", "true")
+                    .request()
+                    .header("Content-Type", "application/json")
+                    .post(Entity.json(20));
+            assertTrue(globalRes.getStatus() == 200 || globalRes.getStatus() == 204);
+        }
         Awaitility.await().untilAsserted(() -> {
             assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, LOCAL_ONLY).join().get()
                     .getMaxConsumerPerTopic(), 10);
@@ -492,12 +508,16 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         // Remove non-global policy.
         // Verify: global policy affects.
-        Response removeRes = httpClient.target(hostAndPort).path(httpPath)
-                .queryParam("isGlobal", "false")
-                .request()
-                .header("Content-Type", "application/json")
-                .delete();
-        assertTrue(removeRes.getStatus() == 200 || removeRes.getStatus() == 204);
+        if ("PULSAR_ADMIN".equals(clientRequestType)) {
+            admin.topicPolicies(false).removeMaxConsumers(topic);
+        } else {
+            Response removeRes = httpClient.target(hostAndPort).path(httpPath)
+                    .queryParam("isGlobal", "false")
+                    .request()
+                    .header("Content-Type", "application/json")
+                    .delete();
+            assertTrue(removeRes.getStatus() == 200 || removeRes.getStatus() == 204);
+        }
         Awaitility.await().untilAsserted(() -> {
             assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, GLOBAL_ONLY).join().get()
                     .getMaxConsumerPerTopic(), 20);
@@ -510,8 +530,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().delete(topic, false);
     }
 
-    @Test
-    public void testPriorityOfGlobalPolicies2() throws Exception {
+    @Test(dataProvider = "clientRequestType")
+    public void testPriorityOfGlobalPolicies2(String clientRequestType) throws Exception {
         final SystemTopicBasedTopicPoliciesService topicPoliciesService
                 = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
         final JerseyClient httpClient = JerseyClientBuilder.createClient();
@@ -529,12 +549,16 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         // Set global policy.
         // Verify: it affects.
-        Response globalRes = httpClient.target(hostAndPort).path(httpPath)
-                .queryParam("isGlobal", "true")
-                .request()
-                .header("Content-Type", "application/json")
-                .post(Entity.json(20));
-        assertTrue(globalRes.getStatus() == 200 || globalRes.getStatus() == 204);
+        if ("PULSAR_ADMIN".equals(clientRequestType)) {
+            admin.topicPolicies(true).setMaxConsumers(topic, 20);
+        } else {
+            Response globalRes = httpClient.target(hostAndPort).path(httpPath)
+                    .queryParam("isGlobal", "true")
+                    .request()
+                    .header("Content-Type", "application/json")
+                    .post(Entity.json(20));
+            assertTrue(globalRes.getStatus() == 200 || globalRes.getStatus() == 204);
+        }
         Awaitility.await().untilAsserted(() -> {
             assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, GLOBAL_ONLY).join().get()
                     .getMaxConsumerPerTopic(), 20);
@@ -544,12 +568,16 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         // Set non global policy.
         // Verify: topic policies has higher priority than global policies.
-        Response res = httpClient.target(hostAndPort).path(httpPath)
-                .queryParam("isGlobal", "false")
-                .request()
-                .header("Content-Type", "application/json")
-                .post(Entity.json(10));
-        assertTrue(res.getStatus() == 200 || res.getStatus() == 204);
+        if ("PULSAR_ADMIN".equals(clientRequestType)) {
+            admin.topicPolicies(false).setMaxConsumers(topic, 10);
+        } else {
+            Response res = httpClient.target(hostAndPort).path(httpPath)
+                    .queryParam("isGlobal", "false")
+                    .request()
+                    .header("Content-Type", "application/json")
+                    .post(Entity.json(10));
+            assertTrue(res.getStatus() == 200 || res.getStatus() == 204);
+        }
         Awaitility.await().untilAsserted(() -> {
             assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, LOCAL_ONLY).join().get()
                     .getMaxConsumerPerTopic(), 10);
@@ -561,12 +589,16 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         // Remove global policy.
         // Verify: non-global policy affects.
-        Response removeRes = httpClient.target(hostAndPort).path(httpPath)
-                .queryParam("isGlobal", "true")
-                .request()
-                .header("Content-Type", "application/json")
-                .delete();
-        assertTrue(removeRes.getStatus() == 200 || removeRes.getStatus() == 204);
+        if ("PULSAR_ADMIN".equals(clientRequestType)) {
+            admin.topicPolicies(true).removeMaxConsumers(topic);
+        } else {
+            Response removeRes = httpClient.target(hostAndPort).path(httpPath)
+                    .queryParam("isGlobal", "true")
+                    .request()
+                    .header("Content-Type", "application/json")
+                    .delete();
+            assertTrue(removeRes.getStatus() == 200 || removeRes.getStatus() == 204);
+        }
         Awaitility.await().untilAsserted(() -> {
             assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, LOCAL_ONLY).join().get()
                     .getMaxConsumerPerTopic(), 10);

@@ -56,6 +56,11 @@ public class PolicyHierarchyValue<T> {
         updateValue();
     }
 
+    @Deprecated
+    public void updateTopicValue(T topicValue) {
+        updateTopicValue(topicValue, false);
+    }
+
     public void updateTopicValue(T topicValue, boolean isGlobalPolicy) {
         if (isGlobalPolicy) {
             this.topicGlobalValue = topicValue;
