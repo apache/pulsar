@@ -600,6 +600,13 @@ jobs:
             setup: ./build/run_integration_group.sh SHADE_BUILD
             no_coverage: true
 
+          - name: Shade on Java 24
+            group: SHADE_RUN
+            upload_name: SHADE_RUN_24
+            runtime_jdk: 24
+            setup: ./build/run_integration_group.sh SHADE_BUILD
+            no_coverage: true
+
           - name: Standalone
             group: STANDALONE
 
