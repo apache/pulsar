@@ -59,13 +59,15 @@
     <guava.version>32.1.2-jre</guava.version>
     <ant.version>1.10.12</ant.version>
     <snakeyaml.version>2.0</snakeyaml.version>
-    <mockito.version>5.6.0</mockito.version>
+    <mockito.version>5.17.0</mockito.version>
+    <byte-buddy.version>1.15.11</byte-buddy.version>
     <!-- required for running tests on JDK11+ -->
     <test.additional.args>
       --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
       --add-opens java.base/java.lang=ALL-UNNAMED <!--Mockito-->
       --add-opens java.base/jdk.internal.platform=ALL-UNNAMED <!--LinuxInfoUtils-->
     </test.additional.args>
+    <redirectTestOutputToFile>true</redirectTestOutputToFile>
   </properties>
 
   <dependencyManagement>
@@ -83,6 +85,18 @@
         <version>${log4j2.version}</version>
         <type>pom</type>
         <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-bom</artifactId>
+        <version>${mockito.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>net.bytebuddy</groupId>
+        <artifactId>byte-buddy</artifactId>
+        <version>${byte-buddy.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -158,7 +172,6 @@
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
-      <version>${mockito.version}</version>
     </dependency>
   </dependencies>
 
@@ -196,6 +209,7 @@
           <argLine>
             ${test.additional.args}
           </argLine>
+          <redirectTestOutputToFile>${redirectTestOutputToFile}</redirectTestOutputToFile>
         </configuration>
         <dependencies>
           <dependency>

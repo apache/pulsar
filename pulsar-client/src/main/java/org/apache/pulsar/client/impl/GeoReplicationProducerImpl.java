@@ -108,6 +108,15 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
         if (pendingLId != null && pendingEId != null
                 && (pendingLId < lastPersistedSourceLedgerId || (pendingLId.longValue() == lastPersistedSourceLedgerId
                   && pendingEId.longValue() <= lastPersistedSourceEntryId))) {
+            if (MessageImpl.SchemaState.Broken.equals(op.msg.getSchemaState())) {
+                log.error("[{}] [{}] Replication is paused because the schema is incompatible with the remote"
+                                + " cluster, please modify the schema compatibility for the remote cluster."
+                                + " Latest published entry {}:{}, Entry who has incompatible schema: {}:{},"
+                                + " latest persisted source entry: {}:{}, pending queue size: {}.",
+                        topic, producerName, sourceLId, sourceEId, pendingLId, pendingEId,
+                        lastPersistedSourceLedgerId, lastPersistedSourceEntryId, pendingMessages.messagesCount());
+                return;
+            }
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Received an msg send receipt[pending send is repeated due to repl cursor rewind]:"
                                 + " source entry {}:{}, pending send: {}:{}, latest persisted: {}:{}",
