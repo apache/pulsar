@@ -115,7 +115,10 @@ flexible messaging model and an intuitive client API.</description>
       --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED <!--MBeanStatsGenerator-->
       --add-opens java.base/jdk.internal.platform=ALL-UNNAMED <!--LinuxInfoUtils-->
       -XX:+EnableDynamicAgentLoading <!-- byte-buddy-agent and mockito-core agent dynamic loading -->
+      --enable-native-access=ALL-UNNAMED <!-- Required by java.lang.System::loadLibrary calls -->
+      ${test.additional.args.jdk24}
     </test.additional.args>
+    <test.additional.args.jdk24></test.additional.args.jdk24>
     <testMaxHeapSize>1300M</testMaxHeapSize>
     <testReuseFork>true</testReuseFork>
     <testForkCount>4</testForkCount>
@@ -2920,6 +2923,19 @@ flexible messaging model and an intuitive client API.</description>
       <properties>
         <!-- Override the default value with the environment variable -->
         <IMAGE_JDK_MAJOR_VERSION>${env.IMAGE_JDK_MAJOR_VERSION}</IMAGE_JDK_MAJOR_VERSION>
+      </properties>
+    </profile>
+
+    <profile>
+      <id>jdk24</id>
+      <activation>
+        <jdk>24</jdk>
+      </activation>
+      <properties>
+        <!-- JDK 24+ specific arguments -->
+        <test.additional.args.jdk24>
+          --sun-misc-unsafe-memory-access=allow <!-- required for enabling unsafe memory access for Netty since 4.1.121.Final -->
+        </test.additional.args.jdk24>
       </properties>
     </profile>
 
