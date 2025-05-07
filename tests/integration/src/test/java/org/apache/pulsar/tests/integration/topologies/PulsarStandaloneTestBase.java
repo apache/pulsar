@@ -18,7 +18,12 @@
  */
 package org.apache.pulsar.tests.integration.topologies;
 
+import static org.apache.pulsar.tests.integration.containers.PulsarContainer.BROKER_HTTPS_PORT;
+import static org.apache.pulsar.tests.integration.containers.PulsarContainer.BROKER_PORT_TLS;
 import static org.testng.Assert.assertEquals;
+import com.google.common.io.Resources;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
@@ -37,6 +42,17 @@ import org.testng.annotations.DataProvider;
  */
 @Slf4j
 public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
+
+    protected final static String clientTlsTrustCertsFilePath = loadCertificateAuthorityFile("certs/ca.cert.pem");
+    protected final static String clientTlsKeyFilePath = loadCertificateAuthorityFile("client-keys/admin.key-pk8.pem");
+    protected final static String clientTlsCertificateFilePath = loadCertificateAuthorityFile("client-keys/admin.cert.pem");
+
+
+    private static String loadCertificateAuthorityFile(String name) {
+        return Resources.getResource("certificate-authority/" + name).getPath();
+    }
+
+    protected final Map<String, String> standaloneEnvs = new HashMap<>();
 
     @DataProvider(name = "StandaloneServiceUrlAndTopics")
     public Object[][] serviceUrlAndTopics() {
@@ -84,6 +100,7 @@ public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
             .withNetworkAliases(StandaloneContainer.NAME + "-" + clusterName)
             .withEnv("PF_stateStorageServiceUrl", "bk://localhost:4181")
             .withEnv("PULSAR_STANDALONE_USE_ZOOKEEPER", "true");
+        container.withEnv(standaloneEnvs);
         container.start();
         log.info("Pulsar cluster {} is up running:", clusterName);
         log.info("\tBinary Service Url : {}", container.getPlainTextServiceUrl());
@@ -131,4 +148,28 @@ public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
         }
     }
 
+    protected void setupTLS () {
+        standaloneEnvs.put("PULSAR_PREFIX_webServicePortTls", String.valueOf(BROKER_HTTPS_PORT));
+        standaloneEnvs.put("PULSAR_PREFIX_brokerServicePortTls", String.valueOf(BROKER_PORT_TLS));
+        standaloneEnvs.put("PULSAR_PREFIX_brokerClientTlsEnabled", "true");
+        standaloneEnvs.put("PULSAR_PREFIX_tlsRequireTrustedClientCertOnConnect", "true");
+        standaloneEnvs.put("PULSAR_PREFIX_tlsAllowInsecureConnection", "false");
+        standaloneEnvs.put("PULSAR_PREFIX_tlsCertificateFilePath",
+                "/pulsar/certificate-authority/server-keys/broker.cert.pem");
+        standaloneEnvs.put("PULSAR_PREFIX_tlsKeyFilePath",
+                "/pulsar/certificate-authority/server-keys/broker.key-pk8.pem");
+        standaloneEnvs.put("PULSAR_PREFIX_tlsTrustCertsFilePath",
+                "/pulsar/certificate-authority/certs/ca.cert.pem");
+        standaloneEnvs.put("PULSAR_PREFIX_brokerClientCertificateFilePath",
+                "/pulsar/certificate-authority/client-keys/admin.cert.pem");
+        standaloneEnvs.put("PULSAR_PREFIX_brokerClientKeyFilePath",
+                "/pulsar/certificate-authority/client-keys/admin.key-pk8.pem");
+        standaloneEnvs.put("PULSAR_PREFIX_brokerClientTrustCertsFilePath",
+                "/pulsar/certificate-authority/certs/ca.cert.pem");
+        standaloneEnvs.put("PULSAR_PREFIX_brokerClientAuthenticationPlugin",
+                "org.apache.pulsar.client.impl.auth.AuthenticationTls");
+        standaloneEnvs.put("PULSAR_PREFIX_brokerClientAuthenticationParameters",
+                "{\"tlsCertFile\":\"/pulsar/certificate-authority/client-keys/admin.cert.pem\","
+                        + "\"tlsKeyFile\":\"/pulsar/certificate-authority/client-keys/admin.key-pk8.pem\"}");
+    }
 }
