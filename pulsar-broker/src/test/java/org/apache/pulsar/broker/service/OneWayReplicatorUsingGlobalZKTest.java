@@ -225,4 +225,10 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         admin2.topics().delete(topic);
         admin2.namespaces().deleteNamespace(ns1);
     }
+
+    @Override
+    @Test(dataProvider = "enableDeduplication", enabled = false)
+    public void testIncompatibleMultiVersionSchema(boolean enableDeduplication) throws Exception {
+        super.testIncompatibleMultiVersionSchema(enableDeduplication);
+    }
 }
