@@ -41,8 +41,6 @@ body:
       description: |
         Attach a url to the example failure. In the Github Actions workflow run logs, you can right click on the line number to copy a link to the line.
       placeholder: e.g. https://github.com/apache/pulsar/runs/7612690351?check_suite_focus=true#step:2:20
-    validations:
-      required: true
   - type: textarea
     id: stacktrace
     attributes:
