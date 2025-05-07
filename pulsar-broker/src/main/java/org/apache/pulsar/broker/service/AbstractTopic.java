@@ -279,8 +279,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
                 isGlobalPolicies);
         topicPolicies.getDelayedDeliveryMaxDelayInMillis().updateTopicValue(data.getDelayedDeliveryMaxDelayInMillis(),
                 isGlobalPolicies);
-        topicPolicies.getSubscribeRate().updateTopicValue(SubscribeRate.normalize(data.getSubscribeRate()),
-                isGlobalPolicies);
+        topicPolicies.getSubscribeRate().updateTopicValue(
+                SubscribeRate.normalize(data.getSubscribeRate()), isGlobalPolicies);
         topicPolicies.getSubscriptionDispatchRate().updateTopicValue(
             DispatchRateImpl.normalize(data.getSubscriptionDispatchRate()), isGlobalPolicies);
         topicPolicies.getCompactionThreshold().updateTopicValue(data.getCompactionThreshold(),isGlobalPolicies);
