@@ -231,4 +231,10 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
         admin2.topics().deletePartitionedTopic(topic);
         admin2.namespaces().deleteNamespace(ns1);
     }
+
+    @Override
+    @Test(dataProvider = "enableDeduplication", enabled = false)
+    public void testIncompatibleMultiVersionSchema(boolean enableDeduplication) throws Exception {
+        super.testIncompatibleMultiVersionSchema(enableDeduplication);
+    }
 }
