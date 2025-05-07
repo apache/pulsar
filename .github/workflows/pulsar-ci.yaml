@@ -44,6 +44,8 @@ on:
         options:
           - '17'
           - '21'
+          - '24'
+          - '25'
         default: '21'
       trace_test_resource_cleanup:
         description: 'Collect thread & heap information before exiting a test JVM. When set to "on", thread dump and heap histogram will be collected. When set to "full", a heap dump will also be collected.'
@@ -595,6 +597,13 @@ jobs:
             group: SHADE_RUN
             upload_name: SHADE_RUN_21
             runtime_jdk: 21
+            setup: ./build/run_integration_group.sh SHADE_BUILD
+            no_coverage: true
+
+          - name: Shade on Java 24
+            group: SHADE_RUN
+            upload_name: SHADE_RUN_24
+            runtime_jdk: 24
             setup: ./build/run_integration_group.sh SHADE_BUILD
             no_coverage: true
 
