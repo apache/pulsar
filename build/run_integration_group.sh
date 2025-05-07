@@ -99,7 +99,7 @@ mvn_run_integration_test() {
   if [[ $build_only -ne 1 ]]; then
     echo "::group::Run tests for " "$@"
     # use "verify" instead of "test"
-    mvn -B -ntp -pl "$modules" $failfast_args $coverage_args -DskipDocker -DskipSourceReleaseAssembly=true -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true -DredirectTestOutputToFile=false $clean_arg verify "$@"
+    mvn -B -ntp -pl "$modules" $failfast_args $coverage_args -DskipDocker -DskipSourceReleaseAssembly=true -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true $clean_arg verify "$@"
     echo "::endgroup::"
     set +x
     "$SCRIPT_DIR/pulsar_ci_tool.sh" move_test_reports || true
