@@ -585,20 +585,42 @@ ci_report_netty_leaks() {
     return 0
   fi
   local temp_file=$(mktemp -t netty_leak.XXXX)
-  {
-    if [ -d "$NETTY_LEAK_DUMP_DIR" ]; then
-      find "$NETTY_LEAK_DUMP_DIR" -maxdepth 1 -type f -name "netty_leak_*.txt" -exec cat {} \;
+
+  # concat all netty_leak_*.txt files in the dump directory to a temp file
+  if [ -d "$NETTY_LEAK_DUMP_DIR" ]; then
+    find "$NETTY_LEAK_DUMP_DIR" -maxdepth 1 -type f -name "netty_leak_*.txt" -exec cat {} \; >> $temp_file
+  fi
+
+  # check if there are any netty_leak_*.txt files in the container logs
+  local container_logs_dir="tests/integration/target/container-logs"
+  if [ -d "$container_logs_dir" ]; then
+    local container_netty_leak_dump_dir="$NETTY_LEAK_DUMP_DIR/container-logs"
+    mkdir -p "$container_netty_leak_dump_dir"
+    while read -r file; do
+      # example file name "tests/integration/target/container-logs/ltnizrzm-standalone/var-log-pulsar.tar.gz"
+      # take ltnizrzm-standalone part
+      container_name=$(basename "$(dirname "$file")")
+      target_dir="$container_netty_leak_dump_dir/$container_name"
+      mkdir -p "$target_dir"
+      tar -C "$target_dir" -zxf "$file" --strip-components=1 --wildcards --wildcards-match-slash '*/netty_leak_*.txt' >/dev/null 2>&1 || true
+    done < <(find "$container_logs_dir" -type f -name "*.tar.gz")
+    # remove all empty directories
+    find "$container_netty_leak_dump_dir" -type d -empty -delete
+    # print all netty_leak_*.txt files in the container logs dump directory to the temp file
+    if [ -d "$container_netty_leak_dump_dir" ]; then
+      find "$container_netty_leak_dump_dir" -type f -name "netty_leak_*.txt" -exec cat {} \; >> $temp_file
     fi
-    if [ -d tests/integration/target/container-logs ]; then
-      find tests/integration/target/container-logs -type f -name "*.tar.gz" -exec tar -Ozxvf {} --wildcards --wildcards-match-slash '*/netty_leak_*.txt' \;
-    fi
-  } > $temp_file
+  fi
+
   if [ -s $temp_file ]; then
     {
       echo "::warning::Netty leaks found"
-      echo "Test file locations in stack traces:"
-      grep -h -i test $temp_file | grep org.apache | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;s/^Hint: //' | sort -u
-      echo
+      local test_file_locations=$(grep -h -i test $temp_file | grep org.apache | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;s/^Hint: //' | sort -u || true)
+      if [[ -n "$test_file_locations" ]]; then
+        echo "Test file locations in stack traces:"
+        echo
+        echo "$test_file_locations"
+      fi
       echo "Details:"
       cat $temp_file
     } | tee $NETTY_LEAK_DUMP_DIR/leak_report.txt
