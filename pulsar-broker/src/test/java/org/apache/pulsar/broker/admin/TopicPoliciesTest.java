@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.admin;
 
 import static org.apache.pulsar.broker.service.TopicPoliciesService.GetType.GLOBAL_ONLY;
 import static org.apache.pulsar.broker.service.TopicPoliciesService.GetType.LOCAL_ONLY;
+import static org.apache.pulsar.common.naming.SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
@@ -30,6 +31,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -55,6 +57,7 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.PublishRateLimiterImpl;
 import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
+import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.TopicPolicyTestUtils;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
@@ -99,6 +102,7 @@ import org.assertj.core.api.Assertions;
 import org.awaitility.Awaitility;
 import org.glassfish.jersey.client.JerseyClient;
 import org.glassfish.jersey.client.JerseyClientBuilder;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -608,6 +612,114 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         // cleanup.
         producer.close();
+        admin.topics().delete(topic, false);
+    }
+
+    @Test
+    public void testGlobalPolicyStillAffectsAfterUnloading() throws Exception {
+        // create topic and load it up.
+        final String namespace = myNamespace;
+        final String topic = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp");
+        final TopicName topicName = TopicName.get(topic);
+        admin.topics().createNonPartitionedTopic(topic);
+        pulsarClient.newProducer().topic(topic).create().close();
+        final SystemTopicBasedTopicPoliciesService topicPoliciesService
+                = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+
+        // Set non-global policy of the limitation of max consumers.
+        // Set global policy of the limitation of max producers.
+        admin.topicPolicies(false).setMaxConsumers(topic, 10);
+        admin.topicPolicies(true).setMaxProducers(topic, 20);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, LOCAL_ONLY).join().get()
+                    .getMaxConsumerPerTopic(), 10);
+            assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, GLOBAL_ONLY).join().get()
+                    .getMaxProducerPerTopic(), 20);
+            PersistentTopic persistentTopic =
+                    (PersistentTopic) pulsar.getBrokerService().getTopics().get(topic).get().get();
+            HierarchyTopicPolicies hierarchyTopicPolicies = persistentTopic.getHierarchyTopicPolicies();
+            assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 10);
+            assertEquals(hierarchyTopicPolicies.getMaxProducersPerTopic().get(), 20);
+        });
+
+        // Reload topic and verify: both global policy and non-global policy affect.
+        admin.topics().unload(topic);
+        pulsarClient.newProducer().topic(topic).create().close();
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic persistentTopic =
+                    (PersistentTopic) pulsar.getBrokerService().getTopics().get(topic).get().get();
+            HierarchyTopicPolicies hierarchyTopicPolicies = persistentTopic.getHierarchyTopicPolicies();
+            assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 10);
+            assertEquals(hierarchyTopicPolicies.getMaxProducersPerTopic().get(), 20);
+        });
+
+        // cleanup.
+        admin.topics().delete(topic, false);
+    }
+
+    @Test
+    public void testRetentionGlobalPolicyAffects() throws Exception {
+        // create topic and load it up.
+        final String namespace = myNamespace;
+        final String topic = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp");
+        final TopicName topicName = TopicName.get(topic);
+        admin.topics().createNonPartitionedTopic(topic);
+        pulsarClient.newProducer().topic(topic).create().close();
+        final SystemTopicBasedTopicPoliciesService topicPoliciesService
+                = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+
+        // Set non-global policy of the limitation of max consumers.
+        // Set global policy of the persistence policies.
+        admin.topicPolicies(false).setMaxConsumers(topic, 10);
+        RetentionPolicies retentionPolicies = new RetentionPolicies(100, 200);
+        admin.topicPolicies(true).setRetention(topic, retentionPolicies);
+        Awaitility.await().atMost(20, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, LOCAL_ONLY).join().get()
+                    .getMaxConsumerPerTopic(), 10);
+            PersistentTopic persistentTopic =
+                    (PersistentTopic) pulsar.getBrokerService().getTopics().get(topic).get().get();
+            HierarchyTopicPolicies hierarchyTopicPolicies = persistentTopic.getHierarchyTopicPolicies();
+            assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 10);
+            ManagedLedgerConfig mlConfig = persistentTopic.getManagedLedger().getConfig();
+            assertEquals(mlConfig.getRetentionTimeMillis(), TimeUnit.MINUTES.toMillis(100));
+            assertEquals(mlConfig.getRetentionSizeInMB(), 200);
+        });
+        PersistencePolicies persistencePolicy = new PersistencePolicies(3, 2, 1, 4);
+        admin.topicPolicies(true).setPersistence(topic, persistencePolicy);
+        Awaitility.await().atMost(20, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, LOCAL_ONLY).join().get()
+                    .getMaxConsumerPerTopic(), 10);
+            PersistentTopic persistentTopic =
+                    (PersistentTopic) pulsar.getBrokerService().getTopics().get(topic).get().get();
+            HierarchyTopicPolicies hierarchyTopicPolicies = persistentTopic.getHierarchyTopicPolicies();
+            assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 10);
+            ManagedLedgerConfig mlConfig = persistentTopic.getManagedLedger().getConfig();
+            assertEquals(mlConfig.getRetentionTimeMillis(), TimeUnit.MINUTES.toMillis(100));
+            assertEquals(mlConfig.getRetentionSizeInMB(), 200);
+            assertEquals(mlConfig.getEnsembleSize(), 3);
+            assertEquals(mlConfig.getWriteQuorumSize(), 2);
+            assertEquals(mlConfig.getAckQuorumSize(), 1);
+            assertEquals(mlConfig.getThrottleMarkDelete(), 4D);
+        });
+
+        // Reload topic and verify: retention policy of global policy affects.
+        admin.topics().unload(topic);
+        pulsarClient.newProducer().topic(topic).create().close();
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic persistentTopic =
+                    (PersistentTopic) pulsar.getBrokerService().getTopics().get(topic).get().get();
+            HierarchyTopicPolicies hierarchyTopicPolicies = persistentTopic.getHierarchyTopicPolicies();
+            ManagedLedgerConfig mlConfig = persistentTopic.getManagedLedger().getConfig();
+            assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 10);
+            assertEquals(mlConfig.getRetentionTimeMillis(), TimeUnit.MINUTES.toMillis(100));
+            assertEquals(mlConfig.getRetentionSizeInMB(), 200);
+            assertEquals(mlConfig.getEnsembleSize(), 3);
+            assertEquals(mlConfig.getWriteQuorumSize(), 2);
+            assertEquals(mlConfig.getAckQuorumSize(), 1);
+            assertEquals(mlConfig.getThrottleMarkDelete(), 4D);
+        });
+
+        // cleanup.
         admin.topics().delete(topic, false);
     }
 
