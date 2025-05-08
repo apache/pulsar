@@ -47,6 +47,7 @@ public class MarkersTest {
 
         assertEquals(request.getSnapshotId(), "sid");
         assertEquals(request.getSourceCluster(), "us-west");
+        buf.release();
     }
 
     @Test
@@ -63,6 +64,7 @@ public class MarkersTest {
         assertEquals(response.getCluster().getCluster(), "us-east");
         assertEquals(response.getCluster().getMessageId().getLedgerId(), 5);
         assertEquals(response.getCluster().getMessageId().getEntryId(), 7);
+        buf.release();
     }
 
     @Test
@@ -91,6 +93,7 @@ public class MarkersTest {
         assertEquals(snapshot.getClusterAt(1).getCluster(), "us-east");
         assertEquals(snapshot.getClusterAt(1).getMessageId().getLedgerId(), 10);
         assertEquals(snapshot.getClusterAt(1).getMessageId().getEntryId(), 11);
+        buf.release();
     }
 
     @Test
@@ -115,6 +118,7 @@ public class MarkersTest {
         assertEquals(snapshot.getClusterAt(1).getCluster(), "us-east");
         assertEquals(snapshot.getClusterAt(1).getMessageId().getLedgerId(), 10);
         assertEquals(snapshot.getClusterAt(1).getMessageId().getEntryId(), 11);
+        buf.release();
     }
 
     @Test
@@ -130,6 +134,7 @@ public class MarkersTest {
         assertEquals(msgMetadata.getSequenceId(), sequenceId);
         assertEquals(msgMetadata.getTxnidMostBits(), mostBits);
         assertEquals(msgMetadata.getTxnidLeastBits(), leastBits);
+        buf.release();
     }
 
     @Test
@@ -146,6 +151,7 @@ public class MarkersTest {
         assertEquals(msgMetadata.getSequenceId(), sequenceId);
         assertEquals(msgMetadata.getTxnidMostBits(), mostBits);
         assertEquals(msgMetadata.getTxnidLeastBits(), leastBits);
+        buf.release();
     }
 
 }
