@@ -115,6 +115,7 @@ flexible messaging model and an intuitive client API.</description>
       --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED <!--MBeanStatsGenerator-->
       --add-opens java.base/jdk.internal.platform=ALL-UNNAMED <!--LinuxInfoUtils-->
       -XX:+EnableDynamicAgentLoading <!-- byte-buddy-agent and mockito-core agent dynamic loading -->
+      -Xshare:off <!-- suppress sharing warning -->
       ${test.additional.args.jdk24}
     </test.additional.args>
     <test.additional.args.jdk24></test.additional.args.jdk24>
