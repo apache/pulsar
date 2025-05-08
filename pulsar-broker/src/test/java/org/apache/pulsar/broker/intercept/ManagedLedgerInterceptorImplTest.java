@@ -128,10 +128,12 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
         assertEquals(19, ((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex());
         List<Entry> entryList = cursor.readEntries(numberOfEntries);
         for (int i = 0 ; i < numberOfEntries; i ++) {
+            Entry entry = entryList.get(i);
             BrokerEntryMetadata metadata =
-                    Commands.parseBrokerEntryMetadataIfExist(entryList.get(i).getDataBuffer());
+                    Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
             assertNotNull(metadata);
             assertEquals(metadata.getIndex(), (i + 1) * MOCK_BATCH_SIZE - 1);
+            entry.release();
         }
 
         cursor.close();
@@ -155,7 +157,9 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
         ledger.addEntry("Test Message".getBytes());
         factory.getEntryCacheManager().clear();
         List<Entry> entryList = cursor.readEntries(1);
-        String message = new String(entryList.get(0).getData());
+        Entry entry = entryList.get(0);
+        String message = new String(entry.getData());
+        entry.release();
         Assert.assertTrue(message.equals("Test Message"));
         cursor.close();
         ledger.close();
