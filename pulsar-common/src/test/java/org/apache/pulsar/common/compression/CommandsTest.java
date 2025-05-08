@@ -88,9 +88,9 @@ public class CommandsTest {
         metaPayloadFrame.writeInt(metadataSize);
         msgMetadata.writeTo(metaPayloadFrame);
         ByteBuf payload = compressedPayload.copy();
-        ByteBufPair metaPayloadBuf = ByteBufPair.get(metaPayloadFrame, payload);
-        int computedChecksum = Crc32cIntChecksum.computeChecksum(ByteBufPair.coalesce(metaPayloadBuf));
-        metaPayloadBuf.release();
+        ByteBuf byteBuf = ByteBufPair.coalesce(ByteBufPair.get(metaPayloadFrame, payload));
+        int computedChecksum = Crc32cIntChecksum.computeChecksum(byteBuf);
+        byteBuf.release();
         return computedChecksum;
     }
 

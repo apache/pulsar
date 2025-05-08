@@ -115,6 +115,7 @@ flexible messaging model and an intuitive client API.</description>
       --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED <!--MBeanStatsGenerator-->
       --add-opens java.base/jdk.internal.platform=ALL-UNNAMED <!--LinuxInfoUtils-->
       -XX:+EnableDynamicAgentLoading <!-- byte-buddy-agent and mockito-core agent dynamic loading -->
+      -Xshare:off <!-- suppress sharing warning -->
       ${test.additional.args.jdk24}
       ${test.netty.args}
     </test.additional.args>
@@ -171,7 +172,7 @@ flexible messaging model and an intuitive client API.</description>
     <narPluginPhase>package</narPluginPhase>
 
     <!-- apache commons -->
-    <commons-compress.version>1.27.0</commons-compress.version>
+    <commons-compress.version>1.27.1</commons-compress.version>
 
     <bookkeeper.version>4.17.1</bookkeeper.version>
     <zookeeper.version>3.9.3</zookeeper.version>
