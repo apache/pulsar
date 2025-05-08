@@ -426,14 +426,11 @@ The Apache Software License, Version 2.0
  * JSpecify -- jspecify-1.0.0.jar
 
 BSD 3-clause "New" or "Revised" License
- * JSR305 -- jsr305-3.0.2.jar -- ../licenses/LICENSE-JSR305.txt
  * JLine3 -- jline-3.21.0.jar -- ../licenses/LICENSE-JLine.txt
 
 MIT License
  * SLF4J -- ../licenses/LICENSE-SLF4J.txt
     - slf4j-api-2.0.13.jar
- * The Checker Framework
-    - checker-qual-3.33.0.jar
 
 CDDL-1.1 -- ../licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API
