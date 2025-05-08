@@ -52,6 +52,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
     private final Rate msgExpired;
     private final LongAdder totalMsgExpired;
     private final PersistentSubscription subscription;
+    private final PersistentMessageFinder finder;
 
     private static final int FALSE = 0;
     private static final int TRUE = 1;
@@ -70,6 +71,10 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
         this.subscription = subscription;
         this.msgExpired = new Rate();
         this.totalMsgExpired = new LongAdder();
+        int managedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis = topic.getBrokerService().pulsar()
+                .getConfig().getManagedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis();
+        this.finder = new PersistentMessageFinder(topicName, cursor,
+                managedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis);
     }
 
     @VisibleForTesting
@@ -94,10 +99,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
         checkExpiryByLedgerClosureTime(cursor, messageTTLInSeconds);
         // Some part of entries in active Ledger may have reached TTL, so we need to continue searching.
         long expiredMessageTimestamp = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(messageTTLInSeconds);
-        int managedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis = topic.getBrokerService().pulsar()
-                .getConfig().getManagedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis();
-        new PersistentMessageFinder(topicName, cursor, managedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis)
-                .findMessages(expiredMessageTimestamp, this);
+        finder.findMessages(expiredMessageTimestamp, this);
         return true;
     }
 
