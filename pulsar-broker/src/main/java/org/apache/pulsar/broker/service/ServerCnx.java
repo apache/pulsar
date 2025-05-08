@@ -3672,4 +3672,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     protected void setAuthRole(String authRole) {
         this.authRole = authRole;
     }
+
+    @VisibleForTesting
+    void setAuthState(AuthenticationState authState) {
+        this.authState = authState;
+    }
 }

@@ -97,7 +97,8 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         headers.writeInt(msgMetadataSize);
         messageMetadata.writeTo(headers);
         ByteBuf headersAndPayload = ByteBufPair.coalesce(ByteBufPair.get(headers, data));
-        byte[] byteMessage = headersAndPayload.nioBuffer().array();
+        byte[] byteMessage = new byte[headersAndPayload.readableBytes()];
+        headersAndPayload.readBytes(byteMessage);
         headersAndPayload.release();
         return byteMessage;
     }
@@ -122,7 +123,8 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     public static byte[] appendBrokerTimestamp(ByteBuf headerAndPayloads) throws Exception {
         ByteBuf msgWithEntryMeta =
                 Commands.addBrokerEntryMetadata(headerAndPayloads, getBrokerEntryMetadataInterceptors(), 1);
-        byte[] byteMessage = msgWithEntryMeta.nioBuffer().array();
+        byte[] byteMessage = new byte[msgWithEntryMeta.readableBytes()];
+        msgWithEntryMeta.readBytes(byteMessage);
         msgWithEntryMeta.release();
         return byteMessage;
     }
