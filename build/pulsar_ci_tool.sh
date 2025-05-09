@@ -613,8 +613,14 @@ ci_report_netty_leaks() {
   fi
 
   if [ -s $temp_file ]; then
+    local leak_found_log_message
+    if [[ "$NETTY_LEAK_DETECTION" == "fail_on_leak" ]]; then
+      leak_found_log_message="::error::Netty leaks found. Failing the build since Netty leak detection is set to 'fail_on_leak'."
+    else
+      leak_found_log_message="::warning::Netty leaks found."
+    fi
     {
-      echo "::warning::Netty leaks found"
+      echo "${leak_found_log_message}"
       local test_file_locations=$(grep -h -i test $temp_file | grep org.apache | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;s/^Hint: //' | sort -u || true)
       if [[ -n "$test_file_locations" ]]; then
         echo "Test file locations in stack traces:"
@@ -625,6 +631,9 @@ ci_report_netty_leaks() {
       cat $temp_file
     } | tee $NETTY_LEAK_DUMP_DIR/leak_report.txt
     touch target/netty_leaks_found
+    if [[ "$NETTY_LEAK_DETECTION" == "fail_on_leak" ]]; then
+      exit 1
+    fi
   else
     echo "No netty leaks found."
     touch target/netty_leaks_not_found
