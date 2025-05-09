@@ -35,8 +35,6 @@ import org.slf4j.LoggerFactory;
  * A custom Netty leak detector used in Pulsar tests that dumps the detected leaks to a file in a directory that is
  * configured with the NETTY_LEAK_DUMP_DIR environment variable. This directory defaults to java.io.tmpdir.
  * The files will be named netty_leak_YYYYMMDD-HHMMSS.SSS.txt.
- * By default, the JVM will exit when a leak is detected. This behavior can be disabled by setting the
- * org.apache.pulsar.tests.ExtendedNettyLeakDetector.exitJvmOnLeak system property to false.
  */
 public class ExtendedNettyLeakDetector<T> extends ResourceLeakDetector<T> {
     private static final Logger LOG = LoggerFactory.getLogger(ExtendedNettyLeakDetector.class);
@@ -51,7 +49,7 @@ public class ExtendedNettyLeakDetector<T> extends ResourceLeakDetector<T> {
     private static final long SLEEP_AFTER_GC_AND_FINALIZATION_MILLIS = Long.parseLong(System.getProperty(
             SLEEP_AFTER_GC_AND_FINALIZATION_MILLIS_SYSTEM_PROPERTY_NAME, "10"));
     private static boolean exitJvmOnLeak = Boolean.valueOf(
-            System.getProperty(EXIT_JVM_ON_LEAK_SYSTEM_PROPERTY_NAME, "true"));
+            System.getProperty(EXIT_JVM_ON_LEAK_SYSTEM_PROPERTY_NAME, "false"));
     private static final boolean DEFAULT_EXIT_JVM_ON_LEAK = exitJvmOnLeak;
     public static final String EXIT_JVM_DELAY_MILLIS_SYSTEM_PROPERTY_NAME =
             ExtendedNettyLeakDetector.class.getName() + ".exitJvmDelayMillis";
