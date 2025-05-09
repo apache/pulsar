@@ -146,11 +146,11 @@ jobs:
           || (github.event_name == 'workflow_dispatch' && github.event.inputs.collect_coverage == 'true')
           }}"  >> $GITHUB_OUTPUT
 
-      - name: Check if netty leak detection should be enabled
+      - name: Set Netty leak detection mode
         id: netty_leak_detection
         run: |
           echo "netty_leak_detection=${{ 
-          github.event_name == 'workflow_dispatch' ? github.event.inputs.netty_leak_detection : 'report'
+          github.event_name == 'workflow_dispatch' && github.event.inputs.netty_leak_detection || 'report'
           }}" >> $GITHUB_OUTPUT
 
       - name: Check if the PR has been approved for testing
