@@ -744,7 +744,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: Integration-${{ matrix.group }}-dumps
+          name: Integration-${{ matrix.upload_name || matrix.group }}-dumps
           path: |
             /tmp/*.hprof
             **/hs_err_*.log
