@@ -1116,7 +1116,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             assertEquals(admin2.namespaces().getAutoTopicCreationAsync(ns).join().getDefaultNumPartitions(), 2);
             // Trigger system topic __change_event's initialize.
             pulsar2.getTopicPoliciesService().getTopicPoliciesAsync(TopicName.get("persistent://" + ns + "/1"),
-                    TopicPoliciesService.GetType.DEFAULT);
+                    TopicPoliciesService.GetType.LOCAL_ONLY);
         });
 
         // Create non-partitioned topic.

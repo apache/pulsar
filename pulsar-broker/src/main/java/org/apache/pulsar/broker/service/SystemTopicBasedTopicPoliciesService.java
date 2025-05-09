@@ -296,8 +296,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 if (!inserted || existingFuture != null) {
                     final var partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
                     final var policies = Optional.ofNullable(switch (type) {
-                        case DEFAULT -> Optional.ofNullable(policiesCache.get(partitionedTopicName))
-                                .orElseGet(() -> globalPoliciesCache.get(partitionedTopicName));
                         case GLOBAL_ONLY -> globalPoliciesCache.get(partitionedTopicName);
                         case LOCAL_ONLY -> policiesCache.get(partitionedTopicName);
                     });

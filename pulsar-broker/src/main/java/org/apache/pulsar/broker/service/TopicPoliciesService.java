@@ -55,7 +55,6 @@ public interface TopicPoliciesService extends AutoCloseable {
      * It controls the behavior of {@link TopicPoliciesService#getTopicPoliciesAsync}.
      */
     enum GetType {
-        DEFAULT, // try getting the local topic policies, if not present, then get the global policies
         GLOBAL_ONLY, // only get the global policies
         LOCAL_ONLY,  // only get the local policies
     }
