@@ -55,23 +55,16 @@ public class ExtendedNettyLeakDetector<T> extends ResourceLeakDetector<T> {
             ExtendedNettyLeakDetector.class.getName() + ".exitJvmDelayMillis";
     private static final long EXIT_JVM_DELAY_MILLIS =
             Long.parseLong(System.getProperty(EXIT_JVM_DELAY_MILLIS_SYSTEM_PROPERTY_NAME, "1000"));
+    public static final String USE_SHUTDOWN_HOOK_SYSTEM_PROPERTY_NAME =
+            ExtendedNettyLeakDetector.class.getName() + ".useShutdownHook";
+    private static boolean useShutdownHook = Boolean.valueOf(
+            System.getProperty(USE_SHUTDOWN_HOOK_SYSTEM_PROPERTY_NAME, "false"));
+    static {
+        maybeRegisterShutdownHook();
+    }
+
     private boolean exitThreadStarted;
     private static volatile String initialHint;
-
-    /**
-     * Disable exit on leak.
-     */
-    public static void disableExitJVMOnLeak() {
-        exitJvmOnLeak = false;
-    }
-
-    /**
-     * Restore exit on leak to original value.
-     */
-    public static void restoreExitJVMOnLeak() {
-        triggerLeakDetection();
-        exitJvmOnLeak = DEFAULT_EXIT_JVM_ON_LEAK;
-    }
 
     /**
      * Triggers Netty leak detection.
@@ -214,6 +207,49 @@ public class ExtendedNettyLeakDetector<T> extends ResourceLeakDetector<T> {
             }
         } catch (IOException e) {
             LOG.error("Cannot write thread leak dump", e);
+        }
+    }
+
+    /**
+     * Disable exit on leak. This is useful when exitJvmOnLeak is enabled and there's a test that is expected
+     * to leak resources. This method can be called before the test execution begins.
+     * This will not disable the leak detection itself, only the exit on leak behavior.
+     */
+    public static void disableExitJVMOnLeak() {
+        exitJvmOnLeak = false;
+    }
+
+    /**
+     * Restore exit on leak to original value. This is used to re-enable exitJvmOnLeak feature after it was
+     * disabled for the duration of a specific test using disableExitJVMOnLeak.
+     */
+    public static void restoreExitJVMOnLeak() {
+        triggerLeakDetection();
+        exitJvmOnLeak = DEFAULT_EXIT_JVM_ON_LEAK;
+    }
+
+    /**
+     * Shutdown hook to trigger leak detection on JVM shutdown.
+     * This is useful when using the leak detector in actual production code or in system tests which
+     * don't use don't have a test listener that would be calling triggerLeakDetection before the JVM exits.
+     */
+    private static void maybeRegisterShutdownHook() {
+        if (!exitJvmOnLeak && useShutdownHook) {
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                if (!isEnabled()) {
+                    return;
+                }
+                triggerLeakDetection();
+                // wait for a while
+                try {
+                    Thread.sleep(EXIT_JVM_DELAY_MILLIS);
+                } catch (InterruptedException e) {
+                    // ignore
+                }
+                // trigger leak detection again to increase the chances of detecting leaks
+                // this could be helpful if more objects were finalized asynchronously during the delay
+                triggerLeakDetection();
+            }, ExtendedNettyLeakDetector.class.getSimpleName() + "ShutdownHook"));
         }
     }
 }
