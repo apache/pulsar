@@ -39,3 +39,6 @@ RUN mv /etc/supervisord/conf.d/supervisord.conf /etc/supervisord.conf
 COPY target/certificate-authority /pulsar/certificate-authority/
 
 COPY target/java-test-functions.jar /pulsar/examples/
+
+# copy buildtools.jar to /pulsar/lib so that org.apache.pulsar.tests.ExtendedNettyLeakDetector can be used
+COPY target/buildtools.jar /pulsar/lib/

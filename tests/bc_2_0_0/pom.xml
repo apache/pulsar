@@ -92,7 +92,6 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <argLine>${testJacocoAgentArgument} -XX:+ExitOnOutOfMemoryError -Xmx2G -XX:MaxDirectMemorySize=8G
-                                -Dio.netty.leakDetectionLevel=advanced
                                 ${test.additional.args}
                             </argLine>
                             <skipTests>false</skipTests>
