@@ -28,6 +28,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
 import javax.servlet.http.HttpServletRequest;
@@ -115,6 +116,10 @@ public class AuthenticationService implements Closeable {
                     String.format("Unsupported authentication method: [%s].", authMethodName));
         }
         return providerToUse;
+    }
+
+    public Set<String> getAuthMethodNames() {
+        return providers.keySet();
     }
 
     public boolean authenticateHttpRequest(HttpServletRequest request, HttpServletResponse response)
