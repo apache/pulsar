@@ -204,6 +204,10 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
             if (threadName.equals("process reaper")) {
                 return true;
             }
+            // skip JVM internal thread related to agent attach
+            if (threadName.equals("Attach Listener")) {
+                return true;
+            }
             // skip JVM internal thread used for CompletableFuture.delayedExecutor
             if (threadName.equals("CompletableFutureDelayScheduler")) {
                 return true;
