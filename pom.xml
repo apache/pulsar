@@ -253,7 +253,10 @@ flexible messaging model and an intuitive client API.</description>
     <ant.version>1.10.12</ant.version>
     <seancfoley.ipaddress.version>5.5.0</seancfoley.ipaddress.version>
     <disruptor.version>3.4.3</disruptor.version>
-    <zstd-jni.version>1.5.2-3</zstd-jni.version>
+
+    <!-- zstd-jni is only used for testcase,
+    the core logic is switched to java implementation of zstd in org.apache.commons:commons-compress -->
+    <zstd-jni.version>1.5.7-3</zstd-jni.version>
     <netty-reactive-streams.version>2.0.6</netty-reactive-streams.version>
     <completable-futures.version>0.3.6</completable-futures.version>
     <failsafe.version>3.3.2</failsafe.version>
