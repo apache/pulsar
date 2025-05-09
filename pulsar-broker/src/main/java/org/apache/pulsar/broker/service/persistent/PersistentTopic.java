@@ -1022,7 +1022,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             } else if (e instanceof SubscriptionBusyException) {
                                 log.warn("[{}][{}] {}", topic, subscriptionName, e.getMessage());
                             }
-
+                            // TODO 多减掉了一次
                             decrementUsageCount();
                             return FutureUtil.failedFuture(e);
                         }
@@ -1030,7 +1030,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             log.debug("[{}] [{}] [{}] Subscribe failed -- count: {}", topic, subscriptionName,
                                     consumer.consumerName(), currentUsageCount());
                         }
-
+                        // TODO 多减掉了一次
                         decrementUsageCount();
                         return FutureUtil.failedFuture(
                                 new BrokerServiceException.ConnectionClosedException(

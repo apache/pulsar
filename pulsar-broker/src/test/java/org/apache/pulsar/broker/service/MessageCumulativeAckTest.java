@@ -80,7 +80,7 @@ public class MessageCumulativeAckTest {
         var persistentTopic = new PersistentTopic(topicName, mockManagedLedger, pulsarTestContext.getBrokerService());
         sub = spy(new PersistentSubscription(persistentTopic, "sub-1",
             mock(ManagedCursorImpl.class), false));
-        doNothing().when(sub).acknowledgeMessage(any(), any(), any());
+        doNothing().when(sub).acknowledgeMessage(any(), any(), any(), any());
     }
 
     @AfterMethod(alwaysRun = true)
@@ -120,7 +120,7 @@ public class MessageCumulativeAckTest {
         commandAck.addMessageId().setEntryId(0L).setLedgerId(1L);
 
         consumer.messageAcked(commandAck).get();
-        verify(sub, never()).acknowledgeMessage(any(), any(), any());
+        verify(sub, never()).acknowledgeMessage(any(), any(), any(), any());
     }
 
     @Test(timeOut = 5000, dataProvider = "notIndividualAckModes")
@@ -135,7 +135,7 @@ public class MessageCumulativeAckTest {
         commandAck.addMessageId().setEntryId(0L).setLedgerId(1L);
 
         consumer.messageAcked(commandAck).get();
-        verify(sub, times(1)).acknowledgeMessage(any(), any(), any());
+        verify(sub, times(1)).acknowledgeMessage(any(), any(), any(), any());
     }
 
     @Test(timeOut = 5000)
@@ -151,6 +151,6 @@ public class MessageCumulativeAckTest {
         commandAck.addMessageId().setEntryId(0L).setLedgerId(2L);
 
         consumer.messageAcked(commandAck).get();
-        verify(sub, never()).acknowledgeMessage(any(), any(), any());
+        verify(sub, never()).acknowledgeMessage(any(), any(), any(), any());
     }
 }

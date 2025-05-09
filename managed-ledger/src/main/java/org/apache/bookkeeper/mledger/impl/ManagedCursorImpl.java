@@ -21,6 +21,8 @@ package org.apache.bookkeeper.mledger.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
+import static org.apache.bookkeeper.mledger.impl.AckSetState.BATCH_MESSAGE_ACKED_AT_ONCE;
+import static org.apache.bookkeeper.mledger.impl.AckSetState.BATCH_MESSAGE_ACKED_FIRST_PART;
 import static org.apache.bookkeeper.mledger.impl.EntryCountEstimator.estimateEntryCountByBytesSize;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_RETRIES;
@@ -2388,8 +2390,12 @@ public class ManagedCursorImpl implements ManagedCursor {
                 }
                 long[] ackSet = AckSetStateUtil.getAckSetArrayOrNull(position);
                 if (ackSet == null) {
-                    if (batchDeletedIndexes != null) {
-                        batchDeletedIndexes.remove(position);
+                    AckSetStateUtil.markPositionRemovedFromCursor(position);
+                    BitSet bitSet;
+                    if (batchDeletedIndexes == null || (bitSet = batchDeletedIndexes.remove(position)) == null) {
+                        AckSetStateUtil.setBatchMessagesAckedCount(position, BATCH_MESSAGE_ACKED_AT_ONCE);
+                    } else {
+                        AckSetStateUtil.setBatchMessagesAckedCount(position, bitSet.cardinality());
                     }
                     // Add a range (prev, pos] to the set. Adding the previous entry as an open limit to the range will
                     // make the RangeSet recognize the "continuity" between adjacent Positions.
@@ -2413,9 +2419,15 @@ public class ManagedCursorImpl implements ManagedCursor {
                     final var givenBitSet = BitSet.valueOf(ackSet);
                     final var bitSet = batchDeletedIndexes.computeIfAbsent(position, __ -> givenBitSet);
                     if (givenBitSet != bitSet) {
+                        int unAckedBefore = bitSet.cardinality();
                         bitSet.and(givenBitSet);
+                        int unAckedAfter = bitSet.cardinality();
+                        AckSetStateUtil.setBatchMessagesAckedCount(position, unAckedBefore - unAckedAfter);
+                    } else {
+                        AckSetStateUtil.setBatchMessagesAckedCount(position, BATCH_MESSAGE_ACKED_FIRST_PART);
                     }
                     if (bitSet.isEmpty()) {
+                        AckSetStateUtil.markPositionRemovedFromCursor(position);
                         Position previousPosition = ledger.getPreviousPosition(position);
                         individualDeletedMessages.addOpenClosed(previousPosition.getLedgerId(),
                             previousPosition.getEntryId(),
