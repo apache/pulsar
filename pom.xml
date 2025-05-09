@@ -135,6 +135,9 @@ flexible messaging model and an intuitive client API.</description>
       -Dpulsar.allocator.pooled=true
       -Dpulsar.allocator.exit_on_oom=false
       -Dpulsar.allocator.out_of_memory_policy=FallbackToHeap
+      ${test.netty.leakdetection.args}
+    </test.netty.args>
+    <test.netty.leakdetection.args>
       <!-- use the custom resource leak detector in buildtools module -->
       -Dio.netty.customResourceLeakDetector=org.apache.pulsar.tests.ExtendedNettyLeakDetector
       -Dorg.apache.pulsar.tests.ExtendedNettyLeakDetector.exitJvmOnLeak=${testExitJvmOnLeak}
@@ -144,7 +147,7 @@ flexible messaging model and an intuitive client API.</description>
       -Dio.netty.leakDetection.targetRecords=16
       -Dio.netty.leakDetection.acquireAndReleaseOnly=true
       -Dio.netty.leakDetection.samplingInterval=32
-    </test.netty.args>
+    </test.netty.leakdetection.args>
     <testExitJvmOnLeak>false</testExitJvmOnLeak>
     <testExitJvmOnLeakDelayMillis>1000</testExitJvmOnLeakDelayMillis>
     <testLeakDetectionLevel>paranoid</testLeakDetectionLevel>
@@ -2968,6 +2971,20 @@ flexible messaging model and an intuitive client API.</description>
       </properties>
     </profile>
 
+    <!-- This profile is used to disable Netty leak detection in tests. It is activated by setting the
+         environment variable NETTY_LEAK_DETECTION to off. -->
+    <profile>
+      <id>disableNettyLeakDetection</id>
+      <activation>
+        <property>
+          <name>env.NETTY_LEAK_DETECTION</name>
+          <value>off</value>
+        </property>
+      </activation>
+      <properties>
+       <test.netty.leakdetection.args></test.netty.leakdetection.args>
+      </properties>
+    </profile>
   </profiles>
 
   <repositories>
