@@ -166,13 +166,7 @@ public class ExtendedNettyLeakDetector<T> extends ResourceLeakDetector<T> {
                         DUMP_DIR.getAbsolutePath());
                 System.err.println("Exiting JVM due to Netty resource leak. Check logs for more details. Dumped to "
                         + DUMP_DIR.getAbsolutePath());
-                triggerLeakDetection();
-                try {
-                    Thread.sleep(EXIT_JVM_DELAY_MILLIS);
-                } catch (InterruptedException e) {
-                    // ignore
-                }
-                triggerLeakDetection();
+                triggerLeakDetectionBeforeJVMExit();
                 // shutdown log4j2 logging to prevent log truncation
                 LogManager.shutdown();
                 // flush log buffers
@@ -246,17 +240,21 @@ public class ExtendedNettyLeakDetector<T> extends ResourceLeakDetector<T> {
                 if (!isEnabled()) {
                     return;
                 }
-                triggerLeakDetection();
-                // wait for a while
-                try {
-                    Thread.sleep(EXIT_JVM_DELAY_MILLIS);
-                } catch (InterruptedException e) {
-                    // ignore
-                }
-                // trigger leak detection again to increase the chances of detecting leaks
-                // this could be helpful if more objects were finalized asynchronously during the delay
-                triggerLeakDetection();
+                triggerLeakDetectionBeforeJVMExit();
             }, ExtendedNettyLeakDetector.class.getSimpleName() + "ShutdownHook"));
         }
+    }
+
+    private static void triggerLeakDetectionBeforeJVMExit() {
+        triggerLeakDetection();
+        // wait for a while
+        try {
+            Thread.sleep(EXIT_JVM_DELAY_MILLIS);
+        } catch (InterruptedException e) {
+            // ignore
+        }
+        // trigger leak detection again to increase the chances of detecting leaks
+        // this could be helpful if more objects were finalized asynchronously during the delay
+        triggerLeakDetection();
     }
 }
