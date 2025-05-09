@@ -61,6 +61,15 @@ on:
         required: true
         type: number
         default: 10000
+      netty_leak_detection:
+        description: 'Controls Netty leak detection. When set to "report", Netty leak detection is enabled. When set to "fail_on_leak", Netty leak detection is enabled and a build job will fail if leaks are detected. When set to "off", Netty leak detection is disabled.'
+        required: true
+        type: choice
+        options:
+          - 'report'
+          - 'fail_on_leak'
+          - 'off'
+        default: 'report'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}${{ github.event_name == 'workflow_dispatch' && github.event.inputs.jdk_major_version || '' }}
@@ -85,6 +94,7 @@ jobs:
       collect_coverage: ${{ steps.check_coverage.outputs.collect_coverage }}
       jdk_major_version: ${{ steps.jdk_major_version.outputs.jdk_major_version }}
       java_non_tests: ${{ steps.changes.outputs.java_non_tests }}
+      netty_leak_detection: ${{ steps.netty_leak_detection.outputs.netty_leak_detection }}
     steps:
       - name: Cancel scheduled jobs in forks by default
         if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'schedule' }}
@@ -135,6 +145,13 @@ jobs:
             && (github.base_ref == 'master' || github.ref_name == 'master')) 
           || (github.event_name == 'workflow_dispatch' && github.event.inputs.collect_coverage == 'true')
           }}"  >> $GITHUB_OUTPUT
+
+      - name: Check if netty leak detection should be enabled
+        id: netty_leak_detection
+        run: |
+          echo "netty_leak_detection=${{ 
+          github.event_name == 'workflow_dispatch' ? github.event.inputs.netty_leak_detection : 'report'
+          }}" >> $GITHUB_OUTPUT
 
       - name: Check if the PR has been approved for testing
         if: ${{ steps.check_changes.outputs.docs_only != 'true' && github.repository == 'apache/pulsar' && github.event_name == 'pull_request' }}
@@ -232,6 +249,7 @@ jobs:
       TRACE_TEST_RESOURCE_CLEANUP_DIR: ${{ github.workspace }}/target/trace-test-resource-cleanup
       THREAD_LEAK_DETECTOR_WAIT_MILLIS: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.thread_leak_detector_wait_millis || 10000 }}
       THREAD_LEAK_DETECTOR_DIR: ${{ github.workspace }}/target/thread-leak-dumps
+      NETTY_LEAK_DETECTION: "${{ needs.preconditions.outputs.netty_leak_detection }}"
       NETTY_LEAK_DUMP_DIR: ${{ github.workspace }}/target/netty-leak-dumps
     runs-on: ubuntu-22.04
     timeout-minutes: ${{ matrix.timeout || 60 }}
@@ -351,7 +369,7 @@ jobs:
           fi
 
       - name: Report detected Netty leaks
-        if: ${{ always() }}
+        if: ${{ always() && env.NETTY_LEAK_DETECTION != 'off' }}
         run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh report_netty_leaks
 
       - name: Upload Surefire reports
@@ -560,6 +578,7 @@ jobs:
       PULSAR_TEST_IMAGE_NAME: apachepulsar/java-test-image:latest
       DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
+      NETTY_LEAK_DETECTION: "${{ needs.preconditions.outputs.netty_leak_detection }}"
       NETTY_LEAK_DUMP_DIR: ${{ github.workspace }}/target/netty-leak-dumps
     strategy:
       fail-fast: false
@@ -710,7 +729,7 @@ jobs:
           annotate_only: 'true'
 
       - name: Report detected Netty leaks
-        if: ${{ always() }}
+        if: ${{ always() && env.NETTY_LEAK_DETECTION != 'off' }}
         run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh report_netty_leaks
 
       - name: Upload Surefire reports
@@ -996,6 +1015,7 @@ jobs:
       PULSAR_TEST_IMAGE_NAME: apachepulsar/pulsar-test-latest-version:latest
       DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
+      NETTY_LEAK_DETECTION: "${{ needs.preconditions.outputs.netty_leak_detection }}"
       NETTY_LEAK_DUMP_DIR: ${{ github.workspace }}/target/netty-leak-dumps
     strategy:
       fail-fast: false
@@ -1105,7 +1125,7 @@ jobs:
           annotate_only: 'true'
 
       - name: Report detected Netty leaks
-        if: ${{ always() }}
+        if: ${{ always() && env.NETTY_LEAK_DETECTION != 'off' }}
         run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh report_netty_leaks
 
       - name: Upload container logs
@@ -1244,6 +1264,7 @@ jobs:
       PULSAR_TEST_IMAGE_NAME: apachepulsar/pulsar-test-latest-version:latest
       DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
+      NETTY_LEAK_DETECTION: "${{ needs.preconditions.outputs.netty_leak_detection }}"
       NETTY_LEAK_DUMP_DIR: ${{ github.workspace }}/target/netty-leak-dumps
     strategy:
       fail-fast: false
@@ -1330,7 +1351,7 @@ jobs:
           annotate_only: 'true'
 
       - name: Report detected Netty leaks
-        if: ${{ always() }}
+        if: ${{ always() && env.NETTY_LEAK_DETECTION != 'off' }}
         run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh report_netty_leaks
 
       - name: Upload container logs
