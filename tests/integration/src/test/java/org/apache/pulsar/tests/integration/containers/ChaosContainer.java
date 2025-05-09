@@ -57,7 +57,10 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
     }
 
     protected void passSystemPropertyInEnv(String envKey, String systemPropertyName) {
-        String systemPropertyValue = System.getProperty(systemPropertyName);
+        passSystemPropertyInEnv(envKey, systemPropertyName, System.getProperty(systemPropertyName));
+    }
+
+    protected void passSystemPropertyInEnv(String envKey, String systemPropertyName, String systemPropertyValue) {
         if (systemPropertyValue != null) {
             String entryValue = "-D" + systemPropertyName + "=" + systemPropertyValue;
             if (StringUtils.containsWhitespace(systemPropertyValue)) {

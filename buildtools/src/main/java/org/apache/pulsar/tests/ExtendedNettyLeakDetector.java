@@ -40,6 +40,8 @@ import org.slf4j.LoggerFactory;
  */
 public class ExtendedNettyLeakDetector<T> extends ResourceLeakDetector<T> {
     private static final Logger LOG = LoggerFactory.getLogger(ExtendedNettyLeakDetector.class);
+    public static final String NETTY_CUSTOM_LEAK_DETECTOR_SYSTEM_PROPERTY_NAME = "io.netty.customResourceLeakDetector";
+
     private static final File DUMP_DIR =
             new File(System.getenv().getOrDefault("NETTY_LEAK_DUMP_DIR", System.getProperty("java.io.tmpdir")));
     public static final String EXIT_JVM_ON_LEAK_SYSTEM_PROPERTY_NAME =
@@ -208,6 +210,11 @@ public class ExtendedNettyLeakDetector<T> extends ResourceLeakDetector<T> {
         } catch (IOException e) {
             LOG.error("Cannot write thread leak dump", e);
         }
+    }
+
+    public static boolean isExtendedNettyLeakDetectorEnabled() {
+        return ExtendedNettyLeakDetector.class.getName()
+                .equals(System.getProperty(NETTY_CUSTOM_LEAK_DETECTOR_SYSTEM_PROPERTY_NAME));
     }
 
     /**

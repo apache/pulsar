@@ -272,7 +272,12 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
             // pass similar defaults as there is in conf/pulsar_env.sh
             appendToEnv("PULSAR_EXTRA_OPTS",
                     "-Dpulsar.allocator.exit_on_oom=true -Dio.netty.recycler.maxCapacityPerThread=4096");
-            passSystemPropertyInEnv(envKey, "io.netty.customResourceLeakDetector");
+            passSystemPropertyInEnv(envKey, ExtendedNettyLeakDetector.NETTY_CUSTOM_LEAK_DETECTOR_SYSTEM_PROPERTY_NAME);
+            if (ExtendedNettyLeakDetector.isExtendedNettyLeakDetectorEnabled()) {
+                // enable shutdown hook for extended leak detector in containers
+                passSystemPropertyInEnv(envKey, ExtendedNettyLeakDetector.USE_SHUTDOWN_HOOK_SYSTEM_PROPERTY_NAME,
+                        "true");
+            }
             passSystemPropertyInEnv(envKey, ExtendedNettyLeakDetector.EXIT_JVM_ON_LEAK_SYSTEM_PROPERTY_NAME);
             passSystemPropertyInEnv(envKey, ExtendedNettyLeakDetector.EXIT_JVM_DELAY_MILLIS_SYSTEM_PROPERTY_NAME);
             passSystemPropertyInEnv(envKey, "io.netty.leakDetection.level");
