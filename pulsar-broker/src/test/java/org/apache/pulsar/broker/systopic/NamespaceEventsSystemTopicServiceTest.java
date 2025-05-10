@@ -127,7 +127,7 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
                 .policies(policies)
                 .build())
             .build();
-        systemTopicClientForNamespace1.newWriter().write(getEventKey(event), event);
+        systemTopicClientForNamespace1.newWriter().write(getEventKey(event, false), event);
         SystemTopicClient.Reader reader = systemTopicClientForNamespace1.newReader();
         @Cleanup("release")
         Message<PulsarEvent> received = reader.readNext();
