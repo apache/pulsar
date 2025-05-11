@@ -33,50 +33,50 @@ import org.apache.pulsar.common.api.proto.CompressionType;
 @AllArgsConstructor
 public class ProducerMessage {
     // Actual message payload.
-    public String payload;
+    private String payload;
 
     // Optional properties.
-    public Map<String, String> properties;
+    private Map<String, String> properties;
 
     // Request context
-    public String context;
+    private String context;
 
     // Partition key.
-    public String key;
+    private String key;
 
     // Clusters to replicate message to.
-    public List<String> replicationClusters;
+    private List<String> replicationClusters;
 
     // Message event time.
-    public String eventTime;
+    private String eventTime;
 
     // Message sequenceId.
-    public long sequenceId;
+    private long sequenceId;
 
     // Whether to disable replication of the message.
-    public boolean disableReplication;
+    private boolean disableReplication;
 
     // Deliver the message only at or after the specified absolute timestamp.
-    public long deliverAt;
+    private long deliverAt;
 
     // Deliver the message only after the specified relative delay in milliseconds.
-    public long deliverAfterMs;
+    private long deliverAfterMs;
 
     // Version of schema to use for the message.
-    public long schemaVersion;
+    private long schemaVersion;
 
     // Base64 encoded serialized schema for key
-    public String keySchema;
+    private String keySchema;
 
     // Base64 encoded serialized schema for payload
-    public String valueSchema;
+    private String valueSchema;
 
     // Base64 encoded serialized initialization vector used when the client encrypts.
-    public String encryptionParam;
+    private String encryptionParam;
 
     // Compression type. Do not set it if compression is not performed.
-    public CompressionType compressionType;
+    private CompressionType compressionType;
 
     // The size of the payload before compression. Do not set it if compression is not performed.
-    public Integer uncompressedMessageSize;
+    private Integer uncompressedMessageSize;
 }

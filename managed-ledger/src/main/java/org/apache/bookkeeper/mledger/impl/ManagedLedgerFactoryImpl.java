@@ -1110,8 +1110,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 offlineTopicStats.addLedgerDetails(ls.getEntries(), ls.getTimestamp(), ls.getSize(), ls.getLedgerId());
             }
         }
-        offlineTopicStats.totalMessages = numberOfEntries;
-        offlineTopicStats.storageSize = totalSize;
+        offlineTopicStats.setTotalMessages(numberOfEntries);
+        offlineTopicStats.setStorageSize(totalSize);
         if (log.isDebugEnabled()) {
             log.debug("[{}] Total number of entries - {} and size - {}", managedLedgerName, numberOfEntries, totalSize);
         }
@@ -1316,7 +1316,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                                     managedLedgerName, cursorName, range);
                                         }
                                         long cursorBacklog = getNumberOfEntries(range, ledgers);
-                                        offlineTopicStats.messageBacklog += cursorBacklog;
+                                        offlineTopicStats.setMessageBacklog(
+                                                offlineTopicStats.getMessageBacklog() + cursorBacklog
+                                        );
                                         offlineTopicStats.addCursorDetails(cursorName, cursorBacklog, lh.getId());
                                     }
                                 } finally {
@@ -1350,7 +1352,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                                     managedLedgerName, cursorName, range);
                                         }
                                         long cursorBacklog = getNumberOfEntries(range, ledgers);
-                                        offlineTopicStats.messageBacklog += cursorBacklog;
+                                        offlineTopicStats.setMessageBacklog(
+                                                offlineTopicStats.getMessageBacklog() + cursorBacklog
+                                        );
                                         offlineTopicStats.addCursorDetails(cursorName, cursorBacklog, cursorLedgerId);
                                         cursorCounter.countDown();
                                     }
@@ -1412,7 +1416,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                 cursorName, range);
                     }
                     long cursorBacklog = getNumberOfEntries(range, ledgers);
-                    offlineTopicStats.messageBacklog += cursorBacklog;
+                    offlineTopicStats.setMessageBacklog(
+                            offlineTopicStats.getMessageBacklog() + cursorBacklog
+                    );
                     offlineTopicStats.addCursorDetails(cursorName, cursorBacklog, ledgerId);
                 }
             });

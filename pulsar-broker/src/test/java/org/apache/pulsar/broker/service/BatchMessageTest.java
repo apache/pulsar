@@ -136,7 +136,7 @@ public class BatchMessageTest extends BrokerTestBase {
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
         rolloverPerIntervalStats();
-        assertTrue(topic.getProducers().values().iterator().next().getStats().msgRateIn > 0.0);
+        assertTrue(topic.getProducers().values().iterator().next().getStats().getMsgRateIn() > 0.0);
         // we expect 2 messages in the backlog since we sent 50 messages with the batch size set to 25. We have set the
         // batch time high enough for it to not affect the number of messages in the batch
         assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(false), 2);
@@ -185,7 +185,7 @@ public class BatchMessageTest extends BrokerTestBase {
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
         rolloverPerIntervalStats();
-        assertTrue(topic.getProducers().values().iterator().next().getStats().msgRateIn > 0.0);
+        assertTrue(topic.getProducers().values().iterator().next().getStats().getMsgRateIn() > 0.0);
         // we expect 2 messages in the backlog since we sent 50 messages with the batch size set to 25. We have set the
         // batch time high enough for it to not affect the number of messages in the batch
         assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(false), 2);
@@ -231,7 +231,7 @@ public class BatchMessageTest extends BrokerTestBase {
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
         rolloverPerIntervalStats();
-        assertTrue(topic.getProducers().values().iterator().next().getStats().msgRateIn > 0.0);
+        assertTrue(topic.getProducers().values().iterator().next().getStats().getMsgRateIn() > 0.0);
         LOG.info("Sent {} messages, backlog is {} messages", numMsgs,
                 topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(false));
         assertTrue(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(false) < numMsgs);
@@ -267,7 +267,7 @@ public class BatchMessageTest extends BrokerTestBase {
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
         rolloverPerIntervalStats();
-        assertTrue(topic.getProducers().values().iterator().next().getStats().msgRateIn > 0.0);
+        assertTrue(topic.getProducers().values().iterator().next().getStats().getMsgRateIn() > 0.0);
         LOG.info("Sent {} messages, backlog is {} messages", numMsgs,
                 topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(false));
         assertTrue(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(false) < numMsgs);
@@ -313,7 +313,7 @@ public class BatchMessageTest extends BrokerTestBase {
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
         rolloverPerIntervalStats();
-        assertTrue(topic.getProducers().values().iterator().next().getStats().msgRateIn > 0.0);
+        assertTrue(topic.getProducers().values().iterator().next().getStats().getMsgRateIn() > 0.0);
         // we expect 3 messages in the backlog since the large message in the middle should
         // close out the batch and be sent in a batch of its own
         assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(false), 3);
@@ -371,7 +371,7 @@ public class BatchMessageTest extends BrokerTestBase {
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
         rolloverPerIntervalStats();
-        assertTrue(topic.getProducers().values().iterator().next().getStats().msgRateIn > 0.0);
+        assertTrue(topic.getProducers().values().iterator().next().getStats().getMsgRateIn() > 0.0);
         assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(false), numMsgs / numMsgsInBatch);
         consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
 
@@ -418,7 +418,7 @@ public class BatchMessageTest extends BrokerTestBase {
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
         rolloverPerIntervalStats();
-        assertTrue(topic.getProducers().values().iterator().next().getStats().msgRateIn > 0.0);
+        assertTrue(topic.getProducers().values().iterator().next().getStats().getMsgRateIn() > 0.0);
         // we would expect 2 messages in the backlog since we sent 10 messages with the batch size set to 5.
         // However, we are using synchronous send and so each message will go as an individual message
         assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(false), 10);
@@ -650,7 +650,7 @@ public class BatchMessageTest extends BrokerTestBase {
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
         rolloverPerIntervalStats();
-        assertTrue(topic.getProducers().values().iterator().next().getStats().msgRateIn > 0.0);
+        assertTrue(topic.getProducers().values().iterator().next().getStats().getMsgRateIn() > 0.0);
         assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(false), 2);
         consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
 
@@ -705,7 +705,7 @@ public class BatchMessageTest extends BrokerTestBase {
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
         rolloverPerIntervalStats();
-        assertTrue(topic.getProducers().values().iterator().next().getStats().msgRateIn > 0.0);
+        assertTrue(topic.getProducers().values().iterator().next().getStats().getMsgRateIn() > 0.0);
         assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(false),
                 (numMsgs / 2) / numMsgsInBatch + numMsgs / 2);
         consumer = pulsarClient.newConsumer()

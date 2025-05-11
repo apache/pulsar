@@ -2322,7 +2322,7 @@ flexible messaging model and an intuitive client API.</description>
             TODO: remove omitted visitors and fix issues.
             Checks have been omitted to migrate from SpotBugs 4.7.x to 4.9.x for supporting JDK 24 builds.
              -->
-            <omitVisitors>ConstructorThrow,FindPublicAttributes,SharedVariableAtomicityDetector,UnreadFields,MultipleInstantiationsOfSingletons,InitializeNonnullFieldsInConstructor,FindNullDeref</omitVisitors>
+            <omitVisitors>ConstructorThrow,SharedVariableAtomicityDetector,UnreadFields,MultipleInstantiationsOfSingletons,InitializeNonnullFieldsInConstructor,FindNullDeref</omitVisitors>
           </configuration>
         </plugin>
         <plugin>

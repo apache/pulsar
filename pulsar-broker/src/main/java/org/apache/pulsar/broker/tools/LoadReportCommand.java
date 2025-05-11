@@ -83,11 +83,11 @@ public class LoadReportCommand implements Callable<Integer> {
             hostUsage.calculateBrokerHostUsage();
             SystemResourceUsage usage = hostUsage.getBrokerHostUsage();
 
-            printResourceUsage("CPU", usage.cpu);
-            printResourceUsage("Memory", usage.memory);
-            printResourceUsage("Direct Memory", usage.directMemory);
-            printResourceUsage("Bandwidth In", usage.bandwidthIn);
-            printResourceUsage("Bandwidth Out", usage.bandwidthOut);
+            printResourceUsage("CPU", usage.getCpu());
+            printResourceUsage("Memory", usage.getMemory());
+            printResourceUsage("Direct Memory", usage.getDirectMemory());
+            printResourceUsage("Bandwidth In", usage.getBandwidthIn());
+            printResourceUsage("Bandwidth Out", usage.getBandwidthOut());
 
             return 0;
         } finally {

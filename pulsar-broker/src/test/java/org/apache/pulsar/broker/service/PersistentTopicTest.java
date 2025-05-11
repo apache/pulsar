@@ -2187,8 +2187,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 sub1.getStatsAsync(new GetStatsOptions(false, false, false, false, false));
         assertThat(stats1Async).succeedsWithin(Duration.ofSeconds(3))
                 .matches(stats1 -> {
-                    assertEquals(stats1.keySharedMode, "AUTO_SPLIT");
-                    assertFalse(stats1.allowOutOfOrderDelivery);
+                    assertEquals(stats1.getKeySharedMode(), "AUTO_SPLIT");
+                    assertFalse(stats1.isAllowOutOfOrderDelivery());
                     return true;
                 });
 
@@ -2203,8 +2203,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 sub2.getStatsAsync(new GetStatsOptions(false, false, false, false, false));
         assertThat(stats2Async).succeedsWithin(Duration.ofSeconds(3))
                 .matches(stats2 -> {
-                    assertEquals(stats2.keySharedMode, "AUTO_SPLIT");
-                    assertTrue(stats2.allowOutOfOrderDelivery);
+                    assertEquals(stats2.getKeySharedMode(), "AUTO_SPLIT");
+                    assertTrue(stats2.isAllowOutOfOrderDelivery());
                     return true;
                 });
 
@@ -2219,8 +2219,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         CompletableFuture<SubscriptionStatsImpl> stats3Async = sub3.getStatsAsync(new GetStatsOptions(false, false, false, false, false));
         assertThat(stats3Async).succeedsWithin(Duration.ofSeconds(3))
                 .matches(stats3 -> {
-                    assertEquals(stats3.keySharedMode, "STICKY");
-                    assertFalse(stats3.allowOutOfOrderDelivery);
+                    assertEquals(stats3.getKeySharedMode(), "STICKY");
+                    assertFalse(stats3.isAllowOutOfOrderDelivery());
                     return true;
                 });
     }

@@ -129,50 +129,50 @@ public class NamespaceStatsAggregator {
     private static void aggregateTopicStats(TopicStats stats, SubscriptionStatsImpl subscriptionStats,
                                             AggregatedSubscriptionStats subsStats) {
         stats.subscriptionsCount++;
-        stats.msgBacklog += subscriptionStats.msgBacklog;
-        subsStats.bytesOutCounter = subscriptionStats.bytesOutCounter;
-        subsStats.msgOutCounter = subscriptionStats.msgOutCounter;
-        subsStats.msgBacklog = subscriptionStats.msgBacklog;
-        subsStats.msgDelayed = subscriptionStats.msgDelayed;
-        subsStats.msgInReplay = subscriptionStats.msgInReplay;
-        subsStats.msgRateExpired = subscriptionStats.msgRateExpired;
-        subsStats.totalMsgExpired = subscriptionStats.totalMsgExpired;
+        stats.msgBacklog += subscriptionStats.getMsgBacklog();
+        subsStats.bytesOutCounter = subscriptionStats.getBytesOutCounter();
+        subsStats.msgOutCounter = subscriptionStats.getMsgOutCounter();
+        subsStats.msgBacklog = subscriptionStats.getMsgBacklog();
+        subsStats.msgDelayed = subscriptionStats.getMsgDelayed();
+        subsStats.msgInReplay = subscriptionStats.getMsgInReplay();
+        subsStats.msgRateExpired = subscriptionStats.getMsgRateExpired();
+        subsStats.totalMsgExpired = subscriptionStats.getTotalMsgExpired();
         subsStats.msgBacklogNoDelayed = subsStats.msgBacklog - subsStats.msgDelayed;
-        subsStats.lastExpireTimestamp = subscriptionStats.lastExpireTimestamp;
-        subsStats.lastAckedTimestamp = subscriptionStats.lastAckedTimestamp;
-        subsStats.lastConsumedFlowTimestamp = subscriptionStats.lastConsumedFlowTimestamp;
-        subsStats.lastConsumedTimestamp = subscriptionStats.lastConsumedTimestamp;
-        subsStats.lastMarkDeleteAdvancedTimestamp = subscriptionStats.lastMarkDeleteAdvancedTimestamp;
+        subsStats.lastExpireTimestamp = subscriptionStats.getLastExpireTimestamp();
+        subsStats.lastAckedTimestamp = subscriptionStats.getLastAckedTimestamp();
+        subsStats.lastConsumedFlowTimestamp = subscriptionStats.getLastConsumedFlowTimestamp();
+        subsStats.lastConsumedTimestamp = subscriptionStats.getLastConsumedTimestamp();
+        subsStats.lastMarkDeleteAdvancedTimestamp = subscriptionStats.getLastMarkDeleteAdvancedTimestamp();
         subsStats.consumersCount = subscriptionStats.consumers.size();
-        subsStats.blockedSubscriptionOnUnackedMsgs = subscriptionStats.blockedSubscriptionOnUnackedMsgs;
+        subsStats.blockedSubscriptionOnUnackedMsgs = subscriptionStats.isBlockedSubscriptionOnUnackedMsgs();
         subscriptionStats.consumers.forEach(cStats -> {
             stats.consumersCount++;
-            subsStats.unackedMessages += cStats.unackedMessages;
-            subsStats.msgRateRedeliver += cStats.msgRateRedeliver;
-            subsStats.msgRateOut += cStats.msgRateOut;
-            subsStats.messageAckRate += cStats.messageAckRate;
-            subsStats.msgThroughputOut += cStats.msgThroughputOut;
+            subsStats.unackedMessages += cStats.getUnackedMessages();
+            subsStats.msgRateRedeliver += cStats.getMsgRateRedeliver();
+            subsStats.msgRateOut += cStats.getMsgRateOut();
+            subsStats.messageAckRate += cStats.getMessageAckRate();
+            subsStats.msgThroughputOut += cStats.getMsgThroughputOut();
         });
         stats.rateOut += subsStats.msgRateOut;
         stats.throughputOut += subsStats.msgThroughputOut;
-        subsStats.filterProcessedMsgCount = subscriptionStats.filterProcessedMsgCount;
-        subsStats.filterAcceptedMsgCount = subscriptionStats.filterAcceptedMsgCount;
-        subsStats.filterRejectedMsgCount = subscriptionStats.filterRejectedMsgCount;
-        subsStats.filterRescheduledMsgCount = subscriptionStats.filterRescheduledMsgCount;
-        subsStats.delayedMessageIndexSizeInBytes = subscriptionStats.delayedMessageIndexSizeInBytes;
+        subsStats.filterProcessedMsgCount = subscriptionStats.getFilterProcessedMsgCount();
+        subsStats.filterAcceptedMsgCount = subscriptionStats.getFilterAcceptedMsgCount();
+        subsStats.filterRejectedMsgCount = subscriptionStats.getFilterRejectedMsgCount();
+        subsStats.filterRescheduledMsgCount = subscriptionStats.getFilterRescheduledMsgCount();
+        subsStats.delayedMessageIndexSizeInBytes = subscriptionStats.getDelayedMessageIndexSizeInBytes();
         subsStats.bucketDelayedIndexStats = subscriptionStats.bucketDelayedIndexStats;
         subsStats.dispatchThrottledMsgEventsBySubscriptionLimit =
-                subscriptionStats.dispatchThrottledMsgEventsBySubscriptionLimit;
+                subscriptionStats.getDispatchThrottledMsgEventsBySubscriptionLimit();
         subsStats.dispatchThrottledBytesEventsBySubscriptionLimit =
-                subscriptionStats.dispatchThrottledBytesEventsBySubscriptionLimit;
+                subscriptionStats.getDispatchThrottledBytesEventsBySubscriptionLimit();
         subsStats.dispatchThrottledMsgEventsByTopicLimit =
-                subscriptionStats.dispatchThrottledMsgEventsByTopicLimit;
+                subscriptionStats.getDispatchThrottledMsgEventsByTopicLimit();
         subsStats.dispatchThrottledBytesEventsByTopicLimit =
-                subscriptionStats.dispatchThrottledBytesEventsByTopicLimit;
+                subscriptionStats.getDispatchThrottledBytesEventsByTopicLimit();
         subsStats.dispatchThrottledMsgEventsByBrokerLimit =
-                subscriptionStats.dispatchThrottledMsgEventsByBrokerLimit;
+                subscriptionStats.getDispatchThrottledMsgEventsByBrokerLimit();
         subsStats.dispatchThrottledBytesEventsByBrokerLimit =
-                subscriptionStats.dispatchThrottledBytesEventsByBrokerLimit;
+                subscriptionStats.getDispatchThrottledBytesEventsByBrokerLimit();
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
@@ -221,19 +221,19 @@ public class NamespaceStatsAggregator {
         }
 
         TopicStatsImpl tStatus = topic.getStats(getPreciseBacklog, subscriptionBacklogSize, false);
-        stats.msgInCounter = tStatus.msgInCounter;
-        stats.bytesInCounter = tStatus.bytesInCounter;
-        stats.msgOutCounter = tStatus.msgOutCounter;
-        stats.systemTopicBytesInCounter = tStatus.systemTopicBytesInCounter;
+        stats.msgInCounter = tStatus.getMsgInCounter();
+        stats.bytesInCounter = tStatus.getBytesInCounter();
+        stats.msgOutCounter = tStatus.getMsgOutCounter();
+        stats.systemTopicBytesInCounter = tStatus.getSystemTopicBytesInCounter();
         stats.bytesOutInternalCounter = tStatus.getBytesOutInternalCounter();
-        stats.bytesOutCounter = tStatus.bytesOutCounter;
-        stats.averageMsgSize = tStatus.averageMsgSize;
-        stats.publishRateLimitedTimes = tStatus.publishRateLimitedTimes;
-        stats.delayedMessageIndexSizeInBytes = tStatus.delayedMessageIndexSizeInBytes;
+        stats.bytesOutCounter = tStatus.getBytesOutCounter();
+        stats.averageMsgSize = tStatus.getAverageMsgSize();
+        stats.publishRateLimitedTimes = tStatus.getPublishRateLimitedTimes();
+        stats.delayedMessageIndexSizeInBytes = tStatus.getDelayedMessageIndexSizeInBytes();
         stats.bucketDelayedIndexStats = tStatus.bucketDelayedIndexStats;
-        stats.abortedTxnCount = tStatus.abortedTxnCount;
-        stats.ongoingTxnCount = tStatus.ongoingTxnCount;
-        stats.committedTxnCount = tStatus.committedTxnCount;
+        stats.abortedTxnCount = tStatus.getAbortedTxnCount();
+        stats.ongoingTxnCount = tStatus.getOngoingTxnCount();
+        stats.committedTxnCount = tStatus.getCommittedTxnCount();
 
         stats.producersCount = 0;
         topic.getProducers().values().forEach(producer -> {
@@ -241,21 +241,21 @@ public class NamespaceStatsAggregator {
                 AggregatedReplicationStats replStats = stats.replicationStats
                         .computeIfAbsent(producer.getRemoteCluster(), k -> new AggregatedReplicationStats());
 
-                replStats.msgRateIn += producer.getStats().msgRateIn;
-                replStats.msgThroughputIn += producer.getStats().msgThroughputIn;
+                replStats.msgRateIn += producer.getStats().getMsgRateIn();
+                replStats.msgThroughputIn += producer.getStats().getMsgThroughputIn();
             } else {
                 // Local producer
                 stats.producersCount++;
-                stats.rateIn += producer.getStats().msgRateIn;
-                stats.throughputIn += producer.getStats().msgThroughputIn;
+                stats.rateIn += producer.getStats().getMsgRateIn();
+                stats.throughputIn += producer.getStats().getMsgThroughputIn();
 
                 if (includeProducerMetrics) {
                     AggregatedProducerStats producerStats = stats.producerStats.computeIfAbsent(
                             producer.getProducerName(), k -> new AggregatedProducerStats());
-                    producerStats.producerId = producer.getStats().producerId;
-                    producerStats.msgRateIn = producer.getStats().msgRateIn;
-                    producerStats.msgThroughputIn = producer.getStats().msgThroughputIn;
-                    producerStats.averageMsgSize = producer.getStats().averageMsgSize;
+                    producerStats.producerId = producer.getStats().getProducerId();
+                    producerStats.msgRateIn = producer.getStats().getMsgRateIn();
+                    producerStats.msgThroughputIn = producer.getStats().getMsgThroughputIn();
+                    producerStats.averageMsgSize = producer.getStats().getAverageMsgSize();
                 }
             }
         });
@@ -289,15 +289,15 @@ public class NamespaceStatsAggregator {
                     AggregatedConsumerStats consumerStats = subsStats.consumerStat
                             .computeIfAbsent(consumer, k -> new AggregatedConsumerStats());
 
-                    consumerStats.unackedMessages = conStats.unackedMessages;
-                    consumerStats.msgRateRedeliver = conStats.msgRateRedeliver;
-                    consumerStats.msgRateOut = conStats.msgRateOut;
-                    consumerStats.msgAckRate = conStats.messageAckRate;
-                    consumerStats.msgThroughputOut = conStats.msgThroughputOut;
-                    consumerStats.bytesOutCounter = conStats.bytesOutCounter;
-                    consumerStats.msgOutCounter = conStats.msgOutCounter;
-                    consumerStats.availablePermits = conStats.availablePermits;
-                    consumerStats.blockedSubscriptionOnUnackedMsgs = conStats.blockedConsumerOnUnackedMsgs;
+                    consumerStats.unackedMessages = conStats.getUnackedMessages();
+                    consumerStats.msgRateRedeliver = conStats.getMsgRateRedeliver();
+                    consumerStats.msgRateOut = conStats.getMsgRateOut();
+                    consumerStats.msgAckRate = conStats.getMessageAckRate();
+                    consumerStats.msgThroughputOut = conStats.getMsgThroughputOut();
+                    consumerStats.bytesOutCounter = conStats.getBytesOutCounter();
+                    consumerStats.msgOutCounter = conStats.getMsgOutCounter();
+                    consumerStats.availablePermits = conStats.getAvailablePermits();
+                    consumerStats.blockedSubscriptionOnUnackedMsgs = conStats.isBlockedConsumerOnUnackedMsgs();
                 });
             });
         }
@@ -308,20 +308,20 @@ public class NamespaceStatsAggregator {
             if (aggReplStats == null) {
                 aggReplStats = new AggregatedReplicationStats();
                 stats.replicationStats.put(replicator.getRemoteCluster(), aggReplStats);
-                aggReplStats.msgRateIn = replStats.msgRateIn;
-                aggReplStats.msgThroughputIn = replStats.msgThroughputIn;
+                aggReplStats.msgRateIn = replStats.getMsgRateIn();
+                aggReplStats.msgThroughputIn = replStats.getMsgThroughputIn();
             }
 
-            aggReplStats.msgRateOut += replStats.msgRateOut;
-            aggReplStats.msgThroughputOut += replStats.msgThroughputOut;
-            aggReplStats.replicationBacklog += replStats.replicationBacklog;
-            aggReplStats.msgRateExpired += replStats.msgRateExpired;
-            if (replStats.connected) {
+            aggReplStats.msgRateOut += replStats.getMsgRateOut();
+            aggReplStats.msgThroughputOut += replStats.getMsgThroughputOut();
+            aggReplStats.replicationBacklog += replStats.getReplicationBacklog();
+            aggReplStats.msgRateExpired += replStats.getMsgRateExpired();
+            if (replStats.isConnected()) {
                 aggReplStats.connectedCount += 1;
             } else {
                 aggReplStats.disconnectedCount += 1;
             }
-            aggReplStats.replicationDelayInSeconds += replStats.replicationDelayInSeconds;
+            aggReplStats.replicationDelayInSeconds += replStats.getReplicationDelayInSeconds();
         });
 
         compactorMXBean

@@ -86,7 +86,7 @@ public class TopicPublishThrottlingInitTest extends ProducerConsumerBase {
         }
         // calculate rates and due to throttling rate should be < total per-second
         prod.updateRates();
-        double rateIn = prod.getStats().msgRateIn;
+        double rateIn = prod.getStats().getMsgRateIn();
         log.info("1-st rate in: {}, total: {} ", rateIn, total);
         assertTrue(rateIn < total);
 
@@ -101,7 +101,7 @@ public class TopicPublishThrottlingInitTest extends ProducerConsumerBase {
         }
 
         prod.updateRates();
-        rateIn = prod.getStats().msgRateIn;
+        rateIn = prod.getStats().getMsgRateIn();
         log.info("2-nd rate in: {}, total: {} ", rateIn, total);
         assertTrue(rateIn > total);
 

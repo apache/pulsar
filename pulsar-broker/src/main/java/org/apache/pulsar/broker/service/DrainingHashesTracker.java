@@ -191,16 +191,16 @@ public class DrainingHashesTracker {
                     }
                     int unackedMessages = entry.getRefCount();
                     DrainingHashImpl drainingHash = new DrainingHashImpl();
-                    drainingHash.hash = hash;
-                    drainingHash.unackMsgs = unackedMessages;
-                    drainingHash.blockedAttempts = entry.getBlockedCount();
+                    drainingHash.setHash(hash);
+                    drainingHash.setUnackMsgs(unackedMessages);
+                    drainingHash.setBlockedAttempts(entry.getBlockedCount());
                     drainingHashesStats.add(drainingHash);
                     drainingHashesUnackedMessages += unackedMessages;
                 }
-                consumerStats.drainingHashesCount = drainingHashesStats.size();
-                consumerStats.drainingHashesClearedTotal = drainingHashesClearedTotal;
-                consumerStats.drainingHashesUnackedMessages = drainingHashesUnackedMessages;
-                consumerStats.drainingHashes = drainingHashesStats;
+                consumerStats.setDrainingHashesCount(drainingHashesStats.size());
+                consumerStats.setDrainingHashesClearedTotal(drainingHashesClearedTotal);
+                consumerStats.setDrainingHashesUnackedMessages(drainingHashesUnackedMessages);
+                consumerStats.setDrainingHashes(drainingHashesStats);
             } finally {
                 statsLock.readLock().unlock();
             }
@@ -447,10 +447,10 @@ public class DrainingHashesTracker {
      * @param consumerStats the consumer stats to update the values to
      */
     public void updateConsumerStats(Consumer consumer, ConsumerStatsImpl consumerStats) {
-        consumerStats.drainingHashesCount = 0;
-        consumerStats.drainingHashesClearedTotal = 0;
-        consumerStats.drainingHashesUnackedMessages = 0;
-        consumerStats.drainingHashes = Collections.emptyList();
+        consumerStats.setDrainingHashesCount(0);
+        consumerStats.setDrainingHashesClearedTotal(0);
+        consumerStats.setDrainingHashesUnackedMessages(0);
+        consumerStats.setDrainingHashes(Collections.emptyList());
         ConsumerDrainingHashesStats consumerDrainingHashesStats =
                 consumerDrainingHashesStatsMap.get(new ConsumerIdentityWrapper(consumer));
         if (consumerDrainingHashesStats != null) {

@@ -112,21 +112,21 @@ public class ClientSideEncryptionWssProducer extends WebSocketAdapter implements
         if (sendFuture != null && !sendFuture.isDone() && !sendFuture.isCancelled()) {
             throw new IllegalArgumentException("There is a message still in sending.");
         }
-        if (msg.payload == null) {
+        if (msg.getPayload() == null) {
             throw new IllegalArgumentException("Null value message is not supported.");
         }
         // Compression.
-        byte[] unCompressedPayload = msg.payload.getBytes(StandardCharsets.UTF_8);
-        byte[] compressedPayload = WssClientSideEncryptUtils.compressionIfNeeded(msg.compressionType,
+        byte[] unCompressedPayload = msg.getPayload().getBytes(StandardCharsets.UTF_8);
+        byte[] compressedPayload = WssClientSideEncryptUtils.compressionIfNeeded(msg.getCompressionType(),
                 unCompressedPayload);
-        if (msg.compressionType != null && !CompressionType.NONE.equals(msg.compressionType)) {
-            msg.uncompressedMessageSize = unCompressedPayload.length;
+        if (msg.getCompressionType() != null && !CompressionType.NONE.equals(msg.getCompressionType())) {
+            msg.setUncompressedMessageSize(unCompressedPayload.length);
         }
         // Encrypt.
         EncryptedPayloadAndParam encryptedPayloadAndParam = WssClientSideEncryptUtils.encryptPayload(
                 cryptoKeyReader, msgCrypto, compressedPayload, keyName);
-        msg.payload = encryptedPayloadAndParam.encryptedPayload;
-        msg.encryptionParam = encryptedPayloadAndParam.encryptionParam;
+        msg.setPayload(encryptedPayloadAndParam.encryptedPayload);
+        msg.setEncryptionParam(encryptedPayloadAndParam.encryptionParam);
         // Do send.
         sendFuture = new CompletableFuture<>();
         String jsonMsg = ObjectMapperFactory.getMapper().writer().writeValueAsString(msg);

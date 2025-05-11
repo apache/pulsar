@@ -52,7 +52,7 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
      * messages per connection.
      **/
     @Getter
-    public double msgDropRate;
+    private double msgDropRate;
 
     @JsonIgnore
     public List<PublisherStatsImpl> publishers;

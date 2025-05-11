@@ -999,7 +999,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
             Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
 
-            assertEquals(replicator.computeStats().replicationBacklog, 0);
+            assertEquals(replicator.computeStats().getReplicationBacklog(), 0);
             var attributes = Attributes.of(
                     OpenTelemetryAttributes.PULSAR_DOMAIN, dest.getDomain().value(),
                     OpenTelemetryAttributes.PULSAR_TENANT, dest.getTenant(),
@@ -1016,7 +1016,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
             Thread.sleep(500);
 
-            assertEquals(replicator.computeStats().replicationBacklog, 1);
+            assertEquals(replicator.computeStats().getReplicationBacklog(), 1);
             metrics = metricReader1.collectAllMetrics();
             assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.BACKLOG_COUNTER, attributes, 1);
             assertMetricDoubleGaugeValue(metrics, OpenTelemetryReplicatorStats.DELAY_GAUGE, attributes,
@@ -1029,13 +1029,13 @@ public class ReplicatorTest extends ReplicatorTestBase {
             consumer2.receive(1);
 
             int retry = 10;
-            for (int i = 0; i < retry && replicator.computeStats().replicationBacklog > 0; i++) {
+            for (int i = 0; i < retry && replicator.computeStats().getReplicationBacklog() > 0; i++) {
                 if (i != retry - 1) {
                     Thread.sleep(100);
                 }
             }
 
-            assertEquals(replicator.computeStats().replicationBacklog, 0);
+            assertEquals(replicator.computeStats().getReplicationBacklog(), 0);
             metrics = metricReader1.collectAllMetrics();
             assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.BACKLOG_COUNTER, attributes, 0);
             assertMetricDoubleGaugeValue(metrics, OpenTelemetryReplicatorStats.DELAY_GAUGE, attributes, 0.0);

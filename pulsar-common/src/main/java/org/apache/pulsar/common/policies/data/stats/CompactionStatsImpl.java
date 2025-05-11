@@ -27,16 +27,16 @@ import org.apache.pulsar.common.policies.data.CompactionStats;
 public class CompactionStatsImpl implements CompactionStats {
 
     /** The removed event count of last compaction. */
-    public long lastCompactionRemovedEventCount;
+    private long lastCompactionRemovedEventCount;
 
     /** The timestamp of last succeed compaction. */
-    public long lastCompactionSucceedTimestamp;
+    private long lastCompactionSucceedTimestamp;
 
     /** The timestamp of last failed compaction. */
-    public long lastCompactionFailedTimestamp;
+    private long lastCompactionFailedTimestamp;
 
     /** The duration time of last compaction. */
-    public long lastCompactionDurationTimeInMills;
+    private long lastCompactionDurationTimeInMills;
 
     public void reset() {
         this.lastCompactionRemovedEventCount = 0;

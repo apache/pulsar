@@ -219,9 +219,9 @@ public class TransactionTest extends TransactionTestBase {
         PersistentTopic persistentTopic = (PersistentTopic) optional.get();
         TopicStatsImpl stats = persistentTopic.getStats(false, false, false);
 
-        assertEquals(stats.committedTxnCount, 1);
-        assertEquals(stats.abortedTxnCount, 1);
-        assertEquals(stats.ongoingTxnCount, 1);
+        assertEquals(stats.getCommittedTxnCount(), 1);
+        assertEquals(stats.getAbortedTxnCount(), 1);
+        assertEquals(stats.getOngoingTxnCount(), 1);
 
         var attributes = Attributes.builder()
                 .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")

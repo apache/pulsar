@@ -36,7 +36,7 @@ public class NonPersistentReplicatorStatsImpl extends ReplicatorStatsImpl implem
     /**
      * for non-persistent topic: broker drops msg for replicator if replicator connection is not writable.
      **/
-    public double msgDropRate;
+    private double msgDropRate;
 
     @JsonIgnore
     private final LongAdder msgDropCount = new LongAdder();

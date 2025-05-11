@@ -34,97 +34,98 @@ import org.apache.pulsar.common.policies.data.SubscriptionStats;
 @Data
 public class SubscriptionStatsImpl implements SubscriptionStats {
     /** Total rate of messages delivered on this subscription (msg/s). */
-    public double msgRateOut;
+    private double msgRateOut;
 
     /** Total throughput delivered on this subscription (bytes/s). */
-    public double msgThroughputOut;
+    private double msgThroughputOut;
 
     /** Total bytes delivered to consumer (bytes). */
-    public long bytesOutCounter;
+    private long bytesOutCounter;
 
     /** Total messages delivered to consumer (msg). */
-    public long msgOutCounter;
+    private long msgOutCounter;
 
     /** Total rate of messages redelivered on this subscription (msg/s). */
-    public double msgRateRedeliver;
+    private double msgRateRedeliver;
 
     /**
      * Total rate of message ack(msg/s).
      */
-    public double messageAckRate;
+    private double messageAckRate;
 
     /** Chunked message dispatch rate. */
-    public double chunkedMessageRate;
+    private double chunkedMessageRate;
 
     /** Number of entries in the subscription backlog. */
-    public long msgBacklog;
+    private long msgBacklog;
 
     /** Size of backlog in byte, -1 means that the argument "subscriptionBacklogSize" is false when calling the API. **/
-    public long backlogSize;
+    private long backlogSize;
 
     /** Get the publish time of the earliest message in the backlog. */
-    public long earliestMsgPublishTimeInBacklog;
+    private long earliestMsgPublishTimeInBacklog;
 
     /** Number of entries in the subscription backlog that do not contain the delay messages. */
-    public long msgBacklogNoDelayed;
+    private long msgBacklogNoDelayed;
 
     /** Flag to verify if subscription is blocked due to reaching threshold of unacked messages. */
-    public boolean blockedSubscriptionOnUnackedMsgs;
+    private boolean blockedSubscriptionOnUnackedMsgs;
 
     /** Number of delayed messages currently being tracked. */
-    public long msgDelayed;
+    private long msgDelayed;
 
     /** Number of messages registered for replay. */
-    public long msgInReplay;
+    private long msgInReplay;
 
     /**
      * Number of unacknowledged messages for the subscription, where an unacknowledged message is one that has been
-     * sent to a consumer but not yet acknowledged. Calculated by summing all {@link ConsumerStatsImpl#unackedMessages}
-     * for this subscription. See {@link ConsumerStatsImpl#unackedMessages} for additional details.
+     * sent to a consumer but not yet acknowledged.
+     * Calculated by summing all {@link ConsumerStatsImpl#getUnackedMessages()}
+     * for this subscription. See {@link ConsumerStatsImpl#getUnackedMessages()} for additional details.
      */
-    public long unackedMessages;
+    private long unackedMessages;
 
     /** The subscription type as defined by {@link org.apache.pulsar.client.api.SubscriptionType}.  */
-    public String type;
+    private String type;
 
     /** The name of the consumer that is active for single active consumer subscriptions i.e. failover or exclusive. */
-    public String activeConsumerName;
+    private String activeConsumerName;
 
     /** Total rate of messages expired on this subscription (msg/s). */
-    public double msgRateExpired;
+    private double msgRateExpired;
 
     /** Total messages expired on this subscription. */
-    public long totalMsgExpired;
+    private long totalMsgExpired;
 
     /** Last message expire execution timestamp. */
-    public long lastExpireTimestamp;
+    private long lastExpireTimestamp;
 
     /** Last received consume flow command timestamp. */
-    public long lastConsumedFlowTimestamp;
+    private long lastConsumedFlowTimestamp;
 
     /** Last consume message timestamp. */
-    public long lastConsumedTimestamp;
+    private long lastConsumedTimestamp;
 
     /** Last acked message timestamp. */
-    public long lastAckedTimestamp;
+    private long lastAckedTimestamp;
 
     /** Last MarkDelete position advanced timestamp. */
-    public long lastMarkDeleteAdvancedTimestamp;
+    private long lastMarkDeleteAdvancedTimestamp;
 
     /** List of connected consumers on this subscription w/ their stats. */
     public List<ConsumerStatsImpl> consumers;
 
     /** Tells whether this subscription is durable or ephemeral (eg.: from a reader). */
-    public boolean isDurable;
+    private boolean isDurable;
 
     /** Mark that the subscription state is kept in sync across different regions. */
-    public boolean isReplicated;
+    private boolean isReplicated;
 
     /** Whether out of order delivery is allowed on the Key_Shared subscription. */
-    public boolean allowOutOfOrderDelivery;
+    private boolean allowOutOfOrderDelivery;
 
     /** Whether the Key_Shared subscription mode is AUTO_SPLIT or STICKY. */
-    public String keySharedMode;
+    private String keySharedMode;
 
     /** This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription. */
     public Map<String, String> consumersAfterMarkDeletePosition;
@@ -132,27 +133,27 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /**
      * For Key_Shared AUTO_SPLIT ordered subscriptions: The current number of hashes in the draining state.
      */
-    public int drainingHashesCount;
+    private int drainingHashesCount;
 
     /**
      * For Key_Shared AUTO_SPLIT ordered subscriptions: The total number of hashes cleared from the draining state
      * for the connected consumers.
      */
-    public long drainingHashesClearedTotal;
+    private long drainingHashesClearedTotal;
 
     /**
      * For Key_Shared AUTO_SPLIT ordered subscriptions: The total number of unacked messages for all draining hashes.
      */
-    public int drainingHashesUnackedMessages;
+    private int drainingHashesUnackedMessages;
 
     /** The number of non-contiguous deleted messages ranges. */
-    public int nonContiguousDeletedMessagesRanges;
+    private int nonContiguousDeletedMessagesRanges;
 
     /** The serialized size of non-contiguous deleted messages ranges. */
-    public int nonContiguousDeletedMessagesRangesSerializedSize;
+    private int nonContiguousDeletedMessagesRangesSerializedSize;
 
     /** The size of DelayedDeliveryTracer memory usage. */
-    public long delayedMessageIndexSizeInBytes;
+    private long delayedMessageIndexSizeInBytes;
 
     @JsonIgnore
     public Map<String, TopicMetricBean> bucketDelayedIndexStats;
@@ -160,31 +161,31 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** SubscriptionProperties (key/value strings) associated with this subscribe. */
     public Map<String, String> subscriptionProperties;
 
-    public long filterProcessedMsgCount;
+    private long filterProcessedMsgCount;
 
-    public long filterAcceptedMsgCount;
+    private long filterAcceptedMsgCount;
 
-    public long filterRejectedMsgCount;
+    private long filterRejectedMsgCount;
 
-    public long filterRescheduledMsgCount;
+    private long filterRescheduledMsgCount;
 
     /** total number of times message dispatching was throttled on a subscription due to subscription rate limits. */
-    public long dispatchThrottledMsgEventsBySubscriptionLimit;
+    private long dispatchThrottledMsgEventsBySubscriptionLimit;
 
     /** total number of times bytes dispatching was throttled on a subscription due to subscription rate limits. */
-    public long dispatchThrottledBytesEventsBySubscriptionLimit;
+    private long dispatchThrottledBytesEventsBySubscriptionLimit;
 
     /** total number of times message dispatching was throttled on a subscription due to topic rate limits. */
-    public long dispatchThrottledMsgEventsByTopicLimit;
+    private long dispatchThrottledMsgEventsByTopicLimit;
 
     /** total number of times bytes dispatching was throttled on a subscription due to topic rate limits. */
-    public long dispatchThrottledBytesEventsByTopicLimit;
+    private long dispatchThrottledBytesEventsByTopicLimit;
 
     /** total number of times message dispatching was throttled on a subscription due to broker rate limits. */
-    public long dispatchThrottledMsgEventsByBrokerLimit;
+    private long dispatchThrottledMsgEventsByBrokerLimit;
 
     /** total number of times bytes dispatching was throttled on a subscription due to broker rate limits. */
-    public long dispatchThrottledBytesEventsByBrokerLimit;
+    private long dispatchThrottledBytesEventsByBrokerLimit;
 
     public SubscriptionStatsImpl() {
         this.consumers = new ArrayList<>();

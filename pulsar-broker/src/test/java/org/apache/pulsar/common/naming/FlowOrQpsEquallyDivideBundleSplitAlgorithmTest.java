@@ -54,10 +54,10 @@ public class FlowOrQpsEquallyDivideBundleSplitAlgorithmTest {
                 String tp = topicName + "-partition-" + j;
                 mockTopics.add(tp);
                 TopicStatsImpl topicStats = new TopicStatsImpl();
-                topicStats.msgRateIn = 24.5;
-                topicStats.msgThroughputIn = 1000;
-                topicStats.msgRateOut = 25;
-                topicStats.msgThroughputOut = 1000;
+                topicStats.setMsgRateIn(24.5);
+                topicStats.setMsgThroughputIn(1000);
+                topicStats.setMsgRateOut(25);
+                topicStats.setMsgThroughputOut(1000);
                 topicStatsMap.put(tp, topicStats);
             }
         }
@@ -69,10 +69,10 @@ public class FlowOrQpsEquallyDivideBundleSplitAlgorithmTest {
                 String tp = topicName + "-partition-" + j;
                 mockTopics.add(tp);
                 TopicStatsImpl topicStats = new TopicStatsImpl();
-                topicStats.msgRateIn = 25.5;
-                topicStats.msgThroughputIn = 1000;
-                topicStats.msgRateOut = 25;
-                topicStats.msgThroughputOut = 1000;
+                topicStats.setMsgRateIn(25.5);
+                topicStats.setMsgThroughputIn(1000);
+                topicStats.setMsgRateOut(25);
+                topicStats.setMsgThroughputOut(1000);
                 topicStatsMap.put(tp, topicStats);
             }
         }
@@ -80,10 +80,10 @@ public class FlowOrQpsEquallyDivideBundleSplitAlgorithmTest {
         String tp = "persistent://test-tenant1/test-namespace1/test695-partition-0";
         mockTopics.add(tp);
         TopicStatsImpl topicStats = new TopicStatsImpl();
-        topicStats.msgRateIn = 25;
-        topicStats.msgThroughputIn = 1000;
-        topicStats.msgRateOut = 35;
-        topicStats.msgThroughputOut = 1000;
+        topicStats.setMsgRateIn(25);
+        topicStats.setMsgThroughputIn(1000);
+        topicStats.setMsgRateOut(35);
+        topicStats.setMsgThroughputOut(1000);
         topicStatsMap.put(tp, topicStats);
 
         // -- do test
@@ -99,10 +99,10 @@ public class FlowOrQpsEquallyDivideBundleSplitAlgorithmTest {
             doReturn(hashValue)
                     .when(mockNamespaceBundleFactory).getLongHashCode(topic);
             hashList.add(hashValue);
-            hashAndMsgMap.put(hashValue, topicStatsMap.get(topic).msgRateIn
-                    + topicStatsMap.get(topic).msgRateOut);
-            hashAndThroughput.put(hashValue, topicStatsMap.get(topic).msgThroughputIn
-                    + topicStatsMap.get(topic).msgThroughputOut);
+            hashAndMsgMap.put(hashValue, topicStatsMap.get(topic).getMsgRateIn()
+                    + topicStatsMap.get(topic).getMsgRateOut());
+            hashAndThroughput.put(hashValue, topicStatsMap.get(topic).getMsgThroughputIn()
+                    + topicStatsMap.get(topic).getMsgThroughputOut());
         });
 
         List<Long> splitPositions = algorithm.getSplitBoundary(new FlowOrQpsEquallyDivideBundleSplitOption(mockNamespaceService, mockNamespaceBundle,
@@ -152,20 +152,20 @@ public class FlowOrQpsEquallyDivideBundleSplitAlgorithmTest {
         long hashValue = topicHashList.get(0);
         String topicName = hashAndTopic.get(hashValue);
         TopicStatsImpl topicStats0 = new TopicStatsImpl();
-        topicStats0.msgRateIn = 1000;
-        topicStats0.msgThroughputIn = 1000;
-        topicStats0.msgRateOut = 1000;
-        topicStats0.msgThroughputOut = 1000;
+        topicStats0.setMsgRateIn(1000);
+        topicStats0.setMsgThroughputIn(1000);
+        topicStats0.setMsgRateOut(1000);
+        topicStats0.setMsgThroughputOut(1000);
         topicStatsMap.put(topicName, topicStats0);
 
         for (int i = 1; i < topicHashList.size(); i++) {
             hashValue = topicHashList.get(i);
             topicName = hashAndTopic.get(hashValue);
             TopicStatsImpl topicStats = new TopicStatsImpl();
-            topicStats.msgRateIn = 24.5;
-            topicStats.msgThroughputIn = 1000;
-            topicStats.msgRateOut = 25;
-            topicStats.msgThroughputOut = 1000;
+            topicStats.setMsgRateIn(24.5);
+            topicStats.setMsgThroughputIn(1000);
+            topicStats.setMsgRateOut(25);
+            topicStats.setMsgThroughputOut(1000);
             topicStatsMap.put(topicName, topicStats);
         }
 

@@ -349,8 +349,8 @@ public class PersistentSubscription extends AbstractSubscription {
 
         // preserve accumulative stats form removed consumer
         ConsumerStatsImpl stats = consumer.getStats();
-        bytesOutFromRemovedConsumers.add(stats.bytesOutCounter);
-        msgOutFromRemovedConsumer.add(stats.msgOutCounter);
+        bytesOutFromRemovedConsumers.add(stats.getBytesOutCounter());
+        msgOutFromRemovedConsumer.add(stats.getMsgOutCounter());
 
         if (dispatcher != null && dispatcher.getConsumers().isEmpty()) {
             deactivateCursor();
@@ -1249,11 +1249,11 @@ public class PersistentSubscription extends AbstractSubscription {
 
     public CompletableFuture<SubscriptionStatsImpl> getStatsAsync(GetStatsOptions getStatsOptions) {
         SubscriptionStatsImpl subStats = new SubscriptionStatsImpl();
-        subStats.lastExpireTimestamp = lastExpireTimestamp;
-        subStats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
-        subStats.lastMarkDeleteAdvancedTimestamp = lastMarkDeleteAdvancedTimestamp;
-        subStats.bytesOutCounter = bytesOutFromRemovedConsumers.longValue();
-        subStats.msgOutCounter = msgOutFromRemovedConsumer.longValue();
+        subStats.setLastExpireTimestamp(lastExpireTimestamp);
+        subStats.setLastConsumedFlowTimestamp(lastConsumedFlowTimestamp);
+        subStats.setLastMarkDeleteAdvancedTimestamp(lastMarkDeleteAdvancedTimestamp);
+        subStats.setBytesOutCounter(bytesOutFromRemovedConsumers.longValue());
+        subStats.setMsgOutCounter(msgOutFromRemovedConsumer.longValue());
 
         Dispatcher dispatcher = this.dispatcher;
         if (dispatcher != null) {
@@ -1264,66 +1264,83 @@ public class PersistentSubscription extends AbstractSubscription {
                 if (!getStatsOptions.isExcludeConsumers()) {
                     subStats.consumers.add(consumerStats);
                 }
-                subStats.msgRateOut += consumerStats.msgRateOut;
-                subStats.msgThroughputOut += consumerStats.msgThroughputOut;
-                subStats.bytesOutCounter += consumerStats.bytesOutCounter;
-                subStats.msgOutCounter += consumerStats.msgOutCounter;
-                subStats.msgRateRedeliver += consumerStats.msgRateRedeliver;
-                subStats.messageAckRate += consumerStats.messageAckRate;
-                subStats.chunkedMessageRate += consumerStats.chunkedMessageRate;
-                subStats.unackedMessages += consumerStats.unackedMessages;
-                subStats.lastConsumedTimestamp =
-                        Math.max(subStats.lastConsumedTimestamp, consumerStats.lastConsumedTimestamp);
-                subStats.lastAckedTimestamp = Math.max(subStats.lastAckedTimestamp, consumerStats.lastAckedTimestamp);
+                subStats.setMsgRateOut(subStats.getMsgRateOut() + consumerStats.getMsgRateOut());
+                subStats.setMsgThroughputOut(subStats.getMsgThroughputOut() + consumerStats.getMsgThroughputOut());
+                subStats.setBytesOutCounter(subStats.getBytesOutCounter() + consumerStats.getBytesOutCounter());
+                subStats.setMsgOutCounter(subStats.getMsgOutCounter() + consumerStats.getMsgOutCounter());
+                subStats.setMsgRateRedeliver(subStats.getMsgRateRedeliver() + consumerStats.getMsgRateRedeliver());
+                subStats.setMessageAckRate(subStats.getMessageAckRate() + consumerStats.getMessageAckRate());
+                subStats.setChunkedMessageRate(
+                        subStats.getChunkedMessageRate() + consumerStats.getChunkedMessageRate()
+                );
+                subStats.setUnackedMessages(subStats.getUnackedMessages() + consumerStats.getUnackedMessages());
+                subStats.setLastConsumedTimestamp(
+                        Math.max(subStats.getLastConsumedTimestamp(), consumerStats.getLastConsumedTimestamp())
+                );
+                subStats.setLastAckedTimestamp(
+                        Math.max(subStats.getLastAckedTimestamp(), consumerStats.getLastAckedTimestamp())
+                );
                 List<Range> keyRanges = consumerKeyHashRanges != null ? consumerKeyHashRanges.get(consumer) : null;
                 if (keyRanges != null) {
                     if (((StickyKeyDispatcher) dispatcher).isClassic()) {
                         // Use string representation for classic mode
-                        consumerStats.keyHashRanges = keyRanges.stream()
+                        consumerStats.setKeyHashRanges(keyRanges.stream()
                                 .map(Range::toString)
-                                .collect(Collectors.toList());
+                                .collect(Collectors.toList()));
                     } else {
                         // Use array representation for PIP-379 stats
-                        consumerStats.keyHashRangeArrays = keyRanges.stream()
+                        consumerStats.setKeyHashRangeArrays(keyRanges.stream()
                                 .map(range -> new int[]{range.getStart(), range.getEnd()})
-                                .collect(Collectors.toList());
+                                .collect(Collectors.toList()));
                     }
                 }
-                subStats.drainingHashesCount += consumerStats.drainingHashesCount;
-                subStats.drainingHashesClearedTotal += consumerStats.drainingHashesClearedTotal;
-                subStats.drainingHashesUnackedMessages += consumerStats.drainingHashesUnackedMessages;
+                subStats.setDrainingHashesCount(
+                        subStats.getDrainingHashesCount() + consumerStats.getDrainingHashesCount()
+                );
+                subStats.setDrainingHashesClearedTotal(
+                        subStats.getDrainingHashesClearedTotal() + consumerStats.getDrainingHashesClearedTotal()
+                );
+                subStats.setDrainingHashesUnackedMessages(
+                        subStats.getDrainingHashesUnackedMessages() + consumerStats.getDrainingHashesUnackedMessages()
+                );
+
             });
 
-            subStats.filterProcessedMsgCount = dispatcher.getFilterProcessedMsgCount();
-            subStats.filterAcceptedMsgCount = dispatcher.getFilterAcceptedMsgCount();
-            subStats.filterRejectedMsgCount = dispatcher.getFilterRejectedMsgCount();
-            subStats.filterRescheduledMsgCount = dispatcher.getFilterRescheduledMsgCount();
-            subStats.dispatchThrottledMsgEventsBySubscriptionLimit =
-                    dispatcher.getDispatchThrottledMsgEventsBySubscriptionLimit();
-            subStats.dispatchThrottledBytesEventsBySubscriptionLimit =
-                    dispatcher.getDispatchThrottledBytesBySubscriptionLimit();
-            subStats.dispatchThrottledMsgEventsByBrokerLimit =
-                    dispatcher.getDispatchThrottledMsgEventsByBrokerLimit();
-            subStats.dispatchThrottledBytesEventsByBrokerLimit =
-                    dispatcher.getDispatchThrottledBytesEventsByBrokerLimit();
-            subStats.dispatchThrottledMsgEventsByTopicLimit =
-                    dispatcher.getDispatchThrottledMsgEventsByTopicLimit();
-            subStats.dispatchThrottledBytesEventsByTopicLimit =
-                    dispatcher.getDispatchThrottledBytesEventsByTopicLimit();
+            subStats.setFilterProcessedMsgCount(dispatcher.getFilterProcessedMsgCount());
+            subStats.setFilterAcceptedMsgCount(dispatcher.getFilterAcceptedMsgCount());
+            subStats.setFilterRejectedMsgCount(dispatcher.getFilterRejectedMsgCount());
+            subStats.setFilterRescheduledMsgCount(dispatcher.getFilterRescheduledMsgCount());
+            subStats.setDispatchThrottledMsgEventsBySubscriptionLimit(
+                    dispatcher.getDispatchThrottledMsgEventsBySubscriptionLimit()
+            );
+            subStats.setDispatchThrottledBytesEventsBySubscriptionLimit(
+                    dispatcher.getDispatchThrottledBytesBySubscriptionLimit()
+            );
+            subStats.setDispatchThrottledMsgEventsByBrokerLimit(
+                    dispatcher.getDispatchThrottledMsgEventsByBrokerLimit()
+            );
+            subStats.setDispatchThrottledBytesEventsByBrokerLimit(
+                    dispatcher.getDispatchThrottledBytesEventsByBrokerLimit()
+            );
+            subStats.setDispatchThrottledMsgEventsByTopicLimit(dispatcher.getDispatchThrottledMsgEventsByTopicLimit());
+            subStats.setDispatchThrottledBytesEventsByTopicLimit(
+                    dispatcher.getDispatchThrottledBytesEventsByTopicLimit()
+            );
         }
 
         SubType subType = getType();
-        subStats.type = getTypeString();
+        subStats.setType(getTypeString());
         if (dispatcher instanceof PersistentDispatcherSingleActiveConsumer) {
             Consumer activeConsumer = ((PersistentDispatcherSingleActiveConsumer) dispatcher).getActiveConsumer();
             if (activeConsumer != null) {
-                subStats.activeConsumerName = activeConsumer.consumerName();
+                subStats.setActiveConsumerName(activeConsumer.consumerName());
             }
         }
 
         if (dispatcher instanceof AbstractPersistentDispatcherMultipleConsumers) {
-            subStats.delayedMessageIndexSizeInBytes =
-                    ((AbstractPersistentDispatcherMultipleConsumers) dispatcher).getDelayedTrackerMemoryUsage();
+            subStats.setDelayedMessageIndexSizeInBytes(
+                    ((AbstractPersistentDispatcherMultipleConsumers) dispatcher).getDelayedTrackerMemoryUsage()
+            );
 
             subStats.bucketDelayedIndexStats =
                     ((AbstractPersistentDispatcherMultipleConsumers) dispatcher).getBucketDelayedIndexStats();
@@ -1333,29 +1350,29 @@ public class PersistentSubscription extends AbstractSubscription {
             if (dispatcher instanceof AbstractPersistentDispatcherMultipleConsumers) {
                 AbstractPersistentDispatcherMultipleConsumers d =
                         (AbstractPersistentDispatcherMultipleConsumers) dispatcher;
-                subStats.unackedMessages = d.getTotalUnackedMessages();
-                subStats.blockedSubscriptionOnUnackedMsgs = d.isBlockedDispatcherOnUnackedMsgs();
-                subStats.msgDelayed = d.getNumberOfDelayedMessages();
-                subStats.msgInReplay = d.getNumberOfMessagesInReplay();
+                subStats.setUnackedMessages(d.getTotalUnackedMessages());
+                subStats.setBlockedSubscriptionOnUnackedMsgs(d.isBlockedDispatcherOnUnackedMsgs());
+                subStats.setMsgDelayed(d.getNumberOfDelayedMessages());
+                subStats.setMsgInReplay(d.getNumberOfMessagesInReplay());
             }
         }
-        subStats.msgBacklog = getNumberOfEntriesInBacklog(getStatsOptions.isGetPreciseBacklog());
+        subStats.setMsgBacklog(getNumberOfEntriesInBacklog(getStatsOptions.isGetPreciseBacklog()));
         if (getStatsOptions.isSubscriptionBacklogSize()) {
-            subStats.backlogSize = topic.getManagedLedger()
-                    .getEstimatedBacklogSize(cursor.getMarkDeletedPosition());
+            subStats.setBacklogSize(topic.getManagedLedger()
+                    .getEstimatedBacklogSize(cursor.getMarkDeletedPosition()));
         } else {
-            subStats.backlogSize = -1;
+            subStats.setBacklogSize(-1);
         }
-        subStats.msgBacklogNoDelayed = subStats.msgBacklog - subStats.msgDelayed;
-        subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
-        subStats.totalMsgExpired = expiryMonitor.getTotalMessageExpired();
-        subStats.isReplicated = isReplicated();
+        subStats.setMsgBacklogNoDelayed(subStats.getMsgBacklog() - subStats.getMsgDelayed());
+        subStats.setMsgRateExpired(expiryMonitor.getMessageExpiryRate());
+        subStats.setTotalMsgExpired(expiryMonitor.getTotalMessageExpired());
+        subStats.setReplicated(isReplicated());
         subStats.subscriptionProperties = subscriptionProperties;
-        subStats.isDurable = cursor.isDurable();
+        subStats.setDurable(cursor.isDurable());
         if (getType() == SubType.Key_Shared && dispatcher instanceof StickyKeyDispatcher) {
             StickyKeyDispatcher keySharedDispatcher = (StickyKeyDispatcher) dispatcher;
-            subStats.allowOutOfOrderDelivery = keySharedDispatcher.isAllowOutOfOrderDelivery();
-            subStats.keySharedMode = keySharedDispatcher.getKeySharedMode().toString();
+            subStats.setAllowOutOfOrderDelivery(keySharedDispatcher.isAllowOutOfOrderDelivery());
+            subStats.setKeySharedMode(keySharedDispatcher.getKeySharedMode().toString());
 
             LinkedHashMap<Consumer, Position> recentlyJoinedConsumers = keySharedDispatcher
                     .getRecentlyJoinedConsumers();
@@ -1365,21 +1382,22 @@ public class PersistentSubscription extends AbstractSubscription {
                 });
             }
         }
-        subStats.nonContiguousDeletedMessagesRanges = cursor.getTotalNonContiguousDeletedMessagesRange();
-        subStats.nonContiguousDeletedMessagesRangesSerializedSize =
-                cursor.getNonContiguousDeletedMessagesRangeSerializedSize();
+        subStats.setNonContiguousDeletedMessagesRanges(cursor.getTotalNonContiguousDeletedMessagesRange());
+        subStats.setNonContiguousDeletedMessagesRangesSerializedSize(
+                cursor.getNonContiguousDeletedMessagesRangeSerializedSize()
+        );
         if (!getStatsOptions.isGetEarliestTimeInBacklog()) {
             return CompletableFuture.completedFuture(subStats);
         }
-        if (subStats.msgBacklog > 0) {
+        if (subStats.getMsgBacklog() > 0) {
             ManagedLedger managedLedger = cursor.getManagedLedger();
             Position markDeletedPosition = cursor.getMarkDeletedPosition();
             return getEarliestMessagePublishTimeOfPos(managedLedger, markDeletedPosition).thenApply(v -> {
-                subStats.earliestMsgPublishTimeInBacklog = v;
+                subStats.setEarliestMsgPublishTimeInBacklog(v);
                 return subStats;
             });
         } else {
-            subStats.earliestMsgPublishTimeInBacklog = -1;
+            subStats.setEarliestMsgPublishTimeInBacklog(-1);
             return CompletableFuture.completedFuture(subStats);
         }
     }

@@ -31,24 +31,24 @@ public class PartitionedTopicStatsTest {
     @Test
     public void testPartitionedTopicStats() {
         PartitionedTopicStatsImpl partitionedTopicStats = new PartitionedTopicStatsImpl();
-        partitionedTopicStats.msgRateIn = 1;
-        partitionedTopicStats.msgThroughputIn = 1;
-        partitionedTopicStats.msgRateOut = 1;
-        partitionedTopicStats.msgThroughputOut = 1;
-        partitionedTopicStats.averageMsgSize = 1;
-        partitionedTopicStats.storageSize = 1;
+        partitionedTopicStats.setMsgRateIn(1);
+        partitionedTopicStats.setMsgThroughputIn(1);
+        partitionedTopicStats.setMsgRateOut(1);
+        partitionedTopicStats.setMsgThroughputOut(1);
+        partitionedTopicStats.setAverageMsgSize(1);
+        partitionedTopicStats.setStorageSize(1);
         partitionedTopicStats.addPublisher((new PublisherStatsImpl()));
         partitionedTopicStats.subscriptions.put("test_ns", new SubscriptionStatsImpl());
         partitionedTopicStats.replication.put("test_ns", new ReplicatorStatsImpl());
         partitionedTopicStats.metadata.partitions = 1;
         partitionedTopicStats.partitions.put("test", partitionedTopicStats);
         partitionedTopicStats.reset();
-        assertEquals(partitionedTopicStats.msgRateIn, 0.0);
-        assertEquals(partitionedTopicStats.msgThroughputIn, 0.0);
-        assertEquals(partitionedTopicStats.msgRateOut, 0.0);
-        assertEquals(partitionedTopicStats.msgThroughputOut, 0.0);
-        assertEquals(partitionedTopicStats.averageMsgSize, 0.0);
-        assertEquals(partitionedTopicStats.storageSize, 0);
+        assertEquals(partitionedTopicStats.getMsgRateIn(), 0.0);
+        assertEquals(partitionedTopicStats.getMsgThroughputIn(), 0.0);
+        assertEquals(partitionedTopicStats.getMsgRateOut(), 0.0);
+        assertEquals(partitionedTopicStats.getMsgThroughputOut(), 0.0);
+        assertEquals(partitionedTopicStats.getAverageMsgSize(), 0.0);
+        assertEquals(partitionedTopicStats.getStorageSize(), 0);
         assertEquals(partitionedTopicStats.getPublishers().size(), 0);
         assertEquals(partitionedTopicStats.subscriptions.size(), 0);
         assertEquals(partitionedTopicStats.replication.size(), 0);

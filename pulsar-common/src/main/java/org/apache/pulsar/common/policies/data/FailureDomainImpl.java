@@ -43,7 +43,7 @@ public final class FailureDomainImpl implements FailureDomain {
         value = "The collection of brokers in the same failure domain",
         example = "[ 'broker-1', 'broker-2' ]"
     )
-    public Set<String> brokers;
+    private Set<String> brokers;
 
     public static FailureDomainImplBuilder builder() {
         return new FailureDomainImplBuilder();

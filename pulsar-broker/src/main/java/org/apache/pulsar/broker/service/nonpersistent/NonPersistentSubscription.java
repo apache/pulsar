@@ -175,8 +175,8 @@ public class NonPersistentSubscription extends AbstractSubscription {
         }
         // preserve accumulative stats form removed consumer
         ConsumerStatsImpl stats = consumer.getStats();
-        bytesOutFromRemovedConsumers.add(stats.bytesOutCounter);
-        msgOutFromRemovedConsumer.add(stats.msgOutCounter);
+        bytesOutFromRemovedConsumers.add(stats.getBytesOutCounter());
+        msgOutFromRemovedConsumer.add(stats.getMsgOutCounter());
         // Unsubscribe when all the consumers disconnected.
         if (dispatcher != null && CollectionUtils.isEmpty(dispatcher.getConsumers())) {
             topic.unsubscribe(subName);
@@ -480,8 +480,8 @@ public class NonPersistentSubscription extends AbstractSubscription {
 
     public NonPersistentSubscriptionStatsImpl getStats(GetStatsOptions getStatsOptions) {
         NonPersistentSubscriptionStatsImpl subStats = new NonPersistentSubscriptionStatsImpl();
-        subStats.bytesOutCounter = bytesOutFromRemovedConsumers.longValue();
-        subStats.msgOutCounter = msgOutFromRemovedConsumer.longValue();
+        subStats.setBytesOutCounter(bytesOutFromRemovedConsumers.longValue());
+        subStats.setMsgOutCounter(msgOutFromRemovedConsumer.longValue());
 
         NonPersistentDispatcher dispatcher = this.dispatcher;
         if (dispatcher != null) {
@@ -490,38 +490,44 @@ public class NonPersistentSubscription extends AbstractSubscription {
                 if (!getStatsOptions.isExcludeConsumers()) {
                     subStats.consumers.add(consumerStats);
                 }
-                subStats.msgRateOut += consumerStats.msgRateOut;
-                subStats.messageAckRate += consumerStats.messageAckRate;
-                subStats.msgThroughputOut += consumerStats.msgThroughputOut;
-                subStats.bytesOutCounter += consumerStats.bytesOutCounter;
-                subStats.msgOutCounter += consumerStats.msgOutCounter;
-                subStats.msgRateRedeliver += consumerStats.msgRateRedeliver;
+                subStats.setMsgRateOut(subStats.getMsgRateOut() + consumerStats.getMsgRateOut());
+                subStats.setMessageAckRate(subStats.getMessageAckRate() + consumerStats.getMessageAckRate());
+                subStats.setMsgThroughputOut(subStats.getMsgThroughputOut() + consumerStats.getMsgThroughputOut());
+                subStats.setBytesOutCounter(subStats.getBytesOutCounter() + consumerStats.getBytesOutCounter());
+                subStats.setMsgOutCounter(subStats.getMsgOutCounter() + consumerStats.getMsgOutCounter());
+                subStats.setMsgRateRedeliver(subStats.getMsgRateRedeliver() + consumerStats.getMsgRateRedeliver());
             });
 
-            subStats.filterProcessedMsgCount = dispatcher.getFilterProcessedMsgCount();
-            subStats.filterAcceptedMsgCount = dispatcher.getFilterAcceptedMsgCount();
-            subStats.filterRejectedMsgCount = dispatcher.getFilterRejectedMsgCount();
-            subStats.filterRescheduledMsgCount = dispatcher.getFilterRescheduledMsgCount();
-            subStats.dispatchThrottledMsgEventsBySubscriptionLimit =
-                    dispatcher.getDispatchThrottledMsgEventsBySubscriptionLimit();
-            subStats.dispatchThrottledBytesEventsBySubscriptionLimit =
-                    dispatcher.getDispatchThrottledBytesBySubscriptionLimit();
-            subStats.dispatchThrottledMsgEventsByBrokerLimit =
-                    dispatcher.getDispatchThrottledMsgEventsByBrokerLimit();
-            subStats.dispatchThrottledBytesEventsByBrokerLimit =
-                    dispatcher.getDispatchThrottledBytesEventsByBrokerLimit();
-            subStats.dispatchThrottledMsgEventsByTopicLimit =
-                    dispatcher.getDispatchThrottledMsgEventsByTopicLimit();
-            subStats.dispatchThrottledBytesEventsByTopicLimit =
-                    dispatcher.getDispatchThrottledBytesEventsByTopicLimit();
+            subStats.setFilterProcessedMsgCount(dispatcher.getFilterProcessedMsgCount());
+            subStats.setFilterAcceptedMsgCount(dispatcher.getFilterAcceptedMsgCount());
+            subStats.setFilterRejectedMsgCount(dispatcher.getFilterRejectedMsgCount());
+            subStats.setFilterRescheduledMsgCount(dispatcher.getFilterRescheduledMsgCount());
+            subStats.setDispatchThrottledMsgEventsBySubscriptionLimit(
+                    dispatcher.getDispatchThrottledMsgEventsBySubscriptionLimit()
+            );
+            subStats.setDispatchThrottledBytesEventsBySubscriptionLimit(
+                    dispatcher.getDispatchThrottledBytesBySubscriptionLimit()
+            );
+            subStats.setDispatchThrottledMsgEventsByBrokerLimit(
+                    dispatcher.getDispatchThrottledMsgEventsByBrokerLimit()
+            );
+            subStats.setDispatchThrottledBytesEventsByBrokerLimit(
+                    dispatcher.getDispatchThrottledBytesEventsByBrokerLimit()
+            );
+            subStats.setDispatchThrottledMsgEventsByTopicLimit(
+                    dispatcher.getDispatchThrottledMsgEventsByTopicLimit()
+            );
+            subStats.setDispatchThrottledBytesEventsByTopicLimit(
+                    dispatcher.getDispatchThrottledBytesEventsByTopicLimit()
+            );
         }
 
-        subStats.type = getTypeString();
-        subStats.msgDropRate = dispatcher.getMessageDropRate().getValueRate();
+        subStats.setType(getTypeString());
+        subStats.setMsgDropRate(dispatcher.getMessageDropRate().getValueRate());
 
         KeySharedMode keySharedMode = this.keySharedMode;
         if (getType() == SubType.Key_Shared && keySharedMode != null) {
-            subStats.keySharedMode = keySharedMode.toString();
+            subStats.setKeySharedMode(keySharedMode.toString());
         }
 
         return subStats;

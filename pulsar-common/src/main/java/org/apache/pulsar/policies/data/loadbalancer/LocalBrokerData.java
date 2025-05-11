@@ -180,8 +180,10 @@ public class LocalBrokerData implements LoadManagerReport {
 
     // Set the cpu, memory, and direct memory to that of the new system resource usage data.
     private void updateSystemResourceUsage(final SystemResourceUsage systemResourceUsage) {
-        updateSystemResourceUsage(systemResourceUsage.cpu, systemResourceUsage.memory, systemResourceUsage.directMemory,
-                systemResourceUsage.bandwidthIn, systemResourceUsage.bandwidthOut);
+        updateSystemResourceUsage(systemResourceUsage.getCpu(), systemResourceUsage.getMemory(),
+                systemResourceUsage.getDirectMemory(), systemResourceUsage.getBandwidthIn(),
+                systemResourceUsage.getBandwidthOut()
+        );
     }
 
     // Update resource usage given each individual usage.

@@ -30,5 +30,5 @@ import lombok.Data;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class EndOfTopicResponse {
     // If reach end of topic.
-    public boolean endOfTopic;
+    private boolean endOfTopic;
 }

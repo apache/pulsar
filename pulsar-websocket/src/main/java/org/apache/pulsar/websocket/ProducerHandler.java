@@ -166,8 +166,8 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         String requestContext = null;
         try {
             sendRequest = producerMessageReader.readValue(message);
-            requestContext = sendRequest.context;
-            rawPayload = Base64.getDecoder().decode(sendRequest.payload);
+            requestContext = sendRequest.getContext();
+            rawPayload = Base64.getDecoder().decode(sendRequest.getPayload());
         } catch (IOException e) {
             sendAckResponse(new ProducerAck(FailedToDeserializeFromJSON, e.getMessage(), null, null));
             return;
@@ -191,28 +191,28 @@ public class ProducerHandler extends AbstractWebSocketHandler {
             return;
         }
 
-        if (sendRequest.properties != null) {
-            builder.properties(sendRequest.properties);
+        if (sendRequest.getProperties() != null) {
+            builder.properties(sendRequest.getProperties());
         }
-        if (sendRequest.key != null) {
-            builder.key(sendRequest.key);
+        if (sendRequest.getKey() != null) {
+            builder.key(sendRequest.getKey());
         }
-        if (sendRequest.replicationClusters != null) {
-            builder.replicationClusters(sendRequest.replicationClusters);
+        if (sendRequest.getReplicationClusters() != null) {
+            builder.replicationClusters(sendRequest.getReplicationClusters());
         }
-        if (sendRequest.eventTime != null) {
+        if (sendRequest.getEventTime() != null) {
             try {
-                builder.eventTime(DateFormatter.parse(sendRequest.eventTime));
+                builder.eventTime(DateFormatter.parse(sendRequest.getEventTime()));
             } catch (DateTimeParseException e) {
                 sendAckResponse(new ProducerAck(PayloadEncodingError, e.getMessage(), null, requestContext));
                 return;
             }
         }
-        if (sendRequest.deliverAt > 0) {
-            builder.deliverAt(sendRequest.deliverAt);
+        if (sendRequest.getDeliverAt() > 0) {
+            builder.deliverAt(sendRequest.getDeliverAt());
         }
-        if (sendRequest.deliverAfterMs > 0) {
-            builder.deliverAfter(sendRequest.deliverAfterMs, TimeUnit.MILLISECONDS);
+        if (sendRequest.getDeliverAfterMs() > 0) {
+            builder.deliverAfter(sendRequest.getDeliverAfterMs(), TimeUnit.MILLISECONDS);
         }
 
         // If client-side encryption is enabled, the attributes "encryptParam", "uncompressedMessageSize",
@@ -220,22 +220,22 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         // when the client sends messages.
         if (clientSideEncrypt) {
             try {
-                if (!StringUtils.isBlank(sendRequest.encryptionParam)) {
+                if (!StringUtils.isBlank(sendRequest.getEncryptionParam())) {
                     builder.getMetadataBuilder().setEncryptionParam(Base64.getDecoder()
-                            .decode(sendRequest.encryptionParam));
+                            .decode(sendRequest.getEncryptionParam()));
                 }
             } catch (Exception e){
                 String msg = format("Invalid Base64 encryptionParam error=%s", e.getMessage());
                 sendAckResponse(new ProducerAck(PayloadEncodingError, msg, null, requestContext));
                 return;
             }
-            if (sendRequest.compressionType != null && sendRequest.uncompressedMessageSize != null) {
+            if (sendRequest.getCompressionType() != null && sendRequest.getUncompressedMessageSize() != null) {
                 // Set compression information.
-                builder.getMetadataBuilder().setCompression(sendRequest.compressionType);
-                builder.getMetadataBuilder().setUncompressedSize(sendRequest.uncompressedMessageSize);
-            } else if ((org.apache.pulsar.common.api.proto.CompressionType.NONE.equals(sendRequest.compressionType)
-                    || sendRequest.compressionType == null)
-                    && sendRequest.uncompressedMessageSize == null) {
+                builder.getMetadataBuilder().setCompression(sendRequest.getCompressionType());
+                builder.getMetadataBuilder().setUncompressedSize(sendRequest.getUncompressedMessageSize());
+            } else if ((org.apache.pulsar.common.api.proto.CompressionType.NONE.equals(sendRequest.getCompressionType())
+                    || sendRequest.getCompressionType() == null)
+                    && sendRequest.getUncompressedMessageSize() == null) {
                 // Nothing to do, the method send async will set these two attributes.
             } else {
                 // Only one param is set.
@@ -256,14 +256,14 @@ public class ProducerHandler extends AbstractWebSocketHandler {
             updateSentMsgStats(msgSize, TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - now));
             if (isConnected()) {
                 String messageId = Base64.getEncoder().encodeToString(msgId.toByteArray());
-                sendAckResponse(new ProducerAck(messageId, sendRequest.context));
+                sendAckResponse(new ProducerAck(messageId, sendRequest.getContext()));
             }
         }).exceptionally(exception -> {
             log.warn("[{}] Error occurred while producer handler was sending msg from {}", producer.getTopic(),
                     getRemote().getInetSocketAddress().toString(), exception);
             numMsgsFailed.increment();
             sendAckResponse(
-                    new ProducerAck(UnknownError, exception.getMessage(), null, sendRequest.context));
+                    new ProducerAck(UnknownError, exception.getMessage(), null, sendRequest.getContext()));
             return null;
         });
     }

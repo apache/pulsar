@@ -227,11 +227,11 @@ public class Consumer {
 
         stats = new ConsumerStatsImpl();
         stats.setAddress(cnx.clientSourceAddressAndPort());
-        stats.consumerName = consumerName;
-        stats.appId = appId;
+        stats.setConsumerName(consumerName);
+        stats.setAppId(appId);
         stats.setConnectedSince(DateFormatter.format(connectedSince));
         stats.setClientVersion(cnx.getClientVersion());
-        stats.metadata = this.metadata;
+        stats.setMetadata(this.metadata);
 
         if (Subscription.isIndividualAckMode(subType)) {
             this.pendingAcks = new PendingAcksMap(this, this::getPendingAcksAddHandler,
@@ -944,43 +944,43 @@ public class Consumer {
         msgRedeliver.calculateRate();
         messageAckRate.calculateRate();
 
-        stats.msgRateOut = msgOut.getRate();
-        stats.msgThroughputOut = msgOut.getValueRate();
-        stats.msgRateRedeliver = msgRedeliver.getRate();
-        stats.messageAckRate = messageAckRate.getValueRate();
-        stats.chunkedMessageRate = chunkedMessageRate.getRate();
+        stats.setMsgRateOut(msgOut.getRate());
+        stats.setMsgThroughputOut(msgOut.getValueRate());
+        stats.setMsgRateRedeliver(msgRedeliver.getRate());
+        stats.setMessageAckRate(messageAckRate.getValueRate());
+        stats.setChunkedMessageRate(chunkedMessageRate.getRate());
     }
 
     public void updateStats(ConsumerStatsImpl consumerStats) {
-        msgOutCounter.add(consumerStats.msgOutCounter);
-        bytesOutCounter.add(consumerStats.bytesOutCounter);
-        msgOut.recordMultipleEvents(consumerStats.msgOutCounter, consumerStats.bytesOutCounter);
-        lastAckedTimestamp = consumerStats.lastAckedTimestamp;
-        lastConsumedTimestamp = consumerStats.lastConsumedTimestamp;
-        lastConsumedFlowTimestamp = consumerStats.lastConsumedFlowTimestamp;
-        MESSAGE_PERMITS_UPDATER.set(this, consumerStats.availablePermits);
+        msgOutCounter.add(consumerStats.getMsgOutCounter());
+        bytesOutCounter.add(consumerStats.getBytesOutCounter());
+        msgOut.recordMultipleEvents(consumerStats.getMsgOutCounter(), consumerStats.getBytesOutCounter());
+        lastAckedTimestamp = consumerStats.getLastAckedTimestamp();
+        lastConsumedTimestamp = consumerStats.getLastConsumedTimestamp();
+        lastConsumedFlowTimestamp = consumerStats.getLastConsumedFlowTimestamp();
+        MESSAGE_PERMITS_UPDATER.set(this, consumerStats.getAvailablePermits());
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] Setting broker.service.Consumer's messagePermits to {} for consumer {}", topicName,
-                    subscription, consumerStats.availablePermits, consumerId);
+                    subscription, consumerStats.getAvailablePermits(), consumerId);
         }
-        unackedMessages = consumerStats.unackedMessages;
-        blockedConsumerOnUnackedMsgs = consumerStats.blockedConsumerOnUnackedMsgs;
-        avgMessagesPerEntry.set(consumerStats.avgMessagesPerEntry);
+        unackedMessages = consumerStats.getUnackedMessages();
+        blockedConsumerOnUnackedMsgs = consumerStats.isBlockedConsumerOnUnackedMsgs();
+        avgMessagesPerEntry.set(consumerStats.getAvgMessagesPerEntry());
     }
 
     public ConsumerStatsImpl getStats() {
-        stats.msgOutCounter = msgOutCounter.longValue();
-        stats.bytesOutCounter = bytesOutCounter.longValue();
-        stats.lastAckedTimestamp = lastAckedTimestamp;
-        stats.lastConsumedTimestamp = lastConsumedTimestamp;
-        stats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
-        stats.availablePermits = getAvailablePermits();
-        stats.unackedMessages = unackedMessages;
-        stats.blockedConsumerOnUnackedMsgs = blockedConsumerOnUnackedMsgs;
-        stats.avgMessagesPerEntry = getAvgMessagesPerEntry();
-        stats.consumerName = consumerName;
+        stats.setMsgOutCounter(msgOutCounter.longValue());
+        stats.setBytesOutCounter(bytesOutCounter.longValue());
+        stats.setLastAckedTimestamp(lastAckedTimestamp);
+        stats.setLastConsumedTimestamp(lastConsumedTimestamp);
+        stats.setLastConsumedFlowTimestamp(lastConsumedFlowTimestamp);
+        stats.setAvailablePermits(getAvailablePermits());
+        stats.setUnackedMessages(unackedMessages);
+        stats.setBlockedConsumerOnUnackedMsgs(blockedConsumerOnUnackedMsgs);
+        stats.setAvgMessagesPerEntry(getAvgMessagesPerEntry());
+        stats.setConsumerName(consumerName);
         if (readPositionWhenJoining != null) {
-            stats.readPositionWhenJoining = readPositionWhenJoining.toString();
+            stats.setReadPositionWhenJoining(readPositionWhenJoining.toString());
         }
         if (drainingHashesConsumerStatsUpdater != null) {
             drainingHashesConsumerStatsUpdater.accept(this, stats);

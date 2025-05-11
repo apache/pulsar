@@ -741,8 +741,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             producer.updateRates();
             PublisherStatsImpl publisherStats = producer.getStats();
 
-            topicStats.aggMsgRateIn += publisherStats.msgRateIn;
-            topicStats.aggMsgThroughputIn += publisherStats.msgThroughputIn;
+            topicStats.aggMsgRateIn += publisherStats.getMsgRateIn();
+            topicStats.aggMsgThroughputIn += publisherStats.getMsgThroughputIn();
 
             if (producer.isRemote()) {
                 topicStats.remotePublishersStats.put(producer.getRemoteCluster(), publisherStats);
@@ -788,11 +788,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                     consumer.updateRates();
 
                     ConsumerStatsImpl consumerStats = consumer.getStats();
-                    subMsgRateOut += consumerStats.msgRateOut;
-                    subMsgAckRate += consumerStats.messageAckRate;
+                    subMsgRateOut += consumerStats.getMsgRateOut();
+                    subMsgAckRate += consumerStats.getMessageAckRate();
 
-                    subMsgThroughputOut += consumerStats.msgThroughputOut;
-                    subMsgRateRedeliver += consumerStats.msgRateRedeliver;
+                    subMsgThroughputOut += consumerStats.getMsgThroughputOut();
+                    subMsgRateRedeliver += consumerStats.getMsgRateRedeliver();
 
                     // Populate consumer specific stats here
                     StreamingStats.writeConsumerStats(topicStatsStream, subscription.getType(), consumerStats);
@@ -915,8 +915,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
         producers.values().forEach(producer -> {
             NonPersistentPublisherStatsImpl publisherStats = (NonPersistentPublisherStatsImpl) producer.getStats();
-            stats.msgRateIn += publisherStats.msgRateIn;
-            stats.msgThroughputIn += publisherStats.msgThroughputIn;
+            stats.setMsgRateIn(stats.getMsgRateIn() + publisherStats.getMsgRateIn());
+            stats.setMsgThroughputIn(stats.getMsgThroughputIn() + publisherStats.getMsgThroughputIn());
 
             if (producer.isRemote()) {
                 remotePublishersStats.put(producer.getRemoteCluster(), publisherStats);
@@ -926,26 +926,28 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             }
         });
 
-        stats.averageMsgSize = stats.msgRateIn == 0.0 ? 0.0 : (stats.msgThroughputIn / stats.msgRateIn);
-        stats.msgInCounter = getMsgInCounter();
-        stats.bytesInCounter = getBytesInCounter();
-        stats.systemTopicBytesInCounter = getSystemTopicBytesInCounter();
-        stats.waitingPublishers = getWaitingProducersCount();
-        stats.bytesOutCounter = bytesOutFromRemovedSubscriptions.longValue();
-        stats.msgOutCounter = msgOutFromRemovedSubscriptions.longValue();
-        stats.bytesOutInternalCounter = bytesOutFromRemovedSystemSubscriptions.longValue();
+        stats.setAverageMsgSize(
+                stats.getMsgRateIn() == 0.0 ? 0.0 : (stats.getMsgThroughputIn() / stats.getMsgRateIn())
+        );
+        stats.setMsgInCounter(getMsgInCounter());
+        stats.setBytesInCounter(getBytesInCounter());
+        stats.setSystemTopicBytesInCounter(getSystemTopicBytesInCounter());
+        stats.setWaitingPublishers(getWaitingProducersCount());
+        stats.setBytesOutCounter(bytesOutFromRemovedSubscriptions.longValue());
+        stats.setMsgOutCounter(msgOutFromRemovedSubscriptions.longValue());
+        stats.setBytesOutInternalCounter(bytesOutFromRemovedSystemSubscriptions.longValue());
 
         subscriptions.forEach((name, subscription) -> {
             NonPersistentSubscriptionStatsImpl subStats = subscription.getStats(getStatsOptions);
 
-            stats.msgRateOut += subStats.msgRateOut;
-            stats.msgThroughputOut += subStats.msgThroughputOut;
-            stats.bytesOutCounter += subStats.bytesOutCounter;
-            stats.msgOutCounter += subStats.msgOutCounter;
+            stats.setMsgRateOut(stats.getMsgRateOut() + subStats.getMsgRateOut());
+            stats.setMsgThroughputOut(stats.getMsgThroughputOut() + subStats.getMsgThroughputOut());
+            stats.setBytesOutCounter(stats.getBytesOutCounter() + subStats.getBytesOutCounter());
+            stats.setMsgOutCounter(stats.getMsgOutCounter() + subStats.getMsgOutCounter());
             stats.getSubscriptions().put(name, subStats);
 
             if (isSystemCursor(name)) {
-                stats.bytesOutInternalCounter += subStats.bytesOutCounter;
+                stats.setBytesOutInternalCounter(stats.getBytesOutInternalCounter() + subStats.getBytesOutCounter());
             }
         });
 
@@ -955,20 +957,20 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             // Add incoming msg rates
             PublisherStatsImpl pubStats = remotePublishersStats.get(replicator.getRemoteCluster());
             if (pubStats != null) {
-                replicatorStats.msgRateIn = pubStats.msgRateIn;
-                replicatorStats.msgThroughputIn = pubStats.msgThroughputIn;
-                replicatorStats.inboundConnection = pubStats.getAddress();
-                replicatorStats.inboundConnectedSince = pubStats.getConnectedSince();
+                replicatorStats.setMsgRateIn(pubStats.getMsgRateIn());
+                replicatorStats.setMsgThroughputIn(pubStats.getMsgThroughputIn());
+                replicatorStats.setInboundConnection(pubStats.getAddress());
+                replicatorStats.setInboundConnectedSince(pubStats.getConnectedSince());
             }
 
-            stats.msgRateOut += replicatorStats.msgRateOut;
-            stats.msgThroughputOut += replicatorStats.msgThroughputOut;
+            stats.setMsgRateOut(stats.getMsgRateOut() + replicatorStats.getMsgRateOut());
+            stats.setMsgThroughputOut(stats.getMsgThroughputOut() + replicatorStats.getMsgThroughputOut());
 
             stats.getReplication().put(replicator.getRemoteCluster(), replicatorStats);
         });
 
-        stats.topicEpoch = topicEpoch.orElse(null);
-        stats.ownerBroker = brokerService.pulsar().getBrokerId();
+        stats.setTopicEpoch(topicEpoch.orElse(null));
+        stats.setOwnerBroker(brokerService.pulsar().getBrokerId());
         future.complete(stats);
         return future;
     }
@@ -1197,12 +1199,12 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 // preserve accumulative stats form removed subscription
                 GetStatsOptions getStatsOptions = new GetStatsOptions(false, false, false, false, false);
                 SubscriptionStatsImpl stats = sub.getStats(getStatsOptions);
-                bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
-                msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
+                bytesOutFromRemovedSubscriptions.add(stats.getBytesOutCounter());
+                msgOutFromRemovedSubscriptions.add(stats.getMsgOutCounter());
 
                 if (isSystemCursor(subscriptionName)
                         || subscriptionName.startsWith(SystemTopicNames.SYSTEM_READER_PREFIX)) {
-                    bytesOutFromRemovedSystemSubscriptions.add(stats.bytesOutCounter);
+                    bytesOutFromRemovedSystemSubscriptions.add(stats.getBytesOutCounter());
                 }
             }
         }, brokerService.executor());

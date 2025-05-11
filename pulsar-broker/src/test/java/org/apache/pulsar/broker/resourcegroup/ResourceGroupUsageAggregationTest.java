@@ -213,12 +213,12 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
             TopicStatsImpl topicStats = bs.getTopicStats().get(topicString);
             Assert.assertNotNull(topicStats);
             if (checkProduce) {
-                Assert.assertTrue(topicStats.bytesInCounter >= sentNumBytes);
-                Assert.assertEquals(sentNumMsgs, topicStats.msgInCounter);
+                Assert.assertTrue(topicStats.getBytesInCounter() >= sentNumBytes);
+                Assert.assertEquals(sentNumMsgs, topicStats.getMsgInCounter());
             }
             if (checkConsume) {
-                Assert.assertTrue(topicStats.bytesOutCounter >= recvdNumBytes);
-                Assert.assertEquals(recvdNumMsgs, topicStats.msgOutCounter);
+                Assert.assertTrue(topicStats.getBytesOutCounter() >= recvdNumBytes);
+                Assert.assertEquals(recvdNumMsgs, topicStats.getMsgOutCounter());
             }
         });
         if (sentNumMsgs > 0 || recvdNumMsgs > 0) {

@@ -450,13 +450,13 @@ public class BrokerServiceTest extends BrokerTestBase {
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
         assertNotNull(topicRef);
-        assertEquals(topicRef.getStats(false, false, false).storageSize, 0);
+        assertEquals(topicRef.getStats(false, false, false).getStorageSize(), 0);
 
         for (int i = 0; i < 10; i++) {
             producer.send(new byte[10]);
         }
 
-        assertTrue(topicRef.getStats(false, false, false).storageSize > 0);
+        assertTrue(topicRef.getStats(false, false, false).getStorageSize() > 0);
     }
 
     @Test

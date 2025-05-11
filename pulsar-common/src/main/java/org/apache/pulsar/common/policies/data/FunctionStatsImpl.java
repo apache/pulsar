@@ -39,36 +39,36 @@ public class FunctionStatsImpl implements FunctionStats {
     /**
      * Overall total number of records function received from source.
      **/
-    public long receivedTotal;
+    private long receivedTotal;
 
     /**
      * Overall total number of records successfully processed by user function.
      **/
-    public long processedSuccessfullyTotal;
+    private long processedSuccessfullyTotal;
 
     /**
      * Overall total number of system exceptions thrown.
      **/
-    public long systemExceptionsTotal;
+    private long systemExceptionsTotal;
 
     /**
      * Overall total number of user exceptions thrown.
      **/
-    public long userExceptionsTotal;
+    private long userExceptionsTotal;
 
     /**
      * Average process latency for function.
      **/
-    public Double avgProcessLatency;
+    private Double avgProcessLatency;
 
     @JsonProperty("1min")
-    public FunctionInstanceStatsDataBaseImpl oneMin =
+    private FunctionInstanceStatsDataBaseImpl oneMin =
             new FunctionInstanceStatsDataBaseImpl();
 
     /**
      * Timestamp of when the function was last invoked by any instance.
      **/
-    public Long lastInvocation;
+    private Long lastInvocation;
 
     public List<FunctionInstanceStatsImpl> instances = new LinkedList<>();
 
@@ -84,37 +84,39 @@ public class FunctionStatsImpl implements FunctionStats {
         for (FunctionInstanceStats functionInstanceStats : instances) {
             FunctionInstanceStatsDataImpl functionInstanceStatsData =
                     (FunctionInstanceStatsDataImpl) functionInstanceStats.getMetrics();
-            receivedTotal += functionInstanceStatsData.receivedTotal;
-            processedSuccessfullyTotal += functionInstanceStatsData.processedSuccessfullyTotal;
-            systemExceptionsTotal += functionInstanceStatsData.systemExceptionsTotal;
-            userExceptionsTotal += functionInstanceStatsData.userExceptionsTotal;
-            if (functionInstanceStatsData.avgProcessLatency != null) {
+            receivedTotal += functionInstanceStatsData.getReceivedTotal();
+            processedSuccessfullyTotal += functionInstanceStatsData.getProcessedSuccessfullyTotal();
+            systemExceptionsTotal += functionInstanceStatsData.getSystemExceptionsTotal();
+            userExceptionsTotal += functionInstanceStatsData.getUserExceptionsTotal();
+            if (functionInstanceStatsData.getAvgProcessLatency() != null) {
                 if (avgProcessLatency == null) {
                     avgProcessLatency = 0.0;
                 }
-                avgProcessLatency += functionInstanceStatsData.avgProcessLatency;
+                avgProcessLatency += functionInstanceStatsData.getAvgProcessLatency();
                 nonNullInstances++;
             }
 
-            oneMin.setReceivedTotal(oneMin.getReceivedTotal() + functionInstanceStatsData.oneMin.getReceivedTotal());
+            oneMin.setReceivedTotal(
+                    oneMin.getReceivedTotal() + functionInstanceStatsData.getOneMin().getReceivedTotal()
+            );
             oneMin.setProcessedSuccessfullyTotal(oneMin.getProcessedSuccessfullyTotal()
-                    + functionInstanceStatsData.oneMin.getProcessedSuccessfullyTotal());
+                    + functionInstanceStatsData.getOneMin().getProcessedSuccessfullyTotal());
             oneMin.setSystemExceptionsTotal(oneMin.getSystemExceptionsTotal()
-                    + functionInstanceStatsData.oneMin.getSystemExceptionsTotal());
+                    + functionInstanceStatsData.getOneMin().getSystemExceptionsTotal());
             oneMin.setUserExceptionsTotal(oneMin.getUserExceptionsTotal()
-                    + functionInstanceStatsData.oneMin.getUserExceptionsTotal());
-            if (functionInstanceStatsData.oneMin.getAvgProcessLatency() != null) {
+                    + functionInstanceStatsData.getOneMin().getUserExceptionsTotal());
+            if (functionInstanceStatsData.getOneMin().getAvgProcessLatency() != null) {
                 if (oneMin.getAvgProcessLatency() == null) {
                     oneMin.setAvgProcessLatency(0.0);
                 }
                 oneMin.setAvgProcessLatency(oneMin.getAvgProcessLatency()
-                        + functionInstanceStatsData.oneMin.getAvgProcessLatency());
+                        + functionInstanceStatsData.getOneMin().getAvgProcessLatency());
                 nonNullInstancesOneMin++;
             }
 
-            if (functionInstanceStatsData.lastInvocation != null) {
-                if (lastInvocation == null || functionInstanceStatsData.lastInvocation > lastInvocation) {
-                    lastInvocation = functionInstanceStatsData.lastInvocation;
+            if (functionInstanceStatsData.getLastInvocation() != null) {
+                if (lastInvocation == null || functionInstanceStatsData.getLastInvocation() > lastInvocation) {
+                    lastInvocation = functionInstanceStatsData.getLastInvocation();
                 }
             }
         }

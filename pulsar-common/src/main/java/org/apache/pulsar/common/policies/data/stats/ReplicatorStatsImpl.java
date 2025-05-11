@@ -32,52 +32,52 @@ import org.apache.pulsar.common.policies.data.ReplicatorStats;
 public class ReplicatorStatsImpl implements ReplicatorStats {
 
     /** Total rate of messages received from the remote cluster (msg/s). */
-    public double msgRateIn;
+    private double msgRateIn;
 
     @JsonIgnore
     private final LongAdder msgInCount = new LongAdder();
 
     /** Total throughput received from the remote cluster (bytes/s). */
-    public double msgThroughputIn;
+    private double msgThroughputIn;
 
     @JsonIgnore
     private final LongAdder bytesInCount = new LongAdder();
 
     /** Total rate of messages delivered to the replication-subscriber (msg/s). */
-    public double msgRateOut;
+    private double msgRateOut;
 
     @JsonIgnore
     private final LongAdder msgOutCount = new LongAdder();
 
     /** Total throughput delivered to the replication-subscriber (bytes/s). */
-    public double msgThroughputOut;
+    private double msgThroughputOut;
 
     @JsonIgnore
     private final LongAdder bytesOutCount = new LongAdder();
 
     /** Total rate of messages expired (msg/s). */
-    public double msgRateExpired;
+    private double msgRateExpired;
 
     /** Number of messages pending to be replicated to remote cluster. */
-    public long replicationBacklog;
+    private long replicationBacklog;
 
     /** is the replication-subscriber up and running to replicate to remote cluster. */
-    public boolean connected;
+    private boolean connected;
 
     /** Time in seconds from the time a message was produced to the time when it is about to be replicated. */
-    public long replicationDelayInSeconds;
+    private long replicationDelayInSeconds;
 
     /** Address of incoming replication connection. */
-    public String inboundConnection;
+    private String inboundConnection;
 
     /** Timestamp of incoming connection establishment time. */
-    public String inboundConnectedSince;
+    private String inboundConnectedSince;
 
     /** Address of outbound replication connection. */
-    public String outboundConnection;
+    private String outboundConnection;
 
     /** Timestamp of outbound connection establishment time. */
-    public String outboundConnectedSince;
+    private String outboundConnectedSince;
 
     public ReplicatorStatsImpl add(ReplicatorStatsImpl stats) {
         Objects.requireNonNull(stats);

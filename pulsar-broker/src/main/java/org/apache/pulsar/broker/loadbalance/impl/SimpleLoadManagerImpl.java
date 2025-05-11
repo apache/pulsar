@@ -411,17 +411,17 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
             return resourceDescription;
         }
 
-        if (sru.bandwidthIn != null) {
-            resourceDescription.put("bandwidthIn", sru.bandwidthIn);
+        if (sru.getBandwidthIn() != null) {
+            resourceDescription.put("bandwidthIn", sru.getBandwidthIn());
         }
-        if (sru.bandwidthOut != null) {
-            resourceDescription.put("bandwidthOut", sru.bandwidthOut);
+        if (sru.getBandwidthOut() != null) {
+            resourceDescription.put("bandwidthOut", sru.getBandwidthOut());
         }
-        if (sru.memory != null) {
-            resourceDescription.put("memory", sru.memory);
+        if (sru.getMemory() != null) {
+            resourceDescription.put("memory", sru.getMemory());
         }
-        if (sru.cpu != null) {
-            resourceDescription.put("cpu", sru.cpu);
+        if (sru.getCpu() != null) {
+            resourceDescription.put("cpu", sru.getCpu());
         }
         return resourceDescription;
     }
@@ -1004,17 +1004,17 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
     }
 
     public static boolean isAboveLoadLevel(SystemResourceUsage usage, float thresholdPercentage) {
-        return (usage.bandwidthOut.percentUsage() > thresholdPercentage
-                || usage.bandwidthIn.percentUsage() > thresholdPercentage
-                || usage.cpu.percentUsage() > thresholdPercentage
-                || usage.directMemory.percentUsage() > thresholdPercentage);
+        return (usage.getBandwidthOut().percentUsage() > thresholdPercentage
+                || usage.getBandwidthIn().percentUsage() > thresholdPercentage
+                || usage.getCpu().percentUsage() > thresholdPercentage
+                || usage.getDirectMemory().percentUsage() > thresholdPercentage);
     }
 
     public static boolean isBelowLoadLevel(SystemResourceUsage usage, float thresholdPercentage) {
-        return (usage.bandwidthOut.percentUsage() < thresholdPercentage
-                && usage.bandwidthIn.percentUsage() < thresholdPercentage
-                && usage.cpu.percentUsage() < thresholdPercentage
-                && usage.directMemory.percentUsage() < thresholdPercentage);
+        return (usage.getBandwidthOut().percentUsage() < thresholdPercentage
+                && usage.getBandwidthIn().percentUsage() < thresholdPercentage
+                && usage.getCpu().percentUsage() < thresholdPercentage
+                && usage.getDirectMemory().percentUsage() < thresholdPercentage);
     }
 
     private static long getRealtimeJvmHeapUsageMBytes() {
@@ -1040,7 +1040,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
         SystemResourceUsage systemResourceUsage = LoadManagerShared.getSystemResourceUsage(brokerHostUsage);
         long memoryUsageInMBytes = getAverageJvmHeapUsageMBytes();
         systemResourceUsage
-                .setMemory(new ResourceUsage((double) memoryUsageInMBytes, systemResourceUsage.memory.limit));
+                .setMemory(new ResourceUsage((double) memoryUsageInMBytes, systemResourceUsage.getMemory().limit));
         return systemResourceUsage;
     }
 
@@ -1181,23 +1181,24 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                     this.lastResourceUsageTimestamp = timestampNow;
 
                     // calculate percentage of change
-                    double cpuChange = (newUsage.cpu.limit > 0)
-                            ? ((newUsage.cpu.usage - oldUsage.cpu.usage) * 100 / newUsage.cpu.limit)
+                    double cpuChange = (newUsage.getCpu().limit > 0)
+                            ? ((newUsage.getCpu().usage - oldUsage.getCpu().usage) * 100 / newUsage.getCpu().limit)
                             : 0;
-                    double memChange = (newUsage.memory.limit > 0)
-                            ? ((newUsage.memory.usage - oldUsage.memory.usage) * 100 / newUsage.memory.limit)
+                    double memChange = (newUsage.getMemory().limit > 0)
+                            ? ((newUsage.getMemory().usage - oldUsage.getMemory().usage)
+                            * 100 / newUsage.getMemory().limit)
                             : 0;
-                    double directMemChange = (newUsage.directMemory.limit > 0)
-                            ? ((newUsage.directMemory.usage - oldUsage.directMemory.usage) * 100
-                                    / newUsage.directMemory.limit)
+                    double directMemChange = (newUsage.getDirectMemory().limit > 0)
+                            ? ((newUsage.getDirectMemory().usage - oldUsage.getDirectMemory().usage) * 100
+                                    / newUsage.getDirectMemory().limit)
                             : 0;
-                    double bandwidthOutChange = (newUsage.bandwidthOut.limit > 0)
-                            ? ((newUsage.bandwidthOut.usage - oldUsage.bandwidthOut.usage) * 100
-                                    / newUsage.bandwidthOut.limit)
+                    double bandwidthOutChange = (newUsage.getBandwidthOut().limit > 0)
+                            ? ((newUsage.getBandwidthOut().usage - oldUsage.getBandwidthOut().usage) * 100
+                                    / newUsage.getBandwidthOut().limit)
                             : 0;
-                    double bandwidthInChange = (newUsage.bandwidthIn.limit > 0)
-                            ? ((newUsage.bandwidthIn.usage - oldUsage.bandwidthIn.usage) * 100
-                                    / newUsage.bandwidthIn.limit)
+                    double bandwidthInChange = (newUsage.getBandwidthIn().limit > 0)
+                            ? ((newUsage.getBandwidthIn().usage - oldUsage.getBandwidthIn().usage) * 100
+                                    / newUsage.getBandwidthIn().limit)
                             : 0;
                     long resourceChange = (long) Math.min(100.0,
                             Math.max(Math.abs(cpuChange),

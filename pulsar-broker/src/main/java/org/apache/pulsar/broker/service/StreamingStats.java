@@ -29,12 +29,12 @@ public class StreamingStats {
     public static void writePublisherStats(StatsOutputStream statsStream, PublisherStatsImpl stats) {
         statsStream.startObject();
 
-        statsStream.writePair("msgRateIn", stats.msgRateIn);
-        statsStream.writePair("msgThroughputIn", stats.msgThroughputIn);
-        statsStream.writePair("averageMsgSize", stats.averageMsgSize);
+        statsStream.writePair("msgRateIn", stats.getMsgRateIn());
+        statsStream.writePair("msgThroughputIn", stats.getMsgThroughputIn());
+        statsStream.writePair("averageMsgSize", stats.getAverageMsgSize());
 
         statsStream.writePair("address", stats.getAddress());
-        statsStream.writePair("producerId", stats.producerId);
+        statsStream.writePair("producerId", stats.getProducerId());
         statsStream.writePair("producerName", stats.getProducerName());
         statsStream.writePair("connectedSince", stats.getConnectedSince());
         if (stats.getClientVersion() != null) {
@@ -43,8 +43,8 @@ public class StreamingStats {
 
         // add metadata
         statsStream.startObject("metadata");
-        if (stats.metadata != null && !stats.metadata.isEmpty()) {
-            stats.metadata.forEach(statsStream::writePair);
+        if (stats.getMetadata() != null && !stats.getMetadata().isEmpty()) {
+            stats.getMetadata().forEach(statsStream::writePair);
         }
         statsStream.endObject();
 
@@ -58,18 +58,18 @@ public class StreamingStats {
         statsStream.startObject();
 
         statsStream.writePair("address", stats.getAddress());
-        statsStream.writePair("consumerName", stats.consumerName);
-        statsStream.writePair("availablePermits", stats.availablePermits);
+        statsStream.writePair("consumerName", stats.getConsumerName());
+        statsStream.writePair("availablePermits", stats.getAvailablePermits());
         statsStream.writePair("connectedSince", stats.getConnectedSince());
-        statsStream.writePair("msgRateOut", stats.msgRateOut);
-        statsStream.writePair("msgThroughputOut", stats.msgThroughputOut);
-        statsStream.writePair("msgRateRedeliver", stats.msgRateRedeliver);
-        statsStream.writePair("avgMessagesPerEntry", stats.avgMessagesPerEntry);
-        statsStream.writePair("messageAckRate", stats.messageAckRate);
+        statsStream.writePair("msgRateOut", stats.getMsgRateOut());
+        statsStream.writePair("msgThroughputOut", stats.getMsgThroughputOut());
+        statsStream.writePair("msgRateRedeliver", stats.getMsgRateRedeliver());
+        statsStream.writePair("avgMessagesPerEntry", stats.getAvgMessagesPerEntry());
+        statsStream.writePair("messageAckRate", stats.getMessageAckRate());
 
         if (Subscription.isIndividualAckMode(subType)) {
-            statsStream.writePair("unackedMessages", stats.unackedMessages);
-            statsStream.writePair("blockedConsumerOnUnackedMsgs", stats.blockedConsumerOnUnackedMsgs);
+            statsStream.writePair("unackedMessages", stats.getUnackedMessages());
+            statsStream.writePair("blockedConsumerOnUnackedMsgs", stats.isBlockedConsumerOnUnackedMsgs());
         }
         if (stats.getClientVersion() != null) {
             statsStream.writePair("clientVersion", stats.getClientVersion());
@@ -77,8 +77,8 @@ public class StreamingStats {
 
         // add metadata
         statsStream.startObject("metadata");
-        if (stats.metadata != null && !stats.metadata.isEmpty()) {
-            stats.metadata.forEach(statsStream::writePair);
+        if (stats.getMetadata() != null && !stats.getMetadata().isEmpty()) {
+            stats.getMetadata().forEach(statsStream::writePair);
         }
         statsStream.endObject();
 

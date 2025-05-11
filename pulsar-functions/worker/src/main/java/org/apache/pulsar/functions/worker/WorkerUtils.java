@@ -341,13 +341,13 @@ public final class WorkerUtils {
                     functionInstanceStatsData.setLastInvocation(
                             metricsData.getLastInvocation() == 0 ? null : metricsData.getLastInvocation());
 
-                    functionInstanceStatsData.oneMin.setReceivedTotal(metricsData.getReceivedTotal1Min());
-                    functionInstanceStatsData.oneMin
+                    functionInstanceStatsData.getOneMin().setReceivedTotal(metricsData.getReceivedTotal1Min());
+                    functionInstanceStatsData.getOneMin()
                             .setProcessedSuccessfullyTotal(metricsData.getProcessedSuccessfullyTotal1Min());
-                    functionInstanceStatsData.oneMin
+                    functionInstanceStatsData.getOneMin()
                             .setSystemExceptionsTotal(metricsData.getSystemExceptionsTotal1Min());
-                    functionInstanceStatsData.oneMin.setUserExceptionsTotal(metricsData.getUserExceptionsTotal1Min());
-                    functionInstanceStatsData.oneMin.setAvgProcessLatency(
+                    functionInstanceStatsData.getOneMin().setUserExceptionsTotal(metricsData.getUserExceptionsTotal1Min());
+                    functionInstanceStatsData.getOneMin().setAvgProcessLatency(
                             metricsData.getAvgProcessLatency1Min() == 0.0 ? null :
                                     metricsData.getAvgProcessLatency1Min());
 

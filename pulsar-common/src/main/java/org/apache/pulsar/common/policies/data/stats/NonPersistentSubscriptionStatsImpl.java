@@ -21,6 +21,7 @@ package org.apache.pulsar.common.policies.data.stats;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Objects;
 import lombok.Getter;
+import lombok.Setter;
 import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
 
 /**
@@ -36,7 +37,8 @@ public class NonPersistentSubscriptionStatsImpl
      * delivery.
      **/
     @Getter
-    public double msgDropRate;
+    @Setter
+    private double msgDropRate;
 
     public void reset() {
         super.reset();

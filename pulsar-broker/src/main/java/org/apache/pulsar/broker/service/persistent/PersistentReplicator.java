@@ -640,23 +640,23 @@ public abstract class PersistentReplicator extends AbstractReplicator
         msgOut.calculateRate();
         msgExpired.calculateRate();
 
-        stats.msgRateOut = msgOut.getRate();
-        stats.msgThroughputOut = msgOut.getValueRate();
-        stats.msgRateExpired = msgExpired.getRate() + expiryMonitor.getMessageExpiryRate();
+        stats.setMsgRateOut(msgOut.getRate());
+        stats.setMsgThroughputOut(msgOut.getValueRate());
+        stats.setMsgRateExpired(msgExpired.getRate() + expiryMonitor.getMessageExpiryRate());
     }
 
     public ReplicatorStatsImpl computeStats() {
-        stats.replicationBacklog = cursor.getNumberOfEntriesInBacklog(false);
-        stats.connected = isConnected();
-        stats.replicationDelayInSeconds = TimeUnit.MILLISECONDS.toSeconds(getReplicationDelayMs());
+        stats.setReplicationBacklog(cursor.getNumberOfEntriesInBacklog(false));
+        stats.setConnected(isConnected());
+        stats.setReplicationDelayInSeconds(TimeUnit.MILLISECONDS.toSeconds(getReplicationDelayMs()));
 
         ProducerImpl producer = this.producer;
         if (producer != null) {
-            stats.outboundConnection = producer.getConnectionId();
-            stats.outboundConnectedSince = producer.getConnectedSince();
+            stats.setOutboundConnection(producer.getConnectionId());
+            stats.setOutboundConnectedSince(producer.getConnectedSince());
         } else {
-            stats.outboundConnection = null;
-            stats.outboundConnectedSince = null;
+            stats.setOutboundConnection(null);
+            stats.setOutboundConnectedSince(null);
         }
 
         return stats;

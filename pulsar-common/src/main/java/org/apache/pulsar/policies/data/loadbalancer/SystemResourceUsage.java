@@ -30,11 +30,11 @@ public class SystemResourceUsage {
         CPU, Memory, BandwidthIn, BandwidthOut
     }
 
-    public ResourceUsage bandwidthIn;
-    public ResourceUsage bandwidthOut;
-    public ResourceUsage cpu;
-    public ResourceUsage memory;
-    public ResourceUsage directMemory;
+    private ResourceUsage bandwidthIn;
+    private ResourceUsage bandwidthOut;
+    private ResourceUsage cpu;
+    private ResourceUsage memory;
+    private ResourceUsage directMemory;
 
     public SystemResourceUsage() {
         bandwidthIn = new ResourceUsage(-1, -1);

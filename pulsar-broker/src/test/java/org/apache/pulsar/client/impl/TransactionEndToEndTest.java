@@ -1072,7 +1072,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Collection<TransactionMetadataStore> transactionMetadataStores =
                 getPulsarServiceList().get(0).getTransactionMetadataStoreService().getStores().values();
         long timeoutCountOriginal = transactionMetadataStores.stream()
-                .mapToLong(store -> store.getMetadataStoreStats().timeoutCount).sum();
+                .mapToLong(store -> store.getMetadataStoreStats().getTimeoutCount()).sum();
         TxnID txnID = pulsarServiceList.get(0).getTransactionMetadataStoreService()
                 .newTransaction(new TransactionCoordinatorID(0), 1, null).get();
         Awaitility.await().until(() -> {
@@ -1084,7 +1084,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             }
         });
         long timeoutCount = transactionMetadataStores.stream()
-                .mapToLong(store -> store.getMetadataStoreStats().timeoutCount).sum();
+                .mapToLong(store -> store.getMetadataStoreStats().getTimeoutCount()).sum();
         Assert.assertEquals(timeoutCount, timeoutCountOriginal + 1);
     }
 

@@ -162,7 +162,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         }
 
         rolloverPerIntervalStats();
-        assertTrue(topicRef.getProducers().values().iterator().next().getStats().msgRateIn > 0.0);
+        assertTrue(topicRef.getProducers().values().iterator().next().getStats().getMsgRateIn() > 0.0);
 
         // 3. producer disconnect
         producer.close();

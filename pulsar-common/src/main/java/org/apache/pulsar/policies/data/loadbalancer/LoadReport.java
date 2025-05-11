@@ -149,19 +149,19 @@ public class LoadReport implements LoadManagerReport {
     @JsonIgnore
     public ResourceType getBottleneckResourceType() {
         ResourceType type = ResourceType.CPU;
-        double maxUsage = systemResourceUsage.cpu.percentUsage();
-        if (systemResourceUsage.memory.percentUsage() > maxUsage) {
-            maxUsage = systemResourceUsage.memory.percentUsage();
+        double maxUsage = systemResourceUsage.getCpu().percentUsage();
+        if (systemResourceUsage.getMemory().percentUsage() > maxUsage) {
+            maxUsage = systemResourceUsage.getMemory().percentUsage();
             type = ResourceType.Memory;
         }
 
-        if (systemResourceUsage.bandwidthIn.percentUsage() > maxUsage) {
-            maxUsage = systemResourceUsage.bandwidthIn.percentUsage();
+        if (systemResourceUsage.getBandwidthIn().percentUsage() > maxUsage) {
+            maxUsage = systemResourceUsage.getBandwidthIn().percentUsage();
             type = ResourceType.BandwidthIn;
         }
 
-        if (systemResourceUsage.bandwidthOut.percentUsage() > maxUsage) {
-            maxUsage = systemResourceUsage.bandwidthOut.percentUsage();
+        if (systemResourceUsage.getBandwidthOut().percentUsage() > maxUsage) {
+            maxUsage = systemResourceUsage.getBandwidthOut().percentUsage();
             type = ResourceType.BandwidthOut;
         }
 
@@ -425,27 +425,27 @@ public class LoadReport implements LoadManagerReport {
 
     @Override
     public ResourceUsage getCpu() {
-        return systemResourceUsage != null ? systemResourceUsage.cpu : null;
+        return systemResourceUsage != null ? systemResourceUsage.getCpu() : null;
     }
 
     @Override
     public ResourceUsage getMemory() {
-        return systemResourceUsage != null ? systemResourceUsage.memory : null;
+        return systemResourceUsage != null ? systemResourceUsage.getMemory() : null;
     }
 
     @Override
     public ResourceUsage getDirectMemory() {
-        return systemResourceUsage != null ? systemResourceUsage.directMemory : null;
+        return systemResourceUsage != null ? systemResourceUsage.getDirectMemory() : null;
     }
 
     @Override
     public ResourceUsage getBandwidthIn() {
-        return systemResourceUsage != null ? systemResourceUsage.bandwidthIn : null;
+        return systemResourceUsage != null ? systemResourceUsage.getBandwidthIn() : null;
     }
 
     @Override
     public ResourceUsage getBandwidthOut() {
-        return systemResourceUsage != null ? systemResourceUsage.bandwidthOut : null;
+        return systemResourceUsage != null ? systemResourceUsage.getBandwidthOut() : null;
     }
 
     @Override

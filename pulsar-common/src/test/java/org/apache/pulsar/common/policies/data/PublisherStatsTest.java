@@ -110,22 +110,22 @@ public class PublisherStatsTest {
     @Test
     public void testPublisherStatsAggregation() {
         PublisherStatsImpl stats1 = new PublisherStatsImpl();
-        stats1.msgRateIn = 1;
-        stats1.msgThroughputIn = 1;
-        stats1.averageMsgSize = 1;
+        stats1.setMsgRateIn(1);
+        stats1.setMsgThroughputIn(1);
+        stats1.setAverageMsgSize(1);
 
         PublisherStatsImpl stats2 = new PublisherStatsImpl();
-        stats2.msgRateIn = 1;
-        stats2.msgThroughputIn = 2;
-        stats2.averageMsgSize = 3;
+        stats2.setMsgRateIn(1);
+        stats2.setMsgThroughputIn(2);
+        stats2.setAverageMsgSize(3);
 
         PublisherStatsImpl target = new PublisherStatsImpl();
         target.add(stats1);
         target.add(stats2);
 
-        assertEquals(target.msgRateIn, 2.0);
-        assertEquals(target.msgThroughputIn, 3.0);
-        assertEquals(target.averageMsgSize, 2.0);
+        assertEquals(target.getMsgRateIn(), 2.0);
+        assertEquals(target.getMsgThroughputIn(), 3.0);
+        assertEquals(target.getAverageMsgSize(), 2.0);
     }
 
 }
