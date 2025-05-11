@@ -346,7 +346,8 @@ public final class WorkerUtils {
                             .setProcessedSuccessfullyTotal(metricsData.getProcessedSuccessfullyTotal1Min());
                     functionInstanceStatsData.getOneMin()
                             .setSystemExceptionsTotal(metricsData.getSystemExceptionsTotal1Min());
-                    functionInstanceStatsData.getOneMin().setUserExceptionsTotal(metricsData.getUserExceptionsTotal1Min());
+                    functionInstanceStatsData.getOneMin()
+                            .setUserExceptionsTotal(metricsData.getUserExceptionsTotal1Min());
                     functionInstanceStatsData.getOneMin().setAvgProcessLatency(
                             metricsData.getAvgProcessLatency1Min() == 0.0 ? null :
                                     metricsData.getAvgProcessLatency1Min());
