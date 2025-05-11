@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -60,6 +61,8 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageFinder;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -483,6 +486,12 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         PersistentTopic mock = mock(PersistentTopic.class);
         when(mock.getName()).thenReturn("topicname");
         when(mock.getLastPosition()).thenReturn(PositionFactory.EARLIEST);
+        BrokerService brokerService = mock(BrokerService.class);
+        doReturn(brokerService).when(mock).getBrokerService();
+        PulsarService pulsarService = mock(PulsarService.class);
+        doReturn(pulsarService).when(brokerService).pulsar();
+        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
+        doReturn(serviceConfiguration).when(pulsarService).getConfig();
         PersistentMessageExpiryMonitor monitor = new PersistentMessageExpiryMonitor(mock, c1.getName(), c1, null);
         AsyncCallbacks.MarkDeleteCallback markDeleteCallback =
                 (AsyncCallbacks.MarkDeleteCallback) spy(
