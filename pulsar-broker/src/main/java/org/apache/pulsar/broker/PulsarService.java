@@ -1105,10 +1105,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     @VisibleForTesting
     protected ManagedLedgerStorage newManagedLedgerStorage() throws Exception {
-        return ManagedLedgerStorage.create(
-                config, localMetadataStore,
-                bkClientFactory, ioEventLoopGroup, openTelemetry.getOpenTelemetryService().getOpenTelemetry()
-        );
+        final var openTelemetry = this.openTelemetry.getOpenTelemetryService().getOpenTelemetry();
+        if (config.getManagedLedgerStorageClassName().equals(ManagedLedgerClientFactory.class.getName())) {
+            return new ManagedLedgerClientFactory(config, localMetadataStore, bkClientFactory, ioEventLoopGroup,
+                    openTelemetry);
+        } else {
+            return ManagedLedgerStorage.create(config, localMetadataStore, openTelemetry);
+        }
     }
 
     @VisibleForTesting

@@ -61,9 +61,18 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
 
     @Override
     public void initialize(ServiceConfiguration conf, MetadataStoreExtended metadataStore,
-                           BookKeeperClientFactory bookkeeperProvider,
-                           EventLoopGroup eventLoopGroup,
-                           OpenTelemetry openTelemetry) throws Exception {
+                           OpenTelemetry openTelemetry) {
+        throw new IllegalStateException("The initialize method should not be called for the built-in storage");
+    }
+
+    @VisibleForTesting
+    public ManagedLedgerClientFactory() {
+    }
+
+    public ManagedLedgerClientFactory(ServiceConfiguration conf, MetadataStoreExtended metadataStore,
+                                      BookKeeperClientFactory bookkeeperProvider,
+                                      EventLoopGroup eventLoopGroup,
+                                      OpenTelemetry openTelemetry) throws Exception {
         ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
         managedLedgerFactoryConfig.setMaxCacheSize(conf.getManagedLedgerCacheSizeMB() * 1024L * 1024L);
         managedLedgerFactoryConfig.setCacheEvictionWatermark(conf.getManagedLedgerCacheEvictionWatermark());

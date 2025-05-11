@@ -19,7 +19,6 @@
 
 package org.apache.pulsar.broker.testcontext;
 
-import io.netty.channel.EventLoopGroup;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
@@ -1026,7 +1025,6 @@ public class PulsarTestContext implements AutoCloseable {
         return new ManagedLedgerStorage() {
             @Override
             public void initialize(ServiceConfiguration conf, MetadataStoreExtended metadataStore,
-                                   BookKeeperClientFactory bookkeeperProvider, EventLoopGroup eventLoopGroup,
                                    OpenTelemetry openTelemetry) {
             }
 
