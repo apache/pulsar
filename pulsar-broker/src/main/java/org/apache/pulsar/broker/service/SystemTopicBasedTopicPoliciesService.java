@@ -617,8 +617,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                             .whenComplete((res, ex) -> {
                                 if (ex != null) {
                                     log.error("close writer failed ", ex);
-                                }})
-                            );
+                                }
+                            }));
                     });
                     break;
                 case NONE:
