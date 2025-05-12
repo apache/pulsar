@@ -3378,6 +3378,48 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         });
     }
 
+    @Test(dataProvider = "reloadPolicyTypes")
+    public void testDeleteGlobalPolicy(String reloadPolicyType) throws Exception {
+        final String tpName = BrokerTestUtil.newUniqueName("persistent://" + myNamespace + "/tp");
+        final String tpNameChangeEvents = "persistent://" + myNamespace + "/" + NAMESPACE_EVENTS_LOCAL_NAME;
+        final String subscriptionName = "s1";
+        final int rateMsgLocal = 2000;
+        final int rateMsgGlobal = 1000;
+        admin.topics().createNonPartitionedTopic(tpName);
+        admin.topics().createSubscription(tpName, subscriptionName, MessageId.earliest);
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(tpName).get().get();
+
+        // Set global policy.
+        // Verify: policies was affected.
+        DispatchRate dispatchRateGlobal = new DispatchRateImpl(rateMsgGlobal, 1, false, 1);
+        admin.topicPolicies(true).setDispatchRate(tpName, dispatchRateGlobal);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(persistentTopic.getHierarchyTopicPolicies().getDispatchRate().get(), dispatchRateGlobal);
+        });
+
+        // Delete global policy.
+        // Verify: policies were deleted.
+        triggerAndWaitNewTopicCompaction(tpNameChangeEvents);
+        admin.topicPolicies(true).removeDispatchRate(tpName);
+        triggerAndWaitNewTopicCompaction(tpNameChangeEvents);
+        Optional<TopicPolicies> topicPoliciesOptionalGlobal = null;
+        if ("Clean_Cache".equals(reloadPolicyType)) {
+            clearTopicPoliciesCache();
+            topicPoliciesOptionalGlobal = pulsar.getTopicPoliciesService().getTopicPoliciesAsync(TopicName.get(tpName),
+                    GLOBAL_ONLY).join();
+        } else {
+            SystemTopicBasedTopicPoliciesService newService = new SystemTopicBasedTopicPoliciesService(pulsar);
+            topicPoliciesOptionalGlobal = newService.getTopicPoliciesAsync(TopicName.get(tpName), GLOBAL_ONLY).join();
+            newService.close();
+        }
+        assertTrue(topicPoliciesOptionalGlobal.isEmpty()
+                || topicPoliciesOptionalGlobal.get().getDispatchRate() == null);
+
+        // cleanup.
+        admin.topics().delete(tpName, false);
+    }
+
     @Test
     public void testGlobalTopicPolicies() throws Exception {
         final String topic = testTopic + UUID.randomUUID();

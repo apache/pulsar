@@ -568,9 +568,10 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     private void refreshTopicPoliciesCache(Message<PulsarEvent> msg) {
         // delete policies
         if (msg.getValue() == null) {
+            boolean isGlobalPolicy = TopicPoliciesService.isGlobalPolicy(msg);
             TopicName topicName = TopicName.get(TopicPoliciesService.unwrapEventKey(msg.getKey())
                     .getPartitionedTopicName());
-            if (hasReplicateTo(msg)) {
+            if (isGlobalPolicy) {
                 globalPoliciesCache.remove(topicName);
             } else {
                 policiesCache.remove(topicName);

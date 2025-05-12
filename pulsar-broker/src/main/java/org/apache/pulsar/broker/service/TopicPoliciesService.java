@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.common.events.PulsarEvent;
@@ -147,6 +148,10 @@ public interface TopicPoliciesService extends AutoCloseable {
             return originalKey;
         }
         return GLOBAL_POLICIES_MSG_KEY_PREFIX + originalKey;
+    }
+
+    static boolean isGlobalPolicy(Message<PulsarEvent> msg) {
+        return msg.getKey().startsWith(GLOBAL_POLICIES_MSG_KEY_PREFIX);
     }
 
     static TopicName unwrapEventKey(String originalKey) {
