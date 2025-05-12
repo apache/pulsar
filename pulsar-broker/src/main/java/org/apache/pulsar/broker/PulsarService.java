@@ -62,6 +62,7 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
 import lombok.AccessLevel;
@@ -218,6 +219,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private WebService webService = null;
     private WebSocketService webSocketService = null;
     private TopicPoliciesService topicPoliciesService = TopicPoliciesService.DISABLED;
+    @Nullable
     private BookKeeperClientFactory bkClientFactory;
     protected CompactionServiceFactory compactionServiceFactory;
     private StrategicTwoPhaseCompactor strategicCompactor;
@@ -879,8 +881,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             protocolHandlers.initialize(config);
 
             // Now we are ready to start services
-            this.bkClientFactory = newBookKeeperClientFactory();
-
             managedLedgerStorage = newManagedLedgerStorage();
 
             this.brokerService = newBrokerService(this);
@@ -1107,6 +1107,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     protected ManagedLedgerStorage newManagedLedgerStorage() throws Exception {
         final var openTelemetry = this.openTelemetry.getOpenTelemetryService().getOpenTelemetry();
         if (config.getManagedLedgerStorageClassName().equals(ManagedLedgerClientFactory.class.getName())) {
+            this.bkClientFactory = newBookKeeperClientFactory();
             return new ManagedLedgerClientFactory(config, localMetadataStore, bkClientFactory, ioEventLoopGroup,
                     openTelemetry);
         } else {
@@ -1619,7 +1620,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return new BookKeeperClientFactoryImpl();
     }
 
-    public BookKeeperClientFactory getBookKeeperClientFactory() {
+    public BookKeeperClientFactory getBookKeeperClientFactory() throws PulsarServerException {
+        if (bkClientFactory == null) {
+            throw new PulsarServerException.BookKeeperNotSupportedException();
+        }
         return bkClientFactory;
     }
 
