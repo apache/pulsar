@@ -95,7 +95,9 @@ public class DisabledTopicCompactionService implements CompactionServiceFactory 
 
         @Override
         public CompletableFuture<Position> getLastCompactedPosition() {
-            return CompletableFuture.completedFuture(DUMMY_ENTRY.getPosition());
+            // Return a null position so that when handling the GetLastMessageId request, no `asyncReadEntry` call will
+            // be performed. Instead, the mark delete position will be returned.
+            return CompletableFuture.completedFuture(null);
         }
 
         @Override
