@@ -177,5 +177,5 @@ public class KinesisSinkConfig extends BaseKinesisConfig implements Serializable
             defaultValue = "true",
             help = "Enable aggregation. With aggregation, multiple user records could be packed into a single\n"
                     + " KinesisRecord. If disabled, each user record is sent in its own KinesisRecord.")
-    private boolean enableAggregation = true;
+    private boolean aggregationEnabled = true;
 }
