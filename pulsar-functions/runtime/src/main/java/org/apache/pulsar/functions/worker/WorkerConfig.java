@@ -46,6 +46,7 @@ import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
+import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.sasl.SaslConstants;
@@ -377,6 +378,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "The directory to download functions by runtime manager"
     )
     private String downloadDirectory;
+    @FieldContext(
+            category = CATEGORY_FUNC_RUNTIME_MNG,
+            doc = "Default memory limit set for the pulsar client used instances"
+    )
+    protected MemoryLimit pulsarClientMemoryLimit;
     @FieldContext(
         category = CATEGORY_STATE,
         doc = "The service URL of state storage"
