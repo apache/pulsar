@@ -2447,6 +2447,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
      *     3-1-1. If {@link #pauseSendingToPreservePublishOrderOnSchemaRegFailure} is true pause all following
      *       publishing to avoid out-of-order issue.
      *     3-1-2. Otherwise, discard the failed message anc continuously publishing the following messages.
+     *            Additionally, the following messages may need schema registration also.
      *   3-2. The new schema registration failed due to other error, retry registering.
      * Note: Since the current method accesses & modifies {@link #pendingMessages}, you should acquire a lock on
      *       {@link ProducerImpl} before calling method.
@@ -2465,6 +2466,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         Iterator<OpSendMsg> msgIterator = pendingMessages.iterator();
         MessageImpl loopStartAt = latestMsgAttemptedRegisteredSchema;
         OpSendMsg loopEndDueToSchemaRegisterNeeded = null;
+        boolean pausedSendingToPreservePublishOrderOnSchemaRegFailure = false;
         while (msgIterator.hasNext()) {
             OpSendMsg op = msgIterator.next();
             if (loopStartAt != null) {
@@ -2509,6 +2511,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                                 + " 2) Unload topic on target cluster. Schema details: {}",
                                 topic, producerName, SchemaUtils.jsonifySchemaInfo(msgSchemaInfo, false));
                         loopEndDueToSchemaRegisterNeeded = op;
+                        pausedSendingToPreservePublishOrderOnSchemaRegFailure = true;
                         break;
                     }
                     // Event 3-1-2.
@@ -2564,7 +2567,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
         cnx.ctx().flush();
 
-        // "Event 1-1" or "Event 3-1-1" or "Event 3-2".
+        // "Event 1-1" or "Event 3-1-1" or "Event 3-1-2" or "Event 3-2".
         if (loopEndDueToSchemaRegisterNeeded != null) {
             if (compareAndSetState(State.Connecting, State.Ready)) {
                 // "Event 1-1" happens after "Event 3-1-1".
@@ -2572,15 +2575,19 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 // after users changed the compatibility strategy to make the schema is compatible.
                 tryRegisterSchema(cnx, loopEndDueToSchemaRegisterNeeded.msg, loopEndDueToSchemaRegisterNeeded.callback,
                     expectedEpoch);
-            } else if (!failedIncompatibleSchema && compareAndSetState(State.RegisteringSchema, State.Ready)) {
-                // "Event 2-1" or "Event 3-2".
+            } else if (pausedSendingToPreservePublishOrderOnSchemaRegFailure) {
+                // Nothing to do if the event is "Event 3-1-1", just keep stuck.
+                return;
+            } else if (compareAndSetState(State.RegisteringSchema, State.Ready)) {
+                // "Event 2-1" or "Event 3-1-2" or "Event 3-2".
                 // "pendingMessages" has more messages to register new schema.
                 // This operation will not be conflict with another schema registration because both operations are
                 // attempt to acquire the same lock "ProducerImpl.this".
                 tryRegisterSchema(cnx, loopEndDueToSchemaRegisterNeeded.msg, loopEndDueToSchemaRegisterNeeded.callback,
                         expectedEpoch);
             }
-            // Nothing to do if the event is "Event 3-1-1", just keep stuck.
+            // Schema registration will trigger a new "recoverProcessOpSendMsgFrom", so return here. If failed to switch
+            // state, it means another task will trigger a new "recoverProcessOpSendMsgFrom".
             return;
         } else if (latestMsgAttemptedRegisteredSchema != null) {
             // Event 2-2 or "Event 3-1-2".
