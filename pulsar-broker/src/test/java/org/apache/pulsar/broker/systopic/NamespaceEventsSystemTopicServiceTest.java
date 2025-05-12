@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.systopic;
 
-import static org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService.getEventKey;
+import static org.apache.pulsar.broker.service.TopicPoliciesService.getEventKey;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
