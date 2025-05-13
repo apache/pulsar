@@ -815,6 +815,10 @@ public class BrokerService implements Closeable {
         try {
             log.info("Shutting down Pulsar Broker service");
 
+            // unregister non-static metrics collectors
+            pendingTopicLoadRequests.unregister();
+            pendingLookupRequests.unregister();
+
             // unloads all namespaces gracefully without disrupting mutually
             unloadNamespaceBundlesGracefully();
 
@@ -3239,7 +3243,7 @@ public class BrokerService implements Closeable {
         if (pulsar.getNamespaceService() == null) {
             return FutureUtil.failedFuture(new NamingException("namespace service is not ready"));
         }
-        return pulsar.getNamespaceService().checkTopicExists(topicName).thenComposeAsync(topicExistsInfo -> {
+        return pulsar.getNamespaceService().checkTopicExistsAsync(topicName).thenComposeAsync(topicExistsInfo -> {
             final boolean topicExists = topicExistsInfo.isExists();
             final TopicType topicType = topicExistsInfo.getTopicType();
             final Integer partitions = topicExistsInfo.getPartitions();

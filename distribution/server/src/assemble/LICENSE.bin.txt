@@ -289,7 +289,7 @@ The Apache Software License, Version 2.0
     - commons-lang-commons-lang-2.6.jar
     - commons-logging-commons-logging-1.1.1.jar
     - org.apache.commons-commons-collections4-4.4.jar
-    - org.apache.commons-commons-compress-1.27.0.jar
+    - org.apache.commons-commons-compress-1.27.1.jar
     - org.apache.commons-commons-lang3-3.17.0.jar
     - org.apache.commons-commons-text-1.13.1.jar
  * Netty
@@ -457,7 +457,7 @@ The Apache Software License, Version 2.0
     - net.jodah-typetools-0.5.0.jar
     - dev.failsafe-failsafe-3.3.2.jar
   * Byte Buddy
-    - net.bytebuddy-byte-buddy-1.14.12.jar
+    - net.bytebuddy-byte-buddy-1.15.11.jar
   * zt-zip
     - org.zeroturnaround-zt-zip-1.17.jar
   * Apache Avro
