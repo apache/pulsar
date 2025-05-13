@@ -775,7 +775,7 @@ public abstract class AdminResource extends PulsarWebResource {
      * @param topicName given topic name
      */
     protected CompletableFuture<TopicExistsInfo> checkTopicExistsAsync(TopicName topicName) {
-        return pulsar().getNamespaceService().checkTopicExists(topicName);
+        return pulsar().getNamespaceService().checkTopicExistsAsync(topicName);
     }
 
     private CompletableFuture<Void> provisionPartitionedTopicPath(int numPartitions,
