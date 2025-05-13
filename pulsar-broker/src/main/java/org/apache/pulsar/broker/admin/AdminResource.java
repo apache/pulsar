@@ -659,19 +659,19 @@ public abstract class AdminResource extends PulsarWebResource {
 
     private CompletableFuture<Integer> getMaxPartitionIndex(TopicName topicName) {
         if (topicName.getDomain() == TopicDomain.persistent) {
-            AtomicInteger maxIndex = new AtomicInteger(-1);
             return getPulsarResources().getTopicResources().listPersistentTopicsAsync(topicName.getNamespaceObject())
                     .thenApply(list -> {
+                        int maxIndex = -1;
                         for (String s : list) {
                             TopicName item = TopicName.get(s);
                             if (item.isPartitioned() && item.getPartitionedTopicName()
                                     .startsWith(topicName.getPartitionedTopicName())) {
-                                if (item.getPartitionIndex() > maxIndex.get()) {
-                                    maxIndex.set(item.getPartitionIndex());
+                                if (item.getPartitionIndex() > maxIndex) {
+                                    maxIndex = item.getPartitionIndex();
                                 }
                             }
                         }
-                        return maxIndex.get();
+                        return maxIndex;
                     });
         }
         return CompletableFuture.completedFuture(-1);
