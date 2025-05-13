@@ -34,15 +34,15 @@ public class ResourceGroupMetricTest {
         b.bytes = 20;
         int incTimes = 2;
         for (int i = 0; i < 2; i++) {
-            ResourceGroupService.incRgCalculatedQuota(rgName, publish, b, reportPeriod);
+            ResourceGroupService.incRgCalculatedQuota(rgName, publish, b, reportPeriod, "local","remote");
         }
-        double rgLocalUsageByteCount = ResourceGroupService.getRgQuotaByteCount(rgName, publish.name());
-        double rgQuotaMessageCount = ResourceGroupService.getRgQuotaMessageCount(rgName, publish.name());
+        double rgLocalUsageByteCount = ResourceGroupService.getRgQuotaByteCount(rgName, publish.name(),"local", "remote");
+        double rgQuotaMessageCount = ResourceGroupService.getRgQuotaMessageCount(rgName, publish.name(),"local", "remote");
         assertEquals(rgLocalUsageByteCount, incTimes * b.bytes * reportPeriod);
         assertEquals(rgQuotaMessageCount, incTimes * b.messages * reportPeriod);
 
-        double rgLocalUsageByte = ResourceGroupService.getRgQuotaByte(rgName, publish.name());
-        double rgQuotaMessage = ResourceGroupService.getRgQuotaMessage(rgName, publish.name());
+        double rgLocalUsageByte = ResourceGroupService.getRgQuotaByte(rgName, publish.name(),"local", "remote");
+        double rgQuotaMessage = ResourceGroupService.getRgQuotaMessage(rgName, publish.name(),"local", "remote");
         assertEquals(rgLocalUsageByte, b.bytes);
         assertEquals(rgQuotaMessage, b.messages);
     }

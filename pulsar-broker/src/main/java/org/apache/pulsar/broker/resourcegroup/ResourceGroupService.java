@@ -75,8 +75,9 @@ public class ResourceGroupService implements AutoCloseable{
     }
 
     // For testing only.
+    @VisibleForTesting
     public ResourceGroupService(PulsarService pulsar, TimeUnit timescale,
-                                ResourceUsageTopicTransportManager transportMgr,
+                                ResourceUsageTransportManager transportMgr,
                                 ResourceQuotaCalculator quotaCalc) {
         this.pulsar = pulsar;
         this.timeUnitScale = timescale;
@@ -130,13 +131,7 @@ public class ResourceGroupService implements AutoCloseable{
      * Get a copy of the RG with the given name.
      */
     public ResourceGroup resourceGroupGet(String resourceGroupName) {
-        ResourceGroup retrievedRG = this.getResourceGroupInternal(resourceGroupName);
-        if (retrievedRG == null) {
-            return null;
-        }
-
-        // Return a copy.
-        return new ResourceGroup(retrievedRG);
+        return this.getResourceGroupInternal(resourceGroupName);
     }
 
     /**
@@ -182,9 +177,11 @@ public class ResourceGroupService implements AutoCloseable{
             errMesg += " and " + topicRefCount + " topic refs on it";
             throw new PulsarAdminException(errMesg);
         }
-
-        rg.resourceGroupPublishLimiter.close();
-        rg.resourceGroupPublishLimiter = null;
+        try {
+            rg.close();
+        } catch (Exception e) {
+            log.warn("Failed to close resource group {}", rg.getID(), e);
+        }
         resourceGroupsMap.remove(name);
     }
 
@@ -416,11 +413,16 @@ public class ResourceGroupService implements AutoCloseable{
     }
 
     private void incrementUsage(ResourceGroup resourceGroup,
-                                ResourceGroupMonitoringClass monClass, BytesAndMessagesCount incStats)
+                                ResourceGroupMonitoringClass monClass, BytesAndMessagesCount incStats,
+                                String remoteCluster)
             throws PulsarAdminException {
-        resourceGroup.incrementLocalUsageStats(monClass, incStats);
-        rgLocalUsageBytes.labels(resourceGroup.resourceGroupName, monClass.name()).inc(incStats.bytes);
-        rgLocalUsageMessages.labels(resourceGroup.resourceGroupName, monClass.name()).inc(incStats.messages);
+        resourceGroup.incrementLocalUsageStats(monClass, incStats, remoteCluster);
+        rgLocalUsageBytes.labels(resourceGroup.resourceGroupName, monClass.name(),
+                        pulsar.getConfiguration().getClusterName(), remoteCluster != null ? remoteCluster : "")
+                .inc(incStats.bytes);
+        rgLocalUsageMessages.labels(resourceGroup.resourceGroupName, monClass.name(),
+                        pulsar.getConfiguration().getClusterName(), remoteCluster != null ? remoteCluster : "")
+                .inc(incStats.messages);
     }
 
     /**
@@ -446,7 +448,7 @@ public class ResourceGroupService implements AutoCloseable{
      */
     protected boolean incrementUsage(String tenantName, String nsName, String topicName,
                                      ResourceGroupMonitoringClass monClass,
-                                     BytesAndMessagesCount incStats) throws PulsarAdminException {
+                                     BytesAndMessagesCount incStats, String remoteCluster) throws PulsarAdminException {
         final ResourceGroup nsRG = this.namespaceToRGsMap.get(NamespaceName.get(nsName));
         final ResourceGroup tenantRG = this.tenantToRGsMap.get(tenantName);
         final ResourceGroup topicRG = this.topicToRGsMap.get(TopicName.get(topicName));
@@ -464,13 +466,13 @@ public class ResourceGroupService implements AutoCloseable{
         if (tenantRG == nsRG && nsRG == topicRG) {
             // Update only once in this case.
             // Note that we will update both tenant, namespace and topic RGs in other cases.
-            incrementUsage(tenantRG, monClass, incStats);
+            incrementUsage(tenantRG, monClass, incStats, remoteCluster);
             return true;
         }
 
         if (tenantRG != null && tenantRG == nsRG) {
             // Tenant and Namespace GRs are same.
-            incrementUsage(tenantRG, monClass, incStats);
+            incrementUsage(tenantRG, monClass, incStats, remoteCluster);
             if (topicRG == null) {
                 return true;
             }
@@ -478,50 +480,43 @@ public class ResourceGroupService implements AutoCloseable{
 
         if (nsRG != null && nsRG == topicRG) {
             // Namespace and Topic GRs are same.
-            incrementUsage(nsRG, monClass, incStats);
+            incrementUsage(nsRG, monClass, incStats, remoteCluster);
             return true;
         }
 
         if (tenantRG != null) {
             // Tenant GR is different from other resource GR.
-            incrementUsage(tenantRG, monClass, incStats);
+            incrementUsage(tenantRG, monClass, incStats, remoteCluster);
         }
 
         if (nsRG != null) {
             // Namespace GR is different from other resource GR.
-            incrementUsage(nsRG, monClass, incStats);
+            incrementUsage(nsRG, monClass, incStats, remoteCluster);
         }
 
         if (topicRG != null) {
             // Topic GR is different from other resource GR.
-            incrementUsage(topicRG, monClass, incStats);
+            incrementUsage(topicRG, monClass, incStats, remoteCluster);
         }
 
         return true;
     }
 
     // Visibility for testing.
-    protected BytesAndMessagesCount getRGUsage(String rgName, ResourceGroupMonitoringClass monClass,
-                                               ResourceGroupUsageStatsType statsType) throws PulsarAdminException {
+    protected Map<String, BytesAndMessagesCount> getRGUsage(String rgName, ResourceGroupMonitoringClass monClass,
+                                                            ResourceGroupUsageStatsType statsType)
+            throws PulsarAdminException {
         final ResourceGroup rg = this.getResourceGroupInternal(rgName);
         if (rg != null) {
             switch (statsType) {
+                case Cumulative:
+                    return rg.getLocalUsageStatsCumulative(monClass);
                 default:
                     String errStr = "Unsupported statsType: " + statsType;
                     throw new PulsarAdminException(errStr);
-                case Cumulative:
-                    return rg.getLocalUsageStatsCumulative(monClass);
-                case LocalSinceLastReported:
-                    return rg.getLocalUsageStats(monClass);
-                case ReportFromTransportMgr:
-                    return rg.getLocalUsageStatsFromBrokerReports(monClass);
             }
         }
-
-        BytesAndMessagesCount retCount = new BytesAndMessagesCount();
-        retCount.bytes = -1;
-        retCount.messages = -1;
-        return retCount;
+        return Collections.emptyMap();
     }
 
     /**
@@ -606,7 +601,8 @@ public class ResourceGroupService implements AutoCloseable{
         }
 
         try {
-            boolean statsUpdated = this.incrementUsage(tenantString, nsString, topicName, monClass, bmDiff);
+            boolean statsUpdated =
+                    this.incrementUsage(tenantString, nsString, topicName, monClass, bmDiff, replicationRemoteCluster);
             if (log.isDebugEnabled()) {
                 log.debug("updateStatsWithDiff for topic={}: monclass={} statsUpdated={} for tenant={}, namespace={}; "
                                 + "by {} bytes, {} mesgs",
@@ -631,33 +627,51 @@ public class ResourceGroupService implements AutoCloseable{
     }
 
     // Visibility for testing.
-    protected static double getRgQuotaByteCount (String rgName, String monClassName) {
-        return rgCalculatedQuotaBytes.labels(rgName, monClassName).get();
+    @VisibleForTesting
+    protected static double getRgQuotaByteCount(String rgName, String monClassName, String localCluster,
+                                                String remoteCluster) {
+        return rgCalculatedQuotaBytesTotal.labels(rgName, monClassName, localCluster,
+                remoteCluster != null ? remoteCluster : "").get();
     }
 
     // Visibility for testing.
-    protected static double getRgQuotaByte (String rgName, String monClassName) {
-        return rgCalculatedQuotaBytesGauge.labels(rgName, monClassName).get();
+    @VisibleForTesting
+    protected static double getRgQuotaByte(String rgName, String monClassName, String localCluster,
+                                           String remoteCluster) {
+        return rgCalculatedQuotaBytes.labels(rgName, monClassName, localCluster,
+                remoteCluster != null ? remoteCluster : "").get();
     }
 
     // Visibility for testing.
-    protected static double getRgQuotaMessageCount (String rgName, String monClassName) {
-        return rgCalculatedQuotaMessages.labels(rgName, monClassName).get();
+    @VisibleForTesting
+    protected static double getRgQuotaMessageCount(String rgName, String monClassName, String localCluster,
+                                                   String remoteCluster) {
+        return rgCalculatedQuotaMessagesTotal.labels(rgName, monClassName, localCluster,
+                remoteCluster != null ? remoteCluster : "").get();
     }
 
     // Visibility for testing.
-    protected static double getRgQuotaMessage(String rgName, String monClassName) {
-        return rgCalculatedQuotaMessagesGauge.labels(rgName, monClassName).get();
+    @VisibleForTesting
+    protected static double getRgQuotaMessage(String rgName, String monClassName, String localCluster,
+                                              String remoteCluster) {
+        return rgCalculatedQuotaMessages.labels(rgName, monClassName, localCluster,
+                remoteCluster != null ? remoteCluster : "").get();
     }
 
     // Visibility for testing.
-    protected static double getRgLocalUsageByteCount (String rgName, String monClassName) {
-        return rgLocalUsageBytes.labels(rgName, monClassName).get();
+    @VisibleForTesting
+    protected static double getRgLocalUsageByteCount(String rgName, String monClassName, String localCluster,
+                                                     String remoteCluster) {
+        return rgLocalUsageBytes.labels(rgName, monClassName, localCluster, remoteCluster != null ? remoteCluster : "")
+                .get();
     }
 
     // Visibility for testing.
-    protected static double getRgLocalUsageMessageCount (String rgName, String monClassName) {
-        return rgLocalUsageMessages.labels(rgName, monClassName).get();
+    @VisibleForTesting
+    protected static double getRgLocalUsageMessageCount(String rgName, String monClassName, String localCluster,
+                                                        String remoteCluster) {
+        return rgLocalUsageMessages.labels(rgName, monClassName, localCluster,
+                remoteCluster != null ? remoteCluster : "").get();
     }
 
     // Visibility for testing.
@@ -772,48 +786,10 @@ public class ResourceGroupService implements AutoCloseable{
     protected void calculateQuotaForAllResourceGroups() {
         // Calculate the quota for the next window for this RG, based on the observed usage.
         final Summary.Timer quotaCalcTimer = rgQuotaCalculationLatency.startTimer();
-        BytesAndMessagesCount updatedQuota = new BytesAndMessagesCount();
         this.resourceGroupsMap.forEach((rgName, resourceGroup) -> {
-            BytesAndMessagesCount globalUsageStats;
-            BytesAndMessagesCount localUsageStats;
-            BytesAndMessagesCount confCounts;
             for (ResourceGroupMonitoringClass monClass : ResourceGroupMonitoringClass.values()) {
                 try {
-                    globalUsageStats = resourceGroup.getGlobalUsageStats(monClass);
-                    localUsageStats = resourceGroup.getLocalUsageStatsFromBrokerReports(monClass);
-                    confCounts = resourceGroup.getConfLimits(monClass);
-
-                    long[] globUsageBytesArray = new long[] { globalUsageStats.bytes };
-                    updatedQuota.bytes = this.quotaCalculator.computeLocalQuota(
-                            confCounts.bytes,
-                            localUsageStats.bytes,
-                            globUsageBytesArray);
-
-                    long[] globUsageMessagesArray = new long[] {globalUsageStats.messages };
-                    updatedQuota.messages = this.quotaCalculator.computeLocalQuota(
-                            confCounts.messages,
-                            localUsageStats.messages,
-                            globUsageMessagesArray);
-
-                    BytesAndMessagesCount oldBMCount = resourceGroup.updateLocalQuota(monClass, updatedQuota);
-                    incRgCalculatedQuota(rgName, monClass, updatedQuota, resourceUsagePublishPeriodInSeconds);
-                    if (oldBMCount != null) {
-                        long messagesIncrement = updatedQuota.messages - oldBMCount.messages;
-                        long bytesIncrement = updatedQuota.bytes - oldBMCount.bytes;
-                        if (log.isDebugEnabled()) {
-                            log.debug("calculateQuota for RG={} [class {}]: "
-                                            + "updatedlocalBytes={}, updatedlocalMesgs={}; "
-                                            + "old bytes={}, old mesgs={};  incremented bytes by {}, messages by {}",
-                                    rgName, monClass, updatedQuota.bytes, updatedQuota.messages,
-                                    oldBMCount.bytes, oldBMCount.messages,
-                                    bytesIncrement, messagesIncrement);
-                        }
-                    } else {
-                        if (log.isDebugEnabled()) {
-                            log.debug("calculateQuota for RG={} [class {}]: got back null from updateLocalQuota",
-                                    rgName, monClass);
-                        }
-                    }
+                    calculateQuotaByMonClass(rgName, resourceGroup, monClass);
                 } catch (Throwable t) {
                     log.error("Got exception={} while calculating new quota for monitoring-class={} of RG={}",
                             t.getMessage(), monClass, rgName);
@@ -847,6 +823,42 @@ public class ResourceGroupService implements AutoCloseable{
                         newPeriodInSeconds,
                         timeUnitScale);
             this.resourceUsagePublishPeriodInSeconds = newPeriodInSeconds;
+        }
+    }
+
+    @VisibleForTesting
+    protected void calculateQuotaByMonClass(String rgName, ResourceGroup resourceGroup,
+                                            ResourceGroupMonitoringClass monClass) throws PulsarAdminException {
+        Map<String /* remoteCluster */, BytesAndMessagesCount> globalUsageStats =
+                resourceGroup.getGlobalUsageStats(monClass);
+        Map<String /* remoteCluster */, BytesAndMessagesCount> localUsageStats =
+                resourceGroup.getLocalUsageStatsFromBrokerReports(monClass);
+        Map<String /* remoteCluster */, BytesAndMessagesCount> confCounts =
+                resourceGroup.getConfLimits(monClass);
+
+        for (Entry<String, BytesAndMessagesCount> entry : globalUsageStats.entrySet()) {
+            String remoteCluster = entry.getKey();
+            BytesAndMessagesCount globalUsage = entry.getValue();
+            long[] globUsageBytesArray = new long[]{globalUsage.bytes};
+
+            BytesAndMessagesCount confCount = confCounts.get(remoteCluster);
+            confCounts.get(remoteCluster);
+            BytesAndMessagesCount localUsageStat = localUsageStats.get(remoteCluster);
+            confCounts.get(remoteCluster);
+
+            BytesAndMessagesCount updatedQuota = new BytesAndMessagesCount();
+            updatedQuota.bytes = this.quotaCalculator.computeLocalQuota(
+                    confCount != null ? confCount.bytes : 0,
+                    localUsageStat != null ? localUsageStat.bytes : 0,
+                    globUsageBytesArray);
+            long[] globUsageMessagesArray = new long[]{globalUsage.messages};
+            updatedQuota.messages = this.quotaCalculator.computeLocalQuota(
+                    confCount != null ? confCount.messages : 0,
+                    localUsageStat != null ? localUsageStat.messages : 0,
+                    globUsageMessagesArray);
+            resourceGroup.updateLocalQuota(monClass, updatedQuota, remoteCluster);
+            incRgCalculatedQuota(rgName, monClass, updatedQuota, resourceUsagePublishPeriodInSeconds,
+                    pulsar.getConfiguration().getClusterName(), remoteCluster);
         }
     }
 
@@ -888,17 +900,22 @@ public class ResourceGroupService implements AutoCloseable{
     }
 
     static void incRgCalculatedQuota(String rgName, ResourceGroupMonitoringClass monClass,
-                                     BytesAndMessagesCount updatedQuota, long resourceUsagePublishPeriodInSeconds) {
+                                     BytesAndMessagesCount updatedQuota, long resourceUsagePublishPeriodInSeconds,
+                                     String localCluster, String remoteCluster) {
         // Guard against unconfigured quota settings, for which computeLocalQuota will return negative.
         if (updatedQuota.messages >= 0) {
-            rgCalculatedQuotaMessages.labels(rgName, monClass.name())
+            rgCalculatedQuotaMessagesTotal.labels(rgName, monClass.name(), localCluster,
+                            remoteCluster != null ? remoteCluster : "")
                     .inc(updatedQuota.messages * resourceUsagePublishPeriodInSeconds);
-            rgCalculatedQuotaMessagesGauge.labels(rgName, monClass.name()).set(updatedQuota.messages);
+            rgCalculatedQuotaMessages.labels(rgName, monClass.name(), localCluster,
+                    remoteCluster != null ? remoteCluster : "").set(updatedQuota.messages);
         }
         if (updatedQuota.bytes >= 0) {
-            rgCalculatedQuotaBytes.labels(rgName, monClass.name())
+            rgCalculatedQuotaBytesTotal.labels(rgName, monClass.name(), localCluster,
+                            remoteCluster != null ? remoteCluster : "")
                     .inc(updatedQuota.bytes * resourceUsagePublishPeriodInSeconds);
-            rgCalculatedQuotaBytesGauge.labels(rgName, monClass.name()).set(updatedQuota.bytes);
+            rgCalculatedQuotaBytes.labels(rgName, monClass.name(), localCluster,
+                    remoteCluster != null ? remoteCluster : "").set(updatedQuota.bytes);
         }
     }
 
@@ -950,7 +967,8 @@ public class ResourceGroupService implements AutoCloseable{
 
     // Labels for the various counters used here.
     private static final String[] resourceGroupLabel = {"ResourceGroup"};
-    private static final String[] resourceGroupMonitoringclassLabels = {"ResourceGroup", "MonitoringClass"};
+    private static final String[] resourceGroupMonitoringclassLabels =
+            {"ResourceGroup", "MonitoringClass", "LocalCluster", "RemoteCluster"};
 
     private static final Counter rgCalculatedQuotaBytes = Counter.build()
             .name("pulsar_resource_group_calculated_bytes_quota")

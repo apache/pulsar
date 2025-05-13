@@ -31,6 +31,12 @@ message StorageUsage {
   required uint64 totalBytes = 1;
 }
 
+message ReplicatorUsage {
+  required string localCluster = 1;
+  required string remoteCluster = 2;
+  required NetworkUsage networkUsage = 3;
+}
+
 message ResourceUsage {
   // owner is the key(ID) of the entity that reports the usage
   // It could be a resource-group or tenant, namespace or a topic
@@ -38,7 +44,9 @@ message ResourceUsage {
   optional NetworkUsage publish = 2;
   optional NetworkUsage dispatch = 3;
   optional StorageUsage storage = 4;
-  optional NetworkUsage replicationDispatch = 6;
+  optional NetworkUsage replicationDispatch = 6 [deprecated = true];
+  // more detailed replicator usage per cluster pair
+  repeated ReplicatorUsage replicator = 7;
 }
 
 message ResourceUsageInfo {

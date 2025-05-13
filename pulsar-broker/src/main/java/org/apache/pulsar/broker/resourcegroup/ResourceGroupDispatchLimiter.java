@@ -37,7 +37,9 @@ public class ResourceGroupDispatchLimiter implements AutoCloseable {
     public void update(long dispatchRateInMsgs, long dispatchRateInBytes) {
         if (dispatchRateInMsgs > 0) {
             if (dispatchRateLimiterOnMessage != null) {
-                this.dispatchRateLimiterOnMessage.setRate(dispatchRateInMsgs);
+                if (dispatchRateLimiterOnMessage.getRate() != dispatchRateInMsgs) {
+                    this.dispatchRateLimiterOnMessage.setRate(dispatchRateInMsgs);
+                }
             } else {
                 this.dispatchRateLimiterOnMessage =
                         RateLimiter.builder()
@@ -58,7 +60,9 @@ public class ResourceGroupDispatchLimiter implements AutoCloseable {
 
         if (dispatchRateInBytes > 0) {
             if (dispatchRateLimiterOnByte != null) {
-                this.dispatchRateLimiterOnByte.setRate(dispatchRateInBytes);
+                if (dispatchRateLimiterOnByte.getRate() != dispatchRateInBytes) {
+                    this.dispatchRateLimiterOnByte.setRate(dispatchRateInBytes);
+                }
             } else {
                 this.dispatchRateLimiterOnByte =
                         RateLimiter.builder()

@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker.resourcegroup;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.resource.usage.NetworkUsage;
@@ -30,10 +33,6 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
 
 public class ResourceUsageTransportManagerTest extends MockedPulsarServiceBaseTest {
 

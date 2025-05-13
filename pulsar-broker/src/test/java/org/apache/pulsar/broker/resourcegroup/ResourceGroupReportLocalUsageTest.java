@@ -72,14 +72,28 @@ public class ResourceGroupReportLocalUsageTest extends MockedPulsarServiceBaseTe
         rgConfig.setPublishRateInMsgs(2000);
         service.resourceGroupCreate(rgName, rgConfig);
 
-        BytesAndMessagesCount bytesAndMessagesCount = new BytesAndMessagesCount();
-        bytesAndMessagesCount.bytes = 20;
-        bytesAndMessagesCount.messages = 10;
+        BytesAndMessagesCount dispatchBM = new BytesAndMessagesCount();
+        dispatchBM.bytes = 20;
+        dispatchBM.messages = 10;
+        BytesAndMessagesCount publishBM = new BytesAndMessagesCount();
+        publishBM.bytes = 30;
+        publishBM.messages = 20;
+        String replicator1RemoteCluster = "r1";
+        BytesAndMessagesCount replicator1BM = new BytesAndMessagesCount();
+        replicator1BM.bytes = 40;
+        replicator1BM.messages = 30;
+        String replicator2RemoteCluster = "r2";
+        BytesAndMessagesCount replicator2BM = new BytesAndMessagesCount();
+        replicator2BM.bytes = 50;
+        replicator2BM.messages = 40;
 
         org.apache.pulsar.broker.resourcegroup.ResourceGroup resourceGroup = service.resourceGroupGet(rgName);
-        for (ResourceGroupMonitoringClass value : ResourceGroupMonitoringClass.values()) {
-            resourceGroup.incrementLocalUsageStats(value, bytesAndMessagesCount);
-        }
+        resourceGroup.incrementLocalUsageStats(ResourceGroupMonitoringClass.Dispatch, dispatchBM, null);
+        resourceGroup.incrementLocalUsageStats(ResourceGroupMonitoringClass.Publish, publishBM, null);
+        resourceGroup.incrementLocalUsageStats(ResourceGroupMonitoringClass.ReplicationDispatch, replicator1BM,
+                replicator1RemoteCluster);
+        resourceGroup.incrementLocalUsageStats(ResourceGroupMonitoringClass.ReplicationDispatch, replicator2BM,
+                replicator2RemoteCluster);
 
         // Case1: Suppress report ResourceUsage.
         needReport.set(false);
@@ -87,35 +101,75 @@ public class ResourceGroupReportLocalUsageTest extends MockedPulsarServiceBaseTe
         resourceGroup.rgFillResourceUsage(resourceUsage);
         assertFalse(resourceUsage.hasDispatch());
         assertFalse(resourceUsage.hasPublish());
-        for (ResourceGroupMonitoringClass value : ResourceGroupMonitoringClass.values()) {
-            PerMonitoringClassFields monitoredEntity =
-                    resourceGroup.getMonitoredEntity(value);
-            assertEquals(monitoredEntity.usedLocallySinceLastReport.messages, 0);
-            assertEquals(monitoredEntity.usedLocallySinceLastReport.bytes, 0);
-            assertEquals(monitoredEntity.totalUsedLocally.messages, 0);
-            assertEquals(monitoredEntity.totalUsedLocally.bytes, 0);
-            assertEquals(monitoredEntity.lastReportedValues.messages, 0);
-            assertEquals(monitoredEntity.lastReportedValues.bytes, 0);
-        }
+        assertEquals(resourceUsage.getReplicatorsCount(), 0);
+
+        PerMonitoringClassFields dispatchMonitoredEntity =
+                resourceGroup.getMonitoredEntity(ResourceGroupMonitoringClass.Dispatch, null);
+        assertEquals(dispatchMonitoredEntity.usedLocallySinceLastReport.messages, 0);
+        assertEquals(dispatchMonitoredEntity.usedLocallySinceLastReport.bytes, 0);
+        assertEquals(dispatchMonitoredEntity.lastReportedValues.messages, 0);
+        assertEquals(dispatchMonitoredEntity.lastReportedValues.bytes, 0);
+        PerMonitoringClassFields publishMonitoredEntity =
+                resourceGroup.getMonitoredEntity(ResourceGroupMonitoringClass.Publish, null);
+        assertEquals(publishMonitoredEntity.usedLocallySinceLastReport.messages, 0);
+        assertEquals(publishMonitoredEntity.usedLocallySinceLastReport.bytes, 0);
+        assertEquals(publishMonitoredEntity.lastReportedValues.messages, 0);
+        assertEquals(publishMonitoredEntity.lastReportedValues.bytes, 0);
+        PerMonitoringClassFields r1MonitoredEntity =
+                resourceGroup.getMonitoredEntity(ResourceGroupMonitoringClass.ReplicationDispatch,
+                        replicator1RemoteCluster);
+        assertEquals(r1MonitoredEntity.usedLocallySinceLastReport.messages, 0);
+        assertEquals(r1MonitoredEntity.usedLocallySinceLastReport.bytes, 0);
+        assertEquals(r1MonitoredEntity.lastReportedValues.messages, 0);
+        assertEquals(r1MonitoredEntity.lastReportedValues.bytes, 0);
+        PerMonitoringClassFields r2MonitoredEntity =
+                resourceGroup.getMonitoredEntity(ResourceGroupMonitoringClass.ReplicationDispatch,
+                        replicator2RemoteCluster);
+        assertEquals(r2MonitoredEntity.usedLocallySinceLastReport.messages, 0);
+        assertEquals(r2MonitoredEntity.usedLocallySinceLastReport.bytes, 0);
+        assertEquals(r2MonitoredEntity.lastReportedValues.messages, 0);
+        assertEquals(r2MonitoredEntity.lastReportedValues.bytes, 0);
 
         // Case2: Report ResourceUsage.
-        for (ResourceGroupMonitoringClass value : ResourceGroupMonitoringClass.values()) {
-            resourceGroup.incrementLocalUsageStats(value, bytesAndMessagesCount);
-        }
+        resourceGroup.incrementLocalUsageStats(ResourceGroupMonitoringClass.Dispatch, dispatchBM, null);
+        resourceGroup.incrementLocalUsageStats(ResourceGroupMonitoringClass.Publish, publishBM, null);
+        resourceGroup.incrementLocalUsageStats(ResourceGroupMonitoringClass.ReplicationDispatch, replicator1BM,
+                replicator1RemoteCluster);
+        resourceGroup.incrementLocalUsageStats(ResourceGroupMonitoringClass.ReplicationDispatch, replicator2BM,
+                replicator2RemoteCluster);
         needReport.set(true);
+
         resourceUsage = new ResourceUsage();
         resourceGroup.rgFillResourceUsage(resourceUsage);
         assertTrue(resourceUsage.hasDispatch());
         assertTrue(resourceUsage.hasPublish());
-        for (ResourceGroupMonitoringClass value : ResourceGroupMonitoringClass.values()) {
-            PerMonitoringClassFields monitoredEntity =
-                    resourceGroup.getMonitoredEntity(value);
-            assertEquals(monitoredEntity.usedLocallySinceLastReport.messages, 0);
-            assertEquals(monitoredEntity.usedLocallySinceLastReport.bytes, 0);
-            assertEquals(monitoredEntity.totalUsedLocally.messages, bytesAndMessagesCount.messages);
-            assertEquals(monitoredEntity.totalUsedLocally.bytes, bytesAndMessagesCount.bytes);
-            assertEquals(monitoredEntity.lastReportedValues.messages, bytesAndMessagesCount.messages);
-            assertEquals(monitoredEntity.lastReportedValues.bytes, bytesAndMessagesCount.bytes);
-        }
+        assertEquals(resourceUsage.getReplicatorsCount(), 2);
+
+        dispatchMonitoredEntity =
+                resourceGroup.getMonitoredEntity(ResourceGroupMonitoringClass.Dispatch, null);
+        assertEquals(dispatchMonitoredEntity.usedLocallySinceLastReport.messages, 0);
+        assertEquals(dispatchMonitoredEntity.usedLocallySinceLastReport.bytes, 0);
+        assertEquals(dispatchMonitoredEntity.lastReportedValues.messages, dispatchBM.messages);
+        assertEquals(dispatchMonitoredEntity.lastReportedValues.bytes, dispatchBM.bytes);
+        publishMonitoredEntity =
+                resourceGroup.getMonitoredEntity(ResourceGroupMonitoringClass.Publish, null);
+        assertEquals(publishMonitoredEntity.usedLocallySinceLastReport.messages, 0);
+        assertEquals(publishMonitoredEntity.usedLocallySinceLastReport.bytes, 0);
+        assertEquals(publishMonitoredEntity.lastReportedValues.messages, publishBM.messages);
+        assertEquals(publishMonitoredEntity.lastReportedValues.bytes, publishBM.bytes);
+        r1MonitoredEntity =
+                resourceGroup.getMonitoredEntity(ResourceGroupMonitoringClass.ReplicationDispatch,
+                        replicator1RemoteCluster);
+        assertEquals(r1MonitoredEntity.usedLocallySinceLastReport.messages, 0);
+        assertEquals(r1MonitoredEntity.usedLocallySinceLastReport.bytes, 0);
+        assertEquals(r1MonitoredEntity.lastReportedValues.messages, replicator1BM.messages);
+        assertEquals(r1MonitoredEntity.lastReportedValues.bytes, replicator1BM.bytes);
+        r2MonitoredEntity =
+                resourceGroup.getMonitoredEntity(ResourceGroupMonitoringClass.ReplicationDispatch,
+                        replicator2RemoteCluster);
+        assertEquals(r2MonitoredEntity.usedLocallySinceLastReport.messages, 0);
+        assertEquals(r2MonitoredEntity.usedLocallySinceLastReport.bytes, 0);
+        assertEquals(r2MonitoredEntity.lastReportedValues.messages, replicator2BM.messages);
+        assertEquals(r2MonitoredEntity.lastReportedValues.bytes, replicator2BM.bytes);
     }
 }
