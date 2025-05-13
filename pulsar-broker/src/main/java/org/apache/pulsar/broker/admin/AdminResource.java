@@ -664,7 +664,7 @@ public abstract class AdminResource extends PulsarWebResource {
                         for (String s : list) {
                             TopicName item = TopicName.get(s);
                             if (item.isPartitioned() && item.getPartitionedTopicName()
-                                    .startsWith(topicName.getPartitionedTopicName())) {
+                                    .equals(topicName.getPartitionedTopicName())) {
                                 if (item.getPartitionIndex() > maxIndex) {
                                     maxIndex = item.getPartitionIndex();
                                 }
