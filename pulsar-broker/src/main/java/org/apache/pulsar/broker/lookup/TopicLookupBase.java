@@ -77,7 +77,7 @@ public class TopicLookupBase extends PulsarWebResource {
                         return CompletableFuture.completedFuture(true);
                     }
                     // Case-2: Persistent topic.
-                    return pulsar().getNamespaceService().checkTopicExists(topicName).thenCompose(info -> {
+                    return pulsar().getNamespaceService().checkTopicExistsAsync(topicName).thenCompose(info -> {
                         boolean exists = info.isExists();
                         info.recycle();
                         if (exists) {
