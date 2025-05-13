@@ -36,6 +36,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import io.netty.channel.ChannelHandlerContext;
 import java.net.InetSocketAddress;
+
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
@@ -78,6 +80,8 @@ public class MessageCumulativeAckTest {
         var mockManagedLedger = mock(ManagedLedger.class);
         when(mockManagedLedger.getConfig()).thenReturn(new ManagedLedgerConfig());
         var persistentTopic = new PersistentTopic(topicName, mockManagedLedger, pulsarTestContext.getBrokerService());
+        ManagedCursor cursor = mock(ManagedCursor.class);
+        doReturn("sub-1").when(cursor).getName();
         sub = spy(new PersistentSubscription(persistentTopic, "sub-1",
             mock(ManagedCursorImpl.class), false));
         doNothing().when(sub).acknowledgeMessage(any(), any(), any());
