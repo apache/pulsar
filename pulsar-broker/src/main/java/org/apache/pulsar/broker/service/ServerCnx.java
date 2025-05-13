@@ -595,7 +595,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 && brokerAllowAutoCreate;
                         if (!autoCreateIfNotExist) {
                             NamespaceService namespaceService = getBrokerService().getPulsar().getNamespaceService();
-                            namespaceService.checkTopicExists(topicName).thenAccept(topicExistsInfo -> {
+                            namespaceService.checkTopicExistsAsync(topicName).thenAccept(topicExistsInfo -> {
                                 lookupSemaphore.release();
                                 if (!topicExistsInfo.isExists()) {
                                     writeAndFlush(Commands.newPartitionMetadataResponse(
