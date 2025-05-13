@@ -219,8 +219,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private WebService webService = null;
     private WebSocketService webSocketService = null;
     private TopicPoliciesService topicPoliciesService = TopicPoliciesService.DISABLED;
-    @Nullable
-    private BookKeeperClientFactory bkClientFactory;
     protected CompactionServiceFactory compactionServiceFactory;
     private StrategicTwoPhaseCompactor strategicCompactor;
     private ResourceUsageTransportManager resourceUsageTransportManager;
@@ -590,11 +588,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     LOG.warn("ManagedLedgerClientFactory closing failed {}", e.getMessage());
                 }
                 this.managedLedgerStorage = null;
-            }
-
-            if (bkClientFactory != null) {
-                this.bkClientFactory.close();
-                this.bkClientFactory = null;
             }
 
             closeLeaderElectionService();
@@ -1107,9 +1100,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     protected ManagedLedgerStorage newManagedLedgerStorage() throws Exception {
         final var openTelemetry = this.openTelemetry.getOpenTelemetryService().getOpenTelemetry();
         if (config.getManagedLedgerStorageClassName().equals(ManagedLedgerClientFactory.class.getName())) {
-            this.bkClientFactory = newBookKeeperClientFactory();
-            return new ManagedLedgerClientFactory(config, localMetadataStore, bkClientFactory, ioEventLoopGroup,
-                    openTelemetry);
+            return new ManagedLedgerClientFactory(config, localMetadataStore, ioEventLoopGroup, openTelemetry);
         } else {
             return ManagedLedgerStorage.create(config, localMetadataStore, openTelemetry);
         }
@@ -1616,15 +1607,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return schemaStorage;
     }
 
-    public BookKeeperClientFactory newBookKeeperClientFactory() {
-        return new BookKeeperClientFactoryImpl();
-    }
-
     public BookKeeperClientFactory getBookKeeperClientFactory() throws PulsarServerException {
-        if (bkClientFactory == null) {
+        if (managedLedgerStorage.getDefaultStorageClass() instanceof BookkeeperManagedLedgerStorageClass bkStorage) {
+            return bkStorage.getBookKeeperClientFactory();
+        } else {
             throw new PulsarServerException.BookKeeperNotSupportedException();
         }
-        return bkClientFactory;
     }
 
     public synchronized ScheduledExecutorService getCompactorExecutor() {
