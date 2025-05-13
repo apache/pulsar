@@ -360,7 +360,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         CompletableFuture existFuture = new CompletableFuture();
         existFuture.complete(TopicExistsInfo.newNonPartitionedTopicExists());
         doReturn(future).when(nameSpaceService).getBrokerServiceUrlAsync(any(), any());
-        doReturn(existFuture).when(nameSpaceService).checkTopicExists(any());
+        doReturn(existFuture).when(nameSpaceService).checkTopicExistsAsync(any());
         CompletableFuture existBooleanFuture = new CompletableFuture();
         existBooleanFuture.complete(false);
         doReturn(existBooleanFuture).when(nameSpaceService).checkNonPartitionedTopicExists(any());
@@ -385,7 +385,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         existFuture.complete(TopicExistsInfo.newTopicNotExists());
         CompletableFuture existBooleanFuture = new CompletableFuture();
         existBooleanFuture.complete(false);
-        doReturn(existFuture).when(nameSpaceService).checkTopicExists(any());
+        doReturn(existFuture).when(nameSpaceService).checkTopicExistsAsync(any());
         doReturn(existBooleanFuture).when(nameSpaceService).checkNonPartitionedTopicExists(any());
         doReturn(nameSpaceService).when(pulsar).getNamespaceService();
         AsyncResponse asyncResponse = mock(AsyncResponse.class);

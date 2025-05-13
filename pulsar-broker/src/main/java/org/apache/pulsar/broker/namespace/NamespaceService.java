@@ -1368,8 +1368,21 @@ public class NamespaceService implements AutoCloseable {
     }
 
     /***
-     * Check topic exists( partitioned or non-partitioned ).
+     * Checks whether the topic exists( partitioned or non-partitioned ).
      */
+    public CompletableFuture<TopicExistsInfo> checkTopicExistsAsync(TopicName topic) {
+        return checkTopicExists(topic);
+    }
+
+    /**
+     * Checks whether the topic exists( partitioned or non-partitioned ).
+     *
+     * @deprecated This method uses a misleading synchronous name for an asynchronous operation.
+     *             Use {@link #checkTopicExistsAsync(TopicName topic)} instead.
+     *
+     * @see #checkTopicExistsAsync(TopicName topic)
+     */
+    @Deprecated
     public CompletableFuture<TopicExistsInfo> checkTopicExists(TopicName topic) {
         return pulsar.getBrokerService()
             .fetchPartitionedTopicMetadataAsync(TopicName.get(topic.toString()))
