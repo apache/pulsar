@@ -207,10 +207,10 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
                     = pulsar1.getBrokerService().getTopics();
             assertFalse(tps.containsKey(topic));
             assertFalse(tps.containsKey(topicChangeEvents));
-            assertFalse(pulsar1.getNamespaceService().checkTopicExists(TopicName.get(topic))
+            assertFalse(pulsar1.getNamespaceService().checkTopicExistsAsync(TopicName.get(topic))
                     .get(5, TimeUnit.SECONDS).isExists());
             assertFalse(pulsar1.getNamespaceService()
-                    .checkTopicExists(TopicName.get(topicChangeEvents))
+                    .checkTopicExistsAsync(TopicName.get(topicChangeEvents))
                     .get(5, TimeUnit.SECONDS).isExists());
         });
 

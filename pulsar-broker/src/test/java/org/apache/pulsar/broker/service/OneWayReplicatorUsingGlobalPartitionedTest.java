@@ -216,7 +216,7 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
             assertFalse(tps.containsKey(topicP1));
             assertFalse(tps.containsKey(topicChangeEvents));
             assertFalse(pulsar1.getNamespaceService()
-                    .checkTopicExists(TopicName.get(topicChangeEvents))
+                    .checkTopicExistsAsync(TopicName.get(topicChangeEvents))
                     .get(5, TimeUnit.SECONDS).isExists());
             // Verify: schema will be removed in local cluster, and remote cluster will not.
             List<CompletableFuture<StoredSchema>> schemaList13
