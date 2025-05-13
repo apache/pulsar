@@ -84,7 +84,7 @@ public class MessageCumulativeAckTest {
         ManagedCursor cursor = mock(ManagedCursor.class);
         doReturn(Codec.encode("sub-1")).when(cursor).getName();
         sub = spy(new PersistentSubscription(persistentTopic, "sub-1",
-            mock(ManagedCursorImpl.class), false));
+            cursor, false));
         doNothing().when(sub).acknowledgeMessage(any(), any(), any());
     }
 
