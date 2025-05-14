@@ -5024,7 +5024,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace or partitioned topic does not exist, "
-                    + "or the index is invalid")})
+                    + "or the index is invalid"),
+            @ApiResponse(code = 406, message = "The topic is not a persistent topic"),
+            @ApiResponse(code = 412, message = "The broker is not enable broker entry metadata"),
+    })
     public void getMessageIDByIndexAndPartitionID(@Suspended final AsyncResponse asyncResponse,
                                                    @PathParam("tenant") String tenant,
                                                    @PathParam("namespace") String namespace,
