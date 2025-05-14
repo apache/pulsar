@@ -758,6 +758,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
             this.readingEntries = readingEntries;
             this.readoutEntries = null;
             this.completedEntries = 0;
+            this.skipReadResultDueToCursorRewound = false;
         }
 
         public InFlightTask(Position readPos, int readingEntries) {
