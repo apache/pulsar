@@ -185,6 +185,7 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObj
             .getCredentialProvider();
         kinesisConfig.setCredentialsProvider(credentialsProvider);
         kinesisConfig.setNativeExecutable(StringUtils.trimToEmpty(kinesisSinkConfig.getNativeExecutable()));
+        kinesisConfig.setAggregationEnabled(kinesisSinkConfig.isAggregationEnabled());
 
         this.streamName = kinesisSinkConfig.getAwsKinesisStreamName();
         this.kinesisProducer = new KinesisProducer(kinesisConfig);
