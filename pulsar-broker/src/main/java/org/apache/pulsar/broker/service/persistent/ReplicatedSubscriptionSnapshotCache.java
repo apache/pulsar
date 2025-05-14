@@ -35,6 +35,7 @@ import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 public class ReplicatedSubscriptionSnapshotCache {
     private final String subscription;
     private final NavigableMap<Position, ReplicatedSubscriptionsSnapshot> snapshots;
+    // Used to record the timestamp of snapshots location, which will be used to adjust cache update frequency later.
     private final NavigableMap<Position, Long> positionToTimestamp;
     private final int maxSnapshotToCache;
     private final int snapshotFrequencyMillis;
@@ -56,24 +57,30 @@ public class ReplicatedSubscriptionSnapshotCache {
             log.debug("[{}] Added new replicated-subscription snapshot at {} -- {}", subscription, position,
                     snapshot.getSnapshotId());
         }
-
+        // Case 1: cache if empty
         if (positionToTimestamp.lastEntry() == null) {
             snapshots.put(position, snapshot);
             positionToTimestamp.put(position, publishTime);
             return;
         }
 
+        // The time difference between the previous position and the earliest cache entry
         final long timeSinceFirstSnapshot = publishTime - positionToTimestamp.firstEntry().getValue();
+        // The time difference between the previous position and the lately cache entry
         final long timeSinceLastSnapshot = publishTime - positionToTimestamp.lastEntry().getValue();
+        // The time window length of each time slot, used for dynamic adjustment in the snapshot cache.
+        // The larger the time slot, the slower the update.
         final long timeWindowPerSlot = timeSinceFirstSnapshot / snapshotFrequencyMillis / maxSnapshotToCache;
-        // reset cursor
+
         if (position.compareTo(positionToTimestamp.firstKey()) < 0) {
+            // Case 2: Reset cursor if position precedes first entry
             positionToTimestamp.clear();
             snapshots.clear();
             snapshots.put(position, snapshot);
             positionToTimestamp.put(position, publishTime);
             return;
         } else if (position.compareTo(positionToTimestamp.lastKey()) < 0) {
+            // Case 3: Reset cursor If the position is in the middle, delete the cache after that position
             while (position.compareTo(positionToTimestamp.lastKey()) < 0) {
                 positionToTimestamp.pollLastEntry();
                 snapshots.pollLastEntry();
@@ -81,14 +88,18 @@ public class ReplicatedSubscriptionSnapshotCache {
             snapshots.put(position, snapshot);
             positionToTimestamp.put(position, publishTime);
         }
-
+        // Time-based eviction conditions
+        // timeSinceLastSnapshot < snapshotFrequencyMillis, keep the same frequency
+        // timeSinceLastSnapshot < timeWindowPerSlot, implementing dynamic adjustments
         if (timeSinceLastSnapshot < snapshotFrequencyMillis || timeSinceLastSnapshot < timeWindowPerSlot) {
             return;
         }
         if (snapshots.size() < maxSnapshotToCache) {
+            // Case 4: Add to cache if not full
             snapshots.put(position, snapshot);
             positionToTimestamp.put(position, publishTime);
         } else {
+            // Case 5: Median-based eviction when cache is full
             int medianIndex = maxSnapshotToCache / 2;
             Position positionToRemove = findPositionByIndex(medianIndex);
             if (positionToRemove != null) {
@@ -100,6 +111,9 @@ public class ReplicatedSubscriptionSnapshotCache {
         }
     }
 
+    /**
+     * Find the Position in NavigableMap according to the target index.
+     */
     private Position findPositionByIndex(int targetIndex) {
         Iterator<Map.Entry<Position, Long>> it = positionToTimestamp.entrySet().iterator();
         int currentIndex = 0;
