@@ -44,6 +44,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.namespace.TopicExistsInfo;
 import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.service.TopicEventsListener.EventStage;
 import org.apache.pulsar.broker.service.TopicEventsListener.TopicEvent;
@@ -54,7 +55,6 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.internal.TopicsImpl;
-import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -74,6 +74,7 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.impl.AutoSubscriptionCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.Codec;
@@ -596,12 +597,32 @@ public abstract class AdminResource extends PulsarWebResource {
                     }
                 })
                 .thenCompose(__ -> checkTopicExistsAsync(topicName))
-                .thenAccept(exists -> {
-                    if (exists) {
-                        log.warn("[{}] Failed to create already existing topic {}", clientAppId(), topicName);
-                        throw new RestException(Status.CONFLICT, "This topic already exists");
+                .thenAccept(topicExistsInfo -> {
+                    try {
+                        if (topicExistsInfo.isExists()) {
+                            if (topicExistsInfo.getTopicType().equals(TopicType.NON_PARTITIONED)
+                                    || (topicExistsInfo.getTopicType().equals(TopicType.PARTITIONED)
+                                    && !createLocalTopicOnly)) {
+                                log.warn("[{}] Failed to create already existing topic {}", clientAppId(), topicName);
+                                throw new RestException(Status.CONFLICT, "This topic already exists");
+                            }
+                        }
+                    } finally {
+                        topicExistsInfo.recycle();
                     }
                 })
+                .thenCompose(__ -> getMaxPartitionIndex(topicName)
+                        .thenAccept(existingMaxPartitionIndex -> {
+                            // Case 1: Metadata loss — user tries to recreate the partitioned topic.
+                            // Case 2: Non-partitioned topic — user attempts to convert it to a partitioned topic.
+                            if (existingMaxPartitionIndex >= numPartitions) {
+                                int requiredMinPartitions = existingMaxPartitionIndex + 1;
+                                throw new RestException(Status.CONFLICT, String.format(
+                                        "The topic has a max partition index of %d, the number of partitions must be "
+                                                + "at least %d",
+                                        existingMaxPartitionIndex, requiredMinPartitions));
+                            }
+                        }))
                 .thenRun(() -> {
                     for (int i = 0; i < numPartitions; i++) {
                         pulsar().getBrokerService().getTopicEventsDispatcher()
@@ -633,6 +654,26 @@ public abstract class AdminResource extends PulsarWebResource {
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
+    }
+
+    private CompletableFuture<Integer> getMaxPartitionIndex(TopicName topicName) {
+        if (topicName.getDomain() == TopicDomain.persistent) {
+            return getPulsarResources().getTopicResources().listPersistentTopicsAsync(topicName.getNamespaceObject())
+                    .thenApply(list -> {
+                        int maxIndex = -1;
+                        for (String s : list) {
+                            TopicName item = TopicName.get(s);
+                            if (item.isPartitioned() && item.getPartitionedTopicName()
+                                    .equals(topicName.getPartitionedTopicName())) {
+                                if (item.getPartitionIndex() > maxIndex) {
+                                    maxIndex = item.getPartitionIndex();
+                                }
+                            }
+                        }
+                        return maxIndex;
+                    });
+        }
+        return CompletableFuture.completedFuture(-1);
     }
 
     private void internalCreatePartitionedTopicToReplicatedClustersInBackground(int numPartitions) {
@@ -725,26 +766,16 @@ public abstract class AdminResource extends PulsarWebResource {
 
     /**
      * Check the exists topics contains the given topic.
-     * Since there are topic partitions and non-partitioned topics in Pulsar, must ensure both partitions
-     * and non-partitioned topics are not duplicated. So, if compare with a partition name, we should compare
-     * to the partitioned name of this partition.
+     * Since there are topic partitions and non-partitioned topics in Pulsar. This check ensures that
+     * there is no duplication between them. Partition *instances* (e.g., topic-partition-0)
+     * are not considered individually — only the base partitioned topic name is checked.
+     *
+     * <p>Note: Be sure to recycle the {@link TopicExistsInfo} after it is no longer needed.</p>
      *
      * @param topicName given topic name
      */
-    protected CompletableFuture<Boolean> checkTopicExistsAsync(TopicName topicName) {
-        return pulsar().getNamespaceService().getListOfTopics(topicName.getNamespaceObject(),
-                CommandGetTopicsOfNamespace.Mode.ALL)
-                .thenCompose(topics -> {
-                    boolean exists = false;
-                    for (String topic : topics) {
-                        if (topicName.getPartitionedTopicName().equals(
-                                TopicName.get(topic).getPartitionedTopicName())) {
-                            exists = true;
-                            break;
-                        }
-                    }
-                    return CompletableFuture.completedFuture(exists);
-                });
+    protected CompletableFuture<TopicExistsInfo> checkTopicExistsAsync(TopicName topicName) {
+        return pulsar().getNamespaceService().checkTopicExistsAsync(topicName);
     }
 
     private CompletableFuture<Void> provisionPartitionedTopicPath(int numPartitions,

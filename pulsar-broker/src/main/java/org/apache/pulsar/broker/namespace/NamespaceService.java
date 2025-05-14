@@ -1425,6 +1425,10 @@ public class NamespaceService implements AutoCloseable {
      */
     @Deprecated
     public CompletableFuture<TopicExistsInfo> checkTopicExists(TopicName topic) {
+        // Exclude the heartbeat topic.
+        if (isHeartbeatNamespace(topic)) {
+            return CompletableFuture.completedFuture(TopicExistsInfo.newNonPartitionedTopicExists());
+        }
         // For non-persistent/persistent partitioned topic, which has metadata.
         return pulsar.getBrokerService().fetchPartitionedTopicMetadataAsync(
                         topic.isPartitioned() ? TopicName.get(topic.getPartitionedTopicName()) : topic)
