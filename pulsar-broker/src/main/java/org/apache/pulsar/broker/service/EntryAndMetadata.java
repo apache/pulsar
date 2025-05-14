@@ -45,7 +45,7 @@ public class EntryAndMetadata implements Entry {
     }
 
     @VisibleForTesting
-    static EntryAndMetadata create(final Entry entry) {
+    public static EntryAndMetadata create(final Entry entry) {
         return create(entry, Commands.peekAndCopyMessageMetadata(entry.getDataBuffer(), "", -1));
     }
 
