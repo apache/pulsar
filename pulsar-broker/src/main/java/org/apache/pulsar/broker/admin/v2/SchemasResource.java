@@ -166,6 +166,36 @@ public class SchemasResource extends SchemasResourceBase {
                 });
     }
 
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/metadata")
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Get the schema metadata of a topic", response = GetAllVersionsSchemaResponse.class)
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
+            @ApiResponse(code = 403, message = "Client is not authenticated"),
+            @ApiResponse(code = 404,
+                    message = "Tenant or Namespace or Topic doesn't exist; or Schema is not found for this topic"),
+            @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
+            @ApiResponse(code = 500, message = "Internal Server Error"),
+    })
+    public void getSchemaMetadata(
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") String topic,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @Suspended final AsyncResponse response
+    ) {
+        validateTopicName(tenant, namespace, topic);
+        getSchemaMetadataAsync(authoritative)
+                .thenAccept(response::resume)
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get schema metadata for topic {}", clientAppId(), topicName, ex);
+                    resumeAsyncResponseExceptionally(response, ex);
+                    return null;
+                });
+    }
+
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/schema")
     @Produces(MediaType.APPLICATION_JSON)

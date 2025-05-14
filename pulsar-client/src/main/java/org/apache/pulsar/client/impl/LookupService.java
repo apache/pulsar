@@ -61,11 +61,19 @@ public interface LookupService extends AutoCloseable {
     /**
      * Returns {@link PartitionedTopicMetadata} for a given topic.
      * Note: this method will try to create the topic partitioned metadata if it does not exist.
-     * @deprecated Please call {{@link #getPartitionedTopicMetadata(TopicName, boolean)}}.
+     * @deprecated Please call {{@link #getPartitionedTopicMetadata(TopicName, boolean, boolean)}}.
      */
     @Deprecated
     default CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName) {
-        return getPartitionedTopicMetadata(topicName, true);
+        return getPartitionedTopicMetadata(topicName, true, true);
+    }
+
+    /**
+     * See the doc {@link #getPartitionedTopicMetadata(TopicName, boolean, boolean)}.
+     */
+    default CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName,
+                                                                                boolean metadataAutoCreationEnabled) {
+        return getPartitionedTopicMetadata(topicName, metadataAutoCreationEnabled, false);
     }
 
     /**
@@ -80,10 +88,15 @@ public interface LookupService extends AutoCloseable {
      * 3.When {@param metadataAutoCreationEnabled} is "true," it will trigger an auto-creation for this topic(using
      *  the default topic auto-creation strategy you set for the broker), and the corresponding result is returned.
      *  For the result, see case 1.
+     * @param useFallbackForNonPIP344Brokers <p>If true, fallback to the prior behavior of the method
+     *   {@link #getPartitionedTopicMetadata(TopicName)} if the broker does not support the PIP-344 feature
+     *   'supports_get_partitioned_metadata_without_auto_creation'. This parameter only affects the behavior when
+     *   {@param metadataAutoCreationEnabled} is false.</p>
      * @version 3.3.0.
      */
     CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName,
-                                                                            boolean metadataAutoCreationEnabled);
+                                                                        boolean metadataAutoCreationEnabled,
+                                                                        boolean useFallbackForNonPIP344Brokers);
 
     /**
      * Returns current SchemaInfo {@link SchemaInfo} for a given topic.

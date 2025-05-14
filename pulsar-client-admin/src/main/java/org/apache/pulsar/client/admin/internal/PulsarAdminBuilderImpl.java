@@ -47,6 +47,7 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
 
     public PulsarAdminBuilderImpl() {
         this.conf = new ClientConfigurationData();
+        this.conf.setConnectionsPerBroker(16);
     }
 
     private PulsarAdminBuilderImpl(ClientConfigurationData conf) {
@@ -71,6 +72,15 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
                 acceptGzipCompression = (Boolean) acceptGzipCompressionObj;
             } else {
                 acceptGzipCompression = Boolean.parseBoolean(acceptGzipCompressionObj.toString());
+            }
+        }
+        // in ClientConfigurationData, the maxConnectionsPerHost maps to connectionsPerBroker
+        if (config.containsKey("maxConnectionsPerHost")) {
+            Object maxConnectionsPerHostObj = config.get("maxConnectionsPerHost");
+            if (maxConnectionsPerHostObj instanceof Integer) {
+                maxConnectionsPerHost((Integer) maxConnectionsPerHostObj);
+            } else {
+                maxConnectionsPerHost(Integer.parseInt(maxConnectionsPerHostObj.toString()));
             }
         }
         return this;
@@ -205,6 +215,20 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     }
 
     @Override
+    public PulsarAdminBuilder sslFactoryPlugin(String sslFactoryPlugin) {
+        if (StringUtils.isNotBlank(sslFactoryPlugin)) {
+            conf.setSslFactoryPlugin(sslFactoryPlugin);
+        }
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder sslFactoryPluginParams(String sslFactoryPluginParams) {
+        conf.setSslFactoryPluginParams(sslFactoryPluginParams);
+        return this;
+    }
+
+    @Override
     public PulsarAdminBuilder tlsProtocols(Set<String> tlsProtocols) {
         conf.setTlsProtocols(tlsProtocols);
         return this;
@@ -243,6 +267,20 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     @Override
     public PulsarAdminBuilder acceptGzipCompression(boolean acceptGzipCompression) {
         this.acceptGzipCompression = acceptGzipCompression;
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder maxConnectionsPerHost(int maxConnectionsPerHost) {
+        // reuse the same configuration as the client, however for the admin client, the connection
+        // is usually established to a cluster address and not to a broker address
+        this.conf.setConnectionsPerBroker(maxConnectionsPerHost);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder connectionMaxIdleSeconds(int connectionMaxIdleSeconds) {
+        this.conf.setConnectionMaxIdleSeconds(connectionMaxIdleSeconds);
         return this;
     }
 }

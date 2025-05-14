@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.BROKER_CERT_FILE_PATH;
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.BROKER_KEY_FILE_PATH;
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.CA_CERT_FILE_PATH;
 import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -46,6 +49,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicType;
@@ -62,6 +66,7 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
     protected final String defaultTenant = "public";
     protected final String replicatedNamespace = defaultTenant + "/default";
     protected final String nonReplicatedNamespace = defaultTenant + "/ns1";
+    protected final String sourceClusterAlwaysSchemaCompatibleNamespace = defaultTenant + "/always-compatible";
 
     protected final String cluster1 = "r1";
 
@@ -154,6 +159,10 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         admin1.tenants().createTenant(defaultTenant, new TenantInfoImpl(Collections.emptySet(),
                 Sets.newHashSet(cluster1, cluster2)));
         admin1.namespaces().createNamespace(replicatedNamespace, Sets.newHashSet(cluster1, cluster2));
+        admin1.namespaces().createNamespace(
+                sourceClusterAlwaysSchemaCompatibleNamespace, Sets.newHashSet(cluster1, cluster2));
+        admin1.namespaces().setSchemaCompatibilityStrategy(sourceClusterAlwaysSchemaCompatibleNamespace,
+                SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
         admin1.namespaces().createNamespace(nonReplicatedNamespace);
 
         if (!usingGlobalZK) {
@@ -174,6 +183,9 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
             admin2.tenants().createTenant(defaultTenant, new TenantInfoImpl(Collections.emptySet(),
                     Sets.newHashSet(cluster1, cluster2)));
             admin2.namespaces().createNamespace(replicatedNamespace);
+            admin2.namespaces().createNamespace(sourceClusterAlwaysSchemaCompatibleNamespace);
+            admin2.namespaces().setSchemaCompatibilityStrategy(sourceClusterAlwaysSchemaCompatibleNamespace,
+                    SchemaCompatibilityStrategy.FORWARD);
             admin2.namespaces().createNamespace(nonReplicatedNamespace);
         }
 
@@ -267,10 +279,18 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         config.setReplicatedSubscriptionsSnapshotFrequencyMillis(1000);
         config.setLoadBalancerSheddingEnabled(false);
         config.setForceDeleteNamespaceAllowed(true);
+        config.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        config.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
+        config.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+        config.setClusterName(clusterName);
+        config.setTlsRequireTrustedClientCertOnConnect(false);
+        Set<String> tlsProtocols = Sets.newConcurrentHashSet();
+        tlsProtocols.add("TLSv1.3");
+        tlsProtocols.add("TLSv1.2");
+        config.setTlsProtocols(tlsProtocols);
     }
 
-    @Override
-    protected void cleanup() throws Exception {
+    protected void cleanupPulsarResources() throws Exception {
         // delete namespaces.
         waitChangeEventsInit(replicatedNamespace);
         admin1.namespaces().setNamespaceReplicationClusters(replicatedNamespace, Sets.newHashSet(cluster1));
@@ -283,6 +303,12 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
             admin2.namespaces().deleteNamespace(replicatedNamespace, true);
             admin2.namespaces().deleteNamespace(nonReplicatedNamespace, true);
         }
+    }
+
+    @Override
+    protected void cleanup() throws Exception {
+        // cleanup pulsar resources.
+        cleanupPulsarResources();
 
         // shutdown.
         markCurrentSetupNumberCleaned();
@@ -392,7 +418,7 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         int partitions = ensurePartitionsAreSame(topic);
         admin.topics().setReplicationClusters(topic, clusters);
         Awaitility.await().untilAsserted(() -> {
-            TopicPolicies policies = pulsar.getTopicPoliciesService().getTopicPolicies(topicName);
+            TopicPolicies policies = TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(), topicName);
             assertEquals(new HashSet<>(policies.getReplicationClusters()), expected);
             if (partitions == 0) {
                 checkNonPartitionedTopicLevelClusters(topicName.toString(), clusters, admin, pulsar.getBrokerService());
@@ -417,7 +443,7 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         }
         PersistentTopic persistentTopic = (PersistentTopic) optional.get();
         Set<String> expected = new HashSet<>(clusters);
-        Set<String> act = new HashSet<>(persistentTopic.getTopicPolicies().get().getReplicationClusters());
+        Set<String> act = new HashSet<>(TopicPolicyTestUtils.getTopicPolicies(persistentTopic).getReplicationClusters());
         assertEquals(act, expected);
     }
 
@@ -462,5 +488,22 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
             admin1.topics().delete(topicName.toString());
             admin2.topics().delete(topicName.toString());
         }
+    }
+
+    protected void waitReplicatorStopped(PulsarService sourceCluster, PulsarService targetCluster, String topicName) {
+        Awaitility.await().atMost(Duration.ofSeconds(60)).untilAsserted(() -> {
+            Optional<Topic> topicOptional2 = targetCluster.getBrokerService().getTopic(topicName, false).get();
+            assertTrue(topicOptional2.isPresent());
+            PersistentTopic persistentTopic2 = (PersistentTopic) topicOptional2.get();
+            for (org.apache.pulsar.broker.service.Producer producer : persistentTopic2.getProducers().values()) {
+                assertFalse(producer.getProducerName()
+                        .startsWith(targetCluster.getConfiguration().getReplicatorPrefix()));
+            }
+            Optional<Topic> topicOptional1 = sourceCluster.getBrokerService().getTopic(topicName, false).get();
+            assertTrue(topicOptional1.isPresent());
+            PersistentTopic persistentTopic1 = (PersistentTopic) topicOptional1.get();
+            assertTrue(persistentTopic1.getReplicators().isEmpty()
+                    || !persistentTopic1.getReplicators().get(targetCluster.getConfig().getClusterName()).isConnected());
+        });
     }
 }

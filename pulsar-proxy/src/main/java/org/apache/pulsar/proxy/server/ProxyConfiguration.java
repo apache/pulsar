@@ -42,6 +42,8 @@ import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
+import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
+
 
 @Getter
 @Setter
@@ -263,6 +265,15 @@ public class ProxyConfiguration implements PulsarConfiguration {
             + " If not set, the value of `InetAddress.getLocalHost().getCanonicalHostName()` is used."
     )
     private String advertisedAddress;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Specifies the interval (in seconds) for sending ping messages to the client. Set to 0 to disable "
+                    + "ping messages. This setting applies to client connections used for topic lookups and "
+                    + "partition metadata requests. When a client establishes a broker connection via the proxy, "
+                    + "the client and broker will communicate directly without the proxy intercepting the messages. "
+                    + "In that case, the broker's keepAliveIntervalSeconds configuration becomes relevant.")
+    private int keepAliveIntervalSeconds = 30;
 
     @FieldContext(category = CATEGORY_SERVER,
             doc = "Enable or disable the proxy protocol.")
@@ -614,6 +625,16 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private String tlsTrustStorePassword = null;
 
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "SSL Factory Plugin class to provide SSLEngine and SSLContext objects. The default "
+                    + " class used is DefaultSslFactory.")
+    private String sslFactoryPlugin = DefaultPulsarSslFactory.class.getName();
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "SSL Factory plugin configuration parameters.")
+    private String sslFactoryPluginParams = "";
+
     /**
      * KeyStore TLS config variables used for proxy to auth with broker.
      */
@@ -682,6 +703,16 @@ public class ProxyConfiguration implements PulsarConfiguration {
                   + " used by the Pulsar proxy to authenticate with Pulsar brokers"
     )
     private Set<String> brokerClientTlsProtocols = new TreeSet<>();
+
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "SSL Factory Plugin class used by internal client to provide SSLEngine and SSLContext objects. "
+                    + "The default class used is DefaultSslFactory.")
+    private String brokerClientSslFactoryPlugin = DefaultPulsarSslFactory.class.getName();
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "SSL Factory plugin configuration parameters used by internal client.")
+    private String brokerClientSslFactoryPluginParams = "";
 
     // HTTP
 
@@ -795,6 +826,13 @@ public class ProxyConfiguration implements PulsarConfiguration {
             doc = "List of proxy additional servlet to load, which is a list of proxy additional servlet names"
     )
     private Set<String> proxyAdditionalServlets = new TreeSet<>();
+
+    @FieldContext(
+            category = CATEGORY_PLUGIN,
+            doc = "Default http header map to add into http-proxy for the any security requirements "
+                    + "eg: { \"header1\": \"val1\", \"header2\": \"val2\" }"
+    )
+    private String proxyHttpResponseHeadersJson;
 
     @FieldContext(
             category = CATEGORY_PLUGIN,

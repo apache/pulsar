@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import javax.servlet.DispatcherType;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -39,6 +41,10 @@ import lombok.Getter;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.intercept.BrokerInterceptors;
+import org.apache.pulsar.common.util.PulsarSslConfiguration;
+import org.apache.pulsar.common.util.PulsarSslFactory;
 import org.apache.pulsar.jetty.tls.JettySslContextFactory;
 import org.eclipse.jetty.server.ConnectionFactory;
 import org.eclipse.jetty.server.ConnectionLimit;
@@ -93,6 +99,8 @@ public class WebService implements AutoCloseable {
     private final ServerConnector httpsConnector;
     private final FilterInitializer filterInitializer;
     private JettyStatisticsCollector jettyStatisticsCollector;
+    private PulsarSslFactory sslFactory;
+    private ScheduledFuture<?> sslContextRefreshTask;
 
     @Getter
     private static final DynamicSkipUnknownPropertyHandler sharedUnknownPropertyHandler =
@@ -144,34 +152,22 @@ public class WebService implements AutoCloseable {
         Optional<Integer> tlsPort = config.getWebServicePortTls();
         if (tlsPort.isPresent()) {
             try {
-                SslContextFactory sslCtxFactory;
-                if (config.isTlsEnabledWithKeyStore()) {
-                    sslCtxFactory = JettySslContextFactory.createServerSslContextWithKeystore(
-                            config.getWebServiceTlsProvider(),
-                            config.getTlsKeyStoreType(),
-                            config.getTlsKeyStore(),
-                            config.getTlsKeyStorePassword(),
-                            config.isTlsAllowInsecureConnection(),
-                            config.getTlsTrustStoreType(),
-                            config.getTlsTrustStore(),
-                            config.getTlsTrustStorePassword(),
-                            config.isTlsRequireTrustedClientCertOnConnect(),
-                            config.getWebServiceTlsCiphers(),
-                            config.getWebServiceTlsProtocols(),
-                            config.getTlsCertRefreshCheckDurationSec()
-                    );
-                } else {
-                    sslCtxFactory = JettySslContextFactory.createServerSslContext(
-                            config.getWebServiceTlsProvider(),
-                            config.isTlsAllowInsecureConnection(),
-                            config.getTlsTrustCertsFilePath(),
-                            config.getTlsCertificateFilePath(),
-                            config.getTlsKeyFilePath(),
-                            config.isTlsRequireTrustedClientCertOnConnect(),
-                            config.getWebServiceTlsCiphers(),
-                            config.getWebServiceTlsProtocols(),
-                            config.getTlsCertRefreshCheckDurationSec());
+                PulsarSslConfiguration sslConfiguration = buildSslConfiguration(config);
+                this.sslFactory = (PulsarSslFactory) Class.forName(config.getSslFactoryPlugin())
+                        .getConstructor().newInstance();
+                this.sslFactory.initialize(sslConfiguration);
+                this.sslFactory.createInternalSslContext();
+                if (config.getTlsCertRefreshCheckDurationSec() > 0) {
+                    this.sslContextRefreshTask = this.pulsar.getExecutor()
+                            .scheduleWithFixedDelay(this::refreshSslContext,
+                                    config.getTlsCertRefreshCheckDurationSec(),
+                                    config.getTlsCertRefreshCheckDurationSec(),
+                                    TimeUnit.SECONDS);
                 }
+                SslContextFactory sslCtxFactory =
+                        JettySslContextFactory.createSslContextFactory(config.getWebServiceTlsProvider(),
+                                this.sslFactory, config.isTlsRequireTrustedClientCertOnConnect(),
+                                config.getTlsCiphers(), config.getTlsProtocols());
                 List<ConnectionFactory> connectionFactories = new ArrayList<>();
                 if (config.isWebServiceHaProxyProtocolEnabled()) {
                     connectionFactories.add(new ProxyConnectionFactory());
@@ -250,7 +246,8 @@ public class WebService implements AutoCloseable {
 
             if (config.isHttpRequestsLimitEnabled()) {
                 filterHolders.add(new FilterHolder(
-                        new RateLimitingFilter(config.getHttpRequestsMaxPerSecond())));
+                        new RateLimitingFilter(config.getHttpRequestsMaxPerSecond(),
+                                pulsarService.getOpenTelemetry().getMeter())));
             }
 
             // wait until the PulsarService is ready to serve incoming requests
@@ -263,7 +260,17 @@ public class WebService implements AutoCloseable {
                 // Enable PreInterceptFilter only when interceptors are enabled
                 filterHolders.add(
                         new FilterHolder(new PreInterceptFilter(pulsarService.getBrokerInterceptor(), handler)));
-                filterHolders.add(new FilterHolder(new ProcessHandlerFilter(pulsarService.getBrokerInterceptor())));
+                // The `ProcessHandlerFilter` is used to overwrite `doFilter` method, which cannot be called multiple
+                // times inside one `Filter`, so we cannot use one `ProcessHandlerFilter` with a `BrokerInterceptors` to
+                // hold all interceptors, instead we need to create a `ProcessHandlerFilter` for each `interceptor`.
+                if (pulsarService.getBrokerInterceptor() instanceof BrokerInterceptors) {
+                    for (BrokerInterceptor interceptor: ((BrokerInterceptors) pulsarService.getBrokerInterceptor())
+                            .getInterceptors().values()) {
+                        filterHolders.add(new FilterHolder(new ProcessHandlerFilter(interceptor)));
+                    }
+                } else {
+                    filterHolders.add(new FilterHolder(new ProcessHandlerFilter(pulsarService.getBrokerInterceptor())));
+                }
             }
 
             if (config.isAuthenticationEnabled()) {
@@ -430,6 +437,9 @@ public class WebService implements AutoCloseable {
                 jettyStatisticsCollector = null;
             }
             webServiceExecutor.join();
+            if (this.sslContextRefreshTask != null) {
+                this.sslContextRefreshTask.cancel(true);
+            }
             webExecutorThreadPoolStats.close();
             this.executorStats.close();
             log.info("Web service closed");
@@ -451,6 +461,36 @@ public class WebService implements AutoCloseable {
             return Optional.of(httpsConnector.getLocalPort());
         } else {
             return Optional.empty();
+        }
+    }
+
+    protected PulsarSslConfiguration buildSslConfiguration(ServiceConfiguration serviceConfig) {
+        return PulsarSslConfiguration.builder()
+                .tlsKeyStoreType(serviceConfig.getTlsKeyStoreType())
+                .tlsKeyStorePath(serviceConfig.getTlsKeyStore())
+                .tlsKeyStorePassword(serviceConfig.getTlsKeyStorePassword())
+                .tlsTrustStoreType(serviceConfig.getTlsTrustStoreType())
+                .tlsTrustStorePath(serviceConfig.getTlsTrustStore())
+                .tlsTrustStorePassword(serviceConfig.getTlsTrustStorePassword())
+                .tlsCiphers(serviceConfig.getTlsCiphers())
+                .tlsProtocols(serviceConfig.getTlsProtocols())
+                .tlsTrustCertsFilePath(serviceConfig.getTlsTrustCertsFilePath())
+                .tlsCertificateFilePath(serviceConfig.getTlsCertificateFilePath())
+                .tlsKeyFilePath(serviceConfig.getTlsKeyFilePath())
+                .allowInsecureConnection(serviceConfig.isTlsAllowInsecureConnection())
+                .requireTrustedClientCertOnConnect(serviceConfig.isTlsRequireTrustedClientCertOnConnect())
+                .tlsEnabledWithKeystore(serviceConfig.isTlsEnabledWithKeyStore())
+                .tlsCustomParams(serviceConfig.getSslFactoryPluginParams())
+                .serverMode(true)
+                .isHttps(true)
+                .build();
+    }
+
+    protected void refreshSslContext() {
+        try {
+            this.sslFactory.update();
+        } catch (Exception e) {
+            log.error("Failed to refresh SSL context", e);
         }
     }
 

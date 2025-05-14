@@ -247,7 +247,7 @@ public class TransactionProduceTest extends TransactionTestBase {
             if (partition >= 0) {
                 topic = TopicName.get(topic).toString() + TopicName.PARTITIONED_TOPIC_SUFFIX + partition;
             }
-            return getPulsarServiceList().get(0).getManagedLedgerFactory().openReadOnlyCursor(
+            return getPulsarServiceList().get(0).getDefaultManagedLedgerFactory().openReadOnlyCursor(
                     TopicName.get(topic).getPersistenceNamingEncoding(),
                     PositionFactory.EARLIEST, new ManagedLedgerConfig());
         } catch (Exception e) {
@@ -283,7 +283,6 @@ public class TransactionProduceTest extends TransactionTestBase {
                 .topic(ACK_COMMIT_TOPIC)
                 .subscriptionName(subscriptionName)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
 
@@ -347,7 +346,6 @@ public class TransactionProduceTest extends TransactionTestBase {
                 .topic(ACK_ABORT_TOPIC)
                 .subscriptionName(subscriptionName)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
         Awaitility.await().until(consumer::isConnected);
@@ -390,7 +388,7 @@ public class TransactionProduceTest extends TransactionTestBase {
 
         int pendingAckCount = 0;
         for (PulsarService pulsarService : getPulsarServiceList()) {
-            for (String key : pulsarService.getBrokerService().getTopics().keys()) {
+            for (String key : pulsarService.getBrokerService().getTopics().keySet()) {
                 if (key.contains(topic)) {
                     Field field = clazz.getDeclaredField("pendingAckHandle");
                     field.setAccessible(true);

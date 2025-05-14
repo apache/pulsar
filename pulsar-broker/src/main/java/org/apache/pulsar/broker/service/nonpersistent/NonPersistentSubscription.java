@@ -34,7 +34,6 @@ import org.apache.pulsar.broker.service.AbstractSubscription;
 import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
-import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFencedException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
@@ -159,8 +158,10 @@ public class NonPersistentSubscription extends AbstractSubscription {
                 });
             }
         } else {
-            if (consumer.subType() != dispatcher.getType()) {
-                return FutureUtil.failedFuture(new SubscriptionBusyException("Subscription is of different type"));
+            Optional<CompletableFuture<Void>> compatibilityError =
+                    checkForConsumerCompatibilityErrorWithDispatcher(dispatcher, consumer);
+            if (compatibilityError.isPresent()) {
+                return compatibilityError.get();
             }
         }
 
@@ -436,7 +437,7 @@ public class NonPersistentSubscription extends AbstractSubscription {
      *
      * @param consumer consumer object that is initiating the unsubscribe operation
      * @param force unsubscribe forcefully by disconnecting consumers and closing subscription
-     * @return CompletableFuture indicating the completion of ubsubscribe operation
+     * @return CompletableFuture indicating the completion of unsubscribe operation
      */
     @Override
     public CompletableFuture<Void> doUnsubscribe(Consumer consumer, boolean force) {
@@ -501,6 +502,18 @@ public class NonPersistentSubscription extends AbstractSubscription {
             subStats.filterAcceptedMsgCount = dispatcher.getFilterAcceptedMsgCount();
             subStats.filterRejectedMsgCount = dispatcher.getFilterRejectedMsgCount();
             subStats.filterRescheduledMsgCount = dispatcher.getFilterRescheduledMsgCount();
+            subStats.dispatchThrottledMsgEventsBySubscriptionLimit =
+                    dispatcher.getDispatchThrottledMsgEventsBySubscriptionLimit();
+            subStats.dispatchThrottledBytesEventsBySubscriptionLimit =
+                    dispatcher.getDispatchThrottledBytesBySubscriptionLimit();
+            subStats.dispatchThrottledMsgEventsByBrokerLimit =
+                    dispatcher.getDispatchThrottledMsgEventsByBrokerLimit();
+            subStats.dispatchThrottledBytesEventsByBrokerLimit =
+                    dispatcher.getDispatchThrottledBytesEventsByBrokerLimit();
+            subStats.dispatchThrottledMsgEventsByTopicLimit =
+                    dispatcher.getDispatchThrottledMsgEventsByTopicLimit();
+            subStats.dispatchThrottledBytesEventsByTopicLimit =
+                    dispatcher.getDispatchThrottledBytesEventsByTopicLimit();
         }
 
         subStats.type = getTypeString();

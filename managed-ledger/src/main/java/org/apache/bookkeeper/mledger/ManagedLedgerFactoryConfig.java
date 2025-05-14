@@ -62,6 +62,18 @@ public class ManagedLedgerFactoryConfig {
     private long managedLedgerMaxReadsInFlightSize = 0;
 
     /**
+     * Maximum time to wait for acquiring permits for max reads in flight when managedLedgerMaxReadsInFlightSizeInMB is
+     * set (>0) and the limit is reached.
+     */
+    private long managedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis = 60000;
+
+    /**
+     * Maximum number of reads that can be queued for acquiring permits for max reads in flight when
+     * managedLedgerMaxReadsInFlightSizeInMB is set (>0) and the limit is reached.
+     */
+    private int managedLedgerMaxReadsInFlightPermitsAcquireQueueSize = 10000;
+
+    /**
      * Whether trace managed ledger task execution time.
      */
     private boolean traceTaskExecution = true;

@@ -19,13 +19,17 @@
 package org.apache.pulsar.client.api;
 
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.DEDUPLICATION_CURSOR_NAME;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import java.lang.reflect.Field;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -33,6 +37,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
@@ -41,12 +46,12 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferDisable;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -104,7 +109,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
 
         // Assert only one PersistentTopic was not closed.
         TopicPoliciesService topicPoliciesService = pulsar.getTopicPoliciesService();
-        Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> listeners =
+        Map<TopicName, List<TopicPolicyListener>> listeners =
                 WhiteboxImpl.getInternalState(topicPoliciesService, "listeners");
         assertEquals(listeners.get(TopicName.get(tpName)).size(), 1);
 
@@ -152,7 +157,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
             }
         };
         TransactionBufferProvider originalTransactionBufferProvider = pulsar.getTransactionBufferProvider();
-        pulsar.setTransactionExecutorProvider(mockTransactionBufferProvider);
+        pulsar.setTransactionBufferProvider(mockTransactionBufferProvider);
         CompletableFuture<Optional<Topic>> firstLoad = pulsar.getBrokerService().getTopic(tpName, true);
         Awaitility.await().ignoreExceptions().atMost(5, TimeUnit.SECONDS)
                 .pollInterval(100, TimeUnit.MILLISECONDS)
@@ -170,7 +175,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
         }
 
         // set to back
-        pulsar.setTransactionExecutorProvider(originalTransactionBufferProvider);
+        pulsar.setTransactionBufferProvider(originalTransactionBufferProvider);
         pulsar.getConfig().setTopicLoadTimeoutSeconds(originalTopicLoadTimeoutSeconds);
         pulsar.getConfig().setBrokerDeduplicationEnabled(false);
         pulsar.getConfig().setTransactionCoordinatorEnabled(false);
@@ -211,12 +216,101 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
 
         // Assert only one PersistentTopic was not closed.
         TopicPoliciesService topicPoliciesService = pulsar.getTopicPoliciesService();
-        Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> listeners =
+        Map<TopicName, List<TopicPolicyListener>> listeners =
                 WhiteboxImpl.getInternalState(topicPoliciesService, "listeners");
         assertEquals(listeners.get(TopicName.get(tpName)).size(), 1);
 
         // cleanup.
         consumer.close();
         admin.topics().delete(tpName, false);
+    }
+
+    @DataProvider(name = "whetherTimeoutOrNot")
+    public Object[][] whetherTimeoutOrNot() {
+        return new Object[][] {
+            {true},
+            {false}
+        };
+    }
+
+    @Test(timeOut = 60 * 1000, dataProvider = "whetherTimeoutOrNot")
+    public void testCheckOwnerShipFails(boolean injectTimeout) throws Exception {
+        if (injectTimeout) {
+            pulsar.getConfig().setTopicLoadTimeoutSeconds(5);
+        }
+        String ns = "public" + "/" + UUID.randomUUID().toString().replaceAll("-", "");
+        String tpName = BrokerTestUtil.newUniqueName("persistent://" + ns + "/tp");
+        admin.namespaces().createNamespace(ns);
+        admin.topics().createNonPartitionedTopic(tpName);
+        admin.namespaces().unload(ns);
+
+        // Inject an error when calling "NamespaceService.isServiceUnitActiveAsync".
+        AtomicInteger failedTimes = new AtomicInteger();
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        doAnswer(invocation -> {
+            TopicName paramTp = (TopicName) invocation.getArguments()[0];
+            if (paramTp.toString().equalsIgnoreCase(tpName) && failedTimes.incrementAndGet() <= 2) {
+                if (injectTimeout) {
+                    Thread.sleep(10 * 1000);
+                }
+                log.info("Failed {} times", failedTimes.get());
+                return CompletableFuture.failedFuture(new RuntimeException("mocked error"));
+            }
+            return invocation.callRealMethod();
+        }).when(namespaceService).isServiceUnitActiveAsync(any(TopicName.class));
+
+        // Verify: the consumer can create successfully eventually.
+        Consumer consumer = pulsarClient.newConsumer().topic(tpName).subscriptionName("s1").subscribe();
+
+        // cleanup.
+        if (injectTimeout) {
+            pulsar.getConfig().setTopicLoadTimeoutSeconds(60);
+        }
+        consumer.close();
+        admin.topics().delete(tpName);
+    }
+
+    @Test(timeOut = 60 * 1000, dataProvider = "whetherTimeoutOrNot")
+    public void testTopicLoadAndDeleteAtTheSameTime(boolean injectTimeout) throws Exception {
+        if (injectTimeout) {
+            pulsar.getConfig().setTopicLoadTimeoutSeconds(5);
+        }
+        String ns = "public" + "/" + UUID.randomUUID().toString().replaceAll("-", "");
+        String tpName = BrokerTestUtil.newUniqueName("persistent://" + ns + "/tp");
+        admin.namespaces().createNamespace(ns);
+        admin.topics().createNonPartitionedTopic(tpName);
+        admin.namespaces().unload(ns);
+
+        // Inject a race condition: load topic and delete topic execute at the same time.
+        AtomicInteger mockRaceConditionCounter = new AtomicInteger();
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        doAnswer(invocation -> {
+            TopicName paramTp = (TopicName) invocation.getArguments()[0];
+            if (paramTp.toString().equalsIgnoreCase(tpName) && mockRaceConditionCounter.incrementAndGet() <= 1) {
+                if (injectTimeout) {
+                    Thread.sleep(10 * 1000);
+                }
+                log.info("Race condition occurs {} times", mockRaceConditionCounter.get());
+                pulsar.getDefaultManagedLedgerFactory().delete(TopicName.get(tpName).getPersistenceNamingEncoding());
+            }
+            return invocation.callRealMethod();
+        }).when(namespaceService).isServiceUnitActiveAsync(any(TopicName.class));
+
+        // Verify: the consumer create failed due to pulsar does not allow to create topic automatically.
+        try {
+            pulsar.getBrokerService().getTopic(tpName, false, Collections.emptyMap()).join();
+        } catch (Exception ex) {
+            log.warn("Expected error", ex);
+        }
+
+        // Verify: the consumer create successfully after allowing to create topic automatically.
+        Consumer consumer = pulsarClient.newConsumer().topic(tpName).subscriptionName("s1").subscribe();
+
+        // cleanup.
+        if (injectTimeout) {
+            pulsar.getConfig().setTopicLoadTimeoutSeconds(60);
+        }
+        consumer.close();
+        admin.topics().delete(tpName);
     }
 }

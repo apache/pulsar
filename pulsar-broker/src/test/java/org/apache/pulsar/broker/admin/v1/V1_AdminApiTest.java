@@ -192,8 +192,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
         for (String tenant : admin.tenants().getTenants()) {
             for (String namespace : admin.namespaces().getNamespaces(tenant)) {
-                deleteNamespaceWithRetry(namespace, true, admin, pulsar,
-                        mockPulsarSetup.getPulsar());
+                deleteNamespaceWithRetry(namespace, true, admin);
             }
         }
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
@@ -1380,8 +1379,8 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
 
         admin.namespaces().unsubscribeNamespace("prop-xyz/use/ns1-bundles", "my-sub");
 
-        assertEquals(admin.topics().getSubscriptions("persistent://prop-xyz/use/ns1-bundles/ds2"),
-                List.of("my-sub-1", "my-sub-2"));
+        assertEquals(admin.topics().getSubscriptions("persistent://prop-xyz/use/ns1-bundles/ds2").stream()
+                .sorted().toList(), List.of("my-sub-1", "my-sub-2"));
         assertEquals(admin.topics().getSubscriptions("persistent://prop-xyz/use/ns1-bundles/ds1"),
                 List.of("my-sub-1"));
 

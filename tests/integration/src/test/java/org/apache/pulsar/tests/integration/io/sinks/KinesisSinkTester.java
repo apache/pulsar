@@ -79,6 +79,11 @@ public class KinesisSinkTester extends SinkTester<LocalStackContainer> {
         sinkConfig.put("awsKinesisStreamName", STREAM_NAME);
         sinkConfig.put("awsRegion", "us-east-1");
         sinkConfig.put("awsCredentialPluginParam", "{\"accessKey\":\"access\",\"secretKey\":\"secret\"}");
+        sinkConfig.put("awsEndpoint", NAME);
+        sinkConfig.put("awsEndpointPort", LOCALSTACK_SERVICE_PORT);
+        sinkConfig.put("awsStsEndpoint", NAME);
+        sinkConfig.put("awsStsPort", LOCALSTACK_SERVICE_PORT);
+        sinkConfig.put("skipCertificateValidation", true);
         if (withSchema) {
             sinkConfig.put("messageFormat", "FULL_MESSAGE_IN_JSON_EXPAND_VALUE");
         }
@@ -100,9 +105,6 @@ public class KinesisSinkTester extends SinkTester<LocalStackContainer> {
     public void prepareSink() throws Exception {
         final LocalStackContainer localStackContainer = getServiceContainer();
         final URI endpointOverride = localStackContainer.getEndpointOverride(LocalStackContainer.Service.KINESIS);
-        sinkConfig.put("awsEndpoint", NAME);
-        sinkConfig.put("awsEndpointPort", LOCALSTACK_SERVICE_PORT);
-        sinkConfig.put("skipCertificateValidation", true);
         client = KinesisAsyncClient.builder().credentialsProvider(() -> AwsBasicCredentials.create(
                 "access",
                 "secret"))
@@ -128,8 +130,9 @@ public class KinesisSinkTester extends SinkTester<LocalStackContainer> {
 
     @Override
     protected LocalStackContainer createSinkService(PulsarCluster cluster) {
-        return new LocalStackContainer(DockerImageName.parse("localstack/localstack:1.0.4"))
-                .withServices(LocalStackContainer.Service.KINESIS);
+        return new LocalStackContainer(DockerImageName.parse("localstack/localstack:4.0.3"))
+                .withServices(LocalStackContainer.Service.KINESIS, LocalStackContainer.Service.STS)
+                .withEnv("KINESIS_PROVIDER", "kinesalite");
     }
 
     @Override

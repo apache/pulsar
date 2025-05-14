@@ -24,6 +24,8 @@ import com.google.common.annotations.VisibleForTesting;
 import io.netty.channel.EventLoopGroup;
 import io.opentelemetry.api.OpenTelemetry;
 import java.io.IOException;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -39,16 +41,18 @@ import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.commons.configuration.Configuration;
 import org.apache.pulsar.broker.stats.prometheus.metrics.PrometheusMetricsProvider;
+import org.apache.pulsar.broker.storage.BookkeeperManagedLedgerStorageClass;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
+import org.apache.pulsar.broker.storage.ManagedLedgerStorageClass;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
-
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerClientFactory.class);
-
+    private static final String DEFAULT_STORAGE_CLASS_NAME = "bookkeeper";
+    private BookkeeperManagedLedgerStorageClass defaultStorageClass;
     private ManagedLedgerFactory managedLedgerFactory;
     private BookKeeper defaultBkClient;
     private final AsyncCache<EnsemblePlacementPolicyConfig, BookKeeper>
@@ -68,8 +72,21 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
         managedLedgerFactoryConfig.setCacheEvictionTimeThresholdMillis(
                 conf.getManagedLedgerCacheEvictionTimeThresholdMillis());
         managedLedgerFactoryConfig.setCopyEntriesInCache(conf.isManagedLedgerCacheCopyEntries());
-        managedLedgerFactoryConfig.setManagedLedgerMaxReadsInFlightSize(
-                conf.getManagedLedgerMaxReadsInFlightSizeInMB() * 1024L * 1024L);
+        long managedLedgerMaxReadsInFlightSizeBytes = conf.getManagedLedgerMaxReadsInFlightSizeInMB() * 1024L * 1024L;
+        if (managedLedgerMaxReadsInFlightSizeBytes > 0 && conf.getDispatcherMaxReadSizeBytes() > 0
+                && managedLedgerMaxReadsInFlightSizeBytes < conf.getDispatcherMaxReadSizeBytes()) {
+            log.warn("Invalid configuration for managedLedgerMaxReadsInFlightSizeInMB: {}, "
+                            + "dispatcherMaxReadSizeBytes: {}. managedLedgerMaxReadsInFlightSizeInMB in bytes should "
+                            + "be greater than dispatcherMaxReadSizeBytes. You should set "
+                            + "managedLedgerMaxReadsInFlightSizeInMB to at least {}",
+                    conf.getManagedLedgerMaxReadsInFlightSizeInMB(), conf.getDispatcherMaxReadSizeBytes(),
+                    (conf.getDispatcherMaxReadSizeBytes() / (1024L * 1024L)) + 1);
+        }
+        managedLedgerFactoryConfig.setManagedLedgerMaxReadsInFlightSize(managedLedgerMaxReadsInFlightSizeBytes);
+        managedLedgerFactoryConfig.setManagedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis(
+                conf.getManagedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis());
+        managedLedgerFactoryConfig.setManagedLedgerMaxReadsInFlightPermitsAcquireQueueSize(
+                conf.getManagedLedgerMaxReadsInFlightPermitsAcquireQueueSize());
         managedLedgerFactoryConfig.setPrometheusStatsLatencyRolloverSeconds(
                 conf.getManagedLedgerPrometheusStatsLatencyRolloverSeconds());
         managedLedgerFactoryConfig.setTraceTaskExecution(conf.isManagedLedgerTraceTaskExecution());
@@ -112,26 +129,66 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
 
         try {
             this.managedLedgerFactory =
-                    new ManagedLedgerFactoryImpl(metadataStore, bkFactory, managedLedgerFactoryConfig, statsLogger,
-                            openTelemetry);
+                    createManagedLedgerFactory(metadataStore, openTelemetry, bkFactory, managedLedgerFactoryConfig,
+                            statsLogger);
         } catch (Exception e) {
             statsProvider.stop();
             defaultBkClient.close();
             throw e;
         }
+
+        defaultStorageClass = new BookkeeperManagedLedgerStorageClass() {
+            @Override
+            public String getName() {
+                return DEFAULT_STORAGE_CLASS_NAME;
+            }
+
+            @Override
+            public ManagedLedgerFactory getManagedLedgerFactory() {
+                return managedLedgerFactory;
+            }
+
+            @Override
+            public StatsProvider getStatsProvider() {
+                return statsProvider;
+            }
+
+            @Override
+            public BookKeeper getBookKeeperClient() {
+                return defaultBkClient;
+            }
+        };
     }
 
-    public ManagedLedgerFactory getManagedLedgerFactory() {
-        return managedLedgerFactory;
+    protected ManagedLedgerFactoryImpl createManagedLedgerFactory(MetadataStoreExtended metadataStore,
+                                                                  OpenTelemetry openTelemetry,
+                                                                  BookkeeperFactoryForCustomEnsemblePlacementPolicy
+                                                                          bkFactory,
+                                                                  ManagedLedgerFactoryConfig managedLedgerFactoryConfig,
+                                                                  StatsLogger statsLogger) throws Exception {
+        return new ManagedLedgerFactoryImpl(metadataStore, bkFactory, managedLedgerFactoryConfig, statsLogger,
+                openTelemetry);
     }
 
-    public BookKeeper getBookKeeperClient() {
-        return defaultBkClient;
+    @Override
+    public Collection<ManagedLedgerStorageClass> getStorageClasses() {
+        return List.of(getDefaultStorageClass());
     }
 
-    public StatsProvider getStatsProvider() {
-        return statsProvider;
+    @Override
+    public Optional<ManagedLedgerStorageClass> getManagedLedgerStorageClass(String name) {
+        if (name == null || DEFAULT_STORAGE_CLASS_NAME.equals(name)) {
+            return Optional.of(getDefaultStorageClass());
+        } else {
+            return Optional.empty();
+        }
     }
+
+    @Override
+    public ManagedLedgerStorageClass getDefaultStorageClass() {
+        return defaultStorageClass;
+    }
+
 
     @VisibleForTesting
     public Map<EnsemblePlacementPolicyConfig, BookKeeper> getBkEnsemblePolicyToBookKeeperMap() {

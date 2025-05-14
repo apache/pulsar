@@ -18,6 +18,8 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.mledger.impl.EntryCountEstimator.estimateEntryCountByBytesSize;
+import static org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl.BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
@@ -70,11 +72,14 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
+import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerEntry;
+import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -98,6 +103,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.IntRange;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -682,13 +688,15 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedCursor cursor = ledger.openCursor("c1");
 
         for (int i = 0; i < 100; i++) {
-            ledger.addEntry(new byte[1024]);
+            ledger.addEntry(new byte[(int) (1024)]);
         }
 
-        // First time, since we don't have info, we'll get 1 single entry
-        readAndCheck(cursor, 10, 3 * 1024, 1);
+        // Since https://github.com/apache/pulsar/pull/23931 improved the performance of delivery, the consumer
+        // will get more messages than before(it only receives 1 messages at the first delivery),
+        int avg = (int) (BOOKKEEPER_READ_OVERHEAD_PER_ENTRY + 1024);
+        readAndCheck(cursor, 10, 3 * avg, 3);
         // We should only return 3 entries, based on the max size
-        readAndCheck(cursor, 20, 3 * 1024, 3);
+        readAndCheck(cursor, 20, 3 * avg, 3);
         // If maxSize is < avg, we should get 1 entry
         readAndCheck(cursor, 10, 500, 1);
     }
@@ -996,6 +1004,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         long lastActive = cursor.getLastActive();
 
+        // ensure that the next last active time will be greater than the current one
+        Thread.sleep(1L);
+
         cursor.asyncResetCursor(lastPosition, false, new AsyncCallbacks.ResetCursorCallback() {
             @Override
             public void resetComplete(Object ctx) {
@@ -1249,6 +1260,34 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         assertEquals(c1.getMarkDeletedPosition(), p1);
         assertEquals(c2.getMarkDeletedPosition(), p2);
+    }
+
+    @Test(timeOut = 20000)
+    public void cursorPersistenceWithLedgerForceRecovery() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setLedgerForceRecovery(true);
+
+        ManagedLedger ledger = factory.open("my_test_ledger", config);
+        ManagedCursor c1 = ledger.openCursor("c1");
+        ledger.addEntry("dummy-entry-1".getBytes(Encoding));
+        ledger.addEntry("dummy-entry-2".getBytes(Encoding));
+        ledger.addEntry("dummy-entry-3".getBytes(Encoding));
+
+        List<Entry> entries = c1.readEntries(2);
+        Position p1 = entries.get(1).getPosition();
+        c1.markDelete(p1);
+        entries.forEach(Entry::release);
+
+        entries = c1.readEntries(1);
+        entries.forEach(Entry::release);
+
+        // Reopen
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ledger = factory2.open("my_test_ledger", config);
+        c1 = ledger.openCursor("c1");
+
+        assertEquals(c1.getMarkDeletedPosition(), p1);
     }
 
     @Test(timeOut = 20000)
@@ -1807,6 +1846,12 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         Position pos4 = ledger.addEntry("dummy-entry-4".getBytes(Encoding));
         Position pos5 = ledger.addEntry("dummy-entry-5".getBytes(Encoding));
 
+        // Wait until a new ledger is created after the previous one has been closed.
+        // This happens because maxEntriesPerLedger is set to 5, so a new ledger is opened after every 5 entries.
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(ledger.getLedgersInfo().lastEntry().getKey() > pos5.getLedgerId());
+        });
+
         // delete individual messages
         c1.delete(pos2);
         c1.delete(pos4);
@@ -1816,19 +1861,25 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(c1.getReadPosition(), PositionFactory.create(pos5.getLedgerId() + 1, 0));
         assertEquals(c1.getMarkDeletedPosition(), pos5);
 
-        pos1 = ledger.addEntry("dummy-entry-1".getBytes(Encoding));
-        pos2 = ledger.addEntry("dummy-entry-2".getBytes(Encoding));
-        pos3 = ledger.addEntry("dummy-entry-3".getBytes(Encoding));
-        pos4 = ledger.addEntry("dummy-entry-4".getBytes(Encoding));
-        pos5 = ledger.addEntry("dummy-entry-5".getBytes(Encoding));
+        Position pos6 = ledger.addEntry("dummy-entry-1".getBytes(Encoding));
+        Position pos7 = ledger.addEntry("dummy-entry-2".getBytes(Encoding));
+        Position pos8 = ledger.addEntry("dummy-entry-3".getBytes(Encoding));
+        Position pos9 = ledger.addEntry("dummy-entry-4".getBytes(Encoding));
+        Position pos10 = ledger.addEntry("dummy-entry-5".getBytes(Encoding));
 
-        c1.delete(pos2);
-        c1.delete(pos4);
+        // Wait until a new ledger is created after the previous one has been closed.
+        // This happens because maxEntriesPerLedger is set to 5, so a new ledger is opened after every 5 entries.
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(ledger.getLedgersInfo().lastEntry().getKey() > pos10.getLedgerId());
+        });
+
+        c1.delete(pos7);
+        c1.delete(pos9);
 
         c1.skipEntries(4, IndividualDeletedEntries.Include);
         assertEquals(c1.getNumberOfEntries(), 1);
-        assertEquals(c1.getReadPosition(), pos5);
-        assertEquals(c1.getMarkDeletedPosition(), pos4);
+        assertEquals(c1.getReadPosition(), pos10);
+        assertEquals(c1.getMarkDeletedPosition(), pos9);
     }
 
     @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
@@ -2848,6 +2899,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         EntryImpl entry5 = EntryImpl.create(markDeletedPosition.getLedgerId(), markDeletedPosition.getEntryId() + 7,
                 ByteBufAllocator.DEFAULT.buffer(0));
         List<Entry> entries = Lists.newArrayList(entry1, entry2, entry3, entry4, entry5);
+        // release data buffers since EntryImpl.create will retain the buffer
+        entries.forEach(entry -> entry.getDataBuffer().release());
+
         c1.trimDeletedEntries(entries);
         assertEquals(entries.size(), 1);
         assertEquals(entries.get(0).getPosition(), PositionFactory.create(markDeletedPosition.getLedgerId(),
@@ -2857,6 +2911,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(entry2.refCnt(), 0);
         assertEquals(entry3.refCnt(), 0);
         assertEquals(entry4.refCnt(), 0);
+
+        // release remaining entry
+        entries.forEach(Entry::release);
     }
 
     @Test(timeOut = 20000)
@@ -3223,7 +3280,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         managedLedgerConfig.setMaxUnackedRangesToPersistInMetadataStore(10);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerName, managedLedgerConfig);
 
-        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor(cursorName);
+        final ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor(cursorName);
 
         List<Position> addedPositions = new ArrayList<>();
         for (int i = 0; i < totalAddEntries; i++) {
@@ -3269,7 +3326,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                         LedgerEntry entry = seq.nextElement();
                         PositionInfo positionInfo;
                         positionInfo = PositionInfo.parseFrom(entry.getEntry());
-                        individualDeletedMessagesCount.set(positionInfo.getIndividualDeletedMessagesCount());
+                        c1.recoverIndividualDeletedMessages(positionInfo);
+                        individualDeletedMessagesCount.set(c1.getIndividuallyDeletedMessagesSet().asRanges().size());
                     } catch (Exception e) {
                     }
                     latch.countDown();
@@ -3286,12 +3344,12 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         @Cleanup("shutdown")
         ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ledger = (ManagedLedgerImpl) factory2.open(ledgerName, managedLedgerConfig);
-        c1 = (ManagedCursorImpl) ledger.openCursor("c1");
+        ManagedCursorImpl reopenCursor = (ManagedCursorImpl) ledger.openCursor("c1");
         // verify cursor has been recovered
-        assertEquals(c1.getNumberOfEntriesInBacklog(false), totalAddEntries / 2);
+        assertEquals(reopenCursor.getNumberOfEntriesInBacklog(false), totalAddEntries / 2);
 
         // try to read entries which should only read non-deleted positions
-        List<Entry> entries = c1.readEntries(totalAddEntries);
+        List<Entry> entries = reopenCursor.readEntries(totalAddEntries);
         assertEquals(entries.size(), totalAddEntries / 2);
     }
 
@@ -3881,13 +3939,15 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             ledger.addEntry(new byte[1024]);
         }
 
-        // First time, since we don't have info, we'll get 1 single entry
-        List<Entry> entries = c.readEntriesOrWait(10, 3 * 1024);
-        assertEquals(entries.size(), 1);
+        // Since https://github.com/apache/pulsar/pull/23931 improved the performance of delivery, the consumer
+        // will get more messages than before(it only receives 1 messages at the first delivery),
+        int avg = (int) (1024 + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY);
+        List<Entry> entries = c.readEntriesOrWait(10, 3 * avg);
+        assertEquals(entries.size(), 3);
         entries.forEach(Entry::release);
 
         // We should only return 3 entries, based on the max size
-        entries = c.readEntriesOrWait(10, 3 * 1024);
+        entries = c.readEntriesOrWait(10, 3 * avg);
         assertEquals(entries.size(), 3);
         entries.forEach(Entry::release);
 
@@ -4537,7 +4597,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger.close();
     }
 
-
     @Test
     public void testReadEntriesWithSkipDeletedEntries() throws Exception {
         @Cleanup
@@ -4735,6 +4794,53 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testSkipNonRecoverableEntries() throws ManagedLedgerException, InterruptedException {
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        int maxMessagePerLedger = 10;
+        managedLedgerConfig.setMaxEntriesPerLedger(maxMessagePerLedger);
+        ManagedLedger ledger = factory.open("testSkipNonRecoverableEntries", managedLedgerConfig);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("my-cursor");
+
+        Position lacPosition = ledger.getLastConfirmedEntry();
+        long ledgerId = lacPosition.getLedgerId();
+        assertEquals(PositionFactory.create(ledgerId, -1), cursor.getMarkDeletedPosition());
+
+        // Mock add 10 entry
+        for (int i = 0; i < 10; i++) {
+            ledger.addEntry(String.valueOf(i).getBytes());
+        }
+
+        // read 2 entry and delete these entries, MarkDeletedPosition move forward
+        List<Entry> entries = cursor.readEntries(2);
+        for (Entry entry : entries) {
+            cursor.delete(entry.getPosition());
+        }
+        assertEquals(PositionFactory.create(ledgerId, 1), cursor.getMarkDeletedPosition());
+
+        // read the next 6 entry and not delete, MarkDeletedPosition not move forward
+        entries = cursor.readEntries(6);
+        assertEquals(PositionFactory.create(ledgerId, 1), cursor.getMarkDeletedPosition());
+
+        // delete last read entry, MarkDeletedPosition not move forward
+        Entry lastEntry = entries.get(entries.size() - 1);
+        cursor.delete(lastEntry.getPosition());
+        assertEquals(PositionFactory.create(ledgerId, 1), cursor.getMarkDeletedPosition());
+
+        // call skip entries, MarkDeletedPosition move forward
+        cursor.skipNonRecoverableEntries(cursor.getMarkDeletedPosition(),
+                PositionFactory.create(ledgerId, lastEntry.getEntryId()));
+        assertEquals(PositionFactory.create(ledgerId, lastEntry.getEntryId()), cursor.getMarkDeletedPosition());
+
+        // repeat call skip entries, MarkDeletedPosition not change
+        cursor.skipNonRecoverableEntries(cursor.getMarkDeletedPosition(),
+                PositionFactory.create(ledgerId, lastEntry.getEntryId()));
+        assertEquals(PositionFactory.create(ledgerId, lastEntry.getEntryId()), cursor.getMarkDeletedPosition());
+
+        cursor.close();
+        ledger.close();
+    }
+
+    @Test
     public void testRecoverCursorWithTerminateManagedLedger() throws Exception {
         String mlName = "my_test_ledger";
         String cursorName = "c1";
@@ -4792,6 +4898,449 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // Verify the cursor state.
         assertEquals(cursor.getMarkDeletedPosition(), markDeletedPosition);
         assertEquals(cursor.getReadPosition(), markDeletedPosition.getNext());
+    }
+
+    @Test
+    public void testFindNewestMatching_SearchAllAvailableEntries_ByStartAndEnd() throws Exception {
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        managedLedgerConfig.setMaxEntriesPerLedger(2);
+        managedLedgerConfig.setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testFindNewestMatching_SearchAllAvailableEntries_ByStartAndEnd", managedLedgerConfig);
+        @Cleanup
+        ManagedCursor managedCursor = ledger.openCursor("test");
+
+        Position position = ledger.addEntry("test".getBytes(Encoding));
+        Position position1 = ledger.addEntry("test1".getBytes(Encoding));
+        Position position2 = ledger.addEntry("test2".getBytes(Encoding));
+        Position position3 = ledger.addEntry("test3".getBytes(Encoding));
+
+        Predicate<Entry> condition = entry -> {
+            try {
+                Position p = entry.getPosition();
+                return p.compareTo(position1) <= 0;
+            } finally {
+                entry.release();
+            }
+        };
+
+        // find the newest entry with start and end position
+        AtomicBoolean failed = new AtomicBoolean(false);
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<Position> positionRef = new AtomicReference<>();
+        managedCursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, condition, position, position2, new AsyncCallbacks.FindEntryCallback() {
+            @Override
+            public void findEntryComplete(Position position, Object ctx) {
+                positionRef.set(position);
+                latch.countDown();
+            }
+
+            @Override
+            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx) {
+                failed.set(true);
+                latch.countDown();
+            }
+        }, null, true);
+
+        latch.await();
+        assertFalse(failed.get());
+        assertNotNull(positionRef.get());
+        assertEquals(positionRef.get(), position1);
+
+        // find the newest entry with start
+        AtomicBoolean failed1 = new AtomicBoolean(false);
+        CountDownLatch latch1 = new CountDownLatch(1);
+        AtomicReference<Position> positionRef1 = new AtomicReference<>();
+        managedCursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, condition, position, null, new AsyncCallbacks.FindEntryCallback() {
+            @Override
+            public void findEntryComplete(Position position, Object ctx) {
+                positionRef1.set(position);
+                latch1.countDown();
+            }
+
+            @Override
+            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx) {
+                failed1.set(true);
+                latch1.countDown();
+            }
+        }, null, true);
+        latch1.await();
+        assertFalse(failed1.get());
+        assertNotNull(positionRef1.get());
+        assertEquals(positionRef1.get(), position1);
+
+        // find the newest entry with end
+        AtomicBoolean failed2 = new AtomicBoolean(false);
+        CountDownLatch latch2 = new CountDownLatch(1);
+        AtomicReference<Position> positionRef2 = new AtomicReference<>();
+        managedCursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, condition, null, position2, new AsyncCallbacks.FindEntryCallback() {
+            @Override
+            public void findEntryComplete(Position position, Object ctx) {
+                positionRef2.set(position);
+                latch2.countDown();
+            }
+
+            @Override
+            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx) {
+                failed2.set(true);
+                latch2.countDown();
+            }
+        }, null, true);
+        latch2.await();
+        assertFalse(failed2.get());
+        assertNotNull(positionRef2.get());
+        assertEquals(positionRef2.get(), position1);
+
+        // find the newest entry without start and end position
+        AtomicBoolean failed3 = new AtomicBoolean(false);
+        CountDownLatch latch3 = new CountDownLatch(1);
+        AtomicReference<Position> positionRef3 = new AtomicReference<>();
+        managedCursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, condition, null, null, new AsyncCallbacks.FindEntryCallback() {
+            @Override
+            public void findEntryComplete(Position position, Object ctx) {
+                positionRef3.set(position);
+                latch3.countDown();
+            }
+
+            @Override
+            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx) {
+                failed3.set(true);
+                latch3.countDown();
+            }
+        }, null, true);
+        latch3.await();
+        assertFalse(failed3.get());
+        assertNotNull(positionRef3.get());
+        assertEquals(positionRef3.get(), position1);
+
+        // find position3
+        AtomicBoolean failed4 = new AtomicBoolean(false);
+        CountDownLatch latch4 = new CountDownLatch(1);
+        AtomicReference<Position> positionRef4 = new AtomicReference<>();
+        managedCursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, entry -> {
+            try {
+                Position p = entry.getPosition();
+                return p.compareTo(position3) <= 0;
+            } finally {
+                entry.release();
+            }
+        }, position3, position3, new AsyncCallbacks.FindEntryCallback() {
+            @Override
+            public void findEntryComplete(Position position, Object ctx) {
+                positionRef4.set(position);
+                latch4.countDown();
+            }
+
+            @Override
+            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx) {
+                failed4.set(true);
+                latch4.countDown();
+            }
+        }, null, true);
+        latch4.await();
+        assertFalse(failed4.get());
+        assertNotNull(positionRef4.get());
+        assertEquals(positionRef4.get(), position3);
+    }
+
+
+    @Test
+    public void testFindNewestMatching_SearchActiveEntries_ByStartAndEnd() throws Exception {
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        managedLedgerConfig.setMaxEntriesPerLedger(2);
+        managedLedgerConfig.setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testFindNewestMatching_SearchActiveEntries_ByStartAndEnd", managedLedgerConfig);
+        @Cleanup
+        ManagedCursorImpl managedCursor = (ManagedCursorImpl) ledger.openCursor("test");
+
+        Position position = ledger.addEntry("test".getBytes(Encoding));
+        Position position1 = ledger.addEntry("test1".getBytes(Encoding));
+        Position position2 = ledger.addEntry("test2".getBytes(Encoding));
+        Position position3 = ledger.addEntry("test3".getBytes(Encoding));
+        Position position4 = ledger.addEntry("test4".getBytes(Encoding));
+        managedCursor.markDelete(position1);
+        assertEquals(managedCursor.getNumberOfEntries(), 3);
+
+        Predicate<Entry> condition = entry -> {
+            try {
+                Position p = entry.getPosition();
+                return p.compareTo(position3) <= 0;
+            } finally {
+                entry.release();
+            }
+        };
+
+        // find the newest entry with start and end position
+        AtomicBoolean failed = new AtomicBoolean(false);
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<Position> positionRef = new AtomicReference<>();
+        managedCursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchActiveEntries, condition, position2, position4, new AsyncCallbacks.FindEntryCallback() {
+            @Override
+            public void findEntryComplete(Position position, Object ctx) {
+                positionRef.set(position);
+                latch.countDown();
+            }
+
+            @Override
+            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx) {
+                failed.set(true);
+                latch.countDown();
+            }
+        }, null, true);
+        latch.await();
+        assertFalse(failed.get());
+        assertNotNull(positionRef.get());
+        assertEquals(positionRef.get(), position3);
+
+        // find the newest entry with start
+        AtomicBoolean failed1 = new AtomicBoolean(false);
+        CountDownLatch latch1 = new CountDownLatch(1);
+        AtomicReference<Position> positionRef1 = new AtomicReference<>();
+        managedCursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchActiveEntries, condition, position2, null, new AsyncCallbacks.FindEntryCallback() {
+            @Override
+            public void findEntryComplete(Position position, Object ctx) {
+                positionRef1.set(position);
+                latch1.countDown();
+            }
+
+            @Override
+            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx) {
+                failed1.set(true);
+                latch1.countDown();
+            }
+        }, null, true);
+
+        latch1.await();
+        assertFalse(failed1.get());
+        assertNotNull(positionRef1.get());
+        assertEquals(positionRef1.get(), position3);
+
+        // find the newest entry with end
+        AtomicBoolean failed2 = new AtomicBoolean(false);
+        CountDownLatch latch2 = new CountDownLatch(1);
+        AtomicReference<Position> positionRef2 = new AtomicReference<>();
+        managedCursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchActiveEntries, condition, null, position4, new AsyncCallbacks.FindEntryCallback() {
+            @Override
+            public void findEntryComplete(Position position, Object ctx) {
+                positionRef2.set(position);
+                latch2.countDown();
+            }
+
+            @Override
+            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx) {
+                failed2.set(true);
+                latch2.countDown();
+            }
+        }, null, true);
+
+        latch2.await();
+        assertFalse(failed2.get());
+        assertNotNull(positionRef2.get());
+        assertEquals(positionRef2.get(), position3);
+
+        // find the newest entry without start and end position
+        AtomicBoolean failed3 = new AtomicBoolean(false);
+        CountDownLatch latch3 = new CountDownLatch(1);
+        AtomicReference<Position> positionRef3 = new AtomicReference<>();
+        managedCursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchActiveEntries, condition, null, null, new AsyncCallbacks.FindEntryCallback() {
+            @Override
+            public void findEntryComplete(Position position, Object ctx) {
+                positionRef3.set(position);
+                latch3.countDown();
+            }
+
+            @Override
+            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx) {
+                failed3.set(true);
+                latch3.countDown();
+            }
+        }, null, true);
+        latch3.await();
+        assertFalse(failed3.get());
+        assertNotNull(positionRef3.get());
+        assertEquals(positionRef3.get(), position3);
+
+        // find position4
+        AtomicBoolean failed4 = new AtomicBoolean(false);
+        CountDownLatch latch4 = new CountDownLatch(1);
+        AtomicReference<Position> positionRef4 = new AtomicReference<>();
+        managedCursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchActiveEntries, entry -> {
+            try {
+                Position p = entry.getPosition();
+                return p.compareTo(position4) <= 0;
+            } finally {
+                entry.release();
+            }
+        }, position4, position4, new AsyncCallbacks.FindEntryCallback() {
+            @Override
+            public void findEntryComplete(Position position, Object ctx) {
+                positionRef4.set(position);
+                latch4.countDown();
+            }
+
+            @Override
+            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx) {
+                failed4.set(true);
+                latch4.countDown();
+            }
+        }, null, true);
+        latch4.await();
+        assertFalse(failed4.get());
+        assertNotNull(positionRef4.get());
+        assertEquals(positionRef4.get(), position4);
+    }
+
+    @Test
+    public void testEstimateEntryCountBySize() throws Exception {
+        final String mlName = "ml-" + UUID.randomUUID().toString().replaceAll("-", "");
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName);
+        int maxEntries = Integer.MAX_VALUE;
+        long entryCount0 =
+                estimateEntryCountByBytesSize(maxEntries, 16,
+                        PositionFactory.create(ml.getCurrentLedger().getId(), 0), ml);
+        assertEquals(entryCount0, 1);
+        // Avoid trimming ledgers.
+        ml.openCursor("c1");
+
+        // Build data.
+        for (int i = 0; i < 100; i++) {
+            ml.addEntry(new byte[]{1});
+        }
+        long ledger1 = ml.getCurrentLedger().getId();
+        ml.getCurrentLedger().close();
+        ml.ledgerClosed(ml.getCurrentLedger());
+        for (int i = 0; i < 100; i++) {
+            ml.addEntry(new byte[]{1, 2});
+        }
+        long ledger2 = ml.getCurrentLedger().getId();
+        ml.getCurrentLedger().close();
+        ml.ledgerClosed(ml.getCurrentLedger());
+        for (int i = 0; i < 100; i++) {
+            ml.addEntry(new byte[]{1, 2, 3, 4});
+        }
+        long ledger3 = ml.getCurrentLedger().getId();
+        MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo1 = ml.getLedgersInfo().get(ledger1);
+        MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo2 = ml.getLedgersInfo().get(ledger2);
+        long average1 = ledgerInfo1.getSize() / ledgerInfo1.getEntries() + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
+        long average2 = ledgerInfo2.getSize() / ledgerInfo2.getEntries() + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
+        long average3 = ml.getCurrentLedgerSize() / ml.getCurrentLedgerEntries() + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
+        assertEquals(average1, 1 + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY);
+        assertEquals(average2, 2 + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY);
+        assertEquals(average3, 4 + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY);
+
+        // Test: the individual ledgers.
+        int entryCount1 =
+                estimateEntryCountByBytesSize(maxEntries, average1 * 16, PositionFactory.create(ledger1, 0),
+                        ml);
+        assertEquals(entryCount1, 16);
+        int entryCount2 =
+                estimateEntryCountByBytesSize(maxEntries, average2 * 8, PositionFactory.create(ledger2, 0), ml);
+        assertEquals(entryCount2, 8);
+        int entryCount3 =
+                estimateEntryCountByBytesSize(maxEntries, average3 * 4, PositionFactory.create(ledger3, 0), ml);
+        assertEquals(entryCount3, 4);
+
+        // Test: across ledgers.
+        int entryCount4 =
+                estimateEntryCountByBytesSize(maxEntries, (average1 * 100) + (average2 * 8),
+                        PositionFactory.create(ledger1, 0), ml);
+        assertEquals(entryCount4, 108);
+        int entryCount5 =
+                estimateEntryCountByBytesSize(maxEntries, (average2 * 100) + (average3 * 4),
+                        PositionFactory.create(ledger2, 0), ml);
+        assertEquals(entryCount5, 104);
+        int entryCount6 =
+                estimateEntryCountByBytesSize(maxEntries, (average1 * 100) + (average2 * 100) + (average3 * 4),
+                        PositionFactory.create(ledger1, 0), ml);
+        assertEquals(entryCount6, 204);
+
+        int entryCount7 =
+                estimateEntryCountByBytesSize(maxEntries, (average1 * 20) + (average2 * 8),
+                        PositionFactory.create(ledger1, 80), ml);
+        assertEquals(entryCount7, 28);
+        int entryCount8 =
+                estimateEntryCountByBytesSize(maxEntries, (average2 * 20) + (average3 * 4),
+                        PositionFactory.create(ledger2, 80), ml);
+        assertEquals(entryCount8, 24);
+        int entryCount9 =
+                estimateEntryCountByBytesSize(maxEntries, (average1 * 20) + (average2 * 100) + (average3 * 4),
+                        PositionFactory.create(ledger1, 80), ml);
+        assertEquals(entryCount9, 124);
+
+        // Test: read more than entries written.
+        int entryCount10 =
+                estimateEntryCountByBytesSize(
+                        maxEntries, (average1 * 100) + (average2 * 100) + (average3 * 100) + (average3 * 4),
+                        PositionFactory.create(ledger1, 0), ml);
+        assertEquals(entryCount10, 304);
+
+        // cleanup.
+        ml.delete();
+    }
+
+    @Test
+    public void testApplyMaxSizeCap() throws Exception {
+        var ml = factory.open("testApplyMaxSizeCap");
+        var cursor = ml.openCursor("c1");
+        ml.addEntry(new byte[1000]);
+        assertEquals(cursor.applyMaxSizeCap(200, Long.MAX_VALUE), 200);
+        ml.deleteCursor("c1");
+        ml.delete();
+    }
+
+    @Test
+    void testForceCursorRecovery() throws Exception {
+        TestPulsarMockBookKeeper bk = new TestPulsarMockBookKeeper(executor);
+        factory.shutdown();
+        factory = new ManagedLedgerFactoryImpl(metadataStore, bk);
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setLedgerForceRecovery(true);
+        ManagedLedger ledger = factory.open("my_test_ledger", config);
+        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
+        ledger.addEntry("entry-1".getBytes(Encoding));
+        long invalidLedger = -1L;
+        bk.setErrorCodeMap(invalidLedger, BKException.Code.BookieHandleNotAvailableException);
+        ManagedCursorInfo info = ManagedCursorInfo.newBuilder().setCursorsLedgerId(invalidLedger).build();
+        CountDownLatch latch = new CountDownLatch(1);
+        MutableBoolean recovered = new MutableBoolean(false);
+        VoidCallback callback = new VoidCallback() {
+            @Override
+            public void operationComplete() {
+                recovered.setValue(true);
+                latch.countDown();
+            }
+
+            @Override
+            public void operationFailed(ManagedLedgerException exception) {
+                recovered.setValue(false);
+                latch.countDown();
+            }
+        };
+        c1.recoverFromLedger(info, callback);
+        latch.await();
+        assertTrue(recovered.booleanValue());
+    }
+
+    class TestPulsarMockBookKeeper extends PulsarMockBookKeeper {
+        Map<Long, Integer> ledgerErrors = new HashMap<>();
+
+        public TestPulsarMockBookKeeper(OrderedExecutor orderedExecutor) throws Exception {
+            super(orderedExecutor);
+        }
+
+        public void setErrorCodeMap(long ledgerId, int rc) {
+            ledgerErrors.put(ledgerId, rc);
+        }
+
+        public void asyncOpenLedger(final long lId, final DigestType digestType, final byte[] passwd,
+                final OpenCallback cb, final Object ctx) {
+            if (ledgerErrors.containsKey(lId)) {
+                cb.openComplete(ledgerErrors.get(lId), null, ctx);
+            } else {
+                super.asyncOpenLedger(lId, digestType, passwd, cb, ctx);
+            }
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);

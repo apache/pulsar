@@ -77,10 +77,12 @@ alias echo='{ [[ $- =~ .*x.* ]] && trace_enabled=1 || trace_enabled=0; set +x; }
 # Test Groups  -- start --
 function test_group_broker_group_1() {
   mvn_test -pl pulsar-broker -Dgroups='broker' -DtestReuseFork=true
+  # run tests in broker-isolated group individually (instead of with -Dgroups=broker-isolated) to avoid scanning all test classes
+  mvn_test -pl pulsar-broker -Dtest=org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGeneratorWithNoUnsafeTest -DtestForkCount=1 -DtestReuseFork=false
 }
 
 function test_group_broker_group_2() {
-  mvn_test -pl pulsar-broker -Dgroups='schema,utils,functions-worker,broker-io,broker-discovery,broker-compaction,broker-naming,websocket,other'
+  mvn_test -pl pulsar-broker -Dgroups='schema,utils,functions-worker,broker-io,broker-discovery,broker-compaction,broker-naming,broker-replication,websocket,other'
 }
 
 function test_group_broker_group_3() {

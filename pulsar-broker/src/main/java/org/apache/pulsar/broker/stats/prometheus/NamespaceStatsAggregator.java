@@ -83,7 +83,7 @@ public class NamespaceStatsAggregator {
         Optional<CompactorMXBean> compactorMXBean = getCompactorMXBean(pulsar);
         LongAdder topicsCount = new LongAdder();
         Map<String, Long> localNamespaceTopicCount = new HashMap<>();
-        pulsar.getBrokerService().getMultiLayerTopicMap().forEach((namespace, bundlesMap) -> {
+        pulsar.getBrokerService().getMultiLayerTopicsMap().forEach((namespace, bundlesMap) -> {
             namespaceStats.reset();
             topicsCount.reset();
 
@@ -134,6 +134,7 @@ public class NamespaceStatsAggregator {
         subsStats.msgOutCounter = subscriptionStats.msgOutCounter;
         subsStats.msgBacklog = subscriptionStats.msgBacklog;
         subsStats.msgDelayed = subscriptionStats.msgDelayed;
+        subsStats.msgInReplay = subscriptionStats.msgInReplay;
         subsStats.msgRateExpired = subscriptionStats.msgRateExpired;
         subsStats.totalMsgExpired = subscriptionStats.totalMsgExpired;
         subsStats.msgBacklogNoDelayed = subsStats.msgBacklog - subsStats.msgDelayed;
@@ -160,6 +161,18 @@ public class NamespaceStatsAggregator {
         subsStats.filterRescheduledMsgCount = subscriptionStats.filterRescheduledMsgCount;
         subsStats.delayedMessageIndexSizeInBytes = subscriptionStats.delayedMessageIndexSizeInBytes;
         subsStats.bucketDelayedIndexStats = subscriptionStats.bucketDelayedIndexStats;
+        subsStats.dispatchThrottledMsgEventsBySubscriptionLimit =
+                subscriptionStats.dispatchThrottledMsgEventsBySubscriptionLimit;
+        subsStats.dispatchThrottledBytesEventsBySubscriptionLimit =
+                subscriptionStats.dispatchThrottledBytesEventsBySubscriptionLimit;
+        subsStats.dispatchThrottledMsgEventsByTopicLimit =
+                subscriptionStats.dispatchThrottledMsgEventsByTopicLimit;
+        subsStats.dispatchThrottledBytesEventsByTopicLimit =
+                subscriptionStats.dispatchThrottledBytesEventsByTopicLimit;
+        subsStats.dispatchThrottledMsgEventsByBrokerLimit =
+                subscriptionStats.dispatchThrottledMsgEventsByBrokerLimit;
+        subsStats.dispatchThrottledBytesEventsByBrokerLimit =
+                subscriptionStats.dispatchThrottledBytesEventsByBrokerLimit;
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
@@ -303,7 +316,11 @@ public class NamespaceStatsAggregator {
             aggReplStats.msgThroughputOut += replStats.msgThroughputOut;
             aggReplStats.replicationBacklog += replStats.replicationBacklog;
             aggReplStats.msgRateExpired += replStats.msgRateExpired;
-            aggReplStats.connectedCount += replStats.connected ? 1 : 0;
+            if (replStats.connected) {
+                aggReplStats.connectedCount += 1;
+            } else {
+                aggReplStats.disconnectedCount += 1;
+            }
             aggReplStats.replicationDelayInSeconds += replStats.replicationDelayInSeconds;
         });
 
@@ -420,6 +437,8 @@ public class NamespaceStatsAggregator {
 
         writeMetric(stream, "pulsar_subscription_delayed", stats.msgDelayed, cluster, namespace);
 
+        writeMetric(stream, "pulsar_subscription_in_replay", stats.msgInReplay, cluster, namespace);
+
         writeMetric(stream, "pulsar_delayed_message_index_size_bytes", stats.delayedMessageIndexSizeInBytes, cluster,
                 namespace);
 
@@ -510,6 +529,8 @@ public class NamespaceStatsAggregator {
                 replStats -> replStats.replicationBacklog, cluster, namespace);
         writeReplicationStat(stream, "pulsar_replication_connected_count", stats,
                 replStats -> replStats.connectedCount, cluster, namespace);
+        writeReplicationStat(stream, "pulsar_replication_disconnected_count", stats,
+                replStats -> replStats.disconnectedCount, cluster, namespace);
         writeReplicationStat(stream, "pulsar_replication_rate_expired", stats,
                 replStats -> replStats.msgRateExpired, cluster, namespace);
         writeReplicationStat(stream, "pulsar_replication_delay_in_seconds", stats,

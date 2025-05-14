@@ -310,6 +310,8 @@ class TopicStats {
                     subsStats.msgBacklogNoDelayed, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
             writeSubscriptionMetric(stream, "pulsar_subscription_delayed",
                     subsStats.msgDelayed, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
+            writeSubscriptionMetric(stream, "pulsar_subscription_in_replay",
+                    subsStats.msgInReplay, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
             writeSubscriptionMetric(stream, "pulsar_subscription_msg_rate_redeliver",
                     subsStats.msgRateRedeliver, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
             writeSubscriptionMetric(stream, "pulsar_subscription_unacked_messages",
@@ -358,9 +360,36 @@ class TopicStats {
             writeSubscriptionMetric(stream, "pulsar_subscription_filter_rescheduled_msg_count",
                     subsStats.filterRescheduledMsgCount, cluster, namespace, topic, sub,
                     splitTopicAndPartitionIndexLabel);
-            writeSubscriptionMetric(stream, "pulsar_delayed_message_index_size_bytes",
+            writeSubscriptionMetric(stream, "pulsar_subscription_delayed_message_index_size_bytes",
                     subsStats.delayedMessageIndexSizeInBytes, cluster, namespace, topic, sub,
                     splitTopicAndPartitionIndexLabel);
+
+            // write dispatch throttling metrics with `reason` labels to identify specific throttling
+            // causes: by subscription limit, by topic limit, or by broker limit.
+            writeTopicMetric(stream, "pulsar_subscription_dispatch_throttled_msg_events",
+                    subsStats.dispatchThrottledMsgEventsBySubscriptionLimit, cluster, namespace, topic,
+                    splitTopicAndPartitionIndexLabel, "subscription", sub,
+                    "reason", "subscription");
+            writeTopicMetric(stream, "pulsar_subscription_dispatch_throttled_bytes_events",
+                    subsStats.dispatchThrottledBytesEventsBySubscriptionLimit, cluster, namespace, topic,
+                    splitTopicAndPartitionIndexLabel, "subscription", sub,
+                    "reason", "subscription");
+            writeTopicMetric(stream, "pulsar_subscription_dispatch_throttled_msg_events",
+                    subsStats.dispatchThrottledMsgEventsByTopicLimit, cluster, namespace, topic,
+                    splitTopicAndPartitionIndexLabel, "subscription", sub,
+                    "reason", "topic");
+            writeTopicMetric(stream, "pulsar_subscription_dispatch_throttled_bytes_events",
+                    subsStats.dispatchThrottledBytesEventsByTopicLimit, cluster, namespace, topic,
+                    splitTopicAndPartitionIndexLabel, "subscription", sub,
+                    "reason", "topic");
+            writeTopicMetric(stream, "pulsar_subscription_dispatch_throttled_msg_events",
+                    subsStats.dispatchThrottledMsgEventsByBrokerLimit, cluster, namespace, topic,
+                    splitTopicAndPartitionIndexLabel, "subscription", sub,
+                    "reason", "broker");
+            writeTopicMetric(stream, "pulsar_subscription_dispatch_throttled_bytes_events",
+                    subsStats.dispatchThrottledBytesEventsByBrokerLimit, cluster, namespace, topic,
+                    splitTopicAndPartitionIndexLabel, "subscription", sub,
+                    "reason", "broker");
 
             final String[] subscriptionLabel = {"subscription", sub};
             for (TopicMetricBean topicMetricBean : subsStats.bucketDelayedIndexStats.values()) {
@@ -407,6 +436,8 @@ class TopicStats {
                 writeMetric(stream, "pulsar_replication_backlog", replStats.replicationBacklog,
                         cluster, namespace, topic, remoteCluster, splitTopicAndPartitionIndexLabel);
                 writeMetric(stream, "pulsar_replication_connected_count", replStats.connectedCount,
+                        cluster, namespace, topic, remoteCluster, splitTopicAndPartitionIndexLabel);
+                writeMetric(stream, "pulsar_replication_disconnected_count", replStats.disconnectedCount,
                         cluster, namespace, topic, remoteCluster, splitTopicAndPartitionIndexLabel);
                 writeMetric(stream, "pulsar_replication_rate_expired", replStats.msgRateExpired,
                         cluster, namespace, topic, remoteCluster, splitTopicAndPartitionIndexLabel);

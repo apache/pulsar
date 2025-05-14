@@ -91,7 +91,6 @@ public class TransactionStablePositionTest extends TransactionTestBase {
                 .topic(TOPIC)
                 .subscriptionName("test")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Failover)
                 .subscribe();
         final String TEST1 = "test1";
@@ -139,7 +138,6 @@ public class TransactionStablePositionTest extends TransactionTestBase {
                 .topic(TOPIC)
                 .subscriptionName("test")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Failover)
                 .subscribe();
         final String TEST1 = "test1";
@@ -194,6 +192,15 @@ public class TransactionStablePositionTest extends TransactionTestBase {
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .topic(topicName)
                 .create();
+
+        if (clientEnableTransaction) {
+            Transaction transaction = pulsarClient.newTransaction()
+                    .withTransactionTimeout(5, TimeUnit.HOURS)
+                    .build()
+                    .get();
+            producer.newMessage(transaction).send();
+            transaction.commit().get();
+        }
 
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
                 .getTopic(TopicName.get(topicName).toString(), false).get().get();

@@ -20,9 +20,9 @@ package org.apache.pulsar.broker.service;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import org.apache.pulsar.client.api.Range;
@@ -36,8 +36,8 @@ import org.apache.pulsar.common.util.FutureUtil;
  * else there'll be chance that a key fall in a `whole` that not handled by any consumer.
  */
 public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyConsumerSelector {
-
     private final int rangeSize;
+    private final Range keyHashRange;
     private final ConcurrentSkipListMap<Integer, Consumer> rangeMap;
 
     public HashRangeExclusiveStickyKeyConsumerSelector() {
@@ -50,21 +50,22 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
             throw new IllegalArgumentException("range size must greater than 0");
         }
         this.rangeSize = rangeSize;
+        this.keyHashRange = Range.of(0, rangeSize - 1);
         this.rangeMap = new ConcurrentSkipListMap<>();
     }
 
     @Override
-    public synchronized CompletableFuture<Void> addConsumer(Consumer consumer) {
-        return validateKeySharedMeta(consumer).thenRun(() -> {
+    public synchronized CompletableFuture<Optional<ImpactedConsumersResult>> addConsumer(Consumer consumer) {
+        return validateKeySharedMeta(consumer).thenApply(__ -> {
             try {
-                internalAddConsumer(consumer);
+                return internalAddConsumer(consumer);
             } catch (BrokerServiceException.ConsumerAssignException e) {
                 throw FutureUtil.wrapToCompletionException(e);
             }
         });
     }
 
-    private synchronized void internalAddConsumer(Consumer consumer)
+    private synchronized Optional<ImpactedConsumersResult> internalAddConsumer(Consumer consumer)
             throws BrokerServiceException.ConsumerAssignException {
         Consumer conflictingConsumer = findConflictingConsumer(consumer.getKeySharedMeta().getHashRangesList());
         if (conflictingConsumer != null) {
@@ -75,37 +76,37 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
             rangeMap.put(intRange.getStart(), consumer);
             rangeMap.put(intRange.getEnd(), consumer);
         }
+        return Optional.empty();
     }
 
     @Override
-    public void removeConsumer(Consumer consumer) {
+    public synchronized Optional<ImpactedConsumersResult> removeConsumer(Consumer consumer) {
         rangeMap.entrySet().removeIf(entry -> entry.getValue().equals(consumer));
+        return Optional.empty();
     }
 
     @Override
-    public Map<Consumer, List<Range>> getConsumerKeyHashRanges() {
-        Map<Consumer, List<Range>> result = new HashMap<>();
+    public synchronized ConsumerHashAssignmentsSnapshot getConsumerHashAssignmentsSnapshot() {
+        List<HashRangeAssignment> result = new ArrayList<>();
         Map.Entry<Integer, Consumer> prev = null;
         for (Map.Entry<Integer, Consumer> entry: rangeMap.entrySet()) {
             if (prev == null) {
                 prev = entry;
             } else {
                 if (prev.getValue().equals(entry.getValue())) {
-                    result.computeIfAbsent(entry.getValue(), key -> new ArrayList<>())
-                            .add(Range.of(prev.getKey(), entry.getKey()));
+                    result.add(new HashRangeAssignment(Range.of(prev.getKey(), entry.getKey()), entry.getValue()));
                 }
                 prev = null;
             }
         }
-        return result;
+        return ConsumerHashAssignmentsSnapshot.of(result);
     }
 
     @Override
     public Consumer select(int hash) {
         if (rangeMap.size() > 0) {
-            int slot = hash % rangeSize;
-            Map.Entry<Integer, Consumer> ceilingEntry = rangeMap.ceilingEntry(slot);
-            Map.Entry<Integer, Consumer> floorEntry = rangeMap.floorEntry(slot);
+            Map.Entry<Integer, Consumer> ceilingEntry = rangeMap.ceilingEntry(hash);
+            Map.Entry<Integer, Consumer> floorEntry = rangeMap.floorEntry(hash);
             Consumer ceilingConsumer = ceilingEntry != null ? ceilingEntry.getValue() : null;
             Consumer floorConsumer = floorEntry != null ? floorEntry.getValue() : null;
             if (floorConsumer != null && floorConsumer.equals(ceilingConsumer)) {
@@ -173,4 +174,8 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
         return Collections.unmodifiableMap(rangeMap);
     }
 
+    @Override
+    public Range getKeyHashRange() {
+        return keyHashRange;
+    }
 }

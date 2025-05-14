@@ -1117,50 +1117,7 @@ public class CmdTopics extends CmdBase {
             String persistentTopic = validatePersistentTopic(topicName);
             List<Message<byte[]>> messages = getTopics().peekMessages(persistentTopic, subName, numMessages,
                     showServerMarker, transactionIsolationLevel);
-            int position = 0;
-            for (Message<byte[]> msg : messages) {
-                MessageImpl message = (MessageImpl) msg;
-                if (++position != 1) {
-                    System.out.println("-------------------------------------------------------------------------\n");
-                }
-                if (message.getMessageId() instanceof BatchMessageIdImpl) {
-                    BatchMessageIdImpl msgId = (BatchMessageIdImpl) message.getMessageId();
-                    System.out.println("Batch Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId() + ":"
-                            + msgId.getBatchIndex());
-                } else {
-                    MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
-                    System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
-                }
-
-                System.out.println("Publish time: " + message.getPublishTime());
-                System.out.println("Event time: " + message.getEventTime());
-
-                if (message.getDeliverAtTime() != 0) {
-                    System.out.println("Deliver at time: " + message.getDeliverAtTime());
-                }
-                MessageMetadata msgMetaData = message.getMessageBuilder();
-                if (showServerMarker && msgMetaData.hasMarkerType()) {
-                    System.out.println("Marker Type: " + MarkerType.valueOf(msgMetaData.getMarkerType()));
-                }
-
-                if (message.getBrokerEntryMetadata() != null) {
-                    if (message.getBrokerEntryMetadata().hasBrokerTimestamp()) {
-                        System.out.println("Broker entry metadata timestamp: "
-                                + message.getBrokerEntryMetadata().getBrokerTimestamp());
-                    }
-                    if (message.getBrokerEntryMetadata().hasIndex()) {
-                        System.out.println("Broker entry metadata index: "
-                                + message.getBrokerEntryMetadata().getIndex());
-                    }
-                }
-
-                if (message.getProperties().size() > 0) {
-                    System.out.println("Properties:");
-                    print(msg.getProperties());
-                }
-                ByteBuf data = Unpooled.wrappedBuffer(msg.getData());
-                System.out.println(ByteBufUtil.prettyHexDump(data));
-            }
+            printMessages(messages, showServerMarker, this);
         }
     }
 
@@ -1377,6 +1334,55 @@ public class CmdTopics extends CmdBase {
             previousLedger = l.ledgerId;
         }
         return null;
+    }
+
+    public static void printMessages(List<Message<byte[]>> messages, boolean showServerMarker, CliCommand cli) {
+        if (messages == null) {
+            return;
+        }
+        int position = 0;
+        for (Message<byte[]> msg : messages) {
+            MessageImpl message = (MessageImpl) msg;
+            if (++position != 1) {
+                System.out.println("-------------------------------------------------------------------------\n");
+            }
+            if (message.getMessageId() instanceof BatchMessageIdImpl) {
+                BatchMessageIdImpl msgId = (BatchMessageIdImpl) message.getMessageId();
+                System.out.println("Batch Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId() + ":"
+                        + msgId.getBatchIndex());
+            } else {
+                MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
+                System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
+            }
+
+            System.out.println("Publish time: " + message.getPublishTime());
+            System.out.println("Event time: " + message.getEventTime());
+
+            if (message.getDeliverAtTime() != 0) {
+                System.out.println("Deliver at time: " + message.getDeliverAtTime());
+            }
+            MessageMetadata msgMetaData = message.getMessageBuilder();
+            if (showServerMarker && msgMetaData.hasMarkerType()) {
+                System.out.println("Marker Type: " + MarkerType.valueOf(msgMetaData.getMarkerType()));
+            }
+
+            if (message.getBrokerEntryMetadata() != null) {
+                if (message.getBrokerEntryMetadata().hasBrokerTimestamp()) {
+                    System.out.println("Broker entry metadata timestamp: "
+                            + message.getBrokerEntryMetadata().getBrokerTimestamp());
+                }
+                if (message.getBrokerEntryMetadata().hasIndex()) {
+                    System.out.println("Broker entry metadata index: " + message.getBrokerEntryMetadata().getIndex());
+                }
+            }
+
+            if (message.getProperties().size() > 0) {
+                System.out.println("Properties:");
+                cli.print(msg.getProperties());
+            }
+            ByteBuf data = Unpooled.wrappedBuffer(msg.getData());
+            System.out.println(ByteBufUtil.prettyHexDump(data));
+        }
     }
 
     @Command(description = "Trigger offload of data from a topic to long-term storage (e.g. Amazon S3)")
@@ -1852,14 +1858,14 @@ public class CmdTopics extends CmdBase {
                 + "-t 120 will set retention to 2 minutes. "
                 + "0 means no retention and -1 means infinite time retention.", required = true,
                 converter = TimeUnitToSecondsConverter.class)
-        private Integer retentionTimeInSec;
+        private Long retentionTimeInSec;
 
         @Option(names = { "--size", "-s" }, description = "Retention size limit with optional size unit suffix. "
                 + "For example, 4096, 10M, 16G, 3T.  The size unit suffix character can be k/K, m/M, g/G, or t/T.  "
                 + "If the size unit suffix is not specified, the default unit is bytes. "
                 + "0 or less than 1MB means no retention and -1 means infinite size retention", required = true,
-                converter = ByteUnitToIntegerConverter.class)
-        private Integer sizeLimit;
+                converter = ByteUnitToLongConverter.class)
+        private Long sizeLimit;
 
         @Override
         void run() throws PulsarAdminException {
@@ -1867,8 +1873,8 @@ public class CmdTopics extends CmdBase {
             final int retentionTimeInMin = retentionTimeInSec != -1
                     ? (int) TimeUnit.SECONDS.toMinutes(retentionTimeInSec)
                     : retentionTimeInSec.intValue();
-            final int retentionSizeInMB = sizeLimit != -1
-                    ? (int) (sizeLimit / (1024 * 1024))
+            final long retentionSizeInMB = sizeLimit != -1
+                    ? (sizeLimit / (1024 * 1024))
                     : sizeLimit;
             getTopics().setRetention(persistentTopic, new RetentionPolicies(retentionTimeInMin, retentionSizeInMB));
         }
@@ -2148,6 +2154,11 @@ public class CmdTopics extends CmdBase {
                 + "(0 means no throttle)")
         private double managedLedgerMaxMarkDeleteRate = 0;
 
+        @Option(names = { "-c",
+                "--ml-storage-class" },
+                description = "Managed ledger storage class name")
+        private String managedLedgerStorageClassName;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
@@ -2159,7 +2170,8 @@ public class CmdTopics extends CmdBase {
                 throw new ParameterException("[--ml-mark-delete-max-rate] cannot less than 0.");
             }
             getTopics().setPersistence(persistentTopic, new PersistencePolicies(bookkeeperEnsemble,
-                    bookkeeperWriteQuorum, bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate));
+                    bookkeeperWriteQuorum, bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate,
+                    managedLedgerStorageClassName));
         }
     }
 

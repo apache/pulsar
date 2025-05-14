@@ -28,9 +28,11 @@ import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.admin.GrantTopicPermissionOptions;
 import org.apache.pulsar.client.admin.ListNamespaceTopicsOptions;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.RevokeTopicPermissionOptions;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -64,8 +66,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     private final WebTarget adminNamespaces;
     private final WebTarget adminV2Namespaces;
 
-    public NamespacesImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public NamespacesImpl(WebTarget web, Authentication auth, long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         adminNamespaces = web.path("/admin/namespaces");
         adminV2Namespaces = web.path("/admin/v2/namespaces");
     }
@@ -286,6 +288,30 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "permissions", role);
         return asyncPostRequest(path, Entity.entity(actions, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public CompletableFuture<Void> grantPermissionOnTopicsAsync(List<GrantTopicPermissionOptions> options) {
+        final WebTarget base = adminV2Namespaces;
+        WebTarget path = base.path("/grantPermissionsOnTopics");
+        return asyncPostRequest(path, Entity.entity(options, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void grantPermissionOnTopics(List<GrantTopicPermissionOptions> options) throws PulsarAdminException {
+        sync(() -> grantPermissionOnTopicsAsync(options));
+    }
+
+    @Override
+    public CompletableFuture<Void> revokePermissionOnTopicsAsync(List<RevokeTopicPermissionOptions> options) {
+        final WebTarget base = adminV2Namespaces;
+        WebTarget path = base.path("/revokePermissionsOnTopics");
+        return asyncPostRequest(path, Entity.entity(options, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void revokePermissionOnTopics(List<RevokeTopicPermissionOptions> options) throws PulsarAdminException {
+        sync(() -> revokePermissionOnTopicsAsync(options));
     }
 
     @Override

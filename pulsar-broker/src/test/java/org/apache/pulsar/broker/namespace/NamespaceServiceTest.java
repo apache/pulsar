@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.namespace;
 
 import static org.apache.pulsar.broker.resources.LoadBalanceResources.BUNDLE_DATA_BASE_PATH;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -54,6 +55,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -85,8 +87,8 @@ import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.Notification;
@@ -198,6 +200,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
         ManagedLedger ledger = mock(ManagedLedger.class);
         when(ledger.getCursors()).thenReturn(new ArrayList<>());
+        when(ledger.getConfig()).thenReturn(new ManagedLedgerConfig());
 
         doReturn(CompletableFuture.completedFuture(null)).when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
@@ -298,8 +301,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         final String topicName = "persistent://my-property/use/my-ns/my-topic1";
         pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name").subscribe();
 
-        ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics = pulsar.getBrokerService()
-                .getTopics();
+        final var topics = pulsar.getBrokerService().getTopics();
         Topic spyTopic = spy(topics.get(topicName).get().get());
         topics.clear();
         CompletableFuture<Optional<Topic>> topicFuture = CompletableFuture.completedFuture(Optional.of(spyTopic));
@@ -329,7 +331,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         final String topicName = "persistent://my-property/use/my-ns/my-topic1";
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
                 .subscribe();
-        ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics = pulsar.getBrokerService().getTopics();
+        final var topics = pulsar.getBrokerService().getTopics();
         Topic spyTopic = spy(topics.get(topicName).get().get());
         topics.clear();
         CompletableFuture<Optional<Topic>> topicFuture = CompletableFuture.completedFuture(Optional.of(spyTopic));
@@ -816,23 +818,6 @@ public class NamespaceServiceTest extends BrokerTestBase {
         };
     }
 
-    @Test(dataProvider = "topicDomain")
-    public void testCheckTopicExists(String topicDomain) throws Exception {
-        String topic = topicDomain + "://prop/ns-abc/" + UUID.randomUUID();
-        admin.topics().createNonPartitionedTopic(topic);
-        Awaitility.await().untilAsserted(() -> {
-            assertTrue(pulsar.getNamespaceService().checkTopicExists(TopicName.get(topic)).get().isExists());
-        });
-
-        String partitionedTopic = topicDomain + "://prop/ns-abc/" + UUID.randomUUID();
-        admin.topics().createPartitionedTopic(partitionedTopic, 5);
-        Awaitility.await().untilAsserted(() -> {
-            assertTrue(pulsar.getNamespaceService().checkTopicExists(TopicName.get(partitionedTopic)).get().isExists());
-            assertTrue(pulsar.getNamespaceService()
-                    .checkTopicExists(TopicName.get(partitionedTopic + "-partition-2")).get().isExists());
-        });
-    }
-
     @Test
     public void testAllowedClustersAtNamespaceLevelShouldBeIncludedInAllowedClustersAtTenantLevel() throws Exception {
         // 1. Setup
@@ -952,6 +937,94 @@ public class NamespaceServiceTest extends BrokerTestBase {
         }
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
         pulsar.getConfiguration().setForceDeleteTenantAllowed(false);
+    }
+
+
+    @Test(dataProvider = "topicDomain")
+    public void checkTopicExistsForNonPartitionedTopic(String topicDomain) throws Exception {
+        TopicName topicName = TopicName.get(topicDomain, "prop", "ns-abc", "topic-" + UUID.randomUUID());
+        admin.topics().createNonPartitionedTopic(topicName.toString());
+        CompletableFuture<TopicExistsInfo> result = pulsar.getNamespaceService().checkTopicExistsAsync(topicName);
+        assertThat(result)
+                .succeedsWithin(3, TimeUnit.SECONDS)
+                .satisfies(n -> {
+                    assertTrue(n.isExists());
+                    assertEquals(n.getPartitions(), 0);
+                    assertEquals(n.getTopicType(), TopicType.NON_PARTITIONED);
+                    n.recycle();
+                });
+    }
+
+    @Test(dataProvider = "topicDomain")
+    public void checkTopicExistsForPartitionedTopic(String topicDomain) throws Exception {
+        TopicName topicName = TopicName.get(topicDomain, "prop", "ns-abc", "topic-" + UUID.randomUUID());
+        admin.topics().createPartitionedTopic(topicName.toString(), 3);
+
+        // Check the topic exists by the partitions.
+        CompletableFuture<TopicExistsInfo> result = pulsar.getNamespaceService().checkTopicExistsAsync(topicName);
+        assertThat(result)
+                .succeedsWithin(3, TimeUnit.SECONDS)
+                .satisfies(n -> {
+                    assertTrue(n.isExists());
+                    assertEquals(n.getPartitions(), 3);
+                    assertEquals(n.getTopicType(), TopicType.PARTITIONED);
+                    n.recycle();
+                });
+
+        // Check the specific partition.
+        result = pulsar.getNamespaceService().checkTopicExistsAsync(topicName.getPartition(2));
+        assertThat(result)
+                .succeedsWithin(3, TimeUnit.SECONDS)
+                .satisfies(n -> {
+                    assertTrue(n.isExists());
+                    assertEquals(n.getPartitions(), 0);
+                    assertEquals(n.getTopicType(), TopicType.NON_PARTITIONED);
+                    n.recycle();
+                });
+
+        // Partition index is out of range.
+        result = pulsar.getNamespaceService().checkTopicExistsAsync(topicName.getPartition(10));
+        assertThat(result)
+                .succeedsWithin(3, TimeUnit.SECONDS)
+                .satisfies(n -> {
+                    assertFalse(n.isExists());
+                    assertEquals(n.getPartitions(), 0);
+                    assertEquals(n.getTopicType(), TopicType.NON_PARTITIONED);
+                    n.recycle();
+                });
+    }
+
+    @Test(dataProvider = "topicDomain")
+    public void checkTopicExistsForNonExistentNonPartitionedTopic(String topicDomain) {
+        TopicName topicName = TopicName.get(topicDomain, "prop", "ns-abc", "topic-" + UUID.randomUUID());
+        CompletableFuture<TopicExistsInfo> result = pulsar.getNamespaceService().checkTopicExistsAsync(topicName);
+        assertThat(result)
+                .succeedsWithin(3, TimeUnit.SECONDS)
+                .satisfies(n -> {
+                    // when using the pulsar client to check non_persistent topic, always return true, so ignore to
+                    // check that.
+                    if (topicDomain.equals(TopicDomain.persistent)) {
+                        assertFalse(n.isExists());
+                    }
+                    n.recycle();
+                });
+    }
+
+    @Test(dataProvider = "topicDomain")
+    public void checkTopicExistsForNonExistentPartitionTopic(String topicDomain) {
+        TopicName topicName =
+                TopicName.get(topicDomain, "prop", "ns-abc", "topic-" + UUID.randomUUID() + "-partition-10");
+        CompletableFuture<TopicExistsInfo> result = pulsar.getNamespaceService().checkTopicExistsAsync(topicName);
+        assertThat(result)
+                .succeedsWithin(3, TimeUnit.SECONDS)
+                .satisfies(n -> {
+                    // when using the pulsar client to check non_persistent topic, always return true, so ignore to
+                    // check that.
+                    if (topicDomain.equals(TopicDomain.persistent)) {
+                        assertFalse(n.isExists());
+                    }
+                    n.recycle();
+                });
     }
 
     /**

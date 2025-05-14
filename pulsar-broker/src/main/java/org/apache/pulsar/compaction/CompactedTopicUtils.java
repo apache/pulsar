@@ -24,18 +24,17 @@ import com.google.common.annotations.Beta;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import javax.annotation.Nullable;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.jspecify.annotations.Nullable;
 
 public class CompactedTopicUtils {
 
@@ -75,8 +74,7 @@ public class CompactedTopicUtils {
                 return CompletableFuture.completedFuture(null);
             }
 
-            ManagedCursorImpl managedCursor = (ManagedCursorImpl) cursor;
-            int numberOfEntriesToRead = managedCursor.applyMaxSizeCap(maxEntries, bytesToRead);
+            int numberOfEntriesToRead = cursor.applyMaxSizeCap(maxEntries, bytesToRead);
 
             return topicCompactionService.readCompactedEntries(readPosition, numberOfEntriesToRead)
                     .thenAccept(entries -> {
@@ -94,7 +92,7 @@ public class CompactedTopicUtils {
                         for (Entry entry : entries) {
                             entriesSize += entry.getLength();
                         }
-                        managedCursor.updateReadStats(entries.size(), entriesSize);
+                        cursor.updateReadStats(entries.size(), entriesSize);
 
                         Entry lastEntry = entries.get(entries.size() - 1);
                         cursor.seek(lastEntry.getPosition().getNext(), true);
@@ -102,13 +100,7 @@ public class CompactedTopicUtils {
                     });
         }).exceptionally((exception) -> {
             exception = FutureUtil.unwrapCompletionException(exception);
-            ManagedLedgerException managedLedgerException;
-            if (exception instanceof ManagedLedgerException) {
-                managedLedgerException = (ManagedLedgerException) exception;
-            } else {
-                managedLedgerException = new ManagedLedgerException(exception);
-            }
-            callback.readEntriesFailed(managedLedgerException, readEntriesCtx);
+            callback.readEntriesFailed(ManagedLedgerException.getManagedLedgerException(exception), readEntriesCtx);
             return null;
         });
     }

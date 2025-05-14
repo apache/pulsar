@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SOURCE_POSITION;
 import io.netty.buffer.ByteBuf;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -26,11 +27,13 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.util.FutureUtil;
 
 @Slf4j
 public class GeoPersistentReplicator extends PersistentReplicator {
@@ -48,6 +51,33 @@ public class GeoPersistentReplicator extends PersistentReplicator {
     @Override
     protected String getProducerName() {
         return getReplicatorName(replicatorPrefix, localCluster) + REPL_PRODUCER_NAME_DELIMITER + remoteCluster;
+    }
+
+    @Override
+    protected CompletableFuture<Void> prepareCreateProducer() {
+        if (brokerService.getPulsar().getConfig().isCreateTopicToRemoteClusterForReplication()) {
+            return CompletableFuture.completedFuture(null);
+        } else {
+            CompletableFuture<Void> topicCheckFuture = new CompletableFuture<>();
+            replicationClient.getPartitionedTopicMetadata(localTopic.getName(), false, false)
+                    .whenComplete((metadata, ex) -> {
+                if (ex == null) {
+                    if (metadata.partitions == 0) {
+                        topicCheckFuture.complete(null);
+                    } else {
+                        String errorMsg = String.format("{} Can not create the replicator due to the partitions in the"
+                                        + " remote cluster is not 0, but is %s",
+                                replicatorId, metadata.partitions);
+                        log.error(errorMsg);
+                        topicCheckFuture.completeExceptionally(
+                                new PulsarClientException.NotAllowedException(errorMsg));
+                    }
+                } else {
+                    topicCheckFuture.completeExceptionally(FutureUtil.unwrapCompletionException(ex));
+                }
+            });
+            return topicCheckFuture;
+        }
     }
 
     @Override
@@ -122,6 +152,18 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     continue;
                 }
 
+                if (msg.isExpired(messageTTLInSeconds)) {
+                    msgExpired.recordEvent(0 /* no value stat */);
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Discarding expired message at position {}, replicateTo {}",
+                                replicatorId, entry.getPosition(), msg.getReplicateTo());
+                    }
+                    cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
+                    entry.release();
+                    msg.recycle();
+                    continue;
+                }
+
                 if (STATE_UPDATER.get(this) != State.Started || isLocalMessageSkippedOnce) {
                     // The producer is not ready yet after having stopped/restarted. Drop the message because it will
                     // recovered when the producer is ready
@@ -165,11 +207,17 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     msg.setSchemaInfoForReplicator(schemaFuture.get());
                     msg.getMessageBuilder().clearTxnidMostBits();
                     msg.getMessageBuilder().clearTxnidLeastBits();
+                    // Add props for sequence checking.
+                    msg.getMessageBuilder().addProperty().setKey(MSG_PROP_REPL_SOURCE_POSITION)
+                            .setValue(String.format("%s:%s", entry.getLedgerId(), entry.getEntryId()));
                     msgOut.recordEvent(headersAndPayload.readableBytes());
                     stats.incrementMsgOutCounter();
                     stats.incrementBytesOutCounter(headersAndPayload.readableBytes());
                     // Increment pending messages for messages produced locally
                     PENDING_MESSAGES_UPDATER.incrementAndGet(this);
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Publishing {}:{}", replicatorId, entry.getLedgerId(), entry.getEntryId());
+                    }
                     producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg));
                     atLeastOneMessageSentForReplication = true;
                 }

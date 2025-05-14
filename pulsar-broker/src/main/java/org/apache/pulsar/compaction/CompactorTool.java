@@ -55,6 +55,11 @@ import picocli.CommandLine.ScopeType;
 public class CompactorTool {
 
     private static class Arguments {
+        public enum CompactorType {
+            PUBLISHING,
+            EVENT_TIME
+        }
+
         @Option(names = {"-c", "--broker-conf"}, description = "Configuration file for Broker")
         private String brokerConfigFile = "conf/broker.conf";
 
@@ -66,6 +71,10 @@ public class CompactorTool {
 
         @Option(names = {"-g", "--generate-docs"}, description = "Generate docs")
         private boolean generateDocs = false;
+
+        @Option(names = {"-ct", "--compactor-type"}, description = "Choose compactor type, "
+                + "valid types are [PUBLISHING, EVENT_TIME]")
+        private CompactorType compactorType = CompactorType.PUBLISHING;
     }
 
     public static PulsarClient createClient(ServiceConfiguration brokerConfig) throws PulsarClientException {
@@ -86,7 +95,9 @@ public class CompactorTool {
         if (internalListener.getBrokerServiceUrlTls() != null && brokerConfig.isBrokerClientTlsEnabled()) {
             clientBuilder.serviceUrl(internalListener.getBrokerServiceUrlTls().toString())
                     .allowTlsInsecureConnection(brokerConfig.isTlsAllowInsecureConnection())
-                    .enableTlsHostnameVerification(brokerConfig.isTlsHostnameVerificationEnabled());
+                    .enableTlsHostnameVerification(brokerConfig.isTlsHostnameVerificationEnabled())
+                    .sslFactoryPlugin(brokerConfig.getBrokerClientSslFactoryPlugin())
+                    .sslFactoryPluginParams(brokerConfig.getBrokerClientSslFactoryPluginParams());
             if (brokerConfig.isBrokerClientTlsEnabledWithKeyStore()) {
                 clientBuilder.useKeyStoreTls(true)
                         .tlsKeyStoreType(brokerConfig.getBrokerClientTlsKeyStoreType())
@@ -170,7 +181,17 @@ public class CompactorTool {
         @Cleanup
         PulsarClient pulsar = createClient(brokerConfig);
 
-        Compactor compactor = new TwoPhaseCompactor(brokerConfig, pulsar, bk, scheduler);
+        Compactor compactor = null;
+
+        switch (arguments.compactorType) {
+            case PUBLISHING:
+                compactor = new PublishingOrderCompactor(brokerConfig, pulsar, bk, scheduler);
+                break;
+            case EVENT_TIME:
+                compactor = new EventTimeOrderCompactor(brokerConfig, pulsar, bk, scheduler);
+                break;
+        }
+
         long ledgerId = compactor.compact(arguments.topic).get();
         log.info("Compaction of topic {} complete. Compacted to ledger {}", arguments.topic, ledgerId);
     }

@@ -24,12 +24,12 @@ import io.netty.util.TimerTask;
 import java.time.Clock;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 
 @Slf4j
 public abstract class AbstractDelayedDeliveryTracker implements DelayedDeliveryTracker, TimerTask {
 
-    protected final PersistentDispatcherMultipleConsumers dispatcher;
+    protected final AbstractPersistentDispatcherMultipleConsumers dispatcher;
 
     // Reference to the shared (per-broker) timer for delayed delivery
     protected final Timer timer;
@@ -49,13 +49,13 @@ public abstract class AbstractDelayedDeliveryTracker implements DelayedDeliveryT
 
     private final boolean isDelayedDeliveryDeliverAtTimeStrict;
 
-    public AbstractDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher, Timer timer,
+    public AbstractDelayedDeliveryTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher, Timer timer,
                                           long tickTimeMillis,
                                           boolean isDelayedDeliveryDeliverAtTimeStrict) {
         this(dispatcher, timer, tickTimeMillis, Clock.systemUTC(), isDelayedDeliveryDeliverAtTimeStrict);
     }
 
-    public AbstractDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher, Timer timer,
+    public AbstractDelayedDeliveryTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher, Timer timer,
                                           long tickTimeMillis, Clock clock,
                                           boolean isDelayedDeliveryDeliverAtTimeStrict) {
         this.dispatcher = dispatcher;
@@ -146,7 +146,7 @@ public abstract class AbstractDelayedDeliveryTracker implements DelayedDeliveryT
             lastTickRun = clock.millis();
             currentTimeoutTarget = -1;
             this.timeout = null;
-            dispatcher.readMoreEntries();
+            dispatcher.readMoreEntriesAsync();
         }
     }
 

@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.delayed.bucket;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.CURSOR_INTERNAL_PROPERTY_PREFIX;
+import static org.apache.bookkeeper.mledger.ManagedCursor.CURSOR_INTERNAL_PROPERTY_PREFIX;
 import static org.apache.pulsar.broker.delayed.bucket.Bucket.DELIMITER;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.HashBasedTable;
@@ -57,7 +57,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.delayed.AbstractDelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.proto.DelayedIndex;
 import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
-import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
@@ -105,23 +105,25 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     private CompletableFuture<Void> pendingLoad = null;
 
-    public BucketDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher,
-                                 Timer timer, long tickTimeMillis,
-                                 boolean isDelayedDeliveryDeliverAtTimeStrict,
-                                 BucketSnapshotStorage bucketSnapshotStorage,
-                                 long minIndexCountPerBucket, long timeStepPerBucketSnapshotSegmentInMillis,
-                                 int maxIndexesPerBucketSnapshotSegment, int maxNumBuckets) {
+    public BucketDelayedDeliveryTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher,
+                                        Timer timer, long tickTimeMillis,
+                                        boolean isDelayedDeliveryDeliverAtTimeStrict,
+                                        BucketSnapshotStorage bucketSnapshotStorage,
+                                        long minIndexCountPerBucket, long timeStepPerBucketSnapshotSegmentInMillis,
+                                        int maxIndexesPerBucketSnapshotSegment, int maxNumBuckets)
+            throws RecoverDelayedDeliveryTrackerException {
         this(dispatcher, timer, tickTimeMillis, Clock.systemUTC(), isDelayedDeliveryDeliverAtTimeStrict,
                 bucketSnapshotStorage, minIndexCountPerBucket, timeStepPerBucketSnapshotSegmentInMillis,
                 maxIndexesPerBucketSnapshotSegment, maxNumBuckets);
     }
 
-    public BucketDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher,
-                                 Timer timer, long tickTimeMillis, Clock clock,
-                                 boolean isDelayedDeliveryDeliverAtTimeStrict,
-                                 BucketSnapshotStorage bucketSnapshotStorage,
-                                 long minIndexCountPerBucket, long timeStepPerBucketSnapshotSegmentInMillis,
-                                 int maxIndexesPerBucketSnapshotSegment, int maxNumBuckets) {
+    public BucketDelayedDeliveryTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher,
+                                        Timer timer, long tickTimeMillis, Clock clock,
+                                        boolean isDelayedDeliveryDeliverAtTimeStrict,
+                                        BucketSnapshotStorage bucketSnapshotStorage,
+                                        long minIndexCountPerBucket, long timeStepPerBucketSnapshotSegmentInMillis,
+                                        int maxIndexesPerBucketSnapshotSegment, int maxNumBuckets)
+            throws RecoverDelayedDeliveryTrackerException {
         super(dispatcher, timer, tickTimeMillis, clock, isDelayedDeliveryDeliverAtTimeStrict);
         this.minIndexCountPerBucket = minIndexCountPerBucket;
         this.timeStepPerBucketSnapshotSegmentInMillis = timeStepPerBucketSnapshotSegmentInMillis;
@@ -134,10 +136,17 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 new MutableBucket(dispatcher.getName(), dispatcher.getCursor(), FutureUtil.Sequencer.create(),
                         bucketSnapshotStorage);
         this.stats = new BucketDelayedMessageIndexStats();
-        this.numberDelayedMessages = recoverBucketSnapshot();
+
+        // Close the tracker if failed to recover.
+        try {
+            this.numberDelayedMessages = recoverBucketSnapshot();
+        } catch (RecoverDelayedDeliveryTrackerException e) {
+            close();
+            throw e;
+        }
     }
 
-    private synchronized long recoverBucketSnapshot() throws RuntimeException {
+    private synchronized long recoverBucketSnapshot() throws RecoverDelayedDeliveryTrackerException {
         ManagedCursor cursor = this.lastMutableBucket.getCursor();
         Map<String, String> cursorProperties = cursor.getCursorProperties();
         if (MapUtils.isEmpty(cursorProperties)) {
@@ -171,8 +180,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 futures = new HashMap<>(immutableBucketMap.size());
         for (Map.Entry<Range<Long>, ImmutableBucket> entry : immutableBucketMap.entrySet()) {
             Range<Long> key = entry.getKey();
-            ImmutableBucket immutableBucket = entry.getValue();
-            futures.put(key, immutableBucket.asyncRecoverBucketSnapshotEntry(this::getCutoffTime));
+            futures.put(key, handleRecoverBucketSnapshotEntry(entry.getValue()));
         }
 
         try {
@@ -182,7 +190,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
-            throw new RuntimeException(e);
+            throw new RecoverDelayedDeliveryTrackerException(e);
         }
 
         for (Map.Entry<Range<Long>, CompletableFuture<List<DelayedIndex>>> entry : futures.entrySet()) {
@@ -221,6 +229,33 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 dispatcher.getName(), immutableBucketMap.size(), numberDelayedMessages.getValue());
 
         return numberDelayedMessages.getValue();
+    }
+
+    /**
+     * Handle the BucketNotExistException when recover bucket snapshot entry.
+     * The non exist bucket will be added to `toBeDeletedBucketMap` and deleted from `immutableBuckets`
+     * in the next step.
+     *
+     * @param bucket
+     * @return
+     */
+    private CompletableFuture<List<DelayedIndex>> handleRecoverBucketSnapshotEntry(ImmutableBucket bucket) {
+        CompletableFuture<List<DelayedIndex>> f = new CompletableFuture<>();
+        bucket.asyncRecoverBucketSnapshotEntry(this::getCutoffTime)
+                .whenComplete((v, e) -> {
+                    if (e == null) {
+                        f.complete(v);
+                    } else {
+                        if (e instanceof BucketNotExistException) {
+                            // If the bucket does not exist, return an empty list,
+                            // the bucket will be deleted from `immutableBuckets` in the next step.
+                            f.complete(Collections.emptyList());
+                        } else {
+                            f.completeExceptionally(e);
+                        }
+                    }
+                });
+        return f;
     }
 
     private synchronized void putAndCleanOverlapRange(Range<Long> range, ImmutableBucket immutableBucket,
@@ -720,7 +755,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 .orElse(false);
     }
 
-    public boolean containsMessage(long ledgerId, long entryId) {
+    public synchronized boolean containsMessage(long ledgerId, long entryId) {
         if (lastMutableBucket.containsMessage(ledgerId, entryId)) {
             return true;
         }

@@ -28,6 +28,7 @@ import io.netty.channel.DefaultEventLoop;
 import io.netty.util.internal.DefaultPriorityQueue;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -39,12 +40,12 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.ConnectionPool;
+import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
@@ -71,8 +72,9 @@ public class AbstractReplicatorTest {
         when(localClient.getCnxPool()).thenReturn(connectionPool);
         final PulsarClientImpl remoteClient = mock(PulsarClientImpl.class);
         when(remoteClient.getCnxPool()).thenReturn(connectionPool);
-        final ProducerBuilder producerBuilder = mock(ProducerBuilder.class);
-        final ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics = new ConcurrentOpenHashMap<>();
+        final ProducerConfigurationData producerConf = new ProducerConfigurationData();
+        final ProducerBuilderImpl producerBuilder = mock(ProducerBuilderImpl.class);
+        final var topics = new ConcurrentHashMap<String, CompletableFuture<Optional<Topic>>>();
         when(broker.executor()).thenReturn(eventLoopGroup);
         when(broker.getTopics()).thenReturn(topics);
         when(remoteClient.newProducer(any(Schema.class))).thenReturn(producerBuilder);
@@ -87,6 +89,7 @@ public class AbstractReplicatorTest {
         when(producerBuilder.sendTimeout(anyInt(), any())).thenReturn(producerBuilder);
         when(producerBuilder.maxPendingMessages(anyInt())).thenReturn(producerBuilder);
         when(producerBuilder.producerName(anyString())).thenReturn(producerBuilder);
+        when(producerBuilder.getConf()).thenReturn(producerConf);
         // Mock create producer fail.
         when(producerBuilder.create()).thenThrow(new RuntimeException("mocked ex"));
         when(producerBuilder.createAsync())

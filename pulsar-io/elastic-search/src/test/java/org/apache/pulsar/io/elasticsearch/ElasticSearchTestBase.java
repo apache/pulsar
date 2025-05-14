@@ -46,7 +46,7 @@ public abstract class ElasticSearchTestBase {
             .orElse("docker.elastic.co/elasticsearch/elasticsearch:7.17.7");
 
     public static final String OPENSEARCH = Optional.ofNullable(System.getenv("OPENSEARCH_IMAGE"))
-            .orElse("opensearchproject/opensearch:1.2.4");
+            .orElse("opensearchproject/opensearch:2.16.0");
 
     protected final String elasticImageName;
 
@@ -59,6 +59,7 @@ public abstract class ElasticSearchTestBase {
         if (elasticImageName.equals(OPENSEARCH)) {
             DockerImageName dockerImageName = DockerImageName.parse(OPENSEARCH).asCompatibleSubstituteFor("docker.elastic.co/elasticsearch/elasticsearch");
             elasticsearchContainer = new ElasticsearchContainer(dockerImageName)
+                    .withEnv("OPENSEARCH_INITIAL_ADMIN_PASSWORD", "0pEn7earch!")
                     .withEnv("OPENSEARCH_JAVA_OPTS", "-Xms128m -Xmx256m")
                     .withEnv("bootstrap.memory_lock", "true")
                     .withEnv("plugins.security.disabled", "true");

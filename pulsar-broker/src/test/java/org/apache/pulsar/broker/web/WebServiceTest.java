@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.broker.web;
 
+import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -61,6 +61,7 @@ import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.broker.web.RateLimitingFilter.Result;
 import org.apache.pulsar.broker.web.WebExecutorThreadPoolStats.LimitType;
 import org.apache.pulsar.broker.web.WebExecutorThreadPoolStats.UsageType;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -175,7 +176,7 @@ public class WebServiceTest {
     }
 
     /**
-     * Test that if enableTls option is enabled, WebServcie is available both on HTTP and HTTPS.
+     * Test that if enableTls option is enabled, WebService is available both on HTTP and HTTPS.
      *
      * @throws Exception
      */
@@ -197,7 +198,7 @@ public class WebServiceTest {
     }
 
     /**
-     * Test that if enableTls option is disabled, WebServcie is available only on HTTP.
+     * Test that if enableTls option is disabled, WebService is available only on HTTP.
      *
      * @throws Exception
      */
@@ -220,7 +221,7 @@ public class WebServiceTest {
     }
 
     /**
-     * Test that if enableAuth option and allowInsecure option are enabled, WebServcie requires trusted/untrusted client
+     * Test that if enableAuth option and allowInsecure option are enabled, WebService requires trusted/untrusted client
      * certificate.
      *
      * @throws Exception
@@ -244,7 +245,7 @@ public class WebServiceTest {
     }
 
     /**
-     * Test that if enableAuth option is enabled, WebServcie requires trusted client certificate.
+     * Test that if enableAuth option is enabled, WebService requires trusted client certificate.
      *
      * @throws Exception
      */
@@ -270,11 +271,28 @@ public class WebServiceTest {
     public void testRateLimiting() throws Exception {
         setupEnv(false, false, false, false, 10.0, false);
 
+        // setupEnv makes a HTTP call to create the cluster.
+        var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
+                Result.ACCEPTED.attributes, 1);
+        assertThat(metrics).noneSatisfy(metricData -> assertThat(metricData)
+                .hasName(RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME)
+                .hasLongSumSatisfying(
+                        sum -> sum.hasPointsSatisfying(point -> point.hasAttributes(Result.REJECTED.attributes))));
+
         // Make requests without exceeding the max rate
         for (int i = 0; i < 5; i++) {
             makeHttpRequest(false, false);
             Thread.sleep(200);
         }
+
+        metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
+                Result.ACCEPTED.attributes, 6);
+        assertThat(metrics).noneSatisfy(metricData -> assertThat(metricData)
+                .hasName(RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME)
+                .hasLongSumSatisfying(
+                        sum -> sum.hasPointsSatisfying(point -> point.hasAttributes(Result.REJECTED.attributes))));
 
         try {
             for (int i = 0; i < 500; i++) {
@@ -285,6 +303,12 @@ public class WebServiceTest {
         } catch (IOException e) {
             assertTrue(e.getMessage().contains("429"));
         }
+
+        metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
+                Result.ACCEPTED.attributes, value -> assertThat(value).isGreaterThan(6));
+        assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
+                Result.REJECTED.attributes, value -> assertThat(value).isPositive());
     }
 
     @Test

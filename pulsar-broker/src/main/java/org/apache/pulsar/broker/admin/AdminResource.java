@@ -44,13 +44,17 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.namespace.TopicExistsInfo;
 import org.apache.pulsar.broker.resources.ClusterResources;
+import org.apache.pulsar.broker.service.TopicEventsListener.EventStage;
+import org.apache.pulsar.broker.service.TopicEventsListener.TopicEvent;
+import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.plugin.InvalidEntryFilterException;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.internal.TopicsImpl;
-import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -70,6 +74,7 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.impl.AutoSubscriptionCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.Codec;
@@ -164,6 +169,10 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected CompletableFuture<Void> tryCreatePartitionsAsync(int numPartitions) {
         if (!topicName.isPersistent()) {
+            for (int i = 0; i < numPartitions; i++) {
+                pulsar().getBrokerService().getTopicEventsDispatcher()
+                        .notify(topicName.getPartition(i).toString(), TopicEvent.CREATE, EventStage.SUCCESS);
+            }
             return CompletableFuture.completedFuture(null);
         }
         List<CompletableFuture<Void>> futures = new ArrayList<>(numPartitions);
@@ -199,6 +208,8 @@ public abstract class AdminResource extends PulsarWebResource {
                     }
                     return null;
                 });
+        pulsar().getBrokerService().getTopicEventsDispatcher()
+                .notifyOnCompletion(result, topicName.getPartition(partition).toString(), TopicEvent.CREATE);
         return result;
     }
 
@@ -364,14 +375,8 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsyncWithRetry(TopicName topicName,
                                                                                         boolean isGlobal) {
-        try {
-            checkTopicLevelPolicyEnable();
-            return pulsar().getTopicPoliciesService()
-                    .getTopicPoliciesAsyncWithRetry(topicName, null, pulsar().getExecutor(), isGlobal);
-        } catch (Exception e) {
-            log.error("[{}] Failed to get topic policies {}", clientAppId(), topicName, e);
-            return FutureUtil.failedFuture(e);
-        }
+        final var type = isGlobal ? TopicPoliciesService.GetType.GLOBAL_ONLY : TopicPoliciesService.GetType.LOCAL_ONLY;
+        return pulsar().getTopicPoliciesService().getTopicPoliciesAsync(topicName, type);
     }
 
     protected boolean checkBacklogQuota(BacklogQuota quota, RetentionPolicies retention) {
@@ -393,13 +398,6 @@ public abstract class AdminResource extends PulsarWebResource {
             return false;
         }
         return true;
-    }
-
-    protected void checkTopicLevelPolicyEnable() {
-        if (!config().isSystemTopicAndTopicLevelPoliciesEnabled()) {
-            throw new RestException(Status.METHOD_NOT_ALLOWED,
-                    "Topic level policies is disabled, to enable the topic level policy and retry.");
-        }
     }
 
     protected DispatchRateImpl dispatchRate() {
@@ -599,27 +597,83 @@ public abstract class AdminResource extends PulsarWebResource {
                     }
                 })
                 .thenCompose(__ -> checkTopicExistsAsync(topicName))
-                .thenAccept(exists -> {
-                    if (exists) {
-                        log.warn("[{}] Failed to create already existing topic {}", clientAppId(), topicName);
-                        throw new RestException(Status.CONFLICT, "This topic already exists");
+                .thenAccept(topicExistsInfo -> {
+                    try {
+                        if (topicExistsInfo.isExists()) {
+                            if (topicExistsInfo.getTopicType().equals(TopicType.NON_PARTITIONED)
+                                    || (topicExistsInfo.getTopicType().equals(TopicType.PARTITIONED)
+                                    && !createLocalTopicOnly)) {
+                                log.warn("[{}] Failed to create already existing topic {}", clientAppId(), topicName);
+                                throw new RestException(Status.CONFLICT, "This topic already exists");
+                            }
+                        }
+                    } finally {
+                        topicExistsInfo.recycle();
+                    }
+                })
+                .thenCompose(__ -> getMaxPartitionIndex(topicName)
+                        .thenAccept(existingMaxPartitionIndex -> {
+                            // Case 1: Metadata loss — user tries to recreate the partitioned topic.
+                            // Case 2: Non-partitioned topic — user attempts to convert it to a partitioned topic.
+                            if (existingMaxPartitionIndex >= numPartitions) {
+                                int requiredMinPartitions = existingMaxPartitionIndex + 1;
+                                throw new RestException(Status.CONFLICT, String.format(
+                                        "The topic has a max partition index of %d, the number of partitions must be "
+                                                + "at least %d",
+                                        existingMaxPartitionIndex, requiredMinPartitions));
+                            }
+                        }))
+                .thenRun(() -> {
+                    for (int i = 0; i < numPartitions; i++) {
+                        pulsar().getBrokerService().getTopicEventsDispatcher()
+                                .notify(topicName.getPartition(i).toString(), TopicEvent.CREATE,
+                                        EventStage.BEFORE);
                     }
                 })
                 .thenCompose(__ -> provisionPartitionedTopicPath(numPartitions, createLocalTopicOnly, properties))
                 .thenCompose(__ -> tryCreatePartitionsAsync(numPartitions))
                 .thenRun(() -> {
-                    if (!createLocalTopicOnly && topicName.isGlobal()) {
+                    if (!createLocalTopicOnly && topicName.isGlobal()
+                            && pulsar().getConfig().isCreateTopicToRemoteClusterForReplication()) {
                         internalCreatePartitionedTopicToReplicatedClustersInBackground(numPartitions);
+                        log.info("[{}] Successfully created partitioned for topic {} for the remote clusters",
+                                clientAppId(), topicName);
+                    } else {
+                        log.info("[{}] Skip creating partitioned for topic {} for the remote clusters",
+                                clientAppId(), topicName);
                     }
-                    log.info("[{}] Successfully created partitions for topic {} in cluster {}",
-                            clientAppId(), topicName, pulsar().getConfiguration().getClusterName());
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, ex);
+                    if (AdminResource.isConflictException(ex)) {
+                        log.info("[{}] Failed to create partitioned topic {}: {}", clientAppId(), topicName,
+                                ex.getMessage());
+                    } else {
+                        log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, ex);
+                    }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
+    }
+
+    private CompletableFuture<Integer> getMaxPartitionIndex(TopicName topicName) {
+        if (topicName.getDomain() == TopicDomain.persistent) {
+            return getPulsarResources().getTopicResources().listPersistentTopicsAsync(topicName.getNamespaceObject())
+                    .thenApply(list -> {
+                        int maxIndex = -1;
+                        for (String s : list) {
+                            TopicName item = TopicName.get(s);
+                            if (item.isPartitioned() && item.getPartitionedTopicName()
+                                    .equals(topicName.getPartitionedTopicName())) {
+                                if (item.getPartitionIndex() > maxIndex) {
+                                    maxIndex = item.getPartitionIndex();
+                                }
+                            }
+                        }
+                        return maxIndex;
+                    });
+        }
+        return CompletableFuture.completedFuture(-1);
     }
 
     private void internalCreatePartitionedTopicToReplicatedClustersInBackground(int numPartitions) {
@@ -630,7 +684,7 @@ public abstract class AdminResource extends PulsarWebResource {
             });
     }
 
-    protected Map<String, CompletableFuture<Void>> internalCreatePartitionedTopicToReplicatedClustersInBackground(
+    protected Map<String, CompletableFuture<Void>> internalCreatePartitionedTopicToReplicatedClustersInBackground (
             Set<String> clusters, int numPartitions) {
         final String shortTopicName = topicName.getPartitionedTopicName();
         Map<String, CompletableFuture<Void>> tasksForAllClusters = new HashMap<>();
@@ -649,9 +703,17 @@ public abstract class AdminResource extends PulsarWebResource {
                     createRemoteTopicFuture.completeExceptionally(new RestException(ex1));
                     return;
                 }
+                PulsarAdmin remotePulsarAdmin;
+                try {
+                    remotePulsarAdmin = pulsar().getBrokerService().getClusterPulsarAdmin(cluster, clusterData);
+                } catch (Exception ex) {
+                    log.error("[{}] [{}] An un-expected error occurs when trying to create remote pulsar admin for"
+                            + " cluster {}", clientAppId(), topicName, cluster, ex);
+                    createRemoteTopicFuture.completeExceptionally(new RestException(ex));
+                    return;
+                }
                 // Get cluster data success.
-                TopicsImpl topics =
-                        (TopicsImpl) pulsar().getBrokerService().getClusterPulsarAdmin(cluster, clusterData).topics();
+                TopicsImpl topics = (TopicsImpl) remotePulsarAdmin.topics();
                 topics.createPartitionedTopicAsync(shortTopicName, numPartitions, true, null)
                         .whenComplete((ignore, ex2) -> {
                     if (ex2 == null) {
@@ -704,26 +766,16 @@ public abstract class AdminResource extends PulsarWebResource {
 
     /**
      * Check the exists topics contains the given topic.
-     * Since there are topic partitions and non-partitioned topics in Pulsar, must ensure both partitions
-     * and non-partitioned topics are not duplicated. So, if compare with a partition name, we should compare
-     * to the partitioned name of this partition.
+     * Since there are topic partitions and non-partitioned topics in Pulsar. This check ensures that
+     * there is no duplication between them. Partition *instances* (e.g., topic-partition-0)
+     * are not considered individually — only the base partitioned topic name is checked.
+     *
+     * <p>Note: Be sure to recycle the {@link TopicExistsInfo} after it is no longer needed.</p>
      *
      * @param topicName given topic name
      */
-    protected CompletableFuture<Boolean> checkTopicExistsAsync(TopicName topicName) {
-        return pulsar().getNamespaceService().getListOfTopics(topicName.getNamespaceObject(),
-                CommandGetTopicsOfNamespace.Mode.ALL)
-                .thenCompose(topics -> {
-                    boolean exists = false;
-                    for (String topic : topics) {
-                        if (topicName.getPartitionedTopicName().equals(
-                                TopicName.get(topic).getPartitionedTopicName())) {
-                            exists = true;
-                            break;
-                        }
-                    }
-                    return CompletableFuture.completedFuture(exists);
-                });
+    protected CompletableFuture<TopicExistsInfo> checkTopicExistsAsync(TopicName topicName) {
+        return pulsar().getNamespaceService().checkTopicExistsAsync(topicName);
     }
 
     private CompletableFuture<Void> provisionPartitionedTopicPath(int numPartitions,
@@ -771,11 +823,8 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsyncWithoutAuth() {
-        CompletableFuture<SchemaCompatibilityStrategy> future = CompletableFuture.completedFuture(null);
-        if (config().isSystemTopicAndTopicLevelPoliciesEnabled()) {
-            future = getTopicPoliciesAsyncWithRetry(topicName)
-                    .thenApply(op -> op.map(TopicPolicies::getSchemaCompatibilityStrategy).orElse(null));
-        }
+        CompletableFuture<SchemaCompatibilityStrategy> future = getTopicPoliciesAsyncWithRetry(topicName)
+                .thenApply(op -> op.map(TopicPolicies::getSchemaCompatibilityStrategy).orElse(null));
 
         return future.thenCompose((topicSchemaCompatibilityStrategy) -> {
             if (!SchemaCompatibilityStrategy.isUndefined(topicSchemaCompatibilityStrategy)) {
@@ -839,6 +888,21 @@ public abstract class AdminResource extends PulsarWebResource {
 
     }
 
+    protected void validateRetentionPolicies(RetentionPolicies retention) {
+        if (retention == null) {
+            return;
+        }
+        checkArgument(retention.getRetentionSizeInMB() >= -1,
+                "Invalid retention policy: size limit must be >= -1");
+        checkArgument(retention.getRetentionTimeInMinutes() >= -1,
+                "Invalid retention policy: time limit must be >= -1");
+        checkArgument((retention.getRetentionTimeInMinutes() != 0 && retention.getRetentionSizeInMB() != 0)
+                        || (retention.getRetentionTimeInMinutes() == 0 && retention.getRetentionSizeInMB() == 0),
+                "Invalid retention policy: Setting a single time or size limit to 0 is invalid when "
+                        + "one of the limits has a non-zero value. Use the value of -1 instead of 0 to ignore a "
+                        + "specific limit. To disable retention both limits must be set to 0.");
+    }
+
     protected void validateEntryFilters(EntryFilters entryFilters) {
         if (entryFilters == null) {
             // remove entry filters
@@ -872,6 +936,10 @@ public abstract class AdminResource extends PulsarWebResource {
                 == Status.TEMPORARY_REDIRECT.getStatusCode();
     }
 
+    protected static boolean isNotFoundOrConflictException(Throwable ex) {
+        return isNotFoundException(ex) || isConflictException(ex);
+    }
+
     protected static boolean isNotFoundException(Throwable ex) {
         Throwable realCause = FutureUtil.unwrapCompletionException(ex);
         return realCause instanceof WebApplicationException
@@ -879,8 +947,26 @@ public abstract class AdminResource extends PulsarWebResource {
                 == Status.NOT_FOUND.getStatusCode();
     }
 
+    protected static boolean isConflictException(Throwable ex) {
+        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+        return realCause instanceof WebApplicationException
+                && ((WebApplicationException) realCause).getResponse().getStatus()
+                == Status.CONFLICT.getStatusCode();
+    }
+
+    protected static boolean isBadRequest(Throwable ex) {
+        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+        return realCause instanceof WebApplicationException
+                && ((WebApplicationException) realCause).getResponse().getStatus()
+                == Status.BAD_REQUEST.getStatusCode();
+    }
+
     protected static boolean isNot307And404Exception(Throwable ex) {
         return !isRedirectException(ex) && !isNotFoundException(ex);
+    }
+
+    protected static boolean isNot307And404And400Exception(Throwable ex) {
+        return !isRedirectException(ex) && !isNotFoundException(ex) && !isBadRequest(ex);
     }
 
     protected static String getTopicNotFoundErrorMessage(String topic) {
@@ -925,5 +1011,16 @@ public abstract class AdminResource extends PulsarWebResource {
             throw new RestException(Status.PRECONDITION_FAILED,
                     "The bucket must be specified for namespace offload.");
         }
+    }
+
+    protected CompletableFuture<Void> internalCheckTopicExists(TopicName topicName) {
+        return pulsar().getNamespaceService().checkTopicExistsAsync(topicName)
+                .thenAccept(info -> {
+                    boolean exists = info.isExists();
+                    info.recycle();
+                    if (!exists) {
+                        throw new RestException(Status.NOT_FOUND, getTopicNotFoundErrorMessage(topicName.toString()));
+                    }
+                });
     }
 }

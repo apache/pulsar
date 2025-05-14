@@ -32,8 +32,9 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
-import javax.annotation.Nullable;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
@@ -45,13 +46,13 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer.ReadEntriesCtx;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.impl.RawMessageImpl;
 import org.apache.pulsar.common.api.proto.MessageIdData;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,8 +83,22 @@ public class CompactedTopicImpl implements CompactedTopic {
             compactionHorizon = p;
 
             // delete the ledger from the old context once the new one is open
-            return compactedTopicContext.thenCompose(
-                    __ -> previousContext != null ? previousContext : CompletableFuture.completedFuture(null));
+            return compactedTopicContext.thenCompose(ctx -> {
+                if (previousContext != null) {
+                    previousContext.thenAccept(previousCtx -> {
+                        // Print an error log here, which is not expected.
+                        if (previousCtx != null && previousCtx.getLedger() != null
+                                && previousCtx.getLedger().getId() == compactedLedgerId) {
+                            log.error("[__compaction] Using the same compacted ledger to override the old one, which is"
+                                + " not expected and it may cause a ledger lost error. {} -> {}", compactedLedgerId,
+                                ctx.getLedger().getId());
+                        }
+                    });
+                    return previousContext;
+                } else {
+                    return CompletableFuture.completedFuture(null);
+                }
+            });
         }
     }
 
@@ -120,8 +135,7 @@ public class CompactedTopicImpl implements CompactedTopic {
                 || currentCompactionHorizon.compareTo(cursorPosition) < 0) {
                 cursor.asyncReadEntriesOrWait(maxEntries, bytesToRead, callback, readEntriesCtx, maxReadPosition);
             } else {
-                ManagedCursorImpl managedCursor = (ManagedCursorImpl) cursor;
-                int numberOfEntriesToRead = managedCursor.applyMaxSizeCap(maxEntries, bytesToRead);
+                int numberOfEntriesToRead = cursor.applyMaxSizeCap(maxEntries, bytesToRead);
 
                 compactedTopicContext.thenCompose(
                     (context) -> findStartPoint(cursorPosition, context.ledger.getLastAddConfirmed(), context.cache)
@@ -141,7 +155,7 @@ public class CompactedTopicImpl implements CompactedTopic {
                                         for (Entry entry : entries) {
                                             entriesSize += entry.getLength();
                                         }
-                                        managedCursor.updateReadStats(entries.size(), entriesSize);
+                                        cursor.updateReadStats(entries.size(), entriesSize);
 
                                         Entry lastEntry = entries.get(entries.size() - 1);
                                         // The compaction task depends on the last snapshot and the incremental
@@ -304,8 +318,10 @@ public class CompactedTopicImpl implements CompactedTopic {
      * Getter for CompactedTopicContext.
      * @return CompactedTopicContext
      */
-    public Optional<CompactedTopicContext> getCompactedTopicContext() throws ExecutionException, InterruptedException {
-        return compactedTopicContext == null ? Optional.empty() : Optional.of(compactedTopicContext.get());
+    public Optional<CompactedTopicContext> getCompactedTopicContext() throws ExecutionException, InterruptedException,
+            TimeoutException {
+        return compactedTopicContext == null ? Optional.empty() :
+                Optional.of(compactedTopicContext.get(30, TimeUnit.SECONDS));
     }
 
     @Override

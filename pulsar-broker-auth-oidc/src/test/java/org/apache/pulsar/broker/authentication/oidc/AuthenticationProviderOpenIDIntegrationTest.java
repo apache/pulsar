@@ -260,7 +260,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         Files.write(Path.of(System.getenv("KUBECONFIG")), kubeConfig.getBytes());
 
         provider = new AuthenticationProviderOpenID();
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
     }
 
     @AfterClass
@@ -358,7 +358,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
 
         @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         String role = "superuser";
         String token = generateToken(validJwk, issuerWithMissingKid, role, "allowed-audience", 0L, 0L, 10000L);
@@ -379,7 +379,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
 
         @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         String role = "superuser";
         String token = generateToken(validJwk, issuerWithMissingKid, role, "allowed-audience", 0L, 0L, 10000L);
@@ -407,7 +407,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
 
         @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         String role = "superuser";
         // We use the normal issuer on the token because the /k8s endpoint is configured via the kube config file
@@ -441,7 +441,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
 
         @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         String role = "superuser";
         String token = generateToken(validJwk, "http://not-the-k8s-issuer", role, "allowed-audience", 0L, 0L, 10000L);
@@ -468,7 +468,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
 
         @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         String role = "superuser";
         String token = generateToken(validJwk, issuer, role, "allowed-audience", 0L, 0L, 10000L);
@@ -499,7 +499,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
 
         @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         String role = "superuser";
         String token = generateToken(validJwk, "http://not-the-k8s-issuer", role, "allowed-audience", 0L, 0L, 10000L);
@@ -562,7 +562,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         props.setProperty(AuthenticationProviderOpenID.ACCEPTED_TIME_LEEWAY_SECONDS, "10");
         @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
-        provider.initialize(conf);
+        provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         String role = "superuser";
         String token = generateToken(validJwk, issuer, role, "allowed-audience", 0L, 0L, 0L);
@@ -635,7 +635,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         props.setProperty(AuthenticationProviderOpenID.ISSUER_TRUST_CERTS_FILE_PATH, caCert);
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
-        provider.initialize(config);
+        provider.initialize(AuthenticationProvider.Context.builder().config(config).build());
 
         // Build a JWT with a custom claim
         HashMap<String, Object> claims = new HashMap();
@@ -656,7 +656,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         props.setProperty(AuthenticationProviderOpenID.ISSUER_TRUST_CERTS_FILE_PATH, caCert);
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
-        provider.initialize(config);
+        provider.initialize(AuthenticationProvider.Context.builder().config(config).build());
 
         // Build a JWT without the "test" claim, which should cause the authentication to fail
         String token = generateToken(validJwk, issuer, "not-my-role", "allowed-audience", 0L,

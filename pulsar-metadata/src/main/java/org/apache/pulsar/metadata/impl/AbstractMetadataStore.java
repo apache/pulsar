@@ -156,7 +156,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             }
             // else update the event
             CompletableFuture<?> updateResult = (event.getType() == NotificationType.Deleted)
-                    ? deleteInternal(event.getPath(), Optional.ofNullable(event.getExpectedVersion()))
+                    ? deleteInternal(event.getPath(), Optional.empty())
                     : putInternal(event.getPath(), event.getValue(),
                     Optional.ofNullable(event.getExpectedVersion()), options);
             updateResult.thenApply(stat -> {
@@ -236,21 +236,21 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     @Override
     public <T> MetadataCache<T> getMetadataCache(Class<T> clazz, MetadataCacheConfig cacheConfig) {
         MetadataCacheImpl<T> metadataCache = new MetadataCacheImpl<T>(this,
-                TypeFactory.defaultInstance().constructSimpleType(clazz, null), cacheConfig);
+                TypeFactory.defaultInstance().constructSimpleType(clazz, null), cacheConfig, this.executor);
         metadataCaches.add(metadataCache);
         return metadataCache;
     }
 
     @Override
     public <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef, MetadataCacheConfig cacheConfig) {
-        MetadataCacheImpl<T> metadataCache = new MetadataCacheImpl<T>(this, typeRef, cacheConfig);
+        MetadataCacheImpl<T> metadataCache = new MetadataCacheImpl<T>(this, typeRef, cacheConfig, this.executor);
         metadataCaches.add(metadataCache);
         return metadataCache;
     }
 
     @Override
     public <T> MetadataCache<T> getMetadataCache(MetadataSerde<T> serde, MetadataCacheConfig cacheConfig) {
-        MetadataCacheImpl<T> metadataCache = new MetadataCacheImpl<>(this, serde, cacheConfig);
+        MetadataCacheImpl<T> metadataCache = new MetadataCacheImpl<>(this, serde, cacheConfig, this.executor);
         metadataCaches.add(metadataCache);
         return metadataCache;
     }
@@ -496,6 +496,16 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     protected void receivedSessionEvent(SessionEvent event) {
         isConnected = event.isConnected();
+
+        // Clear cache after session expired.
+        if (event == SessionEvent.SessionReestablished || event == SessionEvent.Reconnected) {
+            for (MetadataCacheImpl metadataCache : metadataCaches) {
+                metadataCache.invalidateAll();
+            }
+            invalidateAll();
+        }
+
+        // Notice listeners.
         try {
             executor.execute(() -> {
                 sessionListeners.forEach(l -> {
