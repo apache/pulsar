@@ -21,14 +21,11 @@ package org.apache.pulsar.client.impl;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -63,14 +60,7 @@ public class ClientCnxTest {
         conf.setOperationTimeoutMs(10);
         conf.setKeepAliveIntervalSeconds(0);
         ClientCnx cnx = new ClientCnx(conf, eventLoop);
-
-        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
-        Channel channel = mock(Channel.class);
-        when(ctx.channel()).thenReturn(channel);
-        ChannelFuture listenerFuture = mock(ChannelFuture.class);
-        when(listenerFuture.addListener(any())).thenReturn(listenerFuture);
-        when(ctx.writeAndFlush(any())).thenReturn(listenerFuture);
-
+        ChannelHandlerContext ctx = ClientTestFixtures.mockChannelHandlerContext();
         cnx.channelActive(ctx);
 
         try {
@@ -89,13 +79,7 @@ public class ClientCnxTest {
         conf.setOperationTimeoutMs(10_000);
         conf.setKeepAliveIntervalSeconds(0);
         ClientCnx cnx = new ClientCnx(conf, eventLoop);
-
-        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
-        Channel channel = mock(Channel.class);
-        when(ctx.channel()).thenReturn(channel);
-        ChannelFuture listenerFuture = mock(ChannelFuture.class);
-        when(listenerFuture.addListener(any())).thenReturn(listenerFuture);
-        when(ctx.writeAndFlush(any())).thenReturn(listenerFuture);
+        ChannelHandlerContext ctx = ClientTestFixtures.mockChannelHandlerContext();
         cnx.channelActive(ctx);
         CountDownLatch countDownLatch = new CountDownLatch(1);
         CompletableFuture<Exception> completableFuture = new CompletableFuture<>();
@@ -127,13 +111,7 @@ public class ClientCnxTest {
         conf.setOperationTimeoutMs(10_000);
         conf.setKeepAliveIntervalSeconds(0);
         ClientCnx cnx = new ClientCnx(conf, eventLoop);
-
-        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
-        Channel channel = mock(Channel.class);
-        when(ctx.channel()).thenReturn(channel);
-        ChannelFuture listenerFuture = mock(ChannelFuture.class);
-        when(listenerFuture.addListener(any())).thenReturn(listenerFuture);
-        when(ctx.writeAndFlush(any())).thenReturn(listenerFuture);
+        ChannelHandlerContext ctx = ClientTestFixtures.mockChannelHandlerContext();
         cnx.channelActive(ctx);
         cnx.state = ClientCnx.State.Ready;
         CountDownLatch countDownLatch = new CountDownLatch(1);
@@ -170,13 +148,7 @@ public class ClientCnxTest {
         conf.setOperationTimeoutMs(10_000);
         conf.setKeepAliveIntervalSeconds(0);
         ClientCnx cnx = new ClientCnx(conf, eventLoop);
-
-        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
-        Channel channel = mock(Channel.class);
-        when(ctx.channel()).thenReturn(channel);
-        ChannelFuture listenerFuture = mock(ChannelFuture.class);
-        when(listenerFuture.addListener(any())).thenReturn(listenerFuture);
-        when(ctx.writeAndFlush(any())).thenReturn(listenerFuture);
+        ChannelHandlerContext ctx = ClientTestFixtures.mockChannelHandlerContext();
         cnx.channelActive(ctx);
         for (int i = 0; i < 5001; i++) {
             cnx.newLookup(null, i);
@@ -197,9 +169,7 @@ public class ClientCnxTest {
         conf.setOperationTimeoutMs(10);
         ClientCnx cnx = new ClientCnx(conf, eventLoop);
 
-        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
-        Channel channel = mock(Channel.class);
-        when(ctx.channel()).thenReturn(channel);
+        ChannelHandlerContext ctx = ClientTestFixtures.mockChannelHandlerContext();
 
         Field ctxField = PulsarHandler.class.getDeclaredField("ctx");
         ctxField.setAccessible(true);
@@ -231,9 +201,7 @@ public class ClientCnxTest {
         ClientConfigurationData conf = new ClientConfigurationData();
         ClientCnx cnx = new ClientCnx(conf, eventLoop);
 
-        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
-        Channel channel = mock(Channel.class);
-        when(ctx.channel()).thenReturn(channel);
+        ChannelHandlerContext ctx = ClientTestFixtures.mockChannelHandlerContext();
 
         Field ctxField = PulsarHandler.class.getDeclaredField("ctx");
         ctxField.setAccessible(true);
@@ -245,10 +213,6 @@ public class ClientCnxTest {
         Field cnxField = ClientCnx.class.getDeclaredField("state");
         cnxField.setAccessible(true);
         cnxField.set(cnx, ClientCnx.State.SentConnectFrame);
-
-        ChannelFuture listenerFuture = mock(ChannelFuture.class);
-        when(listenerFuture.addListener(any())).thenReturn(listenerFuture);
-        when(ctx.writeAndFlush(any())).thenReturn(listenerFuture);
 
         ByteBuf getLastIdCmd = Commands.newGetLastMessageId(5, requestId);
         CompletableFuture<?> future = cnx.sendGetLastMessageId(getLastIdCmd, requestId);
@@ -382,13 +346,7 @@ public class ClientCnxTest {
             ClientConfigurationData conf = new ClientConfigurationData();
             ClientCnx cnx = new ClientCnx(conf, eventLoop);
 
-            ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
-            Channel channel = mock(Channel.class);
-            when(ctx.channel()).thenReturn(channel);
-
-            ChannelFuture listenerFuture = mock(ChannelFuture.class);
-            when(listenerFuture.addListener(any())).thenReturn(listenerFuture);
-            when(ctx.writeAndFlush(any())).thenReturn(listenerFuture);
+            ChannelHandlerContext ctx = ClientTestFixtures.mockChannelHandlerContext();
 
             Field ctxField = PulsarHandler.class.getDeclaredField("ctx");
             ctxField.setAccessible(true);
