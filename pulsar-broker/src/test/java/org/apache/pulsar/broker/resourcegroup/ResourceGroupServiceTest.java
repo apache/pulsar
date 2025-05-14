@@ -200,6 +200,12 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(r1Limiter.get().getDispatchRateOnMsg(),
                 rgConfig.getReplicationDispatchRateInMsgs().longValue());
 
+        r1 = retRG.getMonitoredEntity(ResourceGroupMonitoringClass.ReplicationDispatch, "r1");
+        Assert.assertEquals(r1.configValuesPerPeriod.bytes,
+                rgConfig.getReplicationDispatchRateInBytes().longValue());
+        Assert.assertEquals(r1.configValuesPerPeriod.messages,
+                rgConfig.getReplicationDispatchRateInMsgs().intValue());
+
         // Set up the specific rate limitation based on the remote cluster.
         Map<String, DispatchRate> replicatorLimiterMap = new ConcurrentHashMap<>();
         // r1
@@ -216,6 +222,9 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
                 rgConfig.getReplicationDispatchRateInBytes().longValue());
         Assert.assertEquals(r2Limiter.get().getDispatchRateOnMsg(),
                 rgConfig.getReplicationDispatchRateInMsgs().longValue());
+        r1 = retRG.getMonitoredEntity(ResourceGroupMonitoringClass.ReplicationDispatch, "r1");
+        Assert.assertEquals(r1.configValuesPerPeriod.bytes, newR1Limiter.getDispatchThrottlingRateInByte());
+        Assert.assertEquals(r1.configValuesPerPeriod.messages, newR1Limiter.getDispatchThrottlingRateInMsg());
 
         // r2
         DispatchRate newR2Limiter =
@@ -229,6 +238,10 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(r2Limiter.get().getDispatchRateOnByte(), newR2Limiter.getDispatchThrottlingRateInByte());
         Assert.assertEquals(r2Limiter.get().getDispatchRateOnMsg(), newR2Limiter.getDispatchThrottlingRateInMsg());
 
+        PerMonitoringClassFields r2 = retRG.getMonitoredEntity(ResourceGroupMonitoringClass.ReplicationDispatch, "r2");
+        Assert.assertEquals(r2.configValuesPerPeriod.bytes, newR2Limiter.getDispatchThrottlingRateInByte());
+        Assert.assertEquals(r2.configValuesPerPeriod.messages, newR2Limiter.getDispatchThrottlingRateInMsg());
+
         // remove r1
         replicatorLimiterMap.remove(retRG.getReplicatorDispatchRateLimiterKey("r1"));
         rgs.resourceGroupUpdate(rgName, rgConfig);
@@ -238,6 +251,12 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
                 rgConfig.getReplicationDispatchRateInMsgs().longValue());
         Assert.assertEquals(r2Limiter.get().getDispatchRateOnByte(), newR2Limiter.getDispatchThrottlingRateInByte());
         Assert.assertEquals(r2Limiter.get().getDispatchRateOnMsg(), newR2Limiter.getDispatchThrottlingRateInMsg());
+
+        r1 = retRG.getMonitoredEntity(ResourceGroupMonitoringClass.ReplicationDispatch, "r1");
+        Assert.assertEquals(r1.configValuesPerPeriod.bytes,
+                rgConfig.getReplicationDispatchRateInBytes().longValue());
+        Assert.assertEquals(r1.configValuesPerPeriod.messages,
+                rgConfig.getReplicationDispatchRateInMsgs().intValue());
 
         // remove r2
         replicatorLimiterMap.remove(retRG.getReplicatorDispatchRateLimiterKey("r2"));
@@ -250,6 +269,12 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
                 rgConfig.getReplicationDispatchRateInBytes().longValue());
         Assert.assertEquals(r2Limiter.get().getDispatchRateOnMsg(),
                 rgConfig.getReplicationDispatchRateInMsgs().longValue());
+
+        r2 = retRG.getMonitoredEntity(ResourceGroupMonitoringClass.ReplicationDispatch, "r2");
+        Assert.assertEquals(r2.configValuesPerPeriod.bytes,
+                rgConfig.getReplicationDispatchRateInBytes().longValue());
+        Assert.assertEquals(r2.configValuesPerPeriod.messages,
+                rgConfig.getReplicationDispatchRateInMsgs().intValue());
 
         rgs.resourceGroupDelete(rgName);
 

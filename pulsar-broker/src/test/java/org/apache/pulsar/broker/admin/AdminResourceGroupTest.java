@@ -25,7 +25,9 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.resourcegroup.ResourceGroupDispatchLimiter;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.TopicName;
@@ -180,19 +182,40 @@ public class AdminResourceGroupTest extends BrokerTestBase {
         resourceGroup.setReplicationDispatchRateInBytes(20L);
 
         admin.resourcegroups().createResourceGroup(resourceGroupName, resourceGroup);
+        Awaitility.await().untilAsserted(() -> assertThat(
+                pulsar.getResourceGroupServiceManager().resourceGroupGet(resourceGroupName)).isNotNull());
+
+        org.apache.pulsar.broker.resourcegroup.ResourceGroup rgRef =
+                pulsar.getResourceGroupServiceManager().resourceGroupGet(resourceGroupName);
+
+        AtomicReference<ResourceGroupDispatchLimiter> r2Limiter = new AtomicReference<>();
+        rgRef.registerReplicatorDispatchRateLimiter("r2", r2Limiter::set);
+        assertThat(r2Limiter.get()).isEqualTo(rgRef.getResourceGroupReplicationDispatchLimiter());
 
         String targetCluster = "r2";
         DispatchRate dispatchRate =
                 DispatchRate.builder()
                         .dispatchThrottlingRateInByte(10)
-                        .dispatchThrottlingRateInByte(20)
+                        .dispatchThrottlingRateInMsg(20)
                         .ratePeriodInSecond(100)
                         .relativeToPublishRate(false)
                         .build();
         admin.resourcegroups().setReplicatorDispatchRate(resourceGroupName, targetCluster, dispatchRate);
+        Awaitility.await().untilAsserted(() -> {
+            ResourceGroupDispatchLimiter resourceGroupDispatchLimiter = r2Limiter.get();
+            assertThat(resourceGroupDispatchLimiter).satisfies(n -> {
+                assertThat(n.getDispatchRateOnByte()).isEqualTo(10);
+                assertThat(n.getDispatchRateOnMsg()).isEqualTo(20);
+            });
+        });
+
         assertThat(admin.resourcegroups().getReplicatorDispatchRate(resourceGroupName, targetCluster))
                 .isEqualTo(dispatchRate);
         admin.resourcegroups().removeReplicatorDispatchRate(resourceGroupName, targetCluster);
         assertThat(admin.resourcegroups().getReplicatorDispatchRate(resourceGroupName, targetCluster)).isNull();
+
+        Awaitility.await().untilAsserted(() -> {
+            assertThat(r2Limiter.get()).isEqualTo(rgRef.getResourceGroupReplicationDispatchLimiter());
+        });
     }
 }

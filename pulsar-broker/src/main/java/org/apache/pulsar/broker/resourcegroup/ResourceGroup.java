@@ -780,7 +780,8 @@ public class ResourceGroup implements AutoCloseable{
                 case ReplicationDispatch:
                     checkNotNull(key.getRemoteCluster(),
                             "remoteCluster cannot be null when monClass is ReplicationDispatch");
-                    DispatchRate dispatchRate = rgConfig.getReplicatorDispatchRate().get(key.getRemoteCluster());
+                    DispatchRate dispatchRate = rgConfig.getReplicatorDispatchRate()
+                            .get(getReplicatorDispatchRateLimiterKey(key.getRemoteCluster()));
                     if (dispatchRate != null) {
                         monEntity.configValuesPerPeriod.bytes = dispatchRate.getDispatchThrottlingRateInByte();
                         monEntity.configValuesPerPeriod.messages =
@@ -917,6 +918,7 @@ public class ResourceGroup implements AutoCloseable{
     @Getter
     protected ResourceGroupPublishLimiter resourceGroupPublishLimiter;
 
+    @Getter
     private ResourceGroupDispatchLimiter resourceGroupReplicationDispatchLimiter;
 
     private Map<String, ResourceGroupDispatchLimiter> replicatorDispatchRateLimiterMap =
