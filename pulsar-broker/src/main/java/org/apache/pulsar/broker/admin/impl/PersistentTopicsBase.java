@@ -3902,9 +3902,10 @@ public class PersistentTopicsBase extends AdminResource {
             ret = CompletableFuture.completedFuture(null);
         }
         return ret
-                .thenCompose(__ -> checkTopicExistsAsync(topicName))
-                .thenCompose(exist -> {
-                    if (!exist) {
+                .thenCompose(__ -> checkTopicExistsWithTypeAsync(topicName))
+                .thenCompose(topicExistsInfo -> {
+                    if (!topicExistsInfo.isExists()) {
+                        topicExistsInfo.recycle();
                         throw new RestException(Status.NOT_FOUND, getTopicNotFoundErrorMessage(topicName.toString()));
                     } else {
                         return getPartitionedTopicMetadataAsync(topicName, false, false)
