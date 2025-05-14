@@ -20,6 +20,7 @@ package org.apache.pulsar.tests;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.ITestClass;
@@ -38,7 +39,8 @@ abstract class BetweenTestClassesListenerAdapter implements ITestListener {
     @Override
     public final void onFinish(ITestContext context) {
         List<ITestClass> testClasses =
-                Arrays.stream(context.getAllTestMethods()).map(ITestNGMethod::getTestClass).distinct().toList();
+                Arrays.stream(context.getAllTestMethods()).map(ITestNGMethod::getTestClass).distinct()
+                        .collect(Collectors.toList());
         onBetweenTestClasses(testClasses);
     }
 
