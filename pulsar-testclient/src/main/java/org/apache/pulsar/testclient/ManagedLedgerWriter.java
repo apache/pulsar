@@ -220,10 +220,10 @@ public class ManagedLedgerWriter extends CmdBase{
         log.info("Created {} managed ledgers", managedLedgers.size());
 
         long start = System.nanoTime();
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        Thread shutdownHookThread = PerfClientUtils.addShutdownHook(() -> {
             printAggregatedThroughput(start);
             printAggregatedStats();
-        }));
+        });
 
         Collections.shuffle(managedLedgers);
         AtomicBoolean isDone = new AtomicBoolean();
@@ -274,7 +274,7 @@ public class ManagedLedgerWriter extends CmdBase{
 
                     // Send messages on all topics/producers
                     long totalSent = 0;
-                    while (true) {
+                    while (!Thread.currentThread().isInterrupted()) {
                         for (int j = 0; j < nunManagedLedgersForThisThread; j++) {
                             if (this.testTime > 0) {
                                 if (System.nanoTime() > testEndTime) {
@@ -314,10 +314,11 @@ public class ManagedLedgerWriter extends CmdBase{
 
         Histogram reportHistogram = null;
 
-        while (true) {
+        while (!Thread.currentThread().isInterrupted()) {
             try {
                 Thread.sleep(10000);
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 break;
             }
 
@@ -354,8 +355,9 @@ public class ManagedLedgerWriter extends CmdBase{
         }
 
         factory.shutdown();
-    }
 
+        PerfClientUtils.removeAndRunShutdownHook(shutdownHookThread);
+    }
 
     public static <T> Map<Integer, List<T>> allocateToThreads(List<T> managedLedgers, int numThreads) {
 

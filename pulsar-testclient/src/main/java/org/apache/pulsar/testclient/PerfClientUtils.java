@@ -136,4 +136,28 @@ public class PerfClientUtils {
         return pulsarAdminBuilder;
     }
 
+    /**
+     * This is used to register a shutdown hook that will be called when the JVM exits.
+     * @param runnable the runnable to run on shutdown
+     * @return the thread that was registered as a shutdown hook
+     */
+    public static Thread addShutdownHook(Runnable runnable) {
+        Thread shutdownHookThread = new Thread(runnable, "perf-client-shutdown");
+        Runtime.getRuntime().addShutdownHook(shutdownHookThread);
+        return shutdownHookThread;
+    }
+
+    /**
+     * This is used to remove a previously registered shutdown hook and run it immediately.
+     * This is useful at least for tests when there are multiple instances of the classes
+     * in the JVM. It will also prevent resource leaks when test code isn't relying on the JVM
+     * exit to clean up resources.
+     * @param shutdownHookThread the shutdown hook thread to remove and run
+     * @throws InterruptedException if the thread is interrupted while waiting for it to finish
+     */
+    public static void removeAndRunShutdownHook(Thread shutdownHookThread) throws InterruptedException {
+        Runtime.getRuntime().removeShutdownHook(shutdownHookThread);
+        shutdownHookThread.start();
+        shutdownHookThread.join();
+    }
 }

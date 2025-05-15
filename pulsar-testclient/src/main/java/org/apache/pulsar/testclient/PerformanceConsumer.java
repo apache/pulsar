@@ -287,6 +287,7 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
                     messageReceiveLimiter.acquire();
                 } catch (InterruptedException e){
                     log.error("Got error: ", e);
+                    Thread.currentThread().interrupt();
                 }
                 consumer.acknowledgeAsync(msg.getMessageId(), atomicReference.get()).thenRun(() -> {
                     totalMessageAck.increment();
@@ -294,6 +295,9 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
                 }).exceptionally(throwable ->{
                     log.error("Ack message {} failed with exception", msg, throwable);
                     totalMessageAckFailed.increment();
+                    if (throwable.getCause() instanceof InterruptedException) {
+                        Thread.currentThread().interrupt();
+                    }
                     return null;
                 });
             } else {
@@ -304,6 +308,9 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
                 ).exceptionally(throwable ->{
                             log.error("Ack message {} failed with exception", msg, throwable);
                             totalMessageAckFailed.increment();
+                            if (throwable.getCause() instanceof InterruptedException) {
+                                Thread.currentThread().interrupt();
+                            }
                             return null;
                         }
                 );
@@ -326,6 +333,9 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
                             .exceptionally(exception -> {
                                 log.error("Commit transaction failed with exception : ", exception);
                                 totalEndTxnOpFailNum.increment();
+                                if (exception.getCause() instanceof InterruptedException) {
+                                    Thread.currentThread().interrupt();
+                                }
                                 return null;
                             });
                 } else {
@@ -340,10 +350,13 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
                                 transaction.getTxnID().toString(),
                                 exception);
                         totalEndTxnOpFailNum.increment();
+                        if (exception.getCause() instanceof InterruptedException) {
+                            Thread.currentThread().interrupt();
+                        }
                         return null;
                     });
                 }
-                while (true) {
+                while (!Thread.currentThread().isInterrupted()) {
                     try {
                         Transaction newTransaction = pulsarClient.newTransaction()
                                 .withTransactionTimeout(this.transactionTimeout, TimeUnit.SECONDS)
@@ -356,6 +369,9 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
                     } catch (Exception e) {
                         log.error("Failed to new transaction with exception:", e);
                         totalNumTxnOpenFail.increment();
+                        if (e instanceof InterruptedException) {
+                            Thread.currentThread().interrupt();
+                        }
                     }
                 }
             }
@@ -408,11 +424,10 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
 
         long start = System.nanoTime();
 
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        Thread shutdownHookThread = PerfClientUtils.addShutdownHook(() -> {
             printAggregatedThroughput(start);
             printAggregatedStats();
-        }));
-
+        });
 
         long oldTime = System.nanoTime();
 
@@ -432,10 +447,11 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
             histogramLogWriter.outputLegend();
         }
 
-        while (true) {
+        while (!Thread.currentThread().isInterrupted()) {
             try {
                 Thread.sleep(10000);
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 break;
             }
 
@@ -510,6 +526,7 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
         }
 
         pulsarClient.close();
+        PerfClientUtils.removeAndRunShutdownHook(shutdownHookThread);
     }
 
     private void printAggregatedThroughput(long start) {
