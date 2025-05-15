@@ -102,7 +102,7 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
     private static String firstTestClassName(List<ITestClass> testClasses) {
         return testClasses.stream()
                 .findFirst()
-                .orElseThrow()
+                .get()
                 .getRealClass().getName();
     }
 
