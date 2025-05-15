@@ -389,6 +389,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
         private PersistentReplicator replicator;
         private Entry entry;
         private MessageImpl msg;
+        private InFlightTask inFlightTask;
 
         @Override
         public void sendComplete(Throwable exception, OpSendMsgStats opSendMsgStats) {
@@ -401,6 +402,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Message persisted on remote broker", replicator.replicatorId, exception);
                 }
+                inFlightTask.incCompletedEntries();
                 replicator.cursor.asyncDelete(entry.getPosition(), replicator, entry.getPosition());
             }
             entry.release();
@@ -432,15 +434,18 @@ public abstract class PersistentReplicator extends AbstractReplicator
             this.recyclerHandle = recyclerHandle;
         }
 
-        static ProducerSendCallback create(PersistentReplicator replicator, Entry entry, MessageImpl msg) {
+        static ProducerSendCallback create(PersistentReplicator replicator, Entry entry, MessageImpl msg,
+                                           InFlightTask inFlightTask) {
             ProducerSendCallback sendCallback = RECYCLER.get();
             sendCallback.replicator = replicator;
             sendCallback.entry = entry;
             sendCallback.msg = msg;
+            sendCallback.inFlightTask = inFlightTask;
             return sendCallback;
         }
 
         private void recycle() {
+            inFlightTask = null;
             replicator = null;
             entry = null; //already released and recycled on sendComplete
             if (msg != null) {
@@ -743,11 +748,11 @@ public abstract class PersistentReplicator extends AbstractReplicator
     // TODO add a unit test for new class InFlightTask.
     @Data
     protected static class InFlightTask {
-        private Position readPos;
-        private int readingEntries;
-        private volatile List<Entry> readoutEntries;
-        private int completedEntries;
-        private volatile boolean skipReadResultDueToCursorRewound;
+        Position readPos;
+        int readingEntries;
+        volatile List<Entry> readoutEntries;
+        int completedEntries;
+        volatile boolean skipReadResultDueToCursorRewound;
 
         public synchronized void incCompletedEntries() {
             completedEntries++;
@@ -770,16 +775,17 @@ public abstract class PersistentReplicator extends AbstractReplicator
             if (readoutEntries == null) {
                 return false;
             }
-            if (CollectionUtils.isEmpty(readoutEntries)) {
+            if (readoutEntries != null && readoutEntries.isEmpty()) {
                 return true;
             }
             return completedEntries >= readoutEntries.size();
         }
     }
 
-    private InFlightTask createOrRecycleInFlightTaskIntoQueue(Position readPos, int readingEntries) {
+    @VisibleForTesting
+    InFlightTask createOrRecycleInFlightTaskIntoQueue(Position readPos, int readingEntries) {
         synchronized (inFlightTasks) {
-            // Reuse projects.
+            // Reuse projects that has done.
             if (inFlightTasks.size() > 0) {
                 InFlightTask first = inFlightTasks.peek();
                 if (first.isDone()) {
@@ -821,20 +827,26 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     protected int getPermitsIfNoPendingRead() {
-        return producerQueueSize - getInflightMessagesCount();
-    }
-
-    protected int getInflightMessagesCount() {
-        int inFlight = 0;
         synchronized (inFlightTasks) {
             for (InFlightTask task : inFlightTasks) {
                 boolean hasPendingCursorRead = task.readPos != null && task.readoutEntries == null;
                 if (hasPendingCursorRead) {
                     // Skip the current reading if there is a pending cursor reading.
                     return 0;
-                } else {
-                    inFlight += Math.max(task.readoutEntries.size() - task.completedEntries, 0);
                 }
+            }
+            return producerQueueSize - getInflightMessagesCount();
+        }
+    }
+
+    protected int getInflightMessagesCount() {
+        int inFlight = 0;
+        synchronized (inFlightTasks) {
+            for (InFlightTask task : inFlightTasks) {
+                if (task.isDone()) {
+                    continue;
+                }
+                inFlight += Math.max(task.readoutEntries.size() - task.completedEntries, 0);
             }
         }
         return inFlight;
