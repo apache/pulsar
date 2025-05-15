@@ -227,9 +227,10 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
             }
         });
         thread.start();
-        thread.join();
-        Message<byte[]> message = consumer.receive(3, TimeUnit.SECONDS);
+        Message<byte[]> message = consumer.receive(15, TimeUnit.SECONDS);
         assertNotNull(message);
+        thread.interrupt();
+        thread.join();
         consumer.close();
     }
 

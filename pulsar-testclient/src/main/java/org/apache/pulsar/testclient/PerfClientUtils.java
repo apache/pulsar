@@ -158,9 +158,17 @@ public class PerfClientUtils {
      * @throws InterruptedException if the thread is interrupted while waiting for it to finish
      */
     public static void removeAndRunShutdownHook(Thread shutdownHookThread) throws InterruptedException {
-        Runtime.getRuntime().removeShutdownHook(shutdownHookThread);
-        shutdownHookThread.start();
-        shutdownHookThread.join();
+        // clear interrupted status and restore later
+        boolean wasInterrupted = Thread.currentThread().interrupted();
+        try {
+            Runtime.getRuntime().removeShutdownHook(shutdownHookThread);
+            shutdownHookThread.start();
+            shutdownHookThread.join();
+        } finally {
+            if (wasInterrupted) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 
     /**

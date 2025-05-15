@@ -67,6 +67,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -651,11 +652,16 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
                     }).exceptionally(ex -> {
                         // Ignore the exception of recorder since a very large latencyMicros will lead
                         // ArrayIndexOutOfBoundsException in AbstractHistogram
-                        if (ex.getCause() instanceof ArrayIndexOutOfBoundsException) {
+                        Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                        if (cause instanceof ArrayIndexOutOfBoundsException) {
                             return null;
                         }
                         // Ignore the exception when the producer is closed
-                        if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
+                        if (cause instanceof PulsarClientException.AlreadyClosedException) {
+                            return null;
+                        }
+                        if (cause instanceof InterruptedException || cause.getCause() instanceof InterruptedException) {
+                            Thread.currentThread().interrupt();
                             return null;
                         }
                         log.warn("Write message error with exception", ex);
