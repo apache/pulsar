@@ -157,6 +157,22 @@ public class ResourceGroupService implements AutoCloseable{
         return resourceGroupsMap.keySet();
     }
 
+    public void checkResourceGroupInUse(String name) throws PulsarAdminException {
+        ResourceGroup rg = this.getResourceGroupInternal(name);
+        if (rg == null) {
+            return;
+        }
+        long tenantRefCount = rg.getResourceGroupNumOfTenantRefs();
+        long nsRefCount = rg.getResourceGroupNumOfNSRefs();
+        long topicRefCount = rg.getResourceGroupNumOfTopicRefs();
+        if ((tenantRefCount + nsRefCount + topicRefCount) > 0) {
+            String errMesg = "Resource group " + name + " still has " + tenantRefCount + " tenant refs";
+            errMesg += " and " + nsRefCount + " namespace refs on it";
+            errMesg += " and " + topicRefCount + " topic refs on it";
+            throw new PulsarAdminException(errMesg);
+        }
+    }
+
     /**
      * Delete RG.
      *
@@ -167,16 +183,7 @@ public class ResourceGroupService implements AutoCloseable{
         if (rg == null) {
             throw new PulsarAdminException("Resource group does not exist: " + name);
         }
-
-        long tenantRefCount = rg.getResourceGroupNumOfTenantRefs();
-        long nsRefCount = rg.getResourceGroupNumOfNSRefs();
-        long topicRefCount = rg.getResourceGroupNumOfTopicRefs();
-        if ((tenantRefCount + nsRefCount + topicRefCount) > 0) {
-            String errMesg = "Resource group " + name + " still has " + tenantRefCount + " tenant refs";
-            errMesg += " and " + nsRefCount + " namespace refs on it";
-            errMesg += " and " + topicRefCount + " topic refs on it";
-            throw new PulsarAdminException(errMesg);
-        }
+        checkResourceGroupInUse(name);
         try {
             rg.close();
         } catch (Exception e) {

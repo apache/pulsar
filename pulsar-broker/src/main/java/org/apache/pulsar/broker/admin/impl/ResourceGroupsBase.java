@@ -26,9 +26,8 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.DispatchRate;
-import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -200,23 +199,6 @@ public abstract class ResourceGroupsBase extends AdminResource {
         }
     }
 
-    protected boolean internalCheckRgInUse(String rgName) {
-        try {
-            for (String tenant : tenantResources().listTenants()) {
-                for (String namespace : tenantResources().getListOfNamespaces(tenant)) {
-                    Policies policies = getNamespacePolicies(NamespaceName.get(namespace));
-                    if (null != policies && rgName.equals(policies.resource_group_name)) {
-                        return true;
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.error("[{}] Failed to get tenant/namespace list {}: {}", clientAppId(), rgName, e);
-            throw new RestException(e);
-        }
-        return false;
-    }
-
     protected void internalDeleteResourceGroup(String rgName) {
         /*
          * need to walk the namespaces and make sure it is not in use
@@ -226,8 +208,12 @@ public abstract class ResourceGroupsBase extends AdminResource {
             /*
              * walk the namespaces and make sure it is not in use.
              */
-            if (internalCheckRgInUse(rgName)) {
-                throw new RestException(Response.Status.PRECONDITION_FAILED, "ResourceGroup is in use");
+            try {
+                pulsar().getResourceGroupServiceManager().checkResourceGroupInUse(rgName);
+            } catch (PulsarAdminException e) {
+                log.error("[{}] Check if ResourceGroup {} is in use: {}", clientAppId(), rgName, e);
+                throw new RestException(Response.Status.PRECONDITION_FAILED,
+                        "ResourceGroup is in use");
             }
             resourceGroupResources().deleteResourceGroup(rgName);
             log.info("[{}] Deleted ResourceGroup {}", clientAppId(), rgName);

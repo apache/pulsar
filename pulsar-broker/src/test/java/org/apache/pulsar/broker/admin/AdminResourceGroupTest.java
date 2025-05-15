@@ -90,6 +90,10 @@ public class AdminResourceGroupTest extends BrokerTestBase {
             assertEquals(rg.resourceGroupName, resourceGroupName);
         });
 
+        assertThrows(PulsarAdminException.PreconditionFailedException.class, () -> {
+            admin.resourcegroups().deleteResourceGroup(resourceGroupName);
+        });
+
         admin.topicPolicies().removeResourceGroup(topic);
         Awaitility.await().untilAsserted(() -> {
             assertTrue(StringUtils.isEmpty(admin.topicPolicies().getResourceGroup(topic, true)));
@@ -97,6 +101,7 @@ public class AdminResourceGroupTest extends BrokerTestBase {
                     .getTopicResourceGroup(topicName);
             assertNull(rg);
         });
+        admin.resourcegroups().deleteResourceGroup(resourceGroupName);
     }
 
     @Test
@@ -134,6 +139,13 @@ public class AdminResourceGroupTest extends BrokerTestBase {
             assertEquals(rg.resourceGroupName, topicResourceGroupName);
         });
 
+        assertThrows(PulsarAdminException.PreconditionFailedException.class, () -> {
+            admin.resourcegroups().deleteResourceGroup(topicResourceGroupName);
+        });
+        assertThrows(PulsarAdminException.PreconditionFailedException.class, () -> {
+            admin.resourcegroups().deleteResourceGroup(namespaceResourceGroupName);
+        });
+
         admin.topicPolicies().removeResourceGroup(topic);
         Awaitility.await().untilAsserted(() -> {
             assertEquals(admin.topicPolicies()
@@ -142,6 +154,14 @@ public class AdminResourceGroupTest extends BrokerTestBase {
                     .getTopicResourceGroup(topicName);
             assertNull(rg);
         });
+        admin.resourcegroups().deleteResourceGroup(topicResourceGroupName);
+        admin.namespaces().removeNamespaceResourceGroup(namespace);
+        Awaitility.await().untilAsserted(() -> {
+            org.apache.pulsar.broker.resourcegroup.ResourceGroup rg = pulsar.getResourceGroupServiceManager()
+                    .getNamespaceResourceGroup(topicName.getNamespaceObject());
+            assertNull(rg);
+        });
+        admin.resourcegroups().deleteResourceGroup(namespaceResourceGroupName);
     }
 
     @Test

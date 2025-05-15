@@ -138,6 +138,11 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
 
         // Now detach the namespace
         admin.namespaces().removeNamespaceResourceGroup(namespaceName);
+        Awaitility.await().untilAsserted(() -> {
+            ResourceGroup namespaceResourceGroup = pulsar.getResourceGroupServiceManager()
+                    .getNamespaceResourceGroup(NamespaceName.get(namespaceName));
+            assertNull(namespaceResourceGroup);
+        });
         deleteResourceGroup(rgName);
 
         // No rate limits should be applied.
@@ -220,6 +225,11 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
 
         // Now detach the namespace
         admin.namespaces().removeNamespaceResourceGroup(namespaceName);
+        Awaitility.await().untilAsserted(() -> {
+            ResourceGroup namespaceResourceGroup = pulsar.getResourceGroupServiceManager()
+                    .getNamespaceResourceGroup(NamespaceName.get(namespaceName));
+            assertNull(namespaceResourceGroup);
+        });
         deleteResourceGroup(rgName);
     }
 
