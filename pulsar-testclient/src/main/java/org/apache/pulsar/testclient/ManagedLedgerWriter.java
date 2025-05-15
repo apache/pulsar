@@ -304,7 +304,11 @@ public class ManagedLedgerWriter extends CmdBase{
                         }
                     }
                 } catch (Throwable t) {
-                    log.error("Got error", t);
+                    if (t instanceof InterruptedException) {
+                        Thread.currentThread().interrupt();
+                    } else {
+                        log.error("Got error", t);
+                    }
                 }
             });
         }

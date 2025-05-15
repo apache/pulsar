@@ -726,7 +726,11 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
                 }
             }
         } catch (Throwable t) {
-            log.error("Got error", t);
+            if (t instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            } else {
+                log.error("Got error", t);
+            }
         } finally {
             if (!produceEnough) {
                 doneLatch.countDown();
