@@ -49,7 +49,7 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
     protected static final int TRUE = 1;
     @SuppressWarnings("unused")
     protected volatile int messageFindInProgress = FALSE;
-    protected static final AtomicIntegerFieldUpdater<PersistentMessageFinder> messageFindInProgressUpdater =
+    protected static final AtomicIntegerFieldUpdater<PersistentMessageFinder> MESSAGE_FIND_IN_PROGRESS =
             AtomicIntegerFieldUpdater
                     .newUpdater(PersistentMessageFinder.class, "messageFindInProgress");
 
@@ -61,7 +61,7 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
     }
 
     public void findMessages(final long timestamp, AsyncCallbacks.FindEntryCallback callback) {
-        if (messageFindInProgressUpdater.compareAndSet(this, FALSE, TRUE)) {
+        if (MESSAGE_FIND_IN_PROGRESS.compareAndSet(this, FALSE, TRUE)) {
             this.timestamp = timestamp;
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Starting message position find at timestamp {}", subName, timestamp);
