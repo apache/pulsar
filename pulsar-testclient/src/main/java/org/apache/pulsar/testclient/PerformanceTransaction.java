@@ -259,9 +259,10 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                             atomicReference = new AtomicReference<>(null);
                         }
                     } catch (Exception e) {
-                        log.error("Failed to build Producer/Consumer with exception : ", e);
-                        if (e instanceof InterruptedException) {
+                        if (PerfClientUtils.hasInterruptedException(e)) {
                             Thread.currentThread().interrupt();
+                        } else {
+                            log.error("Failed to build Producer/Consumer with exception : ", e);
                         }
                         executorService.shutdownNow();
                         PerfClientUtils.exit(1);
@@ -314,11 +315,9 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                                                     messageAckCumulativeRecorder.recordValue(latencyMicros);
                                                     numMessagesAckSuccess.increment();
                                                 }).exceptionally(exception -> {
-                                                    if (exception.getCause() instanceof InterruptedException) {
+                                                    if (PerfClientUtils.hasInterruptedException(exception)) {
                                                         Thread.currentThread().interrupt();
-                                                        if (!executing.get()) {
-                                                            return null;
-                                                        }
+                                                        return null;
                                                     }
                                                     log.error(
                                                             "Ack message failed with transaction {} throw exception",
@@ -334,11 +333,9 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                                             messageAckCumulativeRecorder.recordValue(latencyMicros);
                                             numMessagesAckSuccess.increment();
                                         }).exceptionally(exception -> {
-                                            if (exception.getCause() instanceof InterruptedException) {
+                                            if (PerfClientUtils.hasInterruptedException(exception)) {
                                                 Thread.currentThread().interrupt();
-                                                if (!executing.get()) {
-                                                    return null;
-                                                }
+                                                return null;
                                             }
                                             log.error(
                                                     "Ack message failed with transaction {} throw exception",
@@ -363,11 +360,9 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                                                 messageSendRCumulativeRecorder.recordValue(latencyMicros);
                                                 numMessagesSendSuccess.increment();
                                             }).exceptionally(exception -> {
-                                                if (exception.getCause() instanceof InterruptedException) {
+                                                if (PerfClientUtils.hasInterruptedException(exception)) {
                                                     Thread.currentThread().interrupt();
-                                                    if (!executing.get()) {
-                                                        return null;
-                                                    }
+                                                    return null;
                                                 }
                                                 // Ignore the exception when the producer is closed
                                                 if (exception.getCause()
@@ -388,11 +383,9 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                                                 messageSendRCumulativeRecorder.recordValue(latencyMicros);
                                                 numMessagesSendSuccess.increment();
                                             }).exceptionally(exception -> {
-                                                if (exception.getCause() instanceof InterruptedException) {
+                                                if (PerfClientUtils.hasInterruptedException(exception)) {
                                                     Thread.currentThread().interrupt();
-                                                    if (!executing.get()) {
-                                                        return null;
-                                                    }
+                                                    return null;
                                                 }
                                                 // Ignore the exception when the producer is closed
                                                 if (exception.getCause()
@@ -417,11 +410,9 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                                             numTxnOpSuccess.increment();
                                             totalNumEndTxnOpSuccess.increment();
                                         }).exceptionally(exception -> {
-                                            if (exception.getCause() instanceof InterruptedException) {
+                                            if (PerfClientUtils.hasInterruptedException(exception)) {
                                                 Thread.currentThread().interrupt();
-                                                if (!executing.get()) {
-                                                    return null;
-                                                }
+                                                return null;
                                             }
                                             log.error("Commit transaction {} failed with exception",
                                                     transaction.getTxnID().toString(),
@@ -434,11 +425,9 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                                     numTxnOpSuccess.increment();
                                     totalNumEndTxnOpSuccess.increment();
                                 }).exceptionally(exception -> {
-                                    if (exception.getCause() instanceof InterruptedException) {
+                                    if (PerfClientUtils.hasInterruptedException(exception)) {
                                         Thread.currentThread().interrupt();
-                                        if (!executing.get()) {
-                                            return null;
-                                        }
+                                        return null;
                                     }
                                     log.error("Commit transaction {} failed with exception",
                                             transaction.getTxnID().toString(),
@@ -457,14 +446,12 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                                     totalNumTxnOpenTxnSuccess.increment();
                                     break;
                                 } catch (Exception throwable) {
-                                    if (throwable instanceof InterruptedException) {
+                                    if (PerfClientUtils.hasInterruptedException(throwable)) {
                                         Thread.currentThread().interrupt();
-                                        if (!executing.get()) {
-                                            break;
-                                        }
+                                    } else {
+                                        log.error("Failed to new transaction with exception: ", throwable);
+                                        totalNumTxnOpenTxnFail.increment();
                                     }
-                                    log.error("Failed to new transaction with exception: ", throwable);
-                                    totalNumTxnOpenTxnFail.increment();
                                 }
                             }
                         } else {

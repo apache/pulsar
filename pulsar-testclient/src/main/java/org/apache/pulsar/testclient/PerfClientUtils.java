@@ -192,4 +192,27 @@ public class PerfClientUtils {
             }
         }
     }
+
+    /**
+     * Check if the throwable or any of its causes is an InterruptedException.
+     *
+     * @param throwable the throwable to check
+     * @return true if the throwable or any of its causes is an InterruptedException, false otherwise
+     */
+    public static boolean hasInterruptedException(Throwable throwable) {
+        if (throwable == null) {
+            return false;
+        }
+        if (throwable instanceof InterruptedException) {
+            return true;
+        }
+        Throwable cause = throwable.getCause();
+        while (cause != null) {
+            if (cause instanceof InterruptedException) {
+                return true;
+            }
+            cause = cause.getCause();
+        }
+        return false;
+    }
 }

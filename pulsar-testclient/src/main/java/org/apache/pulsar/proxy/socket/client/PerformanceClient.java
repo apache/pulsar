@@ -259,7 +259,7 @@ public class PerformanceClient extends CmdBase {
                     }
                 } catch (Exception e) {
                     log.error("Authentication plugin error: " + e.getMessage());
-                    if (e instanceof InterruptedException) {
+                    if (PerfClientUtils.hasInterruptedException(e)) {
                         Thread.currentThread().interrupt();
                     }
                 }
@@ -275,7 +275,7 @@ public class PerformanceClient extends CmdBase {
                 return;
             } catch (Exception e1) {
                 log.error("Fail in starting client[{}]", e1.getMessage());
-                if (e1 instanceof InterruptedException) {
+                if (PerfClientUtils.hasInterruptedException(e1)) {
                     Thread.currentThread().interrupt();
                 }
                 return;
@@ -406,7 +406,7 @@ public class PerformanceClient extends CmdBase {
             Class clz = classLoader.loadClass(formatterClass);
             return (IMessageFormatter) clz.getDeclaredConstructor().newInstance();
         } catch (Exception e) {
-            if (e instanceof InterruptedException) {
+            if (PerfClientUtils.hasInterruptedException(e)) {
                 Thread.currentThread().interrupt();
             }
             return null;

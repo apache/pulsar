@@ -152,7 +152,7 @@ public class LoadSimulationClient extends CmdBase{
                     // Unset the well flag in the case of an exception so we can
                     // try to get a new Producer.
                     wellnessFlag.value = false;
-                    if (e instanceof InterruptedException) {
+                    if (PerfClientUtils.hasInterruptedException(e)) {
                         Thread.currentThread().interrupt();
                     }
                     return null;

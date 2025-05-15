@@ -441,7 +441,7 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
             Class clz = classLoader.loadClass(formatterClass);
             return (IMessageFormatter) clz.getDeclaredConstructor().newInstance();
         } catch (Exception e) {
-            if (e instanceof InterruptedException) {
+            if (PerfClientUtils.hasInterruptedException(e)) {
                 Thread.currentThread().interrupt();
             }
             return null;
@@ -660,7 +660,7 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
                         if (cause instanceof PulsarClientException.AlreadyClosedException) {
                             return null;
                         }
-                        if (cause instanceof InterruptedException || cause.getCause() instanceof InterruptedException) {
+                        if (PerfClientUtils.hasInterruptedException(ex)) {
                             Thread.currentThread().interrupt();
                             return null;
                         }
@@ -684,12 +684,13 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
                                         numTxnOpSuccess.increment();
                                     })
                                     .exceptionally(exception -> {
+                                        if (PerfClientUtils.hasInterruptedException(exception)) {
+                                            Thread.currentThread().interrupt();
+                                            return null;
+                                        }
                                         log.error("Commit transaction failed with exception : ",
                                                 exception);
                                         totalEndTxnOpFailNum.increment();
-                                        if (exception.getCause() instanceof InterruptedException) {
-                                            Thread.currentThread().interrupt();
-                                        }
                                         return null;
                                     });
                         } else {
@@ -700,13 +701,14 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
                                 totalEndTxnOpSuccessNum.increment();
                                 numTxnOpSuccess.increment();
                             }).exceptionally(exception -> {
+                                if (PerfClientUtils.hasInterruptedException(exception)) {
+                                    Thread.currentThread().interrupt();
+                                    return null;
+                                }
                                 log.error("Abort transaction {} failed with exception",
                                         transaction.getTxnID().toString(),
                                         exception);
                                 totalEndTxnOpFailNum.increment();
-                                if (exception.getCause() instanceof InterruptedException) {
-                                    Thread.currentThread().interrupt();
-                                }
                                 return null;
                             });
                         }
@@ -721,10 +723,11 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
                                 totalNumTxnOpenTxnSuccess.increment();
                                 break;
                             } catch (Exception e){
-                                totalNumTxnOpenTxnFail.increment();
-                                log.error("Failed to new transaction with exception: ", e);
-                                if (e instanceof InterruptedException) {
+                                if (PerfClientUtils.hasInterruptedException(e)) {
                                     Thread.currentThread().interrupt();
+                                } else {
+                                    totalNumTxnOpenTxnFail.increment();
+                                    log.error("Failed to new transaction with exception: ", e);
                                 }
                             }
                         }
@@ -732,7 +735,7 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
                 }
             }
         } catch (Throwable t) {
-            if (t instanceof InterruptedException) {
+            if (PerfClientUtils.hasInterruptedException(t)) {
                 Thread.currentThread().interrupt();
             } else {
                 log.error("Got error", t);

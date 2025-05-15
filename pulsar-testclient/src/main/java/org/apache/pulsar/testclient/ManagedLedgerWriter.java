@@ -304,7 +304,7 @@ public class ManagedLedgerWriter extends CmdBase{
                         }
                     }
                 } catch (Throwable t) {
-                    if (t instanceof InterruptedException) {
+                    if (PerfClientUtils.hasInterruptedException(t)) {
                         Thread.currentThread().interrupt();
                     } else {
                         log.error("Got error", t);

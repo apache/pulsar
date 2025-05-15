@@ -295,7 +295,7 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
                 }).exceptionally(throwable ->{
                     log.error("Ack message {} failed with exception", msg, throwable);
                     totalMessageAckFailed.increment();
-                    if (throwable.getCause() instanceof InterruptedException) {
+                    if (PerfClientUtils.hasInterruptedException(throwable)) {
                         Thread.currentThread().interrupt();
                     }
                     return null;
@@ -306,11 +306,12 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
                             messageAck.increment();
                         }
                 ).exceptionally(throwable ->{
+                            if (PerfClientUtils.hasInterruptedException(throwable)) {
+                                Thread.currentThread().interrupt();
+                                return null;
+                            }
                             log.error("Ack message {} failed with exception", msg, throwable);
                             totalMessageAckFailed.increment();
-                            if (throwable.getCause() instanceof InterruptedException) {
-                                Thread.currentThread().interrupt();
-                            }
                             return null;
                         }
                 );
@@ -331,11 +332,12 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
                                 numTxnOpSuccess.increment();
                             })
                             .exceptionally(exception -> {
+                                if (PerfClientUtils.hasInterruptedException(exception)) {
+                                    Thread.currentThread().interrupt();
+                                    return null;
+                                }
                                 log.error("Commit transaction failed with exception : ", exception);
                                 totalEndTxnOpFailNum.increment();
-                                if (exception.getCause() instanceof InterruptedException) {
-                                    Thread.currentThread().interrupt();
-                                }
                                 return null;
                             });
                 } else {
@@ -346,13 +348,14 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
                         totalEndTxnOpSuccessNum.increment();
                         numTxnOpSuccess.increment();
                     }).exceptionally(exception -> {
+                        if (PerfClientUtils.hasInterruptedException(exception)) {
+                            Thread.currentThread().interrupt();
+                            return null;
+                        }
                         log.error("Abort transaction {} failed with exception",
                                 transaction.getTxnID().toString(),
                                 exception);
                         totalEndTxnOpFailNum.increment();
-                        if (exception.getCause() instanceof InterruptedException) {
-                            Thread.currentThread().interrupt();
-                        }
                         return null;
                     });
                 }
@@ -367,10 +370,11 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
                         messageReceiveLimiter.release(this.numMessagesPerTransaction);
                         break;
                     } catch (Exception e) {
-                        log.error("Failed to new transaction with exception:", e);
-                        totalNumTxnOpenFail.increment();
-                        if (e instanceof InterruptedException) {
+                        if (PerfClientUtils.hasInterruptedException(e)) {
                             Thread.currentThread().interrupt();
+                        } else {
+                            log.error("Failed to new transaction with exception:", e);
+                            totalNumTxnOpenFail.increment();
                         }
                     }
                 }
