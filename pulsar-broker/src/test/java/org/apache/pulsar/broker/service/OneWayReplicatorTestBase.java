@@ -37,8 +37,12 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -505,5 +509,24 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
             assertTrue(persistentTopic1.getReplicators().isEmpty()
                     || !persistentTopic1.getReplicators().get(targetCluster.getConfig().getClusterName()).isConnected());
         });
+    }
+
+    protected void waitForReplicationTaskFinish(String topicName) throws Exception {
+        PersistentTopic persistentTopic1 = (PersistentTopic) pulsar1.getBrokerService()
+                .getTopic(topicName, false).join().get();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic1.getManagedLedger();
+        Position lac = ml.getLastConfirmedEntry();
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().get("pulsar.repl.r2");
+        Awaitility.await().untilAsserted(() -> {
+            if (cursor.getName().startsWith("pulsar.repl")) {
+                assertTrue(cursor.getMarkDeletedPosition().compareTo(lac) >= 0);
+            }
+        });
+    }
+
+    protected GeoPersistentReplicator getReplicator(String topic) {
+        waitReplicatorStarted(topic);
+        return (GeoPersistentReplicator) pulsar1.getBrokerService().getTopic(topic, false).join().get()
+                .getReplicators().get(cluster2);
     }
 }

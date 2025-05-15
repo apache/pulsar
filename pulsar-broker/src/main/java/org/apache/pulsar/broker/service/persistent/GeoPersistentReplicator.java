@@ -232,7 +232,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Publishing {}:{}", replicatorId, entry.getLedgerId(), entry.getEntryId());
                     }
-                    producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg));
+                    producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg, inFlightTask));
                     atLeastOneMessageSentForReplication = true;
                 }
             }

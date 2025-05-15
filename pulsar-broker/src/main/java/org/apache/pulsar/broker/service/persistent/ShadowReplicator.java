@@ -62,8 +62,16 @@ public class ShadowReplicator extends PersistentReplicator {
             // This flag is set to true when we skip at least one local message,
             // in order to skip remaining local messages.
             boolean isLocalMessageSkippedOnce = false;
+            boolean skipRemainingMessages = inFlightTask.isSkipReadResultDueToCursorRewound();
             for (int i = 0; i < entries.size(); i++) {
                 Entry entry = entries.get(i);
+                // Skip the messages since the replicator need to fetch the schema info to replicate the schema to the
+                // remote cluster. Rewind the cursor first and continue the message read after fetched the schema.
+                if (skipRemainingMessages) {
+                    inFlightTask.incCompletedEntries();
+                    entry.release();
+                    continue;
+                }
                 int length = entry.getLength();
                 ByteBuf headersAndPayload = entry.getDataBuffer();
                 MessageImpl msg;
@@ -121,7 +129,7 @@ public class ShadowReplicator extends PersistentReplicator {
                 headersAndPayload.retain();
 
                 // Increment pending messages for messages produced locally
-                producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg));
+                producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg, inFlightTask));
                 atLeastOneMessageSentForReplication = true;
             }
         } catch (Exception e) {
