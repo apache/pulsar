@@ -735,13 +735,7 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
             if (!produceEnough) {
                 doneLatch.countDown();
             }
-            if (null != client) {
-                try {
-                    client.close();
-                } catch (PulsarClientException e) {
-                    log.error("Failed to close test client", e);
-                }
-            }
+            PerfClientUtils.closeClient(client);
         }
     }
 

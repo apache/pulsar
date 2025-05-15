@@ -213,7 +213,8 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
         ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(this)
                 .enableTransaction(!this.isDisableTransaction);
 
-        try (PulsarClient client = clientBuilder.build()) {
+        PulsarClient client = clientBuilder.build();
+        try {
 
             ExecutorService executorService = new ThreadPoolExecutor(this.numTestThreads,
                     this.numTestThreads,
@@ -540,6 +541,8 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
             }
 
             PerfClientUtils.removeAndRunShutdownHook(shutdownHookThread);
+        } finally {
+            PerfClientUtils.closeClient(client);
         }
     }
 

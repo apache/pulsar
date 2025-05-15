@@ -26,6 +26,7 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import lombok.experimental.UtilityClass;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
@@ -39,6 +40,7 @@ import org.slf4j.Logger;
 /**
  * Utility for test clients.
  */
+@Slf4j
 @UtilityClass
 public class PerfClientUtils {
 
@@ -159,5 +161,27 @@ public class PerfClientUtils {
         Runtime.getRuntime().removeShutdownHook(shutdownHookThread);
         shutdownHookThread.start();
         shutdownHookThread.join();
+    }
+
+    /**
+     * This is used to close the client so that the interrupted status is cleared before
+     * closing the client. This is needed if the thread is already interrupted before calling this method.
+     * @param client the client to close
+     */
+    public static void closeClient(PulsarClient client) {
+        if (client == null) {
+            return;
+        }
+        // clear interrupted status so that the client can be shutdown
+        boolean wasInterrupted = Thread.currentThread().interrupted();
+        try {
+            client.close();
+        } catch (PulsarClientException e) {
+            log.error("Failed to close client", e);
+        } finally {
+            if (wasInterrupted) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 }

@@ -213,7 +213,7 @@ public class PerformanceReader extends PerformanceTopicListArguments {
             oldTime = now;
         }
 
-        pulsarClient.close();
+        PerfClientUtils.closeClient(pulsarClient);
         PerfClientUtils.removeAndRunShutdownHook(shutdownHookThread);
     }
     private static void printAggregatedThroughput(long start) {

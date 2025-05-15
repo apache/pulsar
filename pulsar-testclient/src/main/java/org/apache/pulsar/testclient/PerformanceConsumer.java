@@ -524,8 +524,7 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
                 }
             }
         }
-
-        pulsarClient.close();
+        PerfClientUtils.closeClient(pulsarClient);
         PerfClientUtils.removeAndRunShutdownHook(shutdownHookThread);
     }
 
