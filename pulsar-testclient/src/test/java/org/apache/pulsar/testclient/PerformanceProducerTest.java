@@ -218,19 +218,18 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         String args = String.format(argString, topic, pulsar.getBrokerServiceUrl(), pulsar.getWebServiceAddress());
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub")
                 .subscriptionType(SubscriptionType.Key_Shared).subscribe();
-        new Thread(() -> {
+        Thread thread = new Thread(() -> {
             try {
                 PerformanceProducer producer = new PerformanceProducer();
                 producer.run(args.split(" "));
             } catch (Exception e) {
                 log.error("Failed to start perf producer");
             }
-        }).start();
-        Awaitility.await()
-                .untilAsserted(() -> {
-                    Message<byte[]> message = consumer.receive(3, TimeUnit.SECONDS);
-                    assertNotNull(message);
-                });
+        });
+        thread.start();
+        thread.join();
+        Message<byte[]> message = consumer.receive(3, TimeUnit.SECONDS);
+        assertNotNull(message);
         consumer.close();
     }
 
