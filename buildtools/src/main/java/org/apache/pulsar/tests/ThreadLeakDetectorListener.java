@@ -255,6 +255,10 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
             if (threadName.equals("Grizzly-HttpSession-Expirer")) {
                 return true;
             }
+            // skip Hadoop LocalFileSystem stats thread
+            if (threadName.equals("org.apache.hadoop.fs.FileSystem$Statistics$StatisticsDataReferenceCleaner")) {
+                return true;
+            }
             // Testcontainers AbstractWaitStrategy.EXECUTOR
             if (threadName.startsWith("testcontainers-wait-")) {
                 return true;
