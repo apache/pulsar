@@ -35,8 +35,6 @@ import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 public class ReplicatedSubscriptionSnapshotCache {
     private final String subscription;
     private final NavigableMap<Position, ReplicatedSubscriptionsSnapshot> snapshots;
-    // Used to record the timestamp of snapshots location, which will be used to adjust cache update frequency later.
-    private final NavigableMap<Position, Long> positionToTimestamp;
     private final int maxSnapshotToCache;
     private final int snapshotFrequencyMillis;
 
@@ -44,12 +42,37 @@ public class ReplicatedSubscriptionSnapshotCache {
                                                int snapshotFrequencyMillis) {
         this.subscription = subscription;
         this.snapshots = new TreeMap<>();
-        this.positionToTimestamp = new TreeMap<>();
         this.maxSnapshotToCache = maxSnapshotToCache;
         this.snapshotFrequencyMillis = snapshotFrequencyMillis;
     }
 
+    /**
+     * Adds a new replicated subscription snapshot to the cache with time-based eviction policies.
+     * This method handles 5 distinct cases for cache management:
+     * <ol>
+     *   <li><b>Empty Cache</b>: Directly inserts the snapshot if cache is empty.</li>
+     *   <li><b>Position Precedes First Entry</b>: Clears entire cache and inserts new snapshot.</li>
+     *   <li><b>Position in Middle</b>: Trims later entries and inserts new snapshot.</li>
+     *   <li><b>Cache Not Full</b>: Inserts snapshot if cache has available space.</li>
+     *   <li><b>Cache Full</b>: Evicts median-aged entry before insertion (time-window optimized).</li>
+     * </ol>
+     *
+     * <p>Time-based eviction considers two conditions:
+     * <ul>
+     *   <li>Minimum frequency interval ({@code snapshotFrequencyMillis})</li>
+     *   <li>Dynamic time window per slot ({@code timeWindowPerSlot})</li>
+     * </ul>
+     *
+     * @param snapshot    The replicated subscription snapshot to add (non-null)
+     * @param publishTime The ReplicatedSubscriptionsSnapshot marker message (entry),
+     *                    the publishTime originates from the same broker, the time is reliable and clock skew is
+     *                    not a problem.
+     * @throws NullPointerException If snapshot argument is null
+     * @see ReplicatedSubscriptionsSnapshot
+     * @see #findPositionByIndex(int)  For median position calculation in eviction case
+     */
     public synchronized void addNewSnapshot(ReplicatedSubscriptionsSnapshot snapshot, long publishTime) {
+        snapshot.setMarkersTimestamp(publishTime);
         MarkersMessageIdData msgId = snapshot.getLocalMessageId();
         Position position = PositionFactory.create(msgId.getLedgerId(), msgId.getEntryId());
 
@@ -58,35 +81,30 @@ public class ReplicatedSubscriptionSnapshotCache {
                     snapshot.getSnapshotId());
         }
         // Case 1: cache if empty
-        if (positionToTimestamp.lastEntry() == null) {
+        if (snapshots.lastEntry() == null) {
             snapshots.put(position, snapshot);
-            positionToTimestamp.put(position, publishTime);
             return;
         }
 
         // The time difference between the previous position and the earliest cache entry
-        final long timeSinceFirstSnapshot = publishTime - positionToTimestamp.firstEntry().getValue();
+        final long timeSinceFirstSnapshot = publishTime - snapshots.firstEntry().getValue().getMarkersTimestamp();
         // The time difference between the previous position and the lately cache entry
-        final long timeSinceLastSnapshot = publishTime - positionToTimestamp.lastEntry().getValue();
+        final long timeSinceLastSnapshot = publishTime - snapshots.lastEntry().getValue().getMarkersTimestamp();
         // The time window length of each time slot, used for dynamic adjustment in the snapshot cache.
         // The larger the time slot, the slower the update.
         final long timeWindowPerSlot = timeSinceFirstSnapshot / snapshotFrequencyMillis / maxSnapshotToCache;
 
-        if (position.compareTo(positionToTimestamp.firstKey()) < 0) {
+        if (position.compareTo(snapshots.firstKey()) < 0) {
             // Case 2: Reset cursor if position precedes first entry
-            positionToTimestamp.clear();
             snapshots.clear();
             snapshots.put(position, snapshot);
-            positionToTimestamp.put(position, publishTime);
             return;
-        } else if (position.compareTo(positionToTimestamp.lastKey()) < 0) {
+        } else if (position.compareTo(snapshots.lastKey()) < 0) {
             // Case 3: Reset cursor If the position is in the middle, delete the cache after that position
-            while (position.compareTo(positionToTimestamp.lastKey()) < 0) {
-                positionToTimestamp.pollLastEntry();
+            while (position.compareTo(snapshots.lastKey()) < 0) {
                 snapshots.pollLastEntry();
             }
             snapshots.put(position, snapshot);
-            positionToTimestamp.put(position, publishTime);
         }
         // Time-based eviction conditions
         // timeSinceLastSnapshot < snapshotFrequencyMillis, keep the same frequency
@@ -97,16 +115,13 @@ public class ReplicatedSubscriptionSnapshotCache {
         if (snapshots.size() < maxSnapshotToCache) {
             // Case 4: Add to cache if not full
             snapshots.put(position, snapshot);
-            positionToTimestamp.put(position, publishTime);
         } else {
             // Case 5: Median-based eviction when cache is full
             int medianIndex = maxSnapshotToCache / 2;
             Position positionToRemove = findPositionByIndex(medianIndex);
             if (positionToRemove != null) {
-                positionToTimestamp.remove(positionToRemove);
                 snapshots.remove(positionToRemove);
             }
-            positionToTimestamp.put(position, publishTime);
             snapshots.put(position, snapshot);
         }
     }
@@ -115,10 +130,10 @@ public class ReplicatedSubscriptionSnapshotCache {
      * Find the Position in NavigableMap according to the target index.
      */
     private Position findPositionByIndex(int targetIndex) {
-        Iterator<Map.Entry<Position, Long>> it = positionToTimestamp.entrySet().iterator();
+        Iterator<Map.Entry<Position, ReplicatedSubscriptionsSnapshot>> it = snapshots.entrySet().iterator();
         int currentIndex = 0;
         while (it.hasNext()) {
-            Map.Entry<Position, Long> entry = it.next();
+            Map.Entry<Position, ReplicatedSubscriptionsSnapshot> entry = it.next();
             if (currentIndex == targetIndex) {
                 return entry.getKey();
             }
@@ -142,7 +157,6 @@ public class ReplicatedSubscriptionSnapshotCache {
                 // This snapshot is potentially good. Continue the search for to see if there is a higher snapshot we
                 // can use
                 snapshot = snapshots.pollFirstEntry().getValue();
-                positionToTimestamp.pollFirstEntry();
             }
         }
 
