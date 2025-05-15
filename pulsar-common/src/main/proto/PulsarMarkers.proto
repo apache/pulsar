@@ -60,7 +60,6 @@ message ReplicatedSubscriptionsSnapshot {
     required string snapshot_id = 1;
     optional MarkersMessageIdData local_message_id = 2;
     repeated ClusterMessageId clusters = 3;
-    optional int64 markers_timestamp = 4;
 }
 
 // When the replicated subscription mark-delete position
