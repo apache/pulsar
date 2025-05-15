@@ -81,10 +81,6 @@ import picocli.CommandLine.TypeConversionException;
  */
 @Command(name = "produce", description = "Test pulsar producer performance.")
 public class PerformanceProducer extends PerformanceTopicListArguments{
-
-    private static final ExecutorService executor = Executors
-            .newCachedThreadPool(new DefaultThreadFactory("pulsar-perf-producer-exec"));
-
     private static final LongAdder messagesSent = new LongAdder();
     private static final LongAdder messagesFailed = new LongAdder();
     private static final LongAdder bytesSent = new LongAdder();
@@ -288,8 +284,10 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
 
         long start = System.nanoTime();
 
+        ExecutorService executor = Executors
+                .newCachedThreadPool(new DefaultThreadFactory("pulsar-perf-producer-exec"));
         Thread shutdownHookThread = PerfClientUtils.addShutdownHook(() -> {
-            executorShutdownNow();
+            executorShutdownNow(executor);
             printAggregatedThroughput(start);
             printAggregatedStats();
         });
@@ -422,7 +420,7 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
         super("produce");
     }
 
-    private static void executorShutdownNow() {
+    private static void executorShutdownNow(ExecutorService executor) {
         executor.shutdownNow();
         try {
             if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {

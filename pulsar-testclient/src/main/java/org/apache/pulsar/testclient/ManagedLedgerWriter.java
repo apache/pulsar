@@ -69,9 +69,6 @@ import picocli.CommandLine.Spec;
 @Command(name = "managed-ledger", description = "Write directly on managed-ledgers")
 public class ManagedLedgerWriter extends CmdBase{
 
-    private static final ExecutorService executor = Executors
-            .newCachedThreadPool(new DefaultThreadFactory("pulsar-perf-managed-ledger-exec"));
-
     private static final LongAdder messagesSent = new LongAdder();
     private static final LongAdder bytesSent = new LongAdder();
     private static final LongAdder totalMessagesSent = new LongAdder();
@@ -220,7 +217,10 @@ public class ManagedLedgerWriter extends CmdBase{
         log.info("Created {} managed ledgers", managedLedgers.size());
 
         long start = System.nanoTime();
+        ExecutorService executor = Executors
+                .newCachedThreadPool(new DefaultThreadFactory("pulsar-perf-managed-ledger-exec"));
         Thread shutdownHookThread = PerfClientUtils.addShutdownHook(() -> {
+            executor.shutdownNow();
             printAggregatedThroughput(start);
             printAggregatedStats();
         });
