@@ -217,7 +217,7 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         String topic = testTopic + UUID.randomUUID().toString();
         String args = String.format(argString, topic, pulsar.getBrokerServiceUrl(), pulsar.getWebServiceAddress());
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub")
-                .subscriptionType(SubscriptionType.Key_Shared).subscribe();
+                .subscriptionType(SubscriptionType.Shared).subscribe();
         Thread thread = new Thread(() -> {
             try {
                 PerformanceProducer producer = new PerformanceProducer();
