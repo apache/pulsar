@@ -368,6 +368,11 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                                                         return null;
                                                     }
                                                 }
+                                                // Ignore the exception when the producer is closed
+                                                if (exception.getCause()
+                                                        instanceof PulsarClientException.AlreadyClosedException) {
+                                                    return null;
+                                                }
                                                 log.error("Send transaction message failed with exception : ",
                                                         exception);
                                                 numMessagesSendFailed.increment();
@@ -387,6 +392,11 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                                                     if (!executing.get()) {
                                                         return null;
                                                     }
+                                                }
+                                                // Ignore the exception when the producer is closed
+                                                if (exception.getCause()
+                                                        instanceof PulsarClientException.AlreadyClosedException) {
+                                                    return null;
                                                 }
                                                 log.error("Send message failed with exception : ", exception);
                                                 numMessagesSendFailed.increment();

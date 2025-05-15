@@ -654,6 +654,10 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
                         if (ex.getCause() instanceof ArrayIndexOutOfBoundsException) {
                             return null;
                         }
+                        // Ignore the exception when the producer is closed
+                        if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
+                            return null;
+                        }
                         log.warn("Write message error with exception", ex);
                         messagesFailed.increment();
                         if (this.exitOnFailure) {
