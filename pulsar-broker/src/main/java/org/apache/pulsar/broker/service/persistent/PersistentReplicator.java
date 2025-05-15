@@ -846,6 +846,10 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 if (task.isDone()) {
                     continue;
                 }
+                if (task.readoutEntries == null) {
+                    inFlight += task.readingEntries;
+                    continue;
+                }
                 inFlight += Math.max(task.readoutEntries.size() - task.completedEntries, 0);
             }
         }
