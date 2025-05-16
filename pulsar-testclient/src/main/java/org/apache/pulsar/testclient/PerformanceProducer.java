@@ -67,6 +67,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,10 +81,6 @@ import picocli.CommandLine.TypeConversionException;
  */
 @Command(name = "produce", description = "Test pulsar producer performance.")
 public class PerformanceProducer extends PerformanceTopicListArguments{
-
-    private static final ExecutorService executor = Executors
-            .newCachedThreadPool(new DefaultThreadFactory("pulsar-perf-producer-exec"));
-
     private static final LongAdder messagesSent = new LongAdder();
     private static final LongAdder messagesFailed = new LongAdder();
     private static final LongAdder bytesSent = new LongAdder();
@@ -287,11 +284,13 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
 
         long start = System.nanoTime();
 
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            executorShutdownNow();
+        ExecutorService executor = Executors
+                .newCachedThreadPool(new DefaultThreadFactory("pulsar-perf-producer-exec"));
+        Thread shutdownHookThread = PerfClientUtils.addShutdownHook(() -> {
+            executorShutdownNow(executor);
             printAggregatedThroughput(start);
             printAggregatedStats();
-        }));
+        });
 
         if (this.partitions  != null) {
             final PulsarAdminBuilder adminBuilder = PerfClientUtils
@@ -358,10 +357,11 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
             histogramLogWriter.outputLegend();
         }
 
-        while (true) {
+        while (!Thread.currentThread().isInterrupted()) {
             try {
                 Thread.sleep(10000);
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 break;
             }
 
@@ -412,12 +412,15 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
 
             oldTime = now;
         }
+
+        PerfClientUtils.removeAndRunShutdownHook(shutdownHookThread);
     }
+
     public PerformanceProducer() {
         super("produce");
     }
 
-    private static void executorShutdownNow() {
+    private static void executorShutdownNow(ExecutorService executor) {
         executor.shutdownNow();
         try {
             if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
@@ -426,6 +429,7 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
             }
         } catch (InterruptedException e) {
             log.warn("Shutdown of thread pool was interrupted");
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -435,6 +439,9 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
             Class clz = classLoader.loadClass(formatterClass);
             return (IMessageFormatter) clz.getDeclaredConstructor().newInstance();
         } catch (Exception e) {
+            if (PerfClientUtils.hasInterruptedException(e)) {
+                Thread.currentThread().interrupt();
+            }
             return null;
         }
     }
@@ -552,7 +559,7 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
             AtomicLong totalSent = new AtomicLong(0);
             AtomicLong numMessageSend = new AtomicLong(0);
             Semaphore numMsgPerTxnLimit = new Semaphore(this.numMessagesPerTransaction);
-            while (true) {
+            while (!Thread.currentThread().isInterrupted()) {
                 if (produceEnough) {
                     break;
                 }
@@ -601,6 +608,7 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
                                 numMsgPerTxnLimit.acquire();
                             } catch (InterruptedException exception){
                                 log.error("Get exception: ", exception);
+                                Thread.currentThread().interrupt();
                             }
                         }
                         messageBuilder = producer.newMessage(transaction)
@@ -642,7 +650,16 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
                     }).exceptionally(ex -> {
                         // Ignore the exception of recorder since a very large latencyMicros will lead
                         // ArrayIndexOutOfBoundsException in AbstractHistogram
-                        if (ex.getCause() instanceof ArrayIndexOutOfBoundsException) {
+                        Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                        if (cause instanceof ArrayIndexOutOfBoundsException) {
+                            return null;
+                        }
+                        // Ignore the exception when the producer is closed
+                        if (cause instanceof PulsarClientException.AlreadyClosedException) {
+                            return null;
+                        }
+                        if (PerfClientUtils.hasInterruptedException(ex)) {
+                            Thread.currentThread().interrupt();
                             return null;
                         }
                         log.warn("Write message error with exception", ex);
@@ -665,6 +682,10 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
                                         numTxnOpSuccess.increment();
                                     })
                                     .exceptionally(exception -> {
+                                        if (PerfClientUtils.hasInterruptedException(exception)) {
+                                            Thread.currentThread().interrupt();
+                                            return null;
+                                        }
                                         log.error("Commit transaction failed with exception : ",
                                                 exception);
                                         totalEndTxnOpFailNum.increment();
@@ -678,6 +699,10 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
                                 totalEndTxnOpSuccessNum.increment();
                                 numTxnOpSuccess.increment();
                             }).exceptionally(exception -> {
+                                if (PerfClientUtils.hasInterruptedException(exception)) {
+                                    Thread.currentThread().interrupt();
+                                    return null;
+                                }
                                 log.error("Abort transaction {} failed with exception",
                                         transaction.getTxnID().toString(),
                                         exception);
@@ -685,7 +710,7 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
                                 return null;
                             });
                         }
-                        while (true) {
+                        while (!Thread.currentThread().isInterrupted()) {
                             try {
                                 Transaction newTransaction = pulsarClient.newTransaction()
                                         .withTransactionTimeout(this.transactionTimeout,
@@ -696,26 +721,28 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
                                 totalNumTxnOpenTxnSuccess.increment();
                                 break;
                             } catch (Exception e){
-                                totalNumTxnOpenTxnFail.increment();
-                                log.error("Failed to new transaction with exception: ", e);
+                                if (PerfClientUtils.hasInterruptedException(e)) {
+                                    Thread.currentThread().interrupt();
+                                } else {
+                                    totalNumTxnOpenTxnFail.increment();
+                                    log.error("Failed to new transaction with exception: ", e);
+                                }
                             }
                         }
                     }
                 }
             }
         } catch (Throwable t) {
-            log.error("Got error", t);
+            if (PerfClientUtils.hasInterruptedException(t)) {
+                Thread.currentThread().interrupt();
+            } else {
+                log.error("Got error", t);
+            }
         } finally {
             if (!produceEnough) {
                 doneLatch.countDown();
             }
-            if (null != client) {
-                try {
-                    client.close();
-                } catch (PulsarClientException e) {
-                    log.error("Failed to close test client", e);
-                }
-            }
+            PerfClientUtils.closeClient(client);
         }
     }
 

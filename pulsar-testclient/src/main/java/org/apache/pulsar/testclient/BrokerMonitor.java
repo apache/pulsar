@@ -472,7 +472,7 @@ public class BrokerMonitor extends CmdBase {
         try {
             final BrokerWatcher brokerWatcher = new BrokerWatcher(zkClient);
             brokerWatcher.updateBrokers(BROKER_ROOT);
-            while (true) {
+            while (!Thread.currentThread().isInterrupted()) {
                 Thread.sleep(GLOBAL_STATS_PRINT_PERIOD_MILLIS);
                 printGlobalData();
             }
@@ -538,7 +538,7 @@ public class BrokerMonitor extends CmdBase {
 
     private void startBrokerLoadDataStoreMonitor() {
         try {
-            while (true) {
+            while (!Thread.currentThread().isInterrupted()) {
                 Thread.sleep(GLOBAL_STATS_PRINT_PERIOD_MILLIS);
                 printBrokerLoadDataStore();
             }
