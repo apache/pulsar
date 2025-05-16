@@ -1848,5 +1848,6 @@ public class NamespaceService implements AutoCloseable {
                 LOG.warn("Error shutting down namespace client for cluster {}", cluster, e);
             }
         });
+        bundleFactory.close();
     }
 }
