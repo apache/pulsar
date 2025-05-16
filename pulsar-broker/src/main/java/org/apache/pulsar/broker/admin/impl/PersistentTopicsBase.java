@@ -514,10 +514,11 @@ public class PersistentTopicsBase extends AdminResource {
             if (optionalPolicies.isEmpty()) {
                 return CompletableFuture.completedFuture(null);
             }
-            // Query the topic-level policies only if the namespace-level policies exist
+            // Query the topic-level policies only if the namespace-level policies exist.
+            // Global policies does not affet Replication.
             final var namespacePolicies = optionalPolicies.get();
             return pulsar().getTopicPoliciesService().getTopicPoliciesAsync(topicName,
-                    TopicPoliciesService.GetType.DEFAULT
+                    TopicPoliciesService.GetType.LOCAL_ONLY
             ).thenApply(optionalTopicPolicies -> optionalTopicPolicies.map(TopicPolicies::getReplicationClustersSet)
                     .orElse(namespacePolicies.replication_clusters));
         });

@@ -119,9 +119,9 @@ public class ReplicationTopicGcTest extends OneWayReplicatorTestBase {
                     .getPartitionedTopicResources().partitionedTopicExists(TopicName.get(topicName)));
             // topic policies.
             assertTrue(pulsar1.getTopicPoliciesService().getTopicPoliciesAsync(TopicName.get(topicName),
-                    TopicPoliciesService.GetType.DEFAULT).get().isEmpty());
+                    TopicPoliciesService.GetType.LOCAL_ONLY).get().isEmpty());
             assertTrue(pulsar2.getTopicPoliciesService().getTopicPoliciesAsync(TopicName.get(topicName),
-                    TopicPoliciesService.GetType.DEFAULT).get().isEmpty());
+                    TopicPoliciesService.GetType.LOCAL_ONLY).get().isEmpty());
             // schema.
             assertTrue(CollectionUtils.isEmpty(pulsar1.getSchemaStorage().getAll(schemaId).get()));
             assertTrue(CollectionUtils.isEmpty(pulsar2.getSchemaStorage().getAll(schemaId).get()));
@@ -169,7 +169,7 @@ public class ReplicationTopicGcTest extends OneWayReplicatorTestBase {
                     .getPartitionedTopicResources().partitionedTopicExists(TopicName.get(topicName)));
             // topic policies.
             assertTrue(pulsar1.getTopicPoliciesService().getTopicPoliciesAsync(TopicName.get(topicName),
-                    TopicPoliciesService.GetType.DEFAULT).get().isEmpty());
+                    TopicPoliciesService.GetType.LOCAL_ONLY).get().isEmpty());
             // schema.
             assertTrue(CollectionUtils.isEmpty(pulsar1.getSchemaStorage().getAll(schemaId).get()));
         });
