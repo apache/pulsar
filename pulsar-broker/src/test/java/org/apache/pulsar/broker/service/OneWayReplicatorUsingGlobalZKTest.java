@@ -230,9 +230,15 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         super.testIncompatibleMultiVersionSchema(enableDeduplication);
     }
 
-    @Override
+
     @Test
     public void testReplicatorsInflightTaskListIsEmptyAfterReplicationFinished() throws Exception {
         super.testReplicatorsInflightTaskListIsEmptyAfterReplicationFinished();
+    }
+
+    @Override
+    @Test(enabled = false)
+    public void testConcurrencyReplicationReadEntries() throws Exception {
+        super.testConcurrencyReplicationReadEntries();
     }
 }

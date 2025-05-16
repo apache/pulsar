@@ -122,7 +122,7 @@ public class ShadowReplicatorTest extends BrokerTestBase {
             replicator.msgOut.calculateRate();
             return replicator.msgOut.getCount() >= 1;
         });
-        Awaitility.await().until(() -> replicator.getInflightMessagesCount() == 0);
+        Awaitility.await().until(() -> checkInflightTasksEnsureNoMessagesNeedToBeReplicated(replicator));
 
         PersistentTopic shadowTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(shadowTopicName).get().get();
