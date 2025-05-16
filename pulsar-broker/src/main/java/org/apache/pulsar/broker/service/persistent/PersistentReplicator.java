@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.pulsar.broker.service.AbstractReplicator.State.Disconnected;
 import static org.apache.pulsar.broker.service.AbstractReplicator.State.Started;
 import static org.apache.pulsar.broker.service.AbstractReplicator.State.Starting;
 import static org.apache.pulsar.broker.service.AbstractReplicator.State.Terminated;
@@ -811,7 +812,14 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 log.info("[{}] Skip the reading due to new detected schema", replicatorId);
                 return null;
             }
-            if (state != Started) {
+            // Why need to read if state is "Disconnected"?
+            // It is only for the feature replicated subscription. The replicator will be waked up again after it was
+            // closed by "PersistentTopic.closeReplProducersIfNoBacklog".
+            // The waking up steps are follows:
+            // 1. Read entries.
+            // 2. Transfers messages to "ReplicatedSubscriptionsController" if the message is replicated subscription marker.
+            // 3. "ReplicatedSubscriptionsController" will call "Replicator.startProducer"
+            if (state != Started && state != Disconnected) {
                 log.info("[{}] Skip the reading because producer has not started [{}]", replicatorId, state);
                 return null;
             }
