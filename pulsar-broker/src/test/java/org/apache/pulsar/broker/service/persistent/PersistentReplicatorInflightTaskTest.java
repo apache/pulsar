@@ -309,7 +309,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
 
             // Test Case 4: With state != Started - should return null
             // We need to use reflection to modify the state since it's protected by AtomicReferenceFieldUpdater
-            BrokerServiceInternalMethodInvoker.replicatorSetState(replicator, AbstractReplicator.State.Disconnected);
+            BrokerServiceInternalMethodInvoker.replicatorSetState(replicator, AbstractReplicator.State.Starting);
             InFlightTask task4 = replicator.acquirePermitsIfNotFetchingSchema();
             Assert.assertNull(task4, "Should return null when state is not Started");
             // Reset state for next test
