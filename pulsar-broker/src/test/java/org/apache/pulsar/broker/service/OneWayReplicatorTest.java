@@ -72,7 +72,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
-import org.apache.pulsar.broker.service.persistent.InternalMethodInvoker;
+import org.apache.pulsar.broker.service.persistent.BrokerServicePersistInternalMethodInvoker;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.ShadowReplicatorTest;
@@ -1595,7 +1595,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                 (GeoPersistentReplicator) persistentTopic1.getReplicators().values().iterator().next();
         for (int i = 0; i < 10; i++) {
             new Thread(() -> {
-                InternalMethodInvoker.replicatorReadMoreEntries(replicator);
+                BrokerServicePersistInternalMethodInvoker.replicatorReadMoreEntries(replicator);
             }).start();
         }
 

@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-public class InternalMethodInvoker {
+public class BrokerServicePersistInternalMethodInvoker {
 
     public static void replicatorReadMoreEntries(GeoPersistentReplicator replicator) {
         replicator.readMoreEntries();

@@ -745,7 +745,6 @@ public abstract class PersistentReplicator extends AbstractReplicator
         return cursor;
     }
 
-    // TODO add a unit test for new class InFlightTask.
     @Data
     protected static class InFlightTask {
         Position readPos;
