@@ -582,8 +582,7 @@ public abstract class AdminResource extends PulsarWebResource {
         validateNamespaceOperationAsync(topicName.getNamespaceObject(), NamespaceOperation.CREATE_TOPIC)
                 .thenCompose((__) -> getNamespacePoliciesAsync(namespaceName).exceptionally(ex -> {
                     Throwable unwrapped = FutureUtil.unwrapCompletionException(ex);
-                    if (unwrapped instanceof RestException) {
-                        RestException re = (RestException) unwrapped;
+                    if (unwrapped instanceof RestException re) {
                         if (re.getResponse().getStatus() == Status.NOT_FOUND.getStatusCode()) {
                             return null;
                         }
