@@ -55,6 +55,7 @@ import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.events.TopicPoliciesEvent;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -311,6 +312,10 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     public CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(@NonNull TopicName topicName,
                                                                             boolean isGlobal) {
         requireNonNull(topicName);
+        final var namespace = topicName.getNamespaceObject();
+        if (NamespaceService.isHeartbeatNamespace(namespace) || isSelf(topicName)) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
         final CompletableFuture<Void> preparedFuture = prepareInitPoliciesCacheAsync(topicName.getNamespaceObject());
         return preparedFuture.thenApply(__ -> {
             final TopicPolicies candidatePolicies = isGlobal
@@ -830,5 +835,14 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             });
             readerCaches.clear();
         }
+    }
+
+    private static boolean isSelf(TopicName topicName) {
+        final var localName = topicName.getLocalName();
+        if (!topicName.isPartitioned()) {
+            return localName.equals(SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
+        }
+        final var index = localName.lastIndexOf(TopicName.PARTITIONED_TOPIC_SUFFIX);
+        return localName.substring(0, index).equals(SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
     }
 }
