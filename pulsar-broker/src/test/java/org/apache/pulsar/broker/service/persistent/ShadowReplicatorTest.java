@@ -194,11 +194,11 @@ public class ShadowReplicatorTest extends BrokerTestBase {
         PersistentReplicator replicator = getAnyShadowReplicator(sourceTopicName, pulsar);
         waitReplicateFinish(sourceTopicName, admin);
         Awaitility.await().atMost(20, TimeUnit.SECONDS).untilAsserted(() -> {
-            assertFalse(hasInFlightReplicationTasks(replicator));
+            assertFalse(checkInflightTasksEnsureNoMessagesNeedToBeReplicated(replicator));
         });
     }
 
-    public static boolean hasInFlightReplicationTasks(PersistentReplicator replicator) {
+    public static boolean checkInflightTasksEnsureNoMessagesNeedToBeReplicated(PersistentReplicator replicator) {
         synchronized (replicator.inFlightTasks) {
             for (PersistentReplicator.InFlightTask task : replicator.inFlightTasks) {
                 if (task.readPos.compareTo(replicator.cursor.getManagedLedger().getLastConfirmedEntry()) >= 0) {
