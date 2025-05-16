@@ -735,7 +735,11 @@ public class PersistentTopicTest extends BrokerTestBase {
         doReturn(policiesService).when(pulsar).getTopicPoliciesService();
         TopicPolicies policies = new TopicPolicies();
         policies.setRetentionPolicies(retentionPolicies);
-        doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(policiesService).getTopicPoliciesAsync(TopicName.get(topic));
+        TopicName topicName = TopicName.get(topic);
+        doReturn(CompletableFuture.completedFuture(Optional.of(policies)))
+                .when(policiesService).getTopicPoliciesAsync(topicName, true);
+        doReturn(CompletableFuture.completedFuture(Optional.of(policies)))
+                .when(policiesService).getTopicPoliciesAsync(topicName, false);
         persistentTopic.onUpdate(policies);
         verify(persistentTopic, times(1)).checkPersistencePolicies();
         Awaitility.await().untilAsserted(() -> {
