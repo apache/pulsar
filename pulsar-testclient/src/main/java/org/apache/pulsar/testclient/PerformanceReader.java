@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.testclient;
 
+import static org.apache.pulsar.testclient.PerfClientUtils.addShutdownHook;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.util.concurrent.RateLimiter;
@@ -163,10 +164,10 @@ public class PerformanceReader extends PerformanceTopicListArguments {
         log.info("Start reading from {} topics", this.numTopics);
 
         final long start = System.nanoTime();
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        Thread shutdownHookThread = addShutdownHook(() -> {
             printAggregatedThroughput(start);
             printAggregatedStats();
-        }));
+        });
 
         if (this.testTime > 0) {
             TimerTask timoutTask = new TimerTask() {
@@ -184,10 +185,11 @@ public class PerformanceReader extends PerformanceTopicListArguments {
         long oldTime = System.nanoTime();
         Histogram reportHistogram = null;
 
-        while (true) {
+        while (!Thread.currentThread().isInterrupted()) {
             try {
                 Thread.sleep(10000);
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 break;
             }
 
@@ -211,7 +213,8 @@ public class PerformanceReader extends PerformanceTopicListArguments {
             oldTime = now;
         }
 
-        pulsarClient.close();
+        PerfClientUtils.closeClient(pulsarClient);
+        PerfClientUtils.removeAndRunShutdownHook(shutdownHookThread);
     }
     private static void printAggregatedThroughput(long start) {
         double elapsed = (System.nanoTime() - start) / 1e9;

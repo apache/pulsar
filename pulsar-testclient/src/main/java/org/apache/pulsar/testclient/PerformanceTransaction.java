@@ -19,6 +19,7 @@
 package org.apache.pulsar.testclient;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static org.apache.pulsar.testclient.PerfClientUtils.addShutdownHook;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.util.concurrent.RateLimiter;
@@ -212,7 +213,8 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
         ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(this)
                 .enableTransaction(!this.isDisableTransaction);
 
-        try (PulsarClient client = clientBuilder.build()) {
+        PulsarClient client = clientBuilder.build();
+        try {
 
             ExecutorService executorService = new ThreadPoolExecutor(this.numTestThreads,
                     this.numTestThreads,
@@ -222,14 +224,14 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
 
             long startTime = System.nanoTime();
             long testEndTime = startTime + (long) (this.testTime * 1e9);
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            Thread shutdownHookThread = addShutdownHook(() -> {
                 if (!this.isDisableTransaction) {
                     printTxnAggregatedThroughput(startTime);
                 } else {
                     printAggregatedThroughput(startTime);
                 }
                 printAggregatedStats();
-            }));
+            });
 
             // start perf test
             AtomicBoolean executing = new AtomicBoolean(true);
@@ -257,13 +259,17 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                             atomicReference = new AtomicReference<>(null);
                         }
                     } catch (Exception e) {
-                        log.error("Failed to build Producer/Consumer with exception : ", e);
+                        if (PerfClientUtils.hasInterruptedException(e)) {
+                            Thread.currentThread().interrupt();
+                        } else {
+                            log.error("Failed to build Producer/Consumer with exception : ", e);
+                        }
                         executorService.shutdownNow();
                         PerfClientUtils.exit(1);
                     }
                     //The while loop has no break, and finally ends the execution through the shutdownNow of
                     //the executorService
-                    while (true) {
+                    while (!Thread.currentThread().isInterrupted()) {
                         if (this.numTransactions > 0) {
                             if (totalNumTxnOpenTxnFail.sum()
                                     + totalNumTxnOpenTxnSuccess.sum() >= this.numTransactions) {
@@ -309,7 +315,8 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                                                     messageAckCumulativeRecorder.recordValue(latencyMicros);
                                                     numMessagesAckSuccess.increment();
                                                 }).exceptionally(exception -> {
-                                                    if (exception instanceof InterruptedException && !executing.get()) {
+                                                    if (PerfClientUtils.hasInterruptedException(exception)) {
+                                                        Thread.currentThread().interrupt();
                                                         return null;
                                                     }
                                                     log.error(
@@ -326,7 +333,8 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                                             messageAckCumulativeRecorder.recordValue(latencyMicros);
                                             numMessagesAckSuccess.increment();
                                         }).exceptionally(exception -> {
-                                            if (exception instanceof InterruptedException && !executing.get()) {
+                                            if (PerfClientUtils.hasInterruptedException(exception)) {
+                                                Thread.currentThread().interrupt();
                                                 return null;
                                             }
                                             log.error(
@@ -352,7 +360,13 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                                                 messageSendRCumulativeRecorder.recordValue(latencyMicros);
                                                 numMessagesSendSuccess.increment();
                                             }).exceptionally(exception -> {
-                                                if (exception instanceof InterruptedException && !executing.get()) {
+                                                if (PerfClientUtils.hasInterruptedException(exception)) {
+                                                    Thread.currentThread().interrupt();
+                                                    return null;
+                                                }
+                                                // Ignore the exception when the producer is closed
+                                                if (exception.getCause()
+                                                        instanceof PulsarClientException.AlreadyClosedException) {
                                                     return null;
                                                 }
                                                 log.error("Send transaction message failed with exception : ",
@@ -369,7 +383,13 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                                                 messageSendRCumulativeRecorder.recordValue(latencyMicros);
                                                 numMessagesSendSuccess.increment();
                                             }).exceptionally(exception -> {
-                                                if (exception instanceof InterruptedException && !executing.get()) {
+                                                if (PerfClientUtils.hasInterruptedException(exception)) {
+                                                    Thread.currentThread().interrupt();
+                                                    return null;
+                                                }
+                                                // Ignore the exception when the producer is closed
+                                                if (exception.getCause()
+                                                        instanceof PulsarClientException.AlreadyClosedException) {
                                                     return null;
                                                 }
                                                 log.error("Send message failed with exception : ", exception);
@@ -390,7 +410,8 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                                             numTxnOpSuccess.increment();
                                             totalNumEndTxnOpSuccess.increment();
                                         }).exceptionally(exception -> {
-                                            if (exception instanceof InterruptedException && !executing.get()) {
+                                            if (PerfClientUtils.hasInterruptedException(exception)) {
+                                                Thread.currentThread().interrupt();
                                                 return null;
                                             }
                                             log.error("Commit transaction {} failed with exception",
@@ -404,7 +425,8 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                                     numTxnOpSuccess.increment();
                                     totalNumEndTxnOpSuccess.increment();
                                 }).exceptionally(exception -> {
-                                    if (exception instanceof InterruptedException && !executing.get()) {
+                                    if (PerfClientUtils.hasInterruptedException(exception)) {
+                                        Thread.currentThread().interrupt();
                                         return null;
                                     }
                                     log.error("Commit transaction {} failed with exception",
@@ -414,7 +436,7 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                                     return null;
                                 });
                             }
-                            while (true) {
+                            while (!Thread.currentThread().isInterrupted()) {
                                 try {
                                     Transaction newTransaction = client.newTransaction()
                                             .withTransactionTimeout(this.transactionTimeout, TimeUnit.SECONDS)
@@ -424,11 +446,12 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
                                     totalNumTxnOpenTxnSuccess.increment();
                                     break;
                                 } catch (Exception throwable) {
-                                    if (throwable instanceof InterruptedException && !executing.get()) {
-                                        break;
+                                    if (PerfClientUtils.hasInterruptedException(throwable)) {
+                                        Thread.currentThread().interrupt();
+                                    } else {
+                                        log.error("Failed to new transaction with exception: ", throwable);
+                                        totalNumTxnOpenTxnFail.increment();
                                     }
-                                    log.error("Failed to new transaction with exception: ", throwable);
-                                    totalNumTxnOpenTxnFail.increment();
                                 }
                             }
                         } else {
@@ -457,10 +480,11 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
             histogramLogWriter.outputLogFormatVersion();
             histogramLogWriter.outputLegend();
 
-            while (executing.get()) {
+            while (!Thread.currentThread().isInterrupted() && executing.get()) {
                 try {
                     Thread.sleep(10000);
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     break;
                 }
                 long now = System.nanoTime();
@@ -502,6 +526,10 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
 
                 oldTime = now;
             }
+
+            PerfClientUtils.removeAndRunShutdownHook(shutdownHookThread);
+        } finally {
+            PerfClientUtils.closeClient(client);
         }
     }
 
