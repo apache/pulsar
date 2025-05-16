@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import java.util.Iterator;
-import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 import lombok.extern.slf4j.Slf4j;
@@ -95,18 +94,20 @@ public class ReplicatedSubscriptionSnapshotCache {
         final long timeWindowPerSlot = timeSinceFirstSnapshot / snapshotFrequencyMillis / maxSnapshotToCache;
 
         if (position.compareTo(snapshots.firstKey()) < 0) {
-            // Case 2: Reset cursor if position precedes first entry
+            // Case 2: When executing 'pulsar-admin topics reset-cursor', reset position for subscription to a position
+            // position precedes first entry
             snapshots.clear();
             snapshots.put(position, snapshotEntry);
             return;
         } else if (position.compareTo(snapshots.lastKey()) < 0) {
-            // Case 3: Reset cursor If the position is in the middle, delete the cache after that position
+            // Case 3: When executing 'pulsar-admin topics reset-cursor', reset position for subscription to a position
+            // the position is in the middle, delete the cache after that position
             while (position.compareTo(snapshots.lastKey()) < 0) {
                 snapshots.pollLastEntry();
             }
             snapshots.put(position, snapshotEntry);
         }
-        // Time-based eviction conditions
+        // omit cache
         // timeSinceLastSnapshot < snapshotFrequencyMillis, keep the same frequency
         // timeSinceLastSnapshot < timeWindowPerSlot, implementing dynamic adjustments
         if (timeSinceLastSnapshot < snapshotFrequencyMillis || timeSinceLastSnapshot < timeWindowPerSlot) {
@@ -130,12 +131,12 @@ public class ReplicatedSubscriptionSnapshotCache {
      * Find the Position in NavigableMap according to the target index.
      */
     private Position findPositionByIndex(int targetIndex) {
-        Iterator<Map.Entry<Position, SnapshotEntry>> it = snapshots.entrySet().iterator();
+        Iterator<Position> it = snapshots.keySet().iterator();
         int currentIndex = 0;
         while (it.hasNext()) {
-            Map.Entry<Position, SnapshotEntry> entry = it.next();
+            Position position = it.next();
             if (currentIndex == targetIndex) {
-                return entry.getKey();
+                return position;
             }
             currentIndex++;
         }
