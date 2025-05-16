@@ -225,8 +225,8 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
                 .get("my-subscription").getConsumers();
         Assert.assertEquals(consumers.size(), 1);
         ConsumerStatsImpl consumerStats = new ConsumerStatsImpl();
-        consumerStats.msgOutCounter = 10;
-        consumerStats.bytesOutCounter = 1280;
+        consumerStats.setMsgOutCounter(10);
+        consumerStats.setBytesOutCounter(1280);
         consumers.get(0).updateStats(consumerStats);
         ConsumerStats updatedStats = consumers.get(0).getStats();
 

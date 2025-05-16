@@ -35,7 +35,7 @@ public class NonPersistentPublisherStatsImpl extends PublisherStatsImpl implemen
      * messages per connection.
      **/
     @Getter
-    public double msgDropRate;
+    private double msgDropRate;
 
     @JsonIgnore
     private final Rate msgDrop = new Rate();

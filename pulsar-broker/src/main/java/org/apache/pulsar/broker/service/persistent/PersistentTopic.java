@@ -1418,12 +1418,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return sub
                     .getStatsAsync(new GetStatsOptions(false, false, false, false, false))
                     .thenAccept(stats -> {
-                        bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
-                        msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
+                        bytesOutFromRemovedSubscriptions.add(stats.getBytesOutCounter());
+                        msgOutFromRemovedSubscriptions.add(stats.getMsgOutCounter());
 
                         if (isSystemCursor(subscriptionName)
                                 || subscriptionName.startsWith(SystemTopicNames.SYSTEM_READER_PREFIX)) {
-                            bytesOutFromRemovedSystemSubscriptions.add(stats.bytesOutCounter);
+                            bytesOutFromRemovedSystemSubscriptions.add(stats.getBytesOutCounter());
                         }
                     });
         }
@@ -2408,8 +2408,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             producer.updateRates();
             PublisherStatsImpl publisherStats = producer.getStats();
 
-            topicStatsHelper.aggMsgRateIn += publisherStats.msgRateIn;
-            topicStatsHelper.aggMsgThroughputIn += publisherStats.msgThroughputIn;
+            topicStatsHelper.aggMsgRateIn += publisherStats.getMsgRateIn();
+            topicStatsHelper.aggMsgThroughputIn += publisherStats.getMsgThroughputIn();
 
             if (producer.isRemote()) {
                 topicStatsHelper.remotePublishersStats.put(producer.getRemoteCluster(), publisherStats);
@@ -2450,31 +2450,31 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
             // Add incoming msg rates
             PublisherStatsImpl pubStats = topicStatsHelper.remotePublishersStats.get(replicator.getRemoteCluster());
-            rStat.msgRateIn = pubStats != null ? pubStats.msgRateIn : 0;
-            rStat.msgThroughputIn = pubStats != null ? pubStats.msgThroughputIn : 0;
-            rStat.inboundConnection = pubStats != null ? pubStats.getAddress() : null;
-            rStat.inboundConnectedSince = pubStats != null ? pubStats.getConnectedSince() : null;
+            rStat.setMsgRateIn(pubStats != null ? pubStats.getMsgRateIn() : 0);
+            rStat.setMsgThroughputIn(pubStats != null ? pubStats.getMsgThroughputIn() : 0);
+            rStat.setInboundConnection(pubStats != null ? pubStats.getAddress() : null);
+            rStat.setInboundConnectedSince(pubStats != null ? pubStats.getConnectedSince() : null);
 
-            topicStatsHelper.aggMsgRateOut += rStat.msgRateOut;
-            topicStatsHelper.aggMsgThroughputOut += rStat.msgThroughputOut;
+            topicStatsHelper.aggMsgRateOut += rStat.getMsgRateOut();
+            topicStatsHelper.aggMsgThroughputOut += rStat.getMsgThroughputOut();
 
             // Populate replicator specific stats here
             topicStatsStream.startObject(cluster);
-            topicStatsStream.writePair("connected", rStat.connected);
-            topicStatsStream.writePair("msgRateExpired", rStat.msgRateExpired);
-            topicStatsStream.writePair("msgRateIn", rStat.msgRateIn);
-            topicStatsStream.writePair("msgRateOut", rStat.msgRateOut);
-            topicStatsStream.writePair("msgThroughputIn", rStat.msgThroughputIn);
-            topicStatsStream.writePair("msgThroughputOut", rStat.msgThroughputOut);
-            topicStatsStream.writePair("replicationBacklog", rStat.replicationBacklog);
-            topicStatsStream.writePair("replicationDelayInSeconds", rStat.replicationDelayInSeconds);
-            topicStatsStream.writePair("inboundConnection", rStat.inboundConnection);
-            topicStatsStream.writePair("inboundConnectedSince", rStat.inboundConnectedSince);
-            topicStatsStream.writePair("outboundConnection", rStat.outboundConnection);
-            topicStatsStream.writePair("outboundConnectedSince", rStat.outboundConnectedSince);
+            topicStatsStream.writePair("connected", rStat.isConnected());
+            topicStatsStream.writePair("msgRateExpired", rStat.getMsgRateExpired());
+            topicStatsStream.writePair("msgRateIn", rStat.getMsgRateIn());
+            topicStatsStream.writePair("msgRateOut", rStat.getMsgRateOut());
+            topicStatsStream.writePair("msgThroughputIn", rStat.getMsgThroughputIn());
+            topicStatsStream.writePair("msgThroughputOut", rStat.getMsgThroughputOut());
+            topicStatsStream.writePair("replicationBacklog", rStat.getReplicationBacklog());
+            topicStatsStream.writePair("replicationDelayInSeconds", rStat.getReplicationDelayInSeconds());
+            topicStatsStream.writePair("inboundConnection", rStat.getInboundConnection());
+            topicStatsStream.writePair("inboundConnectedSince", rStat.getInboundConnectedSince());
+            topicStatsStream.writePair("outboundConnection", rStat.getOutboundConnection());
+            topicStatsStream.writePair("outboundConnectedSince", rStat.getOutboundConnectedSince());
             topicStatsStream.endObject();
 
-            nsStats.msgReplBacklog += rStat.replicationBacklog;
+            nsStats.msgReplBacklog += rStat.getReplicationBacklog();
 
             if (replStats.isMetricsEnabled()) {
                 String namespaceClusterKey = replStats.getKeyName(namespace, cluster);
@@ -2484,16 +2484,16 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     replicationMetrics = ReplicationMetrics.get();
                     update = true;
                 }
-                replicationMetrics.connected += rStat.connected ? 1 : 0;
-                replicationMetrics.msgRateOut += rStat.msgRateOut;
-                replicationMetrics.msgThroughputOut += rStat.msgThroughputOut;
-                replicationMetrics.msgReplBacklog += rStat.replicationBacklog;
+                replicationMetrics.connected += rStat.isConnected() ? 1 : 0;
+                replicationMetrics.msgRateOut += rStat.getMsgRateOut();
+                replicationMetrics.msgThroughputOut += rStat.getMsgThroughputOut();
+                replicationMetrics.msgReplBacklog += rStat.getReplicationBacklog();
                 if (update) {
                     replStats.put(namespaceClusterKey, replicationMetrics);
                 }
                 // replication delay for a namespace is the max repl-delay among all the topics under this namespace
-                if (rStat.replicationDelayInSeconds > replicationMetrics.maxMsgReplDelayInSeconds) {
-                    replicationMetrics.maxMsgReplDelayInSeconds = rStat.replicationDelayInSeconds;
+                if (rStat.getReplicationDelayInSeconds() > replicationMetrics.maxMsgReplDelayInSeconds) {
+                    replicationMetrics.maxMsgReplDelayInSeconds = rStat.getReplicationDelayInSeconds();
                 }
             }
         });
@@ -2522,10 +2522,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     consumer.updateRates();
 
                     ConsumerStatsImpl consumerStats = consumer.getStats();
-                    subMsgRateOut += consumerStats.msgRateOut;
-                    subMsgAckRate += consumerStats.messageAckRate;
-                    subMsgThroughputOut += consumerStats.msgThroughputOut;
-                    subMsgRateRedeliver += consumerStats.msgRateRedeliver;
+                    subMsgRateOut += consumerStats.getMsgRateOut();
+                    subMsgAckRate += consumerStats.getMessageAckRate();
+                    subMsgThroughputOut += consumerStats.getMsgThroughputOut();
+                    subMsgRateRedeliver += consumerStats.getMsgRateRedeliver();
 
                     StreamingStats.writeConsumerStats(topicStatsStream, subscription.getType(), consumerStats);
                 }
@@ -2674,8 +2674,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         producers.values().forEach(producer -> {
             PublisherStatsImpl publisherStats = producer.getStats();
-            stats.msgRateIn += publisherStats.msgRateIn;
-            stats.msgThroughputIn += publisherStats.msgThroughputIn;
+            stats.setMsgRateIn(stats.getMsgRateIn() + publisherStats.getMsgRateIn());
+            stats.setMsgThroughputIn(stats.getMsgThroughputIn() + publisherStats.getMsgThroughputIn());
 
             if (producer.isRemote()) {
                 remotePublishersStats.put(producer.getRemoteCluster(), publisherStats);
@@ -2685,20 +2685,22 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
         });
 
-        stats.averageMsgSize = stats.msgRateIn == 0.0 ? 0.0 : (stats.msgThroughputIn / stats.msgRateIn);
-        stats.msgInCounter = getMsgInCounter();
-        stats.bytesInCounter = getBytesInCounter();
-        stats.systemTopicBytesInCounter = getSystemTopicBytesInCounter();
-        stats.msgChunkPublished = this.msgChunkPublished;
-        stats.waitingPublishers = getWaitingProducersCount();
-        stats.bytesOutCounter = bytesOutFromRemovedSubscriptions.longValue();
-        stats.msgOutCounter = msgOutFromRemovedSubscriptions.longValue();
-        stats.bytesOutInternalCounter = bytesOutFromRemovedSystemSubscriptions.longValue();
-        stats.publishRateLimitedTimes = publishRateLimitedTimes;
+        stats.setAverageMsgSize(
+                stats.getMsgRateIn() == 0.0 ? 0.0 : (stats.getMsgThroughputIn() / stats.getMsgRateIn())
+        );
+        stats.setMsgInCounter(getMsgInCounter());
+        stats.setBytesInCounter(getBytesInCounter());
+        stats.setSystemTopicBytesInCounter(getSystemTopicBytesInCounter());
+        stats.setMsgChunkPublished(this.msgChunkPublished);
+        stats.setWaitingPublishers(getWaitingProducersCount());
+        stats.setBytesOutCounter(bytesOutFromRemovedSubscriptions.longValue());
+        stats.setMsgOutCounter(msgOutFromRemovedSubscriptions.longValue());
+        stats.setBytesOutInternalCounter(bytesOutFromRemovedSystemSubscriptions.longValue());
+        stats.setPublishRateLimitedTimes(publishRateLimitedTimes);
         TransactionBuffer txnBuffer = getTransactionBuffer();
-        stats.ongoingTxnCount = txnBuffer.getOngoingTxnCount();
-        stats.abortedTxnCount = txnBuffer.getAbortedTxnCount();
-        stats.committedTxnCount = txnBuffer.getCommittedTxnCount();
+        stats.setOngoingTxnCount(txnBuffer.getOngoingTxnCount());
+        stats.setAbortedTxnCount(txnBuffer.getAbortedTxnCount());
+        stats.setCommittedTxnCount(txnBuffer.getCommittedTxnCount());
 
         replicators.forEach((cluster, replicator) -> {
             ReplicatorStatsImpl replicatorStats = replicator.computeStats();
@@ -2706,44 +2708,47 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             // Add incoming msg rates
             PublisherStatsImpl pubStats = remotePublishersStats.get(replicator.getRemoteCluster());
             if (pubStats != null) {
-                replicatorStats.msgRateIn = pubStats.msgRateIn;
-                replicatorStats.msgThroughputIn = pubStats.msgThroughputIn;
-                replicatorStats.inboundConnection = pubStats.getAddress();
-                replicatorStats.inboundConnectedSince = pubStats.getConnectedSince();
+                replicatorStats.setMsgRateIn(pubStats.getMsgRateIn());
+                replicatorStats.setMsgThroughputIn(pubStats.getMsgThroughputIn());
+                replicatorStats.setInboundConnection(pubStats.getAddress());
+                replicatorStats.setInboundConnectedSince(pubStats.getConnectedSince());
             }
 
-            stats.msgRateOut += replicatorStats.msgRateOut;
-            stats.msgThroughputOut += replicatorStats.msgThroughputOut;
+            stats.setMsgRateOut(stats.getMsgRateOut() + replicatorStats.getMsgRateOut());
+            stats.setMsgThroughputOut(stats.getMsgThroughputOut() + replicatorStats.getMsgThroughputOut());
 
             stats.replication.put(replicator.getRemoteCluster(), replicatorStats);
         });
 
-        stats.storageSize = ledger.getTotalSize();
-        stats.backlogSize = ledger.getEstimatedBacklogSize();
-        stats.deduplicationStatus = messageDeduplication.getStatus().toString();
-        stats.topicEpoch = topicEpoch.orElse(null);
-        stats.ownerBroker = brokerService.pulsar().getBrokerId();
-        stats.offloadedStorageSize = ledger.getOffloadedSize();
-        stats.lastOffloadLedgerId = ledger.getLastOffloadedLedgerId();
-        stats.lastOffloadSuccessTimeStamp = ledger.getLastOffloadedSuccessTimestamp();
-        stats.lastOffloadFailureTimeStamp = ledger.getLastOffloadedFailureTimestamp();
+        stats.setStorageSize(ledger.getTotalSize());
+        stats.setBacklogSize(ledger.getEstimatedBacklogSize());
+        stats.setDeduplicationStatus(messageDeduplication.getStatus().toString());
+        stats.setTopicEpoch(topicEpoch.orElse(null));
+        stats.setOwnerBroker(brokerService.pulsar().getBrokerId());
+        stats.setOffloadedStorageSize(ledger.getOffloadedSize());
+        stats.setLastOffloadLedgerId(ledger.getLastOffloadedLedgerId());
+        stats.setLastOffloadSuccessTimeStamp(ledger.getLastOffloadedSuccessTimestamp());
+        stats.setLastOffloadFailureTimeStamp(ledger.getLastOffloadedFailureTimestamp());
         Optional<CompactorMXBean> mxBean = getCompactorMXBean();
 
-        stats.backlogQuotaLimitSize = getBacklogQuota(BacklogQuotaType.destination_storage).getLimitSize();
-        stats.backlogQuotaLimitTime = getBacklogQuota(BacklogQuotaType.message_age).getLimitTime();
+        stats.setBacklogQuotaLimitSize(getBacklogQuota(BacklogQuotaType.destination_storage).getLimitSize());
+        stats.setBacklogQuotaLimitTime(getBacklogQuota(BacklogQuotaType.message_age).getLimitTime());
 
-        stats.oldestBacklogMessageAgeSeconds = getBestEffortOldestUnacknowledgedMessageAgeSeconds();
-        stats.oldestBacklogMessageSubscriptionName = (oldestPositionInfo == null)
-            ? null
-            : oldestPositionInfo.getCursorName();
+        stats.setOldestBacklogMessageAgeSeconds(getBestEffortOldestUnacknowledgedMessageAgeSeconds());
+        stats.setOldestBacklogMessageSubscriptionName((oldestPositionInfo == null)
+                ? null
+                : oldestPositionInfo.getCursorName());
 
-        stats.compaction.reset();
+        stats.getCompaction().reset();
         mxBean.flatMap(bean -> bean.getCompactionRecordForTopic(topic)).map(compactionRecord -> {
-            stats.compaction.lastCompactionRemovedEventCount = compactionRecord.getLastCompactionRemovedEventCount();
-            stats.compaction.lastCompactionSucceedTimestamp = compactionRecord.getLastCompactionSucceedTimestamp();
-            stats.compaction.lastCompactionFailedTimestamp = compactionRecord.getLastCompactionFailedTimestamp();
-            stats.compaction.lastCompactionDurationTimeInMills =
-                    compactionRecord.getLastCompactionDurationTimeInMills();
+            stats.getCompaction().setLastCompactionRemovedEventCount(
+                    compactionRecord.getLastCompactionRemovedEventCount());
+            stats.getCompaction().setLastCompactionSucceedTimestamp(
+                    compactionRecord.getLastCompactionSucceedTimestamp());
+            stats.getCompaction().setLastCompactionFailedTimestamp(
+                    compactionRecord.getLastCompactionFailedTimestamp());
+            stats.getCompaction().setLastCompactionDurationTimeInMills(
+                    compactionRecord.getLastCompactionDurationTimeInMills());
             return compactionRecord;
         });
 
@@ -2755,16 +2760,21 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             for (Map.Entry<String, CompletableFuture<SubscriptionStatsImpl>> e : subscriptionFutures.entrySet()) {
                 String name = e.getKey();
                 SubscriptionStatsImpl subStats = e.getValue().join();
-                stats.msgRateOut += subStats.msgRateOut;
-                stats.msgThroughputOut += subStats.msgThroughputOut;
-                stats.bytesOutCounter += subStats.bytesOutCounter;
-                stats.msgOutCounter += subStats.msgOutCounter;
+                stats.setMsgRateOut(stats.getMsgRateOut() + subStats.getMsgRateOut());
+                stats.setMsgThroughputOut(stats.getMsgThroughputOut() + subStats.getMsgThroughputOut());
+                stats.setBytesOutCounter(stats.getBytesOutCounter() + subStats.getBytesOutCounter());
+                stats.setMsgOutCounter(stats.getMsgOutCounter() + subStats.getMsgOutCounter());
                 stats.subscriptions.put(name, subStats);
-                stats.nonContiguousDeletedMessagesRanges += subStats.nonContiguousDeletedMessagesRanges;
-                stats.nonContiguousDeletedMessagesRangesSerializedSize +=
-                        subStats.nonContiguousDeletedMessagesRangesSerializedSize;
-                stats.delayedMessageIndexSizeInBytes += subStats.delayedMessageIndexSizeInBytes;
-
+                stats.setNonContiguousDeletedMessagesRanges(
+                        stats.getNonContiguousDeletedMessagesRanges() + subStats.getNonContiguousDeletedMessagesRanges()
+                );
+                stats.setNonContiguousDeletedMessagesRangesSerializedSize(
+                        stats.getNonContiguousDeletedMessagesRangesSerializedSize()
+                                + subStats.getNonContiguousDeletedMessagesRangesSerializedSize()
+                );
+                stats.setDelayedMessageIndexSizeInBytes(
+                        stats.getDelayedMessageIndexSizeInBytes() + subStats.getDelayedMessageIndexSizeInBytes()
+                );
                 subStats.bucketDelayedIndexStats.forEach((k, v) -> {
                     TopicMetricBean topicMetricBean =
                             stats.bucketDelayedIndexStats.computeIfAbsent(k, ignore2 -> new TopicMetricBean());
@@ -2774,13 +2784,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 });
 
                 if (isSystemCursor(name) || name.startsWith(SystemTopicNames.SYSTEM_READER_PREFIX)) {
-                    stats.bytesOutInternalCounter += subStats.bytesOutCounter;
+                    stats.setBytesOutInternalCounter(
+                            stats.getBytesOutInternalCounter() + subStats.getBytesOutCounter()
+                    );
                 }
             }
-            if (getStatsOptions.isGetEarliestTimeInBacklog() && stats.backlogSize != 0) {
+            if (getStatsOptions.isGetEarliestTimeInBacklog() && stats.getBacklogSize() != 0) {
                 CompletableFuture finalRes = ledger.getEarliestMessagePublishTimeInBacklog()
                     .thenApply((earliestTime) -> {
-                        stats.earliestMsgPublishTimeInBacklogs = earliestTime;
+                        stats.setEarliestMsgPublishTimeInBacklogs(earliestTime);
                         return stats;
                     });
                 // print error log.

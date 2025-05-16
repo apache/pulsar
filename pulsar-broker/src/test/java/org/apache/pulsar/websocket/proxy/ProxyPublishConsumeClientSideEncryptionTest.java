@@ -125,8 +125,8 @@ public class ProxyPublishConsumeClientSideEncryptionTest extends ProducerConsume
         // Send message.
         String msgPayloadBeforeEncrypt = "msg-123";
         ProducerMessage messageSent = new ProducerMessage();
-        messageSent.key = "k";
-        messageSent.payload = msgPayloadBeforeEncrypt;
+        messageSent.setKey("k");
+        messageSent.setPayload(msgPayloadBeforeEncrypt);
         MessageIdData messageIdData = producer.sendMessage(messageSent);
         log.info("send success: {}", messageIdData.toString());
 
@@ -175,9 +175,9 @@ public class ProxyPublishConsumeClientSideEncryptionTest extends ProducerConsume
         // Send message.
         String originalPayload = "msg-123";
         ProducerMessage messageSent = new ProducerMessage();
-        messageSent.key = "k";
-        messageSent.payload = originalPayload;
-        messageSent.compressionType = compressionType;
+        messageSent.setKey("k");
+        messageSent.setPayload(originalPayload);
+        messageSent.setCompressionType(compressionType);
         MessageIdData messageIdData = producer.sendMessage(messageSent);
         log.info("send success: {}", messageIdData.toString());
 
@@ -341,8 +341,8 @@ public class ProxyPublishConsumeClientSideEncryptionTest extends ProducerConsume
         // Send message.
         String msgPayloadBeforeEncrypt = "msg-123";
         ProducerMessage messageSent = new ProducerMessage();
-        messageSent.key = "k";
-        messageSent.payload = msgPayloadBeforeEncrypt;
+        messageSent.setKey("k");
+        messageSent.setPayload(msgPayloadBeforeEncrypt);
         MessageIdData messageIdData = producer.sendMessage(messageSent);
         log.info("send success: {}", messageIdData.toString());
 

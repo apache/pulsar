@@ -62,14 +62,14 @@ public class ConsumerTest {
 
     @Test
     public void testGetMsgOutCounter() {
-        stats.msgOutCounter = 1L;
+        stats.setMsgOutCounter(1L);
         consumer.updateStats(stats);
         assertEquals(consumer.getMsgOutCounter(), 1L);
     }
 
     @Test
     public void testGetBytesOutCounter() {
-        stats.bytesOutCounter = 1L;
+        stats.setBytesOutCounter(1L);
         consumer.updateStats(stats);
         assertEquals(consumer.getBytesOutCounter(), 1L);
     }

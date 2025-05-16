@@ -771,7 +771,7 @@ public class LoadManagerShared {
                     try {
                         Optional<FailureDomainImpl> domain = fdr.getFailureDomain(clusterName, domainName);
                         if (domain.isPresent()) {
-                            for (String broker : domain.get().brokers) {
+                            for (String broker : domain.get().getBrokers()) {
                                 tempBrokerToFailureDomainMap.put(broker, domainName);
                             }
                         }

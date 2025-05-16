@@ -59,8 +59,8 @@ public class SimpleProducerSocket {
 
     private static String getTestJsonPayload(int index) throws JsonProcessingException {
         ProducerMessage msg = new ProducerMessage();
-        msg.payload = Base64.getEncoder().encodeToString(("test" + index).getBytes());
-        msg.key = Integer.toString(index);
+        msg.setPayload(Base64.getEncoder().encodeToString(("test" + index).getBytes()));
+        msg.setKey(Integer.toString(index));
         return ObjectMapperFactory.getMapper().writer().writeValueAsString(msg);
     }
 
