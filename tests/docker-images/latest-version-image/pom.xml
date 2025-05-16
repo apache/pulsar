@@ -95,7 +95,7 @@
                       <destFileName>java-test-plugins.nar</destFileName>
                     </artifactItem>
                     <artifactItem>
-                      <groupId>org.apache.pulsar</groupId>
+                      <groupId>com.datastax.oss</groupId>
                       <artifactId>buildtools</artifactId>
                       <version>${project.parent.version}</version>
                       <type>jar</type>
