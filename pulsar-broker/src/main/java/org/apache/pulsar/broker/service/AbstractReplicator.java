@@ -398,12 +398,15 @@ public abstract class AbstractReplicator implements Replicator {
         });
     }
 
+    protected abstract void beforeTerminate();
+
     public CompletableFuture<Void> terminate() {
         if (!tryChangeStatusToTerminating()) {
             log.info("[{}] Skip current termination since other thread is doing termination, state : {}", replicatorId,
                     state);
             return CompletableFuture.completedFuture(null);
         }
+        beforeTerminate();
         return doCloseProducerAsync(producer, () -> {
             STATE_UPDATER.set(this, State.Terminated);
             this.producer = null;

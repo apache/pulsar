@@ -74,6 +74,7 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.persistent.ShadowReplicatorTest;
 import org.apache.pulsar.broker.stats.OpenTelemetryReplicatorStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -112,7 +113,6 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.schema.Schemas;
 import org.awaitility.Awaitility;
-import org.awaitility.reflect.WhiteboxImpl;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -464,7 +464,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         PersistentReplicator replicator = ensureReplicatorCreated(topic, pulsar1);
         waitReplicateFinish(topic, admin1);
         Awaitility.await().untilAsserted(() -> {
-            assertEquals((int) WhiteboxImpl.getInternalState(replicator, "pendingMessages"), 0);
+            assertFalse(ShadowReplicatorTest.checkInflightTasksEnsureNoMessagesNeedToBeReplicated(replicator));
         });
     }
 
