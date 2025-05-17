@@ -250,7 +250,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         openTelemetryManagedCursorStats = new OpenTelemetryManagedCursorStats(openTelemetry, this);
     }
 
-    static class DefaultBkFactory implements BookkeeperFactoryForCustomEnsemblePlacementPolicy {
+    static class DefaultBkFactory implements BookkeeperFactoryForCustomEnsemblePlacementPolicy, AutoCloseable {
 
         private final BookKeeper bkClient;
 
@@ -262,6 +262,11 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         @Override
         public CompletableFuture<BookKeeper> get(EnsemblePlacementPolicyConfig policy) {
             return CompletableFuture.completedFuture(bkClient);
+        }
+
+        @Override
+        public void close() throws Exception {
+            bkClient.close();
         }
     }
 
@@ -646,13 +651,20 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                             }
                         }
                     }));
-                }).thenAcceptAsync(__ -> {
+                }).whenCompleteAsync((__, ___) -> {
                     //wait for tasks in scheduledExecutor executed.
                     openTelemetryManagedCursorStats.close();
                     openTelemetryManagedLedgerStats.close();
                     openTelemetryCacheStats.close();
                     scheduledExecutor.shutdownNow();
                     entryCacheManager.clear();
+                    if (bookkeeperFactory instanceof DefaultBkFactory defaultBkFactory) {
+                        try {
+                            defaultBkFactory.close();
+                        } catch (Exception e) {
+                            log.warn("Failed to close bookkeeper client", e);
+                        }
+                    }
                 });
     }
 
