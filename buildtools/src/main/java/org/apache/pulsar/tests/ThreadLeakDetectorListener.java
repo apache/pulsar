@@ -227,6 +227,10 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
             if (threadName.equals("process reaper")) {
                 return true;
             }
+            // skip thread created by sun.net.www.http.KeepAliveCache
+            if (threadName.equals("Keep-Alive-Timer")) {
+                return true;
+            }
             // skip JVM internal thread related to agent attach
             if (threadName.equals("Attach Listener")) {
                 return true;
@@ -253,6 +257,10 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
             }
             // skip org.glassfish.grizzly.http.server.DefaultSessionManager thread pool
             if (threadName.equals("Grizzly-HttpSession-Expirer")) {
+                return true;
+            }
+            // skip Hadoop LocalFileSystem stats thread
+            if (threadName.equals("org.apache.hadoop.fs.FileSystem$Statistics$StatisticsDataReferenceCleaner")) {
                 return true;
             }
             // Testcontainers AbstractWaitStrategy.EXECUTOR
