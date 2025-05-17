@@ -817,7 +817,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
             // closed by "PersistentTopic.closeReplProducersIfNoBacklog".
             // The waking up steps are follows:
             // 1. Read entries.
-            // 2. Transfers messages to "ReplicatedSubscriptionsController" if the message is replicated subscription marker.
+            // 2. Transfers messages to "ReplicatedSubscriptionsController" if the message is replicated subscription
+            //    marker.
             // 3. "ReplicatedSubscriptionsController" will call "Replicator.startProducer"
             if (state != Started && state != Disconnected) {
                 log.info("[{}] Skip the reading because producer has not started [{}]", replicatorId, state);
