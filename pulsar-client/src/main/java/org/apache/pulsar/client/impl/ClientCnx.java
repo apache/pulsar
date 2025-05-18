@@ -484,8 +484,7 @@ public class ClientCnx extends PulsarHandler {
         if (ledgerId == -1 && entryId == -1) {
             if (producer == null) {
                 log.warn("{} Message with sequence-id {}-{} published by producer [id:{}, name:{}] has been dropped",
-                        ctx.channel(), sequenceId, highestSequenceId, producerId,
-                        producer != null ? producer.getProducerName() : "null");
+                        ctx.channel(), sequenceId, highestSequenceId, producerId, "null");
             } else {
                 producer.printWarnLogThatCanNotDetermineDeduplication(ctx.channel(), sequenceId, highestSequenceId);
             }
