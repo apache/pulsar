@@ -51,6 +51,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.AbstractReplicator;
@@ -394,7 +395,10 @@ public abstract class PersistentReplicator extends AbstractReplicator
         @Override
         public void sendComplete(Throwable exception, OpSendMsgStats opSendMsgStats) {
             if (exception != null && !(exception instanceof PulsarClientException.InvalidMessageException)) {
-                log.error("[{}] Error producing on remote broker", replicator.replicatorId, exception);
+                log.error("[{}] Error producing on remote broker， in-flight messages: {}, producer pending queue size:"
+                        + " {}",
+                        replicator.replicatorId, replicator.inFlightTasks,
+                        replicator.producer.getPendingQueueSize(), exception);
                 // cursor should be rewound since it was incremented when readMoreEntries
                 replicator.beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding.Failed_Publishing);
                 replicator.doRewindCursor(false);
@@ -752,9 +756,14 @@ public abstract class PersistentReplicator extends AbstractReplicator
         volatile List<Entry> readoutEntries;
         int completedEntries;
         volatile boolean skipReadResultDueToCursorRewound;
+        final String replicatorId;
 
         public synchronized void incCompletedEntries() {
-            completedEntries++;
+            if (!CollectionUtils.isEmpty(readoutEntries) && completedEntries < readoutEntries.size()) {
+                completedEntries++;
+            } else {
+                log.error("Unexpected calling of increase completed entries. {}", this.toString());
+            }
         }
 
         synchronized void recycle(Position readStart, int readingEntries) {
@@ -765,9 +774,10 @@ public abstract class PersistentReplicator extends AbstractReplicator
             this.skipReadResultDueToCursorRewound = false;
         }
 
-        public InFlightTask(Position readPos, int readingEntries) {
+        public InFlightTask(Position readPos, int readingEntries, String replicatorId) {
             this.readPos = readPos;
             this.readingEntries = readingEntries;
+            this.replicatorId = replicatorId;
         }
 
         public boolean isDone() {
@@ -778,6 +788,18 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 return true;
             }
             return completedEntries >= readoutEntries.size();
+        }
+
+        @Override
+        public String toString() {
+            return "Replicator InFlightTask " +
+                "{replicatorId=" + replicatorId +
+                ", readPos=" + readPos +
+                ", readingEntries=" + readingEntries +
+                ", readoutEntries=" + (readoutEntries == null ? "-1" : readoutEntries.size()) +
+                ", completedEntries=" + completedEntries +
+                ", skipReadResultDueToCursorRewound=" + skipReadResultDueToCursorRewound +
+                "}";
         }
     }
 
@@ -796,7 +818,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 }
             }
             // New project if nothing can be reused.
-            InFlightTask task = new InFlightTask(readPos, readingEntries);
+            InFlightTask task = new InFlightTask(readPos, readingEntries, replicatorId);
             inFlightTasks.add(task);
             return task;
         }
@@ -864,11 +886,11 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     protected void beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding reason) {
-        cursor.cancelPendingReadRequest();
+        boolean hasCanceledPendingRead = cursor.cancelPendingReadRequest();
         synchronized (inFlightTasks) {
             reasonOfWaitForCursorRewinding = reason;
             waitForCursorRewinding = true;
-            cancelFollowingReadingTasks();
+            cancelFollowingReadingTasks(hasCanceledPendingRead);
         }
     }
 
@@ -883,13 +905,24 @@ public abstract class PersistentReplicator extends AbstractReplicator
         }
     }
 
-    private void cancelFollowingReadingTasks() {
+    private void cancelFollowingReadingTasks(boolean canceledPendingRead) {
+        InFlightTask readingTask = null;
         synchronized (inFlightTasks) {
             for (InFlightTask task : inFlightTasks) {
                 task.setSkipReadResultDueToCursorRewound(true);
-                // Correct state when concurrently executed with "cursor.cancelPendingReadRequest()", the task will
-                // never receive a callback, so we set a empty callback first, to avoid a replicate stuck.
-                task.setReadoutEntries(Collections.emptyList());
+                if (task.readoutEntries == null) {
+                    if (readingTask != null) {
+                        log.error("Unexpected state because there are more than one tasks' state is pending read. {}",
+                            inFlightTasks);
+                    }
+                    readingTask = task;
+                }
+            }
+            // Correct state to avoid a replicate stuck because a pending reading task occupies permits.
+            // There is at most one reading task.
+            // The task will never receive a read completed callback if cancel pending reading successfully.
+            if (canceledPendingRead && readingTask != null) {
+                readingTask.setReadoutEntries(Collections.emptyList());
             }
         }
     }

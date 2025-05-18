@@ -32,6 +32,7 @@ import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandler;
 import io.netty.channel.ChannelPromise;
@@ -402,6 +403,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         sendAsync(interceptorMessage, new DefaultSendMessageCallback(future, interceptorMessage, msgSize));
         return future;
+    }
+
+    public void printWarnLogThatCanNotDetermineDeduplication(Channel channel, long sequenceId, long highestSequenceId) {
+        log.warn("[{}] producer [id:{}, name:{}, channel: {}] message with sequence-id {}-{} published by has been"
+                        + " dropped because Broker can not determine whether is duplicate or not",
+                topic, producerId, producerName, channel, sequenceId, highestSequenceId);
     }
 
     private class DefaultSendMessageCallback implements SendCallback {

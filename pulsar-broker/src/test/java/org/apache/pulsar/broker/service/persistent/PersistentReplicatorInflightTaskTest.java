@@ -144,14 +144,14 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
 
             // Test Case 2: cursor reading.
             Position position1 = PositionFactory.create(1, 1);
-            InFlightTask task1 = new InFlightTask(position1, 3);
+            InFlightTask task1 = new InFlightTask(position1, 3, "");
             inFlightTasks.add(task1);
             Assert.assertEquals(replicator.getInflightMessagesCount(), 3);
 
             // Test Case 3: read completed.
             inFlightTasks.clear();
             Position position2 = PositionFactory.create(2, 2);
-            InFlightTask task2 = new InFlightTask(position2, 3);
+            InFlightTask task2 = new InFlightTask(position2, 3, "");
             task2.setReadoutEntries(Arrays.asList(mock(Entry.class), mock(Entry.class)));
             inFlightTasks.add(task2);
             Assert.assertEquals(replicator.getInflightMessagesCount(), 2);
@@ -168,7 +168,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
             // task2 has 0 in-flight (2 completed out of 2)
             // task3 has 2 in-flight (1 completed out of 3)
             Position position3 = PositionFactory.create(3, 3);
-            InFlightTask task3 = new InFlightTask(position3, 4);
+            InFlightTask task3 = new InFlightTask(position3, 4, "");
             task3.setReadoutEntries(Arrays.asList(mock(Entry.class), mock(Entry.class), mock(Entry.class)));
             task3.setCompletedEntries(1);
             inFlightTasks.add(task3);
@@ -179,7 +179,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
             // task3 has 2 in-flight (1 completed out of 3)
             // task4 has 0 in-flight (empty readoutEntries)
             Position position4 = PositionFactory.create(4, 4);
-            InFlightTask task4 = new InFlightTask(position4, 2);
+            InFlightTask task4 = new InFlightTask(position4, 2, "");
             task4.setReadoutEntries(Collections.emptyList());
             inFlightTasks.add(task4);
             Assert.assertEquals(replicator.getInflightMessagesCount(), 2);
@@ -215,7 +215,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
 
             // Test Case 2: Task with pending read (readPos != null && readoutEntries == null)
             Position position1 = PositionFactory.create(1, 1);
-            InFlightTask pendingReadTask = new InFlightTask(position1, 5);
+            InFlightTask pendingReadTask = new InFlightTask(position1, 5, "");
             // Don't set readoutEntries to simulate pending read
             inFlightTasks.add(pendingReadTask);
             Assert.assertEquals(replicator.getPermitsIfNoPendingRead(), 0,
@@ -224,7 +224,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
             // Test Case 3: Task with completed read but in-flight messages
             inFlightTasks.clear();
             Position position2 = PositionFactory.create(2, 2);
-            InFlightTask completedReadTask = new InFlightTask(position2, 5);
+            InFlightTask completedReadTask = new InFlightTask(position2, 5, "");
             completedReadTask.setReadoutEntries(Arrays.asList(
                     mock(Entry.class), mock(Entry.class), mock(Entry.class)));
             inFlightTasks.add(completedReadTask);
@@ -233,7 +233,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
 
             // Test Case 4: Multiple tasks with no pending reads
             Position position3 = PositionFactory.create(3, 3);
-            InFlightTask task2 = new InFlightTask(position3, 5);
+            InFlightTask task2 = new InFlightTask(position3, 5, "");
             task2.setReadoutEntries(Arrays.asList(mock(Entry.class), mock(Entry.class)));
             task2.setCompletedEntries(1); // 1 in-flight message
             inFlightTasks.add(task2);
@@ -243,7 +243,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
 
             // Test Case 5: Multiple tasks including one with pending read
             Position position4 = PositionFactory.create(4, 4);
-            InFlightTask pendingReadTask2 = new InFlightTask(position4, 5);
+            InFlightTask pendingReadTask2 = new InFlightTask(position4, 5, "");
             // Don't set readoutEntries to simulate pending read
             inFlightTasks.add(pendingReadTask2);
             Assert.assertEquals(replicator.getPermitsIfNoPendingRead(), 0,
@@ -293,7 +293,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
             // Test Case 2: With pending read - should return null
             inFlightTasks.clear();
             Position position1 = PositionFactory.create(1, 1);
-            InFlightTask pendingReadTask = new InFlightTask(position1, 5);
+            InFlightTask pendingReadTask = new InFlightTask(position1, 5, "");
             // Don't set readoutEntries to simulate pending read
             inFlightTasks.add(pendingReadTask);
             InFlightTask task2 = replicator.acquirePermitsIfNotFetchingSchema();
@@ -319,7 +319,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
             inFlightTasks.clear();
             // Add a task with some in-flight messages to reduce available permits
             Position positionLimited = PositionFactory.create(10, 10);
-            InFlightTask limitedTask = new InFlightTask(positionLimited, 5);
+            InFlightTask limitedTask = new InFlightTask(positionLimited, 5, "");
             // Add enough entries to leave just a small number of permits (e.g., 10)
             List<Entry> limitedEntries = new ArrayList<>();
             int entriesCount = 990;
@@ -344,7 +344,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
             // We need enough in-flight messages to equal producerQueueSize
             for (int i = 0; i < 10; i++) {
                 Position position = PositionFactory.create(i, i);
-                InFlightTask task = new InFlightTask(position, 5);
+                InFlightTask task = new InFlightTask(position, 5, "");
                 List<Entry> entries = new ArrayList<>();
                 for (int j = 0; j < 100; j++) {
                     entries.add(mock(Entry.class));
