@@ -792,14 +792,14 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
         @Override
         public String toString() {
-            return "Replicator InFlightTask " +
-                "{replicatorId=" + replicatorId +
-                ", readPos=" + readPos +
-                ", readingEntries=" + readingEntries +
-                ", readoutEntries=" + (readoutEntries == null ? "-1" : readoutEntries.size()) +
-                ", completedEntries=" + completedEntries +
-                ", skipReadResultDueToCursorRewound=" + skipReadResultDueToCursorRewound +
-                "}";
+            return "Replicator InFlightTask "
+                + "{replicatorId=" + replicatorId
+                + ", readPos=" + readPos
+                + ", readingEntries=" + readingEntries
+                + ", readoutEntries=" + (readoutEntries == null ? "-1" : readoutEntries.size())
+                + ", completedEntries=" + completedEntries
+                + ", skipReadResultDueToCursorRewound=" + skipReadResultDueToCursorRewound
+                + "}";
         }
     }
 
