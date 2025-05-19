@@ -587,7 +587,7 @@ public abstract class AdminResource extends PulsarWebResource {
                             return null;
                         }
                     }
-                    throw new CompletionException(unwrapped);
+                    throw FutureUtil.wrapToCompletionException(ex);
                 }))
                 .thenCompose(policies -> {
                     int maxTopicsPerNamespace = policies != null && policies.max_topics_per_namespace != null
@@ -595,7 +595,7 @@ public abstract class AdminResource extends PulsarWebResource {
 
                     // new create check
                     if (maxTopicsPerNamespace > 0 && !pulsar().getBrokerService().isSystemTopic(topicName)) {
-                        return getTopicPartitionListAsync().thenCompose(partitionedTopics -> {
+                        return getTopicPartitionListAsync().thenAccept(partitionedTopics -> {
                             // exclude created system topic
                             long topicsCount = partitionedTopics.stream()
                                     .filter(t -> !pulsar().getBrokerService().isSystemTopic(TopicName.get(t)))
@@ -604,10 +604,9 @@ public abstract class AdminResource extends PulsarWebResource {
                                 log.error("[{}] Failed to create partitioned topic {}, "
                                                 + "exceed maximum number of topics in namespace", clientAppId(),
                                         topicName);
-                                return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
-                                        "Exceed maximum number of topics in namespace."));
+                                throw new RestException(Status.PRECONDITION_FAILED,
+                                        "Exceed maximum number of topics in namespace.");
                             }
-                            return CompletableFuture.completedFuture(null);
                         });
                     }
                     return CompletableFuture.completedFuture(null);
