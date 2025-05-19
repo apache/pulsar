@@ -941,6 +941,26 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean autoShrinkForConsumerPendingAcksMap = false;
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            dynamic = true,
+            doc = "The minimum receive buffer size for AdaptiveRecvByteBufAllocator"
+    )
+    private int minReceiveByteBuf = 1024;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            dynamic = true,
+            doc = "The init receive buffer size for AdaptiveRecvByteBufAllocator"
+    )
+    private int initReceiveByteBuf = 16 * 1024;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            dynamic = true,
+            doc = "The max receive buffer size for AdaptiveRecvByteBufAllocator"
+    )
+    private int maxReceiveByteBuf = 1 * 1024 * 1024;
+    @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "Enable check for minimum allowed client library version"
