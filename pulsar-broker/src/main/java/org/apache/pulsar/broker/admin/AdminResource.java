@@ -309,6 +309,10 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
+    /**
+     * @deprecated Use {@link #getNamespacePoliciesAsync(NamespaceName)} instead.
+     */
+    @Deprecated
     protected Policies getNamespacePolicies(NamespaceName namespaceName) {
         try {
             Policies policies = namespaceResources().getPolicies(namespaceName)
@@ -537,6 +541,10 @@ public abstract class AdminResource extends PulsarWebResource {
                 .listPartitionedTopicsAsync(namespaceName, topicDomain);
     }
 
+    /**
+     * @deprecated Use {@link #getTopicPartitionListAsync()} instead.
+     */
+    @Deprecated
     protected List<String> getTopicPartitionList(TopicDomain topicDomain) {
         try {
             return getPulsarResources().getTopicResources().getExistingPartitions(topicName)
@@ -546,6 +554,10 @@ public abstract class AdminResource extends PulsarWebResource {
                     namespaceName.toString(), e);
             throw new RestException(e);
         }
+    }
+
+    protected CompletableFuture<List<String>> getTopicPartitionListAsync() {
+        return getPulsarResources().getTopicResources().getExistingPartitions(topicName);
     }
 
     protected void internalCreatePartitionedTopic(AsyncResponse asyncResponse, int numPartitions,
@@ -567,33 +579,36 @@ public abstract class AdminResource extends PulsarWebResource {
             return;
         }
         validateNamespaceOperationAsync(topicName.getNamespaceObject(), NamespaceOperation.CREATE_TOPIC)
-                .thenRun(() -> {
-                    Policies policies = null;
-                    try {
-                        policies = getNamespacePolicies(namespaceName);
-                    } catch (RestException e) {
-                        if (e.getResponse().getStatus() != Status.NOT_FOUND.getStatusCode()) {
-                            throw e;
+                .thenCompose((__) -> getNamespacePoliciesAsync(namespaceName).exceptionally(ex -> {
+                    Throwable unwrapped = FutureUtil.unwrapCompletionException(ex);
+                    if (unwrapped instanceof RestException re) {
+                        if (re.getResponse().getStatus() == Status.NOT_FOUND.getStatusCode()) {
+                            return null;
                         }
                     }
-
+                    throw FutureUtil.wrapToCompletionException(ex);
+                }))
+                .thenCompose(policies -> {
                     int maxTopicsPerNamespace = policies != null && policies.max_topics_per_namespace != null
                             ? policies.max_topics_per_namespace : pulsar().getConfig().getMaxTopicsPerNamespace();
 
                     // new create check
                     if (maxTopicsPerNamespace > 0 && !pulsar().getBrokerService().isSystemTopic(topicName)) {
-                        List<String> partitionedTopics = getTopicPartitionList(TopicDomain.persistent);
-                        // exclude created system topic
-                        long topicsCount =
-                                partitionedTopics.stream().filter(t ->
-                                        !pulsar().getBrokerService().isSystemTopic(TopicName.get(t))).count();
-                        if (topicsCount + numPartitions > maxTopicsPerNamespace) {
-                            log.error("[{}] Failed to create partitioned topic {}, "
-                                    + "exceed maximum number of topics in namespace", clientAppId(), topicName);
-                            throw new RestException(Status.PRECONDITION_FAILED,
-                                    "Exceed maximum number of topics in namespace.");
-                        }
+                        return getTopicPartitionListAsync().thenAccept(partitionedTopics -> {
+                            // exclude created system topic
+                            long topicsCount = partitionedTopics.stream()
+                                    .filter(t -> !pulsar().getBrokerService().isSystemTopic(TopicName.get(t)))
+                                    .count();
+                            if (topicsCount + numPartitions > maxTopicsPerNamespace) {
+                                log.error("[{}] Failed to create partitioned topic {}, "
+                                                + "exceed maximum number of topics in namespace", clientAppId(),
+                                        topicName);
+                                throw new RestException(Status.PRECONDITION_FAILED,
+                                        "Exceed maximum number of topics in namespace.");
+                            }
+                        });
                     }
+                    return CompletableFuture.completedFuture(null);
                 })
                 .thenCompose(__ -> checkTopicExistsAsync(topicName))
                 .thenAccept(exists -> {
