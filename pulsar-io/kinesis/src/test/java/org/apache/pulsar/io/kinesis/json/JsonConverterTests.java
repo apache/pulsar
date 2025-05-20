@@ -21,6 +21,7 @@ package org.apache.pulsar.io.kinesis.json;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.google.common.collect.ImmutableMap;
+import java.nio.ByteBuffer;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
@@ -71,7 +72,7 @@ public class JsonConverterTests {
         genericRecord.put("l", 1L);
         genericRecord.put("i", 1);
         genericRecord.put("b", true);
-        genericRecord.put("bb", "10".getBytes(StandardCharsets.UTF_8));
+        genericRecord.put("bb", ByteBuffer.wrap("10".getBytes(StandardCharsets.UTF_8)));
         genericRecord.put("d", 10.0);
         genericRecord.put("f", 10.0f);
         genericRecord.put("s", "toto");
