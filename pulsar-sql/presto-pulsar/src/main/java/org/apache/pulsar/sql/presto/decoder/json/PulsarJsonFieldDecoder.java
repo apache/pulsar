@@ -348,7 +348,7 @@ public class PulsarJsonFieldDecoder
                 jsonNode = (JsonNode) value;
             } else {
                 throw new TrinoException(DECODER_CONVERSION_NOT_SUPPORTED,
-                        format("decimal object of '%s' as '%s' for column '%s' cann't convert to JsonNode",
+                        format("decimal object of '%s' as '%s' for column '%s' cannot be converted to JsonNode",
                                 value.getClass(), type, columnName));
             }
             String textValue = jsonNode.isValueNode() ? jsonNode.asText() : jsonNode.toString();
