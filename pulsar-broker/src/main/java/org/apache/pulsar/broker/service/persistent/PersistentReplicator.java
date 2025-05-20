@@ -894,7 +894,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
         }
     }
 
-    protected void doRewindCursor(boolean triggerReadMoreEntries) {
+    public void doRewindCursor(boolean triggerReadMoreEntries) {
+        // TODO 如果 “beforeTerminateOrCursorRewinding” 被多次调用，那么所有的锁都释放后，才能执行 “doRewindCursor”。
         synchronized (inFlightTasks) {
             cursor.rewind();
             waitForCursorRewinding = false;

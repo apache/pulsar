@@ -166,6 +166,11 @@ public class AbstractReplicatorTest {
         protected void beforeTerminate() {}
 
         @Override
+        protected void beforeDisconnect() {
+
+        }
+
+        @Override
         public long getNumberOfEntriesInBacklog() {
             return 0;
         }

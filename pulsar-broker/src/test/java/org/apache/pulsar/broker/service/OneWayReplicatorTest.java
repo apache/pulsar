@@ -1651,6 +1651,6 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         // Start replication.
         waitForReplicationTaskFinish(topicName);
         // Verify: all inflight tasks are done.
-        ShadowReplicatorTest.checkInflightTasksEnsureNoMessagesNeedToBeReplicated(getReplicator(topicName));
+        ShadowReplicatorTest.ensureNoBacklogByInflightTask(getReplicator(topicName));
     }
 }
