@@ -42,6 +42,7 @@ import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.cli.CmdProduce;
 import org.jline.reader.EndOfFileException;
+import org.jline.reader.Parser;
 import org.jline.reader.UserInterruptException;
 import org.jline.reader.impl.LineReaderImpl;
 import org.jline.terminal.Terminal;
@@ -82,7 +83,7 @@ public class PulsarShellTest {
 
         @Override
         public List<String> parseLine(String line) {
-            return getParser().parse(line, 0).words();
+            return getParser().parse(line, 0, Parser.ParseContext.SPLIT_LINE).words();
         }
     }
 
@@ -148,7 +149,7 @@ public class PulsarShellTest {
         final Properties props = new Properties();
         props.setProperty("webServiceUrl", "http://localhost:8080");
         linereader.addCmd("admin topics create my-topic --metadata a=b ");
-        linereader.addCmd("client produce -m msg my-topic");
+        linereader.addCmd("client produce -m \"hello pulsar\" my-topic");
         linereader.addCmd("quit");
         final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{}, props, pulsarAdmin);
         testPulsarShell.run((a) -> linereader, () -> terminal);
