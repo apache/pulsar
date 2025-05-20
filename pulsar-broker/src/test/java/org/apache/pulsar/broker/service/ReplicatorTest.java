@@ -26,7 +26,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -1962,10 +1961,13 @@ public class ReplicatorTest extends ReplicatorTestBase {
         Awaitility.await().untilAsserted(() -> {
             assertTrue(replicator.isConnected());
         });
-        replicator.beforeTerminate();
+        Awaitility.await().until(() -> {
+            replicator.disconnect().join();
+            return true;
+        });
     }
 
     private void resumeReplicator(PersistentReplicator replicator) {
-        replicator.doRewindCursor(true);
+        replicator.startProducer();
     }
 }

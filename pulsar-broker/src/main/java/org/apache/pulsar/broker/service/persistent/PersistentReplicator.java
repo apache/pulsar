@@ -56,6 +56,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.MessageExpirer;
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.client.api.MessageId;
@@ -109,6 +110,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
     protected enum ReasonOfWaitForCursorRewinding {
         Failed_Publishing,
         Fetching_Schema,
+        Disconnecting,
         Terminating;
     }
     protected ReasonOfWaitForCursorRewinding reasonOfWaitForCursorRewinding = null;
@@ -152,6 +154,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
          *    producer when the state is {@link Started}.
          */
         Pair<Boolean, State> changeStateRes;
+        doRewindCursor(false);
         changeStateRes = compareSetAndGetState(Starting, Started);
         if (changeStateRes.getLeft()) {
             if (!(producer instanceof ProducerImpl)) {
@@ -834,15 +837,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 log.info("[{}] Skip the reading due to new detected schema", replicatorId);
                 return null;
             }
-            // Why need to read if state is "Disconnected"?
-            // It is only for the feature replicated subscription. The replicator will be waked up again after it was
-            // closed by "PersistentTopic.closeReplProducersIfNoBacklog".
-            // The waking up steps are follows:
-            // 1. Read entries.
-            // 2. Transfers messages to "ReplicatedSubscriptionsController" if the message is replicated subscription
-            //    marker.
-            // 3. "ReplicatedSubscriptionsController" will call "Replicator.startProducer"
-            if (state != Started && state != Disconnected) {
+            if (state != Started) {
                 log.info("[{}] Skip the reading because producer has not started [{}]", replicatorId, state);
                 return null;
             }
@@ -885,16 +880,34 @@ public abstract class PersistentReplicator extends AbstractReplicator
         return inFlight;
     }
 
-    protected void beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding reason) {
-        boolean hasCanceledPendingRead = cursor.cancelPendingReadRequest();
+    protected CompletableFuture<Void> beforeDisconnect() {
+        // Ensure no in-flight task.
         synchronized (inFlightTasks) {
+            for (PersistentReplicator.InFlightTask task : inFlightTasks) {
+                if (!task.isDone() && task.readPos.compareTo(cursor.getManagedLedger().getLastConfirmedEntry()) < 0) {
+                    return CompletableFuture.failedFuture(new BrokerServiceException
+                            .TopicBusyException("Cannot close a replicator with backlog"));
+                }
+            }
+            beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding.Disconnecting);
+            return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    protected void afterDisconnected() {
+        doRewindCursor(false);
+    }
+
+    protected void beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding reason) {
+        synchronized (inFlightTasks) {
+            boolean hasCanceledPendingRead = cursor.cancelPendingReadRequest();
             reasonOfWaitForCursorRewinding = reason;
             waitForCursorRewinding = true;
             cancelFollowingReadingTasks(hasCanceledPendingRead);
         }
     }
 
-    public void doRewindCursor(boolean triggerReadMoreEntries) {
+    protected void doRewindCursor(boolean triggerReadMoreEntries) {
         // TODO 如果 “beforeTerminateOrCursorRewinding” 被多次调用，那么所有的锁都释放后，才能执行 “doRewindCursor”。
         synchronized (inFlightTasks) {
             cursor.rewind();
