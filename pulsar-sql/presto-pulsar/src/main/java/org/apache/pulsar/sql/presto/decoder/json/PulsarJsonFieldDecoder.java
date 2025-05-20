@@ -29,8 +29,8 @@ import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.DecimalNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.ValueNode;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
@@ -342,8 +342,8 @@ public class PulsarJsonFieldDecoder
                 blockBuilder = type.createBlockBuilder(null, 1);
             }
 
-            assert value instanceof DecimalNode;
-            final DecimalNode node = (DecimalNode) value;
+            assert value instanceof ValueNode;
+            final ValueNode node = (ValueNode) value;
             // For decimalType, need to eliminate the decimal point,
             // and give it to trino to set the decimal point
             type.writeObject(blockBuilder, Int128.valueOf(node.asText().replace(".", "")));
