@@ -122,7 +122,7 @@ public class ShadowReplicatorTest extends BrokerTestBase {
             replicator.msgOut.calculateRate();
             return replicator.msgOut.getCount() >= 1;
         });
-        Awaitility.await().until(() -> !checkInflightTasksEnsureNoMessagesNeedToBeReplicated(replicator));
+        ensureNoBacklogByInflightTask(replicator);
 
         PersistentTopic shadowTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(shadowTopicName).get().get();
@@ -193,23 +193,22 @@ public class ShadowReplicatorTest extends BrokerTestBase {
         // Verify "inflight replication tasks" are correct.
         PersistentReplicator replicator = getAnyShadowReplicator(sourceTopicName, pulsar);
         waitReplicateFinish(sourceTopicName, admin);
-        Awaitility.await().atMost(20, TimeUnit.SECONDS).untilAsserted(() -> {
-            assertFalse(checkInflightTasksEnsureNoMessagesNeedToBeReplicated(replicator));
-        });
+        ensureNoBacklogByInflightTask(replicator);
     }
 
-    public static boolean checkInflightTasksEnsureNoMessagesNeedToBeReplicated(PersistentReplicator replicator) {
-        synchronized (replicator.inFlightTasks) {
-            for (PersistentReplicator.InFlightTask task : replicator.inFlightTasks) {
-                if (task.readPos.compareTo(replicator.cursor.getManagedLedger().getLastConfirmedEntry()) >= 0) {
-                    continue;
-                }
-                if (task.readPos != null && task.readoutEntries == null) {
-                    // Skip the current reading if there is a pending cursor reading.
-                    return true;
+    public static void ensureNoBacklogByInflightTask(PersistentReplicator replicator) {
+        Awaitility.await().atMost(20, TimeUnit.SECONDS).until(() -> {
+            synchronized (replicator.inFlightTasks) {
+                for (PersistentReplicator.InFlightTask task : replicator.inFlightTasks) {
+                    if (task.readPos.compareTo(replicator.cursor.getManagedLedger().getLastConfirmedEntry()) >= 0) {
+                        continue;
+                    }
+                    if (!task.isDone()) {
+                        return false;
+                    }
                 }
             }
-        }
-        return false;
+            return true;
+        });
     }
 }

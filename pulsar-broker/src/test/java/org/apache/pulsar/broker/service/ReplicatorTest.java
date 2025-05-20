@@ -463,9 +463,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         // Verify "pendingMessages" still is correct even if error occurs.
         PersistentReplicator replicator = ensureReplicatorCreated(topic, pulsar1);
         waitReplicateFinish(topic, admin1);
-        Awaitility.await().untilAsserted(() -> {
-            assertFalse(ShadowReplicatorTest.checkInflightTasksEnsureNoMessagesNeedToBeReplicated(replicator));
-        });
+        ShadowReplicatorTest.ensureNoBacklogByInflightTask(replicator);
     }
 
     @Test
@@ -1783,11 +1781,11 @@ public class ReplicatorTest extends ReplicatorTestBase {
         Producer<byte[]> persistentProducer1 = client1.newProducer().topic(topic.toString()).create();
         // Send V1 message, which will be replicated to the remote cluster by the replicator.
         persistentProducer1.send("V1".getBytes());
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar1.getBrokerService().getTopicReference(topic.toString()).get();
         waitReplicateFinish(topic, admin1);
 
         // Pause replicator
-        PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar1.getBrokerService().getTopicReference(topic.toString()).get();
         persistentTopic.getReplicators().forEach((cluster, replicator) -> {
             PersistentReplicator persistentReplicator = (PersistentReplicator) replicator;
             pauseReplicator(persistentReplicator);
@@ -1802,7 +1800,15 @@ public class ReplicatorTest extends ReplicatorTestBase {
         // Start replicator
         persistentTopic.getReplicators().forEach((cluster, replicator) -> {
             PersistentReplicator persistentReplicator = (PersistentReplicator) replicator;
-            persistentReplicator.startProducer();
+            resumeReplicator(persistentReplicator);
+            Awaitility.await().untilAsserted(() -> {
+                CompletableFuture<Optional<Topic>> topic2 =
+                        pulsar2.getBrokerService().getTopic(topic.toString(), false);
+                assertTrue(topic2 != null && topic2.isDone() && topic2.get().isPresent());
+                assertEquals(persistentReplicator.getState(), AbstractReplicator.State.Started);
+            });
+            assertEquals(persistentReplicator.getState(), AbstractReplicator.State.Started);
+            ShadowReplicatorTest.ensureNoBacklogByInflightTask(persistentReplicator);
         });
         waitReplicateFinish(topic, admin1);
 
@@ -1956,9 +1962,10 @@ public class ReplicatorTest extends ReplicatorTestBase {
         Awaitility.await().untilAsserted(() -> {
             assertTrue(replicator.isConnected());
         });
-        replicator.closeProducerAsync(true);
-        Awaitility.await().untilAsserted(() -> {
-            assertFalse(replicator.isConnected());
-        });
+        replicator.beforeTerminate();
+    }
+
+    private void resumeReplicator(PersistentReplicator replicator) {
+        replicator.doRewindCursor(true);
     }
 }
