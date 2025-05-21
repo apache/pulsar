@@ -226,9 +226,15 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             return writer.writeAsync(getEventKey(event, policies != null && policies.isGlobalPolicies()), event);
         }
         // When a topic is deleting, delete both non-global and global topic-level policies.
-        return writer.deleteAsync(getEventKey(event, true), event).thenCompose(__ -> {
-            return writer.deleteAsync(getEventKey(event, false), event);
+        CompletableFuture<MessageId> deletePolicies = writer.deleteAsync(getEventKey(event, true), event)
+            .thenCompose(__ -> {
+                return writer.deleteAsync(getEventKey(event, false), event);
+            });
+        deletePolicies.exceptionally(ex -> {
+            log.error("Failed to delete topic policy [{}] error.", topicName, ex);
+            return null;
         });
+        return deletePolicies;
     }
 
     private PulsarEvent getPulsarEvent(TopicName topicName, ActionType actionType, TopicPolicies policies) {
