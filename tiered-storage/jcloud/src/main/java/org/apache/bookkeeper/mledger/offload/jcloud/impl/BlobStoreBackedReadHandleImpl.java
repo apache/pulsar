@@ -122,6 +122,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
                     getId(), firstEntry, lastEntry, (1 + lastEntry - firstEntry));
         }
         CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
+        touch();
         executor.execute(() -> {
             touch();
             if (state == State.Closed) {
