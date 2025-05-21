@@ -34,6 +34,7 @@ import java.util.function.Function;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.MetadataCacheConfig;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 
@@ -58,13 +59,19 @@ public class BaseResources<T> {
 
     public BaseResources(MetadataStore store, Class<T> clazz, int operationTimeoutSec) {
         this.store = store;
-        this.cache = store.getMetadataCache(clazz);
+        this.cache = store.getMetadataCache(clazz, MetadataCacheConfig.builder()
+                .retryBackoff(MetadataCacheConfig.DEFAULT_RETRY_BACKOFF_BUILDER.setMandatoryStop(operationTimeoutSec,
+                        TimeUnit.SECONDS))
+                .build());
         this.operationTimeoutSec = operationTimeoutSec;
     }
 
     public BaseResources(MetadataStore store, TypeReference<T> typeRef, int operationTimeoutSec) {
         this.store = store;
-        this.cache = store.getMetadataCache(typeRef);
+        this.cache = store.getMetadataCache(typeRef, MetadataCacheConfig.builder()
+                .retryBackoff(MetadataCacheConfig.DEFAULT_RETRY_BACKOFF_BUILDER.setMandatoryStop(operationTimeoutSec,
+                        TimeUnit.SECONDS))
+                .build());
         this.operationTimeoutSec = operationTimeoutSec;
     }
 

@@ -180,22 +180,22 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(putMetrics.size(), 0);
 
         Collection<Metric> deleteLatency = metrics.get("pulsar_schema_del_ops_latency_count");
-        for (Metric metric : deleteLatency) {
+        assertThat(deleteLatency).anySatisfy(metric -> {
             Assert.assertEquals(metric.tags.get("namespace"), namespace);
             Assert.assertTrue(metric.value > 0);
-        }
+        });
 
         Collection<Metric> getLatency = metrics.get("pulsar_schema_get_ops_latency_count");
-        for (Metric metric : getLatency) {
+        assertThat(getLatency).anySatisfy(metric -> {
             Assert.assertEquals(metric.tags.get("namespace"), namespace);
             Assert.assertTrue(metric.value > 0);
-        }
+        });
 
         Collection<Metric> putLatency = metrics.get("pulsar_schema_put_ops_latency_count");
-        for (Metric metric : putLatency) {
+        assertThat(putLatency).anySatisfy(metric -> {
             Assert.assertEquals(metric.tags.get("namespace"), namespace);
             Assert.assertTrue(metric.value > 0);
-        }
+        });
     }
 
     @Test

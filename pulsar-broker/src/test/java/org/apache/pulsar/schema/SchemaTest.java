@@ -48,6 +48,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
@@ -56,6 +57,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema.Parser;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
@@ -65,6 +67,7 @@ import org.apache.pulsar.broker.service.schema.SchemaStorageFormat.SchemaLocator
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -76,6 +79,7 @@ import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.client.impl.schema.ProtobufSchema;
 import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
@@ -95,6 +99,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.Stat;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -420,7 +425,35 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         // JSON schema with primitive class can consume
         assertEquals(consumer.receive().getValue().getNativeObject(), producerJsonIntegerValue);
         assertArrayEquals((byte[])  consumer.receive().getValue().getNativeObject(), producerJsonBytesValue);
-}
+    }
+
+    @Test
+    public void testAvroIntSchema() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + PUBLIC_TENANT + "/my-ns/tp");
+
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.AVRO(Integer.class)).topic(topicName).create();
+        Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.AVRO(Integer.class)).topic(topicName)
+                .subscriptionName("sub").subscribe();
+
+        producer.send(1);
+        producer.send(2);
+        producer.send(3);
+
+        Message<Integer> msg1 = consumer.receive(2, TimeUnit.SECONDS);
+        assertNotNull(msg1);
+        assertEquals(msg1.getValue(), 1);
+        Message<Integer> msg2 = consumer.receive(2, TimeUnit.SECONDS);
+        assertNotNull(msg2);
+        assertEquals(msg2.getValue(), 2);
+        Message<Integer> msg3 = consumer.receive(2, TimeUnit.SECONDS);
+        assertNotNull(msg3);
+        assertEquals(msg3.getValue(), 3);
+
+        // cleanup.
+        consumer.close();
+        producer.close();
+        admin.topics().delete(topicName, false);
+    }
 
     @Test
     public void testJSONSchemaDeserialize() throws Exception {
@@ -1425,9 +1458,9 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
     }
 
     /**
-     * This test validates that consumer/producers should recover on topic whose 
+     * This test validates that consumer/producers should recover on topic whose
      * schema ledgers are not able to open due to non-recoverable error.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -1493,6 +1526,42 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         assertNotNull(producer);
         consumer.close();
         producer.close();
+    }
+
+    @Test
+    public void testPendingQueueSizeIfIncompatible() throws Exception {
+        final String namespace = BrokerTestUtil.newUniqueName(PUBLIC_TENANT + "/ns");
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet(CLUSTER_NAME));
+        admin.namespaces().setSchemaCompatibilityStrategy(namespace, SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
+        final String topic = BrokerTestUtil.newUniqueName(namespace + "/tp");
+        admin.topics().createNonPartitionedTopic(topic);
+
+        ProducerImpl producer = (ProducerImpl) pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES())
+                .maxPendingMessages(1000).enableBatching(false).topic(topic).create();
+        producer.newMessage(Schema.STRING).value("msg-1").sendAsync();
+        AtomicReference<CompletableFuture<MessageId>> latestSend = new AtomicReference<>();
+        for (int i = 0; i < 100; i++) {
+            final String msg = "msg-with-broken-schema-" + i;
+            latestSend.set(producer.newMessage(Schema.BOOL).value(false).sendAsync().thenApply(v -> {
+                log.info("send complete {}", msg);
+                return null;
+            }).exceptionally(ex -> {
+                log.error("failed to send {}", msg, ex);
+                return null;
+            }));
+        }
+        // Verify: msgs with broken schema will be discarded.
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(latestSend.get().isDone());
+            assertEquals(producer.getPendingQueueSize(), 0);
+        });
+
+        // Verify: msgs with compatible schema can be sent successfully.
+        producer.newMessage(Schema.STRING).value("msg-2").sendAsync();
+
+        // cleanup.
+        producer.close();
+        admin.topics().delete(topic, false);
     }
 
     @Test

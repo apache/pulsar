@@ -306,8 +306,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         double systemCursorOutBytes = 0.0;
         for (Metric metric : topicLevelBytesOutTotal) {
-            if (metric.tags.get("subscription").startsWith(SystemTopicNames.SYSTEM_READER_PREFIX)
-                    || metric.tags.get("subscription").equals(Compactor.COMPACTION_SUBSCRIPTION)) {
+            if (metric.tags.get("subscription").startsWith(SystemTopicNames.SYSTEM_READER_PREFIX)) {
                 systemCursorOutBytes = metric.value;
             }
         }
@@ -1906,6 +1905,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         Clock clock = mock();
         when(clock.millis()).thenAnswer(invocation -> currentTimeMillis.get());
 
+        @Cleanup
         PrometheusMetricsGenerator prometheusMetricsGenerator =
                 new PrometheusMetricsGenerator(pulsar, true, false, false,
                         false, clock);

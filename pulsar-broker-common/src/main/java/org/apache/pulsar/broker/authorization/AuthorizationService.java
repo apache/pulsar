@@ -38,6 +38,8 @@ import org.apache.pulsar.client.admin.RevokeTopicPermissionOptions;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.BrokerOperation;
+import org.apache.pulsar.common.policies.data.ClusterOperation;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
@@ -543,6 +545,72 @@ public class AuthorizationService {
             return allowTenantOperationAsync(tenantName, operation, role, authData);
         }
     }
+
+    public CompletableFuture<Boolean> allowBrokerOperationAsync(String clusterName,
+                                                                String brokerId,
+                                                                BrokerOperation brokerOperation,
+                                                                String originalRole,
+                                                                String role,
+                                                                AuthenticationDataSource authData) {
+        if (!isValidOriginalPrincipal(role, originalRole, authData)) {
+            return CompletableFuture.completedFuture(false);
+        }
+
+        if (isProxyRole(role)) {
+            final var isRoleAuthorizedFuture = provider.allowBrokerOperationAsync(clusterName, brokerId,
+                    brokerOperation, role, authData);
+            final var isOriginalAuthorizedFuture =  provider.allowBrokerOperationAsync(clusterName, brokerId,
+                    brokerOperation, originalRole, authData);
+            return isRoleAuthorizedFuture.thenCombine(isOriginalAuthorizedFuture,
+                    (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
+        } else {
+            return provider.allowBrokerOperationAsync(clusterName, brokerId, brokerOperation, role, authData);
+        }
+    }
+
+    public CompletableFuture<Boolean> allowClusterOperationAsync(String clusterName,
+                                                                ClusterOperation clusterOperation,
+                                                                String originalRole,
+                                                                String role,
+                                                                AuthenticationDataSource authData) {
+        if (!isValidOriginalPrincipal(role, originalRole, authData)) {
+            return CompletableFuture.completedFuture(false);
+        }
+
+        if (isProxyRole(role)) {
+            final var isRoleAuthorizedFuture = provider.allowClusterOperationAsync(clusterName,
+                    clusterOperation, role, authData);
+            final var isOriginalAuthorizedFuture =  provider.allowClusterOperationAsync(clusterName,
+                    clusterOperation, originalRole, authData);
+            return isRoleAuthorizedFuture.thenCombine(isOriginalAuthorizedFuture,
+                    (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
+        } else {
+            return provider.allowClusterOperationAsync(clusterName, clusterOperation, role, authData);
+        }
+    }
+
+    public CompletableFuture<Boolean> allowClusterPolicyOperationAsync(String clusterName,
+                                                                       PolicyName policy,
+                                                                       PolicyOperation operation,
+                                                                 String originalRole,
+                                                                 String role,
+                                                                 AuthenticationDataSource authData) {
+        if (!isValidOriginalPrincipal(role, originalRole, authData)) {
+            return CompletableFuture.completedFuture(false);
+        }
+
+        if (isProxyRole(role)) {
+            final var isRoleAuthorizedFuture = provider.allowClusterPolicyOperationAsync(clusterName, role,
+                    policy, operation, authData);
+            final var isOriginalAuthorizedFuture =  provider.allowClusterPolicyOperationAsync(clusterName, originalRole,
+                    policy, operation, authData);
+            return isRoleAuthorizedFuture.thenCombine(isOriginalAuthorizedFuture,
+                    (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
+        } else {
+            return provider.allowClusterPolicyOperationAsync(clusterName, role, policy, operation, authData);
+        }
+    }
+
 
     /**
      * @deprecated - will be removed after 2.12. Use async variant.

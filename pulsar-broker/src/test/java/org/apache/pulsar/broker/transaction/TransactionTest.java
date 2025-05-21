@@ -145,6 +145,7 @@ import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
@@ -397,7 +398,6 @@ public class TransactionTest extends TransactionTestBase {
                 .topic(topicName)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Shared)
-                .enableBatchIndexAcknowledgment(true)
                 .subscribe();
     }
 
@@ -1451,9 +1451,6 @@ public class TransactionTest extends TransactionTestBase {
     public void testPendingAckBatchMessageCommit() throws Exception {
         String topic = NAMESPACE1 + "/testPendingAckBatchMessageCommit";
 
-        // enable batch index ack
-        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
-
         @Cleanup
         Producer<byte[]> producer = pulsarClient
                 .newProducer(Schema.BYTES)
@@ -1553,6 +1550,7 @@ public class TransactionTest extends TransactionTestBase {
         when(topic.getName()).thenReturn("topic-a");
         // Mock cursor for subscription.
         ManagedCursor cursor_subscription = mock(ManagedCursor.class);
+        doReturn(Codec.encode("sub-a")).when(cursor_subscription).getName();
         doThrow(new RuntimeException("1")).when(cursor_subscription).updateLastActive();
         // Create subscription.
         String subscriptionName = "sub-a";

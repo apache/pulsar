@@ -238,6 +238,13 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
                     }
                 }
             });
+        } else {
+            // When window function return null, needs to be acked directly.
+            if (windowConfig.getProcessingGuarantees() == WindowConfig.ProcessingGuarantees.ATLEAST_ONCE) {
+                for (Record<T> record : tuples) {
+                    record.ack();
+                }
+            }
         }
     }
 

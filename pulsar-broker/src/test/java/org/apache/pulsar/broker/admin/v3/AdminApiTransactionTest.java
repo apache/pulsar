@@ -859,7 +859,6 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .subscriptionName(subscriptionName)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Shared)
                 .isAckReceiptEnabled(true)
                 .topic(topic)

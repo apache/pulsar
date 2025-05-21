@@ -25,11 +25,13 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Semaphore;
 import java.util.function.Consumer;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 
@@ -45,6 +47,7 @@ public class JavaInstance implements AutoCloseable {
     public static class AsyncFuncRequest {
         private final Record record;
         private final CompletableFuture processResult;
+        private final JavaExecutionResult result;
     }
 
     @Getter(AccessLevel.PACKAGE)
@@ -57,13 +60,26 @@ public class JavaInstance implements AutoCloseable {
     private final ExecutorService executor;
     @Getter
     private final LinkedBlockingQueue<AsyncFuncRequest> pendingAsyncRequests;
+    @Getter
+    private final Semaphore asyncRequestsConcurrencyLimiter;
+    private final boolean asyncPreserveInputOrderForOutputMessages;
 
     public JavaInstance(ContextImpl contextImpl, Object userClassObject, InstanceConfig instanceConfig) {
 
         this.context = contextImpl;
         this.instanceConfig = instanceConfig;
         this.executor = Executors.newSingleThreadExecutor();
-        this.pendingAsyncRequests = new LinkedBlockingQueue<>(this.instanceConfig.getMaxPendingAsyncRequests());
+
+        asyncPreserveInputOrderForOutputMessages =
+                resolveAsyncPreserveInputOrderForOutputMessages(instanceConfig);
+
+        if (asyncPreserveInputOrderForOutputMessages) {
+            this.pendingAsyncRequests = new LinkedBlockingQueue<>(this.instanceConfig.getMaxPendingAsyncRequests());
+            this.asyncRequestsConcurrencyLimiter = null;
+        } else {
+            this.pendingAsyncRequests = null;
+            this.asyncRequestsConcurrencyLimiter = new Semaphore(this.instanceConfig.getMaxPendingAsyncRequests());
+        }
 
         // create the functions
         if (userClassObject instanceof Function) {
@@ -71,6 +87,20 @@ public class JavaInstance implements AutoCloseable {
         } else {
             this.javaUtilFunction = (java.util.function.Function) userClassObject;
         }
+    }
+
+    // resolve whether to preserve input order for output messages for async functions
+    private boolean resolveAsyncPreserveInputOrderForOutputMessages(InstanceConfig instanceConfig) {
+        // no need to preserve input order for output messages if the function returns Void type
+        boolean voidReturnType = instanceConfig.getFunctionDetails() != null
+                && instanceConfig.getFunctionDetails().getSink() != null
+                && Void.class.getName().equals(instanceConfig.getFunctionDetails().getSink().getTypeClassName());
+        if (voidReturnType) {
+            return false;
+        }
+
+        // preserve input order for output messages
+        return true;
     }
 
     @VisibleForTesting
@@ -103,15 +133,32 @@ public class JavaInstance implements AutoCloseable {
         }
 
         if (output instanceof CompletableFuture) {
-            // Function is in format: Function<I, CompletableFuture<O>>
-            AsyncFuncRequest request = new AsyncFuncRequest(
-                record, (CompletableFuture) output
-            );
             try {
-                pendingAsyncRequests.put(request);
-                ((CompletableFuture) output).whenCompleteAsync((res, cause) -> {
+                if (asyncPreserveInputOrderForOutputMessages) {
+                    // Function is in format: Function<I, CompletableFuture<O>>
+                    AsyncFuncRequest request = new AsyncFuncRequest(
+                            record, (CompletableFuture) output, executionResult
+                    );
+                    pendingAsyncRequests.put(request);
+                } else {
+                    asyncRequestsConcurrencyLimiter.acquire();
+                }
+                ((CompletableFuture<Object>) output).whenCompleteAsync((Object res, Throwable cause) -> {
                     try {
-                        processAsyncResults(asyncResultConsumer);
+                        if (asyncPreserveInputOrderForOutputMessages) {
+                            processAsyncResultsInInputOrder(asyncResultConsumer);
+                        } else {
+                            try {
+                                if (cause != null) {
+                                    executionResult.setUserException(FutureUtil.unwrapCompletionException(cause));
+                                } else {
+                                    executionResult.setResult(res);
+                                }
+                                asyncResultConsumer.accept(record, executionResult);
+                            } finally {
+                                asyncRequestsConcurrencyLimiter.release();
+                            }
+                        }
                     } catch (Throwable innerException) {
                         // the thread used for processing async results failed
                         asyncFailureHandler.accept(innerException);
@@ -132,21 +179,20 @@ public class JavaInstance implements AutoCloseable {
         }
     }
 
-    private void processAsyncResults(JavaInstanceRunnable.AsyncResultConsumer resultConsumer) throws Exception {
+    // processes the async results in the input order so that the order of the result messages in the output topic
+    // are in the same order as the input
+    private void processAsyncResultsInInputOrder(JavaInstanceRunnable.AsyncResultConsumer resultConsumer)
+            throws Exception {
         AsyncFuncRequest asyncResult = pendingAsyncRequests.peek();
         while (asyncResult != null && asyncResult.getProcessResult().isDone()) {
             pendingAsyncRequests.remove(asyncResult);
-            JavaExecutionResult execResult = new JavaExecutionResult();
 
+            JavaExecutionResult execResult = asyncResult.getResult();
             try {
                 Object result = asyncResult.getProcessResult().get();
                 execResult.setResult(result);
             } catch (ExecutionException e) {
-                if (e.getCause() instanceof Exception) {
-                    execResult.setUserException((Exception) e.getCause());
-                } else {
-                    execResult.setUserException(new Exception(e.getCause()));
-                }
+                execResult.setUserException(FutureUtil.unwrapCompletionException(e));
             }
 
             resultConsumer.accept(asyncResult.getRecord(), execResult);
@@ -154,7 +200,6 @@ public class JavaInstance implements AutoCloseable {
             // peek the next result
             asyncResult = pendingAsyncRequests.peek();
         }
-
     }
 
     public void initialize() throws Exception {
