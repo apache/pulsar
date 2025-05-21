@@ -102,7 +102,6 @@ flexible messaging model and an intuitive client API.</description>
     -->
     <docker.platforms></docker.platforms>
     <docker.skip.push>true</docker.skip.push>
-    <docker.skip.tag>false</docker.skip.tag>
 
     <!-- required for running tests on JDK11+ -->
     <test.additional.args>
@@ -167,7 +166,7 @@ flexible messaging model and an intuitive client API.</description>
     <surefire.shutdown>kill</surefire.shutdown>
     <docker.organization>apachepulsar</docker.organization>
     <docker.image>pulsar</docker.image>
-    <docker.tag>latest</docker.tag>
+    <docker.tag>${project.version}-${git.commit.id.abbrev}</docker.tag>
     <skipSourceReleaseAssembly>false</skipSourceReleaseAssembly>
     <skipBuildDistribution>false</skipBuildDistribution>
     <skipDeployConnector>false</skipDeployConnector>
