@@ -25,90 +25,89 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
+
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.testng.annotations.Test;
 
-
-/**
- * Unit test {@link AdditionalServletWithClassLoader}.
- */
+/** Unit test {@link AdditionalServletWithClassLoader}. */
 @Test(groups = "broker")
 public class AdditionalServletWithClassLoaderTest {
 
-    @Test
-    public void testWrapper() {
-        AdditionalServlet servlet = mock(AdditionalServlet.class);
-        NarClassLoader loader = mock(NarClassLoader.class);
-        AdditionalServletWithClassLoader wrapper = new AdditionalServletWithClassLoader(servlet, loader);
-        // test getBasePath
-        String basePath = "bathPath";
-        when(servlet.getBasePath()).thenReturn(basePath);
-        assertEquals(basePath, wrapper.getBasePath());
-        verify(servlet, times(1)).getBasePath();
-        // test loadConfig
-        ServiceConfiguration conf = new ServiceConfiguration();
-        wrapper.loadConfig(conf);
-        verify(servlet, times(1)).loadConfig(same(conf));
-        // test getServlet
-        assertEquals(wrapper.getServlet(),servlet);
-        // test getServletHolder
-        ServletHolder servletHolder = new ServletHolder();
-        when(servlet.getServletHolder()).thenReturn(servletHolder);
-        assertEquals(wrapper.getServletHolder(),servletHolder);
-        verify(servlet, times(1)).getServletHolder();
-    }
+  @Test
+  public void testWrapper() {
+    AdditionalServlet servlet = mock(AdditionalServlet.class);
+    NarClassLoader loader = mock(NarClassLoader.class);
+    AdditionalServletWithClassLoader wrapper =
+        new AdditionalServletWithClassLoader(servlet, loader);
+    // test getBasePath
+    String basePath = "bathPath";
+    when(servlet.getBasePath()).thenReturn(basePath);
+    assertEquals(basePath, wrapper.getBasePath());
+    verify(servlet, times(1)).getBasePath();
+    // test loadConfig
+    ServiceConfiguration conf = new ServiceConfiguration();
+    wrapper.loadConfig(conf);
+    verify(servlet, times(1)).loadConfig(same(conf));
+    // test getServlet
+    assertEquals(wrapper.getServlet(), servlet);
+    // test getServletHolder
+    ServletHolder servletHolder = new ServletHolder();
+    when(servlet.getServletHolder()).thenReturn(servletHolder);
+    assertEquals(wrapper.getServletHolder(), servletHolder);
+    verify(servlet, times(1)).getServletHolder();
+  }
 
-    @Test
-    public void testClassLoaderSwitcher() throws Exception {
-        NarClassLoader narLoader = mock(NarClassLoader.class);
-        AdditionalServlet servlet = new AdditionalServlet() {
-            @Override
-            public void loadConfig(PulsarConfiguration pulsarConfiguration) {
-                assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
-            }
+  @Test
+  public void testClassLoaderSwitcher() throws Exception {
+    NarClassLoader narLoader = mock(NarClassLoader.class);
+    AdditionalServlet servlet =
+        new AdditionalServlet() {
+          @Override
+          public void loadConfig(PulsarConfiguration pulsarConfiguration) {
+            assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
+          }
 
-            @Override
-            public String getBasePath() {
-                assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
-                return "base-path";
-            }
+          @Override
+          public String getBasePath() {
+            assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
+            return "base-path";
+          }
 
-            @Override
-            public ServletHolder getServletHolder() {
-                assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
-                return null;
-            }
+          @Override
+          public ServletHolder getServletHolder() {
+            assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
+            return null;
+          }
 
-            @Override
-            public void close() {
-                assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
-            }
+          @Override
+          public void close() {
+            assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
+          }
         };
 
-        AdditionalServletWithClassLoader additionalServletWithClassLoader =
-                new AdditionalServletWithClassLoader(servlet, narLoader);
-        ClassLoader curClassLoader = Thread.currentThread().getContextClassLoader();
-        // test class loader
-        assertEquals(additionalServletWithClassLoader.getClassLoader(), narLoader);
-        // test getBasePath
-        assertEquals(additionalServletWithClassLoader.getBasePath(), "base-path");
-        assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
-        // test loadConfig
-        ServiceConfiguration conf = new ServiceConfiguration();
-        additionalServletWithClassLoader.loadConfig(conf);
-        assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
-        // test getServletHolder
-        assertNull(additionalServletWithClassLoader.getServletHolder());
-        assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
-        // test getServlet
-        assertEquals(additionalServletWithClassLoader.getServlet(), servlet);
-        assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
-        // test close
-        additionalServletWithClassLoader.close();
-        assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
-
-    }
+    AdditionalServletWithClassLoader additionalServletWithClassLoader =
+        new AdditionalServletWithClassLoader(servlet, narLoader);
+    ClassLoader curClassLoader = Thread.currentThread().getContextClassLoader();
+    // test class loader
+    assertEquals(additionalServletWithClassLoader.getClassLoader(), narLoader);
+    // test getBasePath
+    assertEquals(additionalServletWithClassLoader.getBasePath(), "base-path");
+    assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
+    // test loadConfig
+    ServiceConfiguration conf = new ServiceConfiguration();
+    additionalServletWithClassLoader.loadConfig(conf);
+    assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
+    // test getServletHolder
+    assertNull(additionalServletWithClassLoader.getServletHolder());
+    assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
+    // test getServlet
+    assertEquals(additionalServletWithClassLoader.getServlet(), servlet);
+    assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
+    // test close
+    additionalServletWithClassLoader.close();
+    assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
+  }
 }

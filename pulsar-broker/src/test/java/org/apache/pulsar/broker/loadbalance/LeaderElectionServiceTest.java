@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.loadbalance;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
+
 import com.google.common.collect.Sets;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -48,114 +49,119 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class LeaderElectionServiceTest {
 
-    private LocalBookkeeperEnsemble bkEnsemble;
+  private LocalBookkeeperEnsemble bkEnsemble;
 
-    @BeforeMethod(alwaysRun = true)
-    public void setup() throws Exception {
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
-        bkEnsemble.start();
-        log.info("---- bk started ----");
+  @BeforeMethod(alwaysRun = true)
+  public void setup() throws Exception {
+    bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+    bkEnsemble.start();
+    log.info("---- bk started ----");
+  }
+
+  @AfterMethod(alwaysRun = true)
+  void shutdown() throws Exception {
+    if (bkEnsemble != null) {
+      bkEnsemble.stop();
+      bkEnsemble = null;
+    }
+    log.info("---- bk stopped ----");
+  }
+
+  @Test
+  public void anErrorShouldBeThrowBeforeLeaderElected()
+      throws PulsarServerException, PulsarClientException, PulsarAdminException {
+    final String clusterName = "elect-test";
+    ServiceConfiguration config = new ServiceConfiguration();
+    config.setBrokerShutdownTimeoutMs(0L);
+    config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
+    config.setBrokerServicePort(Optional.of(0));
+    config.setWebServicePort(Optional.of(0));
+    config.setClusterName(clusterName);
+    config.setAdvertisedAddress("localhost");
+    config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
+    @Cleanup PulsarService pulsar = spyWithClassAndConstructorArgs(MockPulsarService.class, config);
+    pulsar.start();
+
+    // mock pulsar.getLeaderElectionService() in a thread safe way
+    AtomicReference<LeaderElectionService> leaderElectionServiceReference = new AtomicReference<>();
+    Mockito.doAnswer(invocation -> leaderElectionServiceReference.get())
+        .when(pulsar)
+        .getLeaderElectionService();
+
+    // broker and webService is started, but leaderElectionService not ready
+    final String tenant = "elect";
+    final String namespace = "ns";
+    @Cleanup
+    PulsarAdmin adminClient =
+        PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddress()).build();
+    adminClient
+        .clusters()
+        .createCluster(
+            clusterName, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+    adminClient
+        .tenants()
+        .createTenant(
+            tenant,
+            new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(clusterName)));
+    adminClient.namespaces().createNamespace(tenant + "/" + namespace, 16);
+    @Cleanup
+    PulsarClient client =
+        PulsarClient.builder()
+            .serviceUrl(pulsar.getBrokerServiceUrl())
+            .startingBackoffInterval(1, TimeUnit.MILLISECONDS)
+            .maxBackoffInterval(100, TimeUnit.MILLISECONDS)
+            .operationTimeout(1000, TimeUnit.MILLISECONDS)
+            .build();
+    checkLookupException(tenant, namespace, client);
+
+    // setup LeaderElectionService mock in a thread safe way
+    LeaderElectionService leaderElectionService = Mockito.mock(LeaderElectionService.class);
+    AtomicReference<LeaderBroker> leaderBrokerReference = new AtomicReference<>();
+    Mockito.when(leaderElectionService.isLeader())
+        .thenAnswer(invocation -> leaderBrokerReference.get() != null);
+    Mockito.when(leaderElectionService.getCurrentLeader())
+        .thenAnswer(invocation -> Optional.ofNullable(leaderBrokerReference.get()));
+    leaderElectionServiceReference.set(leaderElectionService);
+
+    // broker, webService and leaderElectionService is started, but elect not ready;
+    checkLookupException(tenant, namespace, client);
+
+    // broker, webService and leaderElectionService is started, and elect is done;
+    leaderBrokerReference.set(
+        new LeaderBroker(pulsar.getBrokerId(), pulsar.getSafeWebServiceAddress()));
+
+    Producer<byte[]> producer =
+        client.newProducer().topic("persistent://" + tenant + "/" + namespace + "/1p").create();
+    producer.getTopic();
+  }
+
+  private void checkLookupException(String tenant, String namespace, PulsarClient client) {
+    try {
+      client.newProducer().topic("persistent://" + tenant + "/" + namespace + "/1p").create();
+    } catch (PulsarClientException t) {
+      Assert.assertTrue(
+          t instanceof PulsarClientException.BrokerMetadataException
+              || t instanceof PulsarClientException.LookupException);
+      Assert.assertTrue(t.getMessage().contains("The leader election has not yet been completed"));
+    }
+  }
+
+  public static class MockPulsarService extends PulsarService {
+
+    public MockPulsarService(ServiceConfiguration config) {
+      super(config);
     }
 
-    @AfterMethod(alwaysRun = true)
-    void shutdown() throws Exception {
-        if (bkEnsemble != null) {
-            bkEnsemble.stop();
-            bkEnsemble = null;
-        }
-        log.info("---- bk stopped ----");
+    public MockPulsarService(
+        ServiceConfiguration config,
+        Optional<WorkerService> functionWorkerService,
+        Consumer<Integer> processTerminator) {
+      super(config, functionWorkerService, processTerminator);
     }
 
-    @Test
-    public void anErrorShouldBeThrowBeforeLeaderElected() throws PulsarServerException, PulsarClientException,
-            PulsarAdminException {
-        final String clusterName = "elect-test";
-        ServiceConfiguration config = new ServiceConfiguration();
-        config.setBrokerShutdownTimeoutMs(0L);
-        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
-        config.setBrokerServicePort(Optional.of(0));
-        config.setWebServicePort(Optional.of(0));
-        config.setClusterName(clusterName);
-        config.setAdvertisedAddress("localhost");
-        config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
-        @Cleanup
-        PulsarService pulsar = spyWithClassAndConstructorArgs(MockPulsarService.class, config);
-        pulsar.start();
-
-        // mock pulsar.getLeaderElectionService() in a thread safe way
-        AtomicReference<LeaderElectionService> leaderElectionServiceReference = new AtomicReference<>();
-        Mockito.doAnswer(invocation -> leaderElectionServiceReference.get())
-                .when(pulsar).getLeaderElectionService();
-
-        // broker and webService is started, but leaderElectionService not ready
-        final String tenant = "elect";
-        final String namespace = "ns";
-        @Cleanup
-        PulsarAdmin adminClient = PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddress()).build();
-        adminClient.clusters().createCluster(clusterName, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        adminClient.tenants().createTenant(tenant, new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"),
-                Sets.newHashSet(clusterName)));
-        adminClient.namespaces().createNamespace(tenant + "/" + namespace, 16);
-        @Cleanup
-        PulsarClient client = PulsarClient.builder()
-                .serviceUrl(pulsar.getBrokerServiceUrl())
-                .startingBackoffInterval(1, TimeUnit.MILLISECONDS)
-                .maxBackoffInterval(100, TimeUnit.MILLISECONDS)
-                .operationTimeout(1000, TimeUnit.MILLISECONDS)
-                .build();
-        checkLookupException(tenant, namespace, client);
-
-        // setup LeaderElectionService mock in a thread safe way
-        LeaderElectionService leaderElectionService = Mockito.mock(LeaderElectionService.class);
-        AtomicReference<LeaderBroker> leaderBrokerReference = new AtomicReference<>();
-        Mockito.when(leaderElectionService.isLeader()).thenAnswer(invocation ->
-                leaderBrokerReference.get() != null);
-        Mockito.when(leaderElectionService.getCurrentLeader())
-                .thenAnswer(invocation -> Optional.ofNullable(leaderBrokerReference.get()));
-        leaderElectionServiceReference.set(leaderElectionService);
-
-        // broker, webService and leaderElectionService is started, but elect not ready;
-        checkLookupException(tenant, namespace, client);
-
-        // broker, webService and leaderElectionService is started, and elect is done;
-        leaderBrokerReference.set(
-                new LeaderBroker(pulsar.getBrokerId(), pulsar.getSafeWebServiceAddress()));
-
-        Producer<byte[]> producer = client.newProducer()
-                .topic("persistent://" + tenant + "/" + namespace + "/1p")
-                .create();
-        producer.getTopic();
+    @Override
+    protected void startLeaderElectionService() {
+      // mock
     }
-
-    private void checkLookupException(String tenant, String namespace, PulsarClient client) {
-        try {
-            client.newProducer()
-                    .topic("persistent://" + tenant + "/" + namespace + "/1p")
-                    .create();
-        } catch (PulsarClientException t) {
-            Assert.assertTrue(t instanceof PulsarClientException.BrokerMetadataException
-                    || t instanceof PulsarClientException.LookupException);
-            Assert.assertTrue(
-                    t.getMessage().contains("The leader election has not yet been completed"));
-        }
-    }
-
-    public static class MockPulsarService extends PulsarService {
-
-        public MockPulsarService(ServiceConfiguration config) {
-            super(config);
-        }
-
-        public MockPulsarService(ServiceConfiguration config,
-                                 Optional<WorkerService> functionWorkerService,
-                                 Consumer<Integer> processTerminator) {
-            super(config, functionWorkerService, processTerminator);
-        }
-
-        @Override
-        protected void startLeaderElectionService() {
-            // mock
-        }
-    }
-
+  }
 }

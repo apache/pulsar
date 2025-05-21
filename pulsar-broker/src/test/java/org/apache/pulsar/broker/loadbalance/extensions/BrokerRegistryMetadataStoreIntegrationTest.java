@@ -25,11 +25,11 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class BrokerRegistryMetadataStoreIntegrationTest extends BrokerRegistryIntegrationTest {
 
-    @Override
-    protected ServiceConfiguration brokerConfig() {
-        final var config = super.brokerConfig();
-        config.setLoadManagerServiceUnitStateTableViewClassName(
-                ServiceUnitStateMetadataStoreTableViewImpl.class.getName());
-        return config;
-    }
+  @Override
+  protected ServiceConfiguration brokerConfig() {
+    final var config = super.brokerConfig();
+    config.setLoadManagerServiceUnitStateTableViewClassName(
+        ServiceUnitStateMetadataStoreTableViewImpl.class.getName());
+    return config;
+  }
 }

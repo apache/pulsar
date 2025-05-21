@@ -19,36 +19,31 @@
 package org.apache.pulsar.websocket.proxy;
 
 import java.io.IOException;
-
 import javax.naming.AuthenticationException;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 
 public class MockAuthenticationProvider implements AuthenticationProvider {
 
-    @Override
-    public void close() throws IOException {
-        // TODO Auto-generated method stub
+  @Override
+  public void close() throws IOException {
+    // TODO Auto-generated method stub
 
-    }
+  }
 
-    @Override
-    public void initialize(ServiceConfiguration config) throws IOException {
+  @Override
+  public void initialize(ServiceConfiguration config) throws IOException {}
 
-    }
+  @Override
+  public String getAuthMethodName() {
+    // method name
+    return "mockauth";
+  }
 
-    @Override
-    public String getAuthMethodName() {
-        // method name
-        return "mockauth";
-    }
-
-    @Override
-    public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
-        // Return super user role
-        return "pulsar.super_user";
-    }
-
+  @Override
+  public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
+    // Return super user role
+    return "pulsar.super_user";
+  }
 }

@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.fail;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.ServerSocket;
@@ -42,125 +43,136 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-impl")
 public class PulsarMultiHostClientTest extends ProducerConsumerBase {
 
-    private static final Logger log = LoggerFactory.getLogger(PulsarMultiHostClientTest.class);
+  private static final Logger log = LoggerFactory.getLogger(PulsarMultiHostClientTest.class);
 
-    @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
+  @BeforeMethod
+  @Override
+  protected void setup() throws Exception {
+    super.internalSetup();
+    super.producerBaseSetup();
+  }
+
+  @AfterMethod(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
+
+  @Test
+  public void testGetPartitionedTopicMetaData() {
+    log.info("-- Starting {} test --", methodName);
+
+    final String topicName = "persistent://my-property/my-ns/my-topic1";
+    final String subscriptionName = "my-subscriber-name";
+
+    try {
+      String url = pulsar.getWebServiceAddress();
+      if (isTcpLookup) {
+        url = pulsar.getBrokerServiceUrl();
+      }
+      @Cleanup PulsarClient client = newPulsarClient(url, 0);
+
+      Consumer<byte[]> consumer =
+          client
+              .newConsumer()
+              .topic(topicName)
+              .subscriptionName(subscriptionName)
+              .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+              .subscribe();
+      Producer<byte[]> producer = client.newProducer().topic(topicName).create();
+
+      consumer.close();
+      producer.close();
+    } catch (PulsarClientException pce) {
+      log.error("create producer or consumer error: ", pce);
+      fail();
     }
 
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
+    log.info("-- Exiting {} test --", methodName);
+  }
+
+  @Test(timeOut = 15000)
+  public void testGetPartitionedTopicDataTimeout() {
+    log.info("-- Starting {} test --", methodName);
+
+    final String topicName = "persistent://my-property/my-ns/my-topic1";
+
+    String url = "http://localhost:" + getFreePort() + ",localhost:" + getFreePort();
+
+    try {
+      @Cleanup
+      PulsarClient client =
+          PulsarClient.builder()
+              .serviceUrl(url)
+              .statsInterval(0, TimeUnit.SECONDS)
+              .operationTimeout(3, TimeUnit.SECONDS)
+              .build();
+
+      Producer<byte[]> producer = client.newProducer().topic(topicName).create();
+
+      fail();
+    } catch (PulsarClientException pce) {
+      log.error("create producer error: ", pce);
     }
 
-    @Test
-    public void testGetPartitionedTopicMetaData() {
-        log.info("-- Starting {} test --", methodName);
+    log.info("-- Exiting {} test --", methodName);
+  }
 
-        final String topicName = "persistent://my-property/my-ns/my-topic1";
-        final String subscriptionName = "my-subscriber-name";
+  private static int getFreePort() {
+    try (ServerSocket serverSocket = new ServerSocket(0)) {
+      return serverSocket.getLocalPort();
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
 
-        try {
-            String url = pulsar.getWebServiceAddress();
-            if (isTcpLookup) {
-                url = pulsar.getBrokerServiceUrl();
-            }
-            @Cleanup
-            PulsarClient client = newPulsarClient(url, 0);
+  @Test
+  public void testMultiHostUrlRetrySuccess() throws Exception {
+    log.info("-- Starting {} test --", methodName);
 
-            Consumer<byte[]> consumer = client.newConsumer().topic(topicName).subscriptionName(subscriptionName)
-                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
-            Producer<byte[]> producer = client.newProducer().topic(topicName).create();
+    final String topicName = "persistent://my-property/my-ns/my-topic1";
+    final String subscriptionName = "my-subscriber-name";
 
-            consumer.close();
-            producer.close();
-        } catch (PulsarClientException pce) {
-            log.error("create producer or consumer error: ", pce);
-            fail();
-        }
+    // Multi hosts included an unreached port and the actual port for verify retry logic
+    String urlsWithUnreached =
+        "http://localhost:51000,localhost:" + new URI(pulsar.getWebServiceAddress()).getPort();
+    if (isTcpLookup) {
+      urlsWithUnreached =
+          "pulsar://localhost:51000,localhost" + new URI(pulsar.getBrokerServiceUrl()).getPort();
+    }
+    @Cleanup PulsarClient client = newPulsarClient(urlsWithUnreached, 0);
 
-        log.info("-- Exiting {} test --", methodName);
+    Consumer<byte[]> consumer =
+        client
+            .newConsumer()
+            .topic(topicName)
+            .subscriptionName(subscriptionName)
+            .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+            .subscribe();
+    Producer<byte[]> producer = client.newProducer().topic(topicName).create();
+
+    for (int i = 0; i < 5; i++) {
+      String message = "my-message-" + i;
+      producer.send(message.getBytes());
+      log.info("Produced message: [{}]", message);
     }
 
-    @Test (timeOut = 15000)
-    public void testGetPartitionedTopicDataTimeout() {
-        log.info("-- Starting {} test --", methodName);
-
-        final String topicName = "persistent://my-property/my-ns/my-topic1";
-
-        String url = "http://localhost:" + getFreePort() + ",localhost:" + getFreePort();
-
-        try {
-            @Cleanup
-            PulsarClient client = PulsarClient.builder()
-                .serviceUrl(url)
-                .statsInterval(0, TimeUnit.SECONDS)
-                .operationTimeout(3, TimeUnit.SECONDS)
-                .build();
-
-            Producer<byte[]> producer = client.newProducer().topic(topicName).create();
-
-            fail();
-        } catch (PulsarClientException pce) {
-            log.error("create producer error: ", pce);
-        }
-
-        log.info("-- Exiting {} test --", methodName);
+    Message<byte[]> msg = null;
+    Set<String> messageSet = new HashSet<>();
+    for (int i = 0; i < 5; i++) {
+      msg = consumer.receive(5, TimeUnit.SECONDS);
+      String receivedMessage = new String(msg.getData());
+      log.info("Received message: [{}]", receivedMessage);
+      String expectedMessage = "my-message-" + i;
+      testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
     }
 
-    private static int getFreePort() {
-        try (ServerSocket serverSocket = new ServerSocket(0)) {
-            return serverSocket.getLocalPort();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
+    // Acknowledge the consumption of all messages at once
+    consumer.acknowledgeCumulative(msg);
+    consumer.close();
 
-    @Test
-    public void testMultiHostUrlRetrySuccess() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+    producer.close();
 
-        final String topicName = "persistent://my-property/my-ns/my-topic1";
-        final String subscriptionName = "my-subscriber-name";
-
-        // Multi hosts included an unreached port and the actual port for verify retry logic
-        String urlsWithUnreached = "http://localhost:51000,localhost:" + new URI(pulsar.getWebServiceAddress()).getPort();
-        if (isTcpLookup) {
-            urlsWithUnreached = "pulsar://localhost:51000,localhost" + new URI(pulsar.getBrokerServiceUrl()).getPort();
-        }
-        @Cleanup
-        PulsarClient client = newPulsarClient(urlsWithUnreached, 0);
-
-        Consumer<byte[]> consumer = client.newConsumer().topic(topicName).subscriptionName(subscriptionName)
-            .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
-        Producer<byte[]> producer = client.newProducer().topic(topicName).create();
-
-        for (int i = 0; i < 5; i++) {
-            String message = "my-message-" + i;
-            producer.send(message.getBytes());
-            log.info("Produced message: [{}]", message);
-        }
-
-        Message<byte[]> msg = null;
-        Set<String> messageSet = new HashSet<>();
-        for (int i = 0; i < 5; i++) {
-            msg = consumer.receive(5, TimeUnit.SECONDS);
-            String receivedMessage = new String(msg.getData());
-            log.info("Received message: [{}]", receivedMessage);
-            String expectedMessage = "my-message-" + i;
-            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
-        }
-
-        // Acknowledge the consumption of all messages at once
-        consumer.acknowledgeCumulative(msg);
-        consumer.close();
-
-        producer.close();
-
-        log.info("-- Exiting {} test --", methodName);
-    }
+    log.info("-- Exiting {} test --", methodName);
+  }
 }

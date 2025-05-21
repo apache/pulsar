@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
+
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.PulsarClientException.MemoryBufferIsFullError;
 import org.apache.pulsar.client.impl.ProducerImpl;
@@ -28,51 +33,49 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.time.Duration;
-import java.util.concurrent.TimeUnit;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.fail;
-
 @Test(groups = "broker-api")
 public class MemoryLimitTest extends ProducerConsumerBase {
 
-    @DataProvider(name = "batchingAndMemoryLimit")
-    public Object[][] provider() {
-        return new Object[][] {
-                // "Batching, memoryLimit in kilo bytes"
-                {false, 100},
-                {true, 201} // batching need n(batches)*1024(allocated size) capacity, that is 100+101*1024 bytes
-        };
-    }
+  @DataProvider(name = "batchingAndMemoryLimit")
+  public Object[][] provider() {
+    return new Object[][] {
+      // "Batching, memoryLimit in kilo bytes"
+      {false, 100},
+      {
+        true, 201
+      } // batching need n(batches)*1024(allocated size) capacity, that is 100+101*1024 bytes
+    };
+  }
 
-    @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
+  @BeforeMethod
+  @Override
+  protected void setup() throws Exception {
+    super.internalSetup();
+    super.producerBaseSetup();
+  }
 
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @AfterMethod(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @Test(dataProvider = "batchingAndMemoryLimit")
-    public void testRejectMessages(boolean batching, int memoryLimit)
-            throws Exception {
-        String topic = newTopicName();
+  @Test(dataProvider = "batchingAndMemoryLimit")
+  public void testRejectMessages(boolean batching, int memoryLimit) throws Exception {
+    String topic = newTopicName();
 
-        ClientBuilder clientBuilder = PulsarClient.builder()
-                .serviceUrl(pulsar.getBrokerServiceUrl())
-                .memoryLimit(memoryLimit, SizeUnit.KILO_BYTES);
+    ClientBuilder clientBuilder =
+        PulsarClient.builder()
+            .serviceUrl(pulsar.getBrokerServiceUrl())
+            .memoryLimit(memoryLimit, SizeUnit.KILO_BYTES);
 
-        @Cleanup
-        PulsarTestClient client = PulsarTestClient.create(clientBuilder);
+    @Cleanup PulsarTestClient client = PulsarTestClient.create(clientBuilder);
 
-        @Cleanup
-        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) client.newProducer()
+    @Cleanup
+    ProducerImpl<byte[]> producer =
+        (ProducerImpl<byte[]>)
+            client
+                .newProducer()
                 .topic(topic)
                 .enableBatching(batching)
                 .batchingMaxMessages(1)
@@ -82,54 +85,59 @@ public class MemoryLimitTest extends ProducerConsumerBase {
                 .sendTimeout(5, TimeUnit.SECONDS)
                 .create();
 
-        // make sure all message pending at pendingMessages queue
-        // connection with broker can not be established, so handleSendReceipt will not be invoked while sending message
-        client.dropOpSendMessages();
-        final int n = 101;
-        for (int i = 0; i < n; i++) {
-            producer.sendAsync(new byte[1024]);
-        }
-        Awaitility.await()
-                .atMost(Duration.ofSeconds(5))
-                .until(() -> producer.getPendingQueueSize() == n);
-        if (batching) {
-            // BatchMessageContainerImpl allocated buffer size is 1024, so we need add n(batches)*1024
-            assertEquals(client.getMemoryLimitController().currentUsage(), n * 1024 + n * 1024);
-        } else {
-            assertEquals(client.getMemoryLimitController().currentUsage(), n * 1024);
-        }
-
-        try {
-            producer.send(new byte[1024]);
-            fail("should have failed");
-        } catch (MemoryBufferIsFullError e) {
-            // Expected
-        }
-
-        client.allowReconnecting();
-        Awaitility.await()
-                .atMost(Duration.ofSeconds(30))
-                .until(() -> producer.getPendingQueueSize() == 0);
-        assertEquals(client.getMemoryLimitController().currentUsage(), 0);
-
-        // We should now be able to send again
-        producer.send(new byte[1024]);
+    // make sure all message pending at pendingMessages queue
+    // connection with broker can not be established, so handleSendReceipt will not be invoked while
+    // sending message
+    client.dropOpSendMessages();
+    final int n = 101;
+    for (int i = 0; i < n; i++) {
+      producer.sendAsync(new byte[1024]);
+    }
+    Awaitility.await()
+        .atMost(Duration.ofSeconds(5))
+        .until(() -> producer.getPendingQueueSize() == n);
+    if (batching) {
+      // BatchMessageContainerImpl allocated buffer size is 1024, so we need add n(batches)*1024
+      assertEquals(client.getMemoryLimitController().currentUsage(), n * 1024 + n * 1024);
+    } else {
+      assertEquals(client.getMemoryLimitController().currentUsage(), n * 1024);
     }
 
-    @Test(dataProvider = "batchingAndMemoryLimit")
-    public void testRejectMessagesOnMultipleTopics(boolean batching, int memoryLimit) throws Exception {
-        String t1 = newTopicName();
-        String t2 = newTopicName();
+    try {
+      producer.send(new byte[1024]);
+      fail("should have failed");
+    } catch (MemoryBufferIsFullError e) {
+      // Expected
+    }
 
-        ClientBuilder clientBuilder = PulsarClient.builder()
-                .serviceUrl(pulsar.getBrokerServiceUrl())
-                .memoryLimit(memoryLimit, SizeUnit.KILO_BYTES);
+    client.allowReconnecting();
+    Awaitility.await()
+        .atMost(Duration.ofSeconds(30))
+        .until(() -> producer.getPendingQueueSize() == 0);
+    assertEquals(client.getMemoryLimitController().currentUsage(), 0);
 
-        @Cleanup
-        PulsarTestClient client = PulsarTestClient.create(clientBuilder);
+    // We should now be able to send again
+    producer.send(new byte[1024]);
+  }
 
-        @Cleanup
-        ProducerImpl<byte[]> p1 = (ProducerImpl<byte[]>) client.newProducer()
+  @Test(dataProvider = "batchingAndMemoryLimit")
+  public void testRejectMessagesOnMultipleTopics(boolean batching, int memoryLimit)
+      throws Exception {
+    String t1 = newTopicName();
+    String t2 = newTopicName();
+
+    ClientBuilder clientBuilder =
+        PulsarClient.builder()
+            .serviceUrl(pulsar.getBrokerServiceUrl())
+            .memoryLimit(memoryLimit, SizeUnit.KILO_BYTES);
+
+    @Cleanup PulsarTestClient client = PulsarTestClient.create(clientBuilder);
+
+    @Cleanup
+    ProducerImpl<byte[]> p1 =
+        (ProducerImpl<byte[]>)
+            client
+                .newProducer()
                 .topic(t1)
                 .enableBatching(batching)
                 .batchingMaxMessages(1)
@@ -139,8 +147,11 @@ public class MemoryLimitTest extends ProducerConsumerBase {
                 .sendTimeout(5, TimeUnit.SECONDS)
                 .create();
 
-        @Cleanup
-        ProducerImpl<byte[]> p2 = (ProducerImpl<byte[]>) client.newProducer()
+    @Cleanup
+    ProducerImpl<byte[]> p2 =
+        (ProducerImpl<byte[]>)
+            client
+                .newProducer()
                 .topic(t2)
                 .enableBatching(batching)
                 .batchingMaxMessages(1)
@@ -150,48 +161,48 @@ public class MemoryLimitTest extends ProducerConsumerBase {
                 .sendTimeout(5, TimeUnit.SECONDS)
                 .create();
 
-        client.dropOpSendMessages();
-        final int n = 101;
-        for (int i = 0; i < n / 2; i++) {
-            p1.sendAsync(new byte[1024]);
-            p2.sendAsync(new byte[1024]);
-        }
-
-        // Last message in order to reach the limit
-        p1.sendAsync(new byte[1024]);
-
-        Awaitility.await()
-                .atMost(Duration.ofSeconds(5))
-                .until(() -> (p1.getPendingQueueSize() + p2.getPendingQueueSize()) == n);
-        if (batching) {
-            // BatchMessageContainerImpl allocated buffer size is 1024, so we need add n(batches)*1024
-            assertEquals(client.getMemoryLimitController().currentUsage(), n * 1024 + n * 1024);
-        } else {
-            assertEquals(client.getMemoryLimitController().currentUsage(), n * 1024);
-        }
-
-        try {
-            p1.send(new byte[1024]);
-            fail("should have failed");
-        } catch (MemoryBufferIsFullError e) {
-            // Expected
-        }
-
-        try {
-            p2.send(new byte[1024]);
-            fail("should have failed");
-        } catch (MemoryBufferIsFullError e) {
-            // Expected
-        }
-
-        client.allowReconnecting();
-        Awaitility.await()
-                .atMost(Duration.ofSeconds(30))
-                .until(() -> (p1.getPendingQueueSize() + p2.getPendingQueueSize()) == 0);
-        assertEquals(client.getMemoryLimitController().currentUsage(), 0);
-
-        // We should now be able to send again
-        p1.send(new byte[1024]);
-        p2.send(new byte[1024]);
+    client.dropOpSendMessages();
+    final int n = 101;
+    for (int i = 0; i < n / 2; i++) {
+      p1.sendAsync(new byte[1024]);
+      p2.sendAsync(new byte[1024]);
     }
+
+    // Last message in order to reach the limit
+    p1.sendAsync(new byte[1024]);
+
+    Awaitility.await()
+        .atMost(Duration.ofSeconds(5))
+        .until(() -> (p1.getPendingQueueSize() + p2.getPendingQueueSize()) == n);
+    if (batching) {
+      // BatchMessageContainerImpl allocated buffer size is 1024, so we need add n(batches)*1024
+      assertEquals(client.getMemoryLimitController().currentUsage(), n * 1024 + n * 1024);
+    } else {
+      assertEquals(client.getMemoryLimitController().currentUsage(), n * 1024);
+    }
+
+    try {
+      p1.send(new byte[1024]);
+      fail("should have failed");
+    } catch (MemoryBufferIsFullError e) {
+      // Expected
+    }
+
+    try {
+      p2.send(new byte[1024]);
+      fail("should have failed");
+    } catch (MemoryBufferIsFullError e) {
+      // Expected
+    }
+
+    client.allowReconnecting();
+    Awaitility.await()
+        .atMost(Duration.ofSeconds(30))
+        .until(() -> (p1.getPendingQueueSize() + p2.getPendingQueueSize()) == 0);
+    assertEquals(client.getMemoryLimitController().currentUsage(), 0);
+
+    // We should now be able to send again
+    p1.send(new byte[1024]);
+    p2.send(new byte[1024]);
+  }
 }

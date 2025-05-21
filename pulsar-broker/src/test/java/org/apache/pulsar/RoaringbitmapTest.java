@@ -19,38 +19,39 @@
 package org.apache.pulsar;
 
 import static org.testng.Assert.assertTrue;
+
 import org.roaringbitmap.RoaringBitmap;
 import org.testng.annotations.Test;
 
 public class RoaringbitmapTest {
 
-    @Test
-    public void testRoaringBitmapContains() {
-        RoaringBitmap roaringBitmap = new RoaringBitmap();
-        for (long i = 1; i <= 100_000; i++) {
-            roaringBitmap.add(i, i + 1);
-        }
-
-        for (long i = 1; i <= 100_000; i++) {
-            assertTrue(roaringBitmap.contains(i, i + 1));
-        }
-
-        RoaringBitmap roaringBitmap2 = new RoaringBitmap();
-        for (long i = 1; i <= 1000_000; i++) {
-            roaringBitmap2.add(i, i + 1);
-        }
-
-        for (long i = 1; i <= 1000_000; i++) {
-            assertTrue(roaringBitmap2.contains(i, i + 1));
-        }
-
-        RoaringBitmap roaringBitmap3 = new RoaringBitmap();
-        for (long i = 1; i <= 10_000_000; i++) {
-            roaringBitmap3.add(i, i + 1);
-        }
-
-        for (long i = 1; i <= 10_000_000; i++) {
-            assertTrue(roaringBitmap3.contains(i, i + 1));
-        }
+  @Test
+  public void testRoaringBitmapContains() {
+    RoaringBitmap roaringBitmap = new RoaringBitmap();
+    for (long i = 1; i <= 100_000; i++) {
+      roaringBitmap.add(i, i + 1);
     }
+
+    for (long i = 1; i <= 100_000; i++) {
+      assertTrue(roaringBitmap.contains(i, i + 1));
+    }
+
+    RoaringBitmap roaringBitmap2 = new RoaringBitmap();
+    for (long i = 1; i <= 1000_000; i++) {
+      roaringBitmap2.add(i, i + 1);
+    }
+
+    for (long i = 1; i <= 1000_000; i++) {
+      assertTrue(roaringBitmap2.contains(i, i + 1));
+    }
+
+    RoaringBitmap roaringBitmap3 = new RoaringBitmap();
+    for (long i = 1; i <= 10_000_000; i++) {
+      roaringBitmap3.add(i, i + 1);
+    }
+
+    for (long i = 1; i <= 10_000_000; i++) {
+      assertTrue(roaringBitmap3.contains(i, i + 1));
+    }
+  }
 }

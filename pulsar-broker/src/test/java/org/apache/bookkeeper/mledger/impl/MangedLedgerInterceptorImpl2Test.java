@@ -18,8 +18,9 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.testng.Assert.assertEquals;
 import static org.apache.pulsar.broker.intercept.ManagedLedgerInterceptorImplTest.TestPayloadProcessor;
+import static org.testng.Assert.assertEquals;
+
 import java.util.HashSet;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
@@ -41,45 +42,49 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class MangedLedgerInterceptorImpl2Test extends MockedBookKeeperTestCase {
 
-    private static void switchLedgerManually(ManagedLedgerImpl ledger){
-        LedgerHandle originalLedgerHandle = ledger.currentLedger;
-        ledger.ledgerClosed(ledger.currentLedger);
-        ledger.createLedgerAfterClosed();
-        Awaitility.await().until(() -> {
-            return ledger.state == ManagedLedgerImpl.State.LedgerOpened && ledger.currentLedger != originalLedgerHandle;
-        });
-    }
+  private static void switchLedgerManually(ManagedLedgerImpl ledger) {
+    LedgerHandle originalLedgerHandle = ledger.currentLedger;
+    ledger.ledgerClosed(ledger.currentLedger);
+    ledger.createLedgerAfterClosed();
+    Awaitility.await()
+        .until(
+            () -> {
+              return ledger.state == ManagedLedgerImpl.State.LedgerOpened
+                  && ledger.currentLedger != originalLedgerHandle;
+            });
+  }
 
-    @Test
-    public void testCurrentLedgerSizeCorrectIfHasInterceptor() throws Exception {
-        final String mlName = "ml1";
-        final String cursorName = "cursor1";
+  @Test
+  public void testCurrentLedgerSizeCorrectIfHasInterceptor() throws Exception {
+    final String mlName = "ml1";
+    final String cursorName = "cursor1";
 
-        // Registry interceptor.
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
-        Set<ManagedLedgerPayloadProcessor> processors = new HashSet();
-        processors.add(new TestPayloadProcessor());
-        ManagedLedgerInterceptor interceptor = new ManagedLedgerInterceptorImpl(new HashSet(), processors);
-        config.setManagedLedgerInterceptor(interceptor);
-        config.setMaxEntriesPerLedger(100);
+    // Registry interceptor.
+    ManagedLedgerConfig config = new ManagedLedgerConfig();
+    Set<ManagedLedgerPayloadProcessor> processors = new HashSet();
+    processors.add(new TestPayloadProcessor());
+    ManagedLedgerInterceptor interceptor =
+        new ManagedLedgerInterceptorImpl(new HashSet(), processors);
+    config.setManagedLedgerInterceptor(interceptor);
+    config.setMaxEntriesPerLedger(100);
 
-        // Add one entry.
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(mlName, config);
-        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(cursorName);
-        ledger.addEntry(new byte[1]);
+    // Add one entry.
+    ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(mlName, config);
+    ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(cursorName);
+    ledger.addEntry(new byte[1]);
 
-        // Mark "currentLedgerSize" and switch ledger.
-        long currentLedgerSize = ledger.getCurrentLedgerSize();
-        switchLedgerManually(ledger);
+    // Mark "currentLedgerSize" and switch ledger.
+    long currentLedgerSize = ledger.getCurrentLedgerSize();
+    switchLedgerManually(ledger);
 
-        // verify.
-        assertEquals(currentLedgerSize, ManagedLedgerInterceptorImplTest.calculatePreciseSize(ledger));
+    // verify.
+    assertEquals(currentLedgerSize, ManagedLedgerInterceptorImplTest.calculatePreciseSize(ledger));
 
-        // cleanup.
-        cursor.close();
-        ledger.close();
-        factory.getEntryCacheManager().clear();
-        factory.shutdown();
-        config.setManagedLedgerInterceptor(null);
-    }
+    // cleanup.
+    cursor.close();
+    ledger.close();
+    factory.getEntryCacheManager().clear();
+    factory.shutdown();
+    config.setManagedLedgerInterceptor(null);
+  }
 }

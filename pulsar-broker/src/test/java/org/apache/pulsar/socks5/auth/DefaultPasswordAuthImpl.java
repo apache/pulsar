@@ -20,12 +20,13 @@ package org.apache.pulsar.socks5.auth;
 
 public class DefaultPasswordAuthImpl implements PasswordAuth {
 
-    public static final String DEFAULT_USERNAME = "socks5";
+  public static final String DEFAULT_USERNAME = "socks5";
 
-    public static final String DEFAULT_PASSWORD = "pulsar";
+  public static final String DEFAULT_PASSWORD = "pulsar";
 
-    @Override
-    public boolean auth(String username, String password) {
-        return DEFAULT_USERNAME.equalsIgnoreCase(username) && DEFAULT_PASSWORD.equalsIgnoreCase(password);
-    }
+  @Override
+  public boolean auth(String username, String password) {
+    return DEFAULT_USERNAME.equalsIgnoreCase(username)
+        && DEFAULT_PASSWORD.equalsIgnoreCase(password);
+  }
 }

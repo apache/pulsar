@@ -28,17 +28,25 @@ import org.testng.annotations.Test;
 
 public class RangeEquallyDivideBundleSplitAlgorithmTest {
 
-    @Test
-    public void testGetSplitBoundaryMethodReturnCorrectResult() {
-        RangeEquallyDivideBundleSplitAlgorithm rangeEquallyDivideBundleSplitAlgorithm = new RangeEquallyDivideBundleSplitAlgorithm();
-        Assert.assertThrows(NullPointerException.class, () -> rangeEquallyDivideBundleSplitAlgorithm.getSplitBoundary(new BundleSplitOption()));
-        long lowerRange = 10L;
-        long upperRange = 0xffffffffL;
-        long correctResult = lowerRange + (upperRange - lowerRange) / 2;
-        NamespaceBundle namespaceBundle = new NamespaceBundle(NamespaceName.SYSTEM_NAMESPACE, Range.range(lowerRange, BoundType.CLOSED, upperRange, BoundType.CLOSED),
-                Mockito.mock(NamespaceBundleFactory.class));
-        CompletableFuture<List<Long>> splitBoundary = rangeEquallyDivideBundleSplitAlgorithm.getSplitBoundary(new BundleSplitOption(null, namespaceBundle, null));
-        List<Long> value = splitBoundary.join();
-        Assert.assertEquals((long)value.get(0), correctResult);
-    }
+  @Test
+  public void testGetSplitBoundaryMethodReturnCorrectResult() {
+    RangeEquallyDivideBundleSplitAlgorithm rangeEquallyDivideBundleSplitAlgorithm =
+        new RangeEquallyDivideBundleSplitAlgorithm();
+    Assert.assertThrows(
+        NullPointerException.class,
+        () -> rangeEquallyDivideBundleSplitAlgorithm.getSplitBoundary(new BundleSplitOption()));
+    long lowerRange = 10L;
+    long upperRange = 0xffffffffL;
+    long correctResult = lowerRange + (upperRange - lowerRange) / 2;
+    NamespaceBundle namespaceBundle =
+        new NamespaceBundle(
+            NamespaceName.SYSTEM_NAMESPACE,
+            Range.range(lowerRange, BoundType.CLOSED, upperRange, BoundType.CLOSED),
+            Mockito.mock(NamespaceBundleFactory.class));
+    CompletableFuture<List<Long>> splitBoundary =
+        rangeEquallyDivideBundleSplitAlgorithm.getSplitBoundary(
+            new BundleSplitOption(null, namespaceBundle, null));
+    List<Long> value = splitBoundary.join();
+    Assert.assertEquals((long) value.get(0), correctResult);
+  }
 }

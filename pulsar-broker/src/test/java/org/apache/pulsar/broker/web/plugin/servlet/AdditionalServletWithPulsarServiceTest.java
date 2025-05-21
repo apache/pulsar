@@ -24,6 +24,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertSame;
 import static org.testng.AssertJUnit.assertTrue;
+
 import java.nio.file.Paths;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
@@ -34,35 +35,36 @@ import org.testng.annotations.Test;
 
 public class AdditionalServletWithPulsarServiceTest {
 
-    @Test
-    public void testLoadAdditionalServlet() throws Exception {
-        AdditionalServletDefinition def = new AdditionalServletDefinition();
-        def.setAdditionalServletClass(MockAdditionalServletWithClassLoader.class.getName());
-        def.setDescription("test-additional-servlet");
+  @Test
+  public void testLoadAdditionalServlet() throws Exception {
+    AdditionalServletDefinition def = new AdditionalServletDefinition();
+    def.setAdditionalServletClass(MockAdditionalServletWithClassLoader.class.getName());
+    def.setDescription("test-additional-servlet");
 
-        String archivePath = "/path/to/additional/servlet/nar";
+    String archivePath = "/path/to/additional/servlet/nar";
 
-        AdditionalServletMetadata metadata = new AdditionalServletMetadata();
-        metadata.setDefinition(def);
-        metadata.setArchivePath(Paths.get(archivePath));
+    AdditionalServletMetadata metadata = new AdditionalServletMetadata();
+    metadata.setDefinition(def);
+    metadata.setArchivePath(Paths.get(archivePath));
 
-        NarClassLoader mockLoader = mock(NarClassLoader.class);
-        when(mockLoader.getServiceDefinition(eq(AdditionalServletUtils.ADDITIONAL_SERVLET_FILE)))
-                .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
-        Class additionalServletClass = MockAdditionalServletWithClassLoader.class;
-        when(mockLoader.loadClass(eq(MockAdditionalServletWithClassLoader.class.getName())))
-                .thenReturn(additionalServletClass);
+    NarClassLoader mockLoader = mock(NarClassLoader.class);
+    when(mockLoader.getServiceDefinition(eq(AdditionalServletUtils.ADDITIONAL_SERVLET_FILE)))
+        .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
+    Class additionalServletClass = MockAdditionalServletWithClassLoader.class;
+    when(mockLoader.loadClass(eq(MockAdditionalServletWithClassLoader.class.getName())))
+        .thenReturn(additionalServletClass);
 
-        final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
-        when(mockedBuilder.build()).thenReturn(mockLoader);
-        try (MockedStatic<NarClassLoaderBuilder> builder = Mockito.mockStatic(NarClassLoaderBuilder.class)) {
-            builder.when(() -> NarClassLoaderBuilder.builder()).thenReturn(mockedBuilder);
+    final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
+    when(mockedBuilder.build()).thenReturn(mockLoader);
+    try (MockedStatic<NarClassLoaderBuilder> builder =
+        Mockito.mockStatic(NarClassLoaderBuilder.class)) {
+      builder.when(() -> NarClassLoaderBuilder.builder()).thenReturn(mockedBuilder);
 
-            AdditionalServletWithClassLoader returnedASWithCL = AdditionalServletUtils.load(metadata, "");
-            AdditionalServlet returnedPh = returnedASWithCL.getServlet();
+      AdditionalServletWithClassLoader returnedASWithCL = AdditionalServletUtils.load(metadata, "");
+      AdditionalServlet returnedPh = returnedASWithCL.getServlet();
 
-            assertSame(mockLoader, returnedASWithCL.getClassLoader());
-            assertTrue(returnedPh instanceof MockAdditionalServletWithClassLoader);
-        }
+      assertSame(mockLoader, returnedASWithCL.getClassLoader());
+      assertTrue(returnedPh instanceof MockAdditionalServletWithClassLoader);
     }
+  }
 }

@@ -27,45 +27,47 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class BkEnsemblesChaosTest extends CanReconnectZKClientPulsarServiceBaseTest {
 
-    @Override
-    @BeforeClass(alwaysRun = true, timeOut = 300000)
-    public void setup() throws Exception {
-        super.setup();
+  @Override
+  @BeforeClass(alwaysRun = true, timeOut = 300000)
+  public void setup() throws Exception {
+    super.setup();
+  }
+
+  @Override
+  @AfterClass(alwaysRun = true, timeOut = 300000)
+  public void cleanup() throws Exception {
+    super.cleanup();
+  }
+
+  @Test
+  public void testBookieInfoIsCorrectEvenIfLostNotificationDueToZKClientReconnect()
+      throws Exception {
+    final String topicName =
+        BrokerTestUtil.newUniqueName("persistent://" + defaultNamespace + "/tp_");
+    final byte[] msgValue = "test".getBytes();
+    admin.topics().createNonPartitionedTopic(topicName);
+    // Ensure broker works.
+    Producer<byte[]> producer1 = client.newProducer().topic(topicName).create();
+    producer1.send(msgValue);
+    producer1.close();
+    admin.topics().unload(topicName);
+
+    // Restart some bookies, which triggers the ZK node of Bookie deleted and created.
+    // And make the local metadata store reconnect to lose some notification of the ZK node change.
+    for (int i = 0; i < numberOfBookies - 1; i++) {
+      bkEnsemble.stopBK(i);
     }
-
-    @Override
-    @AfterClass(alwaysRun = true, timeOut = 300000)
-    public void cleanup() throws Exception {
-        super.cleanup();
+    startLocalMetadataStoreConnectionTermination();
+    for (int i = 0; i < numberOfBookies - 1; i++) {
+      bkEnsemble.startBK(i);
     }
+    // Sleep 100ms to lose the notifications of ZK node create.
+    Thread.sleep(100);
+    stopLocalMetadataStoreConnectionTermination();
 
-    @Test
-    public void testBookieInfoIsCorrectEvenIfLostNotificationDueToZKClientReconnect() throws Exception {
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + defaultNamespace + "/tp_");
-        final byte[] msgValue = "test".getBytes();
-        admin.topics().createNonPartitionedTopic(topicName);
-        // Ensure broker works.
-        Producer<byte[]> producer1 = client.newProducer().topic(topicName).create();
-        producer1.send(msgValue);
-        producer1.close();
-        admin.topics().unload(topicName);
-
-        // Restart some bookies, which triggers the ZK node of Bookie deleted and created.
-        // And make the local metadata store reconnect to lose some notification of the ZK node change.
-        for (int i = 0; i < numberOfBookies - 1; i++){
-            bkEnsemble.stopBK(i);
-        }
-        startLocalMetadataStoreConnectionTermination();
-        for (int i = 0; i < numberOfBookies - 1; i++){
-            bkEnsemble.startBK(i);
-        }
-        // Sleep 100ms to lose the notifications of ZK node create.
-        Thread.sleep(100);
-        stopLocalMetadataStoreConnectionTermination();
-
-        // Ensure broker still works.
-        admin.topics().unload(topicName);
-        Producer<byte[]> producer2 = client.newProducer().topic(topicName).create();
-        producer2.send(msgValue);
-    }
+    // Ensure broker still works.
+    admin.topics().unload(topicName);
+    Producer<byte[]> producer2 = client.newProducer().topic(topicName).create();
+    producer2.send(msgValue);
+  }
 }

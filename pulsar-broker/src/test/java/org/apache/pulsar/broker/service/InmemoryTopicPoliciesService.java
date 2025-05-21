@@ -29,53 +29,55 @@ import org.apache.pulsar.common.policies.data.TopicPolicies;
 
 public class InmemoryTopicPoliciesService implements TopicPoliciesService {
 
-    private final Map<TopicName, TopicPolicies> cache = new HashMap<>();
-    private final Map<TopicName, List<TopicPolicyListener>> listeners = new HashMap<>();
+  private final Map<TopicName, TopicPolicies> cache = new HashMap<>();
+  private final Map<TopicName, List<TopicPolicyListener>> listeners = new HashMap<>();
 
-    @Override
-    public synchronized CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName) {
-        cache.remove(topicName);
-        return CompletableFuture.completedFuture(null);
-    }
+  @Override
+  public synchronized CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName) {
+    cache.remove(topicName);
+    return CompletableFuture.completedFuture(null);
+  }
 
-    @Override
-    public synchronized CompletableFuture<Void> updateTopicPoliciesAsync(TopicName topicName, TopicPolicies policies) {
-        final var existingPolicies = cache.get(topicName);
-        if (existingPolicies != policies) {
-            cache.put(topicName, policies);
-            CompletableFuture.runAsync(() -> {
-                final TopicPolicies latestPolicies;
-                final List<TopicPolicyListener> listeners;
-                synchronized (InmemoryTopicPoliciesService.this) {
-                    latestPolicies = cache.get(topicName);
-                    listeners = this.listeners.getOrDefault(topicName, List.of());
-                }
-                for (var listener : listeners) {
-                    listener.onUpdate(latestPolicies);
-                }
-            });
-        }
-        return CompletableFuture.completedFuture(null);
+  @Override
+  public synchronized CompletableFuture<Void> updateTopicPoliciesAsync(
+      TopicName topicName, TopicPolicies policies) {
+    final var existingPolicies = cache.get(topicName);
+    if (existingPolicies != policies) {
+      cache.put(topicName, policies);
+      CompletableFuture.runAsync(
+          () -> {
+            final TopicPolicies latestPolicies;
+            final List<TopicPolicyListener> listeners;
+            synchronized (InmemoryTopicPoliciesService.this) {
+              latestPolicies = cache.get(topicName);
+              listeners = this.listeners.getOrDefault(topicName, List.of());
+            }
+            for (var listener : listeners) {
+              listener.onUpdate(latestPolicies);
+            }
+          });
     }
+    return CompletableFuture.completedFuture(null);
+  }
 
-    @Override
-    public synchronized CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(
-            TopicName topicName, GetType type) {
-        return CompletableFuture.completedFuture(Optional.ofNullable(cache.get(topicName)));
-    }
+  @Override
+  public synchronized CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(
+      TopicName topicName, GetType type) {
+    return CompletableFuture.completedFuture(Optional.ofNullable(cache.get(topicName)));
+  }
 
-    @Override
-    public synchronized boolean registerListener(TopicName topicName, TopicPolicyListener listener) {
-        listeners.computeIfAbsent(topicName, __ -> new ArrayList<>()).add(listener);
-        return true;
-    }
+  @Override
+  public synchronized boolean registerListener(TopicName topicName, TopicPolicyListener listener) {
+    listeners.computeIfAbsent(topicName, __ -> new ArrayList<>()).add(listener);
+    return true;
+  }
 
-    @Override
-    public synchronized void unregisterListener(TopicName topicName, TopicPolicyListener listener) {
-        listeners.get(topicName).remove(listener);
-    }
+  @Override
+  public synchronized void unregisterListener(TopicName topicName, TopicPolicyListener listener) {
+    listeners.get(topicName).remove(listener);
+  }
 
-    synchronized boolean containsKey(TopicName topicName) {
-        return cache.containsKey(topicName);
-    }
+  synchronized boolean containsKey(TopicName topicName) {
+    return cache.containsKey(topicName);
+  }
 }

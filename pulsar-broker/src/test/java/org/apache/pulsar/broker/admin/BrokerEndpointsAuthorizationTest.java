@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.broker.admin;
 
-
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
+
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
@@ -41,237 +41,322 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
 public class BrokerEndpointsAuthorizationTest extends MockedPulsarStandalone {
-    private AuthorizationService orignalAuthorizationService;
-    private AuthorizationService spyAuthorizationService;
+  private AuthorizationService orignalAuthorizationService;
+  private AuthorizationService spyAuthorizationService;
 
-    private PulsarAdmin superUserAdmin;
-    private PulsarAdmin nobodyAdmin;
+  private PulsarAdmin superUserAdmin;
+  private PulsarAdmin nobodyAdmin;
 
-    @SneakyThrows
-    @BeforeClass(alwaysRun = true)
-    public void setup() {
-        configureTokenAuthentication();
-        configureDefaultAuthorization();
-        start();
-        this.superUserAdmin = PulsarAdmin.builder()
-                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
-                .authentication(new AuthenticationToken(SUPER_USER_TOKEN))
-                .build();
-        this.nobodyAdmin = PulsarAdmin.builder()
-                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
-                .authentication(new AuthenticationToken(NOBODY_TOKEN))
-                .build();
+  @SneakyThrows
+  @BeforeClass(alwaysRun = true)
+  public void setup() {
+    configureTokenAuthentication();
+    configureDefaultAuthorization();
+    start();
+    this.superUserAdmin =
+        PulsarAdmin.builder()
+            .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+            .authentication(new AuthenticationToken(SUPER_USER_TOKEN))
+            .build();
+    this.nobodyAdmin =
+        PulsarAdmin.builder()
+            .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+            .authentication(new AuthenticationToken(NOBODY_TOKEN))
+            .build();
+  }
+
+  @BeforeMethod(alwaysRun = true)
+  public void before() throws IllegalAccessException {
+    orignalAuthorizationService = getPulsarService().getBrokerService().getAuthorizationService();
+    spyAuthorizationService = spy(orignalAuthorizationService);
+    FieldUtils.writeField(
+        getPulsarService().getBrokerService(),
+        "authorizationService",
+        spyAuthorizationService,
+        true);
+  }
+
+  @AfterMethod(alwaysRun = true)
+  public void after() throws IllegalAccessException {
+    if (orignalAuthorizationService != null) {
+      FieldUtils.writeField(
+          getPulsarService().getBrokerService(),
+          "authorizationService",
+          orignalAuthorizationService,
+          true);
     }
+  }
 
-    @BeforeMethod(alwaysRun = true)
-    public void before() throws IllegalAccessException {
-        orignalAuthorizationService = getPulsarService().getBrokerService().getAuthorizationService();
-        spyAuthorizationService = spy(orignalAuthorizationService);
-        FieldUtils.writeField(getPulsarService().getBrokerService(), "authorizationService",
-                spyAuthorizationService, true);
+  @SneakyThrows
+  @AfterClass(alwaysRun = true)
+  public void cleanup() {
+    if (superUserAdmin != null) {
+      superUserAdmin.close();
+      superUserAdmin = null;
     }
+    spyAuthorizationService = null;
+    orignalAuthorizationService = null;
+    super.close();
+  }
 
-    @AfterMethod(alwaysRun = true)
-    public void after() throws IllegalAccessException {
-        if (orignalAuthorizationService != null) {
-            FieldUtils.writeField(getPulsarService().getBrokerService(), "authorizationService", orignalAuthorizationService, true);
-        }
-    }
+  @Test
+  public void testGetActiveBroker() throws PulsarAdminException {
+    superUserAdmin.brokers().getActiveBrokers();
+    final String brokerId = getPulsarService().getBrokerId();
+    final String clusterName = getPulsarService().getConfiguration().getClusterName();
+    // test allow broker operation
+    verify(spyAuthorizationService)
+        .allowBrokerOperationAsync(
+            eq(clusterName), eq(brokerId), eq(BrokerOperation.LIST_BROKERS), any(), any(), any());
+    // fallback to superuser
+    verify(spyAuthorizationService).isSuperUser(any(), any());
 
-    @SneakyThrows
-    @AfterClass(alwaysRun = true)
-    public void cleanup() {
-        if (superUserAdmin != null) {
-            superUserAdmin.close();
-            superUserAdmin = null;
-        }
-        spyAuthorizationService = null;
-        orignalAuthorizationService = null;
-        super.close();
-    }
+    // ---- test nobody
+    Assert.assertThrows(
+        PulsarAdminException.NotAuthorizedException.class,
+        () -> nobodyAdmin.brokers().getActiveBrokers());
+  }
 
-    @Test
-    public void testGetActiveBroker() throws PulsarAdminException {
-        superUserAdmin.brokers().getActiveBrokers();
-        final String brokerId = getPulsarService().getBrokerId();
-        final String clusterName = getPulsarService().getConfiguration().getClusterName();
-        // test allow broker operation
-        verify(spyAuthorizationService)
-                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId), eq(BrokerOperation.LIST_BROKERS), any(), any(), any());
-        // fallback to superuser
-        verify(spyAuthorizationService).isSuperUser(any(), any());
+  @Test
+  public void testGetActiveBrokerWithCluster() throws PulsarAdminException {
+    final String clusterName = getPulsarService().getConfiguration().getClusterName();
+    superUserAdmin.brokers().getActiveBrokers(clusterName);
+    final String brokerId = getPulsarService().getBrokerId();
+    // test allow broker operation
+    verify(spyAuthorizationService)
+        .allowBrokerOperationAsync(
+            eq(clusterName), eq(brokerId), eq(BrokerOperation.LIST_BROKERS), any(), any(), any());
+    // fallback to superuser
+    verify(spyAuthorizationService).isSuperUser(any(), any());
 
-        // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.brokers().getActiveBrokers());
-    }
+    // ---- test nobody
+    Assert.assertThrows(
+        PulsarAdminException.NotAuthorizedException.class,
+        () -> nobodyAdmin.brokers().getActiveBrokers(clusterName));
+  }
 
-    @Test
-    public void testGetActiveBrokerWithCluster() throws PulsarAdminException {
-        final String clusterName = getPulsarService().getConfiguration().getClusterName();
-        superUserAdmin.brokers().getActiveBrokers(clusterName);
-        final String brokerId = getPulsarService().getBrokerId();
-        // test allow broker operation
-        verify(spyAuthorizationService)
-                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId), eq(BrokerOperation.LIST_BROKERS), any(), any(), any());
-        // fallback to superuser
-        verify(spyAuthorizationService).isSuperUser(any(), any());
+  @Test
+  public void testGetLeaderBroker() throws PulsarAdminException {
+    superUserAdmin.brokers().getLeaderBroker();
+    final String clusterName = getPulsarService().getConfiguration().getClusterName();
+    final String brokerId = getPulsarService().getBrokerId();
+    // test allow broker operation
+    verify(spyAuthorizationService)
+        .allowBrokerOperationAsync(
+            eq(clusterName),
+            eq(brokerId),
+            eq(BrokerOperation.GET_LEADER_BROKER),
+            any(),
+            any(),
+            any());
+    // fallback to superuser
+    verify(spyAuthorizationService).isSuperUser(any(), any());
 
-        // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.brokers().getActiveBrokers(clusterName));
-    }
+    // ---- test nobody
+    Assert.assertThrows(
+        PulsarAdminException.NotAuthorizedException.class,
+        () -> nobodyAdmin.brokers().getLeaderBroker());
+  }
 
-    @Test
-    public void testGetLeaderBroker() throws PulsarAdminException {
-        superUserAdmin.brokers().getLeaderBroker();
-        final String clusterName = getPulsarService().getConfiguration().getClusterName();
-        final String brokerId = getPulsarService().getBrokerId();
-        // test allow broker operation
-        verify(spyAuthorizationService)
-                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId), eq(BrokerOperation.GET_LEADER_BROKER), any(), any(), any());
-        // fallback to superuser
-        verify(spyAuthorizationService).isSuperUser(any(), any());
+  @Test
+  public void testGetOwnedNamespaces() throws PulsarAdminException {
+    final String clusterName = getPulsarService().getConfiguration().getClusterName();
+    final String brokerId = getPulsarService().getBrokerId();
+    superUserAdmin.brokers().getOwnedNamespaces(clusterName, brokerId);
+    // test allow broker operation
+    verify(spyAuthorizationService)
+        .allowBrokerOperationAsync(
+            eq(clusterName),
+            eq(brokerId),
+            eq(BrokerOperation.LIST_OWNED_NAMESPACES),
+            any(),
+            any(),
+            any());
+    // fallback to superuser
+    verify(spyAuthorizationService).isSuperUser(any(), any());
 
-        // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.brokers().getLeaderBroker());
-    }
+    // ---- test nobody
+    Assert.assertThrows(
+        PulsarAdminException.NotAuthorizedException.class,
+        () -> nobodyAdmin.brokers().getOwnedNamespaces(clusterName, brokerId));
+  }
 
-    @Test
-    public void testGetOwnedNamespaces() throws PulsarAdminException {
-        final String clusterName = getPulsarService().getConfiguration().getClusterName();
-        final String brokerId = getPulsarService().getBrokerId();
-        superUserAdmin.brokers().getOwnedNamespaces(clusterName, brokerId);
-        // test allow broker operation
-        verify(spyAuthorizationService)
-                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId), eq(BrokerOperation.LIST_OWNED_NAMESPACES), any(), any(), any());
-        // fallback to superuser
-        verify(spyAuthorizationService).isSuperUser(any(), any());
+  @Test
+  public void testUpdateDynamicConfiguration() throws PulsarAdminException {
+    final String clusterName = getPulsarService().getConfiguration().getClusterName();
+    final String brokerId = getPulsarService().getBrokerId();
+    superUserAdmin.brokers().updateDynamicConfiguration("maxTenants", "10");
+    // test allow broker operation
+    verify(spyAuthorizationService)
+        .allowBrokerOperationAsync(
+            eq(clusterName),
+            eq(brokerId),
+            eq(BrokerOperation.UPDATE_DYNAMIC_CONFIGURATION),
+            any(),
+            any(),
+            any());
+    // fallback to superuser
+    verify(spyAuthorizationService).isSuperUser(any(), any());
 
-        // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.brokers().getOwnedNamespaces(clusterName, brokerId));
-    }
+    // ---- test nobody
+    Assert.assertThrows(
+        PulsarAdminException.NotAuthorizedException.class,
+        () -> nobodyAdmin.brokers().updateDynamicConfiguration("maxTenants", "10"));
+  }
 
-    @Test
-    public void testUpdateDynamicConfiguration() throws PulsarAdminException {
-        final String clusterName = getPulsarService().getConfiguration().getClusterName();
-        final String brokerId = getPulsarService().getBrokerId();
-        superUserAdmin.brokers().updateDynamicConfiguration("maxTenants", "10");
-        // test allow broker operation
-        verify(spyAuthorizationService)
-                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId), eq(BrokerOperation.UPDATE_DYNAMIC_CONFIGURATION), any(), any(), any());
-        // fallback to superuser
-        verify(spyAuthorizationService).isSuperUser(any(), any());
+  @Test
+  public void testDeleteDynamicConfiguration() throws PulsarAdminException {
+    final String clusterName = getPulsarService().getConfiguration().getClusterName();
+    final String brokerId = getPulsarService().getBrokerId();
+    superUserAdmin.brokers().deleteDynamicConfiguration("maxTenants");
+    // test allow broker operation
+    verify(spyAuthorizationService)
+        .allowBrokerOperationAsync(
+            eq(clusterName),
+            eq(brokerId),
+            eq(BrokerOperation.DELETE_DYNAMIC_CONFIGURATION),
+            any(),
+            any(),
+            any());
+    // fallback to superuser
+    verify(spyAuthorizationService).isSuperUser(any(), any());
 
-        // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.brokers().updateDynamicConfiguration("maxTenants", "10"));
-    }
+    // ---- test nobody
+    Assert.assertThrows(
+        PulsarAdminException.NotAuthorizedException.class,
+        () -> nobodyAdmin.brokers().deleteDynamicConfiguration("maxTenants"));
+  }
 
-    @Test
-    public void testDeleteDynamicConfiguration() throws PulsarAdminException {
-        final String clusterName = getPulsarService().getConfiguration().getClusterName();
-        final String brokerId = getPulsarService().getBrokerId();
-        superUserAdmin.brokers().deleteDynamicConfiguration("maxTenants");
-        // test allow broker operation
-        verify(spyAuthorizationService)
-                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId), eq(BrokerOperation.DELETE_DYNAMIC_CONFIGURATION), any(), any(), any());
-        // fallback to superuser
-        verify(spyAuthorizationService).isSuperUser(any(), any());
+  @Test
+  public void testGetAllDynamicConfiguration() throws PulsarAdminException {
+    final String clusterName = getPulsarService().getConfiguration().getClusterName();
+    final String brokerId = getPulsarService().getBrokerId();
+    superUserAdmin.brokers().getAllDynamicConfigurations();
+    // test allow broker operation
+    verify(spyAuthorizationService)
+        .allowBrokerOperationAsync(
+            eq(clusterName),
+            eq(brokerId),
+            eq(BrokerOperation.LIST_DYNAMIC_CONFIGURATIONS),
+            any(),
+            any(),
+            any());
+    // fallback to superuser
+    verify(spyAuthorizationService).isSuperUser(any(), any());
 
-        // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.brokers().deleteDynamicConfiguration("maxTenants"));
-    }
+    // ---- test nobody
+    Assert.assertThrows(
+        PulsarAdminException.NotAuthorizedException.class,
+        () -> nobodyAdmin.brokers().getAllDynamicConfigurations());
+  }
 
+  @Test
+  public void testGetDynamicConfigurationName() throws PulsarAdminException {
+    final String clusterName = getPulsarService().getConfiguration().getClusterName();
+    final String brokerId = getPulsarService().getBrokerId();
+    superUserAdmin.brokers().getDynamicConfigurationNames();
+    // test allow broker operation
+    verify(spyAuthorizationService)
+        .allowBrokerOperationAsync(
+            eq(clusterName),
+            eq(brokerId),
+            eq(BrokerOperation.LIST_DYNAMIC_CONFIGURATIONS),
+            any(),
+            any(),
+            any());
+    // fallback to superuser
+    verify(spyAuthorizationService).isSuperUser(any(), any());
 
-    @Test
-    public void testGetAllDynamicConfiguration() throws PulsarAdminException {
-        final String clusterName = getPulsarService().getConfiguration().getClusterName();
-        final String brokerId = getPulsarService().getBrokerId();
-        superUserAdmin.brokers().getAllDynamicConfigurations();
-        // test allow broker operation
-        verify(spyAuthorizationService)
-                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId), eq(BrokerOperation.LIST_DYNAMIC_CONFIGURATIONS), any(), any(), any());
-        // fallback to superuser
-        verify(spyAuthorizationService).isSuperUser(any(), any());
+    // ---- test nobody
+    Assert.assertThrows(
+        PulsarAdminException.NotAuthorizedException.class,
+        () -> nobodyAdmin.brokers().getDynamicConfigurationNames());
+  }
 
-        // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.brokers().getAllDynamicConfigurations());
-    }
+  @Test
+  public void testGetRuntimeConfiguration() throws PulsarAdminException {
+    final String clusterName = getPulsarService().getConfiguration().getClusterName();
+    final String brokerId = getPulsarService().getBrokerId();
+    superUserAdmin.brokers().getRuntimeConfigurations();
+    // test allow broker operation
+    verify(spyAuthorizationService)
+        .allowBrokerOperationAsync(
+            eq(clusterName),
+            eq(brokerId),
+            eq(BrokerOperation.LIST_RUNTIME_CONFIGURATIONS),
+            any(),
+            any(),
+            any());
+    // fallback to superuser
+    verify(spyAuthorizationService).isSuperUser(any(), any());
 
+    // ---- test nobody
+    Assert.assertThrows(
+        PulsarAdminException.NotAuthorizedException.class,
+        () -> nobodyAdmin.brokers().getRuntimeConfigurations());
+  }
 
-    @Test
-    public void testGetDynamicConfigurationName() throws PulsarAdminException {
-        final String clusterName = getPulsarService().getConfiguration().getClusterName();
-        final String brokerId = getPulsarService().getBrokerId();
-        superUserAdmin.brokers().getDynamicConfigurationNames();
-        // test allow broker operation
-        verify(spyAuthorizationService)
-                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId), eq(BrokerOperation.LIST_DYNAMIC_CONFIGURATIONS), any(), any(), any());
-        // fallback to superuser
-        verify(spyAuthorizationService).isSuperUser(any(), any());
+  @Test
+  public void testGetInternalConfigurationData() throws PulsarAdminException {
+    final String clusterName = getPulsarService().getConfiguration().getClusterName();
+    final String brokerId = getPulsarService().getBrokerId();
+    superUserAdmin.brokers().getInternalConfigurationData();
+    // test allow broker operation
+    verify(spyAuthorizationService)
+        .allowBrokerOperationAsync(
+            eq(clusterName),
+            eq(brokerId),
+            eq(BrokerOperation.GET_INTERNAL_CONFIGURATION_DATA),
+            any(),
+            any(),
+            any());
+    // fallback to superuser
+    verify(spyAuthorizationService).isSuperUser(any(), any());
 
-        // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.brokers().getDynamicConfigurationNames());
-    }
+    // ---- test nobody
+    Assert.assertThrows(
+        PulsarAdminException.NotAuthorizedException.class,
+        () -> nobodyAdmin.brokers().getInternalConfigurationData());
+  }
 
+  @Test
+  public void testBacklogQuotaCheck() throws PulsarAdminException {
+    final String clusterName = getPulsarService().getConfiguration().getClusterName();
+    final String brokerId = getPulsarService().getBrokerId();
+    superUserAdmin.brokers().backlogQuotaCheck();
+    // test allow broker operation
+    verify(spyAuthorizationService)
+        .allowBrokerOperationAsync(
+            eq(clusterName),
+            eq(brokerId),
+            eq(BrokerOperation.CHECK_BACKLOG_QUOTA),
+            any(),
+            any(),
+            any());
+    // fallback to superuser
+    verify(spyAuthorizationService).isSuperUser(any(), any());
 
-    @Test
-    public void testGetRuntimeConfiguration() throws PulsarAdminException {
-        final String clusterName = getPulsarService().getConfiguration().getClusterName();
-        final String brokerId = getPulsarService().getBrokerId();
-        superUserAdmin.brokers().getRuntimeConfigurations();
-        // test allow broker operation
-        verify(spyAuthorizationService)
-                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId), eq(BrokerOperation.LIST_RUNTIME_CONFIGURATIONS), any(), any(), any());
-        // fallback to superuser
-        verify(spyAuthorizationService).isSuperUser(any(), any());
+    // ---- test nobody
+    Assert.assertThrows(
+        PulsarAdminException.NotAuthorizedException.class,
+        () -> nobodyAdmin.brokers().backlogQuotaCheck());
+  }
 
-        // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.brokers().getRuntimeConfigurations());
-    }
+  @Test
+  public void testHealthCheck() throws PulsarAdminException {
+    final String clusterName = getPulsarService().getConfiguration().getClusterName();
+    final String brokerId = getPulsarService().getBrokerId();
+    superUserAdmin.brokers().healthcheck(TopicVersion.V2);
+    // test allow broker operation
+    verify(spyAuthorizationService)
+        .allowBrokerOperationAsync(
+            eq(clusterName), eq(brokerId), eq(BrokerOperation.HEALTH_CHECK), any(), any(), any());
+    // fallback to superuser
+    verify(spyAuthorizationService).isSuperUser(any(), any());
 
-
-    @Test
-    public void testGetInternalConfigurationData() throws PulsarAdminException {
-        final String clusterName = getPulsarService().getConfiguration().getClusterName();
-        final String brokerId = getPulsarService().getBrokerId();
-        superUserAdmin.brokers().getInternalConfigurationData();
-        // test allow broker operation
-        verify(spyAuthorizationService)
-                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId), eq(BrokerOperation.GET_INTERNAL_CONFIGURATION_DATA), any(), any(), any());
-        // fallback to superuser
-        verify(spyAuthorizationService).isSuperUser(any(), any());
-
-        // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.brokers().getInternalConfigurationData());
-    }
-
-
-    @Test
-    public void testBacklogQuotaCheck() throws PulsarAdminException {
-        final String clusterName = getPulsarService().getConfiguration().getClusterName();
-        final String brokerId = getPulsarService().getBrokerId();
-        superUserAdmin.brokers().backlogQuotaCheck();
-        // test allow broker operation
-        verify(spyAuthorizationService)
-                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId), eq(BrokerOperation.CHECK_BACKLOG_QUOTA), any(), any(), any());
-        // fallback to superuser
-        verify(spyAuthorizationService).isSuperUser(any(), any());
-
-        // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.brokers().backlogQuotaCheck());
-    }
-
-    @Test
-    public void testHealthCheck() throws PulsarAdminException {
-        final String clusterName = getPulsarService().getConfiguration().getClusterName();
-        final String brokerId = getPulsarService().getBrokerId();
-        superUserAdmin.brokers().healthcheck(TopicVersion.V2);
-        // test allow broker operation
-        verify(spyAuthorizationService)
-                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId), eq(BrokerOperation.HEALTH_CHECK), any(), any(), any());
-        // fallback to superuser
-        verify(spyAuthorizationService).isSuperUser(any(), any());
-
-        // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () ->  nobodyAdmin.brokers().healthcheck(TopicVersion.V2));
-    }
+    // ---- test nobody
+    Assert.assertThrows(
+        PulsarAdminException.NotAuthorizedException.class,
+        () -> nobodyAdmin.brokers().healthcheck(TopicVersion.V2));
+  }
 }

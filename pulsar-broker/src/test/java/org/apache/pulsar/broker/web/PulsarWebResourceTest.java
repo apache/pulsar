@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.web;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+
 import javax.servlet.ServletContext;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Feature;
@@ -38,66 +39,58 @@ import org.glassfish.jersey.test.spi.TestContainerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 
-/**
- * A base class for testing subclasses of {@link PulsarWebResource}.
- */
+/** A base class for testing subclasses of {@link PulsarWebResource}. */
 public abstract class PulsarWebResourceTest extends JerseyTestNg.ContainerPerClassTest {
 
-    protected ServiceConfiguration config;
-    protected PulsarService pulsar;
+  protected ServiceConfiguration config;
+  protected PulsarService pulsar;
 
-    protected PulsarWebResourceTest() {
-        config = new ServiceConfiguration();
+  protected PulsarWebResourceTest() {
+    config = new ServiceConfiguration();
 
-        pulsar = mock(PulsarService.class);
-        doReturn(config).when(pulsar).getConfig();
-        doReturn(config).when(pulsar).getConfiguration();
+    pulsar = mock(PulsarService.class);
+    doReturn(config).when(pulsar).getConfig();
+    doReturn(config).when(pulsar).getConfiguration();
 
-        set(TestProperties.CONTAINER_PORT, 0);
-    }
+    set(TestProperties.CONTAINER_PORT, 0);
+  }
 
-    @BeforeClass(alwaysRun = true)
-    @Override
-    public void setUp() throws Exception {
-        super.setUp();
-    }
+  @BeforeClass(alwaysRun = true)
+  @Override
+  public void setUp() throws Exception {
+    super.setUp();
+  }
 
-    @AfterClass(alwaysRun = true)
-    @Override
-    public void tearDown() throws Exception {
-        super.tearDown();
-    }
+  @AfterClass(alwaysRun = true)
+  @Override
+  public void tearDown() throws Exception {
+    super.tearDown();
+  }
 
-    /**
-     * Creates a JAX-RS resource configuration for test purposes.
-     */
-    @Override
-    protected abstract ResourceConfig configure();
+  /** Creates a JAX-RS resource configuration for test purposes. */
+  @Override
+  protected abstract ResourceConfig configure();
 
-    /**
-     * Creates a test container factory with servlet support.
-     */
-    @Override
-    protected TestContainerFactory getTestContainerFactory() throws TestContainerException {
-        return new GrizzlyWebTestContainerFactory();
-    }
+  /** Creates a test container factory with servlet support. */
+  @Override
+  protected TestContainerFactory getTestContainerFactory() throws TestContainerException {
+    return new GrizzlyWebTestContainerFactory();
+  }
 
-    /**
-     * Configures a deployment context for JAX-RS.
-     */
-    @Override
-    protected DeploymentContext configureDeployment() {
-        ResourceConfig app = configure();
-        app.register(new Feature() {
-            @Context
-            ServletContext servletContext;
+  /** Configures a deployment context for JAX-RS. */
+  @Override
+  protected DeploymentContext configureDeployment() {
+    ResourceConfig app = configure();
+    app.register(
+        new Feature() {
+          @Context ServletContext servletContext;
 
-            @Override
-            public boolean configure(FeatureContext context) {
-                servletContext.setAttribute(WebService.ATTRIBUTE_PULSAR_NAME, pulsar);
-                return true;
-            }
+          @Override
+          public boolean configure(FeatureContext context) {
+            servletContext.setAttribute(WebService.ATTRIBUTE_PULSAR_NAME, pulsar);
+            return true;
+          }
         });
-        return ServletDeploymentContext.forServlet(new ServletContainer(app)).build();
-    }
+    return ServletDeploymentContext.forServlet(new ServletContainer(app)).build();
+  }
 }

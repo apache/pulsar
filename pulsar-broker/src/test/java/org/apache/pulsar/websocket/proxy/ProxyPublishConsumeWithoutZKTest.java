@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
+
 import java.net.URI;
 import java.util.Optional;
 import java.util.concurrent.Future;
@@ -44,82 +45,91 @@ import org.testng.annotations.Test;
 
 @Test(groups = "websocket")
 public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
-    protected String methodName;
-    private ProxyServer proxyServer;
-    private WebSocketService service;
+  protected String methodName;
+  private ProxyServer proxyServer;
+  private WebSocketService service;
 
-    @BeforeMethod
-    public void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
+  @BeforeMethod
+  public void setup() throws Exception {
+    super.internalSetup();
+    super.producerBaseSetup();
 
-        WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
-        config.setWebServicePort(Optional.of(0));
-        config.setClusterName("test");
-        config.setServiceUrl(pulsar.getSafeWebServiceAddress());
-        config.setServiceUrlTls(pulsar.getWebServiceAddressTls());
-        service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
-        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper))).when(service)
-                .createConfigMetadataStore(anyString(), anyInt(), anyBoolean());
-        proxyServer = new ProxyServer(config);
-        WebSocketServiceStarter.start(proxyServer, service);
-        log.info("Proxy Server Started");
+    WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
+    config.setWebServicePort(Optional.of(0));
+    config.setClusterName("test");
+    config.setServiceUrl(pulsar.getSafeWebServiceAddress());
+    config.setServiceUrlTls(pulsar.getWebServiceAddressTls());
+    service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
+    doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper)))
+        .when(service)
+        .createConfigMetadataStore(anyString(), anyInt(), anyBoolean());
+    proxyServer = new ProxyServer(config);
+    WebSocketServiceStarter.start(proxyServer, service);
+    log.info("Proxy Server Started");
+  }
+
+  @AfterMethod(alwaysRun = true)
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+    if (service != null) {
+      service.close();
     }
-
-    @AfterMethod(alwaysRun = true)
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-        if (service != null) {
-            service.close();
-        }
-        if (proxyServer != null) {
-            proxyServer.stop();
-        }
-        log.info("Finished Cleaning Up Test setup");
+    if (proxyServer != null) {
+      proxyServer.stop();
     }
+    log.info("Finished Cleaning Up Test setup");
+  }
 
-    @Test(timeOut = 30000)
-    public void socketTest() throws Exception {
+  @Test(timeOut = 30000)
+  public void socketTest() throws Exception {
 
-        String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/consumer/persistent/my-property/my-ns/my-topic/my-sub";
-        String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/producer/persistent/my-property/my-ns/my-topic/";
+    String consumerUri =
+        "ws://localhost:"
+            + proxyServer.getListenPortHTTP().get()
+            + "/ws/v2/consumer/persistent/my-property/my-ns/my-topic/my-sub";
+    String producerUri =
+        "ws://localhost:"
+            + proxyServer.getListenPortHTTP().get()
+            + "/ws/v2/producer/persistent/my-property/my-ns/my-topic/";
 
-        URI consumeUri = URI.create(consumerUri);
-        URI produceUri = URI.create(producerUri);
+    URI consumeUri = URI.create(consumerUri);
+    URI produceUri = URI.create(producerUri);
 
-        WebSocketClient consumeClient = new WebSocketClient();
-        SimpleConsumerSocket consumeSocket = new SimpleConsumerSocket();
-        WebSocketClient produceClient = new WebSocketClient();
-        SimpleProducerSocket produceSocket = new SimpleProducerSocket();
+    WebSocketClient consumeClient = new WebSocketClient();
+    SimpleConsumerSocket consumeSocket = new SimpleConsumerSocket();
+    WebSocketClient produceClient = new WebSocketClient();
+    SimpleProducerSocket produceSocket = new SimpleProducerSocket();
 
-        try {
-            consumeClient.start();
-            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
-            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeUri, consumeRequest);
-            log.info("Connecting to : {}", consumeUri);
+    try {
+      consumeClient.start();
+      ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
+      Future<Session> consumerFuture =
+          consumeClient.connect(consumeSocket, consumeUri, consumeRequest);
+      log.info("Connecting to : {}", consumeUri);
 
-            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
-            produceClient.start();
-            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
-            // let it connect
-            Assert.assertTrue(consumerFuture.get().isOpen());
-            Assert.assertTrue(producerFuture.get().isOpen());
+      ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+      produceClient.start();
+      Future<Session> producerFuture =
+          produceClient.connect(produceSocket, produceUri, produceRequest);
+      // let it connect
+      Assert.assertTrue(consumerFuture.get().isOpen());
+      Assert.assertTrue(producerFuture.get().isOpen());
 
-            while (consumeSocket.getReceivedMessagesCount() < 10) {
-                Thread.sleep(10);
-            }
-            Assert.assertTrue(produceSocket.getBuffer().size() > 0);
-            Assert.assertEquals(produceSocket.getBuffer(), consumeSocket.getBuffer());
-        } finally {
-            try {
-                consumeClient.stop();
-                produceClient.stop();
-                log.info("proxy clients are stopped successfully");
-            } catch (Exception e) {
-                log.error("failed to close clients ", e);
-            }
-        }
+      while (consumeSocket.getReceivedMessagesCount() < 10) {
+        Thread.sleep(10);
+      }
+      Assert.assertTrue(produceSocket.getBuffer().size() > 0);
+      Assert.assertEquals(produceSocket.getBuffer(), consumeSocket.getBuffer());
+    } finally {
+      try {
+        consumeClient.stop();
+        produceClient.stop();
+        log.info("proxy clients are stopped successfully");
+      } catch (Exception e) {
+        log.error("failed to close clients ", e);
+      }
     }
+  }
 
-    private static final Logger log = LoggerFactory.getLogger(ProxyPublishConsumeWithoutZKTest.class);
+  private static final Logger log = LoggerFactory.getLogger(ProxyPublishConsumeWithoutZKTest.class);
 }

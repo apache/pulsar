@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionB
 import static org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferState.State.Ready;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.concurrent.TimeUnit;
@@ -51,208 +52,226 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-/**
- * Pulsar client transaction test.
- */
+/** Pulsar client transaction test. */
 @Slf4j
 @Test(groups = "broker")
 public class TransactionStablePositionTest extends TransactionTestBase {
 
-    private static final String TOPIC = NAMESPACE1 + "/test-topic";
+  private static final String TOPIC = NAMESPACE1 + "/test-topic";
 
-    @BeforeMethod
-    protected void setup() throws Exception {
-        setUpBase(1, 16, TOPIC, 0);
-        Awaitility.await().until(() -> ((PulsarClientImpl) pulsarClient)
-                .getTcClient().getState() == TransactionCoordinatorClient.State.READY);
+  @BeforeMethod
+  protected void setup() throws Exception {
+    setUpBase(1, 16, TOPIC, 0);
+    Awaitility.await()
+        .until(
+            () ->
+                ((PulsarClientImpl) pulsarClient).getTcClient().getState()
+                    == TransactionCoordinatorClient.State.READY);
+  }
+
+  @AfterMethod(alwaysRun = true)
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
+
+  @Test
+  public void commitTxnTest() throws Exception {
+    Transaction txn =
+        pulsarClient.newTransaction().withTransactionTimeout(5, TimeUnit.SECONDS).build().get();
+
+    @Cleanup
+    Producer<byte[]> producer =
+        pulsarClient
+            .newProducer()
+            .topic(TOPIC)
+            .sendTimeout(0, TimeUnit.SECONDS)
+            .enableBatching(false)
+            .create();
+
+    @Cleanup
+    Consumer<byte[]> consumer =
+        pulsarClient
+            .newConsumer()
+            .topic(TOPIC)
+            .subscriptionName("test")
+            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+            .subscriptionType(SubscriptionType.Failover)
+            .subscribe();
+    final String TEST1 = "test1";
+    final String TEST2 = "test2";
+    final String TEST3 = "test3";
+
+    producer.newMessage().value(TEST1.getBytes()).send();
+    producer.newMessage(txn).value(TEST2.getBytes()).send();
+    producer.newMessage().value(TEST3.getBytes()).send();
+
+    Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
+    assertEquals(new String(message.getData()), TEST1);
+
+    message = consumer.receive(2, TimeUnit.SECONDS);
+    assertNull(message);
+
+    txn.commit().get();
+
+    message = consumer.receive(2, TimeUnit.SECONDS);
+    assertEquals(new String(message.getData()), TEST2);
+
+    message = consumer.receive(2, TimeUnit.SECONDS);
+    assertEquals(new String(message.getData()), TEST3);
+
+    message = consumer.receive(2, TimeUnit.SECONDS);
+    assertNull(message);
+  }
+
+  @Test
+  public void abortTxnTest() throws Exception {
+    Transaction txn =
+        pulsarClient.newTransaction().withTransactionTimeout(5, TimeUnit.SECONDS).build().get();
+
+    @Cleanup
+    Producer<byte[]> producer =
+        pulsarClient
+            .newProducer()
+            .topic(TOPIC)
+            .sendTimeout(0, TimeUnit.SECONDS)
+            .enableBatching(false)
+            .create();
+
+    @Cleanup
+    Consumer<byte[]> consumer =
+        pulsarClient
+            .newConsumer()
+            .topic(TOPIC)
+            .subscriptionName("test")
+            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+            .subscriptionType(SubscriptionType.Failover)
+            .subscribe();
+    final String TEST1 = "test1";
+    final String TEST2 = "test2";
+    final String TEST3 = "test3";
+
+    producer.newMessage().value(TEST1.getBytes()).send();
+    producer.newMessage(txn).value(TEST2.getBytes()).send();
+    producer.newMessage().value(TEST3.getBytes()).send();
+
+    Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
+    assertEquals(new String(message.getData()), TEST1);
+
+    message = consumer.receive(2, TimeUnit.SECONDS);
+    assertNull(message);
+
+    txn.abort().get();
+
+    message = consumer.receive(2, TimeUnit.SECONDS);
+    assertEquals(new String(message.getData()), TEST3);
+
+    message = consumer.receive(2, TimeUnit.SECONDS);
+    assertNull(message);
+  }
+
+  @DataProvider(name = "enableTransactionAndState")
+  public static Object[][] enableTransactionAndState() {
+    return new Object[][] {
+      {true, TopicTransactionBufferState.State.None},
+      {false, TopicTransactionBufferState.State.None},
+      {true, TopicTransactionBufferState.State.Initializing},
+      {false, TopicTransactionBufferState.State.Initializing}
+    };
+  }
+
+  @Test(dataProvider = "enableTransactionAndState")
+  public void testSyncNormalPositionWhenTBRecover(
+      boolean clientEnableTransaction, TopicTransactionBufferState.State state) throws Exception {
+
+    final String topicName =
+        NAMESPACE1
+            + "/testSyncNormalPositionWhenTBRecover-"
+            + clientEnableTransaction
+            + state.name();
+    if (pulsarClient != null) {
+      pulsarClient.shutdown();
+    }
+    pulsarClient =
+        PulsarClient.builder()
+            .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
+            .statsInterval(0, TimeUnit.SECONDS)
+            .enableTransaction(clientEnableTransaction)
+            .build();
+    @Cleanup
+    Producer<byte[]> producer =
+        pulsarClient
+            .newProducer(Schema.BYTES)
+            .sendTimeout(0, TimeUnit.SECONDS)
+            .topic(topicName)
+            .create();
+
+    if (clientEnableTransaction) {
+      Transaction transaction =
+          pulsarClient.newTransaction().withTransactionTimeout(5, TimeUnit.HOURS).build().get();
+      producer.newMessage(transaction).send();
+      transaction.commit().get();
     }
 
-    @AfterMethod(alwaysRun = true)
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+    PersistentTopic persistentTopic =
+        (PersistentTopic)
+            getPulsarServiceList()
+                .get(0)
+                .getBrokerService()
+                .getTopic(TopicName.get(topicName).toString(), false)
+                .get()
+                .get();
 
-    @Test
-    public void commitTxnTest() throws Exception {
-        Transaction txn = pulsarClient.newTransaction()
-                .withTransactionTimeout(5, TimeUnit.SECONDS)
-                .build().get();
+    TopicTransactionBuffer topicTransactionBuffer =
+        (TopicTransactionBuffer) persistentTopic.getTransactionBuffer();
 
-        @Cleanup
-        Producer<byte[]> producer = pulsarClient
-                .newProducer()
-                .topic(TOPIC)
-                .sendTimeout(0, TimeUnit.SECONDS)
-                .enableBatching(false)
-                .create();
+    // wait topic transaction buffer recover success
+    checkTopicTransactionBufferState(clientEnableTransaction, topicTransactionBuffer);
 
-        @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic(TOPIC)
-                .subscriptionName("test")
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscriptionType(SubscriptionType.Failover)
-                .subscribe();
-        final String TEST1 = "test1";
-        final String TEST2 = "test2";
-        final String TEST3 = "test3";
+    Field field = TopicTransactionBufferState.class.getDeclaredField("state");
+    field.setAccessible(true);
+    field.set(topicTransactionBuffer, state);
 
-        producer.newMessage().value(TEST1.getBytes()).send();
-        producer.newMessage(txn).value(TEST2.getBytes()).send();
-        producer.newMessage().value(TEST3.getBytes()).send();
+    // init maxReadPosition is PositionImpl.EARLIEST
+    Position position = topicTransactionBuffer.getMaxReadPosition();
+    assertEquals(position, PositionFactory.EARLIEST);
 
-        Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
-        assertEquals(new String(message.getData()), TEST1);
+    MessageIdImpl messageId = (MessageIdImpl) producer.send("test".getBytes());
 
-        message = consumer.receive(2, TimeUnit.SECONDS);
-        assertNull(message);
+    // send normal message can't change MaxReadPosition when state is None or Initializing
+    position = topicTransactionBuffer.getMaxReadPosition();
+    assertEquals(position, PositionFactory.EARLIEST);
 
-        txn.commit().get();
+    // change to None state can recover
+    field.set(topicTransactionBuffer, TopicTransactionBufferState.State.None);
 
-        message = consumer.receive(2, TimeUnit.SECONDS);
-        assertEquals(new String(message.getData()), TEST2);
+    // invoke recover
+    Method method = TopicTransactionBuffer.class.getDeclaredMethod("recover");
+    method.setAccessible(true);
+    method.invoke(topicTransactionBuffer);
 
-        message = consumer.receive(2, TimeUnit.SECONDS);
-        assertEquals(new String(message.getData()), TEST3);
+    // recover success again
+    checkTopicTransactionBufferState(clientEnableTransaction, topicTransactionBuffer);
 
-        message = consumer.receive(2, TimeUnit.SECONDS);
-        assertNull(message);
-    }
+    // change MaxReadPosition to normal message position
+    assertEquals(
+        PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId()),
+        topicTransactionBuffer.getMaxReadPosition());
+  }
 
-    @Test
-    public void abortTxnTest() throws Exception {
-        Transaction txn = pulsarClient.newTransaction()
-                .withTransactionTimeout(5, TimeUnit.SECONDS)
-                .build().get();
-
-        @Cleanup
-        Producer<byte[]> producer = pulsarClient
-                .newProducer()
-                .topic(TOPIC)
-                .sendTimeout(0, TimeUnit.SECONDS)
-                .enableBatching(false)
-                .create();
-
-        @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic(TOPIC)
-                .subscriptionName("test")
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscriptionType(SubscriptionType.Failover)
-                .subscribe();
-        final String TEST1 = "test1";
-        final String TEST2 = "test2";
-        final String TEST3 = "test3";
-
-        producer.newMessage().value(TEST1.getBytes()).send();
-        producer.newMessage(txn).value(TEST2.getBytes()).send();
-        producer.newMessage().value(TEST3.getBytes()).send();
-
-        Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
-        assertEquals(new String(message.getData()), TEST1);
-
-        message = consumer.receive(2, TimeUnit.SECONDS);
-        assertNull(message);
-
-        txn.abort().get();
-
-        message = consumer.receive(2, TimeUnit.SECONDS);
-        assertEquals(new String(message.getData()), TEST3);
-
-        message = consumer.receive(2, TimeUnit.SECONDS);
-        assertNull(message);
-    }
-
-    @DataProvider(name = "enableTransactionAndState")
-    public static Object[][] enableTransactionAndState() {
-        return new Object[][] {
-                { true, TopicTransactionBufferState.State.None },
-                { false, TopicTransactionBufferState.State.None },
-                { true, TopicTransactionBufferState.State.Initializing },
-                { false, TopicTransactionBufferState.State.Initializing }
-        };
-    }
-
-    @Test(dataProvider = "enableTransactionAndState")
-    public void testSyncNormalPositionWhenTBRecover(boolean clientEnableTransaction,
-                                                    TopicTransactionBufferState.State state) throws Exception {
-
-        final String topicName = NAMESPACE1 + "/testSyncNormalPositionWhenTBRecover-"
-                + clientEnableTransaction + state.name();
-        if (pulsarClient != null) {
-            pulsarClient.shutdown();
-        }
-        pulsarClient = PulsarClient.builder()
-                .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
-                .statsInterval(0, TimeUnit.SECONDS)
-                .enableTransaction(clientEnableTransaction)
-                .build();
-        @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
-                .sendTimeout(0, TimeUnit.SECONDS)
-                .topic(topicName)
-                .create();
-
-        if (clientEnableTransaction) {
-            Transaction transaction = pulsarClient.newTransaction()
-                    .withTransactionTimeout(5, TimeUnit.HOURS)
-                    .build()
-                    .get();
-            producer.newMessage(transaction).send();
-            transaction.commit().get();
-        }
-
-        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
-                .getTopic(TopicName.get(topicName).toString(), false).get().get();
-
-        TopicTransactionBuffer topicTransactionBuffer = (TopicTransactionBuffer) persistentTopic.getTransactionBuffer();
-
-        // wait topic transaction buffer recover success
-        checkTopicTransactionBufferState(clientEnableTransaction, topicTransactionBuffer);
-
-        Field field = TopicTransactionBufferState.class.getDeclaredField("state");
-        field.setAccessible(true);
-        field.set(topicTransactionBuffer, state);
-
-        // init maxReadPosition is PositionImpl.EARLIEST
-        Position position = topicTransactionBuffer.getMaxReadPosition();
-        assertEquals(position, PositionFactory.EARLIEST);
-
-        MessageIdImpl messageId = (MessageIdImpl) producer.send("test".getBytes());
-
-        // send normal message can't change MaxReadPosition when state is None or Initializing
-        position = topicTransactionBuffer.getMaxReadPosition();
-        assertEquals(position, PositionFactory.EARLIEST);
-
-        // change to None state can recover
-        field.set(topicTransactionBuffer, TopicTransactionBufferState.State.None);
-
-        // invoke recover
-        Method method = TopicTransactionBuffer.class.getDeclaredMethod("recover");
-        method.setAccessible(true);
-        method.invoke(topicTransactionBuffer);
-
-        // recover success again
-        checkTopicTransactionBufferState(clientEnableTransaction, topicTransactionBuffer);
-
-        // change MaxReadPosition to normal message position
-        assertEquals(PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId()),
-                topicTransactionBuffer.getMaxReadPosition());
-    }
-
-    private void checkTopicTransactionBufferState(boolean clientEnableTransaction,
-                                                  TopicTransactionBuffer topicTransactionBuffer) {
-        // recover success
-        Awaitility.await().untilAsserted(() -> {
-            if (clientEnableTransaction) {
+  private void checkTopicTransactionBufferState(
+      boolean clientEnableTransaction, TopicTransactionBuffer topicTransactionBuffer) {
+    // recover success
+    Awaitility.await()
+        .untilAsserted(
+            () -> {
+              if (clientEnableTransaction) {
                 // recover success, client enable transaction will change to Ready State
-                assertEquals(topicTransactionBuffer.getStats(false, false).state,
-                        Ready.name());
-            } else {
+                assertEquals(topicTransactionBuffer.getStats(false, false).state, Ready.name());
+              } else {
                 // recover success, client disable transaction will change to NoSnapshot State
-                assertEquals(topicTransactionBuffer.getStats(false, false).state,
-                        NoSnapshot.name());
-            }
-        });
-    }
+                assertEquals(
+                    topicTransactionBuffer.getStats(false, false).state, NoSnapshot.name());
+              }
+            });
+  }
 }

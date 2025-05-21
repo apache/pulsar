@@ -29,52 +29,67 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-impl")
 public class ConsumeBaseExceptionTest extends ProducerConsumerBase {
 
-    @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        producerBaseSetup();
-    }
+  @BeforeMethod
+  @Override
+  protected void setup() throws Exception {
+    super.internalSetup();
+    producerBaseSetup();
+  }
 
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @AfterMethod(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @Test
-    public void testClosedConsumer() throws PulsarClientException {
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/topicName")
-                .subscriptionName("my-subscription").subscribe();
-        consumer.close();
-        Assert.assertTrue(consumer.receiveAsync().isCompletedExceptionally());
+  @Test
+  public void testClosedConsumer() throws PulsarClientException {
+    Consumer<byte[]> consumer =
+        pulsarClient
+            .newConsumer()
+            .topic("persistent://my-property/my-ns/topicName")
+            .subscriptionName("my-subscription")
+            .subscribe();
+    consumer.close();
+    Assert.assertTrue(consumer.receiveAsync().isCompletedExceptionally());
 
-        try {
-            consumer.receiveAsync().exceptionally(e -> {
+    try {
+      consumer
+          .receiveAsync()
+          .exceptionally(
+              e -> {
                 Assert.assertTrue(e instanceof PulsarClientException.AlreadyClosedException);
                 return null;
-            }).get();
-        } catch (Exception e) {
-            Assert.fail();
-        }
+              })
+          .get();
+    } catch (Exception e) {
+      Assert.fail();
     }
+  }
 
-    @Test
-    public void testListener() throws PulsarClientException {
+  @Test
+  public void testListener() throws PulsarClientException {
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/topicName")
-                .subscriptionName("my-subscription").messageListener((consumer1, msg) -> {
+    Consumer<byte[]> consumer =
+        pulsarClient
+            .newConsumer()
+            .topic("persistent://my-property/my-ns/topicName")
+            .subscriptionName("my-subscription")
+            .messageListener((consumer1, msg) -> {})
+            .subscribe();
+    Assert.assertTrue(consumer.receiveAsync().isCompletedExceptionally());
 
-                }).subscribe();
-        Assert.assertTrue(consumer.receiveAsync().isCompletedExceptionally());
-
-        try {
-            consumer.receiveAsync().exceptionally(e -> {
+    try {
+      consumer
+          .receiveAsync()
+          .exceptionally(
+              e -> {
                 Assert.assertTrue(e instanceof PulsarClientException.InvalidConfigurationException);
                 return null;
-            }).get();
-        } catch (Exception e) {
-            Assert.fail();
-        }
+              })
+          .get();
+    } catch (Exception e) {
+      Assert.fail();
     }
+  }
 }

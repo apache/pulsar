@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.Assert.assertEquals;
+
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
@@ -37,61 +39,52 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.assertEquals;
-
-/**
- * Null value message produce and consume test.
- */
+/** Null value message produce and consume test. */
 @Slf4j
 @Test(groups = "broker")
 public class KeyValueTest extends BrokerTestBase {
 
-    @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        super.baseSetup();
-    }
+  @BeforeMethod
+  @Override
+  protected void setup() throws Exception {
+    super.baseSetup();
+  }
 
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @AfterMethod(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @Test
-    public void keyValueAutoConsumeTest()  throws Exception {
-        String topic = "persistent://prop/ns-abc/kv-record";
-        admin.topics().createNonPartitionedTopic(topic);
+  @Test
+  public void keyValueAutoConsumeTest() throws Exception {
+    String topic = "persistent://prop/ns-abc/kv-record";
+    admin.topics().createNonPartitionedTopic(topic);
 
-        RecordSchemaBuilder builder = SchemaBuilder
-                .record("test");
-                builder.field("test").type(SchemaType.STRING);
-        GenericSchema<GenericRecord> schema = GenericAvroSchema.of(builder.build(SchemaType.AVRO));
+    RecordSchemaBuilder builder = SchemaBuilder.record("test");
+    builder.field("test").type(SchemaType.STRING);
+    GenericSchema<GenericRecord> schema = GenericAvroSchema.of(builder.build(SchemaType.AVRO));
 
-        GenericRecord key = schema.newRecordBuilder().set("test", "foo").build();
-        GenericRecord value = schema.newRecordBuilder().set("test", "bar").build();
+    GenericRecord key = schema.newRecordBuilder().set("test", "foo").build();
+    GenericRecord value = schema.newRecordBuilder().set("test", "bar").build();
 
-        @Cleanup
-        Producer<KeyValue<GenericRecord, GenericRecord>> producer = pulsarClient
-                .newProducer(KeyValueSchemaImpl.of(schema, schema))
-                .topic(topic)
-                .create();
+    @Cleanup
+    Producer<KeyValue<GenericRecord, GenericRecord>> producer =
+        pulsarClient.newProducer(KeyValueSchemaImpl.of(schema, schema)).topic(topic).create();
 
-        producer.newMessage().value(new KeyValue<>(key, value)).send();
+    producer.newMessage().value(new KeyValue<>(key, value)).send();
 
-        @Cleanup
-        Consumer<KeyValue<GenericRecord, GenericRecord>> consumer = pulsarClient
-                .newConsumer(KeyValueSchemaImpl.of(Schema.AUTO_CONSUME(), Schema.AUTO_CONSUME()))
-                .topic(topic)
-                .subscriptionName("test")
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscribe();
+    @Cleanup
+    Consumer<KeyValue<GenericRecord, GenericRecord>> consumer =
+        pulsarClient
+            .newConsumer(KeyValueSchemaImpl.of(Schema.AUTO_CONSUME(), Schema.AUTO_CONSUME()))
+            .topic(topic)
+            .subscriptionName("test")
+            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+            .subscribe();
 
-
-        Message<KeyValue<GenericRecord, GenericRecord>> message = consumer.receive();
-        assertEquals(key.getField("test"), message.getValue().getKey().getField("test"));
-        assertEquals(value.getField("test"), message.getValue().getValue().getField("test"));
-
-    }
-
+    Message<KeyValue<GenericRecord, GenericRecord>> message = consumer.receive();
+    assertEquals(key.getField("test"), message.getValue().getKey().getField("test"));
+    assertEquals(value.getField("test"), message.getValue().getValue().getField("test"));
+  }
 }

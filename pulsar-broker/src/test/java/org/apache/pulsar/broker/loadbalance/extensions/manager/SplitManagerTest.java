@@ -24,6 +24,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecisi
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -41,165 +42,171 @@ import org.testng.annotations.Test;
 @Slf4j
 @Test(groups = "broker")
 public class SplitManagerTest {
-    
-    String bundle = "bundle-1";
 
-    String dstBroker = "broker-1";
+  String bundle = "bundle-1";
 
-    @Test
-    public void testEventPubFutureHasException() {
-        var counter = new SplitCounter();
-        SplitManager manager = new SplitManager(counter);
-        var decision = new SplitDecision();
-        CompletableFuture<Void> future =
-                manager.waitAsync(FutureUtil.failedFuture(new Exception("test")),
-                        bundle, decision, 10, TimeUnit.SECONDS);
+  String dstBroker = "broker-1";
 
-        assertTrue(future.isCompletedExceptionally());
-        try {
-            future.get();
-            fail();
-        } catch (Exception ex) {
-            assertEquals(ex.getCause().getMessage(), "test");
-        }
-        var counterExpected = new SplitCounter();
-        counterExpected.update(SplitDecision.Label.Failure, Unknown);
-        assertEquals(counter.toMetrics(null).toString(),
-                counterExpected.toMetrics(null).toString());
+  @Test
+  public void testEventPubFutureHasException() {
+    var counter = new SplitCounter();
+    SplitManager manager = new SplitManager(counter);
+    var decision = new SplitDecision();
+    CompletableFuture<Void> future =
+        manager.waitAsync(
+            FutureUtil.failedFuture(new Exception("test")), bundle, decision, 10, TimeUnit.SECONDS);
+
+    assertTrue(future.isCompletedExceptionally());
+    try {
+      future.get();
+      fail();
+    } catch (Exception ex) {
+      assertEquals(ex.getCause().getMessage(), "test");
+    }
+    var counterExpected = new SplitCounter();
+    counterExpected.update(SplitDecision.Label.Failure, Unknown);
+    assertEquals(counter.toMetrics(null).toString(), counterExpected.toMetrics(null).toString());
+  }
+
+  @Test
+  public void testTimeout() throws IllegalAccessException {
+    var counter = new SplitCounter();
+    SplitManager manager = new SplitManager(counter);
+    var decision = new SplitDecision();
+    CompletableFuture<Void> future =
+        manager.waitAsync(
+            CompletableFuture.completedFuture(null), bundle, decision, 3, TimeUnit.SECONDS);
+    var inFlightUnloadRequests = getinFlightUnloadRequests(manager);
+
+    assertEquals(inFlightUnloadRequests.size(), 1);
+
+    try {
+      future.get();
+      fail();
+    } catch (Exception ex) {
+      assertTrue(ex.getCause() instanceof TimeoutException);
     }
 
-    @Test
-    public void testTimeout() throws IllegalAccessException {
-        var counter = new SplitCounter();
-        SplitManager manager = new SplitManager(counter);
-        var decision = new SplitDecision();
-        CompletableFuture<Void> future =
-                manager.waitAsync(CompletableFuture.completedFuture(null),
-                        bundle, decision, 3, TimeUnit.SECONDS);
-        var inFlightUnloadRequests = getinFlightUnloadRequests(manager);
+    assertEquals(inFlightUnloadRequests.size(), 0);
+    var counterExpected = new SplitCounter();
+    counterExpected.update(SplitDecision.Label.Failure, Unknown);
+    assertEquals(counter.toMetrics(null).toString(), counterExpected.toMetrics(null).toString());
+  }
 
-        assertEquals(inFlightUnloadRequests.size(), 1);
+  @Test
+  public void testSuccess()
+      throws IllegalAccessException, ExecutionException, InterruptedException {
+    var counter = new SplitCounter();
+    SplitManager manager = new SplitManager(counter);
+    var counterExpected = new SplitCounter();
+    var decision = new SplitDecision();
+    decision.succeed(Sessions);
+    CompletableFuture<Void> future =
+        manager.waitAsync(
+            CompletableFuture.completedFuture(null), bundle, decision, 5, TimeUnit.SECONDS);
+    var inFlightUnloadRequests = getinFlightUnloadRequests(manager);
 
-        try {
-            future.get();
-            fail();
-        } catch (Exception ex) {
-            assertTrue(ex.getCause() instanceof TimeoutException);
-        }
+    assertEquals(inFlightUnloadRequests.size(), 1);
 
-        assertEquals(inFlightUnloadRequests.size(), 0);
-        var counterExpected = new SplitCounter();
-        counterExpected.update(SplitDecision.Label.Failure, Unknown);
-        assertEquals(counter.toMetrics(null).toString(),
-                counterExpected.toMetrics(null).toString());
+    manager.handleEvent(
+        bundle,
+        new ServiceUnitStateData(ServiceUnitState.Assigning, dstBroker, VERSION_ID_INIT),
+        null);
+    assertEquals(inFlightUnloadRequests.size(), 1);
+
+    manager.handleEvent(
+        bundle,
+        new ServiceUnitStateData(ServiceUnitState.Splitting, dstBroker, VERSION_ID_INIT),
+        null);
+    assertEquals(inFlightUnloadRequests.size(), 1);
+
+    manager.handleEvent(
+        bundle,
+        new ServiceUnitStateData(ServiceUnitState.Releasing, dstBroker, VERSION_ID_INIT),
+        null);
+    assertEquals(inFlightUnloadRequests.size(), 1);
+
+    manager.handleEvent(
+        bundle, new ServiceUnitStateData(ServiceUnitState.Free, dstBroker, VERSION_ID_INIT), null);
+    assertEquals(inFlightUnloadRequests.size(), 1);
+
+    manager.handleEvent(
+        bundle,
+        new ServiceUnitStateData(ServiceUnitState.Deleted, dstBroker, VERSION_ID_INIT),
+        null);
+    assertEquals(inFlightUnloadRequests.size(), 1);
+
+    manager.handleEvent(
+        bundle, new ServiceUnitStateData(ServiceUnitState.Owned, dstBroker, VERSION_ID_INIT), null);
+    assertEquals(inFlightUnloadRequests.size(), 1);
+
+    // Success with Init state.
+    manager.handleEvent(
+        bundle, new ServiceUnitStateData(ServiceUnitState.Init, dstBroker, VERSION_ID_INIT), null);
+    assertEquals(inFlightUnloadRequests.size(), 0);
+    counterExpected.update(SplitDecision.Label.Success, Sessions);
+    assertEquals(counter.toMetrics(null).toString(), counterExpected.toMetrics(null).toString());
+
+    future.get();
+  }
+
+  @Test
+  public void testFailedStage() throws IllegalAccessException {
+    var counter = new SplitCounter();
+    SplitManager manager = new SplitManager(counter);
+    var decision = new SplitDecision();
+    CompletableFuture<Void> future =
+        manager.waitAsync(
+            CompletableFuture.completedFuture(null), bundle, decision, 5, TimeUnit.SECONDS);
+    var inFlightUnloadRequests = getinFlightUnloadRequests(manager);
+
+    assertEquals(inFlightUnloadRequests.size(), 1);
+
+    manager.handleEvent(
+        bundle,
+        new ServiceUnitStateData(ServiceUnitState.Owned, dstBroker, VERSION_ID_INIT),
+        new IllegalStateException("Failed stage."));
+
+    try {
+      future.get();
+      fail();
+    } catch (Exception ex) {
+      assertTrue(ex.getCause() instanceof IllegalStateException);
+      assertEquals(ex.getCause().getMessage(), "Failed stage.");
     }
 
-    @Test
-    public void testSuccess() throws IllegalAccessException, ExecutionException, InterruptedException {
-        var counter = new SplitCounter();
-        SplitManager manager = new SplitManager(counter);
-        var counterExpected = new SplitCounter();
-        var decision = new SplitDecision();
-        decision.succeed(Sessions);
-        CompletableFuture<Void> future =
-                manager.waitAsync(CompletableFuture.completedFuture(null),
-                        bundle, decision, 5, TimeUnit.SECONDS);
-        var inFlightUnloadRequests = getinFlightUnloadRequests(manager);
+    assertEquals(inFlightUnloadRequests.size(), 0);
+    var counterExpected = new SplitCounter();
+    counterExpected.update(SplitDecision.Label.Failure, Unknown);
+    assertEquals(counter.toMetrics(null).toString(), counterExpected.toMetrics(null).toString());
+  }
 
-        assertEquals(inFlightUnloadRequests.size(), 1);
+  @Test
+  public void testClose() throws IllegalAccessException {
+    SplitManager manager = new SplitManager(new SplitCounter());
+    var decision = new SplitDecision();
+    CompletableFuture<Void> future =
+        manager.waitAsync(
+            CompletableFuture.completedFuture(null), bundle, decision, 5, TimeUnit.SECONDS);
+    var inFlightUnloadRequests = getinFlightUnloadRequests(manager);
+    assertEquals(inFlightUnloadRequests.size(), 1);
+    manager.close();
+    assertEquals(inFlightUnloadRequests.size(), 0);
 
-        manager.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Assigning, dstBroker, VERSION_ID_INIT), null);
-        assertEquals(inFlightUnloadRequests.size(), 1);
-
-        manager.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Splitting, dstBroker, VERSION_ID_INIT), null);
-        assertEquals(inFlightUnloadRequests.size(), 1);
-
-        manager.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Releasing, dstBroker, VERSION_ID_INIT), null);
-        assertEquals(inFlightUnloadRequests.size(), 1);
-
-        manager.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Free, dstBroker, VERSION_ID_INIT), null);
-        assertEquals(inFlightUnloadRequests.size(), 1);
-
-        manager.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Deleted, dstBroker, VERSION_ID_INIT), null);
-        assertEquals(inFlightUnloadRequests.size(), 1);
-
-        manager.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Owned, dstBroker, VERSION_ID_INIT), null);
-        assertEquals(inFlightUnloadRequests.size(), 1);
-
-        // Success with Init state.
-        manager.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Init, dstBroker, VERSION_ID_INIT), null);
-        assertEquals(inFlightUnloadRequests.size(), 0);
-        counterExpected.update(SplitDecision.Label.Success, Sessions);
-        assertEquals(counter.toMetrics(null).toString(),
-                counterExpected.toMetrics(null).toString());
-
-        future.get();
+    try {
+      future.get();
+      fail();
+    } catch (Exception ex) {
+      assertTrue(ex.getCause() instanceof IllegalStateException);
     }
+  }
 
-    @Test
-    public void testFailedStage() throws IllegalAccessException {
-        var counter = new SplitCounter();
-        SplitManager manager = new SplitManager(counter);
-        var decision = new SplitDecision();
-        CompletableFuture<Void> future =
-                manager.waitAsync(CompletableFuture.completedFuture(null),
-                        bundle, decision, 5, TimeUnit.SECONDS);
-        var inFlightUnloadRequests = getinFlightUnloadRequests(manager);
+  private Map<String, CompletableFuture<Void>> getinFlightUnloadRequests(SplitManager manager)
+      throws IllegalAccessException {
+    var inFlightUnloadRequest =
+        (Map<String, CompletableFuture<Void>>)
+            FieldUtils.readField(manager, "inFlightSplitRequests", true);
 
-        assertEquals(inFlightUnloadRequests.size(), 1);
-
-        manager.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Owned, dstBroker, VERSION_ID_INIT),
-                new IllegalStateException("Failed stage."));
-
-        try {
-            future.get();
-            fail();
-        } catch (Exception ex) {
-            assertTrue(ex.getCause() instanceof IllegalStateException);
-            assertEquals(ex.getCause().getMessage(), "Failed stage.");
-        }
-
-        assertEquals(inFlightUnloadRequests.size(), 0);
-        var counterExpected = new SplitCounter();
-        counterExpected.update(SplitDecision.Label.Failure, Unknown);
-        assertEquals(counter.toMetrics(null).toString(),
-                counterExpected.toMetrics(null).toString());
-    }
-
-    @Test
-    public void testClose() throws IllegalAccessException {
-        SplitManager manager = new SplitManager(new SplitCounter());
-        var decision = new SplitDecision();
-        CompletableFuture<Void> future =
-                manager.waitAsync(CompletableFuture.completedFuture(null),
-                        bundle, decision, 5, TimeUnit.SECONDS);
-        var inFlightUnloadRequests = getinFlightUnloadRequests(manager);
-        assertEquals(inFlightUnloadRequests.size(), 1);
-        manager.close();
-        assertEquals(inFlightUnloadRequests.size(), 0);
-
-        try {
-            future.get();
-            fail();
-        } catch (Exception ex) {
-            assertTrue(ex.getCause() instanceof IllegalStateException);
-        }
-    }
-
-    private Map<String, CompletableFuture<Void>> getinFlightUnloadRequests(SplitManager manager)
-            throws IllegalAccessException {
-        var inFlightUnloadRequest =
-                (Map<String, CompletableFuture<Void>>) FieldUtils.readField(manager, "inFlightSplitRequests", true);
-
-        return inFlightUnloadRequest;
-    }
-
+    return inFlightUnloadRequest;
+  }
 }

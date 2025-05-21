@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -44,129 +45,127 @@ import org.testng.annotations.Test;
 
 @Test
 public class MessageIdTest extends BrokerTestBase {
-    private static final Logger log = LoggerFactory.getLogger(MessageIdTest.class);
+  private static final Logger log = LoggerFactory.getLogger(MessageIdTest.class);
 
-    @BeforeMethod
-    @Override
-    public void setup() throws Exception {
-        baseSetup();
+  @BeforeMethod
+  @Override
+  public void setup() throws Exception {
+    baseSetup();
+  }
+
+  @AfterMethod(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    internalCleanup();
+  }
+
+  @Test(timeOut = 10000, dataProviderClass = EnumValuesDataProvider.class, dataProvider = "values")
+  public void producerSendAsync(TopicType topicType)
+      throws PulsarClientException, PulsarAdminException {
+    // Given
+    String key = "producerSendAsync-" + topicType;
+    final String topicName = "persistent://prop/cluster/namespace/topic-" + key;
+    final String subscriptionName = "my-subscription-" + key;
+    final String messagePrefix = "my-message-" + key + "-";
+    final int numberOfMessages = 30;
+    if (topicType == TopicType.PARTITIONED) {
+      int numberOfPartitions = 3;
+      admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
     }
 
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        internalCleanup();
+    Producer<byte[]> producer =
+        pulsarClient
+            .newProducer()
+            .topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
+
+    Consumer<byte[]> consumer =
+        pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
+
+    // When
+    // Messages are published asynchronously
+    List<Future<MessageId>> futures = new ArrayList<>();
+    for (int i = 0; i < numberOfMessages; i++) {
+      String message = messagePrefix + i;
+      futures.add(producer.sendAsync(message.getBytes()));
     }
 
-    @Test(timeOut = 10000, dataProviderClass = EnumValuesDataProvider.class, dataProvider = "values")
-    public void producerSendAsync(TopicType topicType) throws PulsarClientException, PulsarAdminException {
-        // Given
-        String key = "producerSendAsync-" + topicType;
-        final String topicName = "persistent://prop/cluster/namespace/topic-" + key;
-        final String subscriptionName = "my-subscription-" + key;
-        final String messagePrefix = "my-message-" + key + "-";
-        final int numberOfMessages = 30;
-        if (topicType == TopicType.PARTITIONED) {
-            int numberOfPartitions = 3;
-            admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
+    // Then
+    // expect that the Message Ids of subsequently sent messages are in ascending order
+    Set<MessageId> messageIds = new HashSet<>();
+    MessageIdImpl previousMessageId = null;
+    for (Future<MessageId> f : futures) {
+      try {
+        MessageIdImpl currentMessageId = (MessageIdImpl) f.get();
+        if (previousMessageId != null) {
+          assertTrue(
+              currentMessageId.compareTo(previousMessageId) > 0,
+              "Message Ids should be in ascending order");
         }
-
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topicName)
-                .enableBatching(false)
-                .messageRoutingMode(MessageRoutingMode.SinglePartition)
-                .create();
-
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic(topicName)
-                .subscriptionName(subscriptionName)
-                .subscribe();
-
-        // When
-        // Messages are published asynchronously
-        List<Future<MessageId>> futures = new ArrayList<>();
-        for (int i = 0; i < numberOfMessages; i++) {
-            String message = messagePrefix + i;
-            futures.add(producer.sendAsync(message.getBytes()));
-        }
-
-        // Then
-        // expect that the Message Ids of subsequently sent messages are in ascending order
-        Set<MessageId> messageIds = new HashSet<>();
-        MessageIdImpl previousMessageId = null;
-        for (Future<MessageId> f : futures) {
-            try {
-                MessageIdImpl currentMessageId = (MessageIdImpl) f.get();
-                if (previousMessageId != null) {
-                    assertTrue(currentMessageId.compareTo(previousMessageId) > 0,
-                            "Message Ids should be in ascending order");
-                }
-                messageIds.add(currentMessageId);
-                previousMessageId = currentMessageId;
-            } catch (Exception e) {
-                fail("Failed to publish message", e);
-            }
-        }
-
-        // And
-        // expect that there's a message id for each sent out message
-        // and that all messages have been received by the consumer
-        log.info("Message IDs = {}", messageIds);
-        assertEquals(messageIds.size(), numberOfMessages, "Not all messages published successfully");
-
-        for (int i = 0; i < numberOfMessages; i++) {
-            Message<byte[]> message = consumer.receive();
-            assertEquals(new String(message.getData()), messagePrefix + i);
-            MessageId messageId = message.getMessageId();
-            assertTrue(messageIds.remove(messageId), "Failed to receive message");
-        }
-        log.info("Remaining message IDs = {}", messageIds);
-        assertEquals(messageIds.size(), 0, "Not all messages received successfully");
-        consumer.unsubscribe();
+        messageIds.add(currentMessageId);
+        previousMessageId = currentMessageId;
+      } catch (Exception e) {
+        fail("Failed to publish message", e);
+      }
     }
 
-    @Test(timeOut = 10000, dataProviderClass = EnumValuesDataProvider.class, dataProvider = "values")
-    public void producerSend(TopicType topicType) throws PulsarClientException, PulsarAdminException {
-        // Given
-        String key = "producerSend-" + topicType;
-        final String topicName = "persistent://prop/cluster/namespace/topic-" + key;
-        final String subscriptionName = "my-subscription-" + key;
-        final String messagePrefix = "my-message-" + key + "-";
-        final int numberOfMessages = 30;
-        if (topicType == TopicType.PARTITIONED) {
-            int numberOfPartitions = 7;
-            admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
-        }
+    // And
+    // expect that there's a message id for each sent out message
+    // and that all messages have been received by the consumer
+    log.info("Message IDs = {}", messageIds);
+    assertEquals(messageIds.size(), numberOfMessages, "Not all messages published successfully");
 
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .enableBatching(false)
-                .topic(topicName)
-                .create();
-
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic(topicName)
-                .subscriptionName(subscriptionName)
-                .subscribe();
-
-        // When
-        // Messages are published
-        Set<MessageId> messageIds = new HashSet<>();
-        for (int i = 0; i < numberOfMessages; i++) {
-            String message = messagePrefix + i;
-            messageIds.add(producer.send(message.getBytes()));
-        }
-
-        // Then
-        // expect that the Message Ids of subsequently sent messages are in ascending order
-        log.info("Message IDs = {}", messageIds);
-        assertEquals(messageIds.size(), numberOfMessages, "Not all messages published successfully");
-
-        for (int i = 0; i < numberOfMessages; i++) {
-            MessageId messageId = consumer.receive().getMessageId();
-            assertTrue(messageIds.remove(messageId), "Failed to receive Message");
-        }
-        log.info("Remaining message IDs = {}", messageIds);
-        assertEquals(messageIds.size(), 0, "Not all messages received successfully");
-        consumer.unsubscribe();
+    for (int i = 0; i < numberOfMessages; i++) {
+      Message<byte[]> message = consumer.receive();
+      assertEquals(new String(message.getData()), messagePrefix + i);
+      MessageId messageId = message.getMessageId();
+      assertTrue(messageIds.remove(messageId), "Failed to receive message");
     }
+    log.info("Remaining message IDs = {}", messageIds);
+    assertEquals(messageIds.size(), 0, "Not all messages received successfully");
+    consumer.unsubscribe();
+  }
+
+  @Test(timeOut = 10000, dataProviderClass = EnumValuesDataProvider.class, dataProvider = "values")
+  public void producerSend(TopicType topicType) throws PulsarClientException, PulsarAdminException {
+    // Given
+    String key = "producerSend-" + topicType;
+    final String topicName = "persistent://prop/cluster/namespace/topic-" + key;
+    final String subscriptionName = "my-subscription-" + key;
+    final String messagePrefix = "my-message-" + key + "-";
+    final int numberOfMessages = 30;
+    if (topicType == TopicType.PARTITIONED) {
+      int numberOfPartitions = 7;
+      admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
+    }
+
+    Producer<byte[]> producer =
+        pulsarClient.newProducer().enableBatching(false).topic(topicName).create();
+
+    Consumer<byte[]> consumer =
+        pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
+
+    // When
+    // Messages are published
+    Set<MessageId> messageIds = new HashSet<>();
+    for (int i = 0; i < numberOfMessages; i++) {
+      String message = messagePrefix + i;
+      messageIds.add(producer.send(message.getBytes()));
+    }
+
+    // Then
+    // expect that the Message Ids of subsequently sent messages are in ascending order
+    log.info("Message IDs = {}", messageIds);
+    assertEquals(messageIds.size(), numberOfMessages, "Not all messages published successfully");
+
+    for (int i = 0; i < numberOfMessages; i++) {
+      MessageId messageId = consumer.receive().getMessageId();
+      assertTrue(messageIds.remove(messageId), "Failed to receive Message");
+    }
+    log.info("Remaining message IDs = {}", messageIds);
+    assertEquals(messageIds.size(), 0, "Not all messages received successfully");
+    consumer.unsubscribe();
+  }
 }

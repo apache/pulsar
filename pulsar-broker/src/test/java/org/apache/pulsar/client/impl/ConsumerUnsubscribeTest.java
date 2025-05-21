@@ -31,32 +31,37 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-impl")
 public class ConsumerUnsubscribeTest {
 
-    MockBrokerService mockBrokerService;
+  MockBrokerService mockBrokerService;
 
-    @BeforeClass(alwaysRun = true)
-    public void setup() {
-        mockBrokerService = new MockBrokerService();
-        mockBrokerService.start();
+  @BeforeClass(alwaysRun = true)
+  public void setup() {
+    mockBrokerService = new MockBrokerService();
+    mockBrokerService.start();
+  }
+
+  @AfterClass(alwaysRun = true)
+  public void teardown() {
+    if (mockBrokerService != null) {
+      mockBrokerService.stop();
+      mockBrokerService = null;
     }
+  }
 
-    @AfterClass(alwaysRun = true)
-    public void teardown() {
-        if (mockBrokerService != null) {
-            mockBrokerService.stop();
-            mockBrokerService = null;
-        }
-    }
+  @Test
+  public void testConsumerUnsubscribeReference() throws Exception {
+    @Cleanup
+    PulsarClientImpl client =
+        (PulsarClientImpl)
+            PulsarClient.builder().serviceUrl(mockBrokerService.getBrokerAddress()).build();
 
-    @Test
-    public void testConsumerUnsubscribeReference() throws Exception {
-        @Cleanup
-        PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
-                .serviceUrl(mockBrokerService.getBrokerAddress())
-                .build();
+    Consumer<?> consumer =
+        client
+            .newConsumer()
+            .topic("persistent://public/default/t1")
+            .subscriptionName("sub1")
+            .subscribe();
+    consumer.unsubscribe();
 
-        Consumer<?> consumer = client.newConsumer().topic("persistent://public/default/t1").subscriptionName("sub1").subscribe();
-        consumer.unsubscribe();
-
-        assertEquals(client.consumersCount(), 0);
-    }
+    assertEquals(client.consumersCount(), 0);
+  }
 }

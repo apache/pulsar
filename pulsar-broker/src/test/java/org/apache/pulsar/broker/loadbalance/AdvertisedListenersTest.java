@@ -46,76 +46,77 @@ import org.testng.annotations.Test;
 @Slf4j
 @Test(groups = "broker")
 public class AdvertisedListenersTest extends MultiBrokerBaseTest {
-    @Override
-    protected int numberOfAdditionalBrokers() {
-        return 1;
+  @Override
+  protected int numberOfAdditionalBrokers() {
+    return 1;
+  }
+
+  @Override
+  protected void doInitConf() throws Exception {
+    super.doInitConf();
+
+    updateConfig(conf, "BROKER-X");
+  }
+
+  @Override
+  protected ServiceConfiguration createConfForAdditionalBroker(int additionalBrokerIndex) {
+    ServiceConfiguration conf = super.createConfForAdditionalBroker(additionalBrokerIndex);
+    updateConfig(conf, "BROKER-" + additionalBrokerIndex);
+    return conf;
+  }
+
+  private void updateConfig(ServiceConfiguration conf, String advertisedAddress) {
+    int pulsarPort = nextLockedFreePort();
+    int httpPort = nextLockedFreePort();
+    int httpsPort = nextLockedFreePort();
+
+    // Use invalid domain name as identifier and instead make sure the advertised listeners work as
+    // intended
+    conf.setAdvertisedAddress(advertisedAddress);
+    conf.setAdvertisedListeners(
+        "public:pulsar://localhost:"
+            + pulsarPort
+            + ",public_http:http://localhost:"
+            + httpPort
+            + ",public_https:https://localhost:"
+            + httpsPort);
+    conf.setBrokerServicePort(Optional.of(pulsarPort));
+    conf.setWebServicePort(Optional.of(httpPort));
+  }
+
+  @Test
+  public void testLookup() throws Exception {
+    HttpGet request =
+        new HttpGet(
+            pulsar.getWebServiceAddress() + "/lookup/v2/topic/persistent/public/default/my-topic");
+    request.addHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+    request.addHeader(HttpHeaders.ACCEPT, "application/json");
+    final String topic = "my-topic";
+
+    @Cleanup CloseableHttpClient httpClient = HttpClients.createDefault();
+
+    @Cleanup CloseableHttpResponse response = httpClient.execute(request);
+
+    HttpEntity entity = response.getEntity();
+    LookupData ld =
+        ObjectMapperFactory.getMapper()
+            .reader()
+            .readValue(EntityUtils.toString(entity), LookupData.class);
+    System.err.println("Lookup data: " + ld);
+
+    assertEquals(new URI(ld.getBrokerUrl()).getHost(), "localhost");
+    assertEquals(new URI(ld.getHttpUrl()).getHost(), "localhost");
+
+    // Produce data
+    @Cleanup Producer<String> p = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+
+    p.send("hello");
+
+    // Verify we can get the correct HTTP redirect to the advertised listener
+    for (PulsarAdmin a : getAllAdmins()) {
+      TopicStats s = a.topics().getStats(topic);
+      assertNotNull(a.lookups().lookupTopic(topic));
+      assertEquals(s.getPublishers().size(), 1);
     }
-
-    @Override
-    protected void doInitConf() throws Exception {
-        super.doInitConf();
-
-        updateConfig(conf, "BROKER-X");
-    }
-
-    @Override
-    protected ServiceConfiguration createConfForAdditionalBroker(int additionalBrokerIndex) {
-        ServiceConfiguration conf = super.createConfForAdditionalBroker(additionalBrokerIndex);
-        updateConfig(conf, "BROKER-" + additionalBrokerIndex);
-        return conf;
-    }
-
-    private void updateConfig(ServiceConfiguration conf, String advertisedAddress) {
-        int pulsarPort = nextLockedFreePort();
-        int httpPort = nextLockedFreePort();
-        int httpsPort = nextLockedFreePort();
-
-        // Use invalid domain name as identifier and instead make sure the advertised listeners work as intended
-        conf.setAdvertisedAddress(advertisedAddress);
-        conf.setAdvertisedListeners(
-                "public:pulsar://localhost:" + pulsarPort +
-                        ",public_http:http://localhost:" + httpPort +
-                        ",public_https:https://localhost:" + httpsPort);
-        conf.setBrokerServicePort(Optional.of(pulsarPort));
-        conf.setWebServicePort(Optional.of(httpPort));
-    }
-
-    @Test
-    public void testLookup() throws Exception {
-        HttpGet request =
-                new HttpGet(pulsar.getWebServiceAddress() + "/lookup/v2/topic/persistent/public/default/my-topic");
-        request.addHeader(HttpHeaders.CONTENT_TYPE, "application/json");
-        request.addHeader(HttpHeaders.ACCEPT, "application/json");
-        final String topic = "my-topic";
-
-        @Cleanup
-        CloseableHttpClient httpClient = HttpClients.createDefault();
-
-        @Cleanup
-        CloseableHttpResponse response = httpClient.execute(request);
-
-        HttpEntity entity = response.getEntity();
-        LookupData ld = ObjectMapperFactory.getMapper().reader().readValue(EntityUtils.toString(entity), LookupData.class);
-        System.err.println("Lookup data: " + ld);
-
-        assertEquals(new URI(ld.getBrokerUrl()).getHost(), "localhost");
-        assertEquals(new URI(ld.getHttpUrl()).getHost(), "localhost");
-
-
-        // Produce data
-        @Cleanup
-        Producer<String> p = pulsarClient.newProducer(Schema.STRING)
-                .topic(topic)
-                .create();
-
-        p.send("hello");
-
-        // Verify we can get the correct HTTP redirect to the advertised listener
-        for (PulsarAdmin a : getAllAdmins()) {
-            TopicStats s = a.topics().getStats(topic);
-            assertNotNull(a.lookups().lookupTopic(topic));
-            assertEquals(s.getPublishers().size(), 1);
-        }
-    }
-
+  }
 }

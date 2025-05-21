@@ -28,40 +28,40 @@ import org.apache.pulsar.broker.service.BrokerService;
 
 class MockProtocolHandler implements ProtocolHandler {
 
-    public static final String NAME = "mock";
+  public static final String NAME = "mock";
 
-    @Override
-    public String protocolName() {
-        return NAME;
-    }
+  @Override
+  public String protocolName() {
+    return NAME;
+  }
 
-    @Override
-    public boolean accept(String protocol) {
-        return NAME.equals(protocol);
-    }
+  @Override
+  public boolean accept(String protocol) {
+    return NAME.equals(protocol);
+  }
 
-    @Override
-    public void initialize(ServiceConfiguration conf) throws Exception {
-        // no-op
-    }
+  @Override
+  public void initialize(ServiceConfiguration conf) throws Exception {
+    // no-op
+  }
 
-    @Override
-    public String getProtocolDataToAdvertise() {
-        return "mock-data";
-    }
+  @Override
+  public String getProtocolDataToAdvertise() {
+    return "mock-data";
+  }
 
-    @Override
-    public void start(BrokerService service) {
-        // no-op
-    }
+  @Override
+  public void start(BrokerService service) {
+    // no-op
+  }
 
-    @Override
-    public Map<InetSocketAddress, ChannelInitializer<SocketChannel>> newChannelInitializers() {
-        return Collections.emptyMap();
-    }
+  @Override
+  public Map<InetSocketAddress, ChannelInitializer<SocketChannel>> newChannelInitializers() {
+    return Collections.emptyMap();
+  }
 
-    @Override
-    public void close() {
-        // no-op
-    }
+  @Override
+  public void close() {
+    // no-op
+  }
 }

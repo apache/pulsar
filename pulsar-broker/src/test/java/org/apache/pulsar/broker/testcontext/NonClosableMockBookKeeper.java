@@ -23,28 +23,28 @@ import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 
 /**
- * An in-memory mock bookkeeper which prevents closing when "close" method is called.
- * This is an internal class used by {@link PulsarTestContext}
+ * An in-memory mock bookkeeper which prevents closing when "close" method is called. This is an
+ * internal class used by {@link PulsarTestContext}
  *
  * @see PulsarMockBookKeeper
  */
 class NonClosableMockBookKeeper extends PulsarMockBookKeeper {
 
-    public NonClosableMockBookKeeper(OrderedExecutor executor) throws Exception {
-        super(executor);
-    }
+  public NonClosableMockBookKeeper(OrderedExecutor executor) throws Exception {
+    super(executor);
+  }
 
-    @Override
-    public void close() {
-        // no-op
-    }
+  @Override
+  public void close() {
+    // no-op
+  }
 
-    @Override
-    public void shutdown() {
-        // no-op
-    }
+  @Override
+  public void shutdown() {
+    // no-op
+  }
 
-    public void reallyShutdown() {
-        super.shutdown();
-    }
+  public void reallyShutdown() {
+    super.shutdown();
+  }
 }

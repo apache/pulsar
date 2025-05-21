@@ -33,45 +33,47 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class MockedBookKeeperClientFactory implements BookKeeperClientFactory {
-    private static final Logger log = LoggerFactory.getLogger(MockedBookKeeperClientFactory.class);
+  private static final Logger log = LoggerFactory.getLogger(MockedBookKeeperClientFactory.class);
 
-    private final BookKeeper mockedBk;
-    private final OrderedExecutor executor;
+  private final BookKeeper mockedBk;
+  private final OrderedExecutor executor;
 
-    public MockedBookKeeperClientFactory() {
-        try {
-            executor = OrderedExecutor.newBuilder()
-                    .numThreads(1)
-                    .name("mock-bk-client-factory")
-                    .build();
-            mockedBk = new PulsarMockBookKeeper(executor);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+  public MockedBookKeeperClientFactory() {
+    try {
+      executor = OrderedExecutor.newBuilder().numThreads(1).name("mock-bk-client-factory").build();
+      mockedBk = new PulsarMockBookKeeper(executor);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
+  }
 
-    @Override
-    public CompletableFuture<BookKeeper> create(ServiceConfiguration conf, MetadataStoreExtended store,
-                                                EventLoopGroup eventLoopGroup,
-                                                Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
-                                                Map<String, Object> properties) {
-        return CompletableFuture.completedFuture(mockedBk);
-    }
+  @Override
+  public CompletableFuture<BookKeeper> create(
+      ServiceConfiguration conf,
+      MetadataStoreExtended store,
+      EventLoopGroup eventLoopGroup,
+      Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+      Map<String, Object> properties) {
+    return CompletableFuture.completedFuture(mockedBk);
+  }
 
-    @Override
-    public CompletableFuture<BookKeeper> create(ServiceConfiguration conf, MetadataStoreExtended store,
-                             EventLoopGroup eventLoopGroup,
-                             Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
-                             Map<String, Object> properties, StatsLogger statsLogger) {
-        return CompletableFuture.completedFuture(mockedBk);
-    }
+  @Override
+  public CompletableFuture<BookKeeper> create(
+      ServiceConfiguration conf,
+      MetadataStoreExtended store,
+      EventLoopGroup eventLoopGroup,
+      Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+      Map<String, Object> properties,
+      StatsLogger statsLogger) {
+    return CompletableFuture.completedFuture(mockedBk);
+  }
 
-    @Override
-    public void close() {
-        try {
-            mockedBk.close();
-        } catch (BKException | InterruptedException ignored) {
-        }
-        executor.shutdownNow();
+  @Override
+  public void close() {
+    try {
+      mockedBk.close();
+    } catch (BKException | InterruptedException ignored) {
     }
+    executor.shutdownNow();
+  }
 }

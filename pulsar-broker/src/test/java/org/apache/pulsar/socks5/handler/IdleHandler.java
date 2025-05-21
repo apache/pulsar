@@ -24,13 +24,12 @@ import io.netty.handler.timeout.IdleStateEvent;
 
 public class IdleHandler extends ChannelInboundHandlerAdapter {
 
-    @Override
-    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-        if (evt instanceof IdleStateEvent) {
-            ctx.channel().close();
-        } else {
-            super.userEventTriggered(ctx, evt);
-        }
+  @Override
+  public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+    if (evt instanceof IdleStateEvent) {
+      ctx.channel().close();
+    } else {
+      super.userEventTriggered(ctx, evt);
     }
-
+  }
 }

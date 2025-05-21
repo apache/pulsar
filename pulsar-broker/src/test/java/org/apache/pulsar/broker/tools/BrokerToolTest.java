@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.tools;
 
 import static org.testng.Assert.assertTrue;
+
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.lang.reflect.Field;
@@ -26,41 +27,39 @@ import java.util.Arrays;
 import org.testng.annotations.Test;
 import picocli.CommandLine.Option;
 
-/**
- * Broker Tool Tests.
- */
+/** Broker Tool Tests. */
 public class BrokerToolTest {
 
-    /**
-     * Test broker-tool generate docs
-     *
-     * @throws Exception
-     */
-    @Test
-    public void testGenerateDocs() throws Exception {
-        PrintStream oldStream = System.out;
-        try {
-            ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
-            System.setOut(new PrintStream(baoStream));
+  /**
+   * Test broker-tool generate docs
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testGenerateDocs() throws Exception {
+    PrintStream oldStream = System.out;
+    try {
+      ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
+      System.setOut(new PrintStream(baoStream));
 
-            BrokerTool.run(new String[]{"gen-doc"});
+      BrokerTool.run(new String[] {"gen-doc"});
 
-            String message = baoStream.toString();
+      String message = baoStream.toString();
 
-            Class argumentsClass = Class.forName("org.apache.pulsar.broker.tools.LoadReportCommand");
-            Field[] fields = argumentsClass.getDeclaredFields();
-            for (Field field : fields) {
-                boolean fieldHasAnno = field.isAnnotationPresent(Option.class);
-                if (fieldHasAnno) {
-                    Option fieldAnno = field.getAnnotation(Option.class);
-                    String[] names = fieldAnno.names();
-                    String nameStr = Arrays.asList(names).toString();
-                    nameStr = nameStr.substring(1, nameStr.length() - 1);
-                    assertTrue(message.indexOf(nameStr) > 0);
-                }
-            }
-        } finally {
-            System.setOut(oldStream);
+      Class argumentsClass = Class.forName("org.apache.pulsar.broker.tools.LoadReportCommand");
+      Field[] fields = argumentsClass.getDeclaredFields();
+      for (Field field : fields) {
+        boolean fieldHasAnno = field.isAnnotationPresent(Option.class);
+        if (fieldHasAnno) {
+          Option fieldAnno = field.getAnnotation(Option.class);
+          String[] names = fieldAnno.names();
+          String nameStr = Arrays.asList(names).toString();
+          nameStr = nameStr.substring(1, nameStr.length() - 1);
+          assertTrue(message.indexOf(nameStr) > 0);
         }
+      }
+    } finally {
+      System.setOut(oldStream);
     }
+  }
 }

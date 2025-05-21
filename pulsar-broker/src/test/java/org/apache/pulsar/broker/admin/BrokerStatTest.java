@@ -30,21 +30,21 @@ import org.testng.annotations.Test;
 @Slf4j
 @Test(groups = "broker-admin")
 public class BrokerStatTest extends MockedPulsarServiceBaseTest {
-    @BeforeMethod
-    @Override
-    public void setup() throws Exception {
-        super.internalSetup();
-    }
+  @BeforeMethod
+  @Override
+  public void setup() throws Exception {
+    super.internalSetup();
+  }
 
-    @AfterMethod(alwaysRun = true)
-    @Override
-    public void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @AfterMethod(alwaysRun = true)
+  @Override
+  public void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @Test
-    public void testGetMBeans() throws PulsarAdminException, JsonProcessingException {
-        String data = admin.brokerStats().getMBeans();
-        ObjectMapperFactory.create().readTree(data);
-    }
+  @Test
+  public void testGetMBeans() throws PulsarAdminException, JsonProcessingException {
+    String data = admin.brokerStats().getMBeans();
+    ObjectMapperFactory.create().readTree(data);
+  }
 }

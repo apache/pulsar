@@ -37,83 +37,92 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.socks5.Socks5Server;
 
 @Slf4j
-public class CommandRequestHandler extends SimpleChannelInboundHandler<DefaultSocks5CommandRequest> {
+public class CommandRequestHandler
+    extends SimpleChannelInboundHandler<DefaultSocks5CommandRequest> {
 
-    private final Socks5Server socks5Server;
+  private final Socks5Server socks5Server;
 
-    public CommandRequestHandler(Socks5Server socks5Server) {
-        this.socks5Server = socks5Server;
+  public CommandRequestHandler(Socks5Server socks5Server) {
+    this.socks5Server = socks5Server;
+  }
+
+  @Override
+  protected void channelRead0(
+      final ChannelHandlerContext clientChannelContext, DefaultSocks5CommandRequest msg)
+      throws Exception {
+    if (Socks5CommandType.CONNECT.equals(msg.type())) {
+      Bootstrap bootstrap = new Bootstrap();
+      bootstrap
+          .group(socks5Server.getBoss())
+          .channel(NioSocketChannel.class)
+          .option(ChannelOption.TCP_NODELAY, true)
+          .handler(
+              new ChannelInitializer<SocketChannel>() {
+                @Override
+                protected void initChannel(SocketChannel ch) throws Exception {
+                  ch.pipeline().addLast(new ClientHandler(clientChannelContext));
+                }
+              });
+      ChannelFuture future = bootstrap.connect(msg.dstAddr(), msg.dstPort());
+      future.addListener(
+          new ChannelFutureListener() {
+
+            public void operationComplete(final ChannelFuture future) throws Exception {
+              if (future.isSuccess()) {
+                if (log.isDebugEnabled()) {
+                  log.debug("connected : {} {}", msg.dstAddr(), msg.dstPort());
+                }
+                clientChannelContext.pipeline().addLast(new TargetHandler(future));
+                clientChannelContext.writeAndFlush(
+                    new DefaultSocks5CommandResponse(
+                        Socks5CommandStatus.SUCCESS, Socks5AddressType.IPv4));
+              } else {
+                clientChannelContext.writeAndFlush(
+                    new DefaultSocks5CommandResponse(
+                        Socks5CommandStatus.FAILURE, Socks5AddressType.IPv4));
+              }
+            }
+          });
+    } else {
+      clientChannelContext.fireChannelRead(msg);
+    }
+  }
+
+  private static class ClientHandler extends ChannelInboundHandlerAdapter {
+
+    private ChannelHandlerContext clientChannelContext;
+
+    public ClientHandler(ChannelHandlerContext clientChannelContext) {
+      this.clientChannelContext = clientChannelContext;
     }
 
     @Override
-    protected void channelRead0(final ChannelHandlerContext clientChannelContext, DefaultSocks5CommandRequest msg) throws Exception {
-        if (Socks5CommandType.CONNECT.equals(msg.type())) {
-            Bootstrap bootstrap = new Bootstrap();
-            bootstrap.group(socks5Server.getBoss())
-                    .channel(NioSocketChannel.class)
-                    .option(ChannelOption.TCP_NODELAY, true)
-                    .handler(new ChannelInitializer<SocketChannel>() {
-                        @Override
-                        protected void initChannel(SocketChannel ch) throws Exception {
-                            ch.pipeline().addLast(new ClientHandler(clientChannelContext));
-                        }
-                    });
-            ChannelFuture future = bootstrap.connect(msg.dstAddr(), msg.dstPort());
-            future.addListener(new ChannelFutureListener() {
-
-                public void operationComplete(final ChannelFuture future) throws Exception {
-                    if (future.isSuccess()) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("connected : {} {}", msg.dstAddr(), msg.dstPort());
-                        }
-                        clientChannelContext.pipeline().addLast(new TargetHandler(future));
-                        clientChannelContext.writeAndFlush(new DefaultSocks5CommandResponse(Socks5CommandStatus.SUCCESS, Socks5AddressType.IPv4));
-                    } else {
-                        clientChannelContext.writeAndFlush(new DefaultSocks5CommandResponse(Socks5CommandStatus.FAILURE, Socks5AddressType.IPv4));
-                    }
-                }
-            });
-        } else {
-            clientChannelContext.fireChannelRead(msg);
-        }
+    public void channelRead(ChannelHandlerContext ctx2, Object destMsg) throws Exception {
+      clientChannelContext.writeAndFlush(destMsg);
     }
 
-    private static class ClientHandler extends ChannelInboundHandlerAdapter {
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx2) throws Exception {
+      clientChannelContext.channel().close();
+    }
+  }
 
-        private ChannelHandlerContext clientChannelContext;
+  private static class TargetHandler extends ChannelInboundHandlerAdapter {
 
-        public ClientHandler(ChannelHandlerContext clientChannelContext) {
-            this.clientChannelContext = clientChannelContext;
-        }
+    private ChannelFuture targetChannel;
 
-        @Override
-        public void channelRead(ChannelHandlerContext ctx2, Object destMsg) throws Exception {
-            clientChannelContext.writeAndFlush(destMsg);
-        }
-
-        @Override
-        public void channelInactive(ChannelHandlerContext ctx2) throws Exception {
-            clientChannelContext.channel().close();
-        }
+    public TargetHandler(ChannelFuture targetChannel) {
+      this.targetChannel = targetChannel;
     }
 
-    private static class TargetHandler extends ChannelInboundHandlerAdapter {
-
-        private ChannelFuture targetChannel;
-
-        public TargetHandler(ChannelFuture targetChannel) {
-            this.targetChannel = targetChannel;
-        }
-
-        @Override
-        public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-            targetChannel.channel().writeAndFlush(msg);
-        }
-
-        @Override
-        public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-            targetChannel.channel().close();
-        }
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+      targetChannel.channel().writeAndFlush(msg);
     }
 
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+      targetChannel.channel().close();
+    }
+  }
 }

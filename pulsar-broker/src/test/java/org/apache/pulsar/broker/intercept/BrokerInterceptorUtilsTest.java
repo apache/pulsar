@@ -18,16 +18,6 @@
  */
 package org.apache.pulsar.broker.intercept;
 
-import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
-import org.testng.annotations.Test;
-
-import java.io.IOException;
-import java.nio.file.Paths;
-
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_SELF;
 import static org.mockito.Mockito.mock;
@@ -35,93 +25,105 @@ import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertSame;
 import static org.testng.AssertJUnit.assertTrue;
 
+import java.io.IOException;
+import java.nio.file.Paths;
+import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.testng.annotations.Test;
+
 @Test(groups = "broker")
 public class BrokerInterceptorUtilsTest {
 
-    @Test
-    public void testLoadBrokerEventListener() throws Exception {
-        BrokerInterceptorDefinition def = new BrokerInterceptorDefinition();
-        def.setInterceptorClass(MockBrokerInterceptor.class.getName());
-        def.setDescription("test-broker-listener");
+  @Test
+  public void testLoadBrokerEventListener() throws Exception {
+    BrokerInterceptorDefinition def = new BrokerInterceptorDefinition();
+    def.setInterceptorClass(MockBrokerInterceptor.class.getName());
+    def.setDescription("test-broker-listener");
 
-        String archivePath = "/path/to/broker/listener/nar";
+    String archivePath = "/path/to/broker/listener/nar";
 
-        BrokerInterceptorMetadata metadata = new BrokerInterceptorMetadata();
-        metadata.setDefinition(def);
-        metadata.setArchivePath(Paths.get(archivePath));
+    BrokerInterceptorMetadata metadata = new BrokerInterceptorMetadata();
+    metadata.setDefinition(def);
+    metadata.setArchivePath(Paths.get(archivePath));
 
-        NarClassLoader mockLoader = mock(NarClassLoader.class);
-        when(mockLoader.getServiceDefinition(eq(BrokerInterceptorUtils.BROKER_INTERCEPTOR_DEFINITION_FILE)))
-                .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
-        Class listenerClass = MockBrokerInterceptor.class;
-        when(mockLoader.loadClass(eq(MockBrokerInterceptor.class.getName())))
-                .thenReturn(listenerClass);
+    NarClassLoader mockLoader = mock(NarClassLoader.class);
+    when(mockLoader.getServiceDefinition(
+            eq(BrokerInterceptorUtils.BROKER_INTERCEPTOR_DEFINITION_FILE)))
+        .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
+    Class listenerClass = MockBrokerInterceptor.class;
+    when(mockLoader.loadClass(eq(MockBrokerInterceptor.class.getName()))).thenReturn(listenerClass);
 
-        final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
-        when(mockedBuilder.build()).thenReturn(mockLoader);
-        try (MockedStatic<NarClassLoaderBuilder> builder = Mockito.mockStatic(NarClassLoaderBuilder.class)) {
-            builder.when(() -> NarClassLoaderBuilder.builder()).thenReturn(mockedBuilder);
+    final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
+    when(mockedBuilder.build()).thenReturn(mockLoader);
+    try (MockedStatic<NarClassLoaderBuilder> builder =
+        Mockito.mockStatic(NarClassLoaderBuilder.class)) {
+      builder.when(() -> NarClassLoaderBuilder.builder()).thenReturn(mockedBuilder);
 
-            BrokerInterceptorWithClassLoader returnedPhWithCL = BrokerInterceptorUtils.load(metadata, "");
-            BrokerInterceptor returnedPh = returnedPhWithCL.getInterceptor();
+      BrokerInterceptorWithClassLoader returnedPhWithCL = BrokerInterceptorUtils.load(metadata, "");
+      BrokerInterceptor returnedPh = returnedPhWithCL.getInterceptor();
 
-            assertSame(mockLoader, returnedPhWithCL.getNarClassLoader());
-            assertTrue(returnedPh instanceof MockBrokerInterceptor);
-        }
+      assertSame(mockLoader, returnedPhWithCL.getNarClassLoader());
+      assertTrue(returnedPh instanceof MockBrokerInterceptor);
     }
+  }
 
-    @Test(expectedExceptions = IOException.class)
-    public void testLoadBrokerEventListenerWithBlankListenerClass() throws Exception {
-        BrokerInterceptorDefinition def = new BrokerInterceptorDefinition();
-        def.setDescription("test-broker-listener");
+  @Test(expectedExceptions = IOException.class)
+  public void testLoadBrokerEventListenerWithBlankListenerClass() throws Exception {
+    BrokerInterceptorDefinition def = new BrokerInterceptorDefinition();
+    def.setDescription("test-broker-listener");
 
-        String archivePath = "/path/to/broker/listener/nar";
+    String archivePath = "/path/to/broker/listener/nar";
 
-        BrokerInterceptorMetadata metadata = new BrokerInterceptorMetadata();
-        metadata.setDefinition(def);
-        metadata.setArchivePath(Paths.get(archivePath));
+    BrokerInterceptorMetadata metadata = new BrokerInterceptorMetadata();
+    metadata.setDefinition(def);
+    metadata.setArchivePath(Paths.get(archivePath));
 
-        NarClassLoader mockLoader = mock(NarClassLoader.class);
-        when(mockLoader.getServiceDefinition(eq(BrokerInterceptorUtils.BROKER_INTERCEPTOR_DEFINITION_FILE)))
-                .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
-        Class listenerClass = MockBrokerInterceptor.class;
-        when(mockLoader.loadClass(eq(MockBrokerInterceptor.class.getName())))
-                .thenReturn(listenerClass);
+    NarClassLoader mockLoader = mock(NarClassLoader.class);
+    when(mockLoader.getServiceDefinition(
+            eq(BrokerInterceptorUtils.BROKER_INTERCEPTOR_DEFINITION_FILE)))
+        .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
+    Class listenerClass = MockBrokerInterceptor.class;
+    when(mockLoader.loadClass(eq(MockBrokerInterceptor.class.getName()))).thenReturn(listenerClass);
 
-        final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
-        when(mockedBuilder.build()).thenReturn(mockLoader);
-        try (MockedStatic<NarClassLoaderBuilder> builder = Mockito.mockStatic(NarClassLoaderBuilder.class)) {
-            builder.when(() -> NarClassLoaderBuilder.builder()).thenReturn(mockedBuilder);
+    final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
+    when(mockedBuilder.build()).thenReturn(mockLoader);
+    try (MockedStatic<NarClassLoaderBuilder> builder =
+        Mockito.mockStatic(NarClassLoaderBuilder.class)) {
+      builder.when(() -> NarClassLoaderBuilder.builder()).thenReturn(mockedBuilder);
 
-            BrokerInterceptorUtils.load(metadata, "");
-        }
+      BrokerInterceptorUtils.load(metadata, "");
     }
+  }
 
-    @Test(expectedExceptions = IOException.class)
-    public void testLoadBrokerEventListenerWithWrongListenerClass() throws Exception {
-        BrokerInterceptorDefinition def = new BrokerInterceptorDefinition();
-        def.setInterceptorClass(Runnable.class.getName());
-        def.setDescription("test-broker-listener");
+  @Test(expectedExceptions = IOException.class)
+  public void testLoadBrokerEventListenerWithWrongListenerClass() throws Exception {
+    BrokerInterceptorDefinition def = new BrokerInterceptorDefinition();
+    def.setInterceptorClass(Runnable.class.getName());
+    def.setDescription("test-broker-listener");
 
-        String archivePath = "/path/to/broker/listener/nar";
+    String archivePath = "/path/to/broker/listener/nar";
 
-        BrokerInterceptorMetadata metadata = new BrokerInterceptorMetadata();
-        metadata.setDefinition(def);
-        metadata.setArchivePath(Paths.get(archivePath));
+    BrokerInterceptorMetadata metadata = new BrokerInterceptorMetadata();
+    metadata.setDefinition(def);
+    metadata.setArchivePath(Paths.get(archivePath));
 
-        NarClassLoader mockLoader = mock(NarClassLoader.class);
-        when(mockLoader.getServiceDefinition(eq(BrokerInterceptorUtils.BROKER_INTERCEPTOR_DEFINITION_FILE)))
-                .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
-        Class listenerClass = Runnable.class;
-        when(mockLoader.loadClass(eq(Runnable.class.getName())))
-                .thenReturn(listenerClass);
+    NarClassLoader mockLoader = mock(NarClassLoader.class);
+    when(mockLoader.getServiceDefinition(
+            eq(BrokerInterceptorUtils.BROKER_INTERCEPTOR_DEFINITION_FILE)))
+        .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
+    Class listenerClass = Runnable.class;
+    when(mockLoader.loadClass(eq(Runnable.class.getName()))).thenReturn(listenerClass);
 
-        final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
-        when(mockedBuilder.build()).thenReturn(mockLoader);
-        try (MockedStatic<NarClassLoaderBuilder> builder = Mockito.mockStatic(NarClassLoaderBuilder.class)) {
-            builder.when(() -> NarClassLoaderBuilder.builder()).thenReturn(mockedBuilder);
+    final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
+    when(mockedBuilder.build()).thenReturn(mockLoader);
+    try (MockedStatic<NarClassLoaderBuilder> builder =
+        Mockito.mockStatic(NarClassLoaderBuilder.class)) {
+      builder.when(() -> NarClassLoaderBuilder.builder()).thenReturn(mockedBuilder);
 
-            BrokerInterceptorUtils.load(metadata, "");
-        }
+      BrokerInterceptorUtils.load(metadata, "");
     }
+  }
 }

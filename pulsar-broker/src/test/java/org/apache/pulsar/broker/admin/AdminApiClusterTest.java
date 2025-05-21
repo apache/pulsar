@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.fail;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -39,106 +40,119 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-admin")
 @Slf4j
 public class AdminApiClusterTest extends MockedPulsarServiceBaseTest {
-    private final String CLUSTER = "test";
+  private final String CLUSTER = "test";
 
-    @BeforeMethod
-    @Override
-    public void setup() throws Exception {
-        super.internalSetup();
-        admin.clusters()
-                .createCluster(CLUSTER, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+  @BeforeMethod
+  @Override
+  public void setup() throws Exception {
+    super.internalSetup();
+    admin
+        .clusters()
+        .createCluster(
+            CLUSTER, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+  }
+
+  @AfterMethod(alwaysRun = true)
+  @Override
+  public void cleanup() throws Exception {
+    super.internalCleanup();
+  }
+
+  @Test
+  public void testCreateClusterBadRequest() {
+    try {
+      admin
+          .clusters()
+          .createCluster(
+              "bad_request", ClusterData.builder().serviceUrl("pulsar://example.com").build());
+      fail("Unexpected behaviour");
+    } catch (PulsarAdminException ex) {
+      assertEquals(ex.getStatusCode(), 400);
     }
+  }
 
-    @AfterMethod(alwaysRun = true)
-    @Override
-    public void cleanup() throws Exception {
-        super.internalCleanup();
+  @Test
+  public void testDeleteNonExistCluster() {
+    String cluster = "test-non-exist-cluster-" + UUID.randomUUID();
+
+    assertThrows(
+        PulsarAdminException.NotFoundException.class,
+        () -> admin.clusters().deleteCluster(cluster));
+  }
+
+  @Test
+  public void testDeleteExistCluster() throws PulsarAdminException {
+    String cluster = "test-exist-cluster-" + UUID.randomUUID();
+
+    admin
+        .clusters()
+        .createCluster(
+            cluster, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+    Awaitility.await().untilAsserted(() -> assertNotNull(admin.clusters().getCluster(cluster)));
+
+    admin.clusters().deleteCluster(cluster);
+  }
+
+  @Test
+  public void testDeleteNonExistentFailureDomain() {
+    assertThrows(
+        PulsarAdminException.NotFoundException.class,
+        () -> admin.clusters().deleteFailureDomain(CLUSTER, "non-existent-failure-domain"));
+  }
+
+  @Test
+  public void testDeleteNonExistentFailureDomainInNonExistCluster() {
+    assertThrows(
+        PulsarAdminException.PreconditionFailedException.class,
+        () ->
+            admin
+                .clusters()
+                .deleteFailureDomain(CLUSTER + UUID.randomUUID(), "non-existent-failure-domain"));
+  }
+
+  @Test
+  public void testDeleteExistFailureDomain() throws PulsarAdminException {
+    String domainName = CLUSTER + "-failure-domain";
+    FailureDomain domain = FailureDomain.builder().brokers(Set.of("b1", "b2", "b3")).build();
+    admin.clusters().createFailureDomain(CLUSTER, domainName, domain);
+    Awaitility.await().untilAsserted(() -> admin.clusters().getFailureDomain(CLUSTER, domainName));
+
+    admin.clusters().deleteFailureDomain(CLUSTER, domainName);
+  }
+
+  @Test
+  public void testCreateCluster() throws PulsarAdminException {
+    List<ClusterData> clusterDataList = new ArrayList<>();
+    clusterDataList.add(
+        ClusterData.builder()
+            .serviceUrl("http://pulsar.app:8080")
+            .serviceUrlTls("")
+            .brokerServiceUrl("pulsar://pulsar.app:6650")
+            .brokerServiceUrlTls("")
+            .build());
+    clusterDataList.add(
+        ClusterData.builder()
+            .serviceUrl("")
+            .serviceUrlTls("https://pulsar.app:8443")
+            .brokerServiceUrl("")
+            .brokerServiceUrlTls("pulsar+ssl://pulsar.app:6651")
+            .build());
+    clusterDataList.add(
+        ClusterData.builder()
+            .serviceUrl("")
+            .serviceUrlTls("")
+            .brokerServiceUrl("")
+            .brokerServiceUrlTls("")
+            .build());
+    clusterDataList.add(
+        ClusterData.builder()
+            .serviceUrl(null)
+            .serviceUrlTls(null)
+            .brokerServiceUrl(null)
+            .brokerServiceUrlTls(null)
+            .build());
+    for (int i = 0; i < clusterDataList.size(); i++) {
+      admin.clusters().createCluster("cluster-test-" + i, clusterDataList.get(i));
     }
-
-    @Test
-    public void testCreateClusterBadRequest() {
-        try {
-            admin.clusters()
-                    .createCluster("bad_request", ClusterData.builder()
-                            .serviceUrl("pulsar://example.com").build());
-            fail("Unexpected behaviour");
-        } catch (PulsarAdminException ex) {
-            assertEquals(ex.getStatusCode(), 400);
-        }
-    }
-
-    @Test
-    public void testDeleteNonExistCluster() {
-        String cluster = "test-non-exist-cluster-" + UUID.randomUUID();
-
-        assertThrows(PulsarAdminException.NotFoundException.class, () -> admin.clusters().deleteCluster(cluster));
-    }
-
-    @Test
-    public void testDeleteExistCluster() throws PulsarAdminException {
-        String cluster = "test-exist-cluster-" + UUID.randomUUID();
-
-        admin.clusters()
-                .createCluster(cluster, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        Awaitility.await().untilAsserted(() -> assertNotNull(admin.clusters().getCluster(cluster)));
-
-        admin.clusters().deleteCluster(cluster);
-    }
-
-    @Test
-    public void testDeleteNonExistentFailureDomain() {
-        assertThrows(PulsarAdminException.NotFoundException.class,
-                () -> admin.clusters().deleteFailureDomain(CLUSTER, "non-existent-failure-domain"));
-    }
-
-    @Test
-    public void testDeleteNonExistentFailureDomainInNonExistCluster() {
-        assertThrows(PulsarAdminException.PreconditionFailedException.class,
-                () -> admin.clusters().deleteFailureDomain(CLUSTER + UUID.randomUUID(),
-                        "non-existent-failure-domain"));
-    }
-
-    @Test
-    public void testDeleteExistFailureDomain() throws PulsarAdminException {
-        String domainName = CLUSTER + "-failure-domain";
-        FailureDomain domain = FailureDomain.builder()
-                .brokers(Set.of("b1", "b2", "b3"))
-                .build();
-        admin.clusters().createFailureDomain(CLUSTER, domainName, domain);
-        Awaitility.await().untilAsserted(() -> admin.clusters().getFailureDomain(CLUSTER, domainName));
-
-        admin.clusters().deleteFailureDomain(CLUSTER, domainName);
-    }
-
-    @Test
-    public void testCreateCluster() throws PulsarAdminException {
-        List<ClusterData> clusterDataList = new ArrayList<>();
-        clusterDataList.add(ClusterData.builder()
-                .serviceUrl("http://pulsar.app:8080")
-                .serviceUrlTls("")
-                .brokerServiceUrl("pulsar://pulsar.app:6650")
-                .brokerServiceUrlTls("")
-                .build());
-        clusterDataList.add(ClusterData.builder()
-                .serviceUrl("")
-                .serviceUrlTls("https://pulsar.app:8443")
-                .brokerServiceUrl("")
-                .brokerServiceUrlTls("pulsar+ssl://pulsar.app:6651")
-                .build());
-        clusterDataList.add(ClusterData.builder()
-                .serviceUrl("")
-                .serviceUrlTls("")
-                .brokerServiceUrl("")
-                .brokerServiceUrlTls("")
-                .build());
-        clusterDataList.add(ClusterData.builder()
-                .serviceUrl(null)
-                .serviceUrlTls(null)
-                .brokerServiceUrl(null)
-                .brokerServiceUrlTls(null)
-                .build());
-        for (int i = 0; i < clusterDataList.size(); i++) {
-            admin.clusters().createCluster("cluster-test-" + i, clusterDataList.get(i));
-        }
-    }
+  }
 }

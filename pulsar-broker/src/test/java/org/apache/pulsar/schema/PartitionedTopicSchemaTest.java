@@ -35,79 +35,93 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-/**
- * Test get partitioned topic schema.
- */
+/** Test get partitioned topic schema. */
 @Test(groups = "schema")
 public class PartitionedTopicSchemaTest extends MockedPulsarServiceBaseTest {
 
-    private static final String PARTITIONED_TOPIC = "public/default/partitioned-schema-topic";
-    private static final int MESSAGE_COUNT_PER_PARTITION  = 12;
-    private static final int TOPIC_PARTITION = 3;
+  private static final String PARTITIONED_TOPIC = "public/default/partitioned-schema-topic";
+  private static final int MESSAGE_COUNT_PER_PARTITION = 12;
+  private static final int TOPIC_PARTITION = 3;
 
-    @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        isTcpLookup = true;
-        super.internalSetup();
+  @BeforeMethod
+  @Override
+  protected void setup() throws Exception {
+    isTcpLookup = true;
+    super.internalSetup();
 
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
-        admin.namespaces().createNamespace("my-property/my-ns");
-        admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns", Sets.newHashSet("test"));
+    admin
+        .clusters()
+        .createCluster(
+            "test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+    admin
+        .tenants()
+        .createTenant(
+            "my-property",
+            new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+    admin.namespaces().createNamespace("my-property/my-ns");
+    admin
+        .namespaces()
+        .setNamespaceReplicationClusters("my-property/my-ns", Sets.newHashSet("test"));
 
-        // so that clients can test short names
-        admin.tenants().createTenant("public",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
-        admin.namespaces().createNamespace("public/default");
-        admin.namespaces().setNamespaceReplicationClusters("public/default", Sets.newHashSet("test"));
-        admin.topics().createPartitionedTopic(PARTITIONED_TOPIC, TOPIC_PARTITION);
+    // so that clients can test short names
+    admin
+        .tenants()
+        .createTenant(
+            "public",
+            new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+    admin.namespaces().createNamespace("public/default");
+    admin.namespaces().setNamespaceReplicationClusters("public/default", Sets.newHashSet("test"));
+    admin.topics().createPartitionedTopic(PARTITIONED_TOPIC, TOPIC_PARTITION);
+  }
+
+  @AfterMethod(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
+
+  @Test
+  public void test() throws Exception {
+    Consumer<GenericRecord> consumer =
+        pulsarClient
+            .newConsumer(Schema.AUTO_CONSUME())
+            .topic(PARTITIONED_TOPIC)
+            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+            .subscriptionName("test")
+            .subscribe();
+    consumer.close();
+
+    @Cleanup
+    Producer<Schemas.PersonFour> producer =
+        pulsarClient
+            .newProducer(Schema.JSON(Schemas.PersonFour.class))
+            .topic(PARTITIONED_TOPIC)
+            .enableBatching(false)
+            .roundRobinRouterBatchingPartitionSwitchFrequency(1)
+            .create();
+
+    for (int i = 0; i < MESSAGE_COUNT_PER_PARTITION * TOPIC_PARTITION; i++) {
+      Schemas.PersonFour person = new Schemas.PersonFour();
+      person.setId(i);
+      person.setName("user-" + i);
+      person.setAge(18);
+      producer.newMessage().value(person).send();
     }
 
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
+    consumer =
+        pulsarClient
+            .newConsumer(Schema.AUTO_CONSUME())
+            .topic(TopicName.get(PARTITIONED_TOPIC).getPartition(1).toString())
+            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+            .subscriptionName("test")
+            .subscribe();
+
+    int receiveMsgCount = 0;
+    for (int i = 0; i < MESSAGE_COUNT_PER_PARTITION; i++) {
+      Message<GenericRecord> message = consumer.receive();
+      Assert.assertNotNull(message);
+      receiveMsgCount++;
     }
-
-    @Test
-    public void test() throws Exception {
-        Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
-                .topic(PARTITIONED_TOPIC)
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscriptionName("test")
-                .subscribe();
-        consumer.close();
-
-        @Cleanup
-        Producer<Schemas.PersonFour> producer = pulsarClient.newProducer(Schema.JSON(Schemas.PersonFour.class))
-                .topic(PARTITIONED_TOPIC)
-                .enableBatching(false)
-                .roundRobinRouterBatchingPartitionSwitchFrequency(1)
-                .create();
-
-        for (int i = 0; i < MESSAGE_COUNT_PER_PARTITION * TOPIC_PARTITION; i++) {
-            Schemas.PersonFour person = new Schemas.PersonFour();
-            person.setId(i);
-            person.setName("user-" + i);
-            person.setAge(18);
-            producer.newMessage().value(person).send();
-        }
-
-        consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
-                .topic(TopicName.get(PARTITIONED_TOPIC).getPartition(1).toString())
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscriptionName("test")
-                .subscribe();
-
-        int receiveMsgCount = 0;
-        for (int i = 0; i < MESSAGE_COUNT_PER_PARTITION; i++) {
-            Message<GenericRecord> message = consumer.receive();
-            Assert.assertNotNull(message);
-            receiveMsgCount++;
-        }
-        Assert.assertEquals(MESSAGE_COUNT_PER_PARTITION, receiveMsgCount);
-    }
-
+    Assert.assertEquals(MESSAGE_COUNT_PER_PARTITION, receiveMsgCount);
+  }
 }

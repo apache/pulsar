@@ -18,53 +18,56 @@
  */
 package org.apache.pulsar.broker.service;
 
-import org.apache.pulsar.PulsarStandaloneStarter;
-import org.testng.annotations.Test;
-
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertNull;
 
+import org.apache.pulsar.PulsarStandaloneStarter;
+import org.testng.annotations.Test;
+
 @Test(groups = "broker")
 public class StandaloneTest {
 
-    static class TestPulsarStandaloneStarter extends PulsarStandaloneStarter {
-        public TestPulsarStandaloneStarter(String[] args) throws Exception {
-            super(args);
-        }
-
-        @Override
-        protected void registerShutdownHook() {
-            // ignore to prevent memory leaks
-        }
-
-        @Override
-        protected void exit(int status) {
-            // don't ever call System.exit in tests
-            throw new RuntimeException("Exited with status " + status);
-        }
+  static class TestPulsarStandaloneStarter extends PulsarStandaloneStarter {
+    public TestPulsarStandaloneStarter(String[] args) throws Exception {
+      super(args);
     }
 
-    @Test
-    public void testWithoutMetadataStoreUrlInConfFile() throws Exception {
-        String[] args = new String[]{"--config",
-                "../conf/standalone.conf"};
-        PulsarStandaloneStarter standalone = new TestPulsarStandaloneStarter(args);
-        assertNotNull(standalone.getConfig().getProperties().getProperty("metadataStoreUrl"));
-        assertNotNull(standalone.getConfig().getProperties().getProperty("configurationMetadataStoreUrl"));
+    @Override
+    protected void registerShutdownHook() {
+      // ignore to prevent memory leaks
     }
 
-    @Test
-    public void testInitialize() throws Exception {
-        String[] args = new String[]{"--config",
-                "./src/test/resources/configurations/pulsar_broker_test_standalone.conf"};
-        PulsarStandaloneStarter standalone = new TestPulsarStandaloneStarter(args);
-        assertNull(standalone.getConfig().getAdvertisedAddress());
-        assertEquals(standalone.getConfig().getAdvertisedListeners(),
-                "internal:pulsar://192.168.1.11:6660,internal:pulsar+ssl://192.168.1.11:6651");
-        assertEquals(standalone.getConfig().isDispatcherPauseOnAckStatePersistentEnabled(), true);
-        assertEquals(standalone.getConfig().getMaxSecondsToClearTopicNameCache(), 1);
-        assertEquals(standalone.getConfig().getTopicNameCacheMaxCapacity(), 200);
-        assertEquals(standalone.getConfig().isCreateTopicToRemoteClusterForReplication(), true);
+    @Override
+    protected void exit(int status) {
+      // don't ever call System.exit in tests
+      throw new RuntimeException("Exited with status " + status);
     }
+  }
+
+  @Test
+  public void testWithoutMetadataStoreUrlInConfFile() throws Exception {
+    String[] args = new String[] {"--config", "../conf/standalone.conf"};
+    PulsarStandaloneStarter standalone = new TestPulsarStandaloneStarter(args);
+    assertNotNull(standalone.getConfig().getProperties().getProperty("metadataStoreUrl"));
+    assertNotNull(
+        standalone.getConfig().getProperties().getProperty("configurationMetadataStoreUrl"));
+  }
+
+  @Test
+  public void testInitialize() throws Exception {
+    String[] args =
+        new String[] {
+          "--config", "./src/test/resources/configurations/pulsar_broker_test_standalone.conf"
+        };
+    PulsarStandaloneStarter standalone = new TestPulsarStandaloneStarter(args);
+    assertNull(standalone.getConfig().getAdvertisedAddress());
+    assertEquals(
+        standalone.getConfig().getAdvertisedListeners(),
+        "internal:pulsar://192.168.1.11:6660,internal:pulsar+ssl://192.168.1.11:6651");
+    assertEquals(standalone.getConfig().isDispatcherPauseOnAckStatePersistentEnabled(), true);
+    assertEquals(standalone.getConfig().getMaxSecondsToClearTopicNameCache(), 1);
+    assertEquals(standalone.getConfig().getTopicNameCacheMaxCapacity(), 200);
+    assertEquals(standalone.getConfig().isCreateTopicToRemoteClusterForReplication(), true);
+  }
 }

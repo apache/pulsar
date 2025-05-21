@@ -27,6 +27,7 @@ import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -68,247 +69,270 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class PersistentSubscriptionTest {
 
-    private PulsarTestContext pulsarTestContext;
-    private ManagedLedger ledgerMock;
-    private ManagedCursorImpl cursorMock;
-    private PersistentTopic topic;
-    private PersistentSubscription persistentSubscription;
-    private Consumer consumerMock;
-    private ManagedLedgerConfig managedLedgerConfigMock;
+  private PulsarTestContext pulsarTestContext;
+  private ManagedLedger ledgerMock;
+  private ManagedCursorImpl cursorMock;
+  private PersistentTopic topic;
+  private PersistentSubscription persistentSubscription;
+  private Consumer consumerMock;
+  private ManagedLedgerConfig managedLedgerConfigMock;
 
-    final String successTopicName = "persistent://prop/use/ns-abc/successTopic";
-    final String subName = "subscriptionName";
+  final String successTopicName = "persistent://prop/use/ns-abc/successTopic";
+  final String subName = "subscriptionName";
 
-    final TxnID txnID1 = new TxnID(1,1);
-    final TxnID txnID2 = new TxnID(1,2);
+  final TxnID txnID1 = new TxnID(1, 1);
+  final TxnID txnID2 = new TxnID(1, 2);
 
-    @BeforeMethod
-    public void setup() throws Exception {
-        pulsarTestContext = PulsarTestContext.builderForNonStartableContext()
-                .spyByDefault()
-                .configCustomizer(config -> {
-                    config.setTransactionCoordinatorEnabled(true);
-                    config.setTransactionPendingAckStoreProviderClassName(
-                            CustomTransactionPendingAckStoreProvider.class.getName());
-                    config.setTransactionBufferProviderClassName(InMemTransactionBufferProvider.class.getName());
+  @BeforeMethod
+  public void setup() throws Exception {
+    pulsarTestContext =
+        PulsarTestContext.builderForNonStartableContext()
+            .spyByDefault()
+            .configCustomizer(
+                config -> {
+                  config.setTransactionCoordinatorEnabled(true);
+                  config.setTransactionPendingAckStoreProviderClassName(
+                      CustomTransactionPendingAckStoreProvider.class.getName());
+                  config.setTransactionBufferProviderClassName(
+                      InMemTransactionBufferProvider.class.getName());
                 })
-                .useTestPulsarResources()
-                .build();
+            .useTestPulsarResources()
+            .build();
 
-        NamespaceResources namespaceResources = pulsarTestContext.getPulsarResources().getNamespaceResources();
-        doReturn(Optional.of(new Policies())).when(namespaceResources)
-                .getPoliciesIfCached(any());
+    NamespaceResources namespaceResources =
+        pulsarTestContext.getPulsarResources().getNamespaceResources();
+    doReturn(Optional.of(new Policies())).when(namespaceResources).getPoliciesIfCached(any());
 
-        ledgerMock = mock(ManagedLedgerImpl.class);
-        cursorMock = mock(ManagedCursorImpl.class);
-        managedLedgerConfigMock = mock(ManagedLedgerConfig.class);
-        doReturn(new ManagedCursorContainer()).when(ledgerMock).getCursors();
-        doReturn("mockCursor").when(cursorMock).getName();
-        doReturn(PositionFactory.create(1, 50)).when(cursorMock).getMarkDeletedPosition();
-        doReturn(ledgerMock).when(cursorMock).getManagedLedger();
-        doReturn(managedLedgerConfigMock).when(ledgerMock).getConfig();
-        doReturn(false).when(managedLedgerConfigMock).isAutoSkipNonRecoverableData();
+    ledgerMock = mock(ManagedLedgerImpl.class);
+    cursorMock = mock(ManagedCursorImpl.class);
+    managedLedgerConfigMock = mock(ManagedLedgerConfig.class);
+    doReturn(new ManagedCursorContainer()).when(ledgerMock).getCursors();
+    doReturn("mockCursor").when(cursorMock).getName();
+    doReturn(PositionFactory.create(1, 50)).when(cursorMock).getMarkDeletedPosition();
+    doReturn(ledgerMock).when(cursorMock).getManagedLedger();
+    doReturn(managedLedgerConfigMock).when(ledgerMock).getConfig();
+    doReturn(false).when(managedLedgerConfigMock).isAutoSkipNonRecoverableData();
 
-        topic = new PersistentTopic(successTopicName, ledgerMock, pulsarTestContext.getBrokerService());
+    topic = new PersistentTopic(successTopicName, ledgerMock, pulsarTestContext.getBrokerService());
 
-        consumerMock = mock(Consumer.class);
+    consumerMock = mock(Consumer.class);
 
-        persistentSubscription = new PersistentSubscription(topic, subName, cursorMock, false);
+    persistentSubscription = new PersistentSubscription(topic, subName, cursorMock, false);
+  }
+
+  @AfterMethod(alwaysRun = true)
+  public void teardown() throws Exception {
+    if (pulsarTestContext != null) {
+      pulsarTestContext.close();
+      pulsarTestContext = null;
     }
+  }
 
-    @AfterMethod(alwaysRun = true)
-    public void teardown() throws Exception {
-        if (pulsarTestContext != null) {
-            pulsarTestContext.close();
-            pulsarTestContext = null;
-        }
-    }
+  @Test
+  public void testCanAcknowledgeAndAbortForTransaction() throws Exception {
+    List<MutablePair<Position, Integer>> positionsPair = new ArrayList<>();
+    positionsPair.add(new MutablePair<>(PositionFactory.create(2, 1), 0));
+    positionsPair.add(new MutablePair<>(PositionFactory.create(2, 3), 0));
+    positionsPair.add(new MutablePair<>(PositionFactory.create(2, 5), 0));
 
-    @Test
-    public void testCanAcknowledgeAndAbortForTransaction() throws Exception {
-        List<MutablePair<Position, Integer>> positionsPair = new ArrayList<>();
-        positionsPair.add(new MutablePair<>(PositionFactory.create(2, 1), 0));
-        positionsPair.add(new MutablePair<>(PositionFactory.create(2, 3), 0));
-        positionsPair.add(new MutablePair<>(PositionFactory.create(2, 5), 0));
+    doAnswer(
+            (invocationOnMock) -> {
+              ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])
+                  .deleteComplete(invocationOnMock.getArguments()[2]);
+              return null;
+            })
+        .when(cursorMock)
+        .asyncDelete(any(List.class), any(AsyncCallbacks.DeleteCallback.class), any());
 
-        doAnswer((invocationOnMock) -> {
-            ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])
-                    .deleteComplete(invocationOnMock.getArguments()[2]);
-            return null;
-        }).when(cursorMock).asyncDelete(any(List.class), any(AsyncCallbacks.DeleteCallback.class), any());
-
-        doReturn(CommandSubscribe.SubType.Exclusive).when(consumerMock).subType();
-        Awaitility.await().until(() -> {
-            try {
+    doReturn(CommandSubscribe.SubType.Exclusive).when(consumerMock).subType();
+    Awaitility.await()
+        .until(
+            () -> {
+              try {
                 persistentSubscription.addConsumer(consumerMock);
                 return true;
-            } catch (Exception e) {
+              } catch (Exception e) {
                 return false;
-            }
-        });
-
-        // Single ack for txn1
-        persistentSubscription.transactionIndividualAcknowledge(txnID1, positionsPair);
-
-        List<Position> positions = new ArrayList<>();
-        positions.add(PositionFactory.create(1, 100));
-
-        // Cumulative ack for txn1
-        persistentSubscription.transactionCumulativeAcknowledge(txnID1, positions).get();
-
-        positions.clear();
-        positions.add(PositionFactory.create(2, 1));
-
-        // Can not single ack message already acked.
-        try {
-            persistentSubscription.transactionIndividualAcknowledge(txnID2, positionsPair).get();
-            fail("Single acknowledge for transaction2 should fail. ");
-        } catch (ExecutionException e) {
-            assertEquals(e.getCause().getMessage(),"[persistent://prop/use/ns-abc/successTopic][subscriptionName] " +
-                    "Transaction:(1,2) try to ack message:2:1 in pending ack status.");
-        }
-
-        positions.clear();
-        positions.add(PositionFactory.create(2, 50));
-
-        // Can not cumulative ack message for another txn.
-        try {
-            persistentSubscription.transactionCumulativeAcknowledge(txnID2, positions).get();
-            fail("Cumulative acknowledge for transaction2 should fail. ");
-        } catch (ExecutionException e) {
-            assertTrue(e.getCause() instanceof TransactionConflictException);
-            assertEquals(e.getCause().getMessage(),"[persistent://prop/use/ns-abc/successTopic]" +
-                    "[subscriptionName] Transaction:(1,2) try to cumulative batch ack position: " +
-                    "2:50 within range of current currentPosition: 1:100");
-        }
-
-        List<Position> positionList = new ArrayList<>();
-        positionList.add(PositionFactory.create(1, 1));
-        positionList.add(PositionFactory.create(1, 3));
-        positionList.add(PositionFactory.create(1, 5));
-        positionList.add(PositionFactory.create(3, 1));
-        positionList.add(PositionFactory.create(3, 3));
-        positionList.add(PositionFactory.create(3, 5));
-
-        // Acknowledge from normal consumer will succeed ignoring message acked by ongoing transaction.
-        persistentSubscription.acknowledgeMessage(positionList, AckType.Individual, Collections.emptyMap());
-
-        //Abort txn.
-        persistentSubscription.endTxn(txnID1.getMostSigBits(), txnID2.getLeastSigBits(), TxnAction.ABORT_VALUE, -1);
-
-        positions.clear();
-        positions.add(PositionFactory.create(2, 50));
-
-        // Retry above ack, will succeed. As abort has clear pending_ack for those messages.
-        persistentSubscription.transactionCumulativeAcknowledge(txnID2, positions);
-
-        positionsPair.clear();
-        positionsPair.add(new MutablePair(PositionFactory.create(2, 1), 0));
-
-        persistentSubscription.transactionIndividualAcknowledge(txnID2, positionsPair);
-    }
-
-    @Test
-    public void testAcknowledgeUpdateCursorLastActive() throws Exception {
-        doAnswer((invocationOnMock) -> {
-            ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])
-                    .deleteComplete(invocationOnMock.getArguments()[2]);
-            return null;
-        }).when(cursorMock).asyncDelete(any(List.class), any(AsyncCallbacks.DeleteCallback.class), any());
-
-        doCallRealMethod().when(cursorMock).updateLastActive();
-        doCallRealMethod().when(cursorMock).getLastActive();
-
-        List<Position> positionList = new ArrayList<>();
-        positionList.add(PositionFactory.create(1, 1));
-        long beforeAcknowledgeTimestamp = System.currentTimeMillis();
-        Thread.sleep(1);
-        persistentSubscription.acknowledgeMessage(positionList, AckType.Individual, Collections.emptyMap());
-
-        // `acknowledgeMessage` should update cursor last active
-        assertTrue(persistentSubscription.cursor.getLastActive() > beforeAcknowledgeTimestamp);
-    }
-
-    @Test
-    public void testGetReplicatedSubscriptionConfiguration() {
-        Map<String, Long> properties = PersistentSubscription.getBaseCursorProperties(true);
-        assertThat(properties).containsEntry(PersistentSubscription.REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
-        ManagedCursor cursor = mock(ManagedCursor.class);
-        doReturn(properties).when(cursor).getProperties();
-        Optional<Boolean> replicatedSubscriptionConfiguration =
-                PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
-        assertThat(replicatedSubscriptionConfiguration).isNotEmpty().get().isEqualTo(Boolean.TRUE);
-
-        properties = Map.of(PersistentSubscription.REPLICATED_SUBSCRIPTION_PROPERTY, 10L);
-        doReturn(properties).when(cursor).getProperties();
-        replicatedSubscriptionConfiguration =
-                PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
-        assertThat(replicatedSubscriptionConfiguration).isEmpty();
-        properties = Map.of(PersistentSubscription.REPLICATED_SUBSCRIPTION_PROPERTY, -1L);
-        doReturn(properties).when(cursor).getProperties();
-        replicatedSubscriptionConfiguration =
-                PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
-        assertThat(replicatedSubscriptionConfiguration).isEmpty();
-
-        properties = PersistentSubscription.getBaseCursorProperties(false);
-        doReturn(properties).when(cursor).getProperties();
-        replicatedSubscriptionConfiguration =
-                PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
-        assertThat(replicatedSubscriptionConfiguration).isEmpty();
-
-        properties = PersistentSubscription.getBaseCursorProperties(null);
-        doReturn(properties).when(cursor).getProperties();
-        replicatedSubscriptionConfiguration =
-                PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
-        assertThat(replicatedSubscriptionConfiguration).isEmpty();
-    }
-
-    public static class CustomTransactionPendingAckStoreProvider implements TransactionPendingAckStoreProvider {
-        @Override
-        public CompletableFuture<PendingAckStore> newPendingAckStore(PersistentSubscription subscription) {
-            return CompletableFuture.completedFuture(new PendingAckStore() {
-                @Override
-                public void replayAsync(PendingAckHandleImpl pendingAckHandle, ExecutorService executorService) {
-                    try {
-                        Field field = PendingAckHandleState.class.getDeclaredField("state");
-                        field.setAccessible(true);
-                        field.set(pendingAckHandle, PendingAckHandleState.State.Ready);
-                    } catch (NoSuchFieldException | IllegalAccessException e) {
-                        fail();
-                    }
-                }
-
-                @Override
-                public CompletableFuture<Void> closeAsync() {
-                    return CompletableFuture.completedFuture(null);
-                }
-
-                @Override
-                public CompletableFuture<Void> appendIndividualAck(TxnID txnID,
-                                                                   List<MutablePair<Position, Integer>> positions) {
-                    return CompletableFuture.completedFuture(null);
-                }
-
-                @Override
-                public CompletableFuture<Void> appendCumulativeAck(TxnID txnID, Position position) {
-                    return CompletableFuture.completedFuture(null);
-                }
-
-                @Override
-                public CompletableFuture<Void> appendCommitMark(TxnID txnID, AckType ackType) {
-                    return CompletableFuture.completedFuture(null);
-                }
-
-                @Override
-                public CompletableFuture<Void> appendAbortMark(TxnID txnID, AckType ackType) {
-                    return CompletableFuture.completedFuture(null);
-                }
+              }
             });
-        }
 
-        @Override
-        public CompletableFuture<Boolean> checkInitializedBefore(PersistentSubscription subscription) {
-            return CompletableFuture.completedFuture(true);
-        }
+    // Single ack for txn1
+    persistentSubscription.transactionIndividualAcknowledge(txnID1, positionsPair);
+
+    List<Position> positions = new ArrayList<>();
+    positions.add(PositionFactory.create(1, 100));
+
+    // Cumulative ack for txn1
+    persistentSubscription.transactionCumulativeAcknowledge(txnID1, positions).get();
+
+    positions.clear();
+    positions.add(PositionFactory.create(2, 1));
+
+    // Can not single ack message already acked.
+    try {
+      persistentSubscription.transactionIndividualAcknowledge(txnID2, positionsPair).get();
+      fail("Single acknowledge for transaction2 should fail. ");
+    } catch (ExecutionException e) {
+      assertEquals(
+          e.getCause().getMessage(),
+          "[persistent://prop/use/ns-abc/successTopic][subscriptionName] "
+              + "Transaction:(1,2) try to ack message:2:1 in pending ack status.");
     }
+
+    positions.clear();
+    positions.add(PositionFactory.create(2, 50));
+
+    // Can not cumulative ack message for another txn.
+    try {
+      persistentSubscription.transactionCumulativeAcknowledge(txnID2, positions).get();
+      fail("Cumulative acknowledge for transaction2 should fail. ");
+    } catch (ExecutionException e) {
+      assertTrue(e.getCause() instanceof TransactionConflictException);
+      assertEquals(
+          e.getCause().getMessage(),
+          "[persistent://prop/use/ns-abc/successTopic]"
+              + "[subscriptionName] Transaction:(1,2) try to cumulative batch ack position: "
+              + "2:50 within range of current currentPosition: 1:100");
+    }
+
+    List<Position> positionList = new ArrayList<>();
+    positionList.add(PositionFactory.create(1, 1));
+    positionList.add(PositionFactory.create(1, 3));
+    positionList.add(PositionFactory.create(1, 5));
+    positionList.add(PositionFactory.create(3, 1));
+    positionList.add(PositionFactory.create(3, 3));
+    positionList.add(PositionFactory.create(3, 5));
+
+    // Acknowledge from normal consumer will succeed ignoring message acked by ongoing transaction.
+    persistentSubscription.acknowledgeMessage(
+        positionList, AckType.Individual, Collections.emptyMap());
+
+    // Abort txn.
+    persistentSubscription.endTxn(
+        txnID1.getMostSigBits(), txnID2.getLeastSigBits(), TxnAction.ABORT_VALUE, -1);
+
+    positions.clear();
+    positions.add(PositionFactory.create(2, 50));
+
+    // Retry above ack, will succeed. As abort has clear pending_ack for those messages.
+    persistentSubscription.transactionCumulativeAcknowledge(txnID2, positions);
+
+    positionsPair.clear();
+    positionsPair.add(new MutablePair(PositionFactory.create(2, 1), 0));
+
+    persistentSubscription.transactionIndividualAcknowledge(txnID2, positionsPair);
+  }
+
+  @Test
+  public void testAcknowledgeUpdateCursorLastActive() throws Exception {
+    doAnswer(
+            (invocationOnMock) -> {
+              ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])
+                  .deleteComplete(invocationOnMock.getArguments()[2]);
+              return null;
+            })
+        .when(cursorMock)
+        .asyncDelete(any(List.class), any(AsyncCallbacks.DeleteCallback.class), any());
+
+    doCallRealMethod().when(cursorMock).updateLastActive();
+    doCallRealMethod().when(cursorMock).getLastActive();
+
+    List<Position> positionList = new ArrayList<>();
+    positionList.add(PositionFactory.create(1, 1));
+    long beforeAcknowledgeTimestamp = System.currentTimeMillis();
+    Thread.sleep(1);
+    persistentSubscription.acknowledgeMessage(
+        positionList, AckType.Individual, Collections.emptyMap());
+
+    // `acknowledgeMessage` should update cursor last active
+    assertTrue(persistentSubscription.cursor.getLastActive() > beforeAcknowledgeTimestamp);
+  }
+
+  @Test
+  public void testGetReplicatedSubscriptionConfiguration() {
+    Map<String, Long> properties = PersistentSubscription.getBaseCursorProperties(true);
+    assertThat(properties)
+        .containsEntry(PersistentSubscription.REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
+    ManagedCursor cursor = mock(ManagedCursor.class);
+    doReturn(properties).when(cursor).getProperties();
+    Optional<Boolean> replicatedSubscriptionConfiguration =
+        PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
+    assertThat(replicatedSubscriptionConfiguration).isNotEmpty().get().isEqualTo(Boolean.TRUE);
+
+    properties = Map.of(PersistentSubscription.REPLICATED_SUBSCRIPTION_PROPERTY, 10L);
+    doReturn(properties).when(cursor).getProperties();
+    replicatedSubscriptionConfiguration =
+        PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
+    assertThat(replicatedSubscriptionConfiguration).isEmpty();
+    properties = Map.of(PersistentSubscription.REPLICATED_SUBSCRIPTION_PROPERTY, -1L);
+    doReturn(properties).when(cursor).getProperties();
+    replicatedSubscriptionConfiguration =
+        PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
+    assertThat(replicatedSubscriptionConfiguration).isEmpty();
+
+    properties = PersistentSubscription.getBaseCursorProperties(false);
+    doReturn(properties).when(cursor).getProperties();
+    replicatedSubscriptionConfiguration =
+        PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
+    assertThat(replicatedSubscriptionConfiguration).isEmpty();
+
+    properties = PersistentSubscription.getBaseCursorProperties(null);
+    doReturn(properties).when(cursor).getProperties();
+    replicatedSubscriptionConfiguration =
+        PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
+    assertThat(replicatedSubscriptionConfiguration).isEmpty();
+  }
+
+  public static class CustomTransactionPendingAckStoreProvider
+      implements TransactionPendingAckStoreProvider {
+    @Override
+    public CompletableFuture<PendingAckStore> newPendingAckStore(
+        PersistentSubscription subscription) {
+      return CompletableFuture.completedFuture(
+          new PendingAckStore() {
+            @Override
+            public void replayAsync(
+                PendingAckHandleImpl pendingAckHandle, ExecutorService executorService) {
+              try {
+                Field field = PendingAckHandleState.class.getDeclaredField("state");
+                field.setAccessible(true);
+                field.set(pendingAckHandle, PendingAckHandleState.State.Ready);
+              } catch (NoSuchFieldException | IllegalAccessException e) {
+                fail();
+              }
+            }
+
+            @Override
+            public CompletableFuture<Void> closeAsync() {
+              return CompletableFuture.completedFuture(null);
+            }
+
+            @Override
+            public CompletableFuture<Void> appendIndividualAck(
+                TxnID txnID, List<MutablePair<Position, Integer>> positions) {
+              return CompletableFuture.completedFuture(null);
+            }
+
+            @Override
+            public CompletableFuture<Void> appendCumulativeAck(TxnID txnID, Position position) {
+              return CompletableFuture.completedFuture(null);
+            }
+
+            @Override
+            public CompletableFuture<Void> appendCommitMark(TxnID txnID, AckType ackType) {
+              return CompletableFuture.completedFuture(null);
+            }
+
+            @Override
+            public CompletableFuture<Void> appendAbortMark(TxnID txnID, AckType ackType) {
+              return CompletableFuture.completedFuture(null);
+            }
+          });
+    }
+
+    @Override
+    public CompletableFuture<Boolean> checkInitializedBefore(PersistentSubscription subscription) {
+      return CompletableFuture.completedFuture(true);
+    }
+  }
 }

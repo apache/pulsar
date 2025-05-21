@@ -28,36 +28,39 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class ReplicationTopicGcUsingGlobalZKTest extends ReplicationTopicGcTest {
 
-    @Override
-    @BeforeClass(alwaysRun = true, timeOut = 300000)
-    public void setup() throws Exception {
-        super.usingGlobalZK = true;
-        super.setup();
-    }
+  @Override
+  @BeforeClass(alwaysRun = true, timeOut = 300000)
+  public void setup() throws Exception {
+    super.usingGlobalZK = true;
+    super.setup();
+  }
 
-    @Override
-    @AfterClass(alwaysRun = true, timeOut = 300000)
-    public void cleanup() throws Exception {
-        super.cleanup();
-    }
+  @Override
+  @AfterClass(alwaysRun = true, timeOut = 300000)
+  public void cleanup() throws Exception {
+    super.cleanup();
+  }
 
-    @Test(dataProvider = "topicTypes")
-    public void testTopicGC(TopicType topicType) throws Exception {
-        if (topicType.equals(TopicType.PARTITIONED)) {
-            // Pulsar does not support the feature "brokerDeleteInactivePartitionedTopicMetadataEnabled" when enabling
-            // Geo-Replication with Global ZK.
-            return;
-        }
-        super.testTopicGC(topicType);
+  @Test(dataProvider = "topicTypes")
+  public void testTopicGC(TopicType topicType) throws Exception {
+    if (topicType.equals(TopicType.PARTITIONED)) {
+      // Pulsar does not support the feature "brokerDeleteInactivePartitionedTopicMetadataEnabled"
+      // when enabling
+      // Geo-Replication with Global ZK.
+      return;
     }
+    super.testTopicGC(topicType);
+  }
 
-    @Test(dataProvider = "topicTypes")
-    public void testRemoteClusterStillConsumeAfterCurrentClusterGc(TopicType topicType) throws Exception {
-        if (topicType.equals(TopicType.PARTITIONED)) {
-            // Pulsar does not support the feature "brokerDeleteInactivePartitionedTopicMetadataEnabled" when enabling
-            // Geo-Replication with Global ZK.
-            return;
-        }
-        super.testRemoteClusterStillConsumeAfterCurrentClusterGc(topicType);
+  @Test(dataProvider = "topicTypes")
+  public void testRemoteClusterStillConsumeAfterCurrentClusterGc(TopicType topicType)
+      throws Exception {
+    if (topicType.equals(TopicType.PARTITIONED)) {
+      // Pulsar does not support the feature "brokerDeleteInactivePartitionedTopicMetadataEnabled"
+      // when enabling
+      // Geo-Replication with Global ZK.
+      return;
     }
+    super.testRemoteClusterStillConsumeAfterCurrentClusterGc(topicType);
+  }
 }

@@ -20,7 +20,6 @@ package org.apache.pulsar.client.api;
 
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
-
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -29,49 +28,55 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-api")
 public class BytesKeyTest extends ProducerConsumerBase {
 
-    @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
+  @BeforeMethod
+  @Override
+  protected void setup() throws Exception {
+    super.internalSetup();
+    super.producerBaseSetup();
+  }
 
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @AfterMethod(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    private void byteKeysTest(boolean batching) throws Exception {
-        Random r = new Random(0);
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+  private void byteKeysTest(boolean batching) throws Exception {
+    Random r = new Random(0);
+    Consumer<String> consumer =
+        pulsarClient
+            .newConsumer(Schema.STRING)
             .topic("persistent://my-property/my-ns/my-topic1")
-            .subscriptionName("my-subscriber-name").subscribe();
+            .subscriptionName("my-subscriber-name")
+            .subscribe();
 
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+    Producer<String> producer =
+        pulsarClient
+            .newProducer(Schema.STRING)
             .enableBatching(batching)
             .batchingMaxPublishDelay(Long.MAX_VALUE, TimeUnit.SECONDS)
             .batchingMaxMessages(Integer.MAX_VALUE)
-            .topic("persistent://my-property/my-ns/my-topic1").create();
+            .topic("persistent://my-property/my-ns/my-topic1")
+            .create();
 
-        byte[] byteKey = new byte[1000];
-        r.nextBytes(byteKey);
-        producer.newMessage().keyBytes(byteKey).value("TestMessage").sendAsync();
-        producer.flush();
+    byte[] byteKey = new byte[1000];
+    r.nextBytes(byteKey);
+    producer.newMessage().keyBytes(byteKey).value("TestMessage").sendAsync();
+    producer.flush();
 
-        Message<String> m = consumer.receive();
-        Assert.assertEquals(m.getValue(), "TestMessage");
-        Assert.assertEquals(m.getKeyBytes(), byteKey);
-        Assert.assertTrue(m.hasBase64EncodedKey());
-    }
+    Message<String> m = consumer.receive();
+    Assert.assertEquals(m.getValue(), "TestMessage");
+    Assert.assertEquals(m.getKeyBytes(), byteKey);
+    Assert.assertTrue(m.hasBase64EncodedKey());
+  }
 
-    @Test
-    public void testBytesKeyBatch() throws Exception {
-        byteKeysTest(true);
-    }
+  @Test
+  public void testBytesKeyBatch() throws Exception {
+    byteKeysTest(true);
+  }
 
-    @Test
-    public void testBytesKeyNoBatch() throws Exception {
-        byteKeysTest(false);
-    }
+  @Test
+  public void testBytesKeyNoBatch() throws Exception {
+    byteKeysTest(false);
+  }
 }

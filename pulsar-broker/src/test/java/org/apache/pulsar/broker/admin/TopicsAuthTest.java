@@ -60,142 +60,176 @@ import org.testng.annotations.Test;
 
 public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
 
-    private final String testLocalCluster = "test";
-    private final String testTenant = "my-tenant";
-    private final String testNamespace = "my-namespace";
-    private final String testTopicName = "my-topic";
+  private final String testLocalCluster = "test";
+  private final String testTenant = "my-tenant";
+  private final String testNamespace = "my-namespace";
+  private final String testTopicName = "my-topic";
 
-    private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
-    private static final String ADMIN_TOKEN = Jwts.builder().setSubject("admin").signWith(SECRET_KEY).compact();
-    private static final String PRODUCE_TOKEN = Jwts.builder().setSubject("producer").signWith(SECRET_KEY).compact();
-    private static final String CONSUME_TOKEN = Jwts.builder().setSubject("consumer").signWith(SECRET_KEY).compact();
+  private static final SecretKey SECRET_KEY =
+      AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+  private static final String ADMIN_TOKEN =
+      Jwts.builder().setSubject("admin").signWith(SECRET_KEY).compact();
+  private static final String PRODUCE_TOKEN =
+      Jwts.builder().setSubject("producer").signWith(SECRET_KEY).compact();
+  private static final String CONSUME_TOKEN =
+      Jwts.builder().setSubject("consumer").signWith(SECRET_KEY).compact();
 
-    @Override
-    @BeforeMethod
-    protected void setup() throws Exception {
-        // enable auth&auth and use JWT at broker
-        conf.setAuthenticationEnabled(true);
-        conf.setAuthorizationEnabled(true);
-        conf.getProperties().setProperty("tokenSecretKey", "data:;base64,"
-                + Base64.getEncoder().encodeToString(SECRET_KEY.getEncoded()));
-        Set<String> superUserRoles = new HashSet<>();
-        superUserRoles.add("admin");
-        conf.setSuperUserRoles(superUserRoles);
-        Set<String> providers = new HashSet<>();
-        providers.add(AuthenticationProviderToken.class.getName());
-        conf.setAuthenticationProviders(providers);
-        conf.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
-        conf.setBrokerClientAuthenticationParameters("token:" + ADMIN_TOKEN);
-        super.internalSetup();
-        PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(brokerUrl != null
-                ? brokerUrl.toString() : brokerUrlTls.toString())
-                .authentication(AuthenticationToken.class.getName(),
-                        ADMIN_TOKEN);
-        closeAdmin();
-        admin = Mockito.spy(pulsarAdminBuilder.build());
-        admin.clusters().createCluster(testLocalCluster, new ClusterDataImpl());
-        admin.tenants().createTenant(testTenant, new TenantInfoImpl(Set.of("role1", "role2"),
-                Set.of(testLocalCluster)
-        ));
-        admin.namespaces().createNamespace(testTenant + "/" + testNamespace,
-                Set.of(testLocalCluster));
-        admin.namespaces().grantPermissionOnNamespace(testTenant + "/" + testNamespace, "producer",
-                EnumSet.of(AuthAction.produce));
-        admin.namespaces().grantPermissionOnNamespace(testTenant + "/" + testNamespace, "consumer",
-                EnumSet.of(AuthAction.consume));
+  @Override
+  @BeforeMethod
+  protected void setup() throws Exception {
+    // enable auth&auth and use JWT at broker
+    conf.setAuthenticationEnabled(true);
+    conf.setAuthorizationEnabled(true);
+    conf.getProperties()
+        .setProperty(
+            "tokenSecretKey",
+            "data:;base64," + Base64.getEncoder().encodeToString(SECRET_KEY.getEncoded()));
+    Set<String> superUserRoles = new HashSet<>();
+    superUserRoles.add("admin");
+    conf.setSuperUserRoles(superUserRoles);
+    Set<String> providers = new HashSet<>();
+    providers.add(AuthenticationProviderToken.class.getName());
+    conf.setAuthenticationProviders(providers);
+    conf.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
+    conf.setBrokerClientAuthenticationParameters("token:" + ADMIN_TOKEN);
+    super.internalSetup();
+    PulsarAdminBuilder pulsarAdminBuilder =
+        PulsarAdmin.builder()
+            .serviceHttpUrl(brokerUrl != null ? brokerUrl.toString() : brokerUrlTls.toString())
+            .authentication(AuthenticationToken.class.getName(), ADMIN_TOKEN);
+    closeAdmin();
+    admin = Mockito.spy(pulsarAdminBuilder.build());
+    admin.clusters().createCluster(testLocalCluster, new ClusterDataImpl());
+    admin
+        .tenants()
+        .createTenant(
+            testTenant, new TenantInfoImpl(Set.of("role1", "role2"), Set.of(testLocalCluster)));
+    admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Set.of(testLocalCluster));
+    admin
+        .namespaces()
+        .grantPermissionOnNamespace(
+            testTenant + "/" + testNamespace, "producer", EnumSet.of(AuthAction.produce));
+    admin
+        .namespaces()
+        .grantPermissionOnNamespace(
+            testTenant + "/" + testNamespace, "consumer", EnumSet.of(AuthAction.consume));
+  }
+
+  @Override
+  @AfterMethod
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
+
+  @DataProvider(name = "variations")
+  public static Object[][] variations() {
+    return new Object[][] {
+      {CONSUME_TOKEN, 401},
+      {PRODUCE_TOKEN, 200}
+    };
+  }
+
+  @Test(dataProvider = "variations")
+  public void testProduceToNonPartitionedTopic(String token, int status) throws Exception {
+    innerTestProduce(testTopicName, true, false, token, status);
+  }
+
+  @Test(dataProvider = "variations")
+  public void testProduceToPartitionedTopic(String token, int status) throws Exception {
+    innerTestProduce(testTopicName, true, true, token, status);
+  }
+
+  @Test(dataProvider = "variations")
+  public void testProduceOnNonPersistentNonPartitionedTopic(String token, int status)
+      throws Exception {
+    innerTestProduce(testTopicName, false, false, token, status);
+  }
+
+  @Test(dataProvider = "variations")
+  public void testProduceOnNonPersistentPartitionedTopic(String token, int status)
+      throws Exception {
+    innerTestProduce(testTopicName, false, true, token, status);
+  }
+
+  private void innerTestProduce(
+      String createTopicName, boolean isPersistent, boolean isPartition, String token, int status)
+      throws Exception {
+    String topicPrefix = null;
+    if (isPersistent == true) {
+      topicPrefix = "persistent";
+    } else {
+      topicPrefix = "non-persistent";
+    }
+    if (isPartition == true) {
+      admin
+          .topics()
+          .createPartitionedTopic(
+              topicPrefix + "://" + testTenant + "/" + testNamespace + "/" + createTopicName, 5);
+    } else {
+      admin
+          .topics()
+          .createNonPartitionedTopic(
+              topicPrefix + "://" + testTenant + "/" + testNamespace + "/" + createTopicName);
+    }
+    Schema<String> schema = StringSchema.utf8();
+    ProducerMessages producerMessages = new ProducerMessages();
+    producerMessages.setKeySchema(
+        ObjectMapperFactory.getMapper()
+            .getObjectMapper()
+            .writeValueAsString(schema.getSchemaInfo()));
+    producerMessages.setValueSchema(
+        ObjectMapperFactory.getMapper()
+            .getObjectMapper()
+            .writeValueAsString(schema.getSchemaInfo()));
+    String message =
+        "["
+            + "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1},"
+            + "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}]";
+    producerMessages.setMessages(createMessages(message));
+
+    WebTarget root = buildWebClient();
+    String requestPath = null;
+    if (isPartition == true) {
+      requestPath =
+          "/topics/"
+              + topicPrefix
+              + "/"
+              + testTenant
+              + "/"
+              + testNamespace
+              + "/"
+              + createTopicName
+              + "/partitions/2";
+    } else {
+      requestPath =
+          "/topics/" + topicPrefix + "/" + testTenant + "/" + testNamespace + "/" + createTopicName;
     }
 
-    @Override
-    @AfterMethod
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+    Response response =
+        root.path(requestPath)
+            .request(MediaType.APPLICATION_JSON)
+            .header("Authorization", "Bearer " + token)
+            .post(Entity.json(producerMessages));
+    Assert.assertEquals(response.getStatus(), status);
+  }
 
-    @DataProvider(name = "variations")
-    public static Object[][] variations() {
-        return new Object[][]{
-                {CONSUME_TOKEN, 401},
-                {PRODUCE_TOKEN, 200}
-        };
-    }
+  private static List<ProducerMessage> createMessages(String message)
+      throws JsonProcessingException {
+    return ObjectMapperFactory.getMapper()
+        .reader()
+        .forType(new TypeReference<List<ProducerMessage>>() {})
+        .readValue(message);
+  }
 
-    @Test(dataProvider = "variations")
-    public void testProduceToNonPartitionedTopic(String token, int status) throws Exception {
-        innerTestProduce(testTopicName, true, false, token, status);
-    }
+  WebTarget buildWebClient() throws Exception {
+    ClientConfig httpConfig = new ClientConfig();
+    httpConfig.property(ClientProperties.FOLLOW_REDIRECTS, true);
+    httpConfig.property(ClientProperties.ASYNC_THREADPOOL_SIZE, 8);
+    httpConfig.register(MultiPartFeature.class);
 
-    @Test(dataProvider = "variations")
-    public void testProduceToPartitionedTopic(String token, int status) throws Exception {
-        innerTestProduce(testTopicName, true, true, token, status);
-    }
-
-    @Test(dataProvider = "variations")
-    public void testProduceOnNonPersistentNonPartitionedTopic(String token, int status) throws Exception {
-        innerTestProduce(testTopicName, false, false, token, status);
-    }
-
-    @Test(dataProvider = "variations")
-    public void testProduceOnNonPersistentPartitionedTopic(String token, int status) throws Exception {
-        innerTestProduce(testTopicName, false, true, token, status);
-    }
-
-    private void innerTestProduce(String createTopicName, boolean isPersistent, boolean isPartition,
-                                  String token, int status) throws Exception {
-        String topicPrefix = null;
-        if (isPersistent == true) {
-            topicPrefix = "persistent";
-        } else {
-            topicPrefix = "non-persistent";
-        }
-        if (isPartition == true) {
-            admin.topics().createPartitionedTopic(topicPrefix + "://" + testTenant + "/"
-                    + testNamespace + "/" + createTopicName, 5);
-        } else {
-            admin.topics().createNonPartitionedTopic(topicPrefix + "://" + testTenant + "/"
-                    + testNamespace + "/" + createTopicName);
-        }
-        Schema<String> schema = StringSchema.utf8();
-        ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setKeySchema(ObjectMapperFactory.getMapper().getObjectMapper().
-                writeValueAsString(schema.getSchemaInfo()));
-        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
-                writeValueAsString(schema.getSchemaInfo()));
-        String message = "[" +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}]";
-        producerMessages.setMessages(createMessages(message));
-
-        WebTarget root = buildWebClient();
-        String requestPath = null;
-        if (isPartition == true) {
-            requestPath = "/topics/" + topicPrefix + "/" + testTenant + "/" + testNamespace + "/"
-                    + createTopicName + "/partitions/2";
-        } else {
-            requestPath = "/topics/" + topicPrefix + "/" + testTenant + "/" + testNamespace + "/" + createTopicName;
-        }
-
-        Response response = root.path(requestPath)
-                .request(MediaType.APPLICATION_JSON)
-                .header("Authorization", "Bearer " + token)
-                .post(Entity.json(producerMessages));
-        Assert.assertEquals(response.getStatus(), status);
-    }
-
-    private static List<ProducerMessage> createMessages(String message) throws JsonProcessingException {
-        return ObjectMapperFactory.getMapper().reader()
-                .forType(new TypeReference<List<ProducerMessage>>() {
-                }).readValue(message);
-    }
-
-    WebTarget buildWebClient() throws Exception {
-        ClientConfig httpConfig = new ClientConfig();
-        httpConfig.property(ClientProperties.FOLLOW_REDIRECTS, true);
-        httpConfig.property(ClientProperties.ASYNC_THREADPOOL_SIZE, 8);
-        httpConfig.register(MultiPartFeature.class);
-
-        javax.ws.rs.client.ClientBuilder clientBuilder = ClientBuilder.newBuilder().withConfig(httpConfig);
-        Client client = clientBuilder.build();
-        return client.target(brokerUrl.toString());
-    }
-
+    javax.ws.rs.client.ClientBuilder clientBuilder =
+        ClientBuilder.newBuilder().withConfig(httpConfig);
+    Client client = clientBuilder.build();
+    return client.target(brokerUrl.toString());
+  }
 }

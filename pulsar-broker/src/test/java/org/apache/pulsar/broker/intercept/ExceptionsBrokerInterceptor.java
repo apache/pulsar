@@ -34,69 +34,57 @@ import org.apache.pulsar.common.intercept.InterceptException;
 
 public class ExceptionsBrokerInterceptor implements BrokerInterceptor {
 
+  private AtomicInteger producerCount = new AtomicInteger();
+  private AtomicInteger consumerCount = new AtomicInteger();
+  private AtomicInteger messageAckCount = new AtomicInteger();
 
-    private AtomicInteger producerCount = new AtomicInteger();
-    private AtomicInteger consumerCount = new AtomicInteger();
-    private AtomicInteger messageAckCount = new AtomicInteger();
+  public AtomicInteger getProducerCount() {
+    return producerCount;
+  }
 
-    public AtomicInteger getProducerCount() {
-        return producerCount;
-    }
+  public AtomicInteger getConsumerCount() {
+    return consumerCount;
+  }
 
-    public AtomicInteger getConsumerCount() {
-        return consumerCount;
-    }
+  public AtomicInteger getMessageAckCount() {
+    return messageAckCount;
+  }
 
-    public AtomicInteger getMessageAckCount() {
-        return messageAckCount;
-    }
+  @Override
+  public void producerCreated(ServerCnx cnx, Producer producer, Map<String, String> metadata) {
+    producerCount.incrementAndGet();
+    throw new RuntimeException("exception when intercept producer created");
+  }
 
-    @Override
-    public void producerCreated(ServerCnx cnx, Producer producer, Map<String, String> metadata) {
-        producerCount.incrementAndGet();
-        throw new RuntimeException("exception when intercept producer created");
-    }
+  @Override
+  public void consumerCreated(ServerCnx cnx, Consumer consumer, Map<String, String> metadata) {
+    consumerCount.incrementAndGet();
+    throw new RuntimeException("exception when intercept consumer created");
+  }
 
-    @Override
-    public void consumerCreated(ServerCnx cnx, Consumer consumer, Map<String, String> metadata) {
-        consumerCount.incrementAndGet();
-        throw new RuntimeException("exception when intercept consumer created");
-    }
+  @Override
+  public void messageAcked(ServerCnx cnx, Consumer consumer, CommandAck ackCmd) {
+    messageAckCount.incrementAndGet();
+    throw new RuntimeException("exception when intercept consumer ack message");
+  }
 
-    @Override
-    public void messageAcked(ServerCnx cnx, Consumer consumer, CommandAck ackCmd) {
-        messageAckCount.incrementAndGet();
-        throw new RuntimeException("exception when intercept consumer ack message");
-    }
+  @Override
+  public void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws InterceptException {}
 
-    @Override
-    public void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws InterceptException {
+  @Override
+  public void onConnectionClosed(ServerCnx cnx) {}
 
-    }
+  @Override
+  public void onWebserviceRequest(ServletRequest request)
+      throws IOException, ServletException, InterceptException {}
 
-    @Override
-    public void onConnectionClosed(ServerCnx cnx) {
+  @Override
+  public void onWebserviceResponse(ServletRequest request, ServletResponse response)
+      throws IOException, ServletException {}
 
-    }
+  @Override
+  public void initialize(PulsarService pulsarService) throws Exception {}
 
-    @Override
-    public void onWebserviceRequest(ServletRequest request) throws IOException, ServletException, InterceptException {
-
-    }
-
-    @Override
-    public void onWebserviceResponse(ServletRequest request, ServletResponse response)
-            throws IOException, ServletException {
-
-    }
-
-    @Override
-    public void initialize(PulsarService pulsarService) throws Exception {
-
-    }
-
-    @Override
-    public void close() {
-
-    }
+  @Override
+  public void close() {}
 }

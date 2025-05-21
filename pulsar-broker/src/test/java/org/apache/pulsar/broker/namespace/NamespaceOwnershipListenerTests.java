@@ -18,7 +18,15 @@
  */
 package org.apache.pulsar.broker.namespace;
 
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertTrue;
+
 import com.google.common.collect.Sets;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.api.Producer;
@@ -30,167 +38,162 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.spy;
-import static org.testng.Assert.assertTrue;
-
 @Test(groups = "broker")
 public class NamespaceOwnershipListenerTests extends BrokerTestBase {
 
-    @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        super.baseSetup();
-    }
+  @BeforeMethod
+  @Override
+  protected void setup() throws Exception {
+    super.baseSetup();
+  }
 
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @AfterMethod(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @Test
-    public void testNamespaceBundleOwnershipListener() throws Exception {
+  @Test
+  public void testNamespaceBundleOwnershipListener() throws Exception {
 
-        final CountDownLatch countDownLatch = new CountDownLatch(2);
-        final AtomicBoolean onLoad = new AtomicBoolean(false);
-        final AtomicBoolean unLoad = new AtomicBoolean(false);
+    final CountDownLatch countDownLatch = new CountDownLatch(2);
+    final AtomicBoolean onLoad = new AtomicBoolean(false);
+    final AtomicBoolean unLoad = new AtomicBoolean(false);
 
-        final String namespace = "prop/" + UUID.randomUUID().toString();
+    final String namespace = "prop/" + UUID.randomUUID().toString();
 
-        pulsar.getNamespaceService().addNamespaceBundleOwnershipListener(new NamespaceBundleOwnershipListener() {
+    pulsar
+        .getNamespaceService()
+        .addNamespaceBundleOwnershipListener(
+            new NamespaceBundleOwnershipListener() {
 
-            @Override
-            public boolean test(NamespaceBundle namespaceBundle) {
+              @Override
+              public boolean test(NamespaceBundle namespaceBundle) {
                 return namespaceBundle.getNamespaceObject().toString().equals(namespace);
-            }
+              }
 
-            @Override
-            public void onLoad(NamespaceBundle bundle) {
+              @Override
+              public void onLoad(NamespaceBundle bundle) {
                 countDownLatch.countDown();
                 onLoad.set(true);
-            }
+              }
 
-            @Override
-            public void unLoad(NamespaceBundle bundle) {
+              @Override
+              public void unLoad(NamespaceBundle bundle) {
                 countDownLatch.countDown();
                 unLoad.set(true);
-            }
+              }
+            });
+
+    admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+    assertTrue(admin.namespaces().getNamespaces("prop").contains(namespace));
+
+    final String topic = "persistent://" + namespace + "/os-0";
+
+    Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+
+    producer.close();
+
+    admin.namespaces().unload(namespace);
+
+    countDownLatch.await();
+
+    Assert.assertTrue(onLoad.get());
+    Assert.assertTrue(unLoad.get());
+    admin.topics().delete(topic);
+    deleteNamespaceWithRetry(namespace, false);
+  }
+
+  @Test
+  public void testAddNamespaceBundleOwnershipListenerBeforeLBStart() {
+    NamespaceService namespaceService = spy(new NamespaceService(pulsar));
+    doThrow(new IllegalStateException("The LM is not initialized"))
+        .when(namespaceService)
+        .getOwnedServiceUnits();
+    namespaceService.addNamespaceBundleOwnershipListener(
+        new NamespaceBundleOwnershipListener() {
+          @Override
+          public void onLoad(NamespaceBundle bundle) {}
+
+          @Override
+          public void unLoad(NamespaceBundle bundle) {}
+
+          @Override
+          public boolean test(NamespaceBundle namespaceBundle) {
+            return false;
+          }
         });
+  }
 
-        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
-        assertTrue(admin.namespaces().getNamespaces("prop").contains(namespace));
+  @Test
+  public void testGetAllPartitions() throws Exception {
+    final String namespace = "prop/" + UUID.randomUUID().toString();
+    admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+    assertTrue(admin.namespaces().getNamespaces("prop").contains(namespace));
 
-        final String topic = "persistent://" + namespace + "/os-0";
+    final String topicName = "persistent://" + namespace + "/os";
+    admin.topics().createPartitionedTopic(topicName, 6);
 
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .create();
+    List<String> partitions =
+        pulsar.getNamespaceService().getAllPartitions(NamespaceName.get(namespace)).get();
 
-        producer.close();
+    Assert.assertEquals(partitions.size(), 6);
 
-        admin.namespaces().unload(namespace);
-
-        countDownLatch.await();
-
-        Assert.assertTrue(onLoad.get());
-        Assert.assertTrue(unLoad.get());
-        admin.topics().delete(topic);
-        deleteNamespaceWithRetry(namespace, false);
+    for (int i = 0; i < partitions.size(); i++) {
+      Assert.assertEquals(partitions.get(i), topicName + "-partition-" + i);
     }
 
-    @Test
-    public void testAddNamespaceBundleOwnershipListenerBeforeLBStart() {
-        NamespaceService namespaceService = spy(new NamespaceService(pulsar));
-        doThrow(new IllegalStateException("The LM is not initialized"))
-                .when(namespaceService).getOwnedServiceUnits();
-        namespaceService.addNamespaceBundleOwnershipListener(new NamespaceBundleOwnershipListener() {
-            @Override
-            public void onLoad(NamespaceBundle bundle) {}
+    admin.topics().deletePartitionedTopic(topicName);
+    deleteNamespaceWithRetry(namespace, false);
+  }
 
-            @Override
-            public void unLoad(NamespaceBundle bundle) {}
+  @Test
+  public void testNamespaceBundleLookupOnwershipListener() throws Exception, PulsarClientException {
+    final CountDownLatch countDownLatch = new CountDownLatch(2);
+    final AtomicInteger onLoad = new AtomicInteger(0);
+    final AtomicInteger unLoad = new AtomicInteger(0);
 
-            @Override
-            public boolean test(NamespaceBundle namespaceBundle) {
-                return false;
-            }
-        });
-    }
+    final String namespace = "prop/" + UUID.randomUUID().toString();
 
-    @Test
-    public void testGetAllPartitions() throws Exception {
-        final String namespace = "prop/" + UUID.randomUUID().toString();
-        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
-        assertTrue(admin.namespaces().getNamespaces("prop").contains(namespace));
-
-        final String topicName = "persistent://" + namespace + "/os";
-        admin.topics().createPartitionedTopic(topicName, 6);
-
-        List<String> partitions = pulsar.getNamespaceService().getAllPartitions(NamespaceName.get(namespace)).get();
-
-        Assert.assertEquals(partitions.size(), 6);
-
-        for (int i = 0; i < partitions.size(); i++) {
-            Assert.assertEquals(partitions.get(i), topicName + "-partition-" + i);
-        }
-
-        admin.topics().deletePartitionedTopic(topicName);
-        deleteNamespaceWithRetry(namespace, false);
-    }
-
-    @Test
-    public void testNamespaceBundleLookupOnwershipListener() throws Exception,
-            PulsarClientException {
-        final CountDownLatch countDownLatch = new CountDownLatch(2);
-        final AtomicInteger onLoad = new AtomicInteger(0);
-        final AtomicInteger unLoad = new AtomicInteger(0);
-
-        final String namespace = "prop/" + UUID.randomUUID().toString();
-
-        pulsar.getNamespaceService().addNamespaceBundleOwnershipListener(new NamespaceBundleOwnershipListener() {
-            @Override
-            public void onLoad(NamespaceBundle bundle) {
+    pulsar
+        .getNamespaceService()
+        .addNamespaceBundleOwnershipListener(
+            new NamespaceBundleOwnershipListener() {
+              @Override
+              public void onLoad(NamespaceBundle bundle) {
                 countDownLatch.countDown();
                 onLoad.addAndGet(1);
-            }
+              }
 
-            @Override
-            public void unLoad(NamespaceBundle bundle) {
+              @Override
+              public void unLoad(NamespaceBundle bundle) {
                 countDownLatch.countDown();
                 unLoad.addAndGet(1);
-            }
+              }
 
-            @Override
-            public boolean test(NamespaceBundle namespaceBundle) {
+              @Override
+              public boolean test(NamespaceBundle namespaceBundle) {
                 return namespaceBundle.getNamespaceObject().toString().equals(namespace);
-            }
-        });
+              }
+            });
 
-        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
-        assertTrue(admin.namespaces().getNamespaces("prop").contains(namespace));
+    admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+    assertTrue(admin.namespaces().getNamespaces("prop").contains(namespace));
 
-        final String topic = "persistent://" + namespace + "/os-0";
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .create();
+    final String topic = "persistent://" + namespace + "/os-0";
+    Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
-        producer.close();
+    producer.close();
 
-        admin.lookups().lookupTopic(topic);
+    admin.lookups().lookupTopic(topic);
 
-        admin.namespaces().unload(namespace);
+    admin.namespaces().unload(namespace);
 
-        countDownLatch.await();
+    countDownLatch.await();
 
-        Assert.assertEquals(onLoad.get(), 1);
-        Assert.assertEquals(unLoad.get(), 1);
-        admin.topics().delete(topic);
-        deleteNamespaceWithRetry(namespace, false);
-    }
+    Assert.assertEquals(onLoad.get(), 1);
+    Assert.assertEquals(unLoad.get(), 1);
+    admin.topics().delete(topic);
+    deleteNamespaceWithRetry(namespace, false);
+  }
 }

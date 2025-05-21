@@ -20,10 +20,8 @@ package org.apache.pulsar.broker.service;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
-
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
@@ -36,56 +34,64 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class AdvertisedAddressTest {
 
-    LocalBookkeeperEnsemble bkEnsemble;
-    PulsarService pulsar;
+  LocalBookkeeperEnsemble bkEnsemble;
+  PulsarService pulsar;
 
-    private final String advertisedAddress = "pulsar-usc.example.com";
+  private final String advertisedAddress = "pulsar-usc.example.com";
 
-    @BeforeMethod
-    public void setup() throws Exception {
-        bkEnsemble = new LocalBookkeeperEnsemble(1, 0, () -> 0);
-        bkEnsemble.start();
+  @BeforeMethod
+  public void setup() throws Exception {
+    bkEnsemble = new LocalBookkeeperEnsemble(1, 0, () -> 0);
+    bkEnsemble.start();
 
-        ServiceConfiguration config = new ServiceConfiguration();
-        config.setBrokerShutdownTimeoutMs(0L);
-        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
-        config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
-        config.setWebServicePort(Optional.ofNullable(0));
-        config.setClusterName("usc");
-        config.setAdvertisedAddress("localhost");
-        config.setBrokerServicePort(Optional.ofNullable(0));
-        config.setAdvertisedAddress(advertisedAddress);
-        config.setManagedLedgerDefaultEnsembleSize(1);
-        config.setManagedLedgerDefaultWriteQuorum(1);
-        config.setManagedLedgerDefaultAckQuorum(1);
-        config.setManagedLedgerMaxEntriesPerLedger(5);
-        config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
-        pulsar = new PulsarService(config);
-        pulsar.start();
+    ServiceConfiguration config = new ServiceConfiguration();
+    config.setBrokerShutdownTimeoutMs(0L);
+    config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
+    config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
+    config.setWebServicePort(Optional.ofNullable(0));
+    config.setClusterName("usc");
+    config.setAdvertisedAddress("localhost");
+    config.setBrokerServicePort(Optional.ofNullable(0));
+    config.setAdvertisedAddress(advertisedAddress);
+    config.setManagedLedgerDefaultEnsembleSize(1);
+    config.setManagedLedgerDefaultWriteQuorum(1);
+    config.setManagedLedgerDefaultAckQuorum(1);
+    config.setManagedLedgerMaxEntriesPerLedger(5);
+    config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+    pulsar = new PulsarService(config);
+    pulsar.start();
+  }
+
+  @AfterMethod(alwaysRun = true)
+  public void shutdown() throws Exception {
+    if (pulsar != null) {
+      pulsar.close();
+      pulsar = null;
     }
-
-    @AfterMethod(alwaysRun = true)
-    public void shutdown() throws Exception {
-        if (pulsar != null) {
-            pulsar.close();
-            pulsar = null;
-        }
-        if (bkEnsemble != null) {
-            bkEnsemble.stop();
-            bkEnsemble = null;
-        }
+    if (bkEnsemble != null) {
+      bkEnsemble.stop();
+      bkEnsemble = null;
     }
+  }
 
-    @Test
-    public void testAdvertisedAddress() throws Exception {
-        Assert.assertEquals( pulsar.getAdvertisedAddress(), advertisedAddress );
-        Assert.assertEquals( pulsar.getBrokerServiceUrl(), String.format("pulsar://%s:%d", advertisedAddress, pulsar.getBrokerListenPort().get()) );
-        Assert.assertEquals( pulsar.getSafeWebServiceAddress(), String.format("http://%s:%d", advertisedAddress, pulsar.getListenPortHTTP().get()) );
-        String brokerZkPath = String.format("/loadbalance/brokers/%s", pulsar.getBrokerId());
-        String bkBrokerData = new String(bkEnsemble.getZkClient().getData(brokerZkPath, false, new Stat()), StandardCharsets.UTF_8);
-        JsonObject jsonBkBrokerData = new Gson().fromJson(bkBrokerData, JsonObject.class);
-        Assert.assertEquals( jsonBkBrokerData.get("pulsarServiceUrl").getAsString(), pulsar.getBrokerServiceUrl() );
-        Assert.assertEquals( jsonBkBrokerData.get("webServiceUrl").getAsString(), pulsar.getSafeWebServiceAddress() );
-    }
-
+  @Test
+  public void testAdvertisedAddress() throws Exception {
+    Assert.assertEquals(pulsar.getAdvertisedAddress(), advertisedAddress);
+    Assert.assertEquals(
+        pulsar.getBrokerServiceUrl(),
+        String.format("pulsar://%s:%d", advertisedAddress, pulsar.getBrokerListenPort().get()));
+    Assert.assertEquals(
+        pulsar.getSafeWebServiceAddress(),
+        String.format("http://%s:%d", advertisedAddress, pulsar.getListenPortHTTP().get()));
+    String brokerZkPath = String.format("/loadbalance/brokers/%s", pulsar.getBrokerId());
+    String bkBrokerData =
+        new String(
+            bkEnsemble.getZkClient().getData(brokerZkPath, false, new Stat()),
+            StandardCharsets.UTF_8);
+    JsonObject jsonBkBrokerData = new Gson().fromJson(bkBrokerData, JsonObject.class);
+    Assert.assertEquals(
+        jsonBkBrokerData.get("pulsarServiceUrl").getAsString(), pulsar.getBrokerServiceUrl());
+    Assert.assertEquals(
+        jsonBkBrokerData.get("webServiceUrl").getAsString(), pulsar.getSafeWebServiceAddress());
+  }
 }

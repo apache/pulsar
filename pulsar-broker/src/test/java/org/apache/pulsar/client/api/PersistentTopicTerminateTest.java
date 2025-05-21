@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
@@ -36,63 +37,69 @@ import org.testng.annotations.Test;
 @Slf4j
 public class PersistentTopicTerminateTest extends ProducerConsumerBase {
 
+  @BeforeClass
+  @Override
+  protected void setup() throws Exception {
+    super.internalSetup();
+    super.producerBaseSetup();
+  }
 
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
+  @AfterClass(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @Test
+  public void testRecoverAfterTerminate() throws Exception {
+    final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+    final String subscriptionName = "s1";
+    admin.topics().createNonPartitionedTopic(topicName);
+    admin.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
 
-    @Test
-    public void testRecoverAfterTerminate() throws Exception {
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
-        final String subscriptionName = "s1";
-        admin.topics().createNonPartitionedTopic(topicName);
-        admin.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+    // Trigger 2 ledgers creation.
+    Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+    producer.send("1");
+    admin.topics().unload(topicName);
+    producer.send("2");
 
-        // Trigger 2 ledgers creation.
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
-        producer.send("1");
-        admin.topics().unload(topicName);
-        producer.send("2");
+    // Terminate topic.
+    producer.close();
+    admin.topics().terminateTopic(topicName);
+    admin.topics().unload(topicName);
 
-        // Terminate topic.
-        producer.close();
-        admin.topics().terminateTopic(topicName);
-        admin.topics().unload(topicName);
+    // Verify: consume 2 msgs.
+    Consumer<String> consumer =
+        pulsarClient
+            .newConsumer(Schema.STRING)
+            .topic(topicName)
+            .subscriptionName(subscriptionName)
+            .subscribe();
 
-        // Verify: consume 2 msgs.
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
-                .subscriptionName(subscriptionName).subscribe();
+    Message<String> msg1 = consumer.receive(2, TimeUnit.SECONDS);
+    assertNotNull(msg1);
+    assertEquals(msg1.getValue(), "1");
+    Message<String> msg2 = consumer.receive(2, TimeUnit.SECONDS);
+    assertNotNull(msg2);
+    assertEquals(msg2.getValue(), "2");
 
-        Message<String> msg1 = consumer.receive(2, TimeUnit.SECONDS);
-        assertNotNull(msg1);
-        assertEquals(msg1.getValue(), "1");
-        Message<String> msg2 = consumer.receive(2, TimeUnit.SECONDS);
-        assertNotNull(msg2);
-        assertEquals(msg2.getValue(), "2");
+    // Verify: the ledgers acked will be cleaned up.
+    admin.topics().skipAllMessages(topicName, subscriptionName);
+    Awaitility.await()
+        .untilAsserted(
+            () -> {
+              PersistentTopic persistentTopic =
+                  (PersistentTopic)
+                      pulsar.getBrokerService().getTopic(topicName, false).join().get();
+              ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+              CompletableFuture<Void> trimLedgersFuture = new CompletableFuture<>();
+              ml.trimConsumedLedgersInBackground(trimLedgersFuture);
+              trimLedgersFuture.join();
+              assertTrue(ml.getLedgersInfo().size() <= 1);
+            });
 
-        // Verify: the ledgers acked will be cleaned up.
-        admin.topics().skipAllMessages(topicName, subscriptionName);
-        Awaitility.await().untilAsserted(() -> {
-            PersistentTopic persistentTopic =
-                    (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
-            ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
-            CompletableFuture<Void> trimLedgersFuture = new CompletableFuture<>();
-            ml.trimConsumedLedgersInBackground(trimLedgersFuture);
-            trimLedgersFuture.join();
-            assertTrue(ml.getLedgersInfo().size() <= 1);
-        });
-
-        // Cleanup.
-        consumer.close();
-        admin.topics().delete(topicName, false);
-    }
+    // Cleanup.
+    consumer.close();
+    admin.topics().delete(topicName, false);
+  }
 }

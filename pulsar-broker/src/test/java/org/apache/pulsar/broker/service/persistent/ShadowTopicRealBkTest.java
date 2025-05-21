@@ -41,70 +41,91 @@ import org.testng.annotations.Test;
 
 public class ShadowTopicRealBkTest {
 
-    private static final String cluster = "test";
-    private final int zkPort = PortManager.nextLockedFreePort();
-    private final LocalBookkeeperEnsemble bk = new LocalBookkeeperEnsemble(2, zkPort, PortManager::nextLockedFreePort);
-    private PulsarService pulsar;
-    private PulsarAdmin admin;
+  private static final String cluster = "test";
+  private final int zkPort = PortManager.nextLockedFreePort();
+  private final LocalBookkeeperEnsemble bk =
+      new LocalBookkeeperEnsemble(2, zkPort, PortManager::nextLockedFreePort);
+  private PulsarService pulsar;
+  private PulsarAdmin admin;
 
-    @BeforeClass
-    public void setup() throws Exception {
-        bk.start();
-        final var config = new ServiceConfiguration();
-        config.setClusterName(cluster);
-        config.setAdvertisedAddress("localhost");
-        config.setBrokerServicePort(Optional.of(0));
-        config.setWebServicePort(Optional.of(0));
-        config.setMetadataStoreUrl("zk:localhost:" + zkPort);
-        pulsar = new PulsarService(config);
-        pulsar.start();
-        admin = pulsar.getAdminClient();
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress())
-                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
-        admin.tenants().createTenant("public", TenantInfo.builder().allowedClusters(Set.of(cluster)).build());
-        admin.namespaces().createNamespace("public/default");
+  @BeforeClass
+  public void setup() throws Exception {
+    bk.start();
+    final var config = new ServiceConfiguration();
+    config.setClusterName(cluster);
+    config.setAdvertisedAddress("localhost");
+    config.setBrokerServicePort(Optional.of(0));
+    config.setWebServicePort(Optional.of(0));
+    config.setMetadataStoreUrl("zk:localhost:" + zkPort);
+    pulsar = new PulsarService(config);
+    pulsar.start();
+    admin = pulsar.getAdminClient();
+    admin
+        .clusters()
+        .createCluster(
+            "test",
+            ClusterData.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl())
+                .build());
+    admin
+        .tenants()
+        .createTenant("public", TenantInfo.builder().allowedClusters(Set.of(cluster)).build());
+    admin.namespaces().createNamespace("public/default");
+  }
+
+  @AfterClass(alwaysRun = true)
+  public void cleanup() throws Exception {
+    if (pulsar != null) {
+      pulsar.close();
     }
+    bk.stop();
+  }
 
-    @AfterClass(alwaysRun = true)
-    public void cleanup() throws Exception {
-        if (pulsar != null) {
-            pulsar.close();
-        }
-        bk.stop();
-    }
+  @Test
+  public void testReadFromStorage() throws Exception {
+    final var sourceTopic = TopicName.get("test-read-from-source" + UUID.randomUUID()).toString();
+    final var shadowTopic = sourceTopic + "-shadow";
 
-    @Test
-    public void testReadFromStorage() throws Exception {
-        final var sourceTopic = TopicName.get("test-read-from-source" + UUID.randomUUID()).toString();
-        final var shadowTopic = sourceTopic + "-shadow";
+    admin.topics().createNonPartitionedTopic(sourceTopic);
+    admin.topics().createShadowTopic(shadowTopic, sourceTopic);
+    admin.topics().setShadowTopics(sourceTopic, Lists.newArrayList(shadowTopic));
 
-        admin.topics().createNonPartitionedTopic(sourceTopic);
-        admin.topics().createShadowTopic(shadowTopic, sourceTopic);
-        admin.topics().setShadowTopics(sourceTopic, Lists.newArrayList(shadowTopic));
+    Awaitility.await()
+        .atMost(5, TimeUnit.SECONDS)
+        .untilAsserted(
+            () -> {
+              final var sourcePersistentTopic =
+                  (PersistentTopic)
+                      pulsar.getBrokerService().getTopicIfExists(sourceTopic).get().orElseThrow();
+              final var replicator =
+                  (ShadowReplicator) sourcePersistentTopic.getShadowReplicators().get(shadowTopic);
+              Assert.assertNotNull(replicator);
+              Assert.assertEquals(String.valueOf(replicator.getState()), "Started");
+            });
 
-        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(()->{
-            final var sourcePersistentTopic = (PersistentTopic) pulsar.getBrokerService()
-                    .getTopicIfExists(sourceTopic).get().orElseThrow();
-            final var replicator = (ShadowReplicator) sourcePersistentTopic.getShadowReplicators().get(shadowTopic);
-            Assert.assertNotNull(replicator);
-            Assert.assertEquals(String.valueOf(replicator.getState()), "Started");
-        });
+    final var client = pulsar.getClient();
+    // When the message was sent, there is no cursor, so it will read from the cache
+    final var producer = client.newProducer().topic(sourceTopic).create();
+    producer.send("message".getBytes());
+    // 1. Verify RangeEntryCacheImpl#readFromStorage
+    final var consumer =
+        client
+            .newConsumer()
+            .topic(shadowTopic)
+            .subscriptionName("sub")
+            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+            .subscribe();
+    final var msg = consumer.receive(5, TimeUnit.SECONDS);
+    Assert.assertNotNull(msg);
+    Assert.assertEquals(msg.getValue(), "message".getBytes());
 
-        final var client = pulsar.getClient();
-        // When the message was sent, there is no cursor, so it will read from the cache
-        final var producer = client.newProducer().topic(sourceTopic).create();
-        producer.send("message".getBytes());
-        // 1. Verify RangeEntryCacheImpl#readFromStorage
-        final var consumer = client.newConsumer().topic(shadowTopic).subscriptionName("sub")
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe();
-        final var msg = consumer.receive(5, TimeUnit.SECONDS);
-        Assert.assertNotNull(msg);
-        Assert.assertEquals(msg.getValue(), "message".getBytes());
-
-        // 2. Verify EntryCache#asyncReadEntry
-        final var shadowManagedLedger = ((PersistentTopic) pulsar.getBrokerService().getTopicIfExists(shadowTopic).get()
-                .orElseThrow()).getManagedLedger();
-        Assert.assertTrue(shadowManagedLedger instanceof ShadowManagedLedgerImpl);
-        shadowManagedLedger.getEarliestMessagePublishTimeInBacklog().get(3, TimeUnit.SECONDS);
-    }
+    // 2. Verify EntryCache#asyncReadEntry
+    final var shadowManagedLedger =
+        ((PersistentTopic)
+                pulsar.getBrokerService().getTopicIfExists(shadowTopic).get().orElseThrow())
+            .getManagedLedger();
+    Assert.assertTrue(shadowManagedLedger instanceof ShadowManagedLedgerImpl);
+    shadowManagedLedger.getEarliestMessagePublishTimeInBacklog().get(3, TimeUnit.SECONDS);
+  }
 }

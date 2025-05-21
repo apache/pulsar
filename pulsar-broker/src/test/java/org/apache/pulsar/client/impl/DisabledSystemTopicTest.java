@@ -29,33 +29,33 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class DisabledSystemTopicTest extends ProducerConsumerBase {
 
-    @Override
-    @BeforeMethod
-    public void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
+  @Override
+  @BeforeMethod
+  public void setup() throws Exception {
+    super.internalSetup();
+    super.producerBaseSetup();
+  }
 
-    @Override
-    @AfterMethod(alwaysRun = true)
-    public void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @Override
+  @AfterMethod(alwaysRun = true)
+  public void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    protected void doInitConf() throws Exception {
-        super.doInitConf();
-        conf.setTransactionCoordinatorEnabled(false);
-        conf.setSystemTopicEnabled(false);
-    }
+  protected void doInitConf() throws Exception {
+    super.doInitConf();
+    conf.setTransactionCoordinatorEnabled(false);
+    conf.setSystemTopicEnabled(false);
+  }
 
-    @Test
-    public void testDeleteTopic() throws Exception {
-        String topicName = "persistent://my-property/my-ns/tp_" + UUID.randomUUID().toString();
+  @Test
+  public void testDeleteTopic() throws Exception {
+    String topicName = "persistent://my-property/my-ns/tp_" + UUID.randomUUID().toString();
 
-        admin.topics().createNonPartitionedTopic(topicName);
-        admin.topics().delete(topicName, false);
+    admin.topics().createNonPartitionedTopic(topicName);
+    admin.topics().delete(topicName, false);
 
-        admin.topics().createPartitionedTopic(topicName, 3);
-        admin.topics().deletePartitionedTopic(topicName);
-    }
+    admin.topics().createPartitionedTopic(topicName, 3);
+    admin.topics().deletePartitionedTopic(topicName);
+  }
 }

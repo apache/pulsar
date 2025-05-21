@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+
 import io.netty.buffer.ByteBufAllocator;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
@@ -43,73 +44,81 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-impl")
 public class ProducerMemoryLimitTest extends ProducerConsumerBase {
 
-    @Override
-    @BeforeMethod
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
+  @Override
+  @BeforeMethod
+  protected void setup() throws Exception {
+    super.internalSetup();
+    super.producerBaseSetup();
+  }
 
-    @Override
-    @AfterMethod(alwaysRun = true)
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @Override
+  @AfterMethod(alwaysRun = true)
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @Test(timeOut = 10_000)
-    public void testProducerInvalidMessageMemoryRelease() throws Exception {
-        initClientWithMemoryLimit();
-        @Cleanup
-        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+  @Test(timeOut = 10_000)
+  public void testProducerInvalidMessageMemoryRelease() throws Exception {
+    initClientWithMemoryLimit();
+    @Cleanup
+    ProducerImpl<byte[]> producer =
+        (ProducerImpl<byte[]>)
+            pulsarClient
+                .newProducer()
                 .topic("testProducerMemoryLimit")
                 .sendTimeout(5, TimeUnit.SECONDS)
                 .batchingMaxPublishDelay(100, TimeUnit.MILLISECONDS)
                 .batchingMaxBytes(10240)
                 .enableBatching(true)
                 .create();
-        this.stopBroker();
-        try {
-            ConnectionHandler connectionHandler = Mockito.spy(producer.getConnectionHandler());
-            Field field = producer.getClass().getDeclaredField("connectionHandler");
-            field.setAccessible(true);
-            field.set(producer, connectionHandler);
-            when(connectionHandler.getMaxMessageSize()).thenReturn(8);
-            producer.send("memory-test".getBytes(StandardCharsets.UTF_8));
-            throw new IllegalStateException("can not reach here");
-        } catch (PulsarClientException.InvalidMessageException ex) {
-            PulsarClientImpl clientImpl = (PulsarClientImpl) this.pulsarClient;
-            final MemoryLimitController memoryLimitController = clientImpl.getMemoryLimitController();
-            Assert.assertEquals(memoryLimitController.currentUsage(), 0);
-        }
+    this.stopBroker();
+    try {
+      ConnectionHandler connectionHandler = Mockito.spy(producer.getConnectionHandler());
+      Field field = producer.getClass().getDeclaredField("connectionHandler");
+      field.setAccessible(true);
+      field.set(producer, connectionHandler);
+      when(connectionHandler.getMaxMessageSize()).thenReturn(8);
+      producer.send("memory-test".getBytes(StandardCharsets.UTF_8));
+      throw new IllegalStateException("can not reach here");
+    } catch (PulsarClientException.InvalidMessageException ex) {
+      PulsarClientImpl clientImpl = (PulsarClientImpl) this.pulsarClient;
+      final MemoryLimitController memoryLimitController = clientImpl.getMemoryLimitController();
+      Assert.assertEquals(memoryLimitController.currentUsage(), 0);
     }
+  }
 
-    @Test(timeOut = 10_000)
-    public void testProducerTimeoutMemoryRelease() throws Exception {
-        initClientWithMemoryLimit();
-        @Cleanup
-        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+  @Test(timeOut = 10_000)
+  public void testProducerTimeoutMemoryRelease() throws Exception {
+    initClientWithMemoryLimit();
+    @Cleanup
+    ProducerImpl<byte[]> producer =
+        (ProducerImpl<byte[]>)
+            pulsarClient
+                .newProducer()
                 .topic("testProducerMemoryLimit")
                 .sendTimeout(5, TimeUnit.SECONDS)
                 .maxPendingMessages(0)
                 .enableBatching(false)
                 .create();
-        this.stopBroker();
-        try {
-            producer.send("memory-test".getBytes(StandardCharsets.UTF_8));
-            throw new IllegalStateException("can not reach here");
-        } catch (PulsarClientException.TimeoutException ex) {
-            PulsarClientImpl clientImpl = (PulsarClientImpl) this.pulsarClient;
-            final MemoryLimitController memoryLimitController = clientImpl.getMemoryLimitController();
-            Assert.assertEquals(memoryLimitController.currentUsage(), 0);
-        }
-
+    this.stopBroker();
+    try {
+      producer.send("memory-test".getBytes(StandardCharsets.UTF_8));
+      throw new IllegalStateException("can not reach here");
+    } catch (PulsarClientException.TimeoutException ex) {
+      PulsarClientImpl clientImpl = (PulsarClientImpl) this.pulsarClient;
+      final MemoryLimitController memoryLimitController = clientImpl.getMemoryLimitController();
+      Assert.assertEquals(memoryLimitController.currentUsage(), 0);
     }
+  }
 
-    @Test(timeOut = 10_000)
-    public void testProducerBatchSendTimeoutMemoryRelease() throws Exception {
-        initClientWithMemoryLimit();
-        @Cleanup
-        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+  @Test(timeOut = 10_000)
+  public void testProducerBatchSendTimeoutMemoryRelease() throws Exception {
+    initClientWithMemoryLimit();
+    @Cleanup
+    ProducerImpl<byte[]> producer =
+        (ProducerImpl<byte[]>)
+            pulsarClient
+                .newProducer()
                 .topic("testProducerMemoryLimit")
                 .sendTimeout(5, TimeUnit.SECONDS)
                 .maxPendingMessages(0)
@@ -117,28 +126,35 @@ public class ProducerMemoryLimitTest extends ProducerConsumerBase {
                 .batchingMaxPublishDelay(100, TimeUnit.MILLISECONDS)
                 .batchingMaxBytes(12)
                 .create();
-        this.stopBroker();
-        try {
-            producer.newMessage().value("memory-test".getBytes(StandardCharsets.UTF_8)).sendAsync();
-            try {
-                producer.newMessage().value("memory-test".getBytes(StandardCharsets.UTF_8)).sendAsync().get();
-            } catch (Exception e) {
-                throw PulsarClientException.unwrap(e);
-            }
+    this.stopBroker();
+    try {
+      producer.newMessage().value("memory-test".getBytes(StandardCharsets.UTF_8)).sendAsync();
+      try {
+        producer
+            .newMessage()
+            .value("memory-test".getBytes(StandardCharsets.UTF_8))
+            .sendAsync()
+            .get();
+      } catch (Exception e) {
+        throw PulsarClientException.unwrap(e);
+      }
 
-            throw new IllegalStateException("can not reach here");
-        } catch (PulsarClientException.TimeoutException ex) {
-            PulsarClientImpl clientImpl = (PulsarClientImpl) this.pulsarClient;
-            final MemoryLimitController memoryLimitController = clientImpl.getMemoryLimitController();
-            Assert.assertEquals(memoryLimitController.currentUsage(), 0);
-        }
+      throw new IllegalStateException("can not reach here");
+    } catch (PulsarClientException.TimeoutException ex) {
+      PulsarClientImpl clientImpl = (PulsarClientImpl) this.pulsarClient;
+      final MemoryLimitController memoryLimitController = clientImpl.getMemoryLimitController();
+      Assert.assertEquals(memoryLimitController.currentUsage(), 0);
     }
+  }
 
-    @Test(timeOut = 10_000)
-    public void testBatchMessageOOMMemoryRelease() throws Exception {
-        initClientWithMemoryLimit();
-        @Cleanup
-        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+  @Test(timeOut = 10_000)
+  public void testBatchMessageOOMMemoryRelease() throws Exception {
+    initClientWithMemoryLimit();
+    @Cleanup
+    ProducerImpl<byte[]> producer =
+        (ProducerImpl<byte[]>)
+            pulsarClient
+                .newProducer()
                 .topic("testProducerMemoryLimit")
                 .sendTimeout(5, TimeUnit.SECONDS)
                 .maxPendingMessages(0)
@@ -146,62 +162,74 @@ public class ProducerMemoryLimitTest extends ProducerConsumerBase {
                 .batchingMaxPublishDelay(100, TimeUnit.MILLISECONDS)
                 .batchingMaxBytes(12)
                 .create();
-        this.stopBroker();
+    this.stopBroker();
 
-        try {
-            ProducerImpl<byte[]> spyProducer = Mockito.spy(producer);
-            final ByteBufAllocator mockAllocator = mock(ByteBufAllocator.class);
-            doAnswer((ignore) -> {
+    try {
+      ProducerImpl<byte[]> spyProducer = Mockito.spy(producer);
+      final ByteBufAllocator mockAllocator = mock(ByteBufAllocator.class);
+      doAnswer(
+              (ignore) -> {
                 throw new OutOfMemoryError("memory-test");
-            }).when(mockAllocator).buffer(anyInt());
+              })
+          .when(mockAllocator)
+          .buffer(anyInt());
 
-            final BatchMessageContainerImpl batchMessageContainer = new BatchMessageContainerImpl(mockAllocator);
-            /* Without `batchMessageContainer.setProducer(producer);` it throws NPE since producer is null, and
-                eventually sendAsync() catches this NPE and releases the memory and semaphore.
-                } catch (Throwable t) {
-                    completeCallbackAndReleaseSemaphore(uncompressedSize, callback,
-                            new PulsarClientException(t, msg.getSequenceId()));
-                }
-            */
-            batchMessageContainer.setProducer(producer);
-            Field batchMessageContainerField = ProducerImpl.class.getDeclaredField("batchMessageContainer");
-            batchMessageContainerField.setAccessible(true);
-            batchMessageContainerField.set(spyProducer, batchMessageContainer);
+      final BatchMessageContainerImpl batchMessageContainer =
+          new BatchMessageContainerImpl(mockAllocator);
+      /* Without `batchMessageContainer.setProducer(producer);` it throws NPE since producer is null, and
+          eventually sendAsync() catches this NPE and releases the memory and semaphore.
+          } catch (Throwable t) {
+              completeCallbackAndReleaseSemaphore(uncompressedSize, callback,
+                      new PulsarClientException(t, msg.getSequenceId()));
+          }
+      */
+      batchMessageContainer.setProducer(producer);
+      Field batchMessageContainerField =
+          ProducerImpl.class.getDeclaredField("batchMessageContainer");
+      batchMessageContainerField.setAccessible(true);
+      batchMessageContainerField.set(spyProducer, batchMessageContainer);
 
-            spyProducer.send("memory-test".getBytes(StandardCharsets.UTF_8));
-            Assert.fail("can not reach here");
+      spyProducer.send("memory-test".getBytes(StandardCharsets.UTF_8));
+      Assert.fail("can not reach here");
     } catch (PulsarClientException ex) {
-        PulsarClientImpl clientImpl = (PulsarClientImpl) this.pulsarClient;
-        final MemoryLimitController memoryLimitController = clientImpl.getMemoryLimitController();
-        Assert.assertEquals(memoryLimitController.currentUsage(), 0);
+      PulsarClientImpl clientImpl = (PulsarClientImpl) this.pulsarClient;
+      final MemoryLimitController memoryLimitController = clientImpl.getMemoryLimitController();
+      Assert.assertEquals(memoryLimitController.currentUsage(), 0);
     }
-    }
+  }
 
-    @Test(timeOut = 10_000)
-    public void testProducerCloseMemoryRelease() throws Exception {
-        initClientWithMemoryLimit();
-        @Cleanup
-        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+  @Test(timeOut = 10_000)
+  public void testProducerCloseMemoryRelease() throws Exception {
+    initClientWithMemoryLimit();
+    @Cleanup
+    ProducerImpl<byte[]> producer =
+        (ProducerImpl<byte[]>)
+            pulsarClient
+                .newProducer()
                 .topic("testProducerMemoryLimit")
                 .sendTimeout(5, TimeUnit.SECONDS)
                 .maxPendingMessages(0)
                 .enableBatching(false)
                 .create();
-        this.stopBroker();
-        producer.sendAsync("memory-test".getBytes(StandardCharsets.UTF_8));
-        producer.close();
-        PulsarClientImpl clientImpl = (PulsarClientImpl) this.pulsarClient;
-        final MemoryLimitController memoryLimitController = clientImpl.getMemoryLimitController();
-        Assert.assertEquals(memoryLimitController.currentUsage(), 0);
-    }
+    this.stopBroker();
+    producer.sendAsync("memory-test".getBytes(StandardCharsets.UTF_8));
+    producer.close();
+    PulsarClientImpl clientImpl = (PulsarClientImpl) this.pulsarClient;
+    final MemoryLimitController memoryLimitController = clientImpl.getMemoryLimitController();
+    Assert.assertEquals(memoryLimitController.currentUsage(), 0);
+  }
 
-    @Test(timeOut = 10_000)
-    public void testProducerBlockReserveMemory() throws Exception {
-        replacePulsarClient(PulsarClient.builder().
-                serviceUrl(lookupUrl.toString())
-                .memoryLimit(1, SizeUnit.KILO_BYTES));
-        @Cleanup
-        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+  @Test(timeOut = 10_000)
+  public void testProducerBlockReserveMemory() throws Exception {
+    replacePulsarClient(
+        PulsarClient.builder()
+            .serviceUrl(lookupUrl.toString())
+            .memoryLimit(1, SizeUnit.KILO_BYTES));
+    @Cleanup
+    ProducerImpl<byte[]> producer =
+        (ProducerImpl<byte[]>)
+            pulsarClient
+                .newProducer()
                 .topic("testProducerMemoryLimit")
                 .sendTimeout(5, TimeUnit.SECONDS)
                 .compressionType(CompressionType.SNAPPY)
@@ -213,26 +241,29 @@ public class ProducerMemoryLimitTest extends ProducerConsumerBase {
                 .batchingMaxBytes(65536)
                 .batchingMaxPublishDelay(100, TimeUnit.MILLISECONDS)
                 .create();
-        int msgCount = 5;
-        CountDownLatch cdl = new CountDownLatch(msgCount);
-        for (int i = 0; i < msgCount; i++) {
-            producer.sendAsync("memory-test".getBytes(StandardCharsets.UTF_8)).whenComplete(((messageId, throwable) -> {
+    int msgCount = 5;
+    CountDownLatch cdl = new CountDownLatch(msgCount);
+    for (int i = 0; i < msgCount; i++) {
+      producer
+          .sendAsync("memory-test".getBytes(StandardCharsets.UTF_8))
+          .whenComplete(
+              ((messageId, throwable) -> {
                 cdl.countDown();
-            }));
-        }
-
-        cdl.await();
-
-        producer.close();
-        PulsarClientImpl clientImpl = (PulsarClientImpl) this.pulsarClient;
-        final MemoryLimitController memoryLimitController = clientImpl.getMemoryLimitController();
-        Assert.assertEquals(memoryLimitController.currentUsage(), 0);
+              }));
     }
 
-    private void initClientWithMemoryLimit() throws PulsarClientException {
-        replacePulsarClient(PulsarClient.builder().
-                serviceUrl(lookupUrl.toString())
-                .memoryLimit(50, SizeUnit.KILO_BYTES));
-    }
+    cdl.await();
 
+    producer.close();
+    PulsarClientImpl clientImpl = (PulsarClientImpl) this.pulsarClient;
+    final MemoryLimitController memoryLimitController = clientImpl.getMemoryLimitController();
+    Assert.assertEquals(memoryLimitController.currentUsage(), 0);
+  }
+
+  private void initClientWithMemoryLimit() throws PulsarClientException {
+    replacePulsarClient(
+        PulsarClient.builder()
+            .serviceUrl(lookupUrl.toString())
+            .memoryLimit(50, SizeUnit.KILO_BYTES));
+  }
 }

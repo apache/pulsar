@@ -28,50 +28,63 @@ import org.apache.pulsar.common.policies.data.TopicPolicies;
 
 public class TopicPolicyTestUtils {
 
-    public static TopicPolicies getTopicPolicies(AbstractTopic topic) {
-        final TopicPolicies topicPolicies;
-        try {
-            topicPolicies = getTopicPolicies(topic.brokerService.getPulsar().getTopicPoliciesService(),
-                    TopicName.get(topic.topic));
-        } catch (ExecutionException | InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-        if (topicPolicies == null) {
-            throw new RuntimeException("No topic policies for " + topic);
-        }
-        return topicPolicies;
+  public static TopicPolicies getTopicPolicies(AbstractTopic topic) {
+    final TopicPolicies topicPolicies;
+    try {
+      topicPolicies =
+          getTopicPolicies(
+              topic.brokerService.getPulsar().getTopicPoliciesService(),
+              TopicName.get(topic.topic));
+    } catch (ExecutionException | InterruptedException e) {
+      throw new RuntimeException(e);
     }
+    if (topicPolicies == null) {
+      throw new RuntimeException("No topic policies for " + topic);
+    }
+    return topicPolicies;
+  }
 
-    public static TopicPolicies getTopicPolicies(TopicPoliciesService topicPoliciesService, TopicName topicName)
-            throws ExecutionException, InterruptedException {
-        return topicPoliciesService.getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.LOCAL_ONLY).get()
-                .orElse(null);
-    }
+  public static TopicPolicies getTopicPolicies(
+      TopicPoliciesService topicPoliciesService, TopicName topicName)
+      throws ExecutionException, InterruptedException {
+    return topicPoliciesService
+        .getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.LOCAL_ONLY)
+        .get()
+        .orElse(null);
+  }
 
-    public static TopicPolicies getLocalTopicPolicies(TopicPoliciesService topicPoliciesService, TopicName topicName)
-            throws ExecutionException, InterruptedException {
-        return topicPoliciesService.getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.LOCAL_ONLY).get()
-                .orElse(null);
-    }
+  public static TopicPolicies getLocalTopicPolicies(
+      TopicPoliciesService topicPoliciesService, TopicName topicName)
+      throws ExecutionException, InterruptedException {
+    return topicPoliciesService
+        .getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.LOCAL_ONLY)
+        .get()
+        .orElse(null);
+  }
 
-    public static TopicPolicies getGlobalTopicPolicies(TopicPoliciesService topicPoliciesService, TopicName topicName)
-            throws ExecutionException, InterruptedException {
-        return topicPoliciesService.getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.GLOBAL_ONLY).get()
-                .orElse(null);
-    }
+  public static TopicPolicies getGlobalTopicPolicies(
+      TopicPoliciesService topicPoliciesService, TopicName topicName)
+      throws ExecutionException, InterruptedException {
+    return topicPoliciesService
+        .getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.GLOBAL_ONLY)
+        .get()
+        .orElse(null);
+  }
 
-    public static Optional<TopicPolicies> getTopicPoliciesBypassCache(TopicPoliciesService topicPoliciesService,
-                                                                      TopicName topicName) throws Exception {
-        @Cleanup final var reader = ((SystemTopicBasedTopicPoliciesService) topicPoliciesService)
-                .getNamespaceEventsSystemTopicFactory()
-                .createTopicPoliciesSystemTopicClient(topicName.getNamespaceObject())
-                .newReader();
-        PulsarEvent event = null;
-        while (reader.hasMoreEvents()) {
-            @Cleanup("release")
-            Message<PulsarEvent> message = reader.readNext();
-            event = message.getValue();
-        }
-        return Optional.ofNullable(event).map(e -> e.getTopicPoliciesEvent().getPolicies());
+  public static Optional<TopicPolicies> getTopicPoliciesBypassCache(
+      TopicPoliciesService topicPoliciesService, TopicName topicName) throws Exception {
+    @Cleanup
+    final var reader =
+        ((SystemTopicBasedTopicPoliciesService) topicPoliciesService)
+            .getNamespaceEventsSystemTopicFactory()
+            .createTopicPoliciesSystemTopicClient(topicName.getNamespaceObject())
+            .newReader();
+    PulsarEvent event = null;
+    while (reader.hasMoreEvents()) {
+      @Cleanup("release")
+      Message<PulsarEvent> message = reader.readNext();
+      event = message.getValue();
     }
+    return Optional.ofNullable(event).map(e -> e.getTopicPoliciesEvent().getPolicies());
+  }
 }

@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import io.netty.util.HashedWheelTimer;
+import java.util.UUID;
 import lombok.Cleanup;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.testng.Assert;
@@ -27,42 +28,41 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.util.UUID;
-
 @Test(groups = "broker-api")
 public class ConsumerCleanupTest extends ProducerConsumerBase {
 
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
+  @BeforeClass
+  @Override
+  protected void setup() throws Exception {
+    super.internalSetup();
+    super.producerBaseSetup();
+  }
 
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @AfterClass(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @DataProvider(name = "ackReceiptEnabled")
-    public Object[][] ackReceiptEnabled() {
-        return new Object[][] { { true }, { false } };
-    }
+  @DataProvider(name = "ackReceiptEnabled")
+  public Object[][] ackReceiptEnabled() {
+    return new Object[][] {{true}, {false}};
+  }
 
-    @Test(dataProvider = "ackReceiptEnabled")
-    public void testAllTimerTaskShouldCanceledAfterConsumerClosed(boolean ackReceiptEnabled)
-            throws PulsarClientException, InterruptedException {
-        @Cleanup
-        PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 1);
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic("persistent://public/default/" + UUID.randomUUID().toString())
-                .subscriptionName("test")
-                .isAckReceiptEnabled(ackReceiptEnabled)
-                .subscribe();
-        consumer.close();
-        Thread.sleep(2000);
-        HashedWheelTimer timer = (HashedWheelTimer) ((PulsarClientImpl) pulsarClient).timer();
-        Assert.assertEquals(timer.pendingTimeouts(), 0);
-    }
+  @Test(dataProvider = "ackReceiptEnabled")
+  public void testAllTimerTaskShouldCanceledAfterConsumerClosed(boolean ackReceiptEnabled)
+      throws PulsarClientException, InterruptedException {
+    @Cleanup PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 1);
+    Consumer<byte[]> consumer =
+        pulsarClient
+            .newConsumer()
+            .topic("persistent://public/default/" + UUID.randomUUID().toString())
+            .subscriptionName("test")
+            .isAckReceiptEnabled(ackReceiptEnabled)
+            .subscribe();
+    consumer.close();
+    Thread.sleep(2000);
+    HashedWheelTimer timer = (HashedWheelTimer) ((PulsarClientImpl) pulsarClient).timer();
+    Assert.assertEquals(timer.pendingTimeouts(), 0);
+  }
 }

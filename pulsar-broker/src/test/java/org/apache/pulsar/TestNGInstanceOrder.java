@@ -24,15 +24,18 @@ import org.testng.IMethodInstance;
 import org.testng.IMethodInterceptor;
 import org.testng.ITestContext;
 
-// Sorts the test methods by test object instance hashcode, then priority, then method name. Useful when Factory
+// Sorts the test methods by test object instance hashcode, then priority, then method name. Useful
+// when Factory
 // generated tests interfere with each other.
 public class TestNGInstanceOrder implements IMethodInterceptor {
-    @Override
-    public List<IMethodInstance> intercept(List<IMethodInstance> methods, ITestContext context) {
-        return methods.stream().sorted(Comparator.<IMethodInstance>comparingInt(o -> o.getInstance().hashCode())
-                        .thenComparingInt(o -> o.getMethod().getInterceptedPriority())
-                        .thenComparingInt(o -> o.getMethod().getPriority())
-                        .thenComparing(o -> o.getMethod().getMethodName()))
-                .toList();
-    }
+  @Override
+  public List<IMethodInstance> intercept(List<IMethodInstance> methods, ITestContext context) {
+    return methods.stream()
+        .sorted(
+            Comparator.<IMethodInstance>comparingInt(o -> o.getInstance().hashCode())
+                .thenComparingInt(o -> o.getMethod().getInterceptedPriority())
+                .thenComparingInt(o -> o.getMethod().getPriority())
+                .thenComparing(o -> o.getMethod().getMethodName()))
+        .toList();
+  }
 }

@@ -18,11 +18,9 @@
  */
 package org.apache.pulsar.broker.service.plugin;
 
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.service.Consumer;
@@ -30,41 +28,46 @@ import org.apache.pulsar.common.api.proto.KeyValue;
 
 @Slf4j
 public class EntryFilterTest implements EntryFilter {
-    @Override
-    public FilterResult filterEntry(Entry entry, FilterContext context) {
-        if (context.getMsgMetadata() == null || context.getMsgMetadata().getPropertiesCount() <= 0) {
-            return FilterResult.ACCEPT;
-        }
-        Consumer consumer = context.getConsumer();
-        Map<String, String> metadata = consumer != null ? consumer.getMetadata() : Collections.emptyMap();
-        log.info("filterEntry for {}", metadata);
-        String matchValueAccept = metadata.getOrDefault("matchValueAccept", "ACCEPT");
-        String matchValueReject = metadata.getOrDefault("matchValueReject", "REJECT");
-        String matchValueReschedule = metadata.getOrDefault("matchValueReschedule", "RESCHEDULE");
-        List<KeyValue> list = context.getMsgMetadata().getPropertiesList();
-        String debug =
-                list.stream().filter(kv -> "debug".equalsIgnoreCase(kv.getKey())).findFirst().map(KeyValue::getValue)
-                        .orElse("-");
-        // filter by string
-        for (KeyValue keyValue : list) {
-            if (matchValueAccept.equalsIgnoreCase(keyValue.getKey())) {
-                log.info("metadata {} key {} debug '{}' outcome ACCEPT", metadata, keyValue.getKey(), debug);
-                return FilterResult.ACCEPT;
-            } else if (matchValueReject.equalsIgnoreCase(keyValue.getKey())){
-                log.info("metadata {} key {} debug '{}' outcome REJECT", metadata, keyValue.getKey(), debug);
-                return FilterResult.REJECT;
-            } else if (matchValueReschedule.equalsIgnoreCase(keyValue.getKey())){
-                log.info("metadata {} key {} debug '{}' outcome RESCHEDULE", metadata, keyValue.getKey(), debug);
-                return FilterResult.RESCHEDULE;
-            } else {
-                log.info("metadata {} key {} debug '{}' outcome ??", metadata, keyValue.getKey(), debug);
-            }
-        }
-        return null;
+  @Override
+  public FilterResult filterEntry(Entry entry, FilterContext context) {
+    if (context.getMsgMetadata() == null || context.getMsgMetadata().getPropertiesCount() <= 0) {
+      return FilterResult.ACCEPT;
     }
-
-    @Override
-    public void close() {
-
+    Consumer consumer = context.getConsumer();
+    Map<String, String> metadata =
+        consumer != null ? consumer.getMetadata() : Collections.emptyMap();
+    log.info("filterEntry for {}", metadata);
+    String matchValueAccept = metadata.getOrDefault("matchValueAccept", "ACCEPT");
+    String matchValueReject = metadata.getOrDefault("matchValueReject", "REJECT");
+    String matchValueReschedule = metadata.getOrDefault("matchValueReschedule", "RESCHEDULE");
+    List<KeyValue> list = context.getMsgMetadata().getPropertiesList();
+    String debug =
+        list.stream()
+            .filter(kv -> "debug".equalsIgnoreCase(kv.getKey()))
+            .findFirst()
+            .map(KeyValue::getValue)
+            .orElse("-");
+    // filter by string
+    for (KeyValue keyValue : list) {
+      if (matchValueAccept.equalsIgnoreCase(keyValue.getKey())) {
+        log.info(
+            "metadata {} key {} debug '{}' outcome ACCEPT", metadata, keyValue.getKey(), debug);
+        return FilterResult.ACCEPT;
+      } else if (matchValueReject.equalsIgnoreCase(keyValue.getKey())) {
+        log.info(
+            "metadata {} key {} debug '{}' outcome REJECT", metadata, keyValue.getKey(), debug);
+        return FilterResult.REJECT;
+      } else if (matchValueReschedule.equalsIgnoreCase(keyValue.getKey())) {
+        log.info(
+            "metadata {} key {} debug '{}' outcome RESCHEDULE", metadata, keyValue.getKey(), debug);
+        return FilterResult.RESCHEDULE;
+      } else {
+        log.info("metadata {} key {} debug '{}' outcome ??", metadata, keyValue.getKey(), debug);
+      }
     }
+    return null;
+  }
+
+  @Override
+  public void close() {}
 }

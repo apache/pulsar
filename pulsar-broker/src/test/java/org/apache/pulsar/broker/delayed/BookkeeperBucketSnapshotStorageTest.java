@@ -41,207 +41,228 @@ import org.testng.annotations.Test;
 
 public class BookkeeperBucketSnapshotStorageTest extends MockedPulsarServiceBaseTest {
 
-    private BookkeeperBucketSnapshotStorage bucketSnapshotStorage;
+  private BookkeeperBucketSnapshotStorage bucketSnapshotStorage;
 
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        bucketSnapshotStorage = new BookkeeperBucketSnapshotStorage(pulsar);
-        bucketSnapshotStorage.start();
+  @BeforeClass
+  @Override
+  protected void setup() throws Exception {
+    super.internalSetup();
+    bucketSnapshotStorage = new BookkeeperBucketSnapshotStorage(pulsar);
+    bucketSnapshotStorage.start();
+  }
+
+  @AfterClass
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+    bucketSnapshotStorage.close();
+  }
+
+  private static final String TOPIC_NAME = "topicName";
+  private static final String CURSOR_NAME = "sub";
+
+  @Test
+  public void testCreateSnapshot() throws ExecutionException, InterruptedException {
+    SnapshotMetadata snapshotMetadata = SnapshotMetadata.newBuilder().build();
+    List<SnapshotSegment> bucketSnapshotSegments = new ArrayList<>();
+    CompletableFuture<Long> future =
+        bucketSnapshotStorage.createBucketSnapshot(
+            snapshotMetadata,
+            bucketSnapshotSegments,
+            UUID.randomUUID().toString(),
+            TOPIC_NAME,
+            CURSOR_NAME);
+    Long bucketId = future.get();
+    Assert.assertNotNull(bucketId);
+  }
+
+  @Test
+  public void testGetSnapshot() throws ExecutionException, InterruptedException {
+    SnapshotSegmentMetadata segmentMetadata =
+        SnapshotSegmentMetadata.newBuilder()
+            .setMinScheduleTimestamp(System.currentTimeMillis())
+            .setMaxScheduleTimestamp(System.currentTimeMillis())
+            .putDelayedIndexBitMap(100L, ByteString.copyFrom(new byte[1]))
+            .build();
+
+    SnapshotMetadata snapshotMetadata =
+        SnapshotMetadata.newBuilder().addMetadataList(segmentMetadata).build();
+    List<SnapshotSegment> bucketSnapshotSegments = new ArrayList<>();
+
+    long timeMillis = System.currentTimeMillis();
+    DelayedIndex delayedIndex =
+        new DelayedIndex().setLedgerId(100L).setEntryId(10L).setTimestamp(timeMillis);
+    SnapshotSegment snapshotSegment = new SnapshotSegment();
+    snapshotSegment.addIndexe().copyFrom(delayedIndex);
+    bucketSnapshotSegments.add(snapshotSegment);
+    bucketSnapshotSegments.add(snapshotSegment);
+
+    CompletableFuture<Long> future =
+        bucketSnapshotStorage.createBucketSnapshot(
+            snapshotMetadata,
+            bucketSnapshotSegments,
+            UUID.randomUUID().toString(),
+            TOPIC_NAME,
+            CURSOR_NAME);
+    Long bucketId = future.get();
+    Assert.assertNotNull(bucketId);
+
+    CompletableFuture<List<SnapshotSegment>> bucketSnapshotSegment =
+        bucketSnapshotStorage.getBucketSnapshotSegment(bucketId, 1, 3);
+
+    List<SnapshotSegment> snapshotSegments = bucketSnapshotSegment.get();
+    Assert.assertEquals(2, snapshotSegments.size());
+    for (SnapshotSegment segment : snapshotSegments) {
+      for (DelayedIndex index : segment.getIndexesList()) {
+        Assert.assertEquals(100L, index.getLedgerId());
+        Assert.assertEquals(10L, index.getEntryId());
+        Assert.assertEquals(timeMillis, index.getTimestamp());
+      }
     }
+  }
 
-    @AfterClass
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-        bucketSnapshotStorage.close();
+  @Test
+  public void testGetSnapshotMetadata() throws ExecutionException, InterruptedException {
+    long timeMillis = System.currentTimeMillis();
+
+    Map<Long, ByteString> map = new HashMap<>();
+    map.put(100L, ByteString.copyFrom("test1", StandardCharsets.UTF_8));
+    map.put(200L, ByteString.copyFrom("test2", StandardCharsets.UTF_8));
+
+    SnapshotSegmentMetadata segmentMetadata =
+        SnapshotSegmentMetadata.newBuilder()
+            .setMaxScheduleTimestamp(timeMillis)
+            .setMinScheduleTimestamp(timeMillis)
+            .putAllDelayedIndexBitMap(map)
+            .build();
+
+    SnapshotMetadata snapshotMetadata =
+        SnapshotMetadata.newBuilder().addMetadataList(segmentMetadata).build();
+    List<SnapshotSegment> bucketSnapshotSegments = new ArrayList<>();
+
+    CompletableFuture<Long> future =
+        bucketSnapshotStorage.createBucketSnapshot(
+            snapshotMetadata,
+            bucketSnapshotSegments,
+            UUID.randomUUID().toString(),
+            TOPIC_NAME,
+            CURSOR_NAME);
+    Long bucketId = future.get();
+    Assert.assertNotNull(bucketId);
+
+    SnapshotMetadata bucketSnapshotMetadata =
+        bucketSnapshotStorage.getBucketSnapshotMetadata(bucketId).get();
+
+    SnapshotSegmentMetadata metadata = bucketSnapshotMetadata.getMetadataList(0);
+
+    Assert.assertEquals(timeMillis, metadata.getMaxScheduleTimestamp());
+    Assert.assertEquals("test1", metadata.getDelayedIndexBitMapMap().get(100L).toStringUtf8());
+    Assert.assertEquals("test2", metadata.getDelayedIndexBitMapMap().get(200L).toStringUtf8());
+  }
+
+  @Test
+  public void testDeleteSnapshot() throws ExecutionException, InterruptedException {
+    SnapshotMetadata snapshotMetadata = SnapshotMetadata.newBuilder().build();
+    List<SnapshotSegment> bucketSnapshotSegments = new ArrayList<>();
+    CompletableFuture<Long> future =
+        bucketSnapshotStorage.createBucketSnapshot(
+            snapshotMetadata,
+            bucketSnapshotSegments,
+            UUID.randomUUID().toString(),
+            TOPIC_NAME,
+            CURSOR_NAME);
+    Long bucketId = future.get();
+    Assert.assertNotNull(bucketId);
+
+    bucketSnapshotStorage.deleteBucketSnapshot(bucketId).get();
+
+    try {
+      bucketSnapshotStorage.getBucketSnapshotMetadata(bucketId).get();
+      Assert.fail("Should fail");
+    } catch (Exception e) {
+      Assert.assertTrue(e.getCause().getMessage().contains("No such ledger exists"));
     }
+  }
 
-    private static final String TOPIC_NAME = "topicName";
-    private static final String CURSOR_NAME = "sub";
+  @Test
+  public void testGetBucketSnapshotLength() throws ExecutionException, InterruptedException {
+    SnapshotSegmentMetadata segmentMetadata =
+        SnapshotSegmentMetadata.newBuilder()
+            .setMinScheduleTimestamp(System.currentTimeMillis())
+            .setMaxScheduleTimestamp(System.currentTimeMillis())
+            .putDelayedIndexBitMap(100L, ByteString.copyFrom(new byte[1]))
+            .build();
 
-    @Test
-    public void testCreateSnapshot() throws ExecutionException, InterruptedException {
-        SnapshotMetadata snapshotMetadata = SnapshotMetadata.newBuilder().build();
-        List<SnapshotSegment> bucketSnapshotSegments = new ArrayList<>();
-        CompletableFuture<Long> future =
-                bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata,
-                        bucketSnapshotSegments, UUID.randomUUID().toString(), TOPIC_NAME, CURSOR_NAME);
-        Long bucketId = future.get();
-        Assert.assertNotNull(bucketId);
-    }
+    SnapshotMetadata snapshotMetadata =
+        SnapshotMetadata.newBuilder().addMetadataList(segmentMetadata).build();
+    List<SnapshotSegment> bucketSnapshotSegments = new ArrayList<>();
 
-    @Test
-    public void testGetSnapshot() throws ExecutionException, InterruptedException {
-        SnapshotSegmentMetadata segmentMetadata =
-                SnapshotSegmentMetadata.newBuilder()
-                        .setMinScheduleTimestamp(System.currentTimeMillis())
-                        .setMaxScheduleTimestamp(System.currentTimeMillis())
-                        .putDelayedIndexBitMap(100L, ByteString.copyFrom(new byte[1])).build();
+    long timeMillis = System.currentTimeMillis();
+    DelayedIndex delayedIndex =
+        new DelayedIndex().setLedgerId(100L).setEntryId(10L).setTimestamp(timeMillis);
+    SnapshotSegment snapshotSegment = new SnapshotSegment();
+    snapshotSegment.addIndexe().copyFrom(delayedIndex);
+    bucketSnapshotSegments.add(snapshotSegment);
+    bucketSnapshotSegments.add(snapshotSegment);
 
-        SnapshotMetadata snapshotMetadata =
-                SnapshotMetadata.newBuilder()
-                        .addMetadataList(segmentMetadata)
-                        .build();
-        List<SnapshotSegment> bucketSnapshotSegments = new ArrayList<>();
+    CompletableFuture<Long> future =
+        bucketSnapshotStorage.createBucketSnapshot(
+            snapshotMetadata,
+            bucketSnapshotSegments,
+            UUID.randomUUID().toString(),
+            TOPIC_NAME,
+            CURSOR_NAME);
+    Long bucketId = future.get();
+    Assert.assertNotNull(bucketId);
 
-        long timeMillis = System.currentTimeMillis();
-        DelayedIndex delayedIndex = new DelayedIndex().setLedgerId(100L).setEntryId(10L)
-                        .setTimestamp(timeMillis);
-        SnapshotSegment snapshotSegment = new SnapshotSegment();
-        snapshotSegment.addIndexe().copyFrom(delayedIndex);
-        bucketSnapshotSegments.add(snapshotSegment);
-        bucketSnapshotSegments.add(snapshotSegment);
+    Long bucketSnapshotLength = bucketSnapshotStorage.getBucketSnapshotLength(bucketId).get();
+    System.out.println(bucketSnapshotLength);
+    Assert.assertTrue(bucketSnapshotLength > 0L);
+  }
 
-        CompletableFuture<Long> future =
-                bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata,
-                        bucketSnapshotSegments, UUID.randomUUID().toString(), TOPIC_NAME, CURSOR_NAME);
-        Long bucketId = future.get();
-        Assert.assertNotNull(bucketId);
+  @Test
+  public void testConcurrencyGet() throws ExecutionException, InterruptedException {
+    SnapshotSegmentMetadata segmentMetadata =
+        SnapshotSegmentMetadata.newBuilder()
+            .setMinScheduleTimestamp(System.currentTimeMillis())
+            .setMaxScheduleTimestamp(System.currentTimeMillis())
+            .putDelayedIndexBitMap(100L, ByteString.copyFrom(new byte[1]))
+            .build();
 
-        CompletableFuture<List<SnapshotSegment>> bucketSnapshotSegment =
-                bucketSnapshotStorage.getBucketSnapshotSegment(bucketId, 1, 3);
+    SnapshotMetadata snapshotMetadata =
+        SnapshotMetadata.newBuilder().addMetadataList(segmentMetadata).build();
+    List<SnapshotSegment> bucketSnapshotSegments = new ArrayList<>();
 
-        List<SnapshotSegment> snapshotSegments = bucketSnapshotSegment.get();
-        Assert.assertEquals(2, snapshotSegments.size());
-        for (SnapshotSegment segment : snapshotSegments) {
-            for (DelayedIndex index : segment.getIndexesList()) {
-                Assert.assertEquals(100L, index.getLedgerId());
-                Assert.assertEquals(10L, index.getEntryId());
-                Assert.assertEquals(timeMillis, index.getTimestamp());
-            }
-        }
-    }
+    long timeMillis = System.currentTimeMillis();
+    DelayedIndex delayedIndex =
+        new DelayedIndex().setLedgerId(100L).setEntryId(10L).setTimestamp(timeMillis);
+    SnapshotSegment snapshotSegment = new SnapshotSegment();
+    snapshotSegment.addIndexe().copyFrom(delayedIndex);
+    bucketSnapshotSegments.add(snapshotSegment);
+    bucketSnapshotSegments.add(snapshotSegment);
 
-    @Test
-    public void testGetSnapshotMetadata() throws ExecutionException, InterruptedException {
-        long timeMillis = System.currentTimeMillis();
+    CompletableFuture<Long> future =
+        bucketSnapshotStorage.createBucketSnapshot(
+            snapshotMetadata,
+            bucketSnapshotSegments,
+            UUID.randomUUID().toString(),
+            TOPIC_NAME,
+            CURSOR_NAME);
+    Long bucketId = future.get();
+    Assert.assertNotNull(bucketId);
 
-        Map<Long, ByteString> map = new HashMap<>();
-        map.put(100L, ByteString.copyFrom("test1", StandardCharsets.UTF_8));
-        map.put(200L, ByteString.copyFrom("test2", StandardCharsets.UTF_8));
-
-        SnapshotSegmentMetadata segmentMetadata =
-                SnapshotSegmentMetadata.newBuilder()
-                        .setMaxScheduleTimestamp(timeMillis)
-                        .setMinScheduleTimestamp(timeMillis)
-                        .putAllDelayedIndexBitMap(map).build();
-
-        SnapshotMetadata snapshotMetadata =
-                SnapshotMetadata.newBuilder()
-                        .addMetadataList(segmentMetadata)
-                        .build();
-        List<SnapshotSegment> bucketSnapshotSegments = new ArrayList<>();
-
-        CompletableFuture<Long> future =
-                bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata,
-                        bucketSnapshotSegments, UUID.randomUUID().toString(), TOPIC_NAME, CURSOR_NAME);
-        Long bucketId = future.get();
-        Assert.assertNotNull(bucketId);
-
-        SnapshotMetadata bucketSnapshotMetadata =
-                bucketSnapshotStorage.getBucketSnapshotMetadata(bucketId).get();
-
-        SnapshotSegmentMetadata metadata =
-                bucketSnapshotMetadata.getMetadataList(0);
-
-        Assert.assertEquals(timeMillis, metadata.getMaxScheduleTimestamp());
-        Assert.assertEquals("test1", metadata.getDelayedIndexBitMapMap().get(100L).toStringUtf8());
-        Assert.assertEquals("test2", metadata.getDelayedIndexBitMapMap().get(200L).toStringUtf8());
-    }
-
-    @Test
-    public void testDeleteSnapshot() throws ExecutionException, InterruptedException {
-        SnapshotMetadata snapshotMetadata =
-                SnapshotMetadata.newBuilder().build();
-        List<SnapshotSegment> bucketSnapshotSegments = new ArrayList<>();
-        CompletableFuture<Long> future =
-                bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata,
-                        bucketSnapshotSegments, UUID.randomUUID().toString(), TOPIC_NAME, CURSOR_NAME);
-        Long bucketId = future.get();
-        Assert.assertNotNull(bucketId);
-
-        bucketSnapshotStorage.deleteBucketSnapshot(bucketId).get();
-
-        try {
-            bucketSnapshotStorage.getBucketSnapshotMetadata(bucketId).get();
-            Assert.fail("Should fail");
-        } catch (Exception e) {
-            Assert.assertTrue(e.getCause().getMessage().contains("No such ledger exists"));
-        }
-    }
-
-    @Test
-    public void testGetBucketSnapshotLength() throws ExecutionException, InterruptedException {
-        SnapshotSegmentMetadata segmentMetadata =
-                SnapshotSegmentMetadata.newBuilder()
-                        .setMinScheduleTimestamp(System.currentTimeMillis())
-                        .setMaxScheduleTimestamp(System.currentTimeMillis())
-                        .putDelayedIndexBitMap(100L, ByteString.copyFrom(new byte[1])).build();
-
-        SnapshotMetadata snapshotMetadata =
-                SnapshotMetadata.newBuilder()
-                        .addMetadataList(segmentMetadata)
-                        .build();
-        List<SnapshotSegment> bucketSnapshotSegments = new ArrayList<>();
-
-        long timeMillis = System.currentTimeMillis();
-        DelayedIndex delayedIndex = new DelayedIndex().setLedgerId(100L).setEntryId(10L).setTimestamp(timeMillis);
-        SnapshotSegment snapshotSegment = new SnapshotSegment();
-        snapshotSegment.addIndexe().copyFrom(delayedIndex);
-        bucketSnapshotSegments.add(snapshotSegment);
-        bucketSnapshotSegments.add(snapshotSegment);
-
-        CompletableFuture<Long> future =
-                bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata,
-                        bucketSnapshotSegments, UUID.randomUUID().toString(), TOPIC_NAME, CURSOR_NAME);
-        Long bucketId = future.get();
-        Assert.assertNotNull(bucketId);
-
-        Long bucketSnapshotLength = bucketSnapshotStorage.getBucketSnapshotLength(bucketId).get();
-        System.out.println(bucketSnapshotLength);
-        Assert.assertTrue(bucketSnapshotLength > 0L);
-    }
-
-    @Test
-    public void testConcurrencyGet() throws ExecutionException, InterruptedException {
-        SnapshotSegmentMetadata segmentMetadata =
-                SnapshotSegmentMetadata.newBuilder()
-                        .setMinScheduleTimestamp(System.currentTimeMillis())
-                        .setMaxScheduleTimestamp(System.currentTimeMillis())
-                        .putDelayedIndexBitMap(100L, ByteString.copyFrom(new byte[1])).build();
-
-        SnapshotMetadata snapshotMetadata =
-                SnapshotMetadata.newBuilder()
-                        .addMetadataList(segmentMetadata)
-                        .build();
-        List<SnapshotSegment> bucketSnapshotSegments = new ArrayList<>();
-
-        long timeMillis = System.currentTimeMillis();
-        DelayedIndex delayedIndex = new DelayedIndex().setLedgerId(100L).setEntryId(10L).setTimestamp(timeMillis);
-        SnapshotSegment snapshotSegment = new SnapshotSegment();
-        snapshotSegment.addIndexe().copyFrom(delayedIndex);
-        bucketSnapshotSegments.add(snapshotSegment);
-        bucketSnapshotSegments.add(snapshotSegment);
-
-        CompletableFuture<Long> future =
-                bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata,
-                        bucketSnapshotSegments, UUID.randomUUID().toString(), TOPIC_NAME, CURSOR_NAME);
-        Long bucketId = future.get();
-        Assert.assertNotNull(bucketId);
-
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
-        for (int i = 0; i < 100; i++) {
-            CompletableFuture<Void> future0 = CompletableFuture.runAsync(() -> {
+    List<CompletableFuture<Void>> futures = new ArrayList<>();
+    for (int i = 0; i < 100; i++) {
+      CompletableFuture<Void> future0 =
+          CompletableFuture.runAsync(
+              () -> {
                 List<SnapshotSegment> list =
-                        bucketSnapshotStorage.getBucketSnapshotSegment(bucketId, 1, 3).join();
+                    bucketSnapshotStorage.getBucketSnapshotSegment(bucketId, 1, 3).join();
                 Assert.assertTrue(list.size() > 0);
-            });
-            futures.add(future0);
-        }
-
-        FutureUtil.waitForAll(futures).join();
+              });
+      futures.add(future0);
     }
 
+    FutureUtil.waitForAll(futures).join();
+  }
 }

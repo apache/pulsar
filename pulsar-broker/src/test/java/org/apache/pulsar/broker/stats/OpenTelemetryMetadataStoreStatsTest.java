@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.stats;
 
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.assertj.core.api.Assertions.assertThat;
+
 import io.opentelemetry.api.common.Attributes;
 import java.util.concurrent.ExecutorService;
 import lombok.Cleanup;
@@ -37,58 +38,78 @@ import org.testng.annotations.Test;
 
 public class OpenTelemetryMetadataStoreStatsTest extends BrokerTestBase {
 
-    @BeforeMethod(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        super.baseSetup();
-        setupDefaultTenantAndNamespace();
+  @BeforeMethod(alwaysRun = true)
+  @Override
+  protected void setup() throws Exception {
+    super.baseSetup();
+    setupDefaultTenantAndNamespace();
 
-        // In testing conditions, the metadata store gets initialized before Pulsar does, so the OpenTelemetry SDK is
-        // not yet initialized. Work around this issue by recreating the stats object once we have access to the SDK.
-        var localMetadataStore = (MetadataStore) NonClosingProxyHandler.getDelegate(pulsar.getLocalMetadataStore());
-        var currentStats = (MetadataStoreStats) FieldUtils.readField(localMetadataStore, "metadataStoreStats", true);
-        var localMetadataStoreName = (String) FieldUtils.readField(currentStats, "metadataStoreName", true);
+    // In testing conditions, the metadata store gets initialized before Pulsar does, so the
+    // OpenTelemetry SDK is
+    // not yet initialized. Work around this issue by recreating the stats object once we have
+    // access to the SDK.
+    var localMetadataStore =
+        (MetadataStore) NonClosingProxyHandler.getDelegate(pulsar.getLocalMetadataStore());
+    var currentStats =
+        (MetadataStoreStats) FieldUtils.readField(localMetadataStore, "metadataStoreStats", true);
+    var localMetadataStoreName =
+        (String) FieldUtils.readField(currentStats, "metadataStoreName", true);
 
-        currentStats.close();
-        var newStats = new MetadataStoreStats(
-                localMetadataStoreName, pulsar.getOpenTelemetry().getOpenTelemetryService().getOpenTelemetry());
-        FieldUtils.writeField(localMetadataStore, "metadataStoreStats", newStats, true);
+    currentStats.close();
+    var newStats =
+        new MetadataStoreStats(
+            localMetadataStoreName,
+            pulsar.getOpenTelemetry().getOpenTelemetryService().getOpenTelemetry());
+    FieldUtils.writeField(localMetadataStore, "metadataStoreStats", newStats, true);
 
-        var currentBatchedStats = (BatchMetadataStoreStats) FieldUtils.readField(localMetadataStore, "batchMetadataStoreStats", true);
-        currentBatchedStats.close();
-        var currentExecutor = (ExecutorService) FieldUtils.readField(currentBatchedStats, "executor", true);
-        var newBatchedStats = new BatchMetadataStoreStats(
-                localMetadataStoreName, currentExecutor, pulsar.getOpenTelemetry().getOpenTelemetryService().getOpenTelemetry());
-        FieldUtils.writeField(localMetadataStore, "batchMetadataStoreStats", newBatchedStats, true);
-    }
+    var currentBatchedStats =
+        (BatchMetadataStoreStats)
+            FieldUtils.readField(localMetadataStore, "batchMetadataStoreStats", true);
+    currentBatchedStats.close();
+    var currentExecutor =
+        (ExecutorService) FieldUtils.readField(currentBatchedStats, "executor", true);
+    var newBatchedStats =
+        new BatchMetadataStoreStats(
+            localMetadataStoreName,
+            currentExecutor,
+            pulsar.getOpenTelemetry().getOpenTelemetryService().getOpenTelemetry());
+    FieldUtils.writeField(localMetadataStore, "batchMetadataStoreStats", newBatchedStats, true);
+  }
 
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @AfterMethod(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @Override
-    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
-        super.customizeMainPulsarTestContextBuilder(pulsarTestContextBuilder);
-        pulsarTestContextBuilder.enableOpenTelemetry(true);
-    }
+  @Override
+  protected void customizeMainPulsarTestContextBuilder(
+      PulsarTestContext.Builder pulsarTestContextBuilder) {
+    super.customizeMainPulsarTestContextBuilder(pulsarTestContextBuilder);
+    pulsarTestContextBuilder.enableOpenTelemetry(true);
+  }
 
-    @Test
-    public void testMetadataStoreStats() throws Exception {
-        var topicName = BrokerTestUtil.newUniqueName("persistent://public/default/test-metadata-store-stats");
+  @Test
+  public void testMetadataStoreStats() throws Exception {
+    var topicName =
+        BrokerTestUtil.newUniqueName("persistent://public/default/test-metadata-store-stats");
 
-        @Cleanup
-        var producer = pulsarClient.newProducer().topic(topicName).create();
+    @Cleanup var producer = pulsarClient.newProducer().topic(topicName).create();
 
-        producer.newMessage().value("test".getBytes()).send();
+    producer.newMessage().value("test".getBytes()).send();
 
-        var attributes = Attributes.of(MetadataStoreStats.METADATA_STORE_NAME, "metadata-store");
+    var attributes = Attributes.of(MetadataStoreStats.METADATA_STORE_NAME, "metadata-store");
 
-        var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
-        assertMetricLongSumValue(metrics, MetadataStoreStats.METADATA_STORE_PUT_BYTES_COUNTER_METRIC_NAME,
-                attributes, value -> assertThat(value).isPositive());
-        assertMetricLongSumValue(metrics, BatchMetadataStoreStats.EXECUTOR_QUEUE_SIZE_METRIC_NAME, attributes,
-                value -> assertThat(value).isPositive());
-    }
+    var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+    assertMetricLongSumValue(
+        metrics,
+        MetadataStoreStats.METADATA_STORE_PUT_BYTES_COUNTER_METRIC_NAME,
+        attributes,
+        value -> assertThat(value).isPositive());
+    assertMetricLongSumValue(
+        metrics,
+        BatchMetadataStoreStats.EXECUTOR_QUEUE_SIZE_METRIC_NAME,
+        attributes,
+        value -> assertThat(value).isPositive());
+  }
 }

@@ -34,81 +34,91 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-/**
- * Starts 3 brokers that are in 3 different clusters
- */
+/** Starts 3 brokers that are in 3 different clusters */
 @Test(groups = "broker")
 public class ReplicatorRemoveClusterTest extends ReplicatorTestBase {
 
-    protected String methodName;
+  protected String methodName;
 
-    @BeforeMethod(alwaysRun = true)
-    public void beforeMethod(Method m) throws Exception {
-        methodName = m.getName();
-        admin1.namespaces().removeBacklogQuota("pulsar/ns");
-        admin1.namespaces().removeBacklogQuota("pulsar/ns1");
-        admin1.namespaces().removeBacklogQuota("pulsar/global/ns");
-    }
+  @BeforeMethod(alwaysRun = true)
+  public void beforeMethod(Method m) throws Exception {
+    methodName = m.getName();
+    admin1.namespaces().removeBacklogQuota("pulsar/ns");
+    admin1.namespaces().removeBacklogQuota("pulsar/ns1");
+    admin1.namespaces().removeBacklogQuota("pulsar/global/ns");
+  }
 
-    @Override
-    @BeforeClass(alwaysRun = true, timeOut = 300000)
-    public void setup() throws Exception {
-        super.setup();
-    }
+  @Override
+  @BeforeClass(alwaysRun = true, timeOut = 300000)
+  public void setup() throws Exception {
+    super.setup();
+  }
 
-    @Override
-    @AfterClass(alwaysRun = true, timeOut = 300000)
-    public void cleanup() throws Exception {
-        super.cleanup();
-    }
+  @Override
+  @AfterClass(alwaysRun = true, timeOut = 300000)
+  public void cleanup() throws Exception {
+    super.cleanup();
+  }
 
-    @DataProvider(name = "partitionedTopic")
-    public Object[][] partitionedTopicProvider() {
-        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
-    }
+  @DataProvider(name = "partitionedTopic")
+  public Object[][] partitionedTopicProvider() {
+    return new Object[][] {{Boolean.TRUE}, {Boolean.FALSE}};
+  }
 
+  @Test
+  public void testRemoveClusterFromNamespace() throws Exception {
+    admin1
+        .tenants()
+        .createTenant(
+            "pulsar1",
+            new TenantInfoImpl(
+                Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r2", "r3")));
 
-    @Test
-    public void testRemoveClusterFromNamespace() throws Exception {
-        admin1.tenants().createTenant("pulsar1",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"),
-                        Sets.newHashSet("r1", "r2", "r3")));
+    admin1.namespaces().createNamespace("pulsar1/ns1", Sets.newHashSet("r1", "r2", "r3"));
 
-        admin1.namespaces().createNamespace("pulsar1/ns1", Sets.newHashSet("r1", "r2", "r3"));
+    PulsarClient repClient1 =
+        pulsar1
+            .getBrokerService()
+            .getReplicationClient(
+                "r3",
+                pulsar1
+                    .getBrokerService()
+                    .pulsar()
+                    .getPulsarResources()
+                    .getClusterResources()
+                    .getCluster("r3"));
+    Assert.assertNotNull(repClient1);
+    Assert.assertFalse(repClient1.isClosed());
 
-        PulsarClient repClient1 = pulsar1.getBrokerService().getReplicationClient("r3",
-                pulsar1.getBrokerService().pulsar().getPulsarResources().getClusterResources()
-                .getCluster("r3"));
-        Assert.assertNotNull(repClient1);
-        Assert.assertFalse(repClient1.isClosed());
+    @Cleanup
+    PulsarClient client =
+        PulsarClient.builder()
+            .serviceUrl(url1.toString())
+            .statsInterval(0, TimeUnit.SECONDS)
+            .build();
 
-        @Cleanup
-        PulsarClient client = PulsarClient.builder()
-                .serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
-                .build();
+    final String topicName =
+        "persistent://pulsar1/ns1/testRemoveClusterFromNamespace-" + UUID.randomUUID();
 
-        final String topicName = "persistent://pulsar1/ns1/testRemoveClusterFromNamespace-" + UUID.randomUUID();
+    Producer<byte[]> producer = client.newProducer().topic(topicName).create();
 
-        Producer<byte[]> producer = client.newProducer()
-                .topic(topicName)
-                .create();
+    producer.send("Pulsar".getBytes());
 
-        producer.send("Pulsar".getBytes());
+    producer.close();
+    client.close();
 
-        producer.close();
-        client.close();
+    Replicator replicator =
+        pulsar1.getBrokerService().getTopicReference(topicName).get().getReplicators().get("r3");
 
-        Replicator replicator = pulsar1.getBrokerService().getTopicReference(topicName)
-                .get().getReplicators().get("r3");
+    Awaitility.await().untilAsserted(() -> Assert.assertTrue(replicator.isConnected()));
 
-        Awaitility.await().untilAsserted(() -> Assert.assertTrue(replicator.isConnected()));
+    admin1.clusters().deleteCluster("r3");
 
-        admin1.clusters().deleteCluster("r3");
+    Awaitility.await().untilAsserted(() -> Assert.assertFalse(replicator.isConnected()));
+    Awaitility.await().untilAsserted(() -> Assert.assertTrue(repClient1.isClosed()));
 
-        Awaitility.await().untilAsserted(() -> Assert.assertFalse(replicator.isConnected()));
-        Awaitility.await().untilAsserted(() -> Assert.assertTrue(repClient1.isClosed()));
-
-        Awaitility.await().untilAsserted(() -> Assert.assertNull(
-                pulsar1.getBrokerService().getReplicationClients().get("r3")));
-    }
+    Awaitility.await()
+        .untilAsserted(
+            () -> Assert.assertNull(pulsar1.getBrokerService().getReplicationClients().get("r3")));
+  }
 }

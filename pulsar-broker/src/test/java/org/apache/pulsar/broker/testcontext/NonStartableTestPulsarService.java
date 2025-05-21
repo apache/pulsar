@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.testcontext;
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+
 import io.netty.channel.EventLoopGroup;
 import java.io.IOException;
 import java.util.Collections;
@@ -53,117 +54,136 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 /**
- * This is an internal class used by {@link PulsarTestContext} as the {@link PulsarService} implementation
- * for a "non-startable" PulsarService. Please see {@link PulsarTestContext} for more details.
+ * This is an internal class used by {@link PulsarTestContext} as the {@link PulsarService}
+ * implementation for a "non-startable" PulsarService. Please see {@link PulsarTestContext} for more
+ * details.
  */
 class NonStartableTestPulsarService extends AbstractTestPulsarService {
 
-    private final NamespaceService namespaceService;
+  private final NamespaceService namespaceService;
 
-    public NonStartableTestPulsarService(SpyConfig spyConfig, ServiceConfiguration config,
-                                         MetadataStoreExtended localMetadataStore,
-                                         MetadataStoreExtended configurationMetadataStore,
-                                         CompactionServiceFactory compactionServiceFactory,
-                                         BrokerInterceptor brokerInterceptor,
-                                         BookKeeperClientFactory bookKeeperClientFactory,
-                                         PulsarResources pulsarResources,
-                                         ManagedLedgerStorage managedLedgerClientFactory,
-                                         Function<BrokerService, BrokerService> brokerServiceCustomizer) {
-        super(spyConfig, config, localMetadataStore, configurationMetadataStore, compactionServiceFactory,
-                brokerInterceptor, bookKeeperClientFactory, null);
-        setPulsarResources(pulsarResources);
-        setManagedLedgerStorage(managedLedgerClientFactory);
-        try {
-            setBrokerService(brokerServiceCustomizer.apply(
-                    spyConfig.getBrokerService().spy(TestBrokerService.class, this, getIoEventLoopGroup())));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        setSchemaRegistryService(spyWithClassAndConstructorArgs(DefaultSchemaRegistryService.class));
-        PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
-        ConnectionPool connectionPool = mock(ConnectionPool.class);
-        when(mockClient.getCnxPool()).thenReturn(connectionPool);
-        setClient(mockClient);
-        this.namespaceService = mock(NamespaceService.class);
-        try {
-            startNamespaceService();
-        } catch (PulsarServerException e) {
-            throw new RuntimeException(e);
-        }
-        if (config.isTransactionCoordinatorEnabled()) {
-            try {
-                setTransactionBufferProvider(TransactionBufferProvider
-                        .newProvider(config.getTransactionBufferProviderClassName()));
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-            try {
-                setTransactionPendingAckStoreProvider(TransactionPendingAckStoreProvider
-                        .newProvider(config.getTransactionPendingAckStoreProviderClassName()));
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
+  public NonStartableTestPulsarService(
+      SpyConfig spyConfig,
+      ServiceConfiguration config,
+      MetadataStoreExtended localMetadataStore,
+      MetadataStoreExtended configurationMetadataStore,
+      CompactionServiceFactory compactionServiceFactory,
+      BrokerInterceptor brokerInterceptor,
+      BookKeeperClientFactory bookKeeperClientFactory,
+      PulsarResources pulsarResources,
+      ManagedLedgerStorage managedLedgerClientFactory,
+      Function<BrokerService, BrokerService> brokerServiceCustomizer) {
+    super(
+        spyConfig,
+        config,
+        localMetadataStore,
+        configurationMetadataStore,
+        compactionServiceFactory,
+        brokerInterceptor,
+        bookKeeperClientFactory,
+        null);
+    setPulsarResources(pulsarResources);
+    setManagedLedgerStorage(managedLedgerClientFactory);
+    try {
+      setBrokerService(
+          brokerServiceCustomizer.apply(
+              spyConfig
+                  .getBrokerService()
+                  .spy(TestBrokerService.class, this, getIoEventLoopGroup())));
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+    setSchemaRegistryService(spyWithClassAndConstructorArgs(DefaultSchemaRegistryService.class));
+    PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
+    ConnectionPool connectionPool = mock(ConnectionPool.class);
+    when(mockClient.getCnxPool()).thenReturn(connectionPool);
+    setClient(mockClient);
+    this.namespaceService = mock(NamespaceService.class);
+    try {
+      startNamespaceService();
+    } catch (PulsarServerException e) {
+      throw new RuntimeException(e);
+    }
+    if (config.isTransactionCoordinatorEnabled()) {
+      try {
+        setTransactionBufferProvider(
+            TransactionBufferProvider.newProvider(config.getTransactionBufferProviderClassName()));
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+      try {
+        setTransactionPendingAckStoreProvider(
+            TransactionPendingAckStoreProvider.newProvider(
+                config.getTransactionPendingAckStoreProviderClassName()));
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+  }
+
+  @Override
+  public void start() throws PulsarServerException {
+    throw new UnsupportedOperationException("Cannot start a non-startable TestPulsarService");
+  }
+
+  @Override
+  public Supplier<NamespaceService> getNamespaceServiceProvider() throws PulsarServerException {
+    return () -> namespaceService;
+  }
+
+  @Override
+  public PulsarClientImpl createClientImpl(
+      ClientConfigurationData clientConf,
+      Consumer<PulsarClientImpl.PulsarClientImplBuilder> customizer)
+      throws PulsarClientException {
+    try {
+      return (PulsarClientImpl) getClient();
+    } catch (PulsarServerException e) {
+      throw new PulsarClientException(e);
+    }
+  }
+
+  @Override
+  protected BrokerService newBrokerService(PulsarService pulsar) throws Exception {
+    return getBrokerService();
+  }
+
+  static class TestBrokerService extends BrokerService {
+
+    TestBrokerService(PulsarService pulsar, EventLoopGroup eventLoopGroup) throws Exception {
+      super(pulsar, eventLoopGroup);
     }
 
     @Override
-    public void start() throws PulsarServerException {
-        throw new UnsupportedOperationException("Cannot start a non-startable TestPulsarService");
+    protected CompletableFuture<Map<String, String>> fetchTopicPropertiesAsync(
+        TopicName topicName) {
+      return CompletableFuture.completedFuture(Collections.emptyMap());
+    }
+  }
+
+  static class TestPulsarResources extends PulsarResources {
+
+    private final TopicResources topicResources;
+    private final NamespaceResources namespaceResources;
+
+    public TestPulsarResources(
+        MetadataStore localMetadataStore,
+        MetadataStore configurationMetadataStore,
+        TopicResources topicResources,
+        NamespaceResources namespaceResources) {
+      super(localMetadataStore, configurationMetadataStore);
+      this.topicResources = topicResources;
+      this.namespaceResources = namespaceResources;
     }
 
     @Override
-    public Supplier<NamespaceService> getNamespaceServiceProvider() throws PulsarServerException {
-        return () -> namespaceService;
+    public TopicResources getTopicResources() {
+      return topicResources;
     }
 
     @Override
-    public PulsarClientImpl createClientImpl(ClientConfigurationData clientConf,
-                                             Consumer<PulsarClientImpl.PulsarClientImplBuilder> customizer)
-            throws PulsarClientException {
-        try {
-            return (PulsarClientImpl) getClient();
-        } catch (PulsarServerException e) {
-            throw new PulsarClientException(e);
-        }
+    public NamespaceResources getNamespaceResources() {
+      return namespaceResources;
     }
-
-    @Override
-    protected BrokerService newBrokerService(PulsarService pulsar) throws Exception {
-        return getBrokerService();
-    }
-
-    static class TestBrokerService extends BrokerService {
-
-        TestBrokerService(PulsarService pulsar, EventLoopGroup eventLoopGroup) throws Exception {
-            super(pulsar, eventLoopGroup);
-        }
-
-        @Override
-        protected CompletableFuture<Map<String, String>> fetchTopicPropertiesAsync(TopicName topicName) {
-            return CompletableFuture.completedFuture(Collections.emptyMap());
-        }
-    }
-
-    static class TestPulsarResources extends PulsarResources {
-
-        private final TopicResources topicResources;
-        private final NamespaceResources namespaceResources;
-
-        public TestPulsarResources(MetadataStore localMetadataStore, MetadataStore configurationMetadataStore,
-                                   TopicResources topicResources, NamespaceResources namespaceResources) {
-            super(localMetadataStore, configurationMetadataStore);
-            this.topicResources = topicResources;
-            this.namespaceResources = namespaceResources;
-        }
-
-        @Override
-        public TopicResources getTopicResources() {
-            return topicResources;
-        }
-
-        @Override
-        public NamespaceResources getNamespaceResources() {
-            return namespaceResources;
-        }
-    }
+  }
 }

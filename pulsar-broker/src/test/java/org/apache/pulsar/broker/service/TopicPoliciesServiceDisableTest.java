@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.testng.Assert;
@@ -30,32 +29,34 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class TopicPoliciesServiceDisableTest extends MockedPulsarServiceBaseTest {
 
-    private TopicPoliciesService systemTopicBasedTopicPoliciesService;
+  private TopicPoliciesService systemTopicBasedTopicPoliciesService;
 
-    @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        conf.setTopicLevelPoliciesEnabled(false);
-        super.internalSetup();
-        prepareData();
-    }
+  @BeforeMethod
+  @Override
+  protected void setup() throws Exception {
+    conf.setTopicLevelPoliciesEnabled(false);
+    super.internalSetup();
+    prepareData();
+  }
 
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @AfterMethod(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @Test
-    public void testTopicLevelPoliciesDisabled() {
-        try {
-            systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TopicName.get("test"), new TopicPolicies()).get();
-        } catch (Exception e) {
-            Assert.assertTrue(e.getCause() instanceof UnsupportedOperationException);
-        }
+  @Test
+  public void testTopicLevelPoliciesDisabled() {
+    try {
+      systemTopicBasedTopicPoliciesService
+          .updateTopicPoliciesAsync(TopicName.get("test"), new TopicPolicies())
+          .get();
+    } catch (Exception e) {
+      Assert.assertTrue(e.getCause() instanceof UnsupportedOperationException);
     }
+  }
 
-    private void prepareData() {
-        systemTopicBasedTopicPoliciesService = pulsar.getTopicPoliciesService();
-    }
+  private void prepareData() {
+    systemTopicBasedTopicPoliciesService = pulsar.getTopicPoliciesService();
+  }
 }

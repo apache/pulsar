@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.broker.resourcegroup;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.resource.usage.NetworkUsage;
@@ -31,94 +35,97 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
-
 public class ResourceUsageTransportManagerTest extends MockedPulsarServiceBaseTest {
 
-    private static final int PUBLISH_INTERVAL_SECS = 1;
-    ResourceUsageTopicTransportManager tManager;
+  private static final int PUBLISH_INTERVAL_SECS = 1;
+  ResourceUsageTopicTransportManager tManager;
 
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        prepareData();
-    }
+  @BeforeClass
+  @Override
+  protected void setup() throws Exception {
+    super.internalSetup();
+    prepareData();
+  }
 
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        tManager.close();
-        super.internalCleanup();
-    }
+  @AfterClass(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    tManager.close();
+    super.internalCleanup();
+  }
 
-    @Test
-    public void testNamespaceCreation() throws Exception {
-        TopicName topicName = SystemTopicNames.RESOURCE_USAGE_TOPIC;
+  @Test
+  public void testNamespaceCreation() throws Exception {
+    TopicName topicName = SystemTopicNames.RESOURCE_USAGE_TOPIC;
 
-        assertTrue(admin.tenants().getTenants().contains(topicName.getTenant()));
-        assertTrue(admin.namespaces().getNamespaces(topicName.getTenant()).contains(topicName.getNamespace()));
-    }
-    
-    @Test
-    public void testPublish() throws Exception {
-        ResourceUsage recvdUsage = new ResourceUsage();
-        final String[] recvdBroker = new String[1];
+    assertTrue(admin.tenants().getTenants().contains(topicName.getTenant()));
+    assertTrue(
+        admin.namespaces().getNamespaces(topicName.getTenant()).contains(topicName.getNamespace()));
+  }
 
-        ResourceUsagePublisher p = new ResourceUsagePublisher() {
+  @Test
+  public void testPublish() throws Exception {
+    ResourceUsage recvdUsage = new ResourceUsage();
+    final String[] recvdBroker = new String[1];
 
-            @Override
-            public String getID() {
-                return "resource-group1";
-            }
+    ResourceUsagePublisher p =
+        new ResourceUsagePublisher() {
 
-            @Override
-            public void fillResourceUsage(ResourceUsage resourceUsage) {
+          @Override
+          public String getID() {
+            return "resource-group1";
+          }
 
-                resourceUsage.setOwner(getID());
-                resourceUsage.setPublish().setMessagesPerPeriod(1000).setBytesPerPeriod(10001);
-                resourceUsage.setStorage().setTotalBytes(500003);
+          @Override
+          public void fillResourceUsage(ResourceUsage resourceUsage) {
 
-            }
+            resourceUsage.setOwner(getID());
+            resourceUsage.setPublish().setMessagesPerPeriod(1000).setBytesPerPeriod(10001);
+            resourceUsage.setStorage().setTotalBytes(500003);
+          }
         };
 
-        ResourceUsageConsumer c = new ResourceUsageConsumer() {
-            @Override
-            public String getID() {
-                return "resource-group1";
-            }
+    ResourceUsageConsumer c =
+        new ResourceUsageConsumer() {
+          @Override
+          public String getID() {
+            return "resource-group1";
+          }
 
-            @Override
-            public void acceptResourceUsage(String broker, ResourceUsage resourceUsage) {
+          @Override
+          public void acceptResourceUsage(String broker, ResourceUsage resourceUsage) {
 
-                recvdBroker[0] = broker;
-                recvdUsage.setOwner(resourceUsage.getOwner());
-                NetworkUsage p = recvdUsage.setPublish();
-                p.setBytesPerPeriod(resourceUsage.getPublish().getBytesPerPeriod());
-                p.setMessagesPerPeriod(resourceUsage.getPublish().getMessagesPerPeriod());
+            recvdBroker[0] = broker;
+            recvdUsage.setOwner(resourceUsage.getOwner());
+            NetworkUsage p = recvdUsage.setPublish();
+            p.setBytesPerPeriod(resourceUsage.getPublish().getBytesPerPeriod());
+            p.setMessagesPerPeriod(resourceUsage.getPublish().getMessagesPerPeriod());
 
-                recvdUsage.setStorage().setTotalBytes(resourceUsage.getStorage().getTotalBytes());
-            }
+            recvdUsage.setStorage().setTotalBytes(resourceUsage.getStorage().getTotalBytes());
+          }
         };
 
-        tManager.registerResourceUsagePublisher(p);
-        tManager.registerResourceUsageConsumer(c);
+    tManager.registerResourceUsagePublisher(p);
+    tManager.registerResourceUsageConsumer(c);
 
-        Thread.sleep((PUBLISH_INTERVAL_SECS + 1) * 1000);
+    Thread.sleep((PUBLISH_INTERVAL_SECS + 1) * 1000);
 
-        assertEquals(recvdBroker[0], pulsar.getBrokerServiceUrl());
-        assertNotNull(recvdUsage.getPublish());
-        assertNotNull(recvdUsage.getStorage());
-        assertEquals(recvdUsage.getPublish().getBytesPerPeriod(), 10001);
-        assertEquals(recvdUsage.getStorage().getTotalBytes(), 500003);
-    }
+    assertEquals(recvdBroker[0], pulsar.getBrokerServiceUrl());
+    assertNotNull(recvdUsage.getPublish());
+    assertNotNull(recvdUsage.getStorage());
+    assertEquals(recvdUsage.getPublish().getBytesPerPeriod(), 10001);
+    assertEquals(recvdUsage.getStorage().getTotalBytes(), 500003);
+  }
 
-    private void prepareData() throws PulsarServerException, PulsarAdminException, PulsarClientException {
-        this.conf.setResourceUsageTransportClassName("org.apache.pulsar.broker.resourcegroup.ResourceUsageTopicTransportManager");
-        this.conf.setResourceUsageTransportPublishIntervalInSecs(PUBLISH_INTERVAL_SECS);
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        tManager = new ResourceUsageTopicTransportManager(pulsar);
-    }
+  private void prepareData()
+      throws PulsarServerException, PulsarAdminException, PulsarClientException {
+    this.conf.setResourceUsageTransportClassName(
+        "org.apache.pulsar.broker.resourcegroup.ResourceUsageTopicTransportManager");
+    this.conf.setResourceUsageTransportPublishIntervalInSecs(PUBLISH_INTERVAL_SECS);
+    admin
+        .clusters()
+        .createCluster(
+            "test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+    tManager = new ResourceUsageTopicTransportManager(pulsar);
+  }
 }

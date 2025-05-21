@@ -18,263 +18,273 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+
 import com.google.common.collect.Multimap;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.policies.data.loadbalancer.*;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
 
 @Test(groups = "broker")
 public class UniformLoadShedderTest {
-    private UniformLoadShedder uniformLoadShedder;
+  private UniformLoadShedder uniformLoadShedder;
 
-    private final ServiceConfiguration conf;
+  private final ServiceConfiguration conf;
 
-    public UniformLoadShedderTest() {
-        conf = new ServiceConfiguration();
+  public UniformLoadShedderTest() {
+    conf = new ServiceConfiguration();
+  }
+
+  @BeforeMethod
+  public void setup() {
+    uniformLoadShedder = new UniformLoadShedder();
+  }
+
+  @Test
+  public void testMaxUnloadBundleNumPerShedding() {
+    conf.setMaxUnloadBundleNumPerShedding(2);
+    int numBundles = 20;
+    LoadData loadData = new LoadData();
+
+    LocalBrokerData broker1 = new LocalBrokerData();
+    LocalBrokerData broker2 = new LocalBrokerData();
+
+    String broker2Name = "broker2";
+
+    double brokerThroughput = 0;
+
+    for (int i = 1; i <= numBundles; ++i) {
+      broker1.getBundles().add("bundle-" + i);
+
+      BundleData bundle = new BundleData();
+
+      TimeAverageMessageData timeAverageMessageData = new TimeAverageMessageData();
+
+      double throughput = 1 * 1024 * 1024;
+      timeAverageMessageData.setMsgThroughputIn(throughput);
+      timeAverageMessageData.setMsgThroughputOut(throughput);
+      bundle.setShortTermData(timeAverageMessageData);
+      loadData.getBundleData().put("bundle-" + i, bundle);
+
+      brokerThroughput += throughput;
     }
 
-    @BeforeMethod
-    public void setup() {
-        uniformLoadShedder = new UniformLoadShedder();
+    broker1.setMsgThroughputIn(brokerThroughput);
+    broker1.setMsgThroughputOut(brokerThroughput);
+
+    loadData.getBrokerData().put("broker-1", new BrokerData(broker1));
+    loadData.getBrokerData().put(broker2Name, new BrokerData(broker2));
+
+    Multimap<String, String> bundlesToUnload =
+        uniformLoadShedder.findBundlesForUnloading(loadData, conf);
+    assertEquals(bundlesToUnload.size(), 2);
+  }
+
+  @Test
+  public void testBrokerWithMultipleBundles() {
+    int numBundles = 10;
+    LoadData loadData = new LoadData();
+
+    LocalBrokerData broker1 = new LocalBrokerData();
+    LocalBrokerData broker2 = new LocalBrokerData();
+
+    String broker2Name = "broker2";
+
+    double brokerThroughput = 0;
+
+    for (int i = 1; i <= numBundles; ++i) {
+      broker1.getBundles().add("bundle-" + i);
+
+      BundleData bundle = new BundleData();
+
+      TimeAverageMessageData timeAverageMessageData = new TimeAverageMessageData();
+
+      double throughput = i * 1024 * 1024;
+      timeAverageMessageData.setMsgThroughputIn(throughput);
+      timeAverageMessageData.setMsgThroughputOut(throughput);
+      bundle.setShortTermData(timeAverageMessageData);
+      loadData.getBundleData().put("bundle-" + i, bundle);
+
+      brokerThroughput += throughput;
     }
 
-    @Test
-    public void testMaxUnloadBundleNumPerShedding(){
-        conf.setMaxUnloadBundleNumPerShedding(2);
-        int numBundles = 20;
-        LoadData loadData = new LoadData();
+    broker1.setMsgThroughputIn(brokerThroughput);
+    broker1.setMsgThroughputOut(brokerThroughput);
 
-        LocalBrokerData broker1 = new LocalBrokerData();
-        LocalBrokerData broker2 = new LocalBrokerData();
+    loadData.getBrokerData().put("broker-1", new BrokerData(broker1));
+    loadData.getBrokerData().put(broker2Name, new BrokerData(broker2));
 
-        String broker2Name = "broker2";
+    Multimap<String, String> bundlesToUnload =
+        uniformLoadShedder.findBundlesForUnloading(loadData, conf);
+    assertFalse(bundlesToUnload.isEmpty());
+  }
 
-        double brokerThroughput = 0;
+  @Test
+  public void testOverloadBrokerSelect() {
+    conf.setMaxUnloadBundleNumPerShedding(1);
+    conf.setMaxUnloadPercentage(0.5);
+    int numBrokers = 5;
+    int numBundles = 5;
+    LoadData loadData = new LoadData();
 
-        for (int i = 1; i <= numBundles; ++i) {
-            broker1.getBundles().add("bundle-" + i);
+    LocalBrokerData[] localBrokerDatas =
+        new LocalBrokerData[] {
+          new LocalBrokerData(),
+          new LocalBrokerData(),
+          new LocalBrokerData(),
+          new LocalBrokerData(),
+          new LocalBrokerData()
+        };
 
-            BundleData bundle = new BundleData();
+    String[] brokerNames = new String[] {"broker0", "broker1", "broker2", "broker3", "broker4"};
 
-            TimeAverageMessageData timeAverageMessageData = new TimeAverageMessageData();
+    double[] brokerMsgRates =
+        new double[] {
+          50000, // broker0
+          60000, // broker1
+          70000, // broker2
+          10000, // broker3
+          20000
+        }; // broker4
 
-            double throughput = 1 * 1024 * 1024;
-            timeAverageMessageData.setMsgThroughputIn(throughput);
-            timeAverageMessageData.setMsgThroughputOut(throughput);
-            bundle.setShortTermData(timeAverageMessageData);
-            loadData.getBundleData().put("bundle-" + i, bundle);
+    double[] brokerMsgThroughputs =
+        new double[] {
+          50 * 1024 * 1024, // broker0
+          60 * 1024 * 1024, // broker1
+          70 * 1024 * 1024, // broker2
+          80 * 1024 * 1024, // broker3
+          10 * 1024 * 1024
+        }; // broker4
 
-            brokerThroughput += throughput;
-        }
+    for (int brokerId = 0; brokerId < numBrokers; brokerId++) {
+      double msgRate = brokerMsgRates[brokerId] / numBundles;
+      double throughput = brokerMsgThroughputs[brokerId] / numBundles;
+      for (int i = 0; i < numBundles; ++i) {
+        String bundleName = "broker-" + brokerId + "-bundle-" + i;
+        localBrokerDatas[brokerId].getBundles().add(bundleName);
+        localBrokerDatas[brokerId].setMsgRateIn(brokerMsgRates[brokerId]);
+        localBrokerDatas[brokerId].setMsgThroughputIn(brokerMsgThroughputs[brokerId]);
+        BundleData bundle = new BundleData();
 
-        broker1.setMsgThroughputIn(brokerThroughput);
-        broker1.setMsgThroughputOut(brokerThroughput);
-
-        loadData.getBrokerData().put("broker-1", new BrokerData(broker1));
-        loadData.getBrokerData().put(broker2Name, new BrokerData(broker2));
-
-        Multimap<String, String> bundlesToUnload = uniformLoadShedder.findBundlesForUnloading(loadData, conf);
-        assertEquals(bundlesToUnload.size(),2);
+        TimeAverageMessageData timeAverageMessageData = new TimeAverageMessageData();
+        timeAverageMessageData.setMsgRateIn(msgRate);
+        timeAverageMessageData.setMsgThroughputIn(throughput);
+        bundle.setShortTermData(timeAverageMessageData);
+        loadData.getBundleData().put(bundleName, bundle);
+      }
+      loadData
+          .getBrokerData()
+          .put(brokerNames[brokerId], new BrokerData(localBrokerDatas[brokerId]));
     }
 
-    @Test
-    public void testBrokerWithMultipleBundles() {
-        int numBundles = 10;
-        LoadData loadData = new LoadData();
+    // disable throughput based load shedding, enable rate based load shedding only
+    conf.setLoadBalancerMsgRateDifferenceShedderThreshold(50);
+    conf.setLoadBalancerMsgThroughputMultiplierDifferenceShedderThreshold(0);
 
-        LocalBrokerData broker1 = new LocalBrokerData();
-        LocalBrokerData broker2 = new LocalBrokerData();
+    Multimap<String, String> bundlesToUnload =
+        uniformLoadShedder.findBundlesForUnloading(loadData, conf);
+    assertEquals(bundlesToUnload.size(), 1);
+    assertTrue(bundlesToUnload.containsKey("broker2"));
 
-        String broker2Name = "broker2";
+    // disable rate based load shedding, enable throughput based load shedding only
+    conf.setLoadBalancerMsgRateDifferenceShedderThreshold(0);
+    conf.setLoadBalancerMsgThroughputMultiplierDifferenceShedderThreshold(2);
 
-        double brokerThroughput = 0;
+    bundlesToUnload = uniformLoadShedder.findBundlesForUnloading(loadData, conf);
+    assertEquals(bundlesToUnload.size(), 1);
+    assertTrue(bundlesToUnload.containsKey("broker3"));
 
-        for (int i = 1; i <= numBundles; ++i) {
-            broker1.getBundles().add("bundle-" + i);
+    // enable both rate and throughput based load shedding, but rate based load shedding has higher
+    // priority
+    conf.setLoadBalancerMsgRateDifferenceShedderThreshold(50);
+    conf.setLoadBalancerMsgThroughputMultiplierDifferenceShedderThreshold(2);
 
-            BundleData bundle = new BundleData();
+    bundlesToUnload = uniformLoadShedder.findBundlesForUnloading(loadData, conf);
+    assertEquals(bundlesToUnload.size(), 1);
+    assertTrue(bundlesToUnload.containsKey("broker2"));
+  }
 
-            TimeAverageMessageData timeAverageMessageData = new TimeAverageMessageData();
+  @Test
+  public void testSmallTrafficShedding() {
+    conf.setMinUnloadMessage(0);
+    conf.setMinUnloadMessageThroughput(0);
+    conf.setMaxUnloadPercentage(0.5);
+    conf.setMaxUnloadBundleNumPerShedding(-1);
 
-            double throughput = i * 1024 * 1024;
-            timeAverageMessageData.setMsgThroughputIn(throughput);
-            timeAverageMessageData.setMsgThroughputOut(throughput);
-            bundle.setShortTermData(timeAverageMessageData);
-            loadData.getBundleData().put("bundle-" + i, bundle);
+    // The situation under small msgRate
+    int numBundles = 5;
+    LoadData loadData = new LoadData();
 
-            brokerThroughput += throughput;
-        }
+    LocalBrokerData broker1 = new LocalBrokerData();
+    LocalBrokerData broker2 = new LocalBrokerData();
 
-        broker1.setMsgThroughputIn(brokerThroughput);
-        broker1.setMsgThroughputOut(brokerThroughput);
+    double brokerMsgRateIn = 0;
+    double brokerMsgRateOut = 0;
 
-        loadData.getBrokerData().put("broker-1", new BrokerData(broker1));
-        loadData.getBrokerData().put(broker2Name, new BrokerData(broker2));
+    for (int i = 1; i <= numBundles; ++i) {
+      broker1.getBundles().add("bundle-" + i);
 
-        Multimap<String, String> bundlesToUnload = uniformLoadShedder.findBundlesForUnloading(loadData, conf);
-        assertFalse(bundlesToUnload.isEmpty());
+      BundleData bundle = new BundleData();
+
+      double msgRateIn = 50;
+      double msgRateOut = 50;
+      TimeAverageMessageData timeAverageMessageData = new TimeAverageMessageData();
+      timeAverageMessageData.setMsgRateIn(msgRateIn);
+      timeAverageMessageData.setMsgRateOut(msgRateOut);
+      bundle.setShortTermData(timeAverageMessageData);
+      loadData.getBundleData().put("bundle-" + i, bundle);
+
+      brokerMsgRateIn += msgRateIn;
+      brokerMsgRateOut += msgRateOut;
     }
 
-    @Test
-    public void testOverloadBrokerSelect() {
-        conf.setMaxUnloadBundleNumPerShedding(1);
-        conf.setMaxUnloadPercentage(0.5);
-        int numBrokers = 5;
-        int numBundles = 5;
-        LoadData loadData = new LoadData();
+    broker1.setMsgRateIn(brokerMsgRateIn);
+    broker1.setMsgRateOut(brokerMsgRateOut);
 
-        LocalBrokerData[] localBrokerDatas = new LocalBrokerData[]{
-                new LocalBrokerData(),
-                new LocalBrokerData(),
-                new LocalBrokerData(),
-                new LocalBrokerData(),
-                new LocalBrokerData()};
+    loadData.getBrokerData().put("broker-1", new BrokerData(broker1));
+    loadData.getBrokerData().put("broker-2", new BrokerData(broker2));
 
-        String[] brokerNames = new String[]{"broker0", "broker1", "broker2", "broker3", "broker4"};
+    Multimap<String, String> bundlesToUnload =
+        uniformLoadShedder.findBundlesForUnloading(loadData, conf);
+    assertEquals(bundlesToUnload.size(), 2);
 
-        double[] brokerMsgRates = new double[]{
-                50000, // broker0
-                60000, // broker1
-                70000, // broker2
-                10000, // broker3
-                20000};// broker4
+    // The situation under small throughput
+    loadData = new LoadData();
 
-        double[] brokerMsgThroughputs = new double[]{
-                50 * 1024 * 1024, // broker0
-                60 * 1024 * 1024, // broker1
-                70 * 1024 * 1024, // broker2
-                80 * 1024 * 1024, // broker3
-                10 * 1024 * 1024};// broker4
+    broker1 = new LocalBrokerData();
+    broker2 = new LocalBrokerData();
 
+    double brokerThroughputIn = 0;
+    double brokerThroughputOut = 0;
 
-        for (int brokerId = 0; brokerId < numBrokers; brokerId++) {
-            double msgRate = brokerMsgRates[brokerId] / numBundles;
-            double throughput = brokerMsgThroughputs[brokerId] / numBundles;
-            for (int i = 0; i < numBundles; ++i) {
-                String bundleName = "broker-" + brokerId + "-bundle-" + i;
-                localBrokerDatas[brokerId].getBundles().add(bundleName);
-                localBrokerDatas[brokerId].setMsgRateIn(brokerMsgRates[brokerId]);
-                localBrokerDatas[brokerId].setMsgThroughputIn(brokerMsgThroughputs[brokerId]);
-                BundleData bundle = new BundleData();
+    for (int i = 1; i <= numBundles; ++i) {
+      broker1.getBundles().add("bundle-" + i);
 
-                TimeAverageMessageData timeAverageMessageData = new TimeAverageMessageData();
-                timeAverageMessageData.setMsgRateIn(msgRate);
-                timeAverageMessageData.setMsgThroughputIn(throughput);
-                bundle.setShortTermData(timeAverageMessageData);
-                loadData.getBundleData().put(bundleName, bundle);
-            }
-           loadData.getBrokerData().put(brokerNames[brokerId], new BrokerData(localBrokerDatas[brokerId]));
-        }
+      BundleData bundle = new BundleData();
 
-        // disable throughput based load shedding, enable rate based load shedding only
-        conf.setLoadBalancerMsgRateDifferenceShedderThreshold(50);
-        conf.setLoadBalancerMsgThroughputMultiplierDifferenceShedderThreshold(0);
+      double msgThroughputIn = 1024;
+      double msgThroughputOut = 1024;
+      TimeAverageMessageData timeAverageMessageData = new TimeAverageMessageData();
+      timeAverageMessageData.setMsgThroughputIn(msgThroughputIn);
+      timeAverageMessageData.setMsgThroughputOut(msgThroughputOut);
+      bundle.setShortTermData(timeAverageMessageData);
+      loadData.getBundleData().put("bundle-" + i, bundle);
 
-        Multimap<String, String> bundlesToUnload = uniformLoadShedder.findBundlesForUnloading(loadData, conf);
-        assertEquals(bundlesToUnload.size(), 1);
-        assertTrue(bundlesToUnload.containsKey("broker2"));
-
-
-        // disable rate based load shedding, enable throughput based load shedding only
-        conf.setLoadBalancerMsgRateDifferenceShedderThreshold(0);
-        conf.setLoadBalancerMsgThroughputMultiplierDifferenceShedderThreshold(2);
-
-        bundlesToUnload = uniformLoadShedder.findBundlesForUnloading(loadData, conf);
-        assertEquals(bundlesToUnload.size(), 1);
-        assertTrue(bundlesToUnload.containsKey("broker3"));
-
-        // enable both rate and throughput based load shedding, but rate based load shedding has higher priority
-        conf.setLoadBalancerMsgRateDifferenceShedderThreshold(50);
-        conf.setLoadBalancerMsgThroughputMultiplierDifferenceShedderThreshold(2);
-
-        bundlesToUnload = uniformLoadShedder.findBundlesForUnloading(loadData, conf);
-        assertEquals(bundlesToUnload.size(), 1);
-        assertTrue(bundlesToUnload.containsKey("broker2"));
+      brokerThroughputIn += msgThroughputIn;
+      brokerThroughputOut += msgThroughputOut;
     }
 
-    @Test
-    public void testSmallTrafficShedding(){
-        conf.setMinUnloadMessage(0);
-        conf.setMinUnloadMessageThroughput(0);
-        conf.setMaxUnloadPercentage(0.5);
-        conf.setMaxUnloadBundleNumPerShedding(-1);
+    broker1.setMsgThroughputIn(brokerThroughputIn);
+    broker1.setMsgThroughputOut(brokerThroughputOut);
 
-        // The situation under small msgRate
-        int numBundles = 5;
-        LoadData loadData = new LoadData();
+    loadData.getBrokerData().put("broker-1", new BrokerData(broker1));
+    loadData.getBrokerData().put("broker-2", new BrokerData(broker2));
 
-        LocalBrokerData broker1 = new LocalBrokerData();
-        LocalBrokerData broker2 = new LocalBrokerData();
-
-        double brokerMsgRateIn = 0;
-        double brokerMsgRateOut = 0;
-
-        for (int i = 1; i <= numBundles; ++i) {
-            broker1.getBundles().add("bundle-" + i);
-
-            BundleData bundle = new BundleData();
-
-            double msgRateIn = 50;
-            double msgRateOut = 50;
-            TimeAverageMessageData timeAverageMessageData = new TimeAverageMessageData();
-            timeAverageMessageData.setMsgRateIn(msgRateIn);
-            timeAverageMessageData.setMsgRateOut(msgRateOut);
-            bundle.setShortTermData(timeAverageMessageData);
-            loadData.getBundleData().put("bundle-" + i, bundle);
-
-            brokerMsgRateIn += msgRateIn;
-            brokerMsgRateOut += msgRateOut;
-        }
-
-        broker1.setMsgRateIn(brokerMsgRateIn);
-        broker1.setMsgRateOut(brokerMsgRateOut);
-
-        loadData.getBrokerData().put("broker-1", new BrokerData(broker1));
-        loadData.getBrokerData().put("broker-2", new BrokerData(broker2));
-
-        Multimap<String, String> bundlesToUnload = uniformLoadShedder.findBundlesForUnloading(loadData, conf);
-        assertEquals(bundlesToUnload.size(), 2);
-
-
-        // The situation under small throughput
-        loadData = new LoadData();
-
-        broker1 = new LocalBrokerData();
-        broker2 = new LocalBrokerData();
-
-        double brokerThroughputIn = 0;
-        double brokerThroughputOut = 0;
-
-        for (int i = 1; i <= numBundles; ++i) {
-            broker1.getBundles().add("bundle-" + i);
-
-            BundleData bundle = new BundleData();
-
-            double msgThroughputIn = 1024;
-            double msgThroughputOut = 1024;
-            TimeAverageMessageData timeAverageMessageData = new TimeAverageMessageData();
-            timeAverageMessageData.setMsgThroughputIn(msgThroughputIn);
-            timeAverageMessageData.setMsgThroughputOut(msgThroughputOut);
-            bundle.setShortTermData(timeAverageMessageData);
-            loadData.getBundleData().put("bundle-" + i, bundle);
-
-            brokerThroughputIn += msgThroughputIn;
-            brokerThroughputOut += msgThroughputOut;
-        }
-
-        broker1.setMsgThroughputIn(brokerThroughputIn);
-        broker1.setMsgThroughputOut(brokerThroughputOut);
-
-        loadData.getBrokerData().put("broker-1", new BrokerData(broker1));
-        loadData.getBrokerData().put("broker-2", new BrokerData(broker2));
-
-        bundlesToUnload = uniformLoadShedder.findBundlesForUnloading(loadData, conf);
-        assertEquals(bundlesToUnload.size(), 2);
-    }
-
+    bundlesToUnload = uniformLoadShedder.findBundlesForUnloading(loadData, conf);
+    assertEquals(bundlesToUnload.size(), 2);
+  }
 }

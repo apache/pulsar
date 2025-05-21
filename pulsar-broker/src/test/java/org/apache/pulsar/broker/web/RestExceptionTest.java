@@ -19,43 +19,45 @@
 package org.apache.pulsar.broker.web;
 
 import static org.testng.Assert.assertEquals;
+
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response.Status;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.testng.annotations.Test;
 
-/**
- * Unit test for pulsar functions.
- */
+/** Unit test for pulsar functions. */
 @Test(groups = "broker")
 public class RestExceptionTest {
 
-    @Test
-    public void testRestException() {
-        RestException re = new RestException(Status.TEMPORARY_REDIRECT, "test rest exception");
-        RestException testException = new RestException(re);
+  @Test
+  public void testRestException() {
+    RestException re = new RestException(Status.TEMPORARY_REDIRECT, "test rest exception");
+    RestException testException = new RestException(re);
 
-        assertEquals(Status.TEMPORARY_REDIRECT.getStatusCode(), testException.getResponse().getStatus());
-        assertEquals(re.getResponse().getEntity(), testException.getResponse().getEntity());
-    }
+    assertEquals(
+        Status.TEMPORARY_REDIRECT.getStatusCode(), testException.getResponse().getStatus());
+    assertEquals(re.getResponse().getEntity(), testException.getResponse().getEntity());
+  }
 
-    @Test
-    public void testWebApplicationException() {
-        WebApplicationException wae = new WebApplicationException("test web application exception", Status.TEMPORARY_REDIRECT);
-        RestException testException = new RestException(wae);
+  @Test
+  public void testWebApplicationException() {
+    WebApplicationException wae =
+        new WebApplicationException("test web application exception", Status.TEMPORARY_REDIRECT);
+    RestException testException = new RestException(wae);
 
-        assertEquals(Status.TEMPORARY_REDIRECT.getStatusCode(), testException.getResponse().getStatus());
-        assertEquals(wae.getResponse().getEntity(), testException.getResponse().getEntity());
-    }
+    assertEquals(
+        Status.TEMPORARY_REDIRECT.getStatusCode(), testException.getResponse().getStatus());
+    assertEquals(wae.getResponse().getEntity(), testException.getResponse().getEntity());
+  }
 
-    @Test
-    public void testOtherException() {
-        Exception otherException = new Exception("test other exception");
-        RestException testException = new RestException(otherException);
+  @Test
+  public void testOtherException() {
+    Exception otherException = new Exception("test other exception");
+    RestException testException = new RestException(otherException);
 
-        assertEquals(Status.INTERNAL_SERVER_ERROR.getStatusCode(), testException.getResponse().getStatus());
-        ErrorData errorData = (ErrorData)testException.getResponse().getEntity();
-        assertEquals(RestException.getExceptionData(otherException), errorData.reason);
-    }
-
+    assertEquals(
+        Status.INTERNAL_SERVER_ERROR.getStatusCode(), testException.getResponse().getStatus());
+    ErrorData errorData = (ErrorData) testException.getResponse().getEntity();
+    assertEquals(RestException.getExceptionData(otherException), errorData.reason);
+  }
 }

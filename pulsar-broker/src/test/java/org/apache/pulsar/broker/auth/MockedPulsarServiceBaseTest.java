@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.auth;
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithoutRecordingInvocations;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
+
 import com.google.common.collect.Sets;
 import io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions;
 import java.lang.reflect.Field;
@@ -77,710 +78,727 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.DataProvider;
 
-/**
- * Base class for all tests that need a Pulsar instance without a ZK and BK cluster.
- */
+/** Base class for all tests that need a Pulsar instance without a ZK and BK cluster. */
 public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
-    // All certificate-authority files are copied from the tests/certificate-authority directory and all share the same
-    // root CA.
-    public static String getTlsFileForClient(String name) {
-        return ResourceUtils.getAbsolutePath(String.format("certificate-authority/client-keys/%s.pem", name));
+  // All certificate-authority files are copied from the tests/certificate-authority directory and
+  // all share the same
+  // root CA.
+  public static String getTlsFileForClient(String name) {
+    return ResourceUtils.getAbsolutePath(
+        String.format("certificate-authority/client-keys/%s.pem", name));
+  }
+
+  public static final String CA_CERT_FILE_PATH =
+      ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
+  public static final String BROKER_CERT_FILE_PATH =
+      ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
+  public static final String BROKER_KEY_FILE_PATH =
+      ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
+  public static final String PROXY_CERT_FILE_PATH =
+      ResourceUtils.getAbsolutePath("certificate-authority/server-keys/proxy.cert.pem");
+  public static final String PROXY_KEY_FILE_PATH =
+      ResourceUtils.getAbsolutePath("certificate-authority/server-keys/proxy.key-pk8.pem");
+  public static final String BROKER_KEYSTORE_FILE_PATH =
+      ResourceUtils.getAbsolutePath("certificate-authority/jks/broker.keystore.jks");
+  public static final String BROKER_TRUSTSTORE_FILE_PATH =
+      ResourceUtils.getAbsolutePath("certificate-authority/jks/broker.truststore.jks");
+  public static final String BROKER_TRUSTSTORE_NO_PASSWORD_FILE_PATH =
+      ResourceUtils.getAbsolutePath("certificate-authority/jks/broker.truststore.nopassword.jks");
+  public static final String BROKER_KEYSTORE_PW = "111111";
+  public static final String BROKER_TRUSTSTORE_PW = "111111";
+
+  public static final String CLIENT_KEYSTORE_FILE_PATH =
+      ResourceUtils.getAbsolutePath("certificate-authority/jks/client.keystore.jks");
+  public static final String CLIENT_TRUSTSTORE_FILE_PATH =
+      ResourceUtils.getAbsolutePath("certificate-authority/jks/client.truststore.jks");
+  public static final String CLIENT_TRUSTSTORE_NO_PASSWORD_FILE_PATH =
+      ResourceUtils.getAbsolutePath("certificate-authority/jks/client.truststore.nopassword.jks");
+  public static final String CLIENT_KEYSTORE_PW = "111111";
+  public static final String CLIENT_TRUSTSTORE_PW = "111111";
+
+  public static final String PROXY_KEYSTORE_FILE_PATH =
+      ResourceUtils.getAbsolutePath("certificate-authority/jks/proxy.keystore.jks");
+  public static final String PROXY_KEYSTORE_PW = "111111";
+  public static final String PROXY_AND_CLIENT_TRUSTSTORE_FILE_PATH =
+      ResourceUtils.getAbsolutePath("certificate-authority/jks/proxy-and-client.truststore.jks");
+  public static final String PROXY_AND_CLIENT_TRUSTSTORE_PW = "111111";
+
+  public static final String CLIENT_KEYSTORE_CN = "clientuser";
+  public static final String KEYSTORE_TYPE = "JKS";
+
+  protected final String DUMMY_VALUE = "DUMMY_VALUE";
+  protected final String GLOBAL_DUMMY_VALUE = "GLOBAL_DUMMY_VALUE";
+
+  protected ServiceConfiguration conf;
+  protected PulsarTestContext pulsarTestContext;
+  protected MockZooKeeper mockZooKeeper;
+  protected MockZooKeeper mockZooKeeperGlobal;
+  protected PulsarService pulsar;
+  protected PulsarAdmin admin;
+  protected PulsarClient pulsarClient;
+  protected PortForwarder brokerGateway;
+  protected boolean enableBrokerGateway = false;
+  protected URL brokerUrl;
+  protected URL brokerUrlTls;
+
+  protected URI lookupUrl;
+
+  protected boolean isTcpLookup = false;
+  protected String configClusterName = "test";
+
+  protected boolean enableBrokerInterceptor = false;
+
+  private final List<AutoCloseable> closeables = new ArrayList<>();
+
+  // Set to true in test's constructor to use a real Zookeeper (TestZKServer)
+  protected boolean useTestZookeeper;
+
+  public MockedPulsarServiceBaseTest() {
+    resetConfig();
+  }
+
+  protected void setupWithClusterName(String clusterName) throws Exception {
+    this.conf.setClusterName(clusterName);
+    this.configClusterName = clusterName;
+    this.internalSetup();
+  }
+
+  protected PulsarService getPulsar() {
+    return pulsar;
+  }
+
+  protected final void resetConfig() {
+    this.conf = getDefaultConf();
+  }
+
+  protected final void internalSetup() throws Exception {
+    init();
+    lookupUrl = resolveLookupUrl();
+    if (isTcpLookup && enableBrokerGateway) {
+      // setup port forwarding from the advertised port to the listen port
+      InetSocketAddress gatewayAddress =
+          new InetSocketAddress(lookupUrl.getHost(), lookupUrl.getPort());
+      InetSocketAddress brokerAddress =
+          new InetSocketAddress("127.0.0.1", pulsar.getBrokerListenPort().get());
+      brokerGateway = new PortForwarder(gatewayAddress, brokerAddress);
     }
-    public final static String CA_CERT_FILE_PATH =
-            ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
-    public final static String BROKER_CERT_FILE_PATH =
-            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
-    public final static String BROKER_KEY_FILE_PATH =
-            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
-    public final static String PROXY_CERT_FILE_PATH =
-            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/proxy.cert.pem");
-    public final static String PROXY_KEY_FILE_PATH =
-            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/proxy.key-pk8.pem");
-    public final static String BROKER_KEYSTORE_FILE_PATH =
-            ResourceUtils.getAbsolutePath("certificate-authority/jks/broker.keystore.jks");
-    public final static String BROKER_TRUSTSTORE_FILE_PATH =
-            ResourceUtils.getAbsolutePath("certificate-authority/jks/broker.truststore.jks");
-    public final static String BROKER_TRUSTSTORE_NO_PASSWORD_FILE_PATH =
-            ResourceUtils.getAbsolutePath("certificate-authority/jks/broker.truststore.nopassword.jks");
-    public final static String BROKER_KEYSTORE_PW = "111111";
-    public final static String BROKER_TRUSTSTORE_PW = "111111";
+    pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+  }
 
-    public final static String CLIENT_KEYSTORE_FILE_PATH =
-            ResourceUtils.getAbsolutePath("certificate-authority/jks/client.keystore.jks");
-    public final static String CLIENT_TRUSTSTORE_FILE_PATH =
-            ResourceUtils.getAbsolutePath("certificate-authority/jks/client.truststore.jks");
-    public final static String CLIENT_TRUSTSTORE_NO_PASSWORD_FILE_PATH =
-            ResourceUtils.getAbsolutePath("certificate-authority/jks/client.truststore.nopassword.jks");
-    public final static String CLIENT_KEYSTORE_PW = "111111";
-    public final static String CLIENT_TRUSTSTORE_PW = "111111";
+  private URI resolveLookupUrl() {
+    if (isTcpLookup) {
+      return URI.create(pulsar.getBrokerServiceUrl());
+    } else {
+      return URI.create(brokerUrl != null ? brokerUrl.toString() : brokerUrlTls.toString());
+    }
+  }
 
-    public final static String PROXY_KEYSTORE_FILE_PATH =
-            ResourceUtils.getAbsolutePath("certificate-authority/jks/proxy.keystore.jks");
-    public final static String PROXY_KEYSTORE_PW = "111111";
-    public final static String PROXY_AND_CLIENT_TRUSTSTORE_FILE_PATH =
-            ResourceUtils.getAbsolutePath("certificate-authority/jks/proxy-and-client.truststore.jks");
-    public final static String PROXY_AND_CLIENT_TRUSTSTORE_PW = "111111";
+  protected final void internalSetup(ServiceConfiguration serviceConfiguration) throws Exception {
+    this.conf = serviceConfiguration;
+    internalSetup();
+  }
 
-    public final static String CLIENT_KEYSTORE_CN = "clientuser";
-    public final static String KEYSTORE_TYPE = "JKS";
+  protected PulsarClient newPulsarClient(String url, int intervalInSecs)
+      throws PulsarClientException {
+    ClientBuilder clientBuilder =
+        PulsarClient.builder().serviceUrl(url).statsInterval(intervalInSecs, TimeUnit.SECONDS);
+    customizeNewPulsarClientBuilder(clientBuilder);
+    return createNewPulsarClient(clientBuilder);
+  }
 
-    protected final String DUMMY_VALUE = "DUMMY_VALUE";
-    protected final String GLOBAL_DUMMY_VALUE = "GLOBAL_DUMMY_VALUE";
+  /**
+   * Customize the {@link ClientBuilder} before creating a new {@link PulsarClient} instance.
+   *
+   * @param clientBuilder
+   */
+  protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {}
 
-    protected ServiceConfiguration conf;
-    protected PulsarTestContext pulsarTestContext;
-    protected MockZooKeeper mockZooKeeper;
-    protected MockZooKeeper mockZooKeeperGlobal;
-    protected PulsarService pulsar;
-    protected PulsarAdmin admin;
-    protected PulsarClient pulsarClient;
-    protected PortForwarder brokerGateway;
-    protected boolean enableBrokerGateway =  false;
-    protected URL brokerUrl;
-    protected URL brokerUrlTls;
+  /**
+   * Customize the {@link BrokerService} just after it has been created.
+   *
+   * @param brokerService the {@link BrokerService} instance
+   */
+  protected BrokerService customizeNewBrokerService(BrokerService brokerService) {
+    return brokerService;
+  }
 
-    protected URI lookupUrl;
+  protected PulsarClient createNewPulsarClient(ClientBuilder clientBuilder)
+      throws PulsarClientException {
+    return clientBuilder.build();
+  }
 
-    protected boolean isTcpLookup = false;
-    protected String configClusterName = "test";
+  protected PulsarClient replacePulsarClient(ClientBuilder clientBuilder)
+      throws PulsarClientException {
+    if (pulsarClient != null) {
+      pulsarClient.shutdown();
+    }
+    pulsarClient = createNewPulsarClient(clientBuilder);
+    return pulsarClient;
+  }
 
-    protected boolean enableBrokerInterceptor = false;
+  protected final void internalSetupForStatsTest() throws Exception {
+    init();
+    if (pulsarClient != null) {
+      pulsarClient.shutdown();
+    }
+    pulsarClient = newPulsarClient(resolveLookupUrl().toString(), 1);
+  }
 
-    private final List<AutoCloseable> closeables = new ArrayList<>();
+  protected void doInitConf() throws Exception {
+    this.conf.setBrokerShutdownTimeoutMs(0L);
+    this.conf.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
+    this.conf.setBrokerServicePort(Optional.of(0));
+    this.conf.setAdvertisedAddress("localhost");
+    this.conf.setWebServicePort(Optional.of(0));
+    this.conf.setNumExecutorThreadPoolSize(5);
+    this.conf.setExposeBundlesMetricsInPrometheus(true);
+    // Disable the dispatcher retry backoff in tests by default
+    this.conf.setDispatcherRetryBackoffInitialTimeInMs(0);
+    this.conf.setDispatcherRetryBackoffMaxTimeInMs(0);
+  }
 
-    // Set to true in test's constructor to use a real Zookeeper (TestZKServer)
-    protected boolean useTestZookeeper;
+  protected final void init() throws Exception {
+    incrementSetupNumber();
+    doInitConf();
+    // trying to config the broker internal client
+    if (conf.getWebServicePortTls().isPresent()
+        && conf.getAuthenticationProviders().contains(AuthenticationProviderTls.class.getName())
+        && !conf.isTlsEnabledWithKeyStore()) {
+      // enabled TLS
+      if (conf.getBrokerClientAuthenticationPlugin() == null
+          || conf.getBrokerClientAuthenticationPlugin()
+              .equals(AuthenticationDisabled.class.getName())) {
+        conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
+        conf.setBrokerClientAuthenticationParameters(
+            "tlsCertFile:" + BROKER_CERT_FILE_PATH + ",tlsKeyFile:" + BROKER_KEY_FILE_PATH);
+        conf.setBrokerClientTlsEnabled(true);
+        conf.setBrokerClientTrustCertsFilePath(CA_CERT_FILE_PATH);
+        conf.setBrokerClientCertificateFilePath(BROKER_CERT_FILE_PATH);
+        conf.setBrokerClientKeyFilePath(BROKER_KEY_FILE_PATH);
+      }
+    }
+    startBroker();
+  }
 
-    public MockedPulsarServiceBaseTest() {
-        resetConfig();
+  protected final void internalCleanup() throws Exception {
+    markCurrentSetupNumberCleaned();
+    // if init fails, some of these could be null, and if so would throw
+    // an NPE in shutdown, obscuring the real error
+    closeAdmin();
+    if (pulsarClient != null) {
+      pulsarClient.shutdown();
+      pulsarClient = null;
+    }
+    if (brokerGateway != null) {
+      brokerGateway.close();
+      brokerGateway = null;
+    }
+    if (pulsarTestContext != null) {
+      pulsarTestContext.close();
+      pulsarTestContext = null;
     }
 
-    protected void setupWithClusterName(String clusterName) throws Exception {
-        this.conf.setClusterName(clusterName);
-        this.configClusterName = clusterName;
-        this.internalSetup();
-    }
+    resetConfig();
+    callCloseables(closeables);
+    closeables.clear();
+    onCleanup();
 
-    protected PulsarService getPulsar() {
-        return pulsar;
-    }
+    // clear fields to avoid test runtime memory leak, pulsarTestContext already handles closing of
+    // these instances
+    pulsar = null;
+    mockZooKeeper = null;
+    mockZooKeeperGlobal = null;
+  }
 
-    protected final void resetConfig() {
-        this.conf = getDefaultConf();
+  protected void closeAdmin() {
+    if (admin != null) {
+      admin.close();
+      if (MockUtil.isMock(admin)) {
+        Mockito.reset(admin);
+      }
+      admin = null;
     }
+  }
 
-    protected final void internalSetup() throws Exception {
-        init();
-        lookupUrl = resolveLookupUrl();
-        if (isTcpLookup && enableBrokerGateway) {
-            // setup port forwarding from the advertised port to the listen port
-            InetSocketAddress gatewayAddress = new InetSocketAddress(lookupUrl.getHost(), lookupUrl.getPort());
-            InetSocketAddress brokerAddress = new InetSocketAddress("127.0.0.1", pulsar.getBrokerListenPort().get());
-            brokerGateway = new PortForwarder(gatewayAddress, brokerAddress);
-        }
+  protected void onCleanup() {}
+
+  protected <T extends AutoCloseable> T registerCloseable(T closeable) {
+    closeables.add(closeable);
+    return closeable;
+  }
+
+  private static void callCloseables(List<AutoCloseable> closeables) {
+    for (int i = closeables.size() - 1; i >= 0; i--) {
+      try {
+        closeables.get(i).close();
+      } catch (Exception e) {
+        log.error("Failure in calling close method", e);
+      }
+    }
+  }
+
+  protected abstract void setup() throws Exception;
+
+  protected abstract void cleanup() throws Exception;
+
+  /**
+   * Customize the PulsarService instance before it is started. This can be used to add custom mock
+   * or spy configuration to PulsarService.
+   *
+   * @param pulsar the PulsarService instance
+   * @throws Exception if an error occurs
+   */
+  protected void beforePulsarStart(PulsarService pulsar) throws Exception {
+    // No-op
+  }
+
+  /**
+   * Customize the PulsarService instance after it is started.
+   *
+   * @param pulsar the PulsarService instance
+   * @throws Exception if an error occurs
+   */
+  protected void afterPulsarStart(PulsarService pulsar) throws Exception {
+    // No-op
+  }
+
+  /**
+   * Restarts the test broker.
+   *
+   * @throws Exception if an error occurs
+   */
+  protected void restartBroker() throws Exception {
+    restartBroker(null);
+  }
+
+  protected void restartBroker(Consumer<ServiceConfiguration> configurationChanger)
+      throws Exception {
+    stopBroker();
+    if (configurationChanger != null) {
+      configurationChanger.accept(conf);
+    }
+    startBroker();
+    if (pulsarClient == null) {
+      pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+    }
+  }
+
+  protected void stopBroker() throws Exception {
+    if (pulsar == null) {
+      return;
+    }
+    log.info(
+        "Stopping Pulsar broker. brokerServiceUrl: {} webServiceAddress: {}",
+        pulsar.getBrokerServiceUrl(),
+        pulsar.getWebServiceAddress());
+    pulsar.close();
+    pulsar = null;
+    // Simulate cleanup of ephemeral nodes
+    // mockZooKeeper.delete("/loadbalance/brokers/localhost:" +
+    // pulsar.getConfiguration().getWebServicePort(), -1);
+  }
+
+  protected void startBroker() throws Exception {
+    this.pulsarTestContext = createMainPulsarTestContext(conf);
+    this.mockZooKeeper = pulsarTestContext.getMockZooKeeper();
+    this.mockZooKeeperGlobal = pulsarTestContext.getMockZooKeeperGlobal();
+    this.pulsar = pulsarTestContext.getPulsarService();
+    afterPulsarStart(pulsar);
+
+    brokerUrl =
+        pulsar.getWebServiceAddress() != null ? new URL(pulsar.getWebServiceAddress()) : null;
+    brokerUrlTls =
+        pulsar.getWebServiceAddressTls() != null ? new URL(pulsar.getWebServiceAddressTls()) : null;
+
+    URI newLookupUrl = resolveLookupUrl();
+    if (lookupUrl == null || !newLookupUrl.equals(lookupUrl)) {
+      lookupUrl = newLookupUrl;
+      if (pulsarClient != null) {
+        pulsarClient.shutdown();
         pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+      }
     }
 
-    private URI resolveLookupUrl() {
-        if (isTcpLookup) {
-            return URI.create(pulsar.getBrokerServiceUrl());
-        } else {
-            return URI.create(brokerUrl != null
-                    ? brokerUrl.toString()
-                    : brokerUrlTls.toString());
-        }
+    closeAdmin();
+    PulsarAdminBuilder pulsarAdminBuilder =
+        PulsarAdmin.builder()
+            .serviceHttpUrl(brokerUrl != null ? brokerUrl.toString() : brokerUrlTls.toString());
+    customizeNewPulsarAdminBuilder(pulsarAdminBuilder);
+    admin = spyWithoutRecordingInvocations(pulsarAdminBuilder.build());
+  }
+
+  /**
+   * Customize the PulsarAdminBuilder instance before it is used to create a PulsarAdmin instance.
+   *
+   * @param pulsarAdminBuilder the PulsarAdminBuilder instance
+   */
+  protected void customizeNewPulsarAdminBuilder(PulsarAdminBuilder pulsarAdminBuilder) {}
+
+  /**
+   * Creates the PulsarTestContext instance for the main PulsarService instance.
+   *
+   * @see PulsarTestContext
+   * @param conf the ServiceConfiguration instance to use
+   * @return the PulsarTestContext instance
+   * @throws Exception if an error occurs
+   */
+  protected PulsarTestContext createMainPulsarTestContext(ServiceConfiguration conf)
+      throws Exception {
+    PulsarTestContext.Builder pulsarTestContextBuilder = createPulsarTestContextBuilder(conf);
+    if (pulsarTestContext != null) {
+      pulsarTestContextBuilder.reuseMockBookkeeperAndMetadataStores(pulsarTestContext);
+      pulsarTestContextBuilder.reuseSpyConfig(pulsarTestContext);
+      pulsarTestContextBuilder.chainClosing(pulsarTestContext);
     }
+    customizeMainPulsarTestContextBuilder(pulsarTestContextBuilder);
+    return pulsarTestContextBuilder.build();
+  }
 
-    protected final void internalSetup(ServiceConfiguration serviceConfiguration) throws Exception {
-        this.conf = serviceConfiguration;
-        internalSetup();
-    }
+  /**
+   * Customize the PulsarTestContext.Builder instance used for creating the PulsarTestContext for
+   * the main PulsarService instance.
+   *
+   * @param pulsarTestContextBuilder the PulsarTestContext.Builder instance to customize
+   */
+  protected void customizeMainPulsarTestContextBuilder(
+      PulsarTestContext.Builder pulsarTestContextBuilder) {}
 
-    protected PulsarClient newPulsarClient(String url, int intervalInSecs) throws PulsarClientException {
-        ClientBuilder clientBuilder =
-                PulsarClient.builder()
-                        .serviceUrl(url)
-                        .statsInterval(intervalInSecs, TimeUnit.SECONDS);
-        customizeNewPulsarClientBuilder(clientBuilder);
-        return createNewPulsarClient(clientBuilder);
-    }
-
-    /**
-     * Customize the {@link ClientBuilder} before creating a new {@link PulsarClient} instance.
-     * @param clientBuilder
-     */
-    protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
-
-    }
-
-    /**
-     * Customize the {@link BrokerService} just after it has been created.
-     * @param brokerService the {@link BrokerService} instance
-     */
-    protected BrokerService customizeNewBrokerService(BrokerService brokerService) {
-        return brokerService;
-    }
-
-    protected PulsarClient createNewPulsarClient(ClientBuilder clientBuilder) throws PulsarClientException {
-        return clientBuilder.build();
-    }
-
-    protected PulsarClient replacePulsarClient(ClientBuilder clientBuilder) throws PulsarClientException {
-        if (pulsarClient != null) {
-            pulsarClient.shutdown();
-        }
-        pulsarClient = createNewPulsarClient(clientBuilder);
-        return pulsarClient;
-    }
-
-    protected final void internalSetupForStatsTest() throws Exception {
-        init();
-        if (pulsarClient != null) {
-            pulsarClient.shutdown();
-        }
-        pulsarClient = newPulsarClient(resolveLookupUrl().toString(), 1);
-    }
-
-    protected void doInitConf() throws Exception {
-        this.conf.setBrokerShutdownTimeoutMs(0L);
-        this.conf.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
-        this.conf.setBrokerServicePort(Optional.of(0));
-        this.conf.setAdvertisedAddress("localhost");
-        this.conf.setWebServicePort(Optional.of(0));
-        this.conf.setNumExecutorThreadPoolSize(5);
-        this.conf.setExposeBundlesMetricsInPrometheus(true);
-        // Disable the dispatcher retry backoff in tests by default
-        this.conf.setDispatcherRetryBackoffInitialTimeInMs(0);
-        this.conf.setDispatcherRetryBackoffMaxTimeInMs(0);
-    }
-
-    protected final void init() throws Exception {
-        incrementSetupNumber();
-        doInitConf();
-        // trying to config the broker internal client
-        if (conf.getWebServicePortTls().isPresent()
-            && conf.getAuthenticationProviders().contains(AuthenticationProviderTls.class.getName())
-            && !conf.isTlsEnabledWithKeyStore()) {
-            // enabled TLS
-            if (conf.getBrokerClientAuthenticationPlugin() == null
-                || conf.getBrokerClientAuthenticationPlugin().equals(AuthenticationDisabled.class.getName())) {
-                conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
-                conf.setBrokerClientAuthenticationParameters("tlsCertFile:" + BROKER_CERT_FILE_PATH
-                                                             + ",tlsKeyFile:" + BROKER_KEY_FILE_PATH);
-                conf.setBrokerClientTlsEnabled(true);
-                conf.setBrokerClientTrustCertsFilePath(CA_CERT_FILE_PATH);
-                conf.setBrokerClientCertificateFilePath(BROKER_CERT_FILE_PATH);
-                conf.setBrokerClientKeyFilePath(BROKER_KEY_FILE_PATH);
-            }
-        }
-        startBroker();
-    }
-
-    protected final void internalCleanup() throws Exception {
-        markCurrentSetupNumberCleaned();
-        // if init fails, some of these could be null, and if so would throw
-        // an NPE in shutdown, obscuring the real error
-        closeAdmin();
-        if (pulsarClient != null) {
-            pulsarClient.shutdown();
-            pulsarClient = null;
-        }
-        if (brokerGateway != null) {
-            brokerGateway.close();
-            brokerGateway = null;
-        }
-        if (pulsarTestContext != null) {
-            pulsarTestContext.close();
-            pulsarTestContext = null;
-        }
-
-        resetConfig();
-        callCloseables(closeables);
-        closeables.clear();
-        onCleanup();
-
-        // clear fields to avoid test runtime memory leak, pulsarTestContext already handles closing of these instances
-        pulsar = null;
-        mockZooKeeper = null;
-        mockZooKeeperGlobal = null;
-    }
-
-    protected void closeAdmin() {
-        if (admin != null) {
-            admin.close();
-            if (MockUtil.isMock(admin)) {
-                Mockito.reset(admin);
-            }
-            admin = null;
-        }
-    }
-
-    protected void onCleanup() {
-
-    }
-
-    protected <T extends AutoCloseable> T registerCloseable(T closeable) {
-        closeables.add(closeable);
-        return closeable;
-    }
-
-    private static void callCloseables(List<AutoCloseable> closeables) {
-        for (int i = closeables.size() - 1; i >= 0; i--) {
-            try {
-                closeables.get(i).close();
-            } catch (Exception e) {
-                log.error("Failure in calling close method", e);
-            }
-        }
-    }
-
-    protected abstract void setup() throws Exception;
-
-    protected abstract void cleanup() throws Exception;
-
-    /**
-     * Customize the PulsarService instance before it is started.
-     * This can be used to add custom mock or spy configuration to PulsarService.
-     *
-     * @param pulsar the PulsarService instance
-     * @throws Exception if an error occurs
-     */
-    protected void beforePulsarStart(PulsarService pulsar) throws Exception {
-        // No-op
-    }
-
-    /**
-     * Customize the PulsarService instance after it is started.
-     * @param pulsar the PulsarService instance
-     * @throws Exception if an error occurs
-     */
-     protected void afterPulsarStart(PulsarService pulsar) throws Exception {
-        // No-op
-    }
-
-    /**
-     * Restarts the test broker.
-     *
-     * @throws Exception if an error occurs
-     */
-    protected void restartBroker() throws Exception {
-        restartBroker(null);
-    }
-
-    protected void restartBroker(Consumer<ServiceConfiguration> configurationChanger) throws Exception {
-        stopBroker();
-        if (configurationChanger != null) {
-            configurationChanger.accept(conf);
-        }
-        startBroker();
-        if (pulsarClient == null) {
-            pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
-        }
-    }
-
-    protected void stopBroker() throws Exception {
-        if (pulsar == null) {
-            return;
-        }
-        log.info("Stopping Pulsar broker. brokerServiceUrl: {} webServiceAddress: {}", pulsar.getBrokerServiceUrl(),
-                pulsar.getWebServiceAddress());
-        pulsar.close();
-        pulsar = null;
-        // Simulate cleanup of ephemeral nodes
-        //mockZooKeeper.delete("/loadbalance/brokers/localhost:" + pulsar.getConfiguration().getWebServicePort(), -1);
-    }
-
-    protected void startBroker() throws Exception {
-        this.pulsarTestContext = createMainPulsarTestContext(conf);
-        this.mockZooKeeper = pulsarTestContext.getMockZooKeeper();
-        this.mockZooKeeperGlobal = pulsarTestContext.getMockZooKeeperGlobal();
-        this.pulsar = pulsarTestContext.getPulsarService();
-        afterPulsarStart(pulsar);
-
-        brokerUrl = pulsar.getWebServiceAddress() != null ? new URL(pulsar.getWebServiceAddress()) : null;
-        brokerUrlTls = pulsar.getWebServiceAddressTls() != null ? new URL(pulsar.getWebServiceAddressTls()) : null;
-
-        URI newLookupUrl = resolveLookupUrl();
-        if (lookupUrl == null || !newLookupUrl.equals(lookupUrl)) {
-            lookupUrl = newLookupUrl;
-            if (pulsarClient != null) {
-                pulsarClient.shutdown();
-                pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
-            }
-        }
-
-        closeAdmin();
-        PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(brokerUrl != null
-                ? brokerUrl.toString()
-                : brokerUrlTls.toString());
-        customizeNewPulsarAdminBuilder(pulsarAdminBuilder);
-        admin = spyWithoutRecordingInvocations(pulsarAdminBuilder.build());
-    }
-
-    /**
-     * Customize the PulsarAdminBuilder instance before it is used to create a PulsarAdmin instance.
-     *
-     * @param pulsarAdminBuilder the PulsarAdminBuilder instance
-     */
-    protected void customizeNewPulsarAdminBuilder(PulsarAdminBuilder pulsarAdminBuilder) {
-
-    }
-
-    /**
-     * Creates the PulsarTestContext instance for the main PulsarService instance.
-     *
-     * @see PulsarTestContext
-     * @param conf the ServiceConfiguration instance to use
-     * @return the PulsarTestContext instance
-     * @throws Exception if an error occurs
-     */
-    protected PulsarTestContext createMainPulsarTestContext(ServiceConfiguration conf) throws Exception {
-        PulsarTestContext.Builder pulsarTestContextBuilder = createPulsarTestContextBuilder(conf);
-        if (pulsarTestContext != null) {
-            pulsarTestContextBuilder.reuseMockBookkeeperAndMetadataStores(pulsarTestContext);
-            pulsarTestContextBuilder.reuseSpyConfig(pulsarTestContext);
-            pulsarTestContextBuilder.chainClosing(pulsarTestContext);
-        }
-        customizeMainPulsarTestContextBuilder(pulsarTestContextBuilder);
-        return pulsarTestContextBuilder
-                .build();
-    }
-
-    /**
-     * Customize the PulsarTestContext.Builder instance used for creating the PulsarTestContext
-     * for the main PulsarService instance.
-     *
-     * @param pulsarTestContextBuilder the PulsarTestContext.Builder instance to customize
-     */
-    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
-
-    }
-
-    /**
-     * Creates a PulsarTestContext.Builder instance that is used for the builder of the main PulsarTestContext and also
-     * for the possible additional PulsarTestContext instances.
-     *
-     * When overriding this method, it is recommended to call the super method and then customize the returned builder.
-     *
-     * @param conf the ServiceConfiguration instance to use
-     * @return a PulsarTestContext.Builder instance
-     */
-    protected PulsarTestContext.Builder createPulsarTestContextBuilder(ServiceConfiguration conf) {
-        PulsarTestContext.Builder builder = PulsarTestContext.builder()
-                .spyByDefault()
-                .config(conf)
-                .pulsarServiceCustomizer(pulsarService -> {
-                    try {
-                        beforePulsarStart(pulsarService);
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
+  /**
+   * Creates a PulsarTestContext.Builder instance that is used for the builder of the main
+   * PulsarTestContext and also for the possible additional PulsarTestContext instances.
+   *
+   * <p>When overriding this method, it is recommended to call the super method and then customize
+   * the returned builder.
+   *
+   * @param conf the ServiceConfiguration instance to use
+   * @return a PulsarTestContext.Builder instance
+   */
+  protected PulsarTestContext.Builder createPulsarTestContextBuilder(ServiceConfiguration conf) {
+    PulsarTestContext.Builder builder =
+        PulsarTestContext.builder()
+            .spyByDefault()
+            .config(conf)
+            .pulsarServiceCustomizer(
+                pulsarService -> {
+                  try {
+                    beforePulsarStart(pulsarService);
+                  } catch (Exception e) {
+                    throw new RuntimeException(e);
+                  }
                 })
-                .brokerServiceCustomizer(this::customizeNewBrokerService);
-        configureMetadataStores(builder);
-        return builder;
+            .brokerServiceCustomizer(this::customizeNewBrokerService);
+    configureMetadataStores(builder);
+    return builder;
+  }
+
+  /**
+   * Configures the metadata stores for the PulsarTestContext.Builder instance. Set useTestZookeeper
+   * to true in the test's constructor to use TestZKServer which is a real ZooKeeper implementation.
+   *
+   * @param builder the PulsarTestContext.Builder instance to configure
+   */
+  protected void configureMetadataStores(PulsarTestContext.Builder builder) {
+    if (useTestZookeeper) {
+      builder.withTestZookeeper();
+    } else {
+      builder.withMockZookeeper(true);
+    }
+  }
+
+  protected PulsarTestContext createAdditionalPulsarTestContext(ServiceConfiguration conf)
+      throws Exception {
+    return createAdditionalPulsarTestContext(conf, null);
+  }
+
+  /**
+   * This method can be used in test classes for creating additional PulsarTestContext instances
+   * that share the same mock ZooKeeper and BookKeeper instances as the main PulsarTestContext
+   * instance.
+   *
+   * @param conf the ServiceConfiguration instance to use
+   * @param builderCustomizer a consumer that can be used to customize the builder configuration
+   * @return the PulsarTestContext instance
+   * @throws Exception if an error occurs
+   */
+  protected PulsarTestContext createAdditionalPulsarTestContext(
+      ServiceConfiguration conf, Consumer<PulsarTestContext.Builder> builderCustomizer)
+      throws Exception {
+    var builder =
+        createPulsarTestContextBuilder(conf)
+            .reuseMockBookkeeperAndMetadataStores(pulsarTestContext)
+            .reuseSpyConfig(pulsarTestContext);
+    if (builderCustomizer != null) {
+      builderCustomizer.accept(builder);
+    }
+    return builder.build();
+  }
+
+  protected void waitForZooKeeperWatchers() {
+    try {
+      Thread.sleep(3000);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException(e);
+    }
+  }
+
+  protected TenantInfoImpl createDefaultTenantInfo() throws PulsarAdminException {
+    // create local cluster if not exist
+    if (!admin.clusters().getClusters().contains(configClusterName)) {
+      admin.clusters().createCluster(configClusterName, ClusterData.builder().build());
+    }
+    Set<String> allowedClusters = new HashSet<>();
+    allowedClusters.add(configClusterName);
+    return new TenantInfoImpl(new HashSet<>(), allowedClusters);
+  }
+
+  public static boolean retryStrategically(
+      Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis) throws Exception {
+    for (int i = 0; i < retryCount; i++) {
+      if (predicate.test(null) || i == (retryCount - 1)) {
+        return true;
+      }
+      Thread.sleep(intSleepTimeInMillis + (intSleepTimeInMillis * i));
+    }
+    return false;
+  }
+
+  public static void setFieldValue(
+      Class<?> clazz, Object classObj, String fieldName, Object fieldValue) throws Exception {
+    Field field = clazz.getDeclaredField(fieldName);
+    field.setAccessible(true);
+    field.set(classObj, fieldValue);
+  }
+
+  protected ServiceConfiguration getDefaultConf() {
+    ServiceConfiguration configuration = new ServiceConfiguration();
+    configuration.setAdvertisedAddress("localhost");
+    configuration.setClusterName(configClusterName);
+    // there are TLS tests in here, they need to use localhost because of the certificate
+    configuration.setManagedLedgerCacheSizeMB(8);
+    configuration.setActiveConsumerFailoverDelayTimeMillis(0);
+    configuration.setDefaultNumberOfNamespaceBundles(1);
+    configuration.setMetadataStoreUrl("zk:localhost:2181");
+    configuration.setConfigurationMetadataStoreUrl("zk:localhost:3181");
+    configuration.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
+    configuration.setBrokerShutdownTimeoutMs(0L);
+    configuration.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
+    configuration.setBrokerServicePort(Optional.of(0));
+    configuration.setWebServicePort(Optional.of(0));
+    configuration.setBookkeeperClientExposeStatsToPrometheus(true);
+    configuration.setNumExecutorThreadPoolSize(5);
+    configuration.setBrokerMaxConnections(0);
+    configuration.setBrokerMaxConnectionsPerIp(0);
+    return configuration;
+  }
+
+  protected void setupDefaultTenantAndNamespace() throws Exception {
+    final String tenant = "public";
+    final String namespace = tenant + "/default";
+
+    if (!admin.clusters().getClusters().contains(configClusterName)) {
+      admin
+          .clusters()
+          .createCluster(
+              configClusterName,
+              ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
     }
 
-    /**
-     * Configures the metadata stores for the PulsarTestContext.Builder instance.
-     * Set useTestZookeeper to true in the test's constructor to use TestZKServer which is a real ZooKeeper
-     * implementation.
-     *
-     * @param builder the PulsarTestContext.Builder instance to configure
-     */
-    protected void configureMetadataStores(PulsarTestContext.Builder builder) {
-        if (useTestZookeeper) {
-            builder.withTestZookeeper();
-        } else {
-            builder.withMockZookeeper(true);
-        }
+    if (!admin.tenants().getTenants().contains(tenant)) {
+      admin
+          .tenants()
+          .createTenant(
+              tenant,
+              TenantInfo.builder().allowedClusters(Sets.newHashSet(configClusterName)).build());
     }
 
-    protected PulsarTestContext createAdditionalPulsarTestContext(ServiceConfiguration conf) throws Exception {
-        return createAdditionalPulsarTestContext(conf, null);
+    if (!admin.namespaces().getNamespaces(tenant).contains(namespace)) {
+      admin.namespaces().createNamespace(namespace);
     }
-    /**
-     * This method can be used in test classes for creating additional PulsarTestContext instances
-     * that share the same mock ZooKeeper and BookKeeper instances as the main PulsarTestContext instance.
-     *
-     * @param conf the ServiceConfiguration instance to use
-     * @param builderCustomizer a consumer that can be used to customize the builder configuration
-     * @return the PulsarTestContext instance
-     * @throws Exception if an error occurs
-     */
-    protected PulsarTestContext createAdditionalPulsarTestContext(ServiceConfiguration conf,
-                                              Consumer<PulsarTestContext.Builder> builderCustomizer) throws Exception {
-        var builder = createPulsarTestContextBuilder(conf)
-                .reuseMockBookkeeperAndMetadataStores(pulsarTestContext)
-                .reuseSpyConfig(pulsarTestContext);
-        if (builderCustomizer != null) {
-            builderCustomizer.accept(builder);
-        }
-        return builder.build();
-    }
+  }
 
-    protected void waitForZooKeeperWatchers() {
-        try {
-            Thread.sleep(3000);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
-        }
+  protected Object asyncRequests(Consumer<TestAsyncResponse> function) throws Exception {
+    TestAsyncResponse ctx = new TestAsyncResponse();
+    function.accept(ctx);
+    ctx.latch.await();
+    if (ctx.e != null) {
+      throw (Exception) ctx.e;
+    }
+    return ctx.response;
+  }
+
+  public static class TestAsyncResponse implements AsyncResponse {
+
+    Object response;
+    Throwable e;
+    CountDownLatch latch = new CountDownLatch(1);
+
+    @Override
+    public boolean resume(Object response) {
+      this.response = response;
+      latch.countDown();
+      return true;
     }
 
-    protected TenantInfoImpl createDefaultTenantInfo() throws PulsarAdminException {
-        // create local cluster if not exist
-        if (!admin.clusters().getClusters().contains(configClusterName)) {
-            admin.clusters().createCluster(configClusterName, ClusterData.builder().build());
-        }
-        Set<String> allowedClusters = new HashSet<>();
-        allowedClusters.add(configClusterName);
-        return new TenantInfoImpl(new HashSet<>(), allowedClusters);
+    @Override
+    public boolean resume(Throwable response) {
+      this.e = response;
+      latch.countDown();
+      return true;
     }
 
-
-    public static boolean retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis)
-            throws Exception {
-        for (int i = 0; i < retryCount; i++) {
-            if (predicate.test(null) || i == (retryCount - 1)) {
-                return true;
-            }
-            Thread.sleep(intSleepTimeInMillis + (intSleepTimeInMillis * i));
-        }
-        return false;
+    @Override
+    public boolean cancel() {
+      return false;
     }
 
-    public static void setFieldValue(Class<?> clazz, Object classObj, String fieldName,
-                                     Object fieldValue) throws Exception {
-        Field field = clazz.getDeclaredField(fieldName);
-        field.setAccessible(true);
-        field.set(classObj, fieldValue);
+    @Override
+    public boolean cancel(int retryAfter) {
+      return false;
     }
 
-    protected ServiceConfiguration getDefaultConf() {
-        ServiceConfiguration configuration = new ServiceConfiguration();
-        configuration.setAdvertisedAddress("localhost");
-        configuration.setClusterName(configClusterName);
-        // there are TLS tests in here, they need to use localhost because of the certificate
-        configuration.setManagedLedgerCacheSizeMB(8);
-        configuration.setActiveConsumerFailoverDelayTimeMillis(0);
-        configuration.setDefaultNumberOfNamespaceBundles(1);
-        configuration.setMetadataStoreUrl("zk:localhost:2181");
-        configuration.setConfigurationMetadataStoreUrl("zk:localhost:3181");
-        configuration.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
-        configuration.setBrokerShutdownTimeoutMs(0L);
-        configuration.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
-        configuration.setBrokerServicePort(Optional.of(0));
-        configuration.setWebServicePort(Optional.of(0));
-        configuration.setBookkeeperClientExposeStatsToPrometheus(true);
-        configuration.setNumExecutorThreadPoolSize(5);
-        configuration.setBrokerMaxConnections(0);
-        configuration.setBrokerMaxConnectionsPerIp(0);
-        return configuration;
+    @Override
+    public boolean cancel(Date retryAfter) {
+      return false;
     }
 
-    protected void setupDefaultTenantAndNamespace() throws Exception {
-        final String tenant = "public";
-        final String namespace = tenant + "/default";
-
-        if (!admin.clusters().getClusters().contains(configClusterName)) {
-            admin.clusters().createCluster(configClusterName,
-                    ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        }
-
-        if (!admin.tenants().getTenants().contains(tenant)) {
-            admin.tenants().createTenant(tenant, TenantInfo.builder().allowedClusters(
-                    Sets.newHashSet(configClusterName)).build());
-        }
-
-        if (!admin.namespaces().getNamespaces(tenant).contains(namespace)) {
-            admin.namespaces().createNamespace(namespace);
-        }
+    @Override
+    public boolean isSuspended() {
+      return false;
     }
 
-    protected Object asyncRequests(Consumer<TestAsyncResponse> function) throws Exception {
-        TestAsyncResponse ctx = new TestAsyncResponse();
-        function.accept(ctx);
-        ctx.latch.await();
-        if (ctx.e != null) {
-            throw (Exception) ctx.e;
-        }
-        return ctx.response;
+    @Override
+    public boolean isCancelled() {
+      return false;
     }
 
-    public static class TestAsyncResponse implements AsyncResponse {
-
-        Object response;
-        Throwable e;
-        CountDownLatch latch = new CountDownLatch(1);
-
-        @Override
-        public boolean resume(Object response) {
-            this.response = response;
-            latch.countDown();
-            return true;
-        }
-
-        @Override
-        public boolean resume(Throwable response) {
-            this.e = response;
-            latch.countDown();
-            return true;
-        }
-
-        @Override
-        public boolean cancel() {
-            return false;
-        }
-
-        @Override
-        public boolean cancel(int retryAfter) {
-            return false;
-        }
-
-        @Override
-        public boolean cancel(Date retryAfter) {
-            return false;
-        }
-
-        @Override
-        public boolean isSuspended() {
-            return false;
-        }
-
-        @Override
-        public boolean isCancelled() {
-            return false;
-        }
-
-        @Override
-        public boolean isDone() {
-            return false;
-        }
-
-        @Override
-        public boolean setTimeout(long time, TimeUnit unit) {
-            return false;
-        }
-
-        @Override
-        public void setTimeoutHandler(TimeoutHandler handler) {
-
-        }
-
-        @Override
-        public Collection<Class<?>> register(Class<?> callback) {
-            return null;
-        }
-
-        @Override
-        public Map<Class<?>, Collection<Class<?>>> register(Class<?> callback, Class<?>... callbacks) {
-            return null;
-        }
-
-        @Override
-        public Collection<Class<?>> register(Object callback) {
-            return null;
-        }
-
-        @Override
-        public Map<Class<?>, Collection<Class<?>>> register(Object callback, Object... callbacks) {
-            return null;
-        }
-
+    @Override
+    public boolean isDone() {
+      return false;
     }
 
-    /**
-     * see {@link #deleteNamespaceWithRetry(String, boolean, PulsarAdmin)}
-     */
-    protected void deleteNamespaceWithRetry(String ns, boolean force)
-            throws Exception {
-        deleteNamespaceWithRetry(ns, force, admin);
+    @Override
+    public boolean setTimeout(long time, TimeUnit unit) {
+      return false;
     }
 
-    /**
-     * 1. Pause system "__change_event" topic creates.
-     * 2. Do delete namespace with retry because maybe fail by race-condition with create topics.
-     */
-    public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin) throws Exception {
-        Awaitility.await()
-                .pollDelay(500, TimeUnit.MILLISECONDS)
-                .until(() -> {
-            try {
+    @Override
+    public void setTimeoutHandler(TimeoutHandler handler) {}
+
+    @Override
+    public Collection<Class<?>> register(Class<?> callback) {
+      return null;
+    }
+
+    @Override
+    public Map<Class<?>, Collection<Class<?>>> register(Class<?> callback, Class<?>... callbacks) {
+      return null;
+    }
+
+    @Override
+    public Collection<Class<?>> register(Object callback) {
+      return null;
+    }
+
+    @Override
+    public Map<Class<?>, Collection<Class<?>>> register(Object callback, Object... callbacks) {
+      return null;
+    }
+  }
+
+  /** see {@link #deleteNamespaceWithRetry(String, boolean, PulsarAdmin)} */
+  protected void deleteNamespaceWithRetry(String ns, boolean force) throws Exception {
+    deleteNamespaceWithRetry(ns, force, admin);
+  }
+
+  /**
+   * 1. Pause system "__change_event" topic creates. 2. Do delete namespace with retry because maybe
+   * fail by race-condition with create topics.
+   */
+  public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin)
+      throws Exception {
+    Awaitility.await()
+        .pollDelay(500, TimeUnit.MILLISECONDS)
+        .until(
+            () -> {
+              try {
                 // Maybe fail by race-condition with create topics, just retry.
                 admin.namespaces().deleteNamespace(ns, force);
                 return true;
-            } catch (PulsarAdminException.NotFoundException ex) {
+              } catch (PulsarAdminException.NotFoundException ex) {
                 // namespace was already deleted, ignore exception
                 return true;
-            } catch (Exception e) {
+              } catch (Exception e) {
                 log.warn("Failed to delete namespace {} (force={})", ns, force, e);
                 return false;
-            }
-        });
-    }
+              }
+            });
+  }
 
-    @DataProvider(name = "invalidPersistentPolicies")
-    public Object[][] incorrectPersistentPolicies() {
-        return new Object[][] {
-                {0, 0, 0},
-                {1, 0, 0},
-                {0, 0, 1},
-                {0, 1, 0},
-                {1, 1, 0},
-                {1, 0, 1}
-        };
-    }
+  @DataProvider(name = "invalidPersistentPolicies")
+  public Object[][] incorrectPersistentPolicies() {
+    return new Object[][] {
+      {0, 0, 0},
+      {1, 0, 0},
+      {0, 0, 1},
+      {0, 1, 0},
+      {1, 1, 0},
+      {1, 0, 1}
+    };
+  }
 
-    protected ServiceProducer getServiceProducer(ProducerImpl clientProducer, String topicName) {
-        PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
-        org.apache.pulsar.broker.service.Producer serviceProducer =
-                persistentTopic.getProducers().get(clientProducer.getProducerName());
-        long clientProducerId = WhiteboxImpl.getInternalState(clientProducer, "producerId");
-        assertEquals(serviceProducer.getProducerId(), clientProducerId);
-        assertEquals(serviceProducer.getEpoch(), clientProducer.getConnectionHandler().getEpoch());
-        return new ServiceProducer(serviceProducer, persistentTopic);
-    }
+  protected ServiceProducer getServiceProducer(ProducerImpl clientProducer, String topicName) {
+    PersistentTopic persistentTopic =
+        (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
+    org.apache.pulsar.broker.service.Producer serviceProducer =
+        persistentTopic.getProducers().get(clientProducer.getProducerName());
+    long clientProducerId = WhiteboxImpl.getInternalState(clientProducer, "producerId");
+    assertEquals(serviceProducer.getProducerId(), clientProducerId);
+    assertEquals(serviceProducer.getEpoch(), clientProducer.getConnectionHandler().getEpoch());
+    return new ServiceProducer(serviceProducer, persistentTopic);
+  }
 
-    @Data
-    @AllArgsConstructor
-    public static class ServiceProducer {
-        private org.apache.pulsar.broker.service.Producer serviceProducer;
-        private PersistentTopic persistentTopic;
-    }
+  @Data
+  @AllArgsConstructor
+  public static class ServiceProducer {
+    private org.apache.pulsar.broker.service.Producer serviceProducer;
+    private PersistentTopic persistentTopic;
+  }
 
-    protected void sleepSeconds(int seconds){
-        try {
-            Thread.sleep(1000 * seconds);
-        } catch (InterruptedException e) {
-            log.warn("This thread has been interrupted", e);
-            Thread.currentThread().interrupt();
-        }
+  protected void sleepSeconds(int seconds) {
+    try {
+      Thread.sleep(1000 * seconds);
+    } catch (InterruptedException e) {
+      log.warn("This thread has been interrupted", e);
+      Thread.currentThread().interrupt();
     }
+  }
 
-    private static void reconnectAllConnections(PulsarClientImpl c) throws Exception {
-        ConnectionPool pool = c.getCnxPool();
-        Method closeAllConnections = ConnectionPool.class.getDeclaredMethod("closeAllConnections", new Class[]{});
-        closeAllConnections.setAccessible(true);
-        closeAllConnections.invoke(pool, new Object[]{});
-    }
+  private static void reconnectAllConnections(PulsarClientImpl c) throws Exception {
+    ConnectionPool pool = c.getCnxPool();
+    Method closeAllConnections =
+        ConnectionPool.class.getDeclaredMethod("closeAllConnections", new Class[] {});
+    closeAllConnections.setAccessible(true);
+    closeAllConnections.invoke(pool, new Object[] {});
+  }
 
-    protected void reconnectAllConnections() throws Exception {
-        reconnectAllConnections((PulsarClientImpl) pulsarClient);
-    }
+  protected void reconnectAllConnections() throws Exception {
+    reconnectAllConnections((PulsarClientImpl) pulsarClient);
+  }
 
-    protected void assertOtelMetricLongSumValue(String metricName, int value) {
-        assertThat(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics())
-                .anySatisfy(metric -> OpenTelemetryAssertions.assertThat(metric)
-                        .hasName(metricName)
-                        .hasLongSumSatisfying(
-                                sum -> sum.hasPointsSatisfying(point -> point.hasValue(value))));
-    }
+  protected void assertOtelMetricLongSumValue(String metricName, int value) {
+    assertThat(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics())
+        .anySatisfy(
+            metric ->
+                OpenTelemetryAssertions.assertThat(metric)
+                    .hasName(metricName)
+                    .hasLongSumSatisfying(
+                        sum -> sum.hasPointsSatisfying(point -> point.hasValue(value))));
+  }
 
-    protected void logTopicStats(String topic) {
-        BrokerTestUtil.logTopicStats(log, admin, topic);
-    }
+  protected void logTopicStats(String topic) {
+    BrokerTestUtil.logTopicStats(log, admin, topic);
+  }
 
-    private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);
+  private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);
 }

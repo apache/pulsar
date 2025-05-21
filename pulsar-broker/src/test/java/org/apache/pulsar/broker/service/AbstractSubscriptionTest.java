@@ -22,36 +22,37 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+
 import java.util.List;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class AbstractSubscriptionTest {
-    private Consumer consumer;
-    private AbstractSubscription subscription;
+  private Consumer consumer;
+  private AbstractSubscription subscription;
 
-    @BeforeMethod
-    public void beforeMethod() {
-        Dispatcher dispatcher = mock(Dispatcher.class);
-        consumer = mock(Consumer.class);
-        subscription = spy(AbstractSubscription.class);
+  @BeforeMethod
+  public void beforeMethod() {
+    Dispatcher dispatcher = mock(Dispatcher.class);
+    consumer = mock(Consumer.class);
+    subscription = spy(AbstractSubscription.class);
 
-        when(subscription.getDispatcher()).thenReturn(dispatcher);
-        when(dispatcher.getConsumers()).thenReturn(List.of(consumer));
-    }
+    when(subscription.getDispatcher()).thenReturn(dispatcher);
+    when(dispatcher.getConsumers()).thenReturn(List.of(consumer));
+  }
 
-    @Test
-    public void testGetMsgOutCounter() {
-        subscription.msgOutFromRemovedConsumer.add(1L);
-        when(consumer.getMsgOutCounter()).thenReturn(2L);
-        assertEquals(subscription.getMsgOutCounter(), 3L);
-    }
+  @Test
+  public void testGetMsgOutCounter() {
+    subscription.msgOutFromRemovedConsumer.add(1L);
+    when(consumer.getMsgOutCounter()).thenReturn(2L);
+    assertEquals(subscription.getMsgOutCounter(), 3L);
+  }
 
-    @Test
-    public void testGetBytesOutCounter() {
-        subscription.bytesOutFromRemovedConsumers.add(1L);
-        when(consumer.getBytesOutCounter()).thenReturn(2L);
-        assertEquals(subscription.getBytesOutCounter(), 3L);
-    }
+  @Test
+  public void testGetBytesOutCounter() {
+    subscription.bytesOutFromRemovedConsumers.add(1L);
+    when(consumer.getBytesOutCounter()).thenReturn(2L);
+    assertEquals(subscription.getBytesOutCounter(), 3L);
+  }
 }

@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.stats;
 
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.assertj.core.api.Assertions.assertThat;
+
 import io.opentelemetry.api.common.Attributes;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
@@ -36,86 +37,110 @@ import org.testng.annotations.Test;
 
 public class OpenTelemetryConsumerStatsTest extends BrokerTestBase {
 
-    @BeforeMethod(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        super.baseSetup();
+  @BeforeMethod(alwaysRun = true)
+  @Override
+  protected void setup() throws Exception {
+    super.baseSetup();
+  }
+
+  @AfterMethod(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
+
+  @Override
+  protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder builder) {
+    super.customizeMainPulsarTestContextBuilder(builder);
+    builder.enableOpenTelemetry(true);
+  }
+
+  @Test(timeOut = 30_000)
+  public void testMessagingMetrics() throws Exception {
+    var topicName =
+        BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/testConsumerMessagingMetrics");
+    admin.topics().createNonPartitionedTopic(topicName);
+
+    var messageCount = 5;
+    var ackCount = 3;
+
+    var subscriptionName = BrokerTestUtil.newUniqueName("test");
+    var receiverQueueSize = 100;
+
+    @Cleanup
+    var consumer =
+        pulsarClient
+            .newConsumer()
+            .topic(topicName)
+            .subscriptionName(subscriptionName)
+            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+            .subscriptionType(SubscriptionType.Shared)
+            .ackTimeout(1, TimeUnit.SECONDS)
+            .receiverQueueSize(receiverQueueSize)
+            .subscribe();
+
+    @Cleanup var producer = pulsarClient.newProducer().topic(topicName).create();
+    for (int i = 0; i < messageCount; i++) {
+      producer.send(String.format("msg-%d", i).getBytes());
+      var message = consumer.receive();
+      if (i < ackCount) {
+        consumer.acknowledge(message);
+      }
     }
 
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+    var attributes =
+        Attributes.builder()
+            .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
+            .put(OpenTelemetryAttributes.PULSAR_TENANT, "prop")
+            .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "prop/ns-abc")
+            .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicName)
+            .put(OpenTelemetryAttributes.PULSAR_SUBSCRIPTION_NAME, subscriptionName)
+            .put(
+                OpenTelemetryAttributes.PULSAR_SUBSCRIPTION_TYPE,
+                SubscriptionType.Shared.toString())
+            .put(OpenTelemetryAttributes.PULSAR_CONSUMER_NAME, consumer.getConsumerName())
+            .put(OpenTelemetryAttributes.PULSAR_CONSUMER_ID, 0)
+            .build();
 
-    @Override
-    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder builder) {
-        super.customizeMainPulsarTestContextBuilder(builder);
-        builder.enableOpenTelemetry(true);
-    }
+    Awaitility.await()
+        .untilAsserted(
+            () -> {
+              var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
 
-    @Test(timeOut = 30_000)
-    public void testMessagingMetrics() throws Exception {
-        var topicName = BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/testConsumerMessagingMetrics");
-        admin.topics().createNonPartitionedTopic(topicName);
+              assertMetricLongSumValue(
+                  metrics,
+                  OpenTelemetryConsumerStats.MESSAGE_OUT_COUNTER,
+                  attributes,
+                  actual -> assertThat(actual).isPositive());
+              assertMetricLongSumValue(
+                  metrics,
+                  OpenTelemetryConsumerStats.BYTES_OUT_COUNTER,
+                  attributes,
+                  actual -> assertThat(actual).isPositive());
 
-        var messageCount = 5;
-        var ackCount = 3;
+              assertMetricLongSumValue(
+                  metrics, OpenTelemetryConsumerStats.MESSAGE_ACK_COUNTER, attributes, ackCount);
+              assertMetricLongSumValue(
+                  metrics,
+                  OpenTelemetryConsumerStats.MESSAGE_PERMITS_COUNTER,
+                  attributes,
+                  actual ->
+                      assertThat(actual)
+                          .isGreaterThanOrEqualTo(receiverQueueSize - messageCount - ackCount));
 
-        var subscriptionName = BrokerTestUtil.newUniqueName("test");
-        var receiverQueueSize = 100;
-
-        @Cleanup
-        var consumer = pulsarClient.newConsumer()
-                .topic(topicName)
-                .subscriptionName(subscriptionName)
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscriptionType(SubscriptionType.Shared)
-                .ackTimeout(1, TimeUnit.SECONDS)
-                .receiverQueueSize(receiverQueueSize)
-                .subscribe();
-
-        @Cleanup
-        var producer = pulsarClient.newProducer()
-                .topic(topicName)
-                .create();
-        for (int i = 0; i < messageCount; i++) {
-            producer.send(String.format("msg-%d", i).getBytes());
-            var message = consumer.receive();
-            if (i < ackCount) {
-                consumer.acknowledge(message);
-            }
-        }
-
-        var attributes = Attributes.builder()
-                .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
-                .put(OpenTelemetryAttributes.PULSAR_TENANT, "prop")
-                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "prop/ns-abc")
-                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicName)
-                .put(OpenTelemetryAttributes.PULSAR_SUBSCRIPTION_NAME, subscriptionName)
-                .put(OpenTelemetryAttributes.PULSAR_SUBSCRIPTION_TYPE, SubscriptionType.Shared.toString())
-                .put(OpenTelemetryAttributes.PULSAR_CONSUMER_NAME, consumer.getConsumerName())
-                .put(OpenTelemetryAttributes.PULSAR_CONSUMER_ID, 0)
-                .build();
-
-        Awaitility.await().untilAsserted(() -> {
-            var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
-
-            assertMetricLongSumValue(metrics, OpenTelemetryConsumerStats.MESSAGE_OUT_COUNTER, attributes,
-                    actual -> assertThat(actual).isPositive());
-            assertMetricLongSumValue(metrics, OpenTelemetryConsumerStats.BYTES_OUT_COUNTER, attributes,
-                    actual -> assertThat(actual).isPositive());
-
-            assertMetricLongSumValue(metrics, OpenTelemetryConsumerStats.MESSAGE_ACK_COUNTER, attributes, ackCount);
-            assertMetricLongSumValue(metrics, OpenTelemetryConsumerStats.MESSAGE_PERMITS_COUNTER, attributes,
-                    actual -> assertThat(actual).isGreaterThanOrEqualTo(receiverQueueSize - messageCount - ackCount));
-
-            var unAckCount = messageCount - ackCount;
-            assertMetricLongSumValue(metrics, OpenTelemetryConsumerStats.MESSAGE_UNACKNOWLEDGED_COUNTER, attributes,
-                    unAckCount);
-            assertMetricLongSumValue(metrics, OpenTelemetryConsumerStats.CONSUMER_BLOCKED_COUNTER, attributes, 0);
-            assertMetricLongSumValue(metrics, OpenTelemetryConsumerStats.MESSAGE_REDELIVER_COUNTER, attributes,
-                    actual -> assertThat(actual).isGreaterThanOrEqualTo(unAckCount));
-        });
-    }
+              var unAckCount = messageCount - ackCount;
+              assertMetricLongSumValue(
+                  metrics,
+                  OpenTelemetryConsumerStats.MESSAGE_UNACKNOWLEDGED_COUNTER,
+                  attributes,
+                  unAckCount);
+              assertMetricLongSumValue(
+                  metrics, OpenTelemetryConsumerStats.CONSUMER_BLOCKED_COUNTER, attributes, 0);
+              assertMetricLongSumValue(
+                  metrics,
+                  OpenTelemetryConsumerStats.MESSAGE_REDELIVER_COUNTER,
+                  attributes,
+                  actual -> assertThat(actual).isGreaterThanOrEqualTo(unAckCount));
+            });
+  }
 }

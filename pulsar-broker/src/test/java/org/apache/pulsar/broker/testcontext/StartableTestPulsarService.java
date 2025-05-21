@@ -36,51 +36,61 @@ import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 /**
- * This is an internal class used by {@link PulsarTestContext} as the {@link PulsarService} implementation
- * for a "startable" PulsarService. Please see {@link PulsarTestContext} for more details.
+ * This is an internal class used by {@link PulsarTestContext} as the {@link PulsarService}
+ * implementation for a "startable" PulsarService. Please see {@link PulsarTestContext} for more
+ * details.
  */
 class StartableTestPulsarService extends AbstractTestPulsarService {
-    private final Function<BrokerService, BrokerService> brokerServiceCustomizer;
+  private final Function<BrokerService, BrokerService> brokerServiceCustomizer;
 
-    public StartableTestPulsarService(SpyConfig spyConfig, ServiceConfiguration config,
-                                  MetadataStoreExtended localMetadataStore,
-                                  MetadataStoreExtended configurationMetadataStore,
-                                  CompactionServiceFactory compactionServiceFactory,
-                                  BrokerInterceptor brokerInterceptor,
-                                  BookKeeperClientFactory bookKeeperClientFactory,
-                                  Function<BrokerService, BrokerService> brokerServiceCustomizer,
-                                  Consumer<AutoConfiguredOpenTelemetrySdkBuilder> openTelemetrySdkBuilderCustomizer) {
-        super(spyConfig, config, localMetadataStore, configurationMetadataStore, compactionServiceFactory,
-                brokerInterceptor, bookKeeperClientFactory, openTelemetrySdkBuilderCustomizer);
-        this.brokerServiceCustomizer = brokerServiceCustomizer;
-    }
+  public StartableTestPulsarService(
+      SpyConfig spyConfig,
+      ServiceConfiguration config,
+      MetadataStoreExtended localMetadataStore,
+      MetadataStoreExtended configurationMetadataStore,
+      CompactionServiceFactory compactionServiceFactory,
+      BrokerInterceptor brokerInterceptor,
+      BookKeeperClientFactory bookKeeperClientFactory,
+      Function<BrokerService, BrokerService> brokerServiceCustomizer,
+      Consumer<AutoConfiguredOpenTelemetrySdkBuilder> openTelemetrySdkBuilderCustomizer) {
+    super(
+        spyConfig,
+        config,
+        localMetadataStore,
+        configurationMetadataStore,
+        compactionServiceFactory,
+        brokerInterceptor,
+        bookKeeperClientFactory,
+        openTelemetrySdkBuilderCustomizer);
+    this.brokerServiceCustomizer = brokerServiceCustomizer;
+  }
 
-    @Override
-    protected BrokerService newBrokerService(PulsarService pulsar) throws Exception {
-        return brokerServiceCustomizer.apply(super.newBrokerService(pulsar));
-    }
+  @Override
+  protected BrokerService newBrokerService(PulsarService pulsar) throws Exception {
+    return brokerServiceCustomizer.apply(super.newBrokerService(pulsar));
+  }
 
-    @Override
-    public Supplier<NamespaceService> getNamespaceServiceProvider() throws PulsarServerException {
-        return () -> spyConfig.getNamespaceService().spy(NamespaceService.class, this);
-    }
+  @Override
+  public Supplier<NamespaceService> getNamespaceServiceProvider() throws PulsarServerException {
+    return () -> spyConfig.getNamespaceService().spy(NamespaceService.class, this);
+  }
 
-    @SneakyThrows
-    @Override
-    public ManagedLedgerStorage getManagedLedgerStorage() {
-        // support adding spy to managedLedgerStorage in beforePulsarStart method
-        if (super.getManagedLedgerStorage() == null) {
-            setManagedLedgerStorage(createManagedLedgerStorageSpy());
-        }
-        return super.getManagedLedgerStorage();
+  @SneakyThrows
+  @Override
+  public ManagedLedgerStorage getManagedLedgerStorage() {
+    // support adding spy to managedLedgerStorage in beforePulsarStart method
+    if (super.getManagedLedgerStorage() == null) {
+      setManagedLedgerStorage(createManagedLedgerStorageSpy());
     }
+    return super.getManagedLedgerStorage();
+  }
 
-    @Override
-    protected ManagedLedgerStorage newManagedLedgerStorage() throws Exception {
-        return getManagedLedgerStorage();
-    }
+  @Override
+  protected ManagedLedgerStorage newManagedLedgerStorage() throws Exception {
+    return getManagedLedgerStorage();
+  }
 
-    private ManagedLedgerStorage createManagedLedgerStorageSpy() throws Exception {
-        return spyConfig.getManagedLedgerStorage().spy(super.newManagedLedgerStorage());
-    }
+  private ManagedLedgerStorage createManagedLedgerStorageSpy() throws Exception {
+    return spyConfig.getManagedLedgerStorage().spy(super.newManagedLedgerStorage());
+  }
 }

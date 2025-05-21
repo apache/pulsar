@@ -22,6 +22,7 @@ import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.State.WriteFa
 import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
 import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.fail;
+
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Field;
@@ -49,69 +50,80 @@ import org.testng.annotations.Test;
 
 public class PendingAckMetadataTest extends MockedBookKeeperTestCase {
 
-    public PendingAckMetadataTest() {
-        super(3);
+  public PendingAckMetadataTest() {
+    super(3);
+  }
+
+  @Test
+  public void testPendingAckManageLedgerWriteFailState() throws Exception {
+    TxnLogBufferedWriterConfig bufferedWriterConfig = new TxnLogBufferedWriterConfig();
+    HashedWheelTimer transactionTimer =
+        new HashedWheelTimer(
+            new DefaultThreadFactory("transaction-timer"), 1, TimeUnit.MILLISECONDS);
+
+    ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
+    factoryConf.setMaxCacheSize(0);
+
+    String pendingAckTopicName =
+        MLPendingAckStore.getTransactionPendingAckStoreSuffix("test", "test");
+    @Cleanup("shutdown")
+    ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConf);
+
+    CompletableFuture<ManagedLedger> completableFuture = new CompletableFuture<>();
+    factory.asyncOpen(
+        pendingAckTopicName,
+        new AsyncCallbacks.OpenLedgerCallback() {
+          @Override
+          public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
+            completableFuture.complete(ledger);
+          }
+
+          @Override
+          public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {}
+        },
+        null);
+
+    ManagedCursor cursor = completableFuture.get().openCursor("test");
+    ManagedCursor subCursor = completableFuture.get().openCursor("test");
+
+    @Cleanup("shutdownNow")
+    ExecutorService executorService = Executors.newSingleThreadExecutor();
+
+    MLPendingAckStore pendingAckStore =
+        new MLPendingAckStore(
+            completableFuture.get(),
+            cursor,
+            subCursor,
+            500,
+            bufferedWriterConfig,
+            transactionTimer,
+            DISABLED_BUFFERED_WRITER_METRICS,
+            executorService);
+
+    Field field = MLPendingAckStore.class.getDeclaredField("managedLedger");
+    field.setAccessible(true);
+    ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) field.get(pendingAckStore);
+    field = ManagedLedgerImpl.class.getDeclaredField("STATE_UPDATER");
+    field.setAccessible(true);
+    AtomicReferenceFieldUpdater<ManagedLedgerImpl, ManagedLedgerImpl.State> state =
+        (AtomicReferenceFieldUpdater<ManagedLedgerImpl, ManagedLedgerImpl.State>)
+            field.get(managedLedger);
+    state.set(managedLedger, WriteFailed);
+    try {
+      pendingAckStore.appendAbortMark(new TxnID(1, 1), CommandAck.AckType.Cumulative).get();
+      fail();
+    } catch (ExecutionException e) {
+      assertTrue(
+          e.getCause().getCause()
+              instanceof ManagedLedgerException.ManagedLedgerAlreadyClosedException);
     }
+    pendingAckStore.appendAbortMark(new TxnID(1, 1), CommandAck.AckType.Cumulative).get();
 
-    @Test
-    public void testPendingAckManageLedgerWriteFailState() throws Exception {
-        TxnLogBufferedWriterConfig bufferedWriterConfig = new TxnLogBufferedWriterConfig();
-        HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
-                1, TimeUnit.MILLISECONDS);
-
-        ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
-        factoryConf.setMaxCacheSize(0);
-
-        String pendingAckTopicName = MLPendingAckStore
-                .getTransactionPendingAckStoreSuffix("test", "test");
-        @Cleanup("shutdown")
-        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConf);
-
-        CompletableFuture<ManagedLedger> completableFuture = new CompletableFuture<>();
-        factory.asyncOpen(pendingAckTopicName, new AsyncCallbacks.OpenLedgerCallback() {
-            @Override
-            public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
-                completableFuture.complete(ledger);
-            }
-
-            @Override
-            public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
-
-            }
-        }, null);
-
-        ManagedCursor cursor = completableFuture.get().openCursor("test");
-        ManagedCursor subCursor = completableFuture.get().openCursor("test");
-
-        @Cleanup("shutdownNow")
-        ExecutorService executorService = Executors.newSingleThreadExecutor();
-
-        MLPendingAckStore pendingAckStore =
-                new MLPendingAckStore(completableFuture.get(), cursor, subCursor, 500,
-                        bufferedWriterConfig, transactionTimer, DISABLED_BUFFERED_WRITER_METRICS, executorService);
-
-        Field field = MLPendingAckStore.class.getDeclaredField("managedLedger");
-        field.setAccessible(true);
-        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) field.get(pendingAckStore);
-        field = ManagedLedgerImpl.class.getDeclaredField("STATE_UPDATER");
-        field.setAccessible(true);
-        AtomicReferenceFieldUpdater<ManagedLedgerImpl, ManagedLedgerImpl.State> state =
-                (AtomicReferenceFieldUpdater<ManagedLedgerImpl, ManagedLedgerImpl.State>) field.get(managedLedger);
-        state.set(managedLedger, WriteFailed);
-        try {
-            pendingAckStore.appendAbortMark(new TxnID(1, 1), CommandAck.AckType.Cumulative).get();
-            fail();
-        } catch (ExecutionException e) {
-            assertTrue(e.getCause().getCause() instanceof ManagedLedgerException.ManagedLedgerAlreadyClosedException);
-        }
-        pendingAckStore.appendAbortMark(new TxnID(1, 1), CommandAck.AckType.Cumulative).get();
-
-        // cleanup.
-        pendingAckStore.closeAsync();
-        completableFuture.get().close();
-        cursor.close();
-        subCursor.close();
-        transactionTimer.stop();
-    }
-
+    // cleanup.
+    pendingAckStore.closeAsync();
+    completableFuture.get().close();
+    cursor.close();
+    subCursor.close();
+    transactionTimer.stop();
+  }
 }

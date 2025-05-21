@@ -24,6 +24,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -61,208 +62,218 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
 public class AdminTopicApiTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(AdminTopicApiTest.class);
+  private static final Logger log = LoggerFactory.getLogger(AdminTopicApiTest.class);
 
-    @Override
-    @BeforeClass(alwaysRun = true)
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
+  @Override
+  @BeforeClass(alwaysRun = true)
+  protected void setup() throws Exception {
+    super.internalSetup();
+    super.producerBaseSetup();
+  }
+
+  @Override
+  @AfterClass(alwaysRun = true)
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
+
+  @Test
+  public void testDeleteNonExistTopic() throws Exception {
+    // Case 1: call delete for a partitioned topic.
+    final String topic1 = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+    admin.topics().createPartitionedTopic(topic1, 2);
+    admin.schemas().createSchemaAsync(topic1, Schema.STRING.getSchemaInfo());
+    Awaitility.await()
+        .untilAsserted(
+            () -> {
+              assertEquals(admin.schemas().getAllSchemas(topic1).size(), 1);
+            });
+    try {
+      admin.topics().delete(topic1);
+      fail("expected a 409 error");
+    } catch (Exception ex) {
+      assertTrue(ex.getMessage().contains("please call delete-partitioned-topic"));
     }
+    Awaitility.await()
+        .pollDelay(Duration.ofSeconds(2))
+        .untilAsserted(
+            () -> {
+              assertEquals(admin.schemas().getAllSchemas(topic1).size(), 1);
+            });
+    // cleanup.
+    admin.topics().deletePartitionedTopic(topic1, false);
 
-    @Override
-    @AfterClass(alwaysRun = true)
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
+    // Case 2: call delete-partitioned-topi for a non-partitioned topic.
+    final String topic2 = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+    admin.topics().createNonPartitionedTopic(topic2);
+    admin.schemas().createSchemaAsync(topic2, Schema.STRING.getSchemaInfo());
+    Awaitility.await()
+        .untilAsserted(
+            () -> {
+              assertEquals(admin.schemas().getAllSchemas(topic2).size(), 1);
+            });
+    try {
+      admin.topics().deletePartitionedTopic(topic2);
+      fail("expected a 409 error");
+    } catch (Exception ex) {
+      assertTrue(
+          ex.getMessage()
+              .contains("Instead of calling delete-partitioned-topic please call delete"));
     }
+    Awaitility.await()
+        .pollDelay(Duration.ofSeconds(2))
+        .untilAsserted(
+            () -> {
+              assertEquals(admin.schemas().getAllSchemas(topic2).size(), 1);
+            });
+    // cleanup.
+    admin.topics().delete(topic2, false);
 
-    @Test
-    public void testDeleteNonExistTopic() throws Exception {
-        // Case 1: call delete for a partitioned topic.
-        final String topic1 = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
-        admin.topics().createPartitionedTopic(topic1, 2);
-        admin.schemas().createSchemaAsync(topic1, Schema.STRING.getSchemaInfo());
-        Awaitility.await().untilAsserted(() -> {
-            assertEquals(admin.schemas().getAllSchemas(topic1).size(), 1);
-        });
-        try {
-            admin.topics().delete(topic1);
-            fail("expected a 409 error");
-        } catch (Exception ex) {
-            assertTrue(ex.getMessage().contains("please call delete-partitioned-topic"));
-        }
-        Awaitility.await().pollDelay(Duration.ofSeconds(2)).untilAsserted(() -> {
-            assertEquals(admin.schemas().getAllSchemas(topic1).size(), 1);
-        });
-        // cleanup.
-        admin.topics().deletePartitionedTopic(topic1, false);
-
-        // Case 2: call delete-partitioned-topi for a non-partitioned topic.
-        final String topic2 = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
-        admin.topics().createNonPartitionedTopic(topic2);
-        admin.schemas().createSchemaAsync(topic2, Schema.STRING.getSchemaInfo());
-        Awaitility.await().untilAsserted(() -> {
-            assertEquals(admin.schemas().getAllSchemas(topic2).size(), 1);
-        });
-        try {
-            admin.topics().deletePartitionedTopic(topic2);
-            fail("expected a 409 error");
-        } catch (Exception ex) {
-            assertTrue(ex.getMessage().contains("Instead of calling delete-partitioned-topic please call delete"));
-        }
-        Awaitility.await().pollDelay(Duration.ofSeconds(2)).untilAsserted(() -> {
-            assertEquals(admin.schemas().getAllSchemas(topic2).size(), 1);
-        });
-        // cleanup.
-        admin.topics().delete(topic2, false);
-
-        // Case 3: delete topic does not exist.
-        final String topic3 = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
-        try {
-            admin.topics().delete(topic3);
-            fail("expected a 404 error");
-        } catch (Exception ex) {
-            assertTrue(ex.getMessage().contains("not found"));
-        }
-        try {
-            admin.topics().deletePartitionedTopic(topic3);
-            fail("expected a 404 error");
-        } catch (Exception ex) {
-            assertTrue(ex.getMessage().contains("not found"));
-        }
+    // Case 3: delete topic does not exist.
+    final String topic3 = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+    try {
+      admin.topics().delete(topic3);
+      fail("expected a 404 error");
+    } catch (Exception ex) {
+      assertTrue(ex.getMessage().contains("not found"));
     }
+    try {
+      admin.topics().deletePartitionedTopic(topic3);
+      fail("expected a 404 error");
+    } catch (Exception ex) {
+      assertTrue(ex.getMessage().contains("not found"));
+    }
+  }
 
-    @Test
-    public void testPeekMessages() throws Exception {
-        @Cleanup
-        PulsarClient newPulsarClient = PulsarClient.builder()
-            .serviceUrl(lookupUrl.toString())
-            .build();
+  @Test
+  public void testPeekMessages() throws Exception {
+    @Cleanup
+    PulsarClient newPulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).build();
 
-        final String topic = "persistent://my-property/my-ns/test-publish-timestamp";
+    final String topic = "persistent://my-property/my-ns/test-publish-timestamp";
 
-        @Cleanup
-        Consumer<byte[]> consumer = newPulsarClient.newConsumer()
+    @Cleanup
+    Consumer<byte[]> consumer =
+        newPulsarClient.newConsumer().topic(topic).subscriptionName("my-sub").subscribe();
+
+    final int numMessages = 5;
+
+    @Cleanup
+    Producer<byte[]> producer =
+        newPulsarClient
+            .newProducer()
             .topic(topic)
-            .subscriptionName("my-sub")
-            .subscribe();
+            .enableBatching(true)
+            .batchingMaxPublishDelay(3, TimeUnit.SECONDS)
+            .batchingMaxMessages(5)
+            .create();
 
-        final int numMessages = 5;
-
-        @Cleanup
-        Producer<byte[]> producer = newPulsarClient.newProducer()
-                .topic(topic)
-                .enableBatching(true)
-                .batchingMaxPublishDelay(3, TimeUnit.SECONDS)
-                .batchingMaxMessages(5)
-                .create();
-
-        for (int i = 0; i < numMessages; i++) {
-            producer.newMessage()
-                .value(("value-" + i).getBytes(UTF_8))
-                .sendAsync();
-        }
-        producer.flush();
-
-        for (int i = 0; i < numMessages; i++) {
-            Message<byte[]> msg = consumer.receive();
-            log.info("Received message '{}'.", new String(msg.getValue(), UTF_8));
-        }
-        List<Message<byte[]>> messages = admin.topics().peekMessages(topic, "my-sub", 5);
-        Assert.assertEquals(new String(messages.get(0).getValue(), UTF_8), "value-0");
-        Assert.assertEquals(new String(messages.get(1).getValue(), UTF_8), "value-1");
-        Assert.assertEquals(new String(messages.get(2).getValue(), UTF_8), "value-2");
-        Assert.assertEquals(new String(messages.get(3).getValue(), UTF_8), "value-3");
-        Assert.assertEquals(new String(messages.get(4).getValue(), UTF_8), "value-4");
+    for (int i = 0; i < numMessages; i++) {
+      producer.newMessage().value(("value-" + i).getBytes(UTF_8)).sendAsync();
     }
+    producer.flush();
 
-    @DataProvider
-    public Object[] getStatsDataProvider() {
-        return new Object[]{
-                // v1 topic
-                TopicDomain.persistent + "://my-property/test/my-ns/" + UUID.randomUUID(),
-                TopicDomain.non_persistent+ "://my-property/test/my-ns/" + UUID.randomUUID(),
-                //v2 topic
-                TopicDomain.persistent+ "://my-property/my-ns/" + UUID.randomUUID(),
-                TopicDomain.non_persistent+ "://my-property/my-ns/" + UUID.randomUUID(),
-        };
+    for (int i = 0; i < numMessages; i++) {
+      Message<byte[]> msg = consumer.receive();
+      log.info("Received message '{}'.", new String(msg.getValue(), UTF_8));
     }
+    List<Message<byte[]>> messages = admin.topics().peekMessages(topic, "my-sub", 5);
+    Assert.assertEquals(new String(messages.get(0).getValue(), UTF_8), "value-0");
+    Assert.assertEquals(new String(messages.get(1).getValue(), UTF_8), "value-1");
+    Assert.assertEquals(new String(messages.get(2).getValue(), UTF_8), "value-2");
+    Assert.assertEquals(new String(messages.get(3).getValue(), UTF_8), "value-3");
+    Assert.assertEquals(new String(messages.get(4).getValue(), UTF_8), "value-4");
+  }
 
-    @Test(dataProvider = "getStatsDataProvider")
-    public void testGetStats(String topic) throws Exception {
-        admin.topics().createNonPartitionedTopic(topic);
+  @DataProvider
+  public Object[] getStatsDataProvider() {
+    return new Object[] {
+      // v1 topic
+      TopicDomain.persistent + "://my-property/test/my-ns/" + UUID.randomUUID(),
+      TopicDomain.non_persistent + "://my-property/test/my-ns/" + UUID.randomUUID(),
+      // v2 topic
+      TopicDomain.persistent + "://my-property/my-ns/" + UUID.randomUUID(),
+      TopicDomain.non_persistent + "://my-property/my-ns/" + UUID.randomUUID(),
+    };
+  }
 
-        @Cleanup
-        PulsarClient newPulsarClient = PulsarClient.builder()
-                .serviceUrl(lookupUrl.toString())
-                .build();
+  @Test(dataProvider = "getStatsDataProvider")
+  public void testGetStats(String topic) throws Exception {
+    admin.topics().createNonPartitionedTopic(topic);
 
-        final String subscriptionName = "my-sub";
-        @Cleanup
-        Consumer<byte[]> consumer = newPulsarClient.newConsumer()
-                .topic(topic)
-                .subscriptionName(subscriptionName)
-                .subscribe();
+    @Cleanup
+    PulsarClient newPulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).build();
 
-        TopicStats stats = admin.topics().getStats(topic);
-        assertNotNull(stats);
-        if (topic.startsWith(TopicDomain.non_persistent.value())) {
-            assertTrue(stats instanceof NonPersistentTopicStatsImpl);
-        } else {
-            assertTrue(stats instanceof TopicStatsImpl);
-        }
-        assertTrue(stats.getSubscriptions().containsKey(subscriptionName));
+    final String subscriptionName = "my-sub";
+    @Cleanup
+    Consumer<byte[]> consumer =
+        newPulsarClient.newConsumer().topic(topic).subscriptionName(subscriptionName).subscribe();
+
+    TopicStats stats = admin.topics().getStats(topic);
+    assertNotNull(stats);
+    if (topic.startsWith(TopicDomain.non_persistent.value())) {
+      assertTrue(stats instanceof NonPersistentTopicStatsImpl);
+    } else {
+      assertTrue(stats instanceof TopicStatsImpl);
     }
+    assertTrue(stats.getSubscriptions().containsKey(subscriptionName));
+  }
 
-    @Test
-    public void testGetMessagesId() throws PulsarClientException, ExecutionException, InterruptedException {
-        String topic = newTopicName();
+  @Test
+  public void testGetMessagesId()
+      throws PulsarClientException, ExecutionException, InterruptedException {
+    String topic = newTopicName();
 
-        int numMessages = 10;
-        int batchingMaxMessages = numMessages / 2;
+    int numMessages = 10;
+    int batchingMaxMessages = numMessages / 2;
 
-        @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .enableBatching(true)
-                .batchingMaxMessages(batchingMaxMessages)
-                .batchingMaxPublishDelay(60, TimeUnit.SECONDS)
-                .create();
+    @Cleanup
+    Producer<byte[]> producer =
+        pulsarClient
+            .newProducer()
+            .topic(topic)
+            .enableBatching(true)
+            .batchingMaxMessages(batchingMaxMessages)
+            .batchingMaxPublishDelay(60, TimeUnit.SECONDS)
+            .create();
 
-        List<CompletableFuture<MessageId>> futures = new ArrayList<>();
-        for (int i = 0; i < numMessages; i++) {
-            futures.add(producer.sendAsync(("msg-" + i).getBytes(UTF_8)));
-        }
-        FutureUtil.waitForAll(futures).get();
+    List<CompletableFuture<MessageId>> futures = new ArrayList<>();
+    for (int i = 0; i < numMessages; i++) {
+      futures.add(producer.sendAsync(("msg-" + i).getBytes(UTF_8)));
+    }
+    FutureUtil.waitForAll(futures).get();
 
-        Map<MessageIdImpl, Integer> messageIdMap = new HashMap<>();
-        futures.forEach(n -> {
-            try {
-                MessageId messageId = n.get();
-                if (messageId instanceof MessageIdImpl impl) {
-                    MessageIdImpl key = new MessageIdImpl(impl.getLedgerId(), impl.getEntryId(), -1);
-                    Integer i = messageIdMap.computeIfAbsent(key, __ -> 0);
-                    messageIdMap.put(key, i + 1);
-                }
-            } catch (InterruptedException | ExecutionException e) {
-                throw new RuntimeException(e);
+    Map<MessageIdImpl, Integer> messageIdMap = new HashMap<>();
+    futures.forEach(
+        n -> {
+          try {
+            MessageId messageId = n.get();
+            if (messageId instanceof MessageIdImpl impl) {
+              MessageIdImpl key = new MessageIdImpl(impl.getLedgerId(), impl.getEntryId(), -1);
+              Integer i = messageIdMap.computeIfAbsent(key, __ -> 0);
+              messageIdMap.put(key, i + 1);
             }
+          } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException(e);
+          }
         });
 
-        messageIdMap.forEach((key, value) -> {
-            assertEquals(value, batchingMaxMessages);
-            try {
-                List<Message<byte[]>> messages = admin.topics().getMessagesById(topic,
-                        key.getLedgerId(), key.getEntryId());
-                assertNotNull(messages);
-                assertEquals(messages.size(), batchingMaxMessages);
-            } catch (PulsarAdminException e) {
-                throw new RuntimeException(e);
-            }
+    messageIdMap.forEach(
+        (key, value) -> {
+          assertEquals(value, batchingMaxMessages);
+          try {
+            List<Message<byte[]>> messages =
+                admin.topics().getMessagesById(topic, key.getLedgerId(), key.getEntryId());
+            assertNotNull(messages);
+            assertEquals(messages.size(), batchingMaxMessages);
+          } catch (PulsarAdminException e) {
+            throw new RuntimeException(e);
+          }
         });
 
-        // The message id doesn't exist.
-        assertThrows(PulsarAdminException.NotFoundException.class, () -> admin.topics()
-                .getMessagesById(topic, 1024, 2048));
-    }
+    // The message id doesn't exist.
+    assertThrows(
+        PulsarAdminException.NotFoundException.class,
+        () -> admin.topics().getMessagesById(topic, 1024, 2048));
+  }
 }

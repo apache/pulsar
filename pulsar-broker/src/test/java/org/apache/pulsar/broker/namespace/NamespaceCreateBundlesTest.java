@@ -22,12 +22,10 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
-import lombok.Cleanup;
-
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-
+import lombok.Cleanup;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
@@ -42,76 +40,78 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class NamespaceCreateBundlesTest extends BrokerTestBase {
 
-    @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        conf.setDefaultNumberOfNamespaceBundles(16);
-        super.baseSetup();
-    }
+  @BeforeMethod
+  @Override
+  protected void setup() throws Exception {
+    conf.setDefaultNumberOfNamespaceBundles(16);
+    super.baseSetup();
+  }
 
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @AfterMethod(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @Test
-    public void testCreateNamespaceWithDefaultBundles() throws Exception {
-        String namespaceName = "prop/" + UUID.randomUUID().toString();
+  @Test
+  public void testCreateNamespaceWithDefaultBundles() throws Exception {
+    String namespaceName = "prop/" + UUID.randomUUID().toString();
 
-        admin.namespaces().createNamespace(namespaceName);
+    admin.namespaces().createNamespace(namespaceName);
 
-        Policies policies = admin.namespaces().getPolicies(namespaceName);
-        assertEquals(policies.bundles.getNumBundles(), 16);
-        assertEquals(policies.bundles.getBoundaries().size(), 17);
-    }
+    Policies policies = admin.namespaces().getPolicies(namespaceName);
+    assertEquals(policies.bundles.getNumBundles(), 16);
+    assertEquals(policies.bundles.getBoundaries().size(), 17);
+  }
 
-    @Test
-    public void testSplitBundleUpdatesLocalPoliciesWithoutOverwriting() throws Exception {
-        String namespaceName = "prop/" + UUID.randomUUID().toString();
-        String topicName = "persistent://" + namespaceName + "/my-topic5";
+  @Test
+  public void testSplitBundleUpdatesLocalPoliciesWithoutOverwriting() throws Exception {
+    String namespaceName = "prop/" + UUID.randomUUID().toString();
+    String topicName = "persistent://" + namespaceName + "/my-topic5";
 
-        admin.namespaces().createNamespace(namespaceName);
+    admin.namespaces().createNamespace(namespaceName);
 
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName).sendTimeout(1,
-                TimeUnit.SECONDS);
+    ProducerBuilder<byte[]> producerBuilder =
+        pulsarClient.newProducer().topic(topicName).sendTimeout(1, TimeUnit.SECONDS);
 
-        Producer<byte[]> producer = producerBuilder.create();
+    Producer<byte[]> producer = producerBuilder.create();
 
-        String bundle = admin.lookups().getBundleRange(topicName);
-        BookieAffinityGroupData bookieAffinityGroup = BookieAffinityGroupData.builder()
-                .bookkeeperAffinityGroupPrimary("test")
-                .build();
-        admin.namespaces().setBookieAffinityGroup(namespaceName, bookieAffinityGroup);
-        admin.namespaces().splitNamespaceBundle(namespaceName, bundle, false, null);
-        assertNotNull(admin.namespaces().getBookieAffinityGroup(namespaceName));
-        producer.close();
-    }
+    String bundle = admin.lookups().getBundleRange(topicName);
+    BookieAffinityGroupData bookieAffinityGroup =
+        BookieAffinityGroupData.builder().bookkeeperAffinityGroupPrimary("test").build();
+    admin.namespaces().setBookieAffinityGroup(namespaceName, bookieAffinityGroup);
+    admin.namespaces().splitNamespaceBundle(namespaceName, bundle, false, null);
+    assertNotNull(admin.namespaces().getBookieAffinityGroup(namespaceName));
+    producer.close();
+  }
 
-    @Test
-    public void testBundleSplitListener() throws Exception {
-        String namespaceName = "prop/" + UUID.randomUUID().toString();
-        String topicName = "persistent://" + namespaceName + "/my-topic5";
-        admin.namespaces().createNamespace(namespaceName);
-        @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).sendTimeout(1,
-            TimeUnit.SECONDS).create();
-        producer.send(new byte[1]);
-        String bundleRange = admin.lookups().getBundleRange(topicName);
-        AtomicBoolean isTriggered = new AtomicBoolean(false);
-        pulsar.getNamespaceService().addNamespaceBundleSplitListener(new NamespaceBundleSplitListener() {
-            @Override
-            public void onSplit(NamespaceBundle bundle) {
+  @Test
+  public void testBundleSplitListener() throws Exception {
+    String namespaceName = "prop/" + UUID.randomUUID().toString();
+    String topicName = "persistent://" + namespaceName + "/my-topic5";
+    admin.namespaces().createNamespace(namespaceName);
+    @Cleanup
+    Producer<byte[]> producer =
+        pulsarClient.newProducer().topic(topicName).sendTimeout(1, TimeUnit.SECONDS).create();
+    producer.send(new byte[1]);
+    String bundleRange = admin.lookups().getBundleRange(topicName);
+    AtomicBoolean isTriggered = new AtomicBoolean(false);
+    pulsar
+        .getNamespaceService()
+        .addNamespaceBundleSplitListener(
+            new NamespaceBundleSplitListener() {
+              @Override
+              public void onSplit(NamespaceBundle bundle) {
                 assertEquals(bundleRange, bundle.getBundleRange());
                 isTriggered.set(true);
-            }
+              }
 
-            @Override
-            public boolean test(NamespaceBundle namespaceBundle) {
+              @Override
+              public boolean test(NamespaceBundle namespaceBundle) {
                 return true;
-            }
-        });
-        admin.namespaces().splitNamespaceBundle(namespaceName, bundleRange, false, null);
-        Awaitility.await().untilAsserted(() -> assertTrue(isTriggered.get()));
-    }
+              }
+            });
+    admin.namespaces().splitNamespaceBundle(namespaceName, bundleRange, false, null);
+    Awaitility.await().untilAsserted(() -> assertTrue(isTriggered.get()));
+  }
 }

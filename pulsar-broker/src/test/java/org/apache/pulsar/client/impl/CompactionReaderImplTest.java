@@ -22,6 +22,7 @@ import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+
 import com.google.common.collect.Sets;
 import java.util.concurrent.CompletableFuture;
 import lombok.Cleanup;
@@ -44,75 +45,81 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-impl")
 public class CompactionReaderImplTest extends MockedPulsarServiceBaseTest {
 
-    @BeforeMethod
-    @Override
-    public void setup() throws Exception {
-        super.internalSetup();
-        admin.clusters().createCluster("test",
-                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
-        admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
+  @BeforeMethod
+  @Override
+  public void setup() throws Exception {
+    super.internalSetup();
+    admin
+        .clusters()
+        .createCluster(
+            "test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+    admin
+        .tenants()
+        .createTenant(
+            "my-property",
+            new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+    admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
+  }
+
+  @AfterMethod(alwaysRun = true)
+  @Override
+  public void cleanup() throws Exception {
+    super.internalCleanup();
+  }
+
+  @Test
+  public void test() throws Exception {
+
+    String topic = "persistent://my-property/my-ns/my-compact-topic";
+
+    // subscribe before sending anything, so that we get all messages
+    @Cleanup
+    var consumer =
+        pulsarClient
+            .newConsumer()
+            .topic(topic)
+            .subscriptionName("sub1")
+            .readCompacted(true)
+            .subscribe();
+    int numKeys = 5;
+    @Cleanup
+    Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+    for (int i = 0; i < numKeys; i++) {
+      producer.newMessage().key("key:" + i).value("value" + i).send();
     }
 
-    @AfterMethod(alwaysRun = true)
-    @Override
-    public void cleanup() throws Exception {
-        super.internalCleanup();
+    var consumerFuture = new CompletableFuture();
+    @Cleanup
+    CompactionReaderImpl<String> reader =
+        CompactionReaderImpl.create(
+            (PulsarClientImpl) pulsarClient, Schema.STRING, topic, consumerFuture, null);
+    consumerFuture.join();
+
+    ConsumerBase consumerBase = spy(reader.getConsumer());
+    FieldUtils.writeDeclaredField(reader, "consumer", consumerBase, true);
+
+    ReaderConfigurationData readerConfigurationData =
+        (ReaderConfigurationData) FieldUtils.readDeclaredField(reader, "readerConfiguration", true);
+
+    ReaderConfigurationData expected = new ReaderConfigurationData<>();
+    expected.setTopicName(topic);
+    expected.setSubscriptionName(COMPACTION_SUBSCRIPTION);
+    expected.setStartMessageId(MessageId.earliest);
+    expected.setStartMessageFromRollbackDurationInSec(0);
+    expected.setReadCompacted(true);
+    expected.setSubscriptionMode(SubscriptionMode.Durable);
+    expected.setSubscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
+
+    MessageIdImpl lastMessageId = (MessageIdImpl) reader.getLastMessageIdAsync().get();
+    MessageIdImpl id = null;
+    MessageImpl m = null;
+
+    Assert.assertEquals(readerConfigurationData, expected);
+    for (int i = 0; i < numKeys; i++) {
+      m = (MessageImpl) reader.readNextAsync().get();
+      id = (MessageIdImpl) m.getMessageId();
     }
-
-    @Test
-    public void test() throws Exception {
-
-        String topic = "persistent://my-property/my-ns/my-compact-topic";
-
-        // subscribe before sending anything, so that we get all messages
-        @Cleanup
-        var consumer = pulsarClient.newConsumer().topic(topic)
-                .subscriptionName("sub1").readCompacted(true).subscribe();
-        int numKeys = 5;
-        @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
-        for (int i = 0; i < numKeys; i++) {
-            producer.newMessage().key("key:" + i).value("value" + i).send();
-        }
-
-        var consumerFuture = new CompletableFuture();
-        @Cleanup
-        CompactionReaderImpl<String> reader = CompactionReaderImpl
-                .create((PulsarClientImpl) pulsarClient, Schema.STRING, topic, consumerFuture, null);
-        consumerFuture.join();
-
-        ConsumerBase consumerBase = spy(reader.getConsumer());
-        FieldUtils.writeDeclaredField(
-                reader, "consumer", consumerBase, true);
-
-        ReaderConfigurationData readerConfigurationData =
-                (ReaderConfigurationData) FieldUtils.readDeclaredField(
-                        reader, "readerConfiguration", true);
-
-
-        ReaderConfigurationData expected = new ReaderConfigurationData<>();
-        expected.setTopicName(topic);
-        expected.setSubscriptionName(COMPACTION_SUBSCRIPTION);
-        expected.setStartMessageId(MessageId.earliest);
-        expected.setStartMessageFromRollbackDurationInSec(0);
-        expected.setReadCompacted(true);
-        expected.setSubscriptionMode(SubscriptionMode.Durable);
-        expected.setSubscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
-
-        MessageIdImpl lastMessageId = (MessageIdImpl) reader.getLastMessageIdAsync().get();
-        MessageIdImpl id = null;
-        MessageImpl m = null;
-
-        Assert.assertEquals(readerConfigurationData, expected);
-        for (int i = 0; i < numKeys; i++) {
-            m = (MessageImpl) reader.readNextAsync().get();
-            id = (MessageIdImpl) m.getMessageId();
-        }
-        Assert.assertEquals(id, lastMessageId);
-        verify(consumerBase, times(0))
-                .acknowledgeCumulativeAsync(Mockito.any(MessageId.class));
-
-    }
+    Assert.assertEquals(id, lastMessageId);
+    verify(consumerBase, times(0)).acknowledgeCumulativeAsync(Mockito.any(MessageId.class));
+  }
 }

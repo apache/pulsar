@@ -23,6 +23,7 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertFalse;
+
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import java.lang.reflect.Method;
@@ -61,219 +62,246 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
 
-    private BrokerService brokerService;
-    private ManagedLedgerFactory mlFactoryMock;
-    private ServerCnx serverCnx;
-    @SuppressWarnings("unused")
-    private ManagedLedger ledgerMock;
-    @SuppressWarnings("unused")
-    private ManagedCursor cursorMock;
+  private BrokerService brokerService;
+  private ManagedLedgerFactory mlFactoryMock;
+  private ServerCnx serverCnx;
 
-    final String successTopicName = "persistent://prop/use/ns-abc/successTopic";
-    final String successSubName = "successSub";
-    private static final Logger log = LoggerFactory.getLogger(PersistentTopicTest.class);
+  @SuppressWarnings("unused")
+  private ManagedLedger ledgerMock;
 
-    @BeforeMethod
-    public void setup(Method m) throws Exception {
-        super.setUp(m);
-        ServiceConfiguration svcConfig = new ServiceConfiguration();
-        svcConfig.setBrokerShutdownTimeoutMs(0L);
-        svcConfig.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
-        @Cleanup
-        PulsarService pulsar = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);
-        doReturn(svcConfig).when(pulsar).getConfiguration();
+  @SuppressWarnings("unused")
+  private ManagedCursor cursorMock;
 
-        @Cleanup(value = "shutdownGracefully")
-        EventLoopGroup eventLoopGroup = new NioEventLoopGroup();
+  final String successTopicName = "persistent://prop/use/ns-abc/successTopic";
+  final String successSubName = "successSub";
+  private static final Logger log = LoggerFactory.getLogger(PersistentTopicTest.class);
 
-        mlFactoryMock = mock(ManagedLedgerFactory.class);
-        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
-        cursorMock = ledger.openCursor("c1");
-        ledgerMock = ledger;
-        mlFactoryMock = factory;
-        doReturn(mlFactoryMock).when(pulsar).getDefaultManagedLedgerFactory();
+  @BeforeMethod
+  public void setup(Method m) throws Exception {
+    super.setUp(m);
+    ServiceConfiguration svcConfig = new ServiceConfiguration();
+    svcConfig.setBrokerShutdownTimeoutMs(0L);
+    svcConfig.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
+    @Cleanup PulsarService pulsar = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);
+    doReturn(svcConfig).when(pulsar).getConfiguration();
 
-        brokerService = spyWithClassAndConstructorArgs(BrokerService.class, pulsar, eventLoopGroup);
-        doReturn(brokerService).when(pulsar).getBrokerService();
+    @Cleanup(value = "shutdownGracefully")
+    EventLoopGroup eventLoopGroup = new NioEventLoopGroup();
 
-        serverCnx = spyWithClassAndConstructorArgs(ServerCnx.class, pulsar);
-        doReturn(true).when(serverCnx).isActive();
+    mlFactoryMock = mock(ManagedLedgerFactory.class);
+    ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+    ManagedLedger ledger =
+        factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
+    cursorMock = ledger.openCursor("c1");
+    ledgerMock = ledger;
+    mlFactoryMock = factory;
+    doReturn(mlFactoryMock).when(pulsar).getDefaultManagedLedgerFactory();
 
-        NamespaceService nsSvc = mock(NamespaceService.class);
-        doReturn(nsSvc).when(pulsar).getNamespaceService();
-        doReturn(true).when(nsSvc).isServiceUnitOwned(any(NamespaceBundle.class));
-        doReturn(true).when(nsSvc).isServiceUnitActive(any(TopicName.class));
-        doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).checkTopicOwnership(any(TopicName.class));
+    brokerService = spyWithClassAndConstructorArgs(BrokerService.class, pulsar, eventLoopGroup);
+    doReturn(brokerService).when(pulsar).getBrokerService();
 
-        final List<Position> addedEntries = new ArrayList<>();
+    serverCnx = spyWithClassAndConstructorArgs(ServerCnx.class, pulsar);
+    doReturn(true).when(serverCnx).isActive();
 
-        for (int i = 0; i < 100; i++) {
-            Position pos = ledger.addEntry("entry".getBytes());
-            addedEntries.add(pos);
-        }
+    NamespaceService nsSvc = mock(NamespaceService.class);
+    doReturn(nsSvc).when(pulsar).getNamespaceService();
+    doReturn(true).when(nsSvc).isServiceUnitOwned(any(NamespaceBundle.class));
+    doReturn(true).when(nsSvc).isServiceUnitActive(any(TopicName.class));
+    doReturn(CompletableFuture.completedFuture(true))
+        .when(nsSvc)
+        .checkTopicOwnership(any(TopicName.class));
+
+    final List<Position> addedEntries = new ArrayList<>();
+
+    for (int i = 0; i < 100; i++) {
+      Position pos = ledger.addEntry("entry".getBytes());
+      addedEntries.add(pos);
     }
+  }
 
-    @Test(enabled = false)
-    public void testConcurrentTopicAndSubscriptionDelete() throws Exception {
-        // create topic
-        final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
-        topic.initialize().join();
-        CommandSubscribe cmd = new CommandSubscribe()
-                .setConsumerId(1)
-                .setTopic(successTopicName)
-                .setSubscription(successSubName)
-                .setRequestId(1)
-                .setSubType(CommandSubscribe.SubType.Exclusive);
+  @Test(enabled = false)
+  public void testConcurrentTopicAndSubscriptionDelete() throws Exception {
+    // create topic
+    final PersistentTopic topic =
+        (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
+    topic.initialize().join();
+    CommandSubscribe cmd =
+        new CommandSubscribe()
+            .setConsumerId(1)
+            .setTopic(successTopicName)
+            .setSubscription(successSubName)
+            .setRequestId(1)
+            .setSubType(CommandSubscribe.SubType.Exclusive);
 
-        SubscriptionOption subscriptionOption = getSubscriptionOption(cmd);
+    SubscriptionOption subscriptionOption = getSubscriptionOption(cmd);
 
-        Future<Consumer> f1 = topic.subscribe(subscriptionOption);
-        f1.get();
+    Future<Consumer> f1 = topic.subscribe(subscriptionOption);
+    f1.get();
 
-        final CyclicBarrier barrier = new CyclicBarrier(2);
-        final CountDownLatch counter = new CountDownLatch(2);
-        final AtomicBoolean gotException = new AtomicBoolean(false);
+    final CyclicBarrier barrier = new CyclicBarrier(2);
+    final CountDownLatch counter = new CountDownLatch(2);
+    final AtomicBoolean gotException = new AtomicBoolean(false);
 
-        Thread deleter = new Thread(() -> {
-            try {
+    Thread deleter =
+        new Thread(
+            () -> {
+              try {
                 barrier.await();
                 // assertTrue(topic.unsubscribe(successSubName).isDone());
                 Thread.sleep(5, 0);
                 log.info("deleter outcome is {}", topic.delete().get());
-            } catch (Exception e) {
+              } catch (Exception e) {
                 e.printStackTrace();
                 gotException.set(true);
-            } finally {
+              } finally {
                 counter.countDown();
-            }
-        });
+              }
+            });
 
-        Thread unsubscriber = new Thread(() -> {
-            try {
+    Thread unsubscriber =
+        new Thread(
+            () -> {
+              try {
                 barrier.await();
                 // do subscription delete
                 final var subscriptions = topic.getSubscriptions();
                 PersistentSubscription ps = subscriptions.get(successSubName);
                 // Thread.sleep(2,0);
-                log.info("unsubscriber outcome is {}", ps.doUnsubscribe(ps.getConsumers().get(0)).get());
+                log.info(
+                    "unsubscriber outcome is {}", ps.doUnsubscribe(ps.getConsumers().get(0)).get());
                 // assertFalse(ps.delete().isCompletedExceptionally());
-            } catch (Exception e) {
+              } catch (Exception e) {
                 e.printStackTrace();
                 gotException.set(true);
-            } finally {
+              } finally {
                 counter.countDown();
-            }
-        });
+              }
+            });
 
-        deleter.start();
-        unsubscriber.start();
+    deleter.start();
+    unsubscriber.start();
 
-        counter.await();
-        assertFalse(gotException.get());
-    }
+    counter.await();
+    assertFalse(gotException.get());
+  }
 
-    @Test(enabled = false)
-    public void testConcurrentTopicGCAndSubscriptionDelete() throws Exception {
-        // create topic
-        final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
-        topic.initialize().join();
-        CommandSubscribe cmd = new CommandSubscribe()
-                .setConsumerId(1)
-                .setTopic(successTopicName)
-                .setSubscription(successSubName)
-                .setRequestId(1)
-                .setSubType(CommandSubscribe.SubType.Exclusive);
+  @Test(enabled = false)
+  public void testConcurrentTopicGCAndSubscriptionDelete() throws Exception {
+    // create topic
+    final PersistentTopic topic =
+        (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
+    topic.initialize().join();
+    CommandSubscribe cmd =
+        new CommandSubscribe()
+            .setConsumerId(1)
+            .setTopic(successTopicName)
+            .setSubscription(successSubName)
+            .setRequestId(1)
+            .setSubType(CommandSubscribe.SubType.Exclusive);
 
-        SubscriptionOption subscriptionOption = getSubscriptionOption(cmd);
+    SubscriptionOption subscriptionOption = getSubscriptionOption(cmd);
 
-        Future<Consumer> f1 = topic.subscribe(subscriptionOption);
-        f1.get();
+    Future<Consumer> f1 = topic.subscribe(subscriptionOption);
+    f1.get();
 
-        final CyclicBarrier barrier = new CyclicBarrier(2);
-        final CountDownLatch counter = new CountDownLatch(2);
-        final AtomicBoolean gotException = new AtomicBoolean(false);
+    final CyclicBarrier barrier = new CyclicBarrier(2);
+    final CountDownLatch counter = new CountDownLatch(2);
+    final AtomicBoolean gotException = new AtomicBoolean(false);
 
-        Thread deleter = new Thread(() -> {
-            try {
+    Thread deleter =
+        new Thread(
+            () -> {
+              try {
                 barrier.await();
                 // assertTrue(topic.unsubscribe(successSubName).isDone());
                 // Thread.sleep(5,0);
                 log.info("{} forcing topic GC ", Thread.currentThread());
                 for (int i = 0; i < 2000; i++) {
-                    topic.getInactiveTopicPolicies().setMaxInactiveDurationSeconds(0);
-                    topic.getInactiveTopicPolicies().setInactiveTopicDeleteMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
-                    topic.checkGC();
+                  topic.getInactiveTopicPolicies().setMaxInactiveDurationSeconds(0);
+                  topic
+                      .getInactiveTopicPolicies()
+                      .setInactiveTopicDeleteMode(
+                          InactiveTopicDeleteMode.delete_when_no_subscriptions);
+                  topic.checkGC();
                 }
                 log.info("GC done..");
-            } catch (Exception e) {
+              } catch (Exception e) {
                 e.printStackTrace();
                 gotException.set(true);
-            } finally {
+              } finally {
                 counter.countDown();
-            }
-        });
+              }
+            });
 
-        Thread unsubscriber = new Thread(() -> {
-            try {
+    Thread unsubscriber =
+        new Thread(
+            () -> {
+              try {
                 barrier.await();
                 // do subscription delete
                 final var subscriptions = topic.getSubscriptions();
                 PersistentSubscription ps = subscriptions.get(successSubName);
                 // Thread.sleep(2,0);
-                log.info("unsubscriber outcome is {}", ps.doUnsubscribe(ps.getConsumers().get(0)).get());
+                log.info(
+                    "unsubscriber outcome is {}", ps.doUnsubscribe(ps.getConsumers().get(0)).get());
                 // assertFalse(ps.delete().isCompletedExceptionally());
-            } catch (Exception e) {
+              } catch (Exception e) {
                 e.printStackTrace();
                 gotException.set(true);
-            } finally {
+              } finally {
                 counter.countDown();
-            }
-        });
+              }
+            });
 
-        deleter.start();
-        unsubscriber.start();
+    deleter.start();
+    unsubscriber.start();
 
-        counter.await();
-        assertFalse(gotException.get());
-    }
+    counter.await();
+    assertFalse(gotException.get());
+  }
 
-    @Test(enabled = false)
-    public void testConcurrentTopicDeleteAndUnsubscribe() throws Exception {
-        // create topic
-        final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
-        topic.initialize().join();
-        CommandSubscribe cmd = new CommandSubscribe()
-                .setConsumerId(1)
-                .setTopic(successTopicName)
-                .setSubscription(successSubName)
-                .setRequestId(1)
-                .setSubType(CommandSubscribe.SubType.Exclusive);
+  @Test(enabled = false)
+  public void testConcurrentTopicDeleteAndUnsubscribe() throws Exception {
+    // create topic
+    final PersistentTopic topic =
+        (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
+    topic.initialize().join();
+    CommandSubscribe cmd =
+        new CommandSubscribe()
+            .setConsumerId(1)
+            .setTopic(successTopicName)
+            .setSubscription(successSubName)
+            .setRequestId(1)
+            .setSubType(CommandSubscribe.SubType.Exclusive);
 
-        SubscriptionOption subscriptionOption = getSubscriptionOption(cmd);
+    SubscriptionOption subscriptionOption = getSubscriptionOption(cmd);
 
-        Future<Consumer> f1 = topic.subscribe(subscriptionOption);
-        f1.get();
+    Future<Consumer> f1 = topic.subscribe(subscriptionOption);
+    f1.get();
 
-        final CyclicBarrier barrier = new CyclicBarrier(2);
-        final CountDownLatch counter = new CountDownLatch(2);
-        final AtomicBoolean gotException = new AtomicBoolean(false);
+    final CyclicBarrier barrier = new CyclicBarrier(2);
+    final CountDownLatch counter = new CountDownLatch(2);
+    final AtomicBoolean gotException = new AtomicBoolean(false);
 
-        Thread deleter = new Thread(() -> {
-            try {
+    Thread deleter =
+        new Thread(
+            () -> {
+              try {
                 barrier.await();
                 Thread.sleep(4, 700);
                 log.info("deleter outcome is {}", topic.delete().get());
-            } catch (Exception e) {
+              } catch (Exception e) {
                 e.printStackTrace();
                 gotException.set(true);
-            } finally {
+              } finally {
                 counter.countDown();
-            }
-        });
+              }
+            });
 
-        Thread unsubscriber = new Thread(() -> {
-            try {
+    Thread unsubscriber =
+        new Thread(
+            () -> {
+              try {
                 barrier.await();
                 // Thread.sleep(2,0);
                 // assertTrue(topic.unsubscribe(successSubName).isDone());
@@ -282,88 +310,104 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                 log.info("unsubscribe result : {}", topic.unsubscribe(successSubName).get());
                 log.info("closing consumer..");
                 ps.getConsumers().get(0).close();
-            } catch (Exception e) {
+              } catch (Exception e) {
                 e.printStackTrace();
                 gotException.set(true);
-            } finally {
+              } finally {
                 counter.countDown();
-            }
-        });
+              }
+            });
 
-        deleter.start();
-        unsubscriber.start();
+    deleter.start();
+    unsubscriber.start();
 
-        counter.await();
-        assertFalse(gotException.get());
-    }
+    counter.await();
+    assertFalse(gotException.get());
+  }
 
-    @Test(enabled = false)
-    public void testConcurrentTopicDeleteAndSubsUnsubscribe() throws Exception {
-        // create topic
-        final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
-        topic.initialize().join();
-        CommandSubscribe cmd = new CommandSubscribe()
-                .setConsumerId(1)
-                .setTopic(successTopicName)
-                .setSubscription(successSubName)
-                .setRequestId(1)
-                .setSubType(CommandSubscribe.SubType.Exclusive);
+  @Test(enabled = false)
+  public void testConcurrentTopicDeleteAndSubsUnsubscribe() throws Exception {
+    // create topic
+    final PersistentTopic topic =
+        (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
+    topic.initialize().join();
+    CommandSubscribe cmd =
+        new CommandSubscribe()
+            .setConsumerId(1)
+            .setTopic(successTopicName)
+            .setSubscription(successSubName)
+            .setRequestId(1)
+            .setSubType(CommandSubscribe.SubType.Exclusive);
 
-        SubscriptionOption subscriptionOption = getSubscriptionOption(cmd);
+    SubscriptionOption subscriptionOption = getSubscriptionOption(cmd);
 
-        Future<Consumer> f1 = topic.subscribe(subscriptionOption);
-        f1.get();
+    Future<Consumer> f1 = topic.subscribe(subscriptionOption);
+    f1.get();
 
-        final CyclicBarrier barrier = new CyclicBarrier(2);
-        final CountDownLatch counter = new CountDownLatch(2);
-        final AtomicBoolean gotException = new AtomicBoolean(false);
+    final CyclicBarrier barrier = new CyclicBarrier(2);
+    final CountDownLatch counter = new CountDownLatch(2);
+    final AtomicBoolean gotException = new AtomicBoolean(false);
 
-        Thread deleter = new Thread(() -> {
-            try {
+    Thread deleter =
+        new Thread(
+            () -> {
+              try {
                 barrier.await();
                 Thread.sleep(4, 730);
                 log.info("@@@@@@@@ DELETER TH");
                 log.info("deleter outcome is " + topic.delete().get());
-            } catch (Exception e) {
+              } catch (Exception e) {
                 e.printStackTrace();
                 gotException.set(true);
-            } finally {
+              } finally {
                 counter.countDown();
-            }
-        });
+              }
+            });
 
-        Thread unsubscriber = new Thread(() -> {
-            try {
+    Thread unsubscriber =
+        new Thread(
+            () -> {
+              try {
                 barrier.await();
                 log.info("&&&&&&&&& UNSUBSCRIBER TH");
                 // Thread.sleep(2,0);
                 // assertTrue(topic.unsubscribe(successSubName).isDone());
                 final var subscriptions = topic.getSubscriptions();
                 PersistentSubscription ps = subscriptions.get(successSubName);
-                log.info("unsubscribe result : " + ps.doUnsubscribe(ps.getConsumers().get(0)).get());
-            } catch (Exception e) {
+                log.info(
+                    "unsubscribe result : " + ps.doUnsubscribe(ps.getConsumers().get(0)).get());
+              } catch (Exception e) {
                 e.printStackTrace();
                 gotException.set(true);
-            } finally {
+              } finally {
                 counter.countDown();
-            }
-        });
+              }
+            });
 
-        deleter.start();
-        unsubscriber.start();
+    deleter.start();
+    unsubscriber.start();
 
-        counter.await();
-        assertFalse(gotException.get());
-    }
+    counter.await();
+    assertFalse(gotException.get());
+  }
 
-    private SubscriptionOption getSubscriptionOption(CommandSubscribe cmd) {
-        return SubscriptionOption.builder().cnx(serverCnx)
-                .subscriptionName(cmd.getSubscription()).consumerId(cmd.getConsumerId()).subType(cmd.getSubType())
-                .priorityLevel(0).consumerName(cmd.getConsumerName()).isDurable(cmd.isDurable()).startMessageId(null)
-                .metadata(Collections.emptyMap()).readCompacted(cmd.isReadCompacted())
-                .subscriptionProperties(java.util.Optional.empty())
-                .initialPosition(InitialPosition.Latest)
-                .startMessageRollbackDurationSec(0).replicatedSubscriptionStateArg(false).keySharedMeta(null)
-                .build();
-    }
+  private SubscriptionOption getSubscriptionOption(CommandSubscribe cmd) {
+    return SubscriptionOption.builder()
+        .cnx(serverCnx)
+        .subscriptionName(cmd.getSubscription())
+        .consumerId(cmd.getConsumerId())
+        .subType(cmd.getSubType())
+        .priorityLevel(0)
+        .consumerName(cmd.getConsumerName())
+        .isDurable(cmd.isDurable())
+        .startMessageId(null)
+        .metadata(Collections.emptyMap())
+        .readCompacted(cmd.isReadCompacted())
+        .subscriptionProperties(java.util.Optional.empty())
+        .initialPosition(InitialPosition.Latest)
+        .startMessageRollbackDurationSec(0)
+        .replicatedSubscriptionStateArg(false)
+        .keySharedMeta(null)
+        .build();
+  }
 }

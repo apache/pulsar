@@ -20,59 +20,59 @@ package org.apache.pulsar.compaction;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-import org.apache.bookkeeper.mledger.util.StatsBuckets;
-import org.testng.annotations.Test;
 
 import java.util.concurrent.TimeUnit;
+import org.apache.bookkeeper.mledger.util.StatsBuckets;
+import org.testng.annotations.Test;
 
 @Test(groups = "broker-compaction")
 public class CompactorMXBeanImplTest {
 
-    @Test
-    public void testSimple() throws Exception {
-        CompactorMXBeanImpl mxBean = new CompactorMXBeanImpl();
-        String topic = "topic1";
-        mxBean.addCompactionStartOp(topic);
-        CompactionRecord compaction = mxBean.getCompactionRecordForTopic(topic).get();
-        assertEquals(compaction.getLastCompactionRemovedEventCount(), 0, 0);
-        mxBean.addCompactionRemovedEvent(topic);
-        assertEquals(compaction.getLastCompactionRemovedEventCount(), 0, 0);
-        mxBean.addCompactionEndOp(topic, true);
-        assertEquals(compaction.getLastCompactionRemovedEventCount(), 1, 0);
-        assertTrue(compaction.getLastCompactionSucceedTimestamp() > 0L);
-        assertTrue(compaction.getLastCompactionDurationTimeInMills() >= 0L);
-        assertEquals(compaction.getLastCompactionFailedTimestamp(), 0, 0);
-        assertEquals(compaction.getCompactionRemovedEventCount(), 1, 0);
-        assertEquals(compaction.getCompactionSucceedCount(), 1, 0);
-        assertEquals(compaction.getCompactionFailedCount(), 0, 0);
-        assertTrue(compaction.getCompactionDurationTimeInMills() >= 0L);
-        mxBean.addCompactionStartOp(topic);
-        mxBean.addCompactionRemovedEvent(topic);
-        mxBean.addCompactionEndOp(topic, false);
-        assertEquals(compaction.getCompactionRemovedEventCount(), 2, 0);
-        assertEquals(compaction.getCompactionFailedCount(), 1, 0);
-        assertEquals(compaction.getCompactionSucceedCount(), 1, 0);
-        assertTrue(compaction.getLastCompactionFailedTimestamp() > 0L);
-        assertTrue(compaction.getCompactionDurationTimeInMills() >= 0L);
-        mxBean.addCompactionReadOp(topic, 22);
-        assertTrue(compaction.getCompactionReadThroughput() > 0L);
-        mxBean.addCompactionWriteOp(topic, 33);
-        assertTrue(compaction.getCompactionWriteThroughput() > 0L);
-        mxBean.addCompactionLatencyOp(topic, 10, TimeUnit.NANOSECONDS);
-        assertTrue(compaction.getCompactionLatencyBuckets()[0] > 0L);
-    }
+  @Test
+  public void testSimple() throws Exception {
+    CompactorMXBeanImpl mxBean = new CompactorMXBeanImpl();
+    String topic = "topic1";
+    mxBean.addCompactionStartOp(topic);
+    CompactionRecord compaction = mxBean.getCompactionRecordForTopic(topic).get();
+    assertEquals(compaction.getLastCompactionRemovedEventCount(), 0, 0);
+    mxBean.addCompactionRemovedEvent(topic);
+    assertEquals(compaction.getLastCompactionRemovedEventCount(), 0, 0);
+    mxBean.addCompactionEndOp(topic, true);
+    assertEquals(compaction.getLastCompactionRemovedEventCount(), 1, 0);
+    assertTrue(compaction.getLastCompactionSucceedTimestamp() > 0L);
+    assertTrue(compaction.getLastCompactionDurationTimeInMills() >= 0L);
+    assertEquals(compaction.getLastCompactionFailedTimestamp(), 0, 0);
+    assertEquals(compaction.getCompactionRemovedEventCount(), 1, 0);
+    assertEquals(compaction.getCompactionSucceedCount(), 1, 0);
+    assertEquals(compaction.getCompactionFailedCount(), 0, 0);
+    assertTrue(compaction.getCompactionDurationTimeInMills() >= 0L);
+    mxBean.addCompactionStartOp(topic);
+    mxBean.addCompactionRemovedEvent(topic);
+    mxBean.addCompactionEndOp(topic, false);
+    assertEquals(compaction.getCompactionRemovedEventCount(), 2, 0);
+    assertEquals(compaction.getCompactionFailedCount(), 1, 0);
+    assertEquals(compaction.getCompactionSucceedCount(), 1, 0);
+    assertTrue(compaction.getLastCompactionFailedTimestamp() > 0L);
+    assertTrue(compaction.getCompactionDurationTimeInMills() >= 0L);
+    mxBean.addCompactionReadOp(topic, 22);
+    assertTrue(compaction.getCompactionReadThroughput() > 0L);
+    mxBean.addCompactionWriteOp(topic, 33);
+    assertTrue(compaction.getCompactionWriteThroughput() > 0L);
+    mxBean.addCompactionLatencyOp(topic, 10, TimeUnit.NANOSECONDS);
+    assertTrue(compaction.getCompactionLatencyBuckets()[0] > 0L);
+  }
 
-    @Test
-    public void testCompactionLatencyStatsAddAll() {
-        CompactorMXBeanImpl mxBean = new CompactorMXBeanImpl();
-        String topic = "topic2";
-        mxBean.addCompactionStartOp(topic);
-        CompactionRecord compaction = mxBean.getCompactionRecordForTopic(topic).get();
-        StatsBuckets compactionLatencyBuckets = new StatsBuckets(CompactionRecord.WRITE_LATENCY_BUCKETS_USEC);
-        mxBean.addCompactionLatencyOp(topic, 10, TimeUnit.NANOSECONDS);
-        compactionLatencyBuckets.addAll(compaction.getCompactionLatencyStats());
-        compactionLatencyBuckets.refresh();
-        assertTrue(compactionLatencyBuckets.getBuckets()[0] > 0L);
-    }
-
+  @Test
+  public void testCompactionLatencyStatsAddAll() {
+    CompactorMXBeanImpl mxBean = new CompactorMXBeanImpl();
+    String topic = "topic2";
+    mxBean.addCompactionStartOp(topic);
+    CompactionRecord compaction = mxBean.getCompactionRecordForTopic(topic).get();
+    StatsBuckets compactionLatencyBuckets =
+        new StatsBuckets(CompactionRecord.WRITE_LATENCY_BUCKETS_USEC);
+    mxBean.addCompactionLatencyOp(topic, 10, TimeUnit.NANOSECONDS);
+    compactionLatencyBuckets.addAll(compaction.getCompactionLatencyStats());
+    compactionLatencyBuckets.refresh();
+    assertTrue(compactionLatencyBuckets.getBuckets()[0] > 0L);
+  }
 }

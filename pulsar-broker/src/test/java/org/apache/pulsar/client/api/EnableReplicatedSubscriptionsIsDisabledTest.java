@@ -22,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -37,47 +38,52 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-api")
 public class EnableReplicatedSubscriptionsIsDisabledTest extends ProducerConsumerBase {
 
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
+  @BeforeClass
+  @Override
+  protected void setup() throws Exception {
+    super.internalSetup();
+    super.producerBaseSetup();
+  }
 
-    @Override
-    protected void doInitConf() throws Exception {
-        super.doInitConf();
-        conf.setEnableReplicatedSubscriptions(false);
-    }
+  @Override
+  protected void doInitConf() throws Exception {
+    super.doInitConf();
+    conf.setEnableReplicatedSubscriptions(false);
+  }
 
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @AfterClass(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @Test
-    public void testReplicateSubscriptionStateIsEnabled() throws Exception {
-        String topicName = TopicName.get("my-property/my-ns/testReplicateSubscriptionStateIsEnabled").toString();
-        String subName = "my-subscription";
-        @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
-                .topic(topicName)
-                .subscriptionName(subName)
-                .replicateSubscriptionState(true)
-                .subscribe();
-        CompletableFuture<Optional<Topic>> topicIfExists = pulsar.getBrokerService().getTopicIfExists(topicName);
-        assertThat(topicIfExists)
-                .succeedsWithin(3, TimeUnit.SECONDS)
-                .matches(optionalTopic -> {
-                    assertTrue(optionalTopic.isPresent());
-                    Topic topicRef = optionalTopic.get();
-                    Subscription subscription = topicRef.getSubscription(subName);
-                    assertNotNull(subscription);
-                    assertTrue(subscription instanceof PersistentSubscription);
-                    PersistentSubscription persistentSubscription = (PersistentSubscription) subscription;
-                    assertEquals(persistentSubscription.getReplicatedControlled(), Boolean.FALSE);
-                    return true;
-                });
-    }
+  @Test
+  public void testReplicateSubscriptionStateIsEnabled() throws Exception {
+    String topicName =
+        TopicName.get("my-property/my-ns/testReplicateSubscriptionStateIsEnabled").toString();
+    String subName = "my-subscription";
+    @Cleanup
+    Consumer<byte[]> consumer =
+        pulsarClient
+            .newConsumer(Schema.BYTES)
+            .topic(topicName)
+            .subscriptionName(subName)
+            .replicateSubscriptionState(true)
+            .subscribe();
+    CompletableFuture<Optional<Topic>> topicIfExists =
+        pulsar.getBrokerService().getTopicIfExists(topicName);
+    assertThat(topicIfExists)
+        .succeedsWithin(3, TimeUnit.SECONDS)
+        .matches(
+            optionalTopic -> {
+              assertTrue(optionalTopic.isPresent());
+              Topic topicRef = optionalTopic.get();
+              Subscription subscription = topicRef.getSubscription(subName);
+              assertNotNull(subscription);
+              assertTrue(subscription instanceof PersistentSubscription);
+              PersistentSubscription persistentSubscription = (PersistentSubscription) subscription;
+              assertEquals(persistentSubscription.getReplicatedControlled(), Boolean.FALSE);
+              return true;
+            });
+  }
 }

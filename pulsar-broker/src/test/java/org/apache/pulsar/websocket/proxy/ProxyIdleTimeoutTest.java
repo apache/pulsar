@@ -25,6 +25,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
+
 import java.net.URI;
 import java.util.Optional;
 import java.util.concurrent.Future;
@@ -46,62 +47,68 @@ import org.testng.annotations.Test;
 @Test(groups = "websocket")
 @Slf4j
 public class ProxyIdleTimeoutTest extends ProducerConsumerBase {
-    protected String methodName;
-    private ProxyServer proxyServer;
-    private WebSocketService service;
+  protected String methodName;
+  private ProxyServer proxyServer;
+  private WebSocketService service;
 
-    private static final int TIME_TO_CHECK_BACKLOG_QUOTA = 5;
+  private static final int TIME_TO_CHECK_BACKLOG_QUOTA = 5;
 
-    @BeforeMethod
-    public void setup() throws Exception {
-        conf.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
+  @BeforeMethod
+  public void setup() throws Exception {
+    conf.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
 
-        super.internalSetup();
-        super.producerBaseSetup();
+    super.internalSetup();
+    super.producerBaseSetup();
 
-        WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
-        config.setWebServicePort(Optional.of(0));
-        config.setClusterName("test");
-        config.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
-        config.setWebSocketSessionIdleTimeoutMillis(3 * 1000);
-        service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
-        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(service)
-                .createConfigMetadataStore(anyString(), anyInt(), anyBoolean());
-        proxyServer = new ProxyServer(config);
-        WebSocketServiceStarter.start(proxyServer, service);
-        log.info("Proxy Server Started");
+    WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
+    config.setWebServicePort(Optional.of(0));
+    config.setClusterName("test");
+    config.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
+    config.setWebSocketSessionIdleTimeoutMillis(3 * 1000);
+    service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
+    doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal)))
+        .when(service)
+        .createConfigMetadataStore(anyString(), anyInt(), anyBoolean());
+    proxyServer = new ProxyServer(config);
+    WebSocketServiceStarter.start(proxyServer, service);
+    log.info("Proxy Server Started");
+  }
+
+  @AfterMethod(alwaysRun = true)
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+    if (service != null) {
+      service.close();
     }
-
-    @AfterMethod(alwaysRun = true)
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-        if (service != null) {
-            service.close();
-        }
-        if (proxyServer != null) {
-            proxyServer.stop();
-        }
-        log.info("Finished Cleaning Up Test setup");
+    if (proxyServer != null) {
+      proxyServer.stop();
     }
+    log.info("Finished Cleaning Up Test setup");
+  }
 
-    @Test
-    public void testIdleTimeout() throws Exception {
-        String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() +
-                "/ws/v2/producer/persistent/my-property/my-ns/my-topic1/";
+  @Test
+  public void testIdleTimeout() throws Exception {
+    String producerUri =
+        "ws://localhost:"
+            + proxyServer.getListenPortHTTP().get()
+            + "/ws/v2/producer/persistent/my-property/my-ns/my-topic1/";
 
-        URI produceUri = URI.create(producerUri);
-        WebSocketClient produceClient = new WebSocketClient();
-        SimpleProducerSocket produceSocket = new SimpleProducerSocket();
+    URI produceUri = URI.create(producerUri);
+    WebSocketClient produceClient = new WebSocketClient();
+    SimpleProducerSocket produceSocket = new SimpleProducerSocket();
 
-        try {
-            produceClient.start();
-            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
-            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
-            assertThat(producerFuture).succeedsWithin(2, SECONDS);
-            Session session = producerFuture.get();
-            Awaitility.await().during(5, SECONDS).untilAsserted(() -> assertThat(session.isOpen()).isFalse());
-        } finally {
-            produceClient.stop();
-        }
+    try {
+      produceClient.start();
+      ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+      Future<Session> producerFuture =
+          produceClient.connect(produceSocket, produceUri, produceRequest);
+      assertThat(producerFuture).succeedsWithin(2, SECONDS);
+      Session session = producerFuture.get();
+      Awaitility.await()
+          .during(5, SECONDS)
+          .untilAsserted(() -> assertThat(session.isOpen()).isFalse());
+    } finally {
+      produceClient.stop();
     }
+  }
 }

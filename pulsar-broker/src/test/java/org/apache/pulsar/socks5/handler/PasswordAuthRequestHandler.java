@@ -29,22 +29,23 @@ import org.apache.pulsar.socks5.auth.DefaultPasswordAuthImpl;
 import org.apache.pulsar.socks5.auth.PasswordAuth;
 
 @Slf4j
-public class PasswordAuthRequestHandler extends SimpleChannelInboundHandler<DefaultSocks5PasswordAuthRequest> {
+public class PasswordAuthRequestHandler
+    extends SimpleChannelInboundHandler<DefaultSocks5PasswordAuthRequest> {
 
-    private final PasswordAuth passwordAuth;
+  private final PasswordAuth passwordAuth;
 
-    public PasswordAuthRequestHandler() {
-        this.passwordAuth = new DefaultPasswordAuthImpl();
+  public PasswordAuthRequestHandler() {
+    this.passwordAuth = new DefaultPasswordAuthImpl();
+  }
+
+  @Override
+  protected void channelRead0(ChannelHandlerContext ctx, DefaultSocks5PasswordAuthRequest msg)
+      throws Exception {
+    if (passwordAuth.auth(msg.username(), msg.password())) {
+      ctx.writeAndFlush(new DefaultSocks5PasswordAuthResponse(Socks5PasswordAuthStatus.SUCCESS));
+    } else {
+      ctx.writeAndFlush(new DefaultSocks5PasswordAuthResponse(Socks5PasswordAuthStatus.FAILURE))
+          .addListener(ChannelFutureListener.CLOSE);
     }
-
-    @Override
-    protected void channelRead0(ChannelHandlerContext ctx, DefaultSocks5PasswordAuthRequest msg) throws Exception {
-        if (passwordAuth.auth(msg.username(), msg.password())) {
-            ctx.writeAndFlush(new DefaultSocks5PasswordAuthResponse(Socks5PasswordAuthStatus.SUCCESS));
-        } else {
-            ctx.writeAndFlush(new DefaultSocks5PasswordAuthResponse(Socks5PasswordAuthStatus.FAILURE))
-                    .addListener(ChannelFutureListener.CLOSE);
-        }
-    }
-
+  }
 }

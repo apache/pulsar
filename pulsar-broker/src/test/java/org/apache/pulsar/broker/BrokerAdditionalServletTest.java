@@ -49,152 +49,152 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
 
-    private final String BASE_PATH = "/additional/servlet";
-    private final String WITH_PULSAR_SERVICE_BASE_PATH = "/additional/servlet/with/pulsar/service";
-    private final String QUERY_PARAM = "param";
+  private final String BASE_PATH = "/additional/servlet";
+  private final String WITH_PULSAR_SERVICE_BASE_PATH = "/additional/servlet/with/pulsar/service";
+  private final String QUERY_PARAM = "param";
+
+  @Override
+  @BeforeClass
+  protected void setup() throws Exception {
+    internalSetup();
+  }
+
+  @Override
+  @AfterClass(alwaysRun = true)
+  protected void cleanup() throws Exception {
+    internalCleanup();
+  }
+
+  @Override
+  protected void beforePulsarStart(PulsarService pulsar) throws Exception {
+    mockAdditionalServlet(pulsar);
+  }
+
+  private void mockAdditionalServlet(PulsarService pulsar) {
+    Servlet servlet = new OrdinaryServlet();
+
+    AdditionalServlet brokerAdditionalServlet = Mockito.mock(AdditionalServlet.class);
+    Mockito.when(brokerAdditionalServlet.getBasePath()).thenReturn(BASE_PATH);
+    Mockito.when(brokerAdditionalServlet.getServletHolder()).thenReturn(new ServletHolder(servlet));
+
+    AdditionalServletWithPulsarService brokerAdditionalServletWithPulsarService =
+        new AdditionalServletWithPulsarService() {
+          private PulsarService pulsarService;
+
+          @Override
+          public void setPulsarService(PulsarService pulsarService) {
+            this.pulsarService = pulsarService;
+          }
+
+          @Override
+          public void loadConfig(PulsarConfiguration pulsarConfiguration) {
+            // No-op
+          }
+
+          @Override
+          public String getBasePath() {
+            return WITH_PULSAR_SERVICE_BASE_PATH;
+          }
+
+          @Override
+          public ServletHolder getServletHolder() {
+            return new ServletHolder(new WithPulsarServiceServlet(pulsarService));
+          }
+
+          @Override
+          public void close() {
+            // No-op
+          }
+        };
+
+    AdditionalServlets brokerAdditionalServlets = Mockito.mock(AdditionalServlets.class);
+    Map<String, AdditionalServletWithClassLoader> map = new HashMap<>();
+    map.put(
+        "broker-additional-servlet",
+        new AdditionalServletWithClassLoader(brokerAdditionalServlet, null));
+    map.put(
+        "broker-additional-servlet-with-pulsar-service",
+        new AdditionalServletWithClassLoader(brokerAdditionalServletWithPulsarService, null));
+    Mockito.when(brokerAdditionalServlets.getServlets()).thenReturn(map);
+
+    Mockito.when(pulsar.getBrokerAdditionalServlets()).thenReturn(brokerAdditionalServlets);
+  }
+
+  @Test
+  public void test() throws IOException {
+    int httpPort = pulsar.getWebService().getListenPortHTTP().get();
+    log.info("pulsar webService httpPort {}", httpPort);
+    String paramValue = "value - " + RandomUtils.nextInt();
+    String response =
+        httpGet("http://localhost:" + httpPort + BASE_PATH + "?" + QUERY_PARAM + "=" + paramValue);
+    Assert.assertEquals(response, paramValue);
+
+    String WithPulsarServiceParamValue = PulsarService.class.getName();
+    String withPulsarServiceResponse =
+        httpGet("http://localhost:" + httpPort + WITH_PULSAR_SERVICE_BASE_PATH);
+    Assert.assertEquals(WithPulsarServiceParamValue, withPulsarServiceResponse);
+  }
+
+  private class OrdinaryServlet implements Servlet {
+    @Override
+    public void init(ServletConfig servletConfig) throws ServletException {
+      log.info("[init]");
+    }
 
     @Override
-    @BeforeClass
-    protected void setup() throws Exception {
-        internalSetup();
+    public ServletConfig getServletConfig() {
+      log.info("[getServletConfig]");
+      return null;
     }
 
     @Override
-    @AfterClass(alwaysRun = true)
-    protected void cleanup() throws Exception {
-        internalCleanup();
+    public void service(ServletRequest servletRequest, ServletResponse servletResponse)
+        throws ServletException, IOException {
+      log.info("[service] path: {}", ((Request) servletRequest).getOriginalURI());
+      String value = servletRequest.getParameterMap().get(QUERY_PARAM)[0];
+      ServletOutputStream servletOutputStream = servletResponse.getOutputStream();
+      servletResponse.setContentLength(value.getBytes().length);
+      servletOutputStream.write(value.getBytes());
+      servletOutputStream.flush();
     }
 
     @Override
-    protected void beforePulsarStart(PulsarService pulsar) throws Exception {
-        mockAdditionalServlet(pulsar);
+    public String getServletInfo() {
+      log.info("[getServletInfo]");
+      return null;
     }
 
-    private void mockAdditionalServlet(PulsarService pulsar) {
-        Servlet servlet = new OrdinaryServlet();
+    @Override
+    public void destroy() {
+      log.info("[destroy]");
+    }
+  }
 
-        AdditionalServlet brokerAdditionalServlet = Mockito.mock(AdditionalServlet.class);
-        Mockito.when(brokerAdditionalServlet.getBasePath()).thenReturn(BASE_PATH);
-        Mockito.when(brokerAdditionalServlet.getServletHolder()).thenReturn(new ServletHolder(servlet));
+  private class WithPulsarServiceServlet extends OrdinaryServlet {
+    private final PulsarService pulsarService;
 
-        AdditionalServletWithPulsarService brokerAdditionalServletWithPulsarService =
-                new AdditionalServletWithPulsarService() {
-                    private PulsarService pulsarService;
-                    @Override
-                    public void setPulsarService(PulsarService pulsarService) {
-                        this.pulsarService = pulsarService;
-                    }
-
-                    @Override
-                    public void loadConfig(PulsarConfiguration pulsarConfiguration) {
-                        // No-op
-                    }
-
-                    @Override
-                    public String getBasePath() {
-                        return WITH_PULSAR_SERVICE_BASE_PATH;
-                    }
-
-                    @Override
-                    public ServletHolder getServletHolder() {
-                        return new ServletHolder(new WithPulsarServiceServlet(pulsarService));
-                    }
-
-                    @Override
-                    public void close() {
-                        // No-op
-                    }
-                };
-
-
-        AdditionalServlets brokerAdditionalServlets = Mockito.mock(AdditionalServlets.class);
-        Map<String, AdditionalServletWithClassLoader> map = new HashMap<>();
-        map.put("broker-additional-servlet", new AdditionalServletWithClassLoader(brokerAdditionalServlet, null));
-        map.put("broker-additional-servlet-with-pulsar-service", new AdditionalServletWithClassLoader(brokerAdditionalServletWithPulsarService, null));
-        Mockito.when(brokerAdditionalServlets.getServlets()).thenReturn(map);
-
-        Mockito.when(pulsar.getBrokerAdditionalServlets()).thenReturn(brokerAdditionalServlets);
+    public WithPulsarServiceServlet(PulsarService pulsar) {
+      this.pulsarService = pulsar;
     }
 
-    @Test
-    public void test() throws IOException {
-        int httpPort = pulsar.getWebService().getListenPortHTTP().get();
-        log.info("pulsar webService httpPort {}", httpPort);
-        String paramValue = "value - " + RandomUtils.nextInt();
-        String response = httpGet("http://localhost:" + httpPort + BASE_PATH + "?" + QUERY_PARAM + "=" + paramValue);
-        Assert.assertEquals(response, paramValue);
-
-        String WithPulsarServiceParamValue = PulsarService.class.getName();
-        String withPulsarServiceResponse = httpGet("http://localhost:" + httpPort + WITH_PULSAR_SERVICE_BASE_PATH);
-        Assert.assertEquals(WithPulsarServiceParamValue, withPulsarServiceResponse);
+    @Override
+    public void service(ServletRequest servletRequest, ServletResponse servletResponse)
+        throws ServletException, IOException {
+      log.info("[service] path: {}", ((Request) servletRequest).getOriginalURI());
+      String value = pulsarService == null ? "null" : PulsarService.class.getName();
+      ServletOutputStream servletOutputStream = servletResponse.getOutputStream();
+      servletResponse.setContentLength(value.getBytes().length);
+      servletOutputStream.write(value.getBytes());
+      servletOutputStream.flush();
     }
+  }
 
+  String httpGet(String url) throws IOException {
+    OkHttpClient client = new OkHttpClient();
+    okhttp3.Request request = new okhttp3.Request.Builder().get().url(url).build();
 
-    private class OrdinaryServlet implements Servlet {
-        @Override
-        public void init(ServletConfig servletConfig) throws ServletException {
-            log.info("[init]");
-        }
-
-        @Override
-        public ServletConfig getServletConfig() {
-            log.info("[getServletConfig]");
-            return null;
-        }
-
-        @Override
-        public void service(ServletRequest servletRequest, ServletResponse servletResponse) throws ServletException,
-                IOException {
-            log.info("[service] path: {}", ((Request) servletRequest).getOriginalURI());
-            String value = servletRequest.getParameterMap().get(QUERY_PARAM)[0];
-            ServletOutputStream servletOutputStream = servletResponse.getOutputStream();
-            servletResponse.setContentLength(value.getBytes().length);
-            servletOutputStream.write(value.getBytes());
-            servletOutputStream.flush();
-        }
-
-        @Override
-        public String getServletInfo() {
-            log.info("[getServletInfo]");
-            return null;
-        }
-
-        @Override
-        public void destroy() {
-            log.info("[destroy]");
-        }
+    try (Response response = client.newCall(request).execute()) {
+      return response.body().string();
     }
-
-
-    private class WithPulsarServiceServlet extends OrdinaryServlet {
-        private final PulsarService pulsarService;
-
-        public WithPulsarServiceServlet(PulsarService pulsar) {
-            this.pulsarService = pulsar;
-        }
-
-        @Override
-        public void service(ServletRequest servletRequest, ServletResponse servletResponse) throws ServletException,
-                IOException {
-            log.info("[service] path: {}", ((Request) servletRequest).getOriginalURI());
-            String value = pulsarService == null ? "null" : PulsarService.class.getName();
-            ServletOutputStream servletOutputStream = servletResponse.getOutputStream();
-            servletResponse.setContentLength(value.getBytes().length);
-            servletOutputStream.write(value.getBytes());
-            servletOutputStream.flush();
-        }
-    }
-
-    String httpGet(String url) throws IOException {
-        OkHttpClient client = new OkHttpClient();
-        okhttp3.Request request = new okhttp3.Request.Builder()
-                .get()
-                .url(url)
-                .build();
-
-        try (Response response = client.newCall(request).execute()) {
-            return response.body().string();
-        }
-    }
-
+  }
 }

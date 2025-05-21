@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
@@ -29,57 +32,50 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-
 @Test(groups = "broker")
 public class BusyWaitServiceTest extends BkEnsemblesTestBase {
-    public BusyWaitServiceTest() {
-        super(1);
+  public BusyWaitServiceTest() {
+    super(1);
+  }
+
+  protected void configurePulsar(ServiceConfiguration config) {
+    config.setEnableBusyWait(true);
+    config.setManagedLedgerDefaultEnsembleSize(1);
+    config.setManagedLedgerDefaultWriteQuorum(1);
+    config.setManagedLedgerDefaultAckQuorum(1);
+  }
+
+  @Test
+  public void testPublishWithBusyWait() throws Exception {
+
+    @Cleanup
+    PulsarClient client =
+        PulsarClient.builder()
+            .serviceUrl(pulsar.getWebServiceAddress())
+            .statsInterval(0, TimeUnit.SECONDS)
+            .enableBusyWait(true)
+            .build();
+
+    String namespace = "prop/busy-wait";
+    admin.namespaces().createNamespace(namespace);
+
+    String topic = namespace + "/my-topic-" + UUID.randomUUID();
+
+    @Cleanup
+    Consumer<String> consumer =
+        client.newConsumer(Schema.STRING).topic(topic).subscriptionName("test").subscribe();
+
+    @Cleanup Producer<String> producer = client.newProducer(Schema.STRING).topic(topic).create();
+
+    for (int i = 0; i < 10; i++) {
+      producer.send("my-message-" + i);
     }
 
-    protected void configurePulsar(ServiceConfiguration config) {
-        config.setEnableBusyWait(true);
-        config.setManagedLedgerDefaultEnsembleSize(1);
-        config.setManagedLedgerDefaultWriteQuorum(1);
-        config.setManagedLedgerDefaultAckQuorum(1);
+    for (int i = 0; i < 10; i++) {
+      Message<String> msg = consumer.receive();
+      assertNotNull(msg);
+      assertEquals(msg.getValue(), "my-message-" + i);
+      consumer.acknowledge(msg);
     }
-
-    @Test
-    public void testPublishWithBusyWait() throws Exception {
-
-        @Cleanup
-        PulsarClient client = PulsarClient.builder()
-                .serviceUrl(pulsar.getWebServiceAddress())
-                .statsInterval(0, TimeUnit.SECONDS)
-                .enableBusyWait(true)
-                .build();
-
-        String namespace = "prop/busy-wait";
-        admin.namespaces().createNamespace(namespace);
-
-        String topic = namespace + "/my-topic-" + UUID.randomUUID();
-
-        @Cleanup
-        Consumer<String> consumer = client.newConsumer(Schema.STRING)
-                .topic(topic)
-                .subscriptionName("test")
-                .subscribe();
-
-        @Cleanup
-        Producer<String> producer = client.newProducer(Schema.STRING)
-                .topic(topic)
-                .create();
-
-        for (int i = 0; i < 10; i++) {
-            producer.send("my-message-" + i);
-        }
-
-        for (int i = 0; i < 10; i++) {
-            Message<String> msg = consumer.receive();
-            assertNotNull(msg);
-            assertEquals(msg.getValue(), "my-message-" + i);
-            consumer.acknowledge(msg);
-        }
-    }
+  }
 }

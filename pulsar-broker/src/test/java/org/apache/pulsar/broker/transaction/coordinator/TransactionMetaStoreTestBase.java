@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.transaction.coordinator;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
+
 import java.util.Optional;
 import org.apache.pulsar.PulsarTransactionCoordinatorMetadataSetup;
 import org.apache.pulsar.broker.PulsarService;
@@ -37,112 +38,111 @@ import org.testng.annotations.BeforeClass;
 
 public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
 
-    private static final Logger log = LoggerFactory.getLogger(TransactionMetaStoreTestBase.class);
+  private static final Logger log = LoggerFactory.getLogger(TransactionMetaStoreTestBase.class);
 
-    LocalBookkeeperEnsemble bkEnsemble;
-    protected PulsarAdmin[] pulsarAdmins = new PulsarAdmin[BROKER_COUNT];
-    protected PulsarClient pulsarClient;
-    protected static int BROKER_COUNT = 5;
-    protected ServiceConfiguration[] configurations = new ServiceConfiguration[BROKER_COUNT];
-    protected PulsarService[] pulsarServices = new PulsarService[BROKER_COUNT];
+  LocalBookkeeperEnsemble bkEnsemble;
+  protected PulsarAdmin[] pulsarAdmins = new PulsarAdmin[BROKER_COUNT];
+  protected PulsarClient pulsarClient;
+  protected static int BROKER_COUNT = 5;
+  protected ServiceConfiguration[] configurations = new ServiceConfiguration[BROKER_COUNT];
+  protected PulsarService[] pulsarServices = new PulsarService[BROKER_COUNT];
 
-    protected TransactionCoordinatorClient transactionCoordinatorClient;
+  protected TransactionCoordinatorClient transactionCoordinatorClient;
 
-    @BeforeClass(alwaysRun = true)
-    protected final void setup() throws Exception {
-        log.info("---- Initializing {} -----", getClass().getSimpleName());
-        // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
-        bkEnsemble.start();
+  @BeforeClass(alwaysRun = true)
+  protected final void setup() throws Exception {
+    log.info("---- Initializing {} -----", getClass().getSimpleName());
+    // Start local bookkeeper ensemble
+    bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+    bkEnsemble.start();
 
-        String[] args = new String[]{
-            "--cluster", "my-cluster",
-            "--configuration-store", "localhost:" + bkEnsemble.getZookeeperPort(),
-            "--initial-num-transaction-coordinators", "16"};
+    String[] args =
+        new String[] {
+          "--cluster", "my-cluster",
+          "--configuration-store", "localhost:" + bkEnsemble.getZookeeperPort(),
+          "--initial-num-transaction-coordinators", "16"
+        };
 
-        PulsarTransactionCoordinatorMetadataSetup.main(args);
+    PulsarTransactionCoordinatorMetadataSetup.main(args);
 
-        // start brokers
-        for (int i = 0; i < BROKER_COUNT; i++) {
-            ServiceConfiguration config = new ServiceConfiguration();
-            config.setBrokerShutdownTimeoutMs(0L);
-            config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
-            config.setBrokerServicePort(Optional.of(0));
-            config.setClusterName("my-cluster");
-            config.setAdvertisedAddress("localhost");
-            config.setWebServicePort(Optional.of(0));
-            config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
-            config.setDefaultNumberOfNamespaceBundles(1);
-            config.setLoadBalancerEnabled(false);
-            config.setTransactionCoordinatorEnabled(true);
-            configurations[i] = config;
+    // start brokers
+    for (int i = 0; i < BROKER_COUNT; i++) {
+      ServiceConfiguration config = new ServiceConfiguration();
+      config.setBrokerShutdownTimeoutMs(0L);
+      config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
+      config.setBrokerServicePort(Optional.of(0));
+      config.setClusterName("my-cluster");
+      config.setAdvertisedAddress("localhost");
+      config.setWebServicePort(Optional.of(0));
+      config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
+      config.setDefaultNumberOfNamespaceBundles(1);
+      config.setLoadBalancerEnabled(false);
+      config.setTransactionCoordinatorEnabled(true);
+      configurations[i] = config;
 
-            pulsarServices[i] = spyWithClassAndConstructorArgs(PulsarService.class, config);
-            pulsarServices[i].start();
+      pulsarServices[i] = spyWithClassAndConstructorArgs(PulsarService.class, config);
+      pulsarServices[i].start();
 
-            pulsarAdmins[i] = PulsarAdmin.builder()
-                    .serviceHttpUrl(pulsarServices[i].getWebServiceAddress())
-                    .build();
-        }
-
-        Thread.sleep(100);
-
-        afterPulsarStart();
-
-        if (pulsarClient != null) {
-            pulsarClient.shutdown();
-        }
-        pulsarClient = PulsarClient.builder().
-            serviceUrl(pulsarServices[0].getBrokerServiceUrl())
-            .build();
-        transactionCoordinatorClient = new TransactionCoordinatorClientImpl(pulsarClient);
-        transactionCoordinatorClient.start();
-
-        Thread.sleep(3000);
-
-        afterSetup();
+      pulsarAdmins[i] =
+          PulsarAdmin.builder().serviceHttpUrl(pulsarServices[i].getWebServiceAddress()).build();
     }
 
-    protected void afterSetup() throws Exception {
-        // template methods to override in subclasses
-    }
+    Thread.sleep(100);
 
+    afterPulsarStart();
 
-    protected void afterPulsarStart() throws Exception {
-        // template methods to override in subclasses
+    if (pulsarClient != null) {
+      pulsarClient.shutdown();
     }
+    pulsarClient =
+        PulsarClient.builder().serviceUrl(pulsarServices[0].getBrokerServiceUrl()).build();
+    transactionCoordinatorClient = new TransactionCoordinatorClientImpl(pulsarClient);
+    transactionCoordinatorClient.start();
 
-    @AfterClass(alwaysRun = true)
-    public final void shutdownAll() throws Exception {
-        cleanup();
-    }
+    Thread.sleep(3000);
 
-    @Override
-    protected void cleanup() throws Exception {
-        if (transactionCoordinatorClient != null) {
-            transactionCoordinatorClient.close();
-            transactionCoordinatorClient = null;
-        }
-        for (int i = 0; i < BROKER_COUNT; i++) {
-            if (pulsarAdmins[i] != null) {
-                pulsarAdmins[i].close();
-                pulsarAdmins[i] = null;
-            }
-        }
-        if (pulsarClient != null) {
-            pulsarClient.close();
-            pulsarClient = null;
-        }
-        for (int i = 0; i < BROKER_COUNT; i++) {
-            if (pulsarServices[i] != null) {
-                pulsarServices[i].close();
-                pulsarServices[i] = null;
-            }
-        }
-        if (bkEnsemble != null) {
-            bkEnsemble.stop();
-            bkEnsemble = null;
-        }
-        Mockito.reset();
+    afterSetup();
+  }
+
+  protected void afterSetup() throws Exception {
+    // template methods to override in subclasses
+  }
+
+  protected void afterPulsarStart() throws Exception {
+    // template methods to override in subclasses
+  }
+
+  @AfterClass(alwaysRun = true)
+  public final void shutdownAll() throws Exception {
+    cleanup();
+  }
+
+  @Override
+  protected void cleanup() throws Exception {
+    if (transactionCoordinatorClient != null) {
+      transactionCoordinatorClient.close();
+      transactionCoordinatorClient = null;
     }
+    for (int i = 0; i < BROKER_COUNT; i++) {
+      if (pulsarAdmins[i] != null) {
+        pulsarAdmins[i].close();
+        pulsarAdmins[i] = null;
+      }
+    }
+    if (pulsarClient != null) {
+      pulsarClient.close();
+      pulsarClient = null;
+    }
+    for (int i = 0; i < BROKER_COUNT; i++) {
+      if (pulsarServices[i] != null) {
+        pulsarServices[i].close();
+        pulsarServices[i] = null;
+      }
+    }
+    if (bkEnsemble != null) {
+      bkEnsemble.stop();
+      bkEnsemble = null;
+    }
+    Mockito.reset();
+  }
 }

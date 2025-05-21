@@ -25,6 +25,7 @@ import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
@@ -56,184 +57,240 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
 public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
-    private static final Logger log = LoggerFactory.getLogger(NamespacesV2Test.class);
+  private static final Logger log = LoggerFactory.getLogger(NamespacesV2Test.class);
 
-    private Namespaces namespaces;
+  private Namespaces namespaces;
 
-    private List<NamespaceName> testLocalNamespaces;
-    private final String testNamespace = "v2-test-namespace";
-    private final String testTenant = "v2-tenant";
-    private final String testLocalCluster = "use";
+  private List<NamespaceName> testLocalNamespaces;
+  private final String testNamespace = "v2-test-namespace";
+  private final String testTenant = "v2-tenant";
+  private final String testLocalCluster = "use";
 
-    protected NamespaceService nsSvc;
-    protected Field uriField;
-    protected UriInfo uriInfo;
+  protected NamespaceService nsSvc;
+  protected Field uriField;
+  protected UriInfo uriInfo;
 
-    public NamespacesV2Test() {
-        super();
+  public NamespacesV2Test() {
+    super();
+  }
+
+  @BeforeClass
+  public void initNamespace() throws Exception {
+    testLocalNamespaces = new ArrayList<>();
+    testLocalNamespaces.add(
+        NamespaceName.get(this.testTenant, this.testLocalCluster, this.testNamespace));
+
+    uriField = PulsarWebResource.class.getDeclaredField("uri");
+    uriField.setAccessible(true);
+    uriInfo = mock(UriInfo.class);
+  }
+
+  @Override
+  @BeforeMethod
+  public void setup() throws Exception {
+    conf.setClusterName(testLocalCluster);
+    super.internalSetup();
+
+    namespaces = spy(Namespaces.class);
+    namespaces.setServletContext(new MockServletContext());
+    namespaces.setPulsar(pulsar);
+    doReturn(false).when(namespaces).isRequestHttps();
+    doReturn("test").when(namespaces).clientAppId();
+    doReturn(null).when(namespaces).originalPrincipal();
+    doReturn(null).when(namespaces).clientAuthData();
+    doReturn(Set.of("use", "usw", "usc", "global")).when(namespaces).clusters();
+
+    admin
+        .clusters()
+        .createCluster(
+            "use", ClusterData.builder().serviceUrl("http://broker-use.com:8080").build());
+    admin
+        .clusters()
+        .createCluster(
+            "usw", ClusterData.builder().serviceUrl("http://broker-usw.com:8080").build());
+    admin
+        .clusters()
+        .createCluster(
+            "usc", ClusterData.builder().serviceUrl("http://broker-usc.com:8080").build());
+    admin
+        .tenants()
+        .createTenant(
+            this.testTenant,
+            new TenantInfoImpl(Set.of("role1", "role2"), Set.of("use", "usc", "usw")));
+
+    createTestNamespaces(this.testLocalNamespaces);
+
+    doThrow(new RestException(Response.Status.UNAUTHORIZED, "unauthorized"))
+        .when(namespaces)
+        .validateNamespacePolicyOperation(
+            NamespaceName.get("other-tenant/use/test-namespace-1"),
+            PolicyName.PERSISTENCE,
+            PolicyOperation.WRITE);
+
+    doThrow(new RestException(Response.Status.UNAUTHORIZED, "unauthorized"))
+        .when(namespaces)
+        .validateNamespacePolicyOperation(
+            NamespaceName.get("other-tenant/use/test-namespace-1"),
+            PolicyName.RETENTION,
+            PolicyOperation.WRITE);
+
+    nsSvc = pulsar.getNamespaceService();
+  }
+
+  @Override
+  @AfterMethod(alwaysRun = true)
+  public void cleanup() throws Exception {
+    super.internalCleanup();
+    conf.setClusterName(testLocalCluster);
+  }
+
+  private void createTestNamespaces(List<NamespaceName> nsnames) throws Exception {
+    for (NamespaceName nsName : nsnames) {
+      asyncRequests(
+          ctx -> namespaces.createNamespace(ctx, nsName.getTenant(), nsName.getLocalName(), null));
     }
+  }
 
-    @BeforeClass
-    public void initNamespace() throws Exception {
-        testLocalNamespaces = new ArrayList<>();
-        testLocalNamespaces.add(NamespaceName.get(this.testTenant, this.testLocalCluster, this.testNamespace));
+  @Test
+  public void testOperationSubscribeRate() throws Exception {
+    // 1. set subscribe rate
+    asyncRequests(
+        response ->
+            namespaces.setSubscribeRate(
+                response, this.testTenant, this.testNamespace, new SubscribeRate()));
 
-        uriField = PulsarWebResource.class.getDeclaredField("uri");
-        uriField.setAccessible(true);
-        uriInfo = mock(UriInfo.class);
+    // 2. query subscribe rate & check
+    SubscribeRate subscribeRate =
+        (SubscribeRate)
+            asyncRequests(
+                response ->
+                    namespaces.getSubscribeRate(response, this.testTenant, this.testNamespace));
+    assertTrue(Objects.nonNull(subscribeRate));
+    assertTrue(Objects.isNull(SubscribeRate.normalize(subscribeRate)));
+
+    // 3. remove & check
+    asyncRequests(
+        response -> namespaces.deleteSubscribeRate(response, this.testTenant, this.testNamespace));
+    subscribeRate =
+        (SubscribeRate)
+            asyncRequests(
+                response ->
+                    namespaces.getSubscribeRate(response, this.testTenant, this.testNamespace));
+    assertTrue(Objects.isNull(subscribeRate));
+
+    // 4. invalid namespace check
+    String invalidNamespace = this.testNamespace + "/";
+    try {
+      asyncRequests(
+          response ->
+              namespaces.setSubscribeRate(
+                  response, this.testTenant, invalidNamespace, new SubscribeRate()));
+      fail("should have failed");
+    } catch (RestException e) {
+      assertEquals(
+          e.getResponse().getStatus(), Response.Status.PRECONDITION_FAILED.getStatusCode());
     }
+  }
 
-    @Override
-    @BeforeMethod
-    public void setup() throws Exception {
-        conf.setClusterName(testLocalCluster);
-        super.internalSetup();
+  @Test
+  public void testOperationPublishRate() throws Exception {
+    // 1. set publish rate
+    asyncRequests(
+        response ->
+            namespaces.setPublishRate(
+                response, this.testTenant, this.testNamespace, new PublishRate()));
 
-        namespaces = spy(Namespaces.class);
-        namespaces.setServletContext(new MockServletContext());
-        namespaces.setPulsar(pulsar);
-        doReturn(false).when(namespaces).isRequestHttps();
-        doReturn("test").when(namespaces).clientAppId();
-        doReturn(null).when(namespaces).originalPrincipal();
-        doReturn(null).when(namespaces).clientAuthData();
-        doReturn(Set.of("use", "usw", "usc", "global")).when(namespaces).clusters();
+    // 2. get publish rate and check
+    PublishRate publishRate =
+        (PublishRate)
+            asyncRequests(
+                response ->
+                    namespaces.getPublishRate(response, this.testTenant, this.testNamespace));
+    assertTrue(Objects.nonNull(publishRate));
 
-        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl("http://broker-use.com:8080").build());
-        admin.clusters().createCluster("usw", ClusterData.builder().serviceUrl("http://broker-usw.com:8080").build());
-        admin.clusters().createCluster("usc", ClusterData.builder().serviceUrl("http://broker-usc.com:8080").build());
-        admin.tenants().createTenant(this.testTenant,
-                new TenantInfoImpl(Set.of("role1", "role2"), Set.of("use", "usc", "usw")));
+    // 3. remove publish rate and check
+    asyncRequests(
+        responses -> namespaces.removePublishRate(responses, this.testTenant, this.testNamespace));
+    publishRate =
+        (PublishRate)
+            asyncRequests(
+                response ->
+                    namespaces.getPublishRate(response, this.testTenant, this.testNamespace));
+    assertTrue(Objects.isNull(publishRate));
+  }
 
-        createTestNamespaces(this.testLocalNamespaces);
+  @Test
+  public void testOperationDispatchRate() throws Exception {
+    // 1. set dispatch rate
+    asyncRequests(
+        response ->
+            namespaces.setDispatchRate(
+                response, this.testTenant, this.testNamespace, new DispatchRateImpl()));
 
-        doThrow(new RestException(Response.Status.UNAUTHORIZED, "unauthorized")).when(namespaces)
-                .validateNamespacePolicyOperation(NamespaceName.get("other-tenant/use/test-namespace-1"),
-                        PolicyName.PERSISTENCE, PolicyOperation.WRITE);
+    // 2. get dispatch rate and check
+    DispatchRate dispatchRate =
+        (DispatchRateImpl)
+            asyncRequests(
+                response ->
+                    namespaces.getDispatchRate(response, this.testTenant, this.testNamespace));
+    assertTrue(Objects.nonNull(dispatchRate));
 
-        doThrow(new RestException(Response.Status.UNAUTHORIZED, "unauthorized")).when(namespaces)
-                .validateNamespacePolicyOperation(NamespaceName.get("other-tenant/use/test-namespace-1"),
-                        PolicyName.RETENTION, PolicyOperation.WRITE);
+    // 3. remove dispatch rate and check
+    asyncRequests(
+        responses -> namespaces.deleteDispatchRate(responses, this.testTenant, this.testNamespace));
+    dispatchRate =
+        (DispatchRateImpl)
+            asyncRequests(
+                response ->
+                    namespaces.getDispatchRate(response, this.testTenant, this.testNamespace));
+    assertTrue(Objects.isNull(dispatchRate));
+  }
 
-        nsSvc = pulsar.getNamespaceService();
+  @Test
+  public void testOperationDelayedDelivery() throws Exception {
+    boolean isActive = true;
+    long tickTime = 1000;
+    long maxDeliveryDelayInMillis = 5000;
+    // 1. set delayed delivery policy
+    namespaces.setDelayedDeliveryPolicies(
+        this.testTenant,
+        this.testNamespace,
+        DelayedDeliveryPolicies.builder()
+            .active(isActive)
+            .tickTime(tickTime)
+            .maxDeliveryDelayInMillis(maxDeliveryDelayInMillis)
+            .build());
+
+    // 2. query delayed delivery policy & check
+    DelayedDeliveryPolicies policy =
+        (DelayedDeliveryPolicies)
+            asyncRequests(
+                response ->
+                    namespaces.getDelayedDeliveryPolicies(
+                        response, this.testTenant, this.testNamespace));
+    assertEquals(policy.isActive(), isActive);
+    assertEquals(policy.getTickTime(), tickTime);
+    assertEquals(policy.getMaxDeliveryDelayInMillis(), maxDeliveryDelayInMillis);
+
+    // 3. remove & check
+    namespaces.removeDelayedDeliveryPolicies(this.testTenant, this.testNamespace);
+    policy =
+        (DelayedDeliveryPolicies)
+            asyncRequests(
+                response ->
+                    namespaces.getDelayedDeliveryPolicies(
+                        response, this.testTenant, this.testNamespace));
+    assertTrue(Objects.isNull(policy));
+
+    // 4. invalid namespace check
+    String invalidNamespace = this.testNamespace + "/";
+    try {
+      namespaces.setDelayedDeliveryPolicies(
+          this.testTenant, invalidNamespace, DelayedDeliveryPolicies.builder().build());
+      fail("should have failed");
+    } catch (RestException e) {
+      assertEquals(
+          e.getResponse().getStatus(), Response.Status.PRECONDITION_FAILED.getStatusCode());
     }
-
-    @Override
-    @AfterMethod(alwaysRun = true)
-    public void cleanup() throws Exception {
-        super.internalCleanup();
-        conf.setClusterName(testLocalCluster);
-    }
-
-    private void createTestNamespaces(List<NamespaceName> nsnames) throws Exception {
-        for (NamespaceName nsName : nsnames) {
-            asyncRequests(ctx -> namespaces.createNamespace(ctx, nsName.getTenant(),
-                    nsName.getLocalName(), null));
-        }
-    }
-
-    @Test
-    public void testOperationSubscribeRate() throws Exception {
-        // 1. set subscribe rate
-        asyncRequests(response -> namespaces.setSubscribeRate(response, this.testTenant,
-                this.testNamespace, new SubscribeRate()));
-
-        // 2. query subscribe rate & check
-        SubscribeRate subscribeRate =
-                (SubscribeRate) asyncRequests(response -> namespaces.getSubscribeRate(response,
-                        this.testTenant, this.testNamespace));
-        assertTrue(Objects.nonNull(subscribeRate));
-        assertTrue(Objects.isNull(SubscribeRate.normalize(subscribeRate)));
-
-        // 3. remove & check
-        asyncRequests(response -> namespaces.deleteSubscribeRate(response, this.testTenant, this.testNamespace));
-        subscribeRate =
-                (SubscribeRate) asyncRequests(response -> namespaces.getSubscribeRate(response,
-                        this.testTenant, this.testNamespace));
-        assertTrue(Objects.isNull(subscribeRate));
-
-        // 4. invalid namespace check
-        String invalidNamespace = this.testNamespace + "/";
-        try {
-            asyncRequests(response -> namespaces.setSubscribeRate(response, this.testTenant, invalidNamespace,
-                    new SubscribeRate()));
-            fail("should have failed");
-        } catch (RestException e) {
-            assertEquals(e.getResponse().getStatus(), Response.Status.PRECONDITION_FAILED.getStatusCode());
-        }
-    }
-
-    @Test
-    public void testOperationPublishRate() throws Exception {
-        // 1. set publish rate
-        asyncRequests(response -> namespaces.setPublishRate(response, this.testTenant, this.testNamespace,
-                new PublishRate()));
-
-        // 2. get publish rate and check
-        PublishRate publishRate = (PublishRate) asyncRequests(response -> namespaces.getPublishRate(response,
-                this.testTenant, this.testNamespace));
-        assertTrue(Objects.nonNull(publishRate));
-
-        // 3. remove publish rate and check
-        asyncRequests(responses -> namespaces.removePublishRate(responses, this.testTenant, this.testNamespace));
-        publishRate = (PublishRate) asyncRequests(response -> namespaces.getPublishRate(response,
-                this.testTenant, this.testNamespace));
-        assertTrue(Objects.isNull(publishRate));
-    }
-
-    @Test
-    public void testOperationDispatchRate() throws Exception {
-        // 1. set dispatch rate
-        asyncRequests(response -> namespaces.setDispatchRate(response, this.testTenant, this.testNamespace,
-                new DispatchRateImpl()));
-
-        // 2. get dispatch rate and check
-        DispatchRate dispatchRate = (DispatchRateImpl) asyncRequests(response -> namespaces.getDispatchRate(response,
-                this.testTenant, this.testNamespace));
-        assertTrue(Objects.nonNull(dispatchRate));
-
-        // 3. remove dispatch rate and check
-        asyncRequests(responses -> namespaces.deleteDispatchRate(responses, this.testTenant, this.testNamespace));
-        dispatchRate = (DispatchRateImpl) asyncRequests(response -> namespaces.getDispatchRate(response,
-                this.testTenant, this.testNamespace));
-        assertTrue(Objects.isNull(dispatchRate));
-    }
-
-    @Test
-    public void testOperationDelayedDelivery() throws Exception {
-        boolean isActive = true;
-        long tickTime = 1000;
-        long maxDeliveryDelayInMillis = 5000;
-        // 1. set delayed delivery policy
-        namespaces.setDelayedDeliveryPolicies(this.testTenant, this.testNamespace,
-                DelayedDeliveryPolicies.builder()
-                        .active(isActive)
-                        .tickTime(tickTime)
-                        .maxDeliveryDelayInMillis(maxDeliveryDelayInMillis)
-                        .build());
-
-        // 2. query delayed delivery policy & check
-        DelayedDeliveryPolicies policy =
-                (DelayedDeliveryPolicies) asyncRequests(response -> namespaces.getDelayedDeliveryPolicies(response,
-                        this.testTenant, this.testNamespace));
-        assertEquals(policy.isActive(), isActive);
-        assertEquals(policy.getTickTime(), tickTime);
-        assertEquals(policy.getMaxDeliveryDelayInMillis(), maxDeliveryDelayInMillis);
-
-        // 3. remove & check
-        namespaces.removeDelayedDeliveryPolicies(this.testTenant, this.testNamespace);
-        policy =
-                (DelayedDeliveryPolicies) asyncRequests(response -> namespaces.getDelayedDeliveryPolicies(response,
-                        this.testTenant, this.testNamespace));
-        assertTrue(Objects.isNull(policy));
-
-        // 4. invalid namespace check
-        String invalidNamespace = this.testNamespace + "/";
-        try {
-            namespaces.setDelayedDeliveryPolicies(this.testTenant, invalidNamespace,
-                    DelayedDeliveryPolicies.builder().build());
-            fail("should have failed");
-        } catch (RestException e) {
-            assertEquals(e.getResponse().getStatus(), Response.Status.PRECONDITION_FAILED.getStatusCode());
-        }
-    }
+  }
 }

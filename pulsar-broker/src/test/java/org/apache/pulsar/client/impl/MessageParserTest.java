@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
+
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -48,122 +49,152 @@ import org.testng.annotations.Test;
 
 public class MessageParserTest extends MockedPulsarServiceBaseTest {
 
-    @BeforeClass
-    public void setup() throws Exception {
-        super.internalSetup();
+  @BeforeClass
+  public void setup() throws Exception {
+    super.internalSetup();
 
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        admin.tenants().createTenant("my-tenant",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
-        admin.namespaces().createNamespace("my-tenant/my-ns", Sets.newHashSet("test"));
+    admin
+        .clusters()
+        .createCluster(
+            "test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+    admin
+        .tenants()
+        .createTenant(
+            "my-tenant",
+            new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+    admin.namespaces().createNamespace("my-tenant/my-ns", Sets.newHashSet("test"));
+  }
+
+  @AfterClass
+  public void cleanup() throws Exception {
+    super.internalCleanup();
+  }
+
+  @DataProvider(name = "batchingAndCompression")
+  public static Object[][] batchingAndCompression() {
+    return new Object[][] {
+      {true, CompressionType.ZLIB},
+      {true, CompressionType.ZSTD},
+      {true, CompressionType.SNAPPY},
+      {true, CompressionType.LZ4},
+      {true, CompressionType.NONE},
+      {false, CompressionType.ZLIB},
+      {false, CompressionType.ZSTD},
+      {false, CompressionType.SNAPPY},
+      {false, CompressionType.LZ4},
+      {false, CompressionType.NONE},
+    };
+  }
+
+  @Test(dataProvider = "batchingAndCompression")
+  public void testParseMessages(boolean batchEnabled, CompressionType compressionType)
+      throws Exception {
+    final String topic =
+        "persistent://my-tenant/my-ns/message-parse-test-" + batchEnabled + "-" + compressionType;
+    final TopicName topicName = TopicName.get(topic);
+
+    final int n = 10;
+
+    @Cleanup
+    Producer<String> producer =
+        pulsarClient
+            .newProducer(Schema.STRING)
+            .compressionType(compressionType)
+            .enableBatching(batchEnabled)
+            .batchingMaxPublishDelay(10, TimeUnit.SECONDS)
+            .topic(topic)
+            .create();
+
+    ManagedCursor cursor =
+        ((PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get())
+            .getManagedLedger()
+            .newNonDurableCursor(PositionFactory.EARLIEST);
+
+    if (batchEnabled) {
+      for (int i = 0; i < n - 1; i++) {
+        producer.sendAsync("hello-" + i);
+      }
+
+      producer.send("hello-" + (n - 1));
+    } else {
+      for (int i = 0; i < n; i++) {
+        producer.send("Pulsar-" + i);
+      }
     }
 
-    @AfterClass
-    public void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+    if (batchEnabled) {
+      Entry entry = cursor.readEntriesOrWait(1).get(0);
 
-    @DataProvider(name = "batchingAndCompression")
-    public static Object[][] batchingAndCompression() {
-        return new Object[][] {
-                { true, CompressionType.ZLIB },
-                { true, CompressionType.ZSTD },
-                { true, CompressionType.SNAPPY },
-                { true, CompressionType.LZ4 },
-                { true, CompressionType.NONE },
-                { false, CompressionType.ZLIB },
-                { false, CompressionType.ZSTD },
-                { false, CompressionType.SNAPPY },
-                { false, CompressionType.LZ4 },
-                { false, CompressionType.NONE },
-        };
-    }
+      List<RawMessage> messages = new ArrayList<>();
+      ByteBuf headsAndPayload = entry.getDataBuffer();
 
-    @Test(dataProvider = "batchingAndCompression")
-    public void testParseMessages(boolean batchEnabled, CompressionType compressionType) throws Exception{
-        final String topic = "persistent://my-tenant/my-ns/message-parse-test-" + batchEnabled + "-" + compressionType;
-        final TopicName topicName = TopicName.get(topic);
+      try {
+        MessageParser.parseMessage(
+            topicName,
+            entry.getLedgerId(),
+            entry.getEntryId(),
+            headsAndPayload,
+            messages::add,
+            Commands.DEFAULT_MAX_MESSAGE_SIZE);
+      } finally {
+        entry.release();
+      }
 
-        final int n = 10;
+      assertEquals(messages.size(), 10);
 
-        @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .compressionType(compressionType)
-                .enableBatching(batchEnabled)
-                .batchingMaxPublishDelay(10, TimeUnit.SECONDS)
-                .topic(topic)
-                .create();
+      for (int i = 0; i < n; i++) {
+        assertEquals(messages.get(i).getData(), Unpooled.wrappedBuffer(("hello-" + i).getBytes()));
+      }
 
-        ManagedCursor cursor = ((PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get())
-                .getManagedLedger().newNonDurableCursor(PositionFactory.EARLIEST);
+      messages.forEach(
+          msg -> {
+            msg.getSchemaVersion();
+            msg.release();
+          });
 
-        if (batchEnabled) {
-            for (int i = 0; i < n - 1; i++) {
-                producer.sendAsync("hello-" + i);
-            }
-
-            producer.send("hello-" + (n - 1));
-        } else {
-            for (int i = 0; i < n; i++) {
-                producer.send("Pulsar-" + i);
-            }
-        }
-
-        if (batchEnabled) {
-            Entry entry = cursor.readEntriesOrWait(1).get(0);
-
-            List<RawMessage> messages = new ArrayList<>();
-            ByteBuf headsAndPayload = entry.getDataBuffer();
-
-            try {
-                MessageParser.parseMessage(topicName, entry.getLedgerId(), entry.getEntryId(), headsAndPayload,
-                        messages::add, Commands.DEFAULT_MAX_MESSAGE_SIZE);
-            } finally {
-                entry.release();
-            }
-
-            assertEquals(messages.size(), 10);
-
-            for (int i = 0; i < n; i++) {
-                assertEquals(messages.get(i).getData(), Unpooled.wrappedBuffer(("hello-" + i).getBytes()));
-            }
-
-            messages.forEach(msg -> {
-                msg.getSchemaVersion();
-                msg.release();
-            });
-
-            Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+      Awaitility.await()
+          .atMost(3, TimeUnit.SECONDS)
+          .untilAsserted(
+              () -> {
                 assertEquals(headsAndPayload.refCnt(), 0);
-            });
+              });
 
-        } else {
-            // Read through raw data
-            assertEquals(cursor.getNumberOfEntriesInBacklog(false), n);
-            List<Entry> entries = cursor.readEntriesOrWait(n);
-            assertEquals(entries.size(), n);
+    } else {
+      // Read through raw data
+      assertEquals(cursor.getNumberOfEntriesInBacklog(false), n);
+      List<Entry> entries = cursor.readEntriesOrWait(n);
+      assertEquals(entries.size(), n);
 
-            List<ByteBuf> headsAndPayloadList = new ArrayList<>();
-            List<RawMessage> messages = new ArrayList<>();
-            for (Entry entry : entries) {
-                ByteBuf headsAndPayload = entry.getDataBuffer();
-                headsAndPayloadList.add(headsAndPayload);
-                MessageParser.parseMessage(topicName, entry.getLedgerId(), entry.getEntryId(), entry.getDataBuffer(),
-                        messages::add, Commands.DEFAULT_MAX_MESSAGE_SIZE);
-                entry.release();
-            }
+      List<ByteBuf> headsAndPayloadList = new ArrayList<>();
+      List<RawMessage> messages = new ArrayList<>();
+      for (Entry entry : entries) {
+        ByteBuf headsAndPayload = entry.getDataBuffer();
+        headsAndPayloadList.add(headsAndPayload);
+        MessageParser.parseMessage(
+            topicName,
+            entry.getLedgerId(),
+            entry.getEntryId(),
+            entry.getDataBuffer(),
+            messages::add,
+            Commands.DEFAULT_MAX_MESSAGE_SIZE);
+        entry.release();
+      }
 
-            assertEquals(messages.size(), 10);
-            messages.forEach(msg -> {
-                msg.getSchemaVersion();
-                msg.release();
-            });
+      assertEquals(messages.size(), 10);
+      messages.forEach(
+          msg -> {
+            msg.getSchemaVersion();
+            msg.release();
+          });
 
-            for (ByteBuf byteBuf : headsAndPayloadList) {
-                Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
-                    assertEquals(byteBuf.refCnt(), 0);
+      for (ByteBuf byteBuf : headsAndPayloadList) {
+        Awaitility.await()
+            .atMost(3, TimeUnit.SECONDS)
+            .untilAsserted(
+                () -> {
+                  assertEquals(byteBuf.refCnt(), 0);
                 });
-            }
-        }
+      }
     }
+  }
 }

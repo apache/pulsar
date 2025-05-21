@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.admin;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -37,86 +38,97 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-admin")
 @Slf4j
 public class AdminApiTenantTest extends MockedPulsarServiceBaseTest {
-    private final String CLUSTER = "test";
+  private final String CLUSTER = "test";
 
-    @BeforeClass
-    @Override
-    public void setup() throws Exception {
-        super.internalSetup();
-        admin.clusters()
-                .createCluster(CLUSTER, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-    }
+  @BeforeClass
+  @Override
+  public void setup() throws Exception {
+    super.internalSetup();
+    admin
+        .clusters()
+        .createCluster(
+            CLUSTER, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+  }
 
-    @AfterClass(alwaysRun = true)
-    @Override
-    public void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @AfterClass(alwaysRun = true)
+  @Override
+  public void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @Test
-    public void testListTenant() throws PulsarAdminException {
-        admin.tenants().getTenants();
-    }
+  @Test
+  public void testListTenant() throws PulsarAdminException {
+    admin.tenants().getTenants();
+  }
 
-    @Test
-    public void testCreateAndDeleteTenant() throws PulsarAdminException {
-        String tenant = "test-tenant-"+ UUID.randomUUID();
-        admin.tenants().createTenant(tenant, TenantInfo.builder().allowedClusters(Collections.singleton(CLUSTER)).build());
-        List<String> tenants = admin.tenants().getTenants();
-        assertTrue(tenants.contains(tenant));
-        admin.tenants().deleteTenant(tenant);
-        tenants = admin.tenants().getTenants();
-        assertFalse(tenants.contains(tenant));
-    }
+  @Test
+  public void testCreateAndDeleteTenant() throws PulsarAdminException {
+    String tenant = "test-tenant-" + UUID.randomUUID();
+    admin
+        .tenants()
+        .createTenant(
+            tenant, TenantInfo.builder().allowedClusters(Collections.singleton(CLUSTER)).build());
+    List<String> tenants = admin.tenants().getTenants();
+    assertTrue(tenants.contains(tenant));
+    admin.tenants().deleteTenant(tenant);
+    tenants = admin.tenants().getTenants();
+    assertFalse(tenants.contains(tenant));
+  }
 
-    @Test
-    public void testDeleteNonExistTenant() {
-        String tenant = "test-non-exist-tenant-" + UUID.randomUUID();
-        assertThrows(PulsarAdminException.NotFoundException.class, () -> admin.tenants().deleteTenant(tenant));
-    }
+  @Test
+  public void testDeleteNonExistTenant() {
+    String tenant = "test-non-exist-tenant-" + UUID.randomUUID();
+    assertThrows(
+        PulsarAdminException.NotFoundException.class, () -> admin.tenants().deleteTenant(tenant));
+  }
 
-    @Test
-    public void testCreateTenantWithNull() {
-        String tenant = "test-create-tenant-with-null-value-" + UUID.randomUUID();
-        // Put doesn't allow null value
-        assertThrows(PulsarAdminException.class,
-                () -> admin.tenants().createTenant(tenant, null));
-    }
+  @Test
+  public void testCreateTenantWithNull() {
+    String tenant = "test-create-tenant-with-null-value-" + UUID.randomUUID();
+    // Put doesn't allow null value
+    assertThrows(PulsarAdminException.class, () -> admin.tenants().createTenant(tenant, null));
+  }
 
-    @Test
-    public void testCreateTenantWithInvalidCluster() {
-        String tenant = "test-create-tenant-with-invalid-cluster-" + UUID.randomUUID();
-        // clusters is empty
-        assertThrows(PulsarAdminException.PreconditionFailedException.class,
-                () -> admin.tenants().createTenant(tenant, TenantInfo.builder().build()));
+  @Test
+  public void testCreateTenantWithInvalidCluster() {
+    String tenant = "test-create-tenant-with-invalid-cluster-" + UUID.randomUUID();
+    // clusters is empty
+    assertThrows(
+        PulsarAdminException.PreconditionFailedException.class,
+        () -> admin.tenants().createTenant(tenant, TenantInfo.builder().build()));
 
-        // clusters is null
-        assertThrows(PulsarAdminException.PreconditionFailedException.class,
-                () -> {
-                    TenantInfoImpl tenantInfo = new TenantInfoImpl();
-                    tenantInfo.setAdminRoles(null);
-                    tenantInfo.setAllowedClusters(null);
-                    admin.tenants().createTenant(tenant, tenantInfo);
-                });
-    }
+    // clusters is null
+    assertThrows(
+        PulsarAdminException.PreconditionFailedException.class,
+        () -> {
+          TenantInfoImpl tenantInfo = new TenantInfoImpl();
+          tenantInfo.setAdminRoles(null);
+          tenantInfo.setAllowedClusters(null);
+          admin.tenants().createTenant(tenant, tenantInfo);
+        });
+  }
 
-    @Test
-    public void testUpdateTenantWithInvalidCluster() throws PulsarAdminException {
-        String tenant = "test-update-tenant-with-invalid-cluster-" + UUID.randomUUID();
-        admin.tenants().createTenant(tenant,
-                TenantInfo.builder().allowedClusters(Collections.singleton(CLUSTER)).build());
+  @Test
+  public void testUpdateTenantWithInvalidCluster() throws PulsarAdminException {
+    String tenant = "test-update-tenant-with-invalid-cluster-" + UUID.randomUUID();
+    admin
+        .tenants()
+        .createTenant(
+            tenant, TenantInfo.builder().allowedClusters(Collections.singleton(CLUSTER)).build());
 
-        // clusters is empty
-        assertThrows(PulsarAdminException.PreconditionFailedException.class,
-                () -> admin.tenants().updateTenant(tenant, TenantInfo.builder().build()));
+    // clusters is empty
+    assertThrows(
+        PulsarAdminException.PreconditionFailedException.class,
+        () -> admin.tenants().updateTenant(tenant, TenantInfo.builder().build()));
 
-        // clusters is null
-        assertThrows(PulsarAdminException.PreconditionFailedException.class,
-                () -> {
-                    TenantInfoImpl tenantInfo = new TenantInfoImpl();
-                    tenantInfo.setAdminRoles(null);
-                    tenantInfo.setAllowedClusters(null);
-                    admin.tenants().updateTenant(tenant, tenantInfo);
-                });
-    }
+    // clusters is null
+    assertThrows(
+        PulsarAdminException.PreconditionFailedException.class,
+        () -> {
+          TenantInfoImpl tenantInfo = new TenantInfoImpl();
+          tenantInfo.setAdminRoles(null);
+          tenantInfo.setAllowedClusters(null);
+          admin.tenants().updateTenant(tenant, tenantInfo);
+        });
+  }
 }

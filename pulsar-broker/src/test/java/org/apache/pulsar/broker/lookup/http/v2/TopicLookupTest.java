@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.broker.lookup.http.v2;
 
+import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertEquals;
+
+import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.lookup.v2.TopicLookup;
 import org.apache.pulsar.broker.web.PulsarWebResourceTest;
@@ -25,54 +29,53 @@ import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.testng.annotations.Test;
-import java.util.concurrent.CompletableFuture;
-import static org.mockito.Mockito.spy;
-import static org.testng.Assert.assertEquals;
 
-/**
- * TopicLookup V2 API unit tests.
- */
+/** TopicLookup V2 API unit tests. */
 @Test(groups = "broker")
 public class TopicLookupTest extends PulsarWebResourceTest {
 
-    private static final String TOPIC_PATH = "/v2/topic/persistent/public/testns/testtopic";
+  private static final String TOPIC_PATH = "/v2/topic/persistent/public/testns/testtopic";
 
-    private TestableTopicLookup resource;
+  private TestableTopicLookup resource;
+
+  @Override
+  protected ResourceConfig configure() {
+    resource = spy(TestableTopicLookup.class);
+    return new ResourceConfig().register(resource);
+  }
+
+  @Test
+  public void testListenerName() {
+    Response response;
+    // verify query param
+    response = target(TOPIC_PATH).queryParam("listenerName", "query").request().get();
+    assertEquals(response.getStatus(), 200);
+    assertEquals(resource.actualListenerName, "query");
+
+    // verify header param
+    response = target(TOPIC_PATH).request().header("X-Pulsar-ListenerName", "header").get();
+    assertEquals(response.getStatus(), 200);
+    assertEquals(resource.actualListenerName, "header");
+
+    // verify that query param supersedes the header param
+    response =
+        target(TOPIC_PATH)
+            .queryParam("listenerName", "query")
+            .request()
+            .header("X-Pulsar-ListenerName", "header")
+            .get();
+    assertEquals(response.getStatus(), 200);
+    assertEquals(resource.actualListenerName, "query");
+  }
+
+  public static class TestableTopicLookup extends TopicLookup {
+    private String actualListenerName;
 
     @Override
-    protected ResourceConfig configure() {
-        resource = spy(TestableTopicLookup.class);
-        return new ResourceConfig().register(resource);
+    protected CompletableFuture<LookupData> internalLookupTopicAsync(
+        TopicName topicName, boolean authoritative, String listenerName) {
+      this.actualListenerName = listenerName;
+      return CompletableFuture.completedFuture(new LookupData());
     }
-
-    @Test
-    public void testListenerName() {
-        Response response;
-        // verify query param
-        response = target(TOPIC_PATH).queryParam("listenerName", "query").request().get();
-        assertEquals(response.getStatus(), 200);
-        assertEquals(resource.actualListenerName, "query");
-
-        // verify header param
-        response = target(TOPIC_PATH).request().header("X-Pulsar-ListenerName", "header").get();
-        assertEquals(response.getStatus(), 200);
-        assertEquals(resource.actualListenerName, "header");
-
-        // verify that query param supersedes the header param
-        response = target(TOPIC_PATH).queryParam("listenerName", "query")
-                .request().header("X-Pulsar-ListenerName", "header").get();
-        assertEquals(response.getStatus(), 200);
-        assertEquals(resource.actualListenerName, "query");
-    }
-
-    public static class TestableTopicLookup extends TopicLookup {
-        private String actualListenerName;
-
-        @Override
-        protected CompletableFuture<LookupData> internalLookupTopicAsync(TopicName topicName, boolean authoritative,
-                                                                         String listenerName) {
-            this.actualListenerName = listenerName;
-            return CompletableFuture.completedFuture(new LookupData());
-        }
-    }
+  }
 }

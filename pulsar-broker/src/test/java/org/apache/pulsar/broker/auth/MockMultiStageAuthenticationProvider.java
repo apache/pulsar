@@ -18,28 +18,28 @@
  */
 package org.apache.pulsar.broker.auth;
 
+import java.net.SocketAddress;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
-import java.net.SocketAddress;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.common.api.AuthData;
 
 /**
- * Class that provides the same authentication semantics as the {@link MockAuthenticationProvider} except
- * that this one initializes the {@link MockMultiStageAuthenticationState} class to support testing
- * multistage authentication.
+ * Class that provides the same authentication semantics as the {@link MockAuthenticationProvider}
+ * except that this one initializes the {@link MockMultiStageAuthenticationState} class to support
+ * testing multistage authentication.
  */
 public class MockMultiStageAuthenticationProvider extends MockAuthenticationProvider {
 
-    @Override
-    public String getAuthMethodName() {
-        return "multi-stage";
-    }
+  @Override
+  public String getAuthMethodName() {
+    return "multi-stage";
+  }
 
-    @Override
-    public AuthenticationState newAuthState(AuthData authData,
-                                            SocketAddress remoteAddress,
-                                            SSLSession sslSession) throws AuthenticationException {
-        return new MockMultiStageAuthenticationState(this);
-    }
+  @Override
+  public AuthenticationState newAuthState(
+      AuthData authData, SocketAddress remoteAddress, SSLSession sslSession)
+      throws AuthenticationException {
+    return new MockMultiStageAuthenticationState(this);
+  }
 }

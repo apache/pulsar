@@ -23,8 +23,7 @@ import lombok.Data;
 @Data
 public class Socks5Config {
 
-    private boolean enableAuth;
+  private boolean enableAuth;
 
-    private int port;
-
+  private int port;
 }

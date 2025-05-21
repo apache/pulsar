@@ -35,90 +35,84 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-/**
- * Transaction buffer close test.
- */
+/** Transaction buffer close test. */
 @Slf4j
 @Test(groups = "broker")
 public class TransactionBufferCloseTest extends TransactionTestBase {
 
-    @BeforeMethod
-    protected void setup() throws Exception {
-        setUpBase(1, 16, null, 0);
-        Awaitility.await().until(() -> ((PulsarClientImpl) pulsarClient)
-                .getTcClient().getState() == TransactionCoordinatorClient.State.READY);
+  @BeforeMethod
+  protected void setup() throws Exception {
+    setUpBase(1, 16, null, 0);
+    Awaitility.await()
+        .until(
+            () ->
+                ((PulsarClientImpl) pulsarClient).getTcClient().getState()
+                    == TransactionCoordinatorClient.State.READY);
+  }
+
+  @AfterMethod(alwaysRun = true)
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
+
+  @DataProvider(name = "isPartition")
+  public Object[][] isPartition() {
+    return new Object[][] {{true}, {false}};
+  }
+
+  @Test(timeOut = 10_000, dataProvider = "isPartition")
+  public void deleteTopicCloseTransactionBufferTest(boolean isPartition) throws Exception {
+    int partitionCount = isPartition ? 30 : 1;
+    List<TopicName> topicNames = createAndLoadTopics(isPartition, partitionCount);
+    String namespaceName = topicNames.get(0).getNamespace();
+    checkSnapshotPublisherCount(namespaceName, 1);
+
+    for (int i = 0; i < topicNames.size(); i++) {
+      deleteTopic(isPartition, topicNames.get(i));
+      // When delete all topics of the namespace, the publisher count should be 0.
+      int expectCount = i == topicNames.size() - 1 ? 0 : 1;
+      checkSnapshotPublisherCount(namespaceName, expectCount);
     }
+  }
 
-    @AfterMethod(alwaysRun = true)
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
+  private void deleteTopic(boolean isPartition, TopicName topicName) throws PulsarAdminException {
+    if (isPartition) {
+      admin.topics().deletePartitionedTopic(topicName.getPartitionedTopicName(), true);
+    } else {
+      admin.topics().delete(topicName.getPartitionedTopicName(), true);
     }
+  }
 
-    @DataProvider(name = "isPartition")
-    public Object[][] isPartition() {
-        return new Object[][]{
-                { true }, { false }
-        };
+  @Test(timeOut = 10_000, dataProvider = "isPartition")
+  public void unloadTopicCloseTransactionBufferTest(boolean isPartition) throws Exception {
+    int partitionCount = isPartition ? 30 : 1;
+    List<TopicName> topicNames = createAndLoadTopics(isPartition, partitionCount);
+    String namespaceName = topicNames.get(0).getNamespace();
+    checkSnapshotPublisherCount(namespaceName, 1);
+
+    for (int i = 0; i < topicNames.size(); i++) {
+      admin.topics().unload(topicNames.get(i).getPartitionedTopicName());
+      // When unload all topics of the namespace, the publisher count should be 0.
+      int expectCount = i == topicNames.size() - 1 ? 0 : 1;
+      checkSnapshotPublisherCount(namespaceName, expectCount);
     }
+  }
 
-    @Test(timeOut = 10_000, dataProvider = "isPartition")
-    public void deleteTopicCloseTransactionBufferTest(boolean isPartition) throws Exception {
-        int partitionCount = isPartition ? 30 : 1;
-        List<TopicName> topicNames = createAndLoadTopics(isPartition, partitionCount);
-        String namespaceName = topicNames.get(0).getNamespace();
-        checkSnapshotPublisherCount(namespaceName, 1);
+  private List<TopicName> createAndLoadTopics(boolean isPartition, int partitionCount)
+      throws PulsarAdminException, PulsarClientException {
+    String namespace = TENANT + "/ns-" + RandomStringUtils.randomAlphabetic(5);
+    admin.namespaces().createNamespace(namespace, 3);
+    String topic = namespace + "/tb-close-test";
+    List<TopicName> topics = new ArrayList<>();
 
-        for (int i = 0; i < topicNames.size(); i++) {
-            deleteTopic(isPartition, topicNames.get(i));
-            // When delete all topics of the namespace, the publisher count should be 0.
-            int expectCount = i == topicNames.size() - 1 ? 0 : 1;
-            checkSnapshotPublisherCount(namespaceName, expectCount);
-        }
+    for (int i = 0; i < 2; i++) {
+      String t = topic + "-" + i;
+      if (isPartition) {
+        admin.topics().createPartitionedTopic(t, partitionCount);
+      }
+      pulsarClient.newProducer().topic(t).sendTimeout(0, TimeUnit.SECONDS).create().close();
+      topics.add(TopicName.get(t));
     }
-
-    private void deleteTopic(boolean isPartition, TopicName topicName) throws PulsarAdminException {
-        if (isPartition) {
-            admin.topics().deletePartitionedTopic(topicName.getPartitionedTopicName(), true);
-        } else {
-            admin.topics().delete(topicName.getPartitionedTopicName(), true);
-        }
-    }
-
-    @Test(timeOut = 10_000, dataProvider = "isPartition")
-    public void unloadTopicCloseTransactionBufferTest(boolean isPartition) throws Exception {
-        int partitionCount = isPartition ? 30 : 1;
-        List<TopicName> topicNames = createAndLoadTopics(isPartition, partitionCount);
-        String namespaceName = topicNames.get(0).getNamespace();
-        checkSnapshotPublisherCount(namespaceName, 1);
-
-        for (int i = 0; i < topicNames.size(); i++) {
-            admin.topics().unload(topicNames.get(i).getPartitionedTopicName());
-            // When unload all topics of the namespace, the publisher count should be 0.
-            int expectCount = i == topicNames.size() - 1 ? 0 : 1;
-            checkSnapshotPublisherCount(namespaceName, expectCount);
-        }
-    }
-
-    private List<TopicName> createAndLoadTopics(boolean isPartition, int partitionCount)
-            throws PulsarAdminException, PulsarClientException {
-        String namespace = TENANT + "/ns-" + RandomStringUtils.randomAlphabetic(5);
-        admin.namespaces().createNamespace(namespace, 3);
-        String topic = namespace + "/tb-close-test";
-        List<TopicName> topics = new ArrayList<>();
-
-        for (int i = 0; i < 2; i++) {
-            String t = topic + "-" + i;
-            if (isPartition) {
-                admin.topics().createPartitionedTopic(t, partitionCount);
-            }
-            pulsarClient.newProducer()
-                    .topic(t)
-                    .sendTimeout(0, TimeUnit.SECONDS)
-                    .create()
-                    .close();
-            topics.add(TopicName.get(t));
-        }
-        return topics;
-    }
-
+    return topics;
+  }
 }

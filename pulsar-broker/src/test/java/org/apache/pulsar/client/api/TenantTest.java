@@ -31,65 +31,72 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-api")
 public class TenantTest extends MockedPulsarServiceBaseTest {
 
-    @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
+  @BeforeMethod
+  @Override
+  protected void setup() throws Exception {}
 
+  @AfterMethod(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
+
+  @Test
+  public void testMaxTenant() throws Exception {
+    conf.setMaxTenants(2);
+    super.internalSetup();
+    admin
+        .clusters()
+        .createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+    TenantInfoImpl tenantInfo =
+        new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+    admin.tenants().createTenant("testTenant1", tenantInfo);
+    admin.tenants().createTenant("testTenant2", tenantInfo);
+    try {
+      admin.tenants().createTenant("testTenant3", tenantInfo);
+    } catch (PulsarAdminException e) {
+      Assert.assertEquals(e.getStatusCode(), 412);
+      Assert.assertEquals(e.getHttpError(), "Exceed the maximum number of tenants");
+    }
+    // unlimited
+    super.internalCleanup();
+    conf.setMaxTenants(0);
+    super.internalSetup();
+    admin
+        .clusters()
+        .createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+    for (int i = 0; i < 10; i++) {
+      admin.tenants().createTenant("testTenant-unlimited" + i, tenantInfo);
+    }
+  }
+
+  @Test
+  public void testBlankAdminRoleTenant() throws Exception {
+    super.internalSetup();
+    admin
+        .clusters()
+        .createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+    TenantInfoImpl blankAdminRoleTenantInfo =
+        new TenantInfoImpl(Sets.newHashSet(""), Sets.newHashSet("test"));
+    TenantInfoImpl containsWhitespaceAdminRoleTenantInfo =
+        new TenantInfoImpl(Sets.newHashSet("   role1   "), Sets.newHashSet("test"));
+    TenantInfoImpl noneBlankAdminRoleTenantInfo =
+        new TenantInfoImpl(Sets.newHashSet("role1"), Sets.newHashSet("test"));
+    admin.tenants().createTenant("testTenant1", noneBlankAdminRoleTenantInfo);
+    try {
+      admin.tenants().createTenant("testTenant2", blankAdminRoleTenantInfo);
+    } catch (PulsarAdminException e) {
+      Assert.assertEquals(e.getStatusCode(), 412);
+      Assert.assertEquals(
+          e.getHttpError(), "AdminRoles contains whitespace in the beginning or end.");
     }
 
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
+    try {
+      admin.tenants().createTenant("testTenant3", containsWhitespaceAdminRoleTenantInfo);
+    } catch (PulsarAdminException e) {
+      Assert.assertEquals(e.getStatusCode(), 412);
+      Assert.assertEquals(
+          e.getHttpError(), "AdminRoles contains whitespace in the beginning or end.");
     }
-
-    @Test
-    public void testMaxTenant() throws Exception {
-        conf.setMaxTenants(2);
-        super.internalSetup();
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
-        admin.tenants().createTenant("testTenant1", tenantInfo);
-        admin.tenants().createTenant("testTenant2", tenantInfo);
-        try {
-            admin.tenants().createTenant("testTenant3", tenantInfo);
-        } catch (PulsarAdminException e) {
-            Assert.assertEquals(e.getStatusCode(), 412);
-            Assert.assertEquals(e.getHttpError(), "Exceed the maximum number of tenants");
-        }
-        //unlimited
-        super.internalCleanup();
-        conf.setMaxTenants(0);
-        super.internalSetup();
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
-        for (int i = 0; i < 10; i++) {
-            admin.tenants().createTenant("testTenant-unlimited" + i, tenantInfo);
-        }
-    }
-
-    @Test
-    public void testBlankAdminRoleTenant() throws Exception {
-        super.internalSetup();
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
-        TenantInfoImpl blankAdminRoleTenantInfo =
-                new TenantInfoImpl(Sets.newHashSet(""), Sets.newHashSet("test"));
-        TenantInfoImpl containsWhitespaceAdminRoleTenantInfo =
-                new TenantInfoImpl(Sets.newHashSet("   role1   "), Sets.newHashSet("test"));
-        TenantInfoImpl noneBlankAdminRoleTenantInfo =
-                new TenantInfoImpl(Sets.newHashSet("role1"), Sets.newHashSet("test"));
-        admin.tenants().createTenant("testTenant1", noneBlankAdminRoleTenantInfo);
-        try {
-            admin.tenants().createTenant("testTenant2", blankAdminRoleTenantInfo);
-        } catch (PulsarAdminException e) {
-            Assert.assertEquals(e.getStatusCode(), 412);
-            Assert.assertEquals(e.getHttpError(), "AdminRoles contains whitespace in the beginning or end.");
-        }
-
-        try {
-            admin.tenants().createTenant("testTenant3", containsWhitespaceAdminRoleTenantInfo);
-        } catch (PulsarAdminException e) {
-            Assert.assertEquals(e.getStatusCode(), 412);
-            Assert.assertEquals(e.getHttpError(), "AdminRoles contains whitespace in the beginning or end.");
-        }
-    }
+  }
 }

@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertTrue;
+
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -78,14 +79,12 @@ public class NonEntryCacheKeySharedSubscriptionV30Test extends ProducerConsumerB
         this.conf.setSubscriptionKeySharedUseClassicPersistentImplementation(true);
     }
 
-
     @Test(timeOut = 180 * 1000, invocationCount = 1)
     public void testRecentJoinQueueIsInOrderAfterRewind() throws Exception {
         int msgCount = 300;
         final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final String subName = "my-sub";
-        final DefaultThreadFactory threadFactory =
-                new DefaultThreadFactory(BrokerTestUtil.newUniqueName("thread"));
+        final DefaultThreadFactory threadFactory = new DefaultThreadFactory(BrokerTestUtil.newUniqueName("thread"));
         admin.topics().createNonPartitionedTopic(topic);
         admin.topics().createSubscription(topic, subName, MessageId.earliest);
 
@@ -99,39 +98,42 @@ public class NonEntryCacheKeySharedSubscriptionV30Test extends ProducerConsumerB
         }
 
         // Make ack holes.
-        Consumer<Integer> consumer1 = pulsarClient.newConsumer(Schema.INT32)
+        Consumer<Integer> consumer1 = pulsarClient
+                .newConsumer(Schema.INT32)
                 .topic(topic)
                 .subscriptionName(subName)
                 .receiverQueueSize(100)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .consumerName("c1")
                 .subscribe();
-        Consumer<Integer> consumer2 = pulsarClient.newConsumer(Schema.INT32)
+        Consumer<Integer> consumer2 = pulsarClient
+                .newConsumer(Schema.INT32)
                 .topic(topic)
                 .subscriptionName(subName)
                 .receiverQueueSize(100)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .consumerName("c2")
                 .subscribe();
-        Consumer<Integer> consumer3 = pulsarClient.newConsumer(Schema.INT32)
+        Consumer<Integer> consumer3 = pulsarClient
+                .newConsumer(Schema.INT32)
                 .topic(topic)
                 .subscriptionName(subName)
                 .receiverQueueSize(100)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .consumerName("c3")
                 .subscribe();
-        final PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).join().get();
+        final PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false)
+                .join().get();
         final ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
         final PersistentSubscription persistentSubscription = persistentTopic.getSubscription(subName);
-        final PersistentStickyKeyDispatcherMultipleConsumersClassic dispatcher =
-                (PersistentStickyKeyDispatcherMultipleConsumersClassic) persistentSubscription.getDispatcher();
+        final PersistentStickyKeyDispatcherMultipleConsumersClassic dispatcher = (PersistentStickyKeyDispatcherMultipleConsumersClassic) persistentSubscription
+                .getDispatcher();
         final ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().get(subName);
         dispatcher.setSortRecentlyJoinedConsumersIfNeeded(false);
 
         // Make ack holes.
-        //  - ack all messages that consumer1 or consumer2 received.
-        //  - do not ack messages that consumer2 received.
+        // - ack all messages that consumer1 or consumer2 received.
+        // - do not ack messages that consumer2 received.
         ackAllMessages(consumer1, consumer2);
         Position mdPosition = (Position) cursor.getMarkDeletedPosition();
         Position readPosition = (Position) cursor.getReadPosition();
@@ -141,7 +143,10 @@ public class NonEntryCacheKeySharedSubscriptionV30Test extends ProducerConsumerB
         log.info("md-pos {}:{}", mdPosition.getLedgerId(), mdPosition.getEntryId());
         log.info("rd-pos {}:{}", readPosition.getLedgerId(), readPosition.getEntryId());
         log.info("lac-pos {}:{}", LAC.getLedgerId(), LAC.getEntryId());
-        log.info("first-waiting-ack-pos {}:{}", firstWaitingAckPos.getLedgerId(), firstWaitingAckPos.getEntryId());
+        log.info(
+                "first-waiting-ack-pos {}:{}",
+                firstWaitingAckPos.getLedgerId(),
+                firstWaitingAckPos.getEntryId());
 
         // Inject a delay for the next replay read.
         LedgerHandle firstLedger = ml.currentLedger;
@@ -154,21 +159,28 @@ public class NonEntryCacheKeySharedSubscriptionV30Test extends ProducerConsumerB
             if (firstEntry == firstWaitingAckPos.getEntryId()) {
                 replayReadWasTriggered.set(true);
                 final CompletableFuture res = new CompletableFuture<>();
-                threadFactory.newThread(() -> {
-                    try {
-                        replyReadSignal.await();
-                        CompletableFuture<LedgerEntries> future =
-                                (CompletableFuture<LedgerEntries>) invocation.callRealMethod();
-                        future.thenAccept(v -> {
-                            res.complete(v);
-                        }).exceptionally(ex -> {
-                            res.completeExceptionally(ex);
-                            return null;
-                        });
-                    } catch (Throwable ex) {
-                        res.completeExceptionally(ex);
-                    }
-                }).start();
+                threadFactory
+                        .newThread(
+                                () -> {
+                                    try {
+                                        replyReadSignal.await();
+                                        CompletableFuture<LedgerEntries> future = (CompletableFuture<LedgerEntries>) invocation
+                                                .callRealMethod();
+                                        future
+                                                .thenAccept(
+                                                        v -> {
+                                                            res.complete(v);
+                                                        })
+                                                .exceptionally(
+                                                        ex -> {
+                                                            res.completeExceptionally(ex);
+                                                            return null;
+                                                        });
+                                    } catch (Throwable ex) {
+                                        res.completeExceptionally(ex);
+                                    }
+                                })
+                        .start();
                 return res;
             } else {
                 return invocation.callRealMethod();
@@ -180,13 +192,15 @@ public class NonEntryCacheKeySharedSubscriptionV30Test extends ProducerConsumerB
 
         // Keep publish to avoid pending normal read.
         AtomicBoolean keepPublishing = new AtomicBoolean(true);
-        new Thread(() -> {
-            while (keepPublishing.get()) {
-                int v = msgGenerator.getAndIncrement();
-                producer.newMessage().key(String.valueOf(v)).value(v).sendAsync();
-                sleep(100);
-            }
-        }).start();
+        new Thread(
+                () -> {
+                    while (keepPublishing.get()) {
+                        int v = msgGenerator.getAndIncrement();
+                        producer.newMessage().key(String.valueOf(v)).value(v).sendAsync();
+                        sleep(100);
+                    }
+                })
+                        .start();
 
         // Trigger a message redelivery.
         consumer3.close();
@@ -199,11 +213,13 @@ public class NonEntryCacheKeySharedSubscriptionV30Test extends ProducerConsumerB
         // Start 100 consumers.
         List<CompletableFuture<Consumer<Integer>>> consumerList = new ArrayList<>();
         for (int i = 0; i < 40; i++) {
-            consumerList.add(pulsarClient.newConsumer(Schema.INT32)
-                    .topic(topic)
-                    .subscriptionName(subName)
-                    .subscriptionType(SubscriptionType.Key_Shared)
-                    .subscribeAsync());
+            consumerList.add(
+                    pulsarClient
+                            .newConsumer(Schema.INT32)
+                            .topic(topic)
+                            .subscriptionName(subName)
+                            .subscriptionType(SubscriptionType.Key_Shared)
+                            .subscribeAsync());
             if (i == 10) {
                 for (int j = 0; j < msgCount; j++) {
                     int v = msgGenerator.getAndIncrement();
@@ -211,15 +227,17 @@ public class NonEntryCacheKeySharedSubscriptionV30Test extends ProducerConsumerB
                 }
                 final Consumer<Integer> firstConsumer = consumerList.get(0).join();
                 ackAllMessages(firstConsumer);
-                new Thread(() -> {
-                    while (keepPublishing.get()) {
-                        try {
-                            ackAllMessages(firstConsumer);
-                        } catch (Exception e) {
-                            throw new RuntimeException(e);
-                        }
-                    }
-                }).start();
+                new Thread(
+                        () -> {
+                            while (keepPublishing.get()) {
+                                try {
+                                    ackAllMessages(firstConsumer);
+                                } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                }
+                            }
+                        })
+                                .start();
             }
             log.info("recent-joined-consumers {} {}", i, dispatcher.getRecentlyJoinedConsumers().size());
             if (dispatcher.getRecentlyJoinedConsumers().size() > 0) {
@@ -228,13 +246,15 @@ public class NonEntryCacheKeySharedSubscriptionV30Test extends ProducerConsumerB
                 Position LAC2 = (Position) ml.getLastConfirmedEntry();
                 assertTrue(readPosition.compareTo(LAC) >= 0);
                 Position firstWaitingAckPos2 = ml.getNextValidPosition(mdPosition);
-                if(readPosition2.compareTo(firstWaitingAckPos) > 0) {
+                if (readPosition2.compareTo(firstWaitingAckPos) > 0) {
                     keepPublishing.set(false);
                     log.info("consumer-index: {}", i);
                     log.info("md-pos-2 {}:{}", mdPosition2.getLedgerId(), mdPosition2.getEntryId());
                     log.info("rd-pos-2 {}:{}", readPosition2.getLedgerId(), readPosition2.getEntryId());
                     log.info("lac-pos-2 {}:{}", LAC2.getLedgerId(), LAC2.getEntryId());
-                    log.info("first-waiting-ack-pos-2 {}:{}", firstWaitingAckPos2.getLedgerId(),
+                    log.info(
+                            "first-waiting-ack-pos-2 {}:{}",
+                            firstWaitingAckPos2.getLedgerId(),
                             firstWaitingAckPos2.getEntryId());
                     // finish the replay read here.
                     replyReadSignal.countDown();
@@ -266,7 +286,8 @@ public class NonEntryCacheKeySharedSubscriptionV30Test extends ProducerConsumerB
         }
     }
 
-    private boolean verifyMapItemsAreInOrder(LinkedHashMap<org.apache.pulsar.broker.service.Consumer, Position> map) {
+    private boolean verifyMapItemsAreInOrder(
+            LinkedHashMap<org.apache.pulsar.broker.service.Consumer, Position> map) {
         boolean outOfOrder = false;
         Position posPre = null;
         Position posAfter = null;

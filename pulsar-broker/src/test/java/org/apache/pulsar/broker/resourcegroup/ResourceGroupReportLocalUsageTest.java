@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.resourcegroup;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -35,87 +36,92 @@ import org.testng.annotations.Test;
 
 public class ResourceGroupReportLocalUsageTest extends MockedPulsarServiceBaseTest {
 
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
+  @BeforeClass
+  @Override
+  protected void setup() throws Exception {
+    super.internalSetup();
+  }
+
+  @AfterClass(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
+
+  @Test
+  public void testRgFillResourceUsage() throws Exception {
+    pulsar.getResourceGroupServiceManager().close();
+    AtomicBoolean needReport = new AtomicBoolean(false);
+    ResourceGroupService service =
+        new ResourceGroupService(
+            pulsar,
+            TimeUnit.HOURS,
+            null,
+            new ResourceQuotaCalculator() {
+              @Override
+              public boolean needToReportLocalUsage(
+                  long currentBytesUsed,
+                  long lastReportedBytes,
+                  long currentMessagesUsed,
+                  long lastReportedMessages,
+                  long lastReportTimeMSecsSinceEpoch) {
+                return needReport.get();
+              }
+
+              @Override
+              public long computeLocalQuota(long confUsage, long myUsage, long[] allUsages) {
+                return 0;
+              }
+            });
+    String rgName = "rg-1";
+    ResourceGroup rgConfig = new ResourceGroup();
+    rgConfig.setPublishRateInBytes(1000L);
+    rgConfig.setPublishRateInMsgs(2000);
+    service.resourceGroupCreate(rgName, rgConfig);
+
+    BytesAndMessagesCount bytesAndMessagesCount = new BytesAndMessagesCount();
+    bytesAndMessagesCount.bytes = 20;
+    bytesAndMessagesCount.messages = 10;
+
+    org.apache.pulsar.broker.resourcegroup.ResourceGroup resourceGroup =
+        service.resourceGroupGet(rgName);
+    for (ResourceGroupMonitoringClass value : ResourceGroupMonitoringClass.values()) {
+      resourceGroup.incrementLocalUsageStats(value, bytesAndMessagesCount);
     }
 
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
+    // Case1: Suppress report ResourceUsage.
+    needReport.set(false);
+    ResourceUsage resourceUsage = new ResourceUsage();
+    resourceGroup.rgFillResourceUsage(resourceUsage);
+    assertFalse(resourceUsage.hasDispatch());
+    assertFalse(resourceUsage.hasPublish());
+    for (ResourceGroupMonitoringClass value : ResourceGroupMonitoringClass.values()) {
+      PerMonitoringClassFields monitoredEntity = resourceGroup.getMonitoredEntity(value);
+      assertEquals(monitoredEntity.usedLocallySinceLastReport.messages, 0);
+      assertEquals(monitoredEntity.usedLocallySinceLastReport.bytes, 0);
+      assertEquals(monitoredEntity.totalUsedLocally.messages, 0);
+      assertEquals(monitoredEntity.totalUsedLocally.bytes, 0);
+      assertEquals(monitoredEntity.lastReportedValues.messages, 0);
+      assertEquals(monitoredEntity.lastReportedValues.bytes, 0);
     }
 
-
-    @Test
-    public void testRgFillResourceUsage() throws Exception {
-        pulsar.getResourceGroupServiceManager().close();
-        AtomicBoolean needReport = new AtomicBoolean(false);
-        ResourceGroupService service = new ResourceGroupService(pulsar, TimeUnit.HOURS, null,
-                new ResourceQuotaCalculator() {
-                    @Override
-                    public boolean needToReportLocalUsage(long currentBytesUsed, long lastReportedBytes,
-                                                          long currentMessagesUsed, long lastReportedMessages,
-                                                          long lastReportTimeMSecsSinceEpoch) {
-                        return needReport.get();
-                    }
-
-                    @Override
-                    public long computeLocalQuota(long confUsage, long myUsage, long[] allUsages) {
-                        return 0;
-                    }
-                });
-        String rgName = "rg-1";
-        ResourceGroup rgConfig = new ResourceGroup();
-        rgConfig.setPublishRateInBytes(1000L);
-        rgConfig.setPublishRateInMsgs(2000);
-        service.resourceGroupCreate(rgName, rgConfig);
-
-        BytesAndMessagesCount bytesAndMessagesCount = new BytesAndMessagesCount();
-        bytesAndMessagesCount.bytes = 20;
-        bytesAndMessagesCount.messages = 10;
-
-        org.apache.pulsar.broker.resourcegroup.ResourceGroup resourceGroup = service.resourceGroupGet(rgName);
-        for (ResourceGroupMonitoringClass value : ResourceGroupMonitoringClass.values()) {
-            resourceGroup.incrementLocalUsageStats(value, bytesAndMessagesCount);
-        }
-
-        // Case1: Suppress report ResourceUsage.
-        needReport.set(false);
-        ResourceUsage resourceUsage = new ResourceUsage();
-        resourceGroup.rgFillResourceUsage(resourceUsage);
-        assertFalse(resourceUsage.hasDispatch());
-        assertFalse(resourceUsage.hasPublish());
-        for (ResourceGroupMonitoringClass value : ResourceGroupMonitoringClass.values()) {
-            PerMonitoringClassFields monitoredEntity =
-                    resourceGroup.getMonitoredEntity(value);
-            assertEquals(monitoredEntity.usedLocallySinceLastReport.messages, 0);
-            assertEquals(monitoredEntity.usedLocallySinceLastReport.bytes, 0);
-            assertEquals(monitoredEntity.totalUsedLocally.messages, 0);
-            assertEquals(monitoredEntity.totalUsedLocally.bytes, 0);
-            assertEquals(monitoredEntity.lastReportedValues.messages, 0);
-            assertEquals(monitoredEntity.lastReportedValues.bytes, 0);
-        }
-
-        // Case2: Report ResourceUsage.
-        for (ResourceGroupMonitoringClass value : ResourceGroupMonitoringClass.values()) {
-            resourceGroup.incrementLocalUsageStats(value, bytesAndMessagesCount);
-        }
-        needReport.set(true);
-        resourceUsage = new ResourceUsage();
-        resourceGroup.rgFillResourceUsage(resourceUsage);
-        assertTrue(resourceUsage.hasDispatch());
-        assertTrue(resourceUsage.hasPublish());
-        for (ResourceGroupMonitoringClass value : ResourceGroupMonitoringClass.values()) {
-            PerMonitoringClassFields monitoredEntity =
-                    resourceGroup.getMonitoredEntity(value);
-            assertEquals(monitoredEntity.usedLocallySinceLastReport.messages, 0);
-            assertEquals(monitoredEntity.usedLocallySinceLastReport.bytes, 0);
-            assertEquals(monitoredEntity.totalUsedLocally.messages, bytesAndMessagesCount.messages);
-            assertEquals(monitoredEntity.totalUsedLocally.bytes, bytesAndMessagesCount.bytes);
-            assertEquals(monitoredEntity.lastReportedValues.messages, bytesAndMessagesCount.messages);
-            assertEquals(monitoredEntity.lastReportedValues.bytes, bytesAndMessagesCount.bytes);
-        }
+    // Case2: Report ResourceUsage.
+    for (ResourceGroupMonitoringClass value : ResourceGroupMonitoringClass.values()) {
+      resourceGroup.incrementLocalUsageStats(value, bytesAndMessagesCount);
     }
+    needReport.set(true);
+    resourceUsage = new ResourceUsage();
+    resourceGroup.rgFillResourceUsage(resourceUsage);
+    assertTrue(resourceUsage.hasDispatch());
+    assertTrue(resourceUsage.hasPublish());
+    for (ResourceGroupMonitoringClass value : ResourceGroupMonitoringClass.values()) {
+      PerMonitoringClassFields monitoredEntity = resourceGroup.getMonitoredEntity(value);
+      assertEquals(monitoredEntity.usedLocallySinceLastReport.messages, 0);
+      assertEquals(monitoredEntity.usedLocallySinceLastReport.bytes, 0);
+      assertEquals(monitoredEntity.totalUsedLocally.messages, bytesAndMessagesCount.messages);
+      assertEquals(monitoredEntity.totalUsedLocally.bytes, bytesAndMessagesCount.bytes);
+      assertEquals(monitoredEntity.lastReportedValues.messages, bytesAndMessagesCount.messages);
+      assertEquals(monitoredEntity.lastReportedValues.bytes, bytesAndMessagesCount.bytes);
+    }
+  }
 }

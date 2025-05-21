@@ -18,59 +18,59 @@
  */
 package org.apache.pulsar.broker.auth;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
+import javax.naming.AuthenticationException;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.common.api.AuthData;
 
-import javax.naming.AuthenticationException;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 /**
- * Performs multistage authentication by extending the paradigm created in {@link MockAuthenticationProvider}.
+ * Performs multistage authentication by extending the paradigm created in {@link
+ * MockAuthenticationProvider}.
  */
 public class MockMultiStageAuthenticationState implements AuthenticationState {
 
-    private final MockMultiStageAuthenticationProvider provider;
-    private String authRole = null;
+  private final MockMultiStageAuthenticationProvider provider;
+  private String authRole = null;
 
-    MockMultiStageAuthenticationState(MockMultiStageAuthenticationProvider provider) {
-        this.provider = provider;
+  MockMultiStageAuthenticationState(MockMultiStageAuthenticationProvider provider) {
+    this.provider = provider;
+  }
+
+  @Override
+  public String getAuthRole() throws AuthenticationException {
+    if (authRole == null) {
+      throw new AuthenticationException("Must authenticate first");
     }
+    return null;
+  }
 
-    @Override
-    public String getAuthRole() throws AuthenticationException {
-        if (authRole == null) {
-            throw new AuthenticationException("Must authenticate first");
-        }
+  @Override
+  public AuthData authenticate(AuthData authData) throws AuthenticationException {
+    String data = new String(authData.getBytes(), UTF_8);
+    String[] parts = data.split("\\.");
+    if (parts.length == 2) {
+      if ("challenge".equals(parts[0])) {
+        return AuthData.of("challenged".getBytes());
+      } else {
+        AuthenticationDataCommand command = new AuthenticationDataCommand(data);
+        authRole = provider.authenticate(command);
+        // Auth successful, no more auth required
         return null;
+      }
     }
+    throw new AuthenticationException("Failed to authenticate");
+  }
 
-    @Override
-    public AuthData authenticate(AuthData authData) throws AuthenticationException {
-        String data = new String(authData.getBytes(), UTF_8);
-        String[] parts = data.split("\\.");
-        if (parts.length == 2) {
-            if ("challenge".equals(parts[0])) {
-                return AuthData.of("challenged".getBytes());
-            } else {
-                AuthenticationDataCommand command = new AuthenticationDataCommand(data);
-                authRole = provider.authenticate(command);
-                // Auth successful, no more auth required
-                return null;
-            }
-        }
-        throw new AuthenticationException("Failed to authenticate");
-    }
+  @Override
+  public AuthenticationDataSource getAuthDataSource() {
+    return null;
+  }
 
-    @Override
-    public AuthenticationDataSource getAuthDataSource() {
-        return null;
-    }
-
-    @Override
-    public boolean isComplete() {
-        return authRole != null;
-    }
+  @Override
+  public boolean isComplete() {
+    return authRole != null;
+  }
 }

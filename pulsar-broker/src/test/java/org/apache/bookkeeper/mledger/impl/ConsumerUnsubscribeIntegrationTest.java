@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.testng.Assert.assertEquals;
+
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -37,48 +38,52 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-impl")
 public class ConsumerUnsubscribeIntegrationTest extends ProducerConsumerBase {
 
-    @BeforeClass(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
+  @BeforeClass(alwaysRun = true)
+  @Override
+  protected void setup() throws Exception {
+    super.internalSetup();
+    super.producerBaseSetup();
+  }
 
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @AfterClass(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @Test
-    public void testUnSubscribeWhenCursorNotExists() throws Exception {
-        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
-        final String subscription = "s1";
-        admin.topics().createNonPartitionedTopic(topic);
-        admin.topics().createSubscription(topic, subscription, MessageId.earliest);
+  @Test
+  public void testUnSubscribeWhenCursorNotExists() throws Exception {
+    final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+    final String subscription = "s1";
+    admin.topics().createNonPartitionedTopic(topic);
+    admin.topics().createSubscription(topic, subscription, MessageId.earliest);
 
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic).subscriptionName(subscription)
-                .subscribe();
+    Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+    Consumer<String> consumer = pulsarClient
+        .newConsumer(Schema.STRING)
+        .topic(topic)
+        .subscriptionName(subscription)
+        .subscribe();
 
-        producer.send("1");
-        consumer.acknowledge(consumer.receive(2, TimeUnit.SECONDS));
+    producer.send("1");
+    consumer.acknowledge(consumer.receive(2, TimeUnit.SECONDS));
 
-        PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).join().get();
-        ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
-        ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().get(subscription);
-        Awaitility.await().untilAsserted(() -> {
-            assertEquals(ManagedCursorImpl.State.Open, cursor.state);
-        });
+    PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).join().get();
+    ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+    ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().get(subscription);
+    Awaitility.await()
+        .untilAsserted(
+            () -> {
+              assertEquals(ManagedCursorImpl.State.Open, cursor.state);
+            });
 
-        // Verify: unsubscribe will succeed if the cursor was already removed.
-        ml.deleteCursor(subscription);
-        consumer.unsubscribe();
+    // Verify: unsubscribe will succeed if the cursor was already removed.
+    ml.deleteCursor(subscription);
+    consumer.unsubscribe();
 
-        // cleanup
-        producer.close();
-        consumer.close();
-        admin.topics().delete(topic, false);
-    }
+    // cleanup
+    producer.close();
+    consumer.close();
+    admin.topics().delete(topic, false);
+  }
 }

@@ -19,6 +19,7 @@
 package org.apache.pulsar;
 
 import static org.testng.Assert.assertTrue;
+
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.lang.reflect.Field;
@@ -29,36 +30,37 @@ import picocli.CommandLine.Option;
 
 @Slf4j
 public class PulsarClusterMetadataSetupTest {
-    @Test
-    public void testMainGenerateDocs() throws Exception {
-        PrintStream oldStream = System.out;
-        try {
-            ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
-            System.setOut(new PrintStream(baoStream));
+  @Test
+  public void testMainGenerateDocs() throws Exception {
+    PrintStream oldStream = System.out;
+    try {
+      ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
+      System.setOut(new PrintStream(baoStream));
 
-            Class argumentsClass =
-                    Class.forName("org.apache.pulsar.PulsarClusterMetadataSetup$Arguments");
+      Class argumentsClass =
+          Class.forName("org.apache.pulsar.PulsarClusterMetadataSetup$Arguments");
 
-            PulsarClusterMetadataSetup.main(new String[]{"-cs", "cs", "-uw", "uw", "-zk", "zk", "-c", "c", "-g"});
+      PulsarClusterMetadataSetup.main(
+          new String[] {"-cs", "cs", "-uw", "uw", "-zk", "zk", "-c", "c", "-g"});
 
-            String message = baoStream.toString();
+      String message = baoStream.toString();
 
-            Field[] fields = argumentsClass.getDeclaredFields();
-            for (Field field : fields) {
-                boolean fieldHasAnno = field.isAnnotationPresent(Option.class);
-                if (fieldHasAnno) {
-                    Option fieldAnno = field.getAnnotation(Option.class);
-                    String[] names = fieldAnno.names();
-                    if (names.length == 0 || fieldAnno.hidden()) {
-                        continue;
-                    }
-                    String nameStr = Arrays.asList(names).toString();
-                    nameStr = nameStr.substring(1, nameStr.length() - 1);
-                    assertTrue(message.indexOf(nameStr) > 0, nameStr);
-                }
-            }
-        } finally {
-            System.setOut(oldStream);
+      Field[] fields = argumentsClass.getDeclaredFields();
+      for (Field field : fields) {
+        boolean fieldHasAnno = field.isAnnotationPresent(Option.class);
+        if (fieldHasAnno) {
+          Option fieldAnno = field.getAnnotation(Option.class);
+          String[] names = fieldAnno.names();
+          if (names.length == 0 || fieldAnno.hidden()) {
+            continue;
+          }
+          String nameStr = Arrays.asList(names).toString();
+          nameStr = nameStr.substring(1, nameStr.length() - 1);
+          assertTrue(message.indexOf(nameStr) > 0, nameStr);
         }
+      }
+    } finally {
+      System.setOut(oldStream);
     }
+  }
 }

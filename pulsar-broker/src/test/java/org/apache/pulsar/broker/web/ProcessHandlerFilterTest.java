@@ -33,44 +33,49 @@ import org.testng.collections.Sets;
 
 public class ProcessHandlerFilterTest {
 
-    @Test
-    public void testInterceptorOnFilter() throws ServletException, IOException {
-        PulsarService mockPulsarService = Mockito.mock(PulsarService.class);
-        BrokerInterceptor spyInterceptor = Mockito.spy(BrokerInterceptor.class);
-        HttpServletRequest mockHttpServletRequest = Mockito.mock(HttpServletRequest.class);
-        HttpServletResponse mockHttpServletResponse = Mockito.mock(HttpServletResponse.class);
-        ServiceConfiguration config = new ServiceConfiguration();
-        FilterChain mockFilterChain = Mockito.mock(FilterChain.class);
-        Mockito.doReturn(spyInterceptor).when(mockPulsarService).getBrokerInterceptor();
-        Mockito.doReturn(config).when(mockPulsarService).getConfig();
-        config.setBrokerInterceptors(Sets.newHashSet("Interceptor1", "Interceptor2"));
-        ProcessHandlerFilter processHandlerFilter = new ProcessHandlerFilter(mockPulsarService.getBrokerInterceptor());
-        processHandlerFilter.doFilter(mockHttpServletRequest, mockHttpServletResponse, mockFilterChain);
-        Mockito.verify(spyInterceptor).onFilter(mockHttpServletRequest, mockHttpServletResponse, mockFilterChain);
-    }
+  @Test
+  public void testInterceptorOnFilter() throws ServletException, IOException {
+    PulsarService mockPulsarService = Mockito.mock(PulsarService.class);
+    BrokerInterceptor spyInterceptor = Mockito.spy(BrokerInterceptor.class);
+    HttpServletRequest mockHttpServletRequest = Mockito.mock(HttpServletRequest.class);
+    HttpServletResponse mockHttpServletResponse = Mockito.mock(HttpServletResponse.class);
+    ServiceConfiguration config = new ServiceConfiguration();
+    FilterChain mockFilterChain = Mockito.mock(FilterChain.class);
+    Mockito.doReturn(spyInterceptor).when(mockPulsarService).getBrokerInterceptor();
+    Mockito.doReturn(config).when(mockPulsarService).getConfig();
+    config.setBrokerInterceptors(Sets.newHashSet("Interceptor1", "Interceptor2"));
+    ProcessHandlerFilter processHandlerFilter =
+        new ProcessHandlerFilter(mockPulsarService.getBrokerInterceptor());
+    processHandlerFilter.doFilter(mockHttpServletRequest, mockHttpServletResponse, mockFilterChain);
+    Mockito.verify(spyInterceptor)
+        .onFilter(mockHttpServletRequest, mockHttpServletResponse, mockFilterChain);
+  }
 
-    @Test
-    public void testChainDoFilter() throws ServletException, IOException {
-        PulsarService mockPulsarService = Mockito.mock(PulsarService.class);
-        BrokerInterceptor spyInterceptor = Mockito.mock(BrokerInterceptor.class);
-        HttpServletResponse mockHttpServletResponse = Mockito.mock(HttpServletResponse.class);
-        ServiceConfiguration config = new ServiceConfiguration();
-        FilterChain spyFilterChain = Mockito.spy(FilterChain.class);
-        Mockito.doReturn(spyInterceptor).when(mockPulsarService).getBrokerInterceptor();
-        Mockito.doReturn(config).when(mockPulsarService).getConfig();
-        // request has MULTIPART_FORM_DATA content-type
-        config.setBrokerInterceptors(Sets.newHashSet("Interceptor1","Interceptor2"));
-        HttpServletRequest mockHttpServletRequest2 = Mockito.mock(HttpServletRequest.class);
-        Mockito.doReturn(MediaType.MULTIPART_FORM_DATA).when(mockHttpServletRequest2).getContentType();
-        ProcessHandlerFilter processHandlerFilter2 = new ProcessHandlerFilter(mockPulsarService.getBrokerInterceptor());
-        processHandlerFilter2.doFilter(mockHttpServletRequest2, mockHttpServletResponse, spyFilterChain);
-        Mockito.verify(spyFilterChain).doFilter(mockHttpServletRequest2, mockHttpServletResponse);
-        Mockito.clearInvocations(spyFilterChain);
-        // request has APPLICATION_OCTET_STREAM content-type
-        Mockito.doReturn(MediaType.APPLICATION_OCTET_STREAM).when(mockHttpServletRequest2).getContentType();
-        processHandlerFilter2.doFilter(mockHttpServletRequest2, mockHttpServletResponse, spyFilterChain);
-        Mockito.verify(spyFilterChain).doFilter(mockHttpServletRequest2, mockHttpServletResponse);
-    }
-
-
+  @Test
+  public void testChainDoFilter() throws ServletException, IOException {
+    PulsarService mockPulsarService = Mockito.mock(PulsarService.class);
+    BrokerInterceptor spyInterceptor = Mockito.mock(BrokerInterceptor.class);
+    HttpServletResponse mockHttpServletResponse = Mockito.mock(HttpServletResponse.class);
+    ServiceConfiguration config = new ServiceConfiguration();
+    FilterChain spyFilterChain = Mockito.spy(FilterChain.class);
+    Mockito.doReturn(spyInterceptor).when(mockPulsarService).getBrokerInterceptor();
+    Mockito.doReturn(config).when(mockPulsarService).getConfig();
+    // request has MULTIPART_FORM_DATA content-type
+    config.setBrokerInterceptors(Sets.newHashSet("Interceptor1", "Interceptor2"));
+    HttpServletRequest mockHttpServletRequest2 = Mockito.mock(HttpServletRequest.class);
+    Mockito.doReturn(MediaType.MULTIPART_FORM_DATA).when(mockHttpServletRequest2).getContentType();
+    ProcessHandlerFilter processHandlerFilter2 =
+        new ProcessHandlerFilter(mockPulsarService.getBrokerInterceptor());
+    processHandlerFilter2.doFilter(
+        mockHttpServletRequest2, mockHttpServletResponse, spyFilterChain);
+    Mockito.verify(spyFilterChain).doFilter(mockHttpServletRequest2, mockHttpServletResponse);
+    Mockito.clearInvocations(spyFilterChain);
+    // request has APPLICATION_OCTET_STREAM content-type
+    Mockito.doReturn(MediaType.APPLICATION_OCTET_STREAM)
+        .when(mockHttpServletRequest2)
+        .getContentType();
+    processHandlerFilter2.doFilter(
+        mockHttpServletRequest2, mockHttpServletResponse, spyFilterChain);
+    Mockito.verify(spyFilterChain).doFilter(mockHttpServletRequest2, mockHttpServletResponse);
+  }
 }

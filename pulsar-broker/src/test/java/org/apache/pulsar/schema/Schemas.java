@@ -25,49 +25,49 @@ import org.apache.avro.reflect.AvroDefault;
 
 public class Schemas {
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class PersonOne {
-        int id;
-    }
+  @Data
+  @NoArgsConstructor
+  @AllArgsConstructor
+  public static class PersonOne {
+    int id;
+  }
 
-    @Data
-    @AllArgsConstructor
-    @NoArgsConstructor
-    public static class PersonTwo {
-        int id;
+  @Data
+  @AllArgsConstructor
+  @NoArgsConstructor
+  public static class PersonTwo {
+    int id;
 
-        @AvroDefault("\"Tom\"")
-        String name;
-    }
+    @AvroDefault("\"Tom\"")
+    String name;
+  }
 
-    @Data
-    @AllArgsConstructor
-    @NoArgsConstructor
-    public static class PersonThree {
-        int id;
+  @Data
+  @AllArgsConstructor
+  @NoArgsConstructor
+  public static class PersonThree {
+    int id;
 
-        String name;
-    }
+    String name;
+  }
 
-    @Data
-    @AllArgsConstructor
-    @NoArgsConstructor
-    public static class PersonFour {
-        int id;
+  @Data
+  @AllArgsConstructor
+  @NoArgsConstructor
+  public static class PersonFour {
+    int id;
 
-        String name;
+    String name;
 
-        int age;
-    }
+    int age;
+  }
 
-    @Data
-    @AllArgsConstructor
-    @NoArgsConstructor
-    public static class BytesRecord {
-        int id;
-        String name;
-        byte[] address;
-    }
+  @Data
+  @AllArgsConstructor
+  @NoArgsConstructor
+  public static class BytesRecord {
+    int id;
+    String name;
+    byte[] address;
+  }
 }

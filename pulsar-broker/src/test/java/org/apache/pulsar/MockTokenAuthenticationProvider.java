@@ -32,73 +32,74 @@ import org.apache.pulsar.client.api.PulsarClientException;
 
 public class MockTokenAuthenticationProvider implements AuthenticationProvider {
 
-    public static final String KEY = "role";
+  public static final String KEY = "role";
+
+  @Override
+  public void initialize(ServiceConfiguration config) throws IOException {
+    // No ops
+  }
+
+  @Override
+  public String getAuthMethodName() {
+    return "mock";
+  }
+
+  @Override
+  public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
+    if (!authData.hasDataFromHttp()) {
+      throw new AuthenticationException("No HTTP data in " + authData);
+    }
+    String value = authData.getHttpHeader(KEY);
+    if (value == null) {
+      throw new AuthenticationException("No HTTP header for " + KEY);
+    }
+    return value;
+  }
+
+  @Override
+  public void close() throws IOException {
+    // No ops
+  }
+
+  public static class MockAuthentication implements Authentication {
 
     @Override
-    public void initialize(ServiceConfiguration config) throws IOException {
-        // No ops
+    public AuthenticationDataProvider getAuthData(String brokerHostName)
+        throws PulsarClientException {
+      return new MockAuthenticationData();
     }
 
     @Override
     public String getAuthMethodName() {
-        return "mock";
+      return "mock";
     }
 
     @Override
-    public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
-        if (!authData.hasDataFromHttp()) {
-            throw new AuthenticationException("No HTTP data in " + authData);
-        }
-        String value = authData.getHttpHeader(KEY);
-        if (value == null) {
-            throw new AuthenticationException("No HTTP header for " + KEY);
-        }
-        return value;
+    public void configure(Map<String, String> authParams) {
+      // No ops
+    }
+
+    @Override
+    public void start() throws PulsarClientException {
+      // No ops
     }
 
     @Override
     public void close() throws IOException {
-        // No ops
+      // No ops
+    }
+  }
+
+  private static class MockAuthenticationData implements AuthenticationDataProvider {
+
+    @Override
+    public boolean hasDataForHttp() {
+      return true;
     }
 
-    public static class MockAuthentication implements Authentication {
-
-        @Override
-        public AuthenticationDataProvider getAuthData(String brokerHostName) throws PulsarClientException {
-            return new MockAuthenticationData();
-        }
-
-        @Override
-        public String getAuthMethodName() {
-            return "mock";
-        }
-
-        @Override
-        public void configure(Map<String, String> authParams) {
-            // No ops
-        }
-
-        @Override
-        public void start() throws PulsarClientException {
-            // No ops
-        }
-
-        @Override
-        public void close() throws IOException {
-            // No ops
-        }
+    @Override
+    public Set<Map.Entry<String, String>> getHttpHeaders() throws Exception {
+      return Collections.singletonMap(KEY, "admin").entrySet();
     }
-
-    private static class MockAuthenticationData implements AuthenticationDataProvider {
-
-        @Override
-        public boolean hasDataForHttp() {
-            return true;
-        }
-
-        @Override
-        public Set<Map.Entry<String, String>> getHttpHeaders() throws Exception {
-            return Collections.singletonMap(KEY, "admin").entrySet();
-        }
-    }
+  }
 }

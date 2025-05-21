@@ -23,6 +23,7 @@ import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
 import static org.testng.Assert.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.fail;
+
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
 import java.util.List;
@@ -51,150 +52,162 @@ import org.testng.annotations.Test;
 
 public class TopicCompactionServiceTest extends MockedPulsarServiceBaseTest {
 
-    protected ScheduledExecutorService compactionScheduler;
-    protected BookKeeper bk;
-    private PublishingOrderCompactor compactor;
+  protected ScheduledExecutorService compactionScheduler;
+  protected BookKeeper bk;
+  private PublishingOrderCompactor compactor;
 
-    @BeforeMethod
-    @Override
-    public void setup() throws Exception {
-        conf.setExposingBrokerEntryMetadataToClientEnabled(true);
+  @BeforeMethod
+  @Override
+  public void setup() throws Exception {
+    conf.setExposingBrokerEntryMetadataToClientEnabled(true);
 
-        super.internalSetup();
+    super.internalSetup();
 
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
-        String defaultTenant = "prop-xyz";
-        admin.tenants().createTenant(defaultTenant, tenantInfo);
-        String defaultNamespace = defaultTenant + "/ns1";
-        admin.namespaces().createNamespace(defaultNamespace, Set.of("test"));
+    admin
+        .clusters()
+        .createCluster(
+            "test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+    TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
+    String defaultTenant = "prop-xyz";
+    admin.tenants().createTenant(defaultTenant, tenantInfo);
+    String defaultNamespace = defaultTenant + "/ns1";
+    admin.namespaces().createNamespace(defaultNamespace, Set.of("test"));
 
-        compactionScheduler = Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder().setNameFormat("compactor").setDaemon(true).build());
-        bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null, null, Optional.empty(), null).get();
-        compactor = new PublishingOrderCompactor(conf, pulsarClient, bk, compactionScheduler);
+    compactionScheduler =
+        Executors.newSingleThreadScheduledExecutor(
+            new ThreadFactoryBuilder().setNameFormat("compactor").setDaemon(true).build());
+    bk =
+        pulsar
+            .getBookKeeperClientFactory()
+            .create(this.conf, null, null, Optional.empty(), null)
+            .get();
+    compactor = new PublishingOrderCompactor(conf, pulsarClient, bk, compactionScheduler);
+  }
+
+  @AfterMethod(alwaysRun = true)
+  @Override
+  public void cleanup() throws Exception {
+    super.internalCleanup();
+    bk.close();
+    if (compactionScheduler != null) {
+      compactionScheduler.shutdownNow();
     }
+  }
 
-    @AfterMethod(alwaysRun = true)
-    @Override
-    public void cleanup() throws Exception {
-        super.internalCleanup();
-        bk.close();
-        if (compactionScheduler != null) {
-            compactionScheduler.shutdownNow();
-        }
-    }
+  @Test
+  public void test() throws Exception {
+    String topic = "persistent://prop-xyz/ns1/my-topic";
 
-    @Test
-    public void test() throws Exception {
-        String topic = "persistent://prop-xyz/ns1/my-topic";
+    PulsarTopicCompactionService service =
+        new PulsarTopicCompactionService(topic, bk, () -> compactor);
 
-        PulsarTopicCompactionService service = new PulsarTopicCompactionService(topic, bk, () -> compactor);
+    @Cleanup
+    Producer<byte[]> producer =
+        pulsarClient
+            .newProducer()
+            .topic(topic)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
 
-        @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
-                .enableBatching(false)
-                .messageRoutingMode(MessageRoutingMode.SinglePartition)
-                .create();
+    producer.newMessage().key("c").value("C_0".getBytes()).send();
 
-        producer.newMessage()
-                .key("c")
-                .value("C_0".getBytes())
-                .send();
+    conf.setBrokerEntryMetadataInterceptors(
+        org.assertj.core.util.Sets.newTreeSet(
+            "org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor"));
+    restartBroker();
 
-        conf.setBrokerEntryMetadataInterceptors(org.assertj.core.util.Sets.newTreeSet(
-                "org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor"
-        ));
-        restartBroker();
+    long startTime = System.currentTimeMillis();
 
-        long startTime = System.currentTimeMillis();
+    producer.newMessage().key("a").value("A_1".getBytes()).send();
+    producer.newMessage().key("b").value("B_1".getBytes()).send();
+    producer.newMessage().key("a").value("A_2".getBytes()).send();
+    producer.newMessage().key("b").value("B_2".getBytes()).send();
+    producer.newMessage().key("b").value("B_3".getBytes()).send();
 
-        producer.newMessage()
-                .key("a")
-                .value("A_1".getBytes())
-                .send();
-        producer.newMessage()
-                .key("b")
-                .value("B_1".getBytes())
-                .send();
-        producer.newMessage()
-                .key("a")
-                .value("A_2".getBytes())
-                .send();
-        producer.newMessage()
-                .key("b")
-                .value("B_2".getBytes())
-                .send();
-        producer.newMessage()
-                .key("b")
-                .value("B_3".getBytes())
-                .send();
+    producer.flush();
 
-        producer.flush();
+    service.compact().join();
 
-        service.compact().join();
+    CompactedTopicImpl compactedTopic = service.getCompactedTopic();
 
+    Long compactedLedger =
+        admin
+            .topics()
+            .getInternalStats(topic)
+            .cursors
+            .get(COMPACTION_SUBSCRIPTION)
+            .properties
+            .get(COMPACTED_TOPIC_LEDGER_PROPERTY);
+    String markDeletePosition =
+        admin
+            .topics()
+            .getInternalStats(topic)
+            .cursors
+            .get(COMPACTION_SUBSCRIPTION)
+            .markDeletePosition;
+    String[] split = markDeletePosition.split(":");
+    compactedTopic
+        .newCompactedLedger(
+            PositionFactory.create(Long.valueOf(split[0]), Long.valueOf(split[1])), compactedLedger)
+        .join();
 
-        CompactedTopicImpl compactedTopic = service.getCompactedTopic();
+    Position lastCompactedPosition = service.getLastCompactedPosition().join();
+    assertEquals(
+        admin.topics().getInternalStats(topic).lastConfirmedEntry,
+        lastCompactedPosition.toString());
 
-        Long compactedLedger = admin.topics().getInternalStats(topic).cursors.get(COMPACTION_SUBSCRIPTION).properties.get(
-                COMPACTED_TOPIC_LEDGER_PROPERTY);
-        String markDeletePosition =
-                admin.topics().getInternalStats(topic).cursors.get(COMPACTION_SUBSCRIPTION).markDeletePosition;
-        String[] split = markDeletePosition.split(":");
-        compactedTopic.newCompactedLedger(PositionFactory.create(Long.valueOf(split[0]), Long.valueOf(split[1])),
-                compactedLedger).join();
-
-        Position lastCompactedPosition = service.getLastCompactedPosition().join();
-        assertEquals(admin.topics().getInternalStats(topic).lastConfirmedEntry, lastCompactedPosition.toString());
-
-        List<Entry> entries = service.readCompactedEntries(PositionFactory.EARLIEST, 4).join();
-        assertEquals(entries.size(), 3);
-        entries.stream().map(e -> {
-            try {
+    List<Entry> entries = service.readCompactedEntries(PositionFactory.EARLIEST, 4).join();
+    assertEquals(entries.size(), 3);
+    entries.stream()
+        .map(
+            e -> {
+              try {
                 return MessageImpl.deserialize(e.getDataBuffer());
-            } catch (IOException ex) {
+              } catch (IOException ex) {
                 throw new RuntimeException(ex);
-            }
-        }).forEach(message -> {
-            String data = new String(message.getData());
-            if (Objects.equals(message.getKey(), "a")) {
+              }
+            })
+        .forEach(
+            message -> {
+              String data = new String(message.getData());
+              if (Objects.equals(message.getKey(), "a")) {
                 assertEquals(data, "A_2");
-            } else if (Objects.equals(message.getKey(), "b")) {
+              } else if (Objects.equals(message.getKey(), "b")) {
                 assertEquals(data, "B_3");
-            } else if (Objects.equals(message.getKey(), "c")) {
+              } else if (Objects.equals(message.getKey(), "c")) {
                 assertEquals(data, "C_0");
-            } else {
+              } else {
                 fail();
-            }
-        });
+              }
+            });
 
-        List<Entry> entries2 = service.readCompactedEntries(PositionFactory.EARLIEST, 1).join();
-        assertEquals(entries2.size(), 1);
+    List<Entry> entries2 = service.readCompactedEntries(PositionFactory.EARLIEST, 1).join();
+    assertEquals(entries2.size(), 1);
 
-        Entry entry = service.findEntryByEntryIndex(0).join();
-        BrokerEntryMetadata brokerEntryMetadata = Commands.peekBrokerEntryMetadataIfExist(entry.getDataBuffer());
-        assertNotNull(brokerEntryMetadata);
-        assertEquals(brokerEntryMetadata.getIndex(), 2);
-        MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
-        assertEquals(metadata.getPartitionKey(), "a");
-        entry.release();
+    Entry entry = service.findEntryByEntryIndex(0).join();
+    BrokerEntryMetadata brokerEntryMetadata =
+        Commands.peekBrokerEntryMetadataIfExist(entry.getDataBuffer());
+    assertNotNull(brokerEntryMetadata);
+    assertEquals(brokerEntryMetadata.getIndex(), 2);
+    MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+    assertEquals(metadata.getPartitionKey(), "a");
+    entry.release();
 
-        entry = service.findEntryByEntryIndex(3).join();
-        brokerEntryMetadata = Commands.peekBrokerEntryMetadataIfExist(entry.getDataBuffer());
-        assertNotNull(brokerEntryMetadata);
-        assertEquals(brokerEntryMetadata.getIndex(), 4);
-        metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
-        assertEquals(metadata.getPartitionKey(), "b");
-        entry.release();
+    entry = service.findEntryByEntryIndex(3).join();
+    brokerEntryMetadata = Commands.peekBrokerEntryMetadataIfExist(entry.getDataBuffer());
+    assertNotNull(brokerEntryMetadata);
+    assertEquals(brokerEntryMetadata.getIndex(), 4);
+    metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+    assertEquals(metadata.getPartitionKey(), "b");
+    entry.release();
 
-        entry = service.findEntryByPublishTime(startTime).join();
-        brokerEntryMetadata = Commands.peekBrokerEntryMetadataIfExist(entry.getDataBuffer());
-        assertNotNull(brokerEntryMetadata);
-        assertEquals(brokerEntryMetadata.getIndex(), 2);
-        metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
-        assertEquals(metadata.getPartitionKey(), "a");
-        entry.release();
-    }
+    entry = service.findEntryByPublishTime(startTime).join();
+    brokerEntryMetadata = Commands.peekBrokerEntryMetadataIfExist(entry.getDataBuffer());
+    assertNotNull(brokerEntryMetadata);
+    assertEquals(brokerEntryMetadata.getIndex(), 2);
+    metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+    assertEquals(metadata.getPartitionKey(), "a");
+    entry.release();
+  }
 }

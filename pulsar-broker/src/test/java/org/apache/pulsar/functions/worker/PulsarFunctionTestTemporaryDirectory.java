@@ -27,57 +27,57 @@ import org.apache.commons.io.FileUtils;
 import org.testng.Assert;
 
 /**
- * Creates a temporary directory that contains 4 subdirectories,
- * "narExtractionDirectory", "downloadDirectory", "connectorsDirectory" and "functionsDirectory",
- * which are assigned to the provided workerConfig's respective settings with
- * the {@link #useTemporaryDirectoriesForWorkerConfig(WorkerConfig)} method
+ * Creates a temporary directory that contains 4 subdirectories, "narExtractionDirectory",
+ * "downloadDirectory", "connectorsDirectory" and "functionsDirectory", which are assigned to the
+ * provided workerConfig's respective settings with the {@link
+ * #useTemporaryDirectoriesForWorkerConfig(WorkerConfig)} method
  */
 public class PulsarFunctionTestTemporaryDirectory {
-    private final File tempDirectory;
-    private final File narExtractionDirectory;
-    private final File downloadDirectory;
-    private final File connectorsDirectory;
-    private final File functionsDirectory;
+  private final File tempDirectory;
+  private final File narExtractionDirectory;
+  private final File downloadDirectory;
+  private final File connectorsDirectory;
+  private final File functionsDirectory;
 
-    private PulsarFunctionTestTemporaryDirectory(String tempDirectoryNamePrefix) throws IOException {
-        tempDirectory = Files.createTempDirectory(tempDirectoryNamePrefix).toFile();
-        narExtractionDirectory = new File(tempDirectory, "narExtractionDirectory");
-        narExtractionDirectory.mkdir();
-        downloadDirectory = new File(tempDirectory, "downloadDirectory");
-        downloadDirectory.mkdir();
-        connectorsDirectory = new File(tempDirectory, "connectorsDirectory");
-        connectorsDirectory.mkdir();
-        functionsDirectory = new File(tempDirectory, "functionsDirectory");
-        functionsDirectory.mkdir();
-    }
+  private PulsarFunctionTestTemporaryDirectory(String tempDirectoryNamePrefix) throws IOException {
+    tempDirectory = Files.createTempDirectory(tempDirectoryNamePrefix).toFile();
+    narExtractionDirectory = new File(tempDirectory, "narExtractionDirectory");
+    narExtractionDirectory.mkdir();
+    downloadDirectory = new File(tempDirectory, "downloadDirectory");
+    downloadDirectory.mkdir();
+    connectorsDirectory = new File(tempDirectory, "connectorsDirectory");
+    connectorsDirectory.mkdir();
+    functionsDirectory = new File(tempDirectory, "functionsDirectory");
+    functionsDirectory.mkdir();
+  }
 
-    public static PulsarFunctionTestTemporaryDirectory create(String tempDirectoryNamePrefix) {
-        try {
-            return new PulsarFunctionTestTemporaryDirectory(tempDirectoryNamePrefix);
-        } catch (IOException e) {
-            throw new UncheckedIOException("Cannot create temporary directory", e);
-        }
+  public static PulsarFunctionTestTemporaryDirectory create(String tempDirectoryNamePrefix) {
+    try {
+      return new PulsarFunctionTestTemporaryDirectory(tempDirectoryNamePrefix);
+    } catch (IOException e) {
+      throw new UncheckedIOException("Cannot create temporary directory", e);
     }
+  }
 
-    public void useTemporaryDirectoriesForWorkerConfig(WorkerConfig workerConfig) {
-        workerConfig.setNarExtractionDirectory(narExtractionDirectory.getAbsolutePath());
-        workerConfig.setDownloadDirectory(downloadDirectory.getAbsolutePath());
-        workerConfig.setConnectorsDirectory(connectorsDirectory.getAbsolutePath());
-        workerConfig.setFunctionsDirectory(functionsDirectory.getAbsolutePath());
-    }
+  public void useTemporaryDirectoriesForWorkerConfig(WorkerConfig workerConfig) {
+    workerConfig.setNarExtractionDirectory(narExtractionDirectory.getAbsolutePath());
+    workerConfig.setDownloadDirectory(downloadDirectory.getAbsolutePath());
+    workerConfig.setConnectorsDirectory(connectorsDirectory.getAbsolutePath());
+    workerConfig.setFunctionsDirectory(functionsDirectory.getAbsolutePath());
+  }
 
-    public void delete() {
-        try {
-            FileUtils.deleteDirectory(tempDirectory);
-        } catch (IOException e) {
-            throw new UncheckedIOException("Cannot delete temporary directory", e);
-        }
+  public void delete() {
+    try {
+      FileUtils.deleteDirectory(tempDirectory);
+    } catch (IOException e) {
+      throw new UncheckedIOException("Cannot delete temporary directory", e);
     }
+  }
 
-    public void assertThatFunctionDownloadTempFilesHaveBeenDeleted() {
-        // make sure all temp files are deleted
-        File[] foundFiles = downloadDirectory.listFiles((dir1, name) -> name.startsWith("function"));
-        Assert.assertEquals(foundFiles.length, 0, "Temporary files left over: "
-                + Arrays.asList(foundFiles));
-    }
+  public void assertThatFunctionDownloadTempFilesHaveBeenDeleted() {
+    // make sure all temp files are deleted
+    File[] foundFiles = downloadDirectory.listFiles((dir1, name) -> name.startsWith("function"));
+    Assert.assertEquals(
+        foundFiles.length, 0, "Temporary files left over: " + Arrays.asList(foundFiles));
+  }
 }

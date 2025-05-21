@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+
 import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
@@ -34,113 +35,126 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class ReplicatedSubscriptionConfigTest extends ProducerConsumerBase {
 
-    @Override
-    @BeforeClass
-    public void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
+  @Override
+  @BeforeClass
+  public void setup() throws Exception {
+    super.internalSetup();
+    super.producerBaseSetup();
+  }
 
-    @Override
-    @AfterClass(alwaysRun = true)
-    public void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @Override
+  @AfterClass(alwaysRun = true)
+  public void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @Override
-    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
-        super.customizeMainPulsarTestContextBuilder(pulsarTestContextBuilder);
-        pulsarTestContextBuilder.enableOpenTelemetry(true);
-    }
+  @Override
+  protected void customizeMainPulsarTestContextBuilder(
+      PulsarTestContext.Builder pulsarTestContextBuilder) {
+    super.customizeMainPulsarTestContextBuilder(pulsarTestContextBuilder);
+    pulsarTestContextBuilder.enableOpenTelemetry(true);
+  }
 
-    @Test
-    public void createReplicatedSubscription() throws Exception {
-        this.conf.setEnableReplicatedSubscriptions(true);
-        String topic = BrokerTestUtil.newUniqueName("createReplicatedSubscription");
+  @Test
+  public void createReplicatedSubscription() throws Exception {
+    this.conf.setEnableReplicatedSubscriptions(true);
+    String topic = BrokerTestUtil.newUniqueName("createReplicatedSubscription");
 
-        @Cleanup
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topic)
-                .subscriptionName("sub1")
-                .replicateSubscriptionState(true)
-                .subscribe();
+    @Cleanup
+    Consumer<String> consumer =
+        pulsarClient
+            .newConsumer(Schema.STRING)
+            .topic(topic)
+            .subscriptionName("sub1")
+            .replicateSubscriptionState(true)
+            .subscribe();
 
-        TopicStats stats = admin.topics().getStats(topic);
-        assertTrue(stats.getSubscriptions().get("sub1").isReplicated());
+    TopicStats stats = admin.topics().getStats(topic);
+    assertTrue(stats.getSubscriptions().get("sub1").isReplicated());
 
-        admin.topics().unload(topic);
+    admin.topics().unload(topic);
 
-        // Check that subscription is still marked replicated after reloading
-        stats = admin.topics().getStats(topic);
-        assertTrue(stats.getSubscriptions().get("sub1").isReplicated());
-    }
+    // Check that subscription is still marked replicated after reloading
+    stats = admin.topics().getStats(topic);
+    assertTrue(stats.getSubscriptions().get("sub1").isReplicated());
+  }
 
-    @Test
-    public void upgradeToReplicatedSubscription() throws Exception {
-        this.conf.setEnableReplicatedSubscriptions(true);
-        String topic = BrokerTestUtil.newUniqueName("upgradeToReplicatedSubscription");
+  @Test
+  public void upgradeToReplicatedSubscription() throws Exception {
+    this.conf.setEnableReplicatedSubscriptions(true);
+    String topic = BrokerTestUtil.newUniqueName("upgradeToReplicatedSubscription");
 
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topic)
-                .subscriptionName("sub")
-                .replicateSubscriptionState(false)
-                .subscribe();
+    Consumer<String> consumer =
+        pulsarClient
+            .newConsumer(Schema.STRING)
+            .topic(topic)
+            .subscriptionName("sub")
+            .replicateSubscriptionState(false)
+            .subscribe();
 
-        TopicStats stats = admin.topics().getStats(topic);
-        assertFalse(stats.getSubscriptions().get("sub").isReplicated());
-        consumer.close();
+    TopicStats stats = admin.topics().getStats(topic);
+    assertFalse(stats.getSubscriptions().get("sub").isReplicated());
+    consumer.close();
 
-        consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topic)
-                .subscriptionName("sub")
-                .replicateSubscriptionState(true)
-                .subscribe();
+    consumer =
+        pulsarClient
+            .newConsumer(Schema.STRING)
+            .topic(topic)
+            .subscriptionName("sub")
+            .replicateSubscriptionState(true)
+            .subscribe();
 
-        stats = admin.topics().getStats(topic);
-        assertTrue(stats.getSubscriptions().get("sub").isReplicated());
-        consumer.close();
-    }
+    stats = admin.topics().getStats(topic);
+    assertTrue(stats.getSubscriptions().get("sub").isReplicated());
+    consumer.close();
+  }
 
-    @Test
-    public void upgradeToReplicatedSubscriptionAfterRestart() throws Exception {
-        this.conf.setEnableReplicatedSubscriptions(true);
-        String topic = BrokerTestUtil.newUniqueName("upgradeToReplicatedSubscriptionAfterRestart");
+  @Test
+  public void upgradeToReplicatedSubscriptionAfterRestart() throws Exception {
+    this.conf.setEnableReplicatedSubscriptions(true);
+    String topic = BrokerTestUtil.newUniqueName("upgradeToReplicatedSubscriptionAfterRestart");
 
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topic)
-                .subscriptionName("sub")
-                .replicateSubscriptionState(false)
-                .subscribe();
+    Consumer<String> consumer =
+        pulsarClient
+            .newConsumer(Schema.STRING)
+            .topic(topic)
+            .subscriptionName("sub")
+            .replicateSubscriptionState(false)
+            .subscribe();
 
-        TopicStats stats = admin.topics().getStats(topic);
-        assertFalse(stats.getSubscriptions().get("sub").isReplicated());
-        consumer.close();
+    TopicStats stats = admin.topics().getStats(topic);
+    assertFalse(stats.getSubscriptions().get("sub").isReplicated());
+    consumer.close();
 
-        admin.topics().unload(topic);
+    admin.topics().unload(topic);
 
-        consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topic)
-                .subscriptionName("sub")
-                .replicateSubscriptionState(true)
-                .subscribe();
+    consumer =
+        pulsarClient
+            .newConsumer(Schema.STRING)
+            .topic(topic)
+            .subscriptionName("sub")
+            .replicateSubscriptionState(true)
+            .subscribe();
 
-        stats = admin.topics().getStats(topic);
-        assertTrue(stats.getSubscriptions().get("sub").isReplicated());
-        consumer.close();
-    }
+    stats = admin.topics().getStats(topic);
+    assertTrue(stats.getSubscriptions().get("sub").isReplicated());
+    consumer.close();
+  }
 
-    @Test
-    public void testDisableReplicatedSubscriptions() throws Exception {
-        this.conf.setEnableReplicatedSubscriptions(false);
-        String topic = BrokerTestUtil.newUniqueName("disableReplicatedSubscriptions");
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topic)
-                .subscriptionName("sub")
-                .replicateSubscriptionState(true)
-                .subscribe();
+  @Test
+  public void testDisableReplicatedSubscriptions() throws Exception {
+    this.conf.setEnableReplicatedSubscriptions(false);
+    String topic = BrokerTestUtil.newUniqueName("disableReplicatedSubscriptions");
+    Consumer<String> consumer =
+        pulsarClient
+            .newConsumer(Schema.STRING)
+            .topic(topic)
+            .subscriptionName("sub")
+            .replicateSubscriptionState(true)
+            .subscribe();
 
-        TopicStats stats = admin.topics().getStats(topic);
-        assertFalse(stats.getSubscriptions().get("sub").isReplicated());
-        consumer.close();
-    }
+    TopicStats stats = admin.topics().getStats(topic);
+    assertFalse(stats.getSubscriptions().get("sub").isReplicated());
+    consumer.close();
+  }
 }

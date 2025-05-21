@@ -27,19 +27,19 @@ import org.testng.annotations.Test;
 @Slf4j
 @Test(groups = "broker")
 public class StrategicCompactionRetentionTest extends CompactionRetentionTest {
-    private TopicCompactionStrategy strategy;
-    private StrategicTwoPhaseCompactor compactor;
+  private TopicCompactionStrategy strategy;
+  private StrategicTwoPhaseCompactor compactor;
 
-    @BeforeMethod
-    @Override
-    public void setup() throws Exception {
-        super.setup();
-        compactor = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        strategy = new TopicCompactionStrategyTest.DummyTopicCompactionStrategy();
-    }
+  @BeforeMethod
+  @Override
+  public void setup() throws Exception {
+    super.setup();
+    compactor = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+    strategy = new TopicCompactionStrategyTest.DummyTopicCompactionStrategy();
+  }
 
-    @Override
-    protected long compact(String topic) throws ExecutionException, InterruptedException {
-        return (long) compactor.compact(topic, strategy).get();
-    }
+  @Override
+  protected long compact(String topic) throws ExecutionException, InterruptedException {
+    return (long) compactor.compact(topic, strategy).get();
+  }
 }

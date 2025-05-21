@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker;
 
 import static org.testng.Assert.assertEquals;
+
 import java.io.File;
 import java.util.function.Supplier;
 import lombok.Cleanup;
@@ -38,61 +39,54 @@ import org.testng.annotations.Test;
 @Slf4j
 public class EndToEndMetadataTest extends BaseMetadataStoreTest {
 
-    private File tempDir;
+  private File tempDir;
 
-    @BeforeClass(alwaysRun = true)
-    @Override
-    public void setup() throws Exception {
-        super.setup();
-        tempDir = IOUtils.createTempDir("bookies", "test");
+  @BeforeClass(alwaysRun = true)
+  @Override
+  public void setup() throws Exception {
+    super.setup();
+    tempDir = IOUtils.createTempDir("bookies", "test");
+  }
+
+  @AfterClass(alwaysRun = true)
+  @Override
+  public void cleanup() throws Exception {
+    super.cleanup();
+    FileUtils.deleteDirectory(tempDir);
+  }
+
+  @Test(dataProvider = "impl")
+  public void testPublishConsume(String provider, Supplier<String> urlSupplier) throws Exception {
+
+    @Cleanup
+    EmbeddedPulsarCluster epc =
+        EmbeddedPulsarCluster.builder()
+            .numBrokers(1)
+            .numBookies(2)
+            .metadataStoreUrl(urlSupplier.get())
+            .dataDir(tempDir.getAbsolutePath())
+            .clearOldData(true)
+            .build();
+
+    @Cleanup PulsarClient client = PulsarClient.builder().serviceUrl(epc.getServiceUrl()).build();
+
+    @Cleanup
+    Producer<String> producer = client.newProducer(Schema.STRING).topic("my-topic").create();
+
+    @Cleanup
+    Consumer<String> consumer =
+        client.newConsumer(Schema.STRING).topic("my-topic").subscriptionName("my-sub").subscribe();
+
+    for (int i = 0; i < 10; i++) {
+      producer.sendAsync("hello-" + i);
     }
 
-    @AfterClass(alwaysRun = true)
-    @Override
-    public void cleanup() throws Exception {
-        super.cleanup();
-        FileUtils.deleteDirectory(tempDir);
+    producer.flush();
+
+    for (int i = 0; i < 10; i++) {
+      Message<String> msg = consumer.receive();
+      assertEquals(msg.getValue(), "hello-" + i);
+      consumer.acknowledge(msg);
     }
-
-    @Test(dataProvider = "impl")
-    public void testPublishConsume(String provider, Supplier<String> urlSupplier) throws Exception {
-
-        @Cleanup
-        EmbeddedPulsarCluster epc = EmbeddedPulsarCluster.builder()
-                .numBrokers(1)
-                .numBookies(2)
-                .metadataStoreUrl(urlSupplier.get())
-                .dataDir(tempDir.getAbsolutePath())
-                .clearOldData(true)
-                .build();
-
-        @Cleanup
-        PulsarClient client = PulsarClient.builder()
-                .serviceUrl(epc.getServiceUrl())
-                .build();
-
-        @Cleanup
-        Producer<String> producer = client.newProducer(Schema.STRING)
-                .topic("my-topic")
-                .create();
-
-        @Cleanup
-        Consumer<String> consumer = client.newConsumer(Schema.STRING)
-                .topic("my-topic")
-                .subscriptionName("my-sub")
-                .subscribe();
-
-        for (int i = 0; i < 10; i++) {
-            producer.sendAsync("hello-" + i);
-        }
-
-        producer.flush();
-
-        for (int i = 0; i < 10; i++) {
-            Message<String> msg = consumer.receive();
-            assertEquals(msg.getValue(), "hello-" + i);
-            consumer.acknowledge(msg);
-        }
-    }
-
+  }
 }

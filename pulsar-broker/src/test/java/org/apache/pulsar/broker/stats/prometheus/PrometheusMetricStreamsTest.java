@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.stats.prometheus;
 
 import static org.testng.Assert.assertTrue;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import java.io.ByteArrayOutputStream;
@@ -31,55 +32,57 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class PrometheusMetricStreamsTest {
 
-    private PrometheusMetricStreams underTest;
+  private PrometheusMetricStreams underTest;
 
-    @BeforeMethod(alwaysRun = true)
-    protected void setup() throws Exception {
-        underTest = new PrometheusMetricStreams();
+  @BeforeMethod(alwaysRun = true)
+  protected void setup() throws Exception {
+    underTest = new PrometheusMetricStreams();
+  }
+
+  @AfterMethod(alwaysRun = true)
+  protected void cleanup() throws Exception {
+    underTest.releaseAll();
+  }
+
+  @Test
+  public void canWriteSampleWithoutLabels() {
+    underTest.writeSample("my-metric", 123);
+
+    String actual = writeToString();
+
+    assertTrue(actual.startsWith("# TYPE my-metric gauge"), "Gauge type line missing");
+    assertTrue(actual.contains("my-metric{} 123"), "Metric line missing");
+  }
+
+  @Test
+  public void canWriteSampleWithLabels() {
+    underTest.writeSample("my-other-metric", 123, "cluster", "local");
+    underTest.writeSample("my-other-metric", 456, "cluster", "local", "namespace", "my-ns");
+
+    String actual = writeToString();
+
+    assertTrue(actual.startsWith("# TYPE my-other-metric gauge"), "Gauge type line missing");
+    assertTrue(
+        actual.contains("my-other-metric{cluster=\"local\"} 123"), "Cluster metric line missing");
+    assertTrue(
+        actual.contains("my-other-metric{cluster=\"local\",namespace=\"my-ns\"} 456"),
+        "Cluster and Namespace metric line missing");
+  }
+
+  private String writeToString() {
+    ByteBuf buffer = ByteBufAllocator.DEFAULT.directBuffer();
+    try {
+      SimpleTextOutputStream stream = new SimpleTextOutputStream(buffer);
+      underTest.flushAllToStream(stream);
+      ByteArrayOutputStream out = new ByteArrayOutputStream();
+      int readIndex = buffer.readerIndex();
+      int readableBytes = buffer.readableBytes();
+      for (int i = 0; i < readableBytes; i++) {
+        out.write(buffer.getByte(readIndex + i));
+      }
+      return out.toString(StandardCharsets.UTF_8);
+    } finally {
+      buffer.release();
     }
-
-    @AfterMethod(alwaysRun = true)
-    protected void cleanup() throws Exception {
-        underTest.releaseAll();
-    }
-
-    @Test
-    public void canWriteSampleWithoutLabels() {
-        underTest.writeSample("my-metric", 123);
-
-        String actual = writeToString();
-
-        assertTrue(actual.startsWith("# TYPE my-metric gauge"), "Gauge type line missing");
-        assertTrue(actual.contains("my-metric{} 123"), "Metric line missing");
-    }
-
-    @Test
-    public void canWriteSampleWithLabels() {
-        underTest.writeSample("my-other-metric", 123, "cluster", "local");
-        underTest.writeSample("my-other-metric", 456, "cluster", "local", "namespace", "my-ns");
-
-        String actual = writeToString();
-
-        assertTrue(actual.startsWith("# TYPE my-other-metric gauge"), "Gauge type line missing");
-        assertTrue(actual.contains("my-other-metric{cluster=\"local\"} 123"), "Cluster metric line missing");
-        assertTrue(actual.contains("my-other-metric{cluster=\"local\",namespace=\"my-ns\"} 456"),
-                "Cluster and Namespace metric line missing");
-    }
-
-    private String writeToString() {
-        ByteBuf buffer = ByteBufAllocator.DEFAULT.directBuffer();
-        try {
-            SimpleTextOutputStream stream = new SimpleTextOutputStream(buffer);
-            underTest.flushAllToStream(stream);
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            int readIndex = buffer.readerIndex();
-            int readableBytes = buffer.readableBytes();
-            for (int i = 0; i < readableBytes; i++) {
-                out.write(buffer.getByte(readIndex + i));
-            }
-            return out.toString(StandardCharsets.UTF_8);
-        } finally {
-            buffer.release();
-        }
-    }
+  }
 }

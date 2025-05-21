@@ -24,6 +24,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 import static org.testng.Assert.assertEquals;
+
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -33,43 +34,46 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class AbstractTopicTest {
-    private AbstractSubscription subscription;
-    private AbstractTopic topic;
+  private AbstractSubscription subscription;
+  private AbstractTopic topic;
 
-    @BeforeMethod
-    public void beforeMethod() {
-        BrokerService brokerService = mock(BrokerService.class);
-        PulsarService pulsarService = mock(PulsarService.class);
-        ServiceConfiguration serviceConfiguration = mock(ServiceConfiguration.class);
-        BacklogQuotaManager backlogQuotaManager = mock(BacklogQuotaManager.class);
-        subscription = mock(AbstractSubscription.class);
+  @BeforeMethod
+  public void beforeMethod() {
+    BrokerService brokerService = mock(BrokerService.class);
+    PulsarService pulsarService = mock(PulsarService.class);
+    ServiceConfiguration serviceConfiguration = mock(ServiceConfiguration.class);
+    BacklogQuotaManager backlogQuotaManager = mock(BacklogQuotaManager.class);
+    subscription = mock(AbstractSubscription.class);
 
-        when(brokerService.pulsar()).thenReturn(pulsarService);
-        doReturn(pulsarService).when(brokerService).getPulsar();
-        when(pulsarService.getConfiguration()).thenReturn(serviceConfiguration);
-        when(brokerService.getBacklogQuotaManager()).thenReturn(backlogQuotaManager);
-        doReturn(AsyncTokenBucket.DEFAULT_SNAPSHOT_CLOCK).when(pulsarService).getMonotonicClock();
+    when(brokerService.pulsar()).thenReturn(pulsarService);
+    doReturn(pulsarService).when(brokerService).getPulsar();
+    when(pulsarService.getConfiguration()).thenReturn(serviceConfiguration);
+    when(brokerService.getBacklogQuotaManager()).thenReturn(backlogQuotaManager);
+    doReturn(AsyncTokenBucket.DEFAULT_SNAPSHOT_CLOCK).when(pulsarService).getMonotonicClock();
 
-        topic = mock(AbstractTopic.class, withSettings()
+    topic =
+        mock(
+            AbstractTopic.class,
+            withSettings()
                 .useConstructor("topic", brokerService)
                 .defaultAnswer(CALLS_REAL_METHODS));
 
-        final var subscriptions = new ConcurrentHashMap<String, Subscription>();
-        subscriptions.put("subscription", subscription);
-        when(topic.getSubscriptions()).thenAnswer(invocation -> subscriptions);
-    }
+    final var subscriptions = new ConcurrentHashMap<String, Subscription>();
+    subscriptions.put("subscription", subscription);
+    when(topic.getSubscriptions()).thenAnswer(invocation -> subscriptions);
+  }
 
-    @Test
-    public void testGetMsgOutCounter() {
-        topic.msgOutFromRemovedSubscriptions.add(1L);
-        when(subscription.getMsgOutCounter()).thenReturn(2L);
-        assertEquals(topic.getMsgOutCounter(), 3L);
-    }
+  @Test
+  public void testGetMsgOutCounter() {
+    topic.msgOutFromRemovedSubscriptions.add(1L);
+    when(subscription.getMsgOutCounter()).thenReturn(2L);
+    assertEquals(topic.getMsgOutCounter(), 3L);
+  }
 
-    @Test
-    public void testGetBytesOutCounter() {
-        topic.bytesOutFromRemovedSubscriptions.add(1L);
-        when(subscription.getBytesOutCounter()).thenReturn(2L);
-        assertEquals(topic.getBytesOutCounter(), 3L);
-    }
+  @Test
+  public void testGetBytesOutCounter() {
+    topic.bytesOutFromRemovedSubscriptions.add(1L);
+    when(subscription.getBytesOutCounter()).thenReturn(2L);
+    assertEquals(topic.getBytesOutCounter(), 3L);
+  }
 }

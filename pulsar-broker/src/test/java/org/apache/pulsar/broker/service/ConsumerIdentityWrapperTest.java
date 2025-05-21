@@ -22,47 +22,49 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
+
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class ConsumerIdentityWrapperTest {
-    private static Consumer mockConsumer() {
-        return mockConsumer("consumer");
-    }
+  private static Consumer mockConsumer() {
+    return mockConsumer("consumer");
+  }
 
-    private static Consumer mockConsumer(String consumerName) {
-        Consumer consumer = mock(Consumer.class);
-        when(consumer.consumerName()).thenReturn(consumerName);
-        return consumer;
-    }
+  private static Consumer mockConsumer(String consumerName) {
+    Consumer consumer = mock(Consumer.class);
+    when(consumer.consumerName()).thenReturn(consumerName);
+    return consumer;
+  }
 
-    @Test
-    public void testEquals() {
-        Consumer consumer = mockConsumer();
-        assertEquals(new ConsumerIdentityWrapper(consumer), new ConsumerIdentityWrapper(consumer));
-    }
+  @Test
+  public void testEquals() {
+    Consumer consumer = mockConsumer();
+    assertEquals(new ConsumerIdentityWrapper(consumer), new ConsumerIdentityWrapper(consumer));
+  }
 
-    @Test
-    public void testHashCode() {
-        Consumer consumer = mockConsumer();
-        assertEquals(new ConsumerIdentityWrapper(consumer).hashCode(),
-                new ConsumerIdentityWrapper(consumer).hashCode());
-    }
+  @Test
+  public void testHashCode() {
+    Consumer consumer = mockConsumer();
+    assertEquals(
+        new ConsumerIdentityWrapper(consumer).hashCode(),
+        new ConsumerIdentityWrapper(consumer).hashCode());
+  }
 
-    @Test
-    public void testEqualsAndHashCode() {
-        Consumer consumer1 = mockConsumer();
-        Consumer consumer2 = mockConsumer();
-        ConsumerIdentityWrapper wrapper1 = new ConsumerIdentityWrapper(consumer1);
-        ConsumerIdentityWrapper wrapper2 = new ConsumerIdentityWrapper(consumer1);
-        ConsumerIdentityWrapper wrapper3 = new ConsumerIdentityWrapper(consumer2);
+  @Test
+  public void testEqualsAndHashCode() {
+    Consumer consumer1 = mockConsumer();
+    Consumer consumer2 = mockConsumer();
+    ConsumerIdentityWrapper wrapper1 = new ConsumerIdentityWrapper(consumer1);
+    ConsumerIdentityWrapper wrapper2 = new ConsumerIdentityWrapper(consumer1);
+    ConsumerIdentityWrapper wrapper3 = new ConsumerIdentityWrapper(consumer2);
 
-        // Test equality
-        assertEquals(wrapper1, wrapper2);
-        assertNotEquals(wrapper1, wrapper3);
+    // Test equality
+    assertEquals(wrapper1, wrapper2);
+    assertNotEquals(wrapper1, wrapper3);
 
-        // Test hash code
-        assertEquals(wrapper1.hashCode(), wrapper2.hashCode());
-        assertNotEquals(wrapper1.hashCode(), wrapper3.hashCode());
-    }
+    // Test hash code
+    assertEquals(wrapper1.hashCode(), wrapper2.hashCode());
+    assertNotEquals(wrapper1.hashCode(), wrapper3.hashCode());
+  }
 }

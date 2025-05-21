@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.loadbalance.extensions.channel.models;
 
 import static org.testng.Assert.assertEquals;
+
 import java.util.Optional;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.testng.annotations.Test;
@@ -26,28 +27,27 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class UnloadTest {
 
-    @Test
-    public void testConstructors() {
+  @Test
+  public void testConstructors() {
 
-        Unload unload1 = new Unload("A", "B");
-        assertEquals(unload1.sourceBroker(), "A");
-        assertEquals(unload1.serviceUnit(), "B");
-        assertEquals(unload1.destBroker(), Optional.empty());
+    Unload unload1 = new Unload("A", "B");
+    assertEquals(unload1.sourceBroker(), "A");
+    assertEquals(unload1.serviceUnit(), "B");
+    assertEquals(unload1.destBroker(), Optional.empty());
 
-        Unload unload2 = new Unload("A", "B", Optional.of("C"));
-        assertEquals(unload2.sourceBroker(), "A");
-        assertEquals(unload2.serviceUnit(), "B");
-        assertEquals(unload2.destBroker(), Optional.of("C"));
-    }
+    Unload unload2 = new Unload("A", "B", Optional.of("C"));
+    assertEquals(unload2.sourceBroker(), "A");
+    assertEquals(unload2.serviceUnit(), "B");
+    assertEquals(unload2.destBroker(), Optional.of("C"));
+  }
 
-    @Test(expectedExceptions = NullPointerException.class)
-    public void testNullSourceBroker() {
-        new Unload(null, "A");
-    }
+  @Test(expectedExceptions = NullPointerException.class)
+  public void testNullSourceBroker() {
+    new Unload(null, "A");
+  }
 
-    @Test(expectedExceptions = NullPointerException.class)
-    public void testNullServiceUnit() {
-        new Unload("A", null);
-    }
-
+  @Test(expectedExceptions = NullPointerException.class)
+  public void testNullServiceUnit() {
+    new Unload("A", null);
+  }
 }

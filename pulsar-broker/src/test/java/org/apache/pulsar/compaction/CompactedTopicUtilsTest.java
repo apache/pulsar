@@ -35,47 +35,53 @@ import org.testng.annotations.Test;
 
 public class CompactedTopicUtilsTest {
 
-    @Test
-    public void testReadCompactedEntriesWithEmptyEntries() throws ExecutionException, InterruptedException {
-        Position lastCompactedPosition = PositionFactory.create(1, 100);
-        TopicCompactionService service = Mockito.mock(TopicCompactionService.class);
-        Mockito.doReturn(CompletableFuture.completedFuture(Collections.emptyList()))
-                .when(service).readCompactedEntries(Mockito.any(), Mockito.intThat(argument -> argument > 0));
-        Mockito.doReturn(CompletableFuture.completedFuture(lastCompactedPosition)).when(service)
-                .getLastCompactedPosition();
+  @Test
+  public void testReadCompactedEntriesWithEmptyEntries()
+      throws ExecutionException, InterruptedException {
+    Position lastCompactedPosition = PositionFactory.create(1, 100);
+    TopicCompactionService service = Mockito.mock(TopicCompactionService.class);
+    Mockito.doReturn(CompletableFuture.completedFuture(Collections.emptyList()))
+        .when(service)
+        .readCompactedEntries(Mockito.any(), Mockito.intThat(argument -> argument > 0));
+    Mockito.doReturn(CompletableFuture.completedFuture(lastCompactedPosition))
+        .when(service)
+        .getLastCompactedPosition();
 
+    Position initPosition = PositionFactory.create(1, 90);
+    AtomicReference<Position> readPositionRef = new AtomicReference<>(initPosition.getNext());
+    ManagedCursorImpl cursor = Mockito.mock(ManagedCursorImpl.class);
+    Mockito.doReturn(readPositionRef.get()).when(cursor).getReadPosition();
+    Mockito.doReturn(1).when(cursor).applyMaxSizeCap(Mockito.anyInt(), Mockito.anyLong());
+    Mockito.doAnswer(
+            invocation -> {
+              readPositionRef.set(invocation.getArgument(0));
+              return null;
+            })
+        .when(cursor)
+        .seek(Mockito.any());
 
-        Position initPosition = PositionFactory.create(1, 90);
-        AtomicReference<Position> readPositionRef = new AtomicReference<>(initPosition.getNext());
-        ManagedCursorImpl cursor = Mockito.mock(ManagedCursorImpl.class);
-        Mockito.doReturn(readPositionRef.get()).when(cursor).getReadPosition();
-        Mockito.doReturn(1).when(cursor).applyMaxSizeCap(Mockito.anyInt(), Mockito.anyLong());
-        Mockito.doAnswer(invocation -> {
-            readPositionRef.set(invocation.getArgument(0));
-            return null;
-        }).when(cursor).seek(Mockito.any());
+    CompletableFuture<List<Entry>> completableFuture = new CompletableFuture<>();
+    final AtomicReference<Throwable> throwableRef = new AtomicReference<>();
+    AsyncCallbacks.ReadEntriesCallback readEntriesCallback =
+        new AsyncCallbacks.ReadEntriesCallback() {
+          @Override
+          public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            completableFuture.complete(entries);
+          }
 
-        CompletableFuture<List<Entry>> completableFuture = new CompletableFuture<>();
-        final AtomicReference<Throwable> throwableRef = new AtomicReference<>();
-        AsyncCallbacks.ReadEntriesCallback readEntriesCallback = new AsyncCallbacks.ReadEntriesCallback() {
-            @Override
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                completableFuture.complete(entries);
-            }
-
-            @Override
-            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                completableFuture.completeExceptionally(exception);
-                throwableRef.set(exception);
-            }
+          @Override
+          public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+            completableFuture.completeExceptionally(exception);
+            throwableRef.set(exception);
+          }
         };
 
-        CompactedTopicUtils.asyncReadCompactedEntries(service, cursor, 1, 100,
-                PositionFactory.LATEST, false, readEntriesCallback, false, null);
+    CompactedTopicUtils.asyncReadCompactedEntries(
+        service, cursor, 1, 100, PositionFactory.LATEST, false, readEntriesCallback, false, null);
 
-        List<Entry> entries = completableFuture.get();
-        Assert.assertTrue(entries.isEmpty());
-        Assert.assertNull(throwableRef.get());
-        Assert.assertEquals(readPositionRef.get(), lastCompactedPosition.getNext());
-    }
+    List<Entry> entries = completableFuture.get();
+    Assert.assertTrue(entries.isEmpty());
+    Assert.assertNull(throwableRef.get());
+    Assert.assertEquals(readPositionRef.get(), lastCompactedPosition.getNext());
+  }
 }

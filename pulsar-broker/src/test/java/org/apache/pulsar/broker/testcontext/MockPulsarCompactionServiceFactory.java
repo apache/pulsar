@@ -23,20 +23,20 @@ import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
 
 public class MockPulsarCompactionServiceFactory extends PulsarCompactionServiceFactory {
-    private final Compactor compactor;
-    private final SpyConfig spyConfig;
+  private final Compactor compactor;
+  private final SpyConfig spyConfig;
 
-    public MockPulsarCompactionServiceFactory(SpyConfig spyConfig, Compactor compactor) {
-        this.compactor = compactor;
-        this.spyConfig = spyConfig;
-    }
+  public MockPulsarCompactionServiceFactory(SpyConfig spyConfig, Compactor compactor) {
+    this.compactor = compactor;
+    this.spyConfig = spyConfig;
+  }
 
-    @Override
-    protected Compactor newCompactor() throws PulsarServerException {
-        if (this.compactor != null) {
-            return this.compactor;
-        } else {
-            return spyConfig.getCompactor().spy(super.newCompactor());
-        }
+  @Override
+  protected Compactor newCompactor() throws PulsarServerException {
+    if (this.compactor != null) {
+      return this.compactor;
+    } else {
+      return spyConfig.getCompactor().spy(super.newCompactor());
     }
+  }
 }

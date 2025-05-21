@@ -18,12 +18,13 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.models;
 
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -51,250 +52,257 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class TopKBundlesTest {
-    private PulsarService pulsar;
-    private ServiceConfiguration configuration;
-    private NamespaceResources.IsolationPolicyResources isolationPolicyResources;
-    private PulsarResources pulsarResources;
-    private LocalPoliciesResources localPoliciesResources;
+  private PulsarService pulsar;
+  private ServiceConfiguration configuration;
+  private NamespaceResources.IsolationPolicyResources isolationPolicyResources;
+  private PulsarResources pulsarResources;
+  private LocalPoliciesResources localPoliciesResources;
 
-    String bundle1 = "my-tenant/my-namespace1/0x00000000_0x0FFFFFFF";
-    String bundle2 = "my-tenant/my-namespace2/0x00000000_0x0FFFFFFF";
-    String bundle3 = "my-tenant/my-namespace3/0x00000000_0x0FFFFFFF";
-    String bundle4 = "my-tenant/my-namespace4/0x00000000_0x0FFFFFFF";
+  String bundle1 = "my-tenant/my-namespace1/0x00000000_0x0FFFFFFF";
+  String bundle2 = "my-tenant/my-namespace2/0x00000000_0x0FFFFFFF";
+  String bundle3 = "my-tenant/my-namespace3/0x00000000_0x0FFFFFFF";
+  String bundle4 = "my-tenant/my-namespace4/0x00000000_0x0FFFFFFF";
 
-    @BeforeMethod
-    public void init() throws MetadataStoreException {
-        pulsar = mock(PulsarService.class);
-        configuration = new ServiceConfiguration();
-        doReturn(configuration).when(pulsar).getConfiguration();
-        configuration.setLoadBalancerSheddingBundlesWithPoliciesEnabled(false);
-        pulsarResources = mock(PulsarResources.class);
-        var namespaceResources = mock(NamespaceResources.class);
+  @BeforeMethod
+  public void init() throws MetadataStoreException {
+    pulsar = mock(PulsarService.class);
+    configuration = new ServiceConfiguration();
+    doReturn(configuration).when(pulsar).getConfiguration();
+    configuration.setLoadBalancerSheddingBundlesWithPoliciesEnabled(false);
+    pulsarResources = mock(PulsarResources.class);
+    var namespaceResources = mock(NamespaceResources.class);
 
-        isolationPolicyResources = mock(NamespaceResources.IsolationPolicyResources.class);
-        doReturn(pulsarResources).when(pulsar).getPulsarResources();
-        doReturn(namespaceResources).when(pulsarResources).getNamespaceResources();
-        doReturn(isolationPolicyResources).when(namespaceResources).getIsolationPolicies();
-        doReturn(Optional.empty()).when(isolationPolicyResources).getIsolationDataPolicies(any());
+    isolationPolicyResources = mock(NamespaceResources.IsolationPolicyResources.class);
+    doReturn(pulsarResources).when(pulsar).getPulsarResources();
+    doReturn(namespaceResources).when(pulsarResources).getNamespaceResources();
+    doReturn(isolationPolicyResources).when(namespaceResources).getIsolationPolicies();
+    doReturn(Optional.empty()).when(isolationPolicyResources).getIsolationDataPolicies(any());
 
-        localPoliciesResources = mock(LocalPoliciesResources.class);
-        doReturn(localPoliciesResources).when(pulsarResources).getLocalPolicies();
-        doReturn(Optional.empty()).when(localPoliciesResources).getLocalPolicies(any());
+    localPoliciesResources = mock(LocalPoliciesResources.class);
+    doReturn(localPoliciesResources).when(pulsarResources).getLocalPolicies();
+    doReturn(Optional.empty()).when(localPoliciesResources).getLocalPolicies(any());
+  }
 
-    }
-    @Test
-    public void testTopBundlesLoadData() {
-        Map<String, NamespaceBundleStats> bundleStats = new HashMap<>();
-        var topKBundles = new TopKBundles(pulsar);
-        NamespaceBundleStats stats1 = new NamespaceBundleStats();
-        stats1.msgRateIn = 100000;
-        stats1.msgThroughputOut = 10;
-        bundleStats.put(bundle1, stats1);
+  @Test
+  public void testTopBundlesLoadData() {
+    Map<String, NamespaceBundleStats> bundleStats = new HashMap<>();
+    var topKBundles = new TopKBundles(pulsar);
+    NamespaceBundleStats stats1 = new NamespaceBundleStats();
+    stats1.msgRateIn = 100000;
+    stats1.msgThroughputOut = 10;
+    bundleStats.put(bundle1, stats1);
 
-        NamespaceBundleStats stats2 = new NamespaceBundleStats();
-        stats2.msgRateIn = 500;
-        stats2.msgThroughputOut = 10;
-        bundleStats.put(bundle2, stats2);
+    NamespaceBundleStats stats2 = new NamespaceBundleStats();
+    stats2.msgRateIn = 500;
+    stats2.msgThroughputOut = 10;
+    bundleStats.put(bundle2, stats2);
 
-        NamespaceBundleStats stats3 = new NamespaceBundleStats();
-        stats3.msgRateIn = 10000;
-        stats3.msgThroughputOut = 10;
-        bundleStats.put(bundle3, stats3);
+    NamespaceBundleStats stats3 = new NamespaceBundleStats();
+    stats3.msgRateIn = 10000;
+    stats3.msgThroughputOut = 10;
+    bundleStats.put(bundle3, stats3);
 
-        NamespaceBundleStats stats4 = new NamespaceBundleStats();
-        stats4.msgRateIn = 0;
-        bundleStats.put(bundle4, stats4);
+    NamespaceBundleStats stats4 = new NamespaceBundleStats();
+    stats4.msgRateIn = 0;
+    bundleStats.put(bundle4, stats4);
 
-        topKBundles.update(bundleStats, 3);
-        var top0 = topKBundles.getLoadData().getTopBundlesLoadData().get(0);
-        var top1 = topKBundles.getLoadData().getTopBundlesLoadData().get(1);
-        var top2 = topKBundles.getLoadData().getTopBundlesLoadData().get(2);
+    topKBundles.update(bundleStats, 3);
+    var top0 = topKBundles.getLoadData().getTopBundlesLoadData().get(0);
+    var top1 = topKBundles.getLoadData().getTopBundlesLoadData().get(1);
+    var top2 = topKBundles.getLoadData().getTopBundlesLoadData().get(2);
 
-        assertEquals(top0.bundleName(), bundle2);
-        assertEquals(top1.bundleName(), bundle3);
-        assertEquals(top2.bundleName(), bundle1);
-    }
+    assertEquals(top0.bundleName(), bundle2);
+    assertEquals(top1.bundleName(), bundle3);
+    assertEquals(top2.bundleName(), bundle1);
+  }
 
-    @Test
-    public void testSystemNamespace() {
-        Map<String, NamespaceBundleStats> bundleStats = new HashMap<>();
-        var topKBundles = new TopKBundles(pulsar);
-        NamespaceBundleStats stats1 = new NamespaceBundleStats();
-        stats1.msgRateIn = 500;
-        stats1.msgThroughputOut = 10;
-        bundleStats.put("pulsar/system/0x00000000_0x0FFFFFFF", stats1);
+  @Test
+  public void testSystemNamespace() {
+    Map<String, NamespaceBundleStats> bundleStats = new HashMap<>();
+    var topKBundles = new TopKBundles(pulsar);
+    NamespaceBundleStats stats1 = new NamespaceBundleStats();
+    stats1.msgRateIn = 500;
+    stats1.msgThroughputOut = 10;
+    bundleStats.put("pulsar/system/0x00000000_0x0FFFFFFF", stats1);
 
-        NamespaceBundleStats stats2 = new NamespaceBundleStats();
-        stats2.msgRateIn = 10000;
-        stats2.msgThroughputOut = 10;
-        bundleStats.put(bundle1, stats2);
+    NamespaceBundleStats stats2 = new NamespaceBundleStats();
+    stats2.msgRateIn = 10000;
+    stats2.msgThroughputOut = 10;
+    bundleStats.put(bundle1, stats2);
 
-        topKBundles.update(bundleStats, 2);
+    topKBundles.update(bundleStats, 2);
 
-        assertEquals(topKBundles.getLoadData().getTopBundlesLoadData().size(), 1);
-        var top0 = topKBundles.getLoadData().getTopBundlesLoadData().get(0);
-        assertEquals(top0.bundleName(), bundle1);
-    }
+    assertEquals(topKBundles.getLoadData().getTopBundlesLoadData().size(), 1);
+    var top0 = topKBundles.getLoadData().getTopBundlesLoadData().get(0);
+    assertEquals(top0.bundleName(), bundle1);
+  }
 
-    @Test
-    public void testZeroMsgThroughputBundleStats() {
-        Map<String, NamespaceBundleStats> bundleStats = new HashMap<>();
-        var topKBundles = new TopKBundles(pulsar);
-        NamespaceBundleStats stats1 = new NamespaceBundleStats();
-        bundleStats.put(bundle1, stats1);
+  @Test
+  public void testZeroMsgThroughputBundleStats() {
+    Map<String, NamespaceBundleStats> bundleStats = new HashMap<>();
+    var topKBundles = new TopKBundles(pulsar);
+    NamespaceBundleStats stats1 = new NamespaceBundleStats();
+    bundleStats.put(bundle1, stats1);
 
-        NamespaceBundleStats stats2 = new NamespaceBundleStats();
-        bundleStats.put(bundle1, stats2);
+    NamespaceBundleStats stats2 = new NamespaceBundleStats();
+    bundleStats.put(bundle1, stats2);
 
-        topKBundles.update(bundleStats, 2);
+    topKBundles.update(bundleStats, 2);
 
-        assertEquals(topKBundles.getLoadData().getTopBundlesLoadData().size(), 0);
-    }
+    assertEquals(topKBundles.getLoadData().getTopBundlesLoadData().size(), 0);
+  }
 
+  private void setAntiAffinityGroup() throws MetadataStoreException {
+    LocalPolicies localPolicies = new LocalPolicies(null, null, "namespaceAntiAffinityGroup");
+    NamespaceName namespace =
+        NamespaceName.get(LoadManagerShared.getNamespaceNameFromBundleName(bundle2));
+    doReturn(Optional.of(localPolicies))
+        .when(localPoliciesResources)
+        .getLocalPolicies(eq(namespace));
+  }
 
-    private  void setAntiAffinityGroup() throws MetadataStoreException {
-        LocalPolicies localPolicies = new LocalPolicies(null, null, "namespaceAntiAffinityGroup");
-        NamespaceName namespace = NamespaceName.get(LoadManagerShared.getNamespaceNameFromBundleName(bundle2));
-        doReturn(Optional.of(localPolicies)).when(localPoliciesResources).getLocalPolicies(eq(namespace));
-    }
-
-    private void setIsolationPolicy() throws MetadataStoreException {
-        Map<String, String> parameters = new HashMap<>();
-        parameters.put("min_limit", "3");
-        parameters.put("usage_threshold", "90");
-        var policyData = Map.of("policy", (NamespaceIsolationDataImpl)
+  private void setIsolationPolicy() throws MetadataStoreException {
+    Map<String, String> parameters = new HashMap<>();
+    parameters.put("min_limit", "3");
+    parameters.put("usage_threshold", "90");
+    var policyData =
+        Map.of(
+            "policy",
+            (NamespaceIsolationDataImpl)
                 NamespaceIsolationData.builder()
-                        .namespaces(Collections.singletonList("my-tenant/my-namespace1.*"))
-                        .primary(Collections.singletonList("prod1-broker[1-3].messaging.use.example.com"))
-                        .secondary(Collections.singletonList("prod1-broker.*.use.example.com"))
-                        .autoFailoverPolicy(AutoFailoverPolicyData.builder()
-                                .policyType(AutoFailoverPolicyType.min_available)
-                                .parameters(parameters)
-                                .build()
-                        ).build());
+                    .namespaces(Collections.singletonList("my-tenant/my-namespace1.*"))
+                    .primary(
+                        Collections.singletonList("prod1-broker[1-3].messaging.use.example.com"))
+                    .secondary(Collections.singletonList("prod1-broker.*.use.example.com"))
+                    .autoFailoverPolicy(
+                        AutoFailoverPolicyData.builder()
+                            .policyType(AutoFailoverPolicyType.min_available)
+                            .parameters(parameters)
+                            .build())
+                    .build());
 
-        NamespaceIsolationPolicies policies = new NamespaceIsolationPolicies(policyData);
-        doReturn(Optional.of(policies)).when(isolationPolicyResources).getIsolationDataPolicies(any());
-    }
+    NamespaceIsolationPolicies policies = new NamespaceIsolationPolicies(policyData);
+    doReturn(Optional.of(policies)).when(isolationPolicyResources).getIsolationDataPolicies(any());
+  }
 
-    @Test
-    public void testIsolationPolicy() throws MetadataStoreException {
+  @Test
+  public void testIsolationPolicy() throws MetadataStoreException {
 
-        setIsolationPolicy();
+    setIsolationPolicy();
 
-        Map<String, NamespaceBundleStats> bundleStats = new HashMap<>();
-        var topKBundles = new TopKBundles(pulsar);
-        NamespaceBundleStats stats1 = new NamespaceBundleStats();
-        stats1.msgRateIn = 500;
-        stats1.msgThroughputOut = 10;
-        bundleStats.put(bundle1, stats1);
+    Map<String, NamespaceBundleStats> bundleStats = new HashMap<>();
+    var topKBundles = new TopKBundles(pulsar);
+    NamespaceBundleStats stats1 = new NamespaceBundleStats();
+    stats1.msgRateIn = 500;
+    stats1.msgThroughputOut = 10;
+    bundleStats.put(bundle1, stats1);
 
-        NamespaceBundleStats stats2 = new NamespaceBundleStats();
-        stats2.msgRateIn = 10000;
-        stats2.msgThroughputOut = 10;
-        bundleStats.put(bundle2, stats2);
+    NamespaceBundleStats stats2 = new NamespaceBundleStats();
+    stats2.msgRateIn = 10000;
+    stats2.msgThroughputOut = 10;
+    bundleStats.put(bundle2, stats2);
 
-        topKBundles.update(bundleStats, 2);
-        assertEquals(topKBundles.getLoadData().getTopBundlesLoadData().size(), 1);
-        var top0 = topKBundles.getLoadData().getTopBundlesLoadData().get(0);
-        assertEquals(top0.bundleName(), bundle2);
-    }
+    topKBundles.update(bundleStats, 2);
+    assertEquals(topKBundles.getLoadData().getTopBundlesLoadData().size(), 1);
+    var top0 = topKBundles.getLoadData().getTopBundlesLoadData().get(0);
+    assertEquals(top0.bundleName(), bundle2);
+  }
 
+  @Test
+  public void testAntiAffinityGroupPolicy() throws MetadataStoreException {
 
-    @Test
-    public void testAntiAffinityGroupPolicy() throws MetadataStoreException {
+    setAntiAffinityGroup();
 
-        setAntiAffinityGroup();
+    Map<String, NamespaceBundleStats> bundleStats = new HashMap<>();
+    var topKBundles = new TopKBundles(pulsar);
+    NamespaceBundleStats stats1 = new NamespaceBundleStats();
+    stats1.msgRateIn = 500;
+    stats1.msgThroughputOut = 10;
+    bundleStats.put(bundle1, stats1);
 
-        Map<String, NamespaceBundleStats> bundleStats = new HashMap<>();
-        var topKBundles = new TopKBundles(pulsar);
-        NamespaceBundleStats stats1 = new NamespaceBundleStats();
-        stats1.msgRateIn = 500;
-        stats1.msgThroughputOut = 10;
-        bundleStats.put(bundle1, stats1);
+    NamespaceBundleStats stats2 = new NamespaceBundleStats();
+    stats2.msgRateIn = 10000;
+    stats2.msgThroughputOut = 10;
+    bundleStats.put(bundle2, stats2);
 
-        NamespaceBundleStats stats2 = new NamespaceBundleStats();
-        stats2.msgRateIn = 10000;
-        stats2.msgThroughputOut = 10;
-        bundleStats.put(bundle2, stats2);
+    topKBundles.update(bundleStats, 2);
+    assertEquals(topKBundles.getLoadData().getTopBundlesLoadData().size(), 1);
+    var top0 = topKBundles.getLoadData().getTopBundlesLoadData().get(0);
+    assertEquals(top0.bundleName(), bundle1);
+  }
 
-        topKBundles.update(bundleStats, 2);
-        assertEquals(topKBundles.getLoadData().getTopBundlesLoadData().size(), 1);
-        var top0 = topKBundles.getLoadData().getTopBundlesLoadData().get(0);
-        assertEquals(top0.bundleName(), bundle1);
+  @Test
+  public void testLoadBalancerSheddingBundlesWithPoliciesEnabledConfig()
+      throws MetadataStoreException {
 
-    }
+    setIsolationPolicy();
+    setAntiAffinityGroup();
 
-    @Test
-    public void testLoadBalancerSheddingBundlesWithPoliciesEnabledConfig() throws MetadataStoreException {
+    configuration.setLoadBalancerSheddingBundlesWithPoliciesEnabled(true);
 
-        setIsolationPolicy();
-        setAntiAffinityGroup();
+    Map<String, NamespaceBundleStats> bundleStats = new HashMap<>();
+    var topKBundles = new TopKBundles(pulsar);
+    NamespaceBundleStats stats1 = new NamespaceBundleStats();
+    stats1.msgRateIn = 500;
+    stats1.msgThroughputOut = 10;
+    bundleStats.put(bundle1, stats1);
 
-        configuration.setLoadBalancerSheddingBundlesWithPoliciesEnabled(true);
+    NamespaceBundleStats stats2 = new NamespaceBundleStats();
+    stats2.msgRateIn = 10000;
+    stats2.msgThroughputOut = 10;
+    bundleStats.put(bundle2, stats2);
 
-        Map<String, NamespaceBundleStats> bundleStats = new HashMap<>();
-        var topKBundles = new TopKBundles(pulsar);
-        NamespaceBundleStats stats1 = new NamespaceBundleStats();
-        stats1.msgRateIn = 500;
-        stats1.msgThroughputOut = 10;
-        bundleStats.put(bundle1, stats1);
+    topKBundles.update(bundleStats, 2);
 
-        NamespaceBundleStats stats2 = new NamespaceBundleStats();
-        stats2.msgRateIn = 10000;
-        stats2.msgThroughputOut = 10;
-        bundleStats.put(bundle2, stats2);
+    assertEquals(topKBundles.getLoadData().getTopBundlesLoadData().size(), 2);
+    var top0 = topKBundles.getLoadData().getTopBundlesLoadData().get(0);
+    var top1 = topKBundles.getLoadData().getTopBundlesLoadData().get(1);
 
-        topKBundles.update(bundleStats, 2);
+    assertEquals(top0.bundleName(), bundle1);
+    assertEquals(top1.bundleName(), bundle2);
 
-        assertEquals(topKBundles.getLoadData().getTopBundlesLoadData().size(), 2);
-        var top0 = topKBundles.getLoadData().getTopBundlesLoadData().get(0);
-        var top1 = topKBundles.getLoadData().getTopBundlesLoadData().get(1);
+    configuration.setLoadBalancerSheddingBundlesWithPoliciesEnabled(false);
 
-        assertEquals(top0.bundleName(), bundle1);
-        assertEquals(top1.bundleName(), bundle2);
+    topKBundles.update(bundleStats, 2);
 
-        configuration.setLoadBalancerSheddingBundlesWithPoliciesEnabled(false);
+    assertEquals(topKBundles.getLoadData().getTopBundlesLoadData().size(), 0);
+  }
 
-        topKBundles.update(bundleStats, 2);
+  @Test
+  public void testPartitionSort() {
 
-        assertEquals(topKBundles.getLoadData().getTopBundlesLoadData().size(), 0);
-    }
+    Random rand = new Random();
+    List<Map.Entry<String, ? extends Comparable>> actual = new ArrayList<>();
+    List<Map.Entry<String, ? extends Comparable>> expected = new ArrayList<>();
 
-
-    @Test
-    public void testPartitionSort() {
-
-        Random rand = new Random();
-        List<Map.Entry<String, ? extends Comparable>> actual = new ArrayList<>();
-        List<Map.Entry<String, ? extends Comparable>> expected = new ArrayList<>();
-
-        for (int j = 0; j < 100; j++) {
-            Map<String, Integer> map = new HashMap<>();
-            int max = rand.nextInt(10) + 1;
-            for (int i = 0; i < max; i++) {
-                int val = rand.nextInt(max);
-                map.put("" + i, val);
-            }
-            actual.clear();
-            expected.clear();
-            for (var etr : map.entrySet()) {
-                actual.add(etr);
-                expected.add(etr);
-            }
-            int topk = rand.nextInt(max) + 1;
-            TopKBundles.partitionSort(actual, topk);
-            Collections.sort(expected, (a, b) -> b.getValue().compareTo(a.getValue()));
-            String errorMsg = null;
-            for (int i = 0; i < topk; i++) {
-                Integer l = (Integer) actual.get(i).getValue();
-                Integer r = (Integer) expected.get(i).getValue();
-                if (!l.equals(r)) {
-                    errorMsg = String.format("Diff found at i=%d, %d != %d, actual:%s, expected:%s",
-                            i, l, r, actual, expected);
-                }
-                assertNull(errorMsg);
-            }
+    for (int j = 0; j < 100; j++) {
+      Map<String, Integer> map = new HashMap<>();
+      int max = rand.nextInt(10) + 1;
+      for (int i = 0; i < max; i++) {
+        int val = rand.nextInt(max);
+        map.put("" + i, val);
+      }
+      actual.clear();
+      expected.clear();
+      for (var etr : map.entrySet()) {
+        actual.add(etr);
+        expected.add(etr);
+      }
+      int topk = rand.nextInt(max) + 1;
+      TopKBundles.partitionSort(actual, topk);
+      Collections.sort(expected, (a, b) -> b.getValue().compareTo(a.getValue()));
+      String errorMsg = null;
+      for (int i = 0; i < topk; i++) {
+        Integer l = (Integer) actual.get(i).getValue();
+        Integer r = (Integer) expected.get(i).getValue();
+        if (!l.equals(r)) {
+          errorMsg =
+              String.format(
+                  "Diff found at i=%d, %d != %d, actual:%s, expected:%s",
+                  i, l, r, actual, expected);
         }
+        assertNull(errorMsg);
+      }
     }
+  }
 }

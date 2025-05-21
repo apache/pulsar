@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service.plugin;
 
-
 import java.util.Collections;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -27,36 +26,35 @@ import org.apache.pulsar.broker.service.Consumer;
 
 @Slf4j
 public class EntryFilterProducerTest implements EntryFilter {
-    @Override
-    public FilterResult filterEntry(Entry entry, FilterContext context) {
-        if (context.getMsgMetadata() == null) {
-            return FilterResult.ACCEPT;
-        }
-        Consumer consumer = context.getConsumer();
-        Map<String, String> metadata = consumer != null ? consumer.getMetadata() : Collections.emptyMap();
-        log.info("filterEntry for {}", metadata);
-        String matchValueAccept = metadata.getOrDefault("matchValueAccept", "ACCEPT");
-        String matchValueReject = metadata.getOrDefault("matchValueReject", "REJECT");
-        String matchValueReschedule = metadata.getOrDefault("matchValueReschedule", "RESCHEDULE");
-        // filter by string
-        String producerName = context.getMsgMetadata().getProducerName();
-        if (matchValueAccept.equalsIgnoreCase(producerName)) {
-            log.info("metadata {} producerName {} outcome ACCEPT", metadata, producerName);
-            return FilterResult.ACCEPT;
-        } else if (matchValueReject.equalsIgnoreCase(producerName)){
-            log.info("metadata {} producerName {} outcome REJECT", metadata, producerName);
-            return FilterResult.REJECT;
-        } else if (matchValueReschedule.equalsIgnoreCase(producerName)){
-            log.info("metadata {} producerName {} outcome RESCHEDULE", metadata, producerName);
-            return FilterResult.RESCHEDULE;
-        } else {
-            log.info("metadata {} producerName {} outcome ??", metadata, producerName);
-        }
-        return null;
+  @Override
+  public FilterResult filterEntry(Entry entry, FilterContext context) {
+    if (context.getMsgMetadata() == null) {
+      return FilterResult.ACCEPT;
     }
-
-    @Override
-    public void close() {
-
+    Consumer consumer = context.getConsumer();
+    Map<String, String> metadata =
+        consumer != null ? consumer.getMetadata() : Collections.emptyMap();
+    log.info("filterEntry for {}", metadata);
+    String matchValueAccept = metadata.getOrDefault("matchValueAccept", "ACCEPT");
+    String matchValueReject = metadata.getOrDefault("matchValueReject", "REJECT");
+    String matchValueReschedule = metadata.getOrDefault("matchValueReschedule", "RESCHEDULE");
+    // filter by string
+    String producerName = context.getMsgMetadata().getProducerName();
+    if (matchValueAccept.equalsIgnoreCase(producerName)) {
+      log.info("metadata {} producerName {} outcome ACCEPT", metadata, producerName);
+      return FilterResult.ACCEPT;
+    } else if (matchValueReject.equalsIgnoreCase(producerName)) {
+      log.info("metadata {} producerName {} outcome REJECT", metadata, producerName);
+      return FilterResult.REJECT;
+    } else if (matchValueReschedule.equalsIgnoreCase(producerName)) {
+      log.info("metadata {} producerName {} outcome RESCHEDULE", metadata, producerName);
+      return FilterResult.RESCHEDULE;
+    } else {
+      log.info("metadata {} producerName {} outcome ??", metadata, producerName);
     }
+    return null;
+  }
+
+  @Override
+  public void close() {}
 }

@@ -19,8 +19,9 @@
 package org.apache.pulsar.broker.auth;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import javax.naming.AuthenticationException;
+
 import java.util.concurrent.CompletableFuture;
+import javax.naming.AuthenticationException;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
@@ -29,53 +30,53 @@ import org.apache.pulsar.common.api.AuthData;
 
 // MockMutableAuthenticationState always update the authentication data source and auth role.
 public class MockMutableAuthenticationState implements AuthenticationState {
-    final AuthenticationProvider provider;
-    AuthenticationDataSource authenticationDataSource;
-    volatile String authRole;
+  final AuthenticationProvider provider;
+  AuthenticationDataSource authenticationDataSource;
+  volatile String authRole;
 
-    MockMutableAuthenticationState(AuthenticationProvider provider) {
-        this.provider = provider;
-    }
+  MockMutableAuthenticationState(AuthenticationProvider provider) {
+    this.provider = provider;
+  }
 
-    @Override
-    public String getAuthRole() throws AuthenticationException {
-        if (authRole == null) {
-            throw new AuthenticationException("Must authenticate first.");
-        }
-        return authRole;
+  @Override
+  public String getAuthRole() throws AuthenticationException {
+    if (authRole == null) {
+      throw new AuthenticationException("Must authenticate first.");
     }
+    return authRole;
+  }
 
-    @Override
-    public AuthData authenticate(AuthData authData) throws AuthenticationException {
-        return null;
-    }
+  @Override
+  public AuthData authenticate(AuthData authData) throws AuthenticationException {
+    return null;
+  }
 
-    /**
-     * This authentication is always single stage, so it returns immediately
-     */
-    @Override
-    public CompletableFuture<AuthData> authenticateAsync(AuthData authData) {
-        authenticationDataSource = new AuthenticationDataCommand(new String(authData.getBytes(), UTF_8));
-        return provider
-                .authenticateAsync(authenticationDataSource)
-                .thenApply(role -> {
-                    authRole = role;
-                    return null;
-                });
-    }
+  /** This authentication is always single stage, so it returns immediately */
+  @Override
+  public CompletableFuture<AuthData> authenticateAsync(AuthData authData) {
+    authenticationDataSource =
+        new AuthenticationDataCommand(new String(authData.getBytes(), UTF_8));
+    return provider
+        .authenticateAsync(authenticationDataSource)
+        .thenApply(
+            role -> {
+              authRole = role;
+              return null;
+            });
+  }
 
-    @Override
-    public AuthenticationDataSource getAuthDataSource() {
-        return authenticationDataSource;
-    }
+  @Override
+  public AuthenticationDataSource getAuthDataSource() {
+    return authenticationDataSource;
+  }
 
-    @Override
-    public boolean isComplete() {
-        return true;
-    }
+  @Override
+  public boolean isComplete() {
+    return true;
+  }
 
-    @Override
-    public boolean isExpired() {
-        return false;
-    }
+  @Override
+  public boolean isExpired() {
+    return false;
+  }
 }

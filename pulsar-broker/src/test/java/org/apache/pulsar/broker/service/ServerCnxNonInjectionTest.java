@@ -32,31 +32,41 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class ServerCnxNonInjectionTest extends ProducerConsumerBase {
 
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
+  @BeforeClass
+  @Override
+  protected void setup() throws Exception {
+    super.internalSetup();
+    super.producerBaseSetup();
+  }
 
-    @AfterClass
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @AfterClass
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @Test(timeOut = 60 * 1000)
-    public void testCheckConnectionLivenessAfterClosed() throws Exception {
-        // Create a ServerCnx
-        final String tp = BrokerTestUtil.newUniqueName("public/default/tp");
-        Producer<String> p = pulsarClient.newProducer(Schema.STRING).topic(tp).create();
-        ServerCnx serverCnx = (ServerCnx) pulsar.getBrokerService().getTopic(tp, false).join().get()
-                        .getProducers().values().iterator().next().getCnx();
-        // Call "CheckConnectionLiveness" after serverCnx is closed. The resulted future should be done eventually.
-        p.close();
-        serverCnx.close();
-        Thread.sleep(1000);
-        serverCnx.checkConnectionLiveness().join();
-    }
-
+  @Test(timeOut = 60 * 1000)
+  public void testCheckConnectionLivenessAfterClosed() throws Exception {
+    // Create a ServerCnx
+    final String tp = BrokerTestUtil.newUniqueName("public/default/tp");
+    Producer<String> p = pulsarClient.newProducer(Schema.STRING).topic(tp).create();
+    ServerCnx serverCnx =
+        (ServerCnx)
+            pulsar
+                .getBrokerService()
+                .getTopic(tp, false)
+                .join()
+                .get()
+                .getProducers()
+                .values()
+                .iterator()
+                .next()
+                .getCnx();
+    // Call "CheckConnectionLiveness" after serverCnx is closed. The resulted future should be done
+    // eventually.
+    p.close();
+    serverCnx.close();
+    Thread.sleep(1000);
+    serverCnx.checkConnectionLiveness().join();
+  }
 }

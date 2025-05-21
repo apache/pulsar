@@ -32,89 +32,89 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-impl")
 public class AutoCloseUselessClientConMultiTopicTest extends AutoCloseUselessClientConSupports {
 
-    private static String topicName_1 = UUID.randomUUID().toString().replaceAll("-","");
-    private static String topicFullName_1 = "persistent://public/default/" + topicName_1;
-    private static String topicName_2 = UUID.randomUUID().toString().replaceAll("-","");
-    private static String topicFullName_2 = "persistent://public/default/" + topicName_2;
+  private static String topicName_1 = UUID.randomUUID().toString().replaceAll("-", "");
+  private static String topicFullName_1 = "persistent://public/default/" + topicName_1;
+  private static String topicName_2 = UUID.randomUUID().toString().replaceAll("-", "");
+  private static String topicFullName_2 = "persistent://public/default/" + topicName_2;
 
-    @BeforeMethod
-    public void before() throws PulsarAdminException {
-        // Create Topics
-        PulsarAdmin pulsarAdmin_0 = super.getAllAdmins().get(0);
-        List<String> topicList = pulsarAdmin_0.topics().getList("public/default");
-        if (!topicList.contains(topicName_1) && !topicList.contains(topicFullName_1 + "-partition-0")
-                && !topicList.contains(topicFullName_1)){
-            pulsarAdmin_0.topics().createNonPartitionedTopic(topicFullName_1);
-        }
-        if (!topicList.contains(topicName_2) && !topicList.contains(topicFullName_2 + "-partition-0")
-                && !topicList.contains(topicFullName_2)){
-            pulsarAdmin_0.topics().createNonPartitionedTopic(topicFullName_2);
-        }
+  @BeforeMethod
+  public void before() throws PulsarAdminException {
+    // Create Topics
+    PulsarAdmin pulsarAdmin_0 = super.getAllAdmins().get(0);
+    List<String> topicList = pulsarAdmin_0.topics().getList("public/default");
+    if (!topicList.contains(topicName_1)
+        && !topicList.contains(topicFullName_1 + "-partition-0")
+        && !topicList.contains(topicFullName_1)) {
+      pulsarAdmin_0.topics().createNonPartitionedTopic(topicFullName_1);
     }
+    if (!topicList.contains(topicName_2)
+        && !topicList.contains(topicFullName_2 + "-partition-0")
+        && !topicList.contains(topicFullName_2)) {
+      pulsarAdmin_0.topics().createNonPartitionedTopic(topicFullName_2);
+    }
+  }
 
-    @Test
-    public void testConnectionAutoReleaseMultiTopic() throws Exception {
-        // Init clients
-        PulsarClientImpl pulsarClient = (PulsarClientImpl) super.getAllClients().get(0);
-        Consumer consumer = pulsarClient.newConsumer()
-                .topic(topicName_1, topicName_2)
-                .subscriptionName("my-subscription-x")
-                .isAckReceiptEnabled(true)
-                .subscribe();
-        Producer producer_1 = pulsarClient.newProducer()
-                .topic(topicName_1)
-                .create();
-        Producer producer_2 = pulsarClient.newProducer()
-                .topic(topicName_2)
-                .create();
-        // Ensure producer and consumer works
-        ensureProducerAndConsumerWorks(producer_1, producer_2, consumer);
-        // Connection to every Broker
-        connectionToEveryBrokerWithUnloadBundle(pulsarClient);
-        // Ensure that the client has reconnected finish after unload-bundle
-        try {
-            // Ensure that the consumer has reconnected finish after unload-bundle
-            Awaitility.waitAtMost(Duration.ofSeconds(5)).until(consumer::isConnected);
-        } catch (Exception e){
-            // When consumer reconnect failure, create a new one.
-            consumer.close();
-            consumer = pulsarClient.newConsumer()
-                    .topic(topicName_1, topicName_2)
-                    .subscriptionName("my-subscription-x")
-                    .isAckReceiptEnabled(true)
-                    .subscribe();
-        }
-        try {
-            // Ensure that the producer has reconnected finish after unload-bundle
-            Awaitility.waitAtMost(Duration.ofSeconds(5)).until(producer_1::isConnected);
-        } catch (Exception e){
-            // When producer reconnect failure, create a new one.
-            producer_1.close();
-            producer_1 = pulsarClient.newProducer()
-                    .topic(topicName_1)
-                    .create();
-        }
-        try {
-            // Ensure that the producer has reconnected finish after unload-bundle
-            Awaitility.waitAtMost(Duration.ofSeconds(5)).until(producer_2::isConnected);
-        } catch (Exception e){
-            // When producer reconnect failure, create a new one.
-            producer_2.close();
-            producer_2 = pulsarClient.newProducer()
-                    .topic(topicName_2)
-                    .create();
-        }
-        // Assert "auto release works"
-        trigReleaseConnection(pulsarClient);
-        Awaitility.waitAtMost(Duration.ofSeconds(30)).until(()-> {
-            // Wait for async task done, then assert auto release success
-            return pulsarClient.getCnxPool().getPoolSize() == 1;
-        });
-        // Ensure all things still works
-        ensureProducerAndConsumerWorks(producer_1, producer_2, consumer);
-        // Release sources
-        consumer.close();
-        producer_1.close();
-        producer_2.close();
+  @Test
+  public void testConnectionAutoReleaseMultiTopic() throws Exception {
+    // Init clients
+    PulsarClientImpl pulsarClient = (PulsarClientImpl) super.getAllClients().get(0);
+    Consumer consumer =
+        pulsarClient
+            .newConsumer()
+            .topic(topicName_1, topicName_2)
+            .subscriptionName("my-subscription-x")
+            .isAckReceiptEnabled(true)
+            .subscribe();
+    Producer producer_1 = pulsarClient.newProducer().topic(topicName_1).create();
+    Producer producer_2 = pulsarClient.newProducer().topic(topicName_2).create();
+    // Ensure producer and consumer works
+    ensureProducerAndConsumerWorks(producer_1, producer_2, consumer);
+    // Connection to every Broker
+    connectionToEveryBrokerWithUnloadBundle(pulsarClient);
+    // Ensure that the client has reconnected finish after unload-bundle
+    try {
+      // Ensure that the consumer has reconnected finish after unload-bundle
+      Awaitility.waitAtMost(Duration.ofSeconds(5)).until(consumer::isConnected);
+    } catch (Exception e) {
+      // When consumer reconnect failure, create a new one.
+      consumer.close();
+      consumer =
+          pulsarClient
+              .newConsumer()
+              .topic(topicName_1, topicName_2)
+              .subscriptionName("my-subscription-x")
+              .isAckReceiptEnabled(true)
+              .subscribe();
     }
+    try {
+      // Ensure that the producer has reconnected finish after unload-bundle
+      Awaitility.waitAtMost(Duration.ofSeconds(5)).until(producer_1::isConnected);
+    } catch (Exception e) {
+      // When producer reconnect failure, create a new one.
+      producer_1.close();
+      producer_1 = pulsarClient.newProducer().topic(topicName_1).create();
+    }
+    try {
+      // Ensure that the producer has reconnected finish after unload-bundle
+      Awaitility.waitAtMost(Duration.ofSeconds(5)).until(producer_2::isConnected);
+    } catch (Exception e) {
+      // When producer reconnect failure, create a new one.
+      producer_2.close();
+      producer_2 = pulsarClient.newProducer().topic(topicName_2).create();
+    }
+    // Assert "auto release works"
+    trigReleaseConnection(pulsarClient);
+    Awaitility.waitAtMost(Duration.ofSeconds(30))
+        .until(
+            () -> {
+              // Wait for async task done, then assert auto release success
+              return pulsarClient.getCnxPool().getPoolSize() == 1;
+            });
+    // Ensure all things still works
+    ensureProducerAndConsumerWorks(producer_1, producer_2, consumer);
+    // Release sources
+    consumer.close();
+    producer_1.close();
+    producer_2.close();
+  }
 }

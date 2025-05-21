@@ -18,67 +18,67 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-
 @Test(groups = "broker")
 public class BacklogQuotaManagerConfigurationTest {
 
-    private ServiceConfiguration serviceConfiguration;
-    private PulsarService pulsarService;
+  private ServiceConfiguration serviceConfiguration;
+  private PulsarService pulsarService;
 
-    @BeforeMethod
-    public void setup() {
-        serviceConfiguration = new ServiceConfiguration();
-        initializeServiceConfiguration();
-        pulsarService = getPulsarService();
-    }
+  @BeforeMethod
+  public void setup() {
+    serviceConfiguration = new ServiceConfiguration();
+    initializeServiceConfiguration();
+    pulsarService = getPulsarService();
+  }
 
-    @Test
-    public void testBacklogQuotaDefaultLimitGBConversion() {
-        serviceConfiguration.setBacklogQuotaDefaultLimitGB(1.6);
+  @Test
+  public void testBacklogQuotaDefaultLimitGBConversion() {
+    serviceConfiguration.setBacklogQuotaDefaultLimitGB(1.6);
 
-        BacklogQuotaManager backlogQuotaManager = new BacklogQuotaManager(pulsarService);
+    BacklogQuotaManager backlogQuotaManager = new BacklogQuotaManager(pulsarService);
 
-        assertEquals(backlogQuotaManager.getDefaultQuota().getLimitSize(), 1717986918);
-    }
+    assertEquals(backlogQuotaManager.getDefaultQuota().getLimitSize(), 1717986918);
+  }
 
-    @Test
-    public void testBacklogQuotaDefaultLimitPrecedence() {
-        serviceConfiguration.setBacklogQuotaDefaultLimitGB(1.6);
-        serviceConfiguration.setBacklogQuotaDefaultLimitBytes(123);
+  @Test
+  public void testBacklogQuotaDefaultLimitPrecedence() {
+    serviceConfiguration.setBacklogQuotaDefaultLimitGB(1.6);
+    serviceConfiguration.setBacklogQuotaDefaultLimitBytes(123);
 
-        BacklogQuotaManager backlogQuotaManager = new BacklogQuotaManager(pulsarService);
+    BacklogQuotaManager backlogQuotaManager = new BacklogQuotaManager(pulsarService);
 
-        assertEquals(backlogQuotaManager.getDefaultQuota().getLimitSize(), 1717986918);
-    }
+    assertEquals(backlogQuotaManager.getDefaultQuota().getLimitSize(), 1717986918);
+  }
 
-    @Test
-    public void testBacklogQuotaDefaultLimitBytes() {
-        serviceConfiguration.setBacklogQuotaDefaultLimitGB(0);
-        serviceConfiguration.setBacklogQuotaDefaultLimitBytes(123);
+  @Test
+  public void testBacklogQuotaDefaultLimitBytes() {
+    serviceConfiguration.setBacklogQuotaDefaultLimitGB(0);
+    serviceConfiguration.setBacklogQuotaDefaultLimitBytes(123);
 
-        BacklogQuotaManager backlogQuotaManager = new BacklogQuotaManager(pulsarService);
+    BacklogQuotaManager backlogQuotaManager = new BacklogQuotaManager(pulsarService);
 
-        assertEquals(backlogQuotaManager.getDefaultQuota().getLimitSize(), 123);
-    }
+    assertEquals(backlogQuotaManager.getDefaultQuota().getLimitSize(), 123);
+  }
 
-    private void initializeServiceConfiguration() {
-        serviceConfiguration.setClusterName("test");
-        serviceConfiguration.setMetadataStoreUrl("zk:localhost:2181");
-    }
+  private void initializeServiceConfiguration() {
+    serviceConfiguration.setClusterName("test");
+    serviceConfiguration.setMetadataStoreUrl("zk:localhost:2181");
+  }
 
-    private PulsarService getPulsarService() {
-        PulsarService pulsarService = mock(PulsarService.class);
-        when(pulsarService.getConfiguration()).thenReturn(serviceConfiguration);
-        when(pulsarService.getPulsarResources()).thenReturn(mock(PulsarResources.class));
-        return pulsarService;
-    }
+  private PulsarService getPulsarService() {
+    PulsarService pulsarService = mock(PulsarService.class);
+    when(pulsarService.getConfiguration()).thenReturn(serviceConfiguration);
+    when(pulsarService.getPulsarResources()).thenReturn(mock(PulsarResources.class));
+    return pulsarService;
+  }
 }

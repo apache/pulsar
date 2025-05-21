@@ -24,6 +24,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -38,78 +39,91 @@ import org.testng.annotations.Test;
 
 @Slf4j
 public class BrokerTestUtilTest {
-    @Test
-    public void testReceiveMessagesQuietTime() throws Exception {
-        // Mock consumers
-        Consumer<Integer> consumer1 = mock(Consumer.class);
-        Consumer<Integer> consumer2 = mock(Consumer.class);
+  @Test
+  public void testReceiveMessagesQuietTime() throws Exception {
+    // Mock consumers
+    Consumer<Integer> consumer1 = mock(Consumer.class);
+    Consumer<Integer> consumer2 = mock(Consumer.class);
 
-        long consumer1DelayMs = 300L;
-        long consumer2DelayMs = 400L;
-        long quietTimeMs = 500L;
+    long consumer1DelayMs = 300L;
+    long consumer2DelayMs = 400L;
+    long quietTimeMs = 500L;
 
-        // Define behavior for receiveAsync with delay
-        AtomicBoolean consumer1FutureContinueSupplying = new AtomicBoolean(true);
-        when(consumer1.receiveAsync()).thenAnswer(invocation -> {
-            if (consumer1FutureContinueSupplying.get()) {
+    // Define behavior for receiveAsync with delay
+    AtomicBoolean consumer1FutureContinueSupplying = new AtomicBoolean(true);
+    when(consumer1.receiveAsync())
+        .thenAnswer(
+            invocation -> {
+              if (consumer1FutureContinueSupplying.get()) {
                 CompletableFuture<Message> messageCompletableFuture =
-                        CompletableFuture.supplyAsync(() -> mock(Message.class),
-                                CompletableFuture.delayedExecutor(consumer1DelayMs, TimeUnit.MILLISECONDS));
+                    CompletableFuture.supplyAsync(
+                        () -> mock(Message.class),
+                        CompletableFuture.delayedExecutor(consumer1DelayMs, TimeUnit.MILLISECONDS));
                 consumer1FutureContinueSupplying.set(false);
                 // continue supplying while the future is cancelled or timed out
-                FutureUtil.whenCancelledOrTimedOut(messageCompletableFuture, () -> {
-                    consumer1FutureContinueSupplying.set(true);
-                });
+                FutureUtil.whenCancelledOrTimedOut(
+                    messageCompletableFuture,
+                    () -> {
+                      consumer1FutureContinueSupplying.set(true);
+                    });
                 return messageCompletableFuture;
-            } else {
+              } else {
                 return new CompletableFuture<>();
-            }
-        });
-        AtomicBoolean consumer2FutureContinueSupplying = new AtomicBoolean(true);
-        when(consumer2.receiveAsync()).thenAnswer(invocation -> {
-            if (consumer2FutureContinueSupplying.get()) {
+              }
+            });
+    AtomicBoolean consumer2FutureContinueSupplying = new AtomicBoolean(true);
+    when(consumer2.receiveAsync())
+        .thenAnswer(
+            invocation -> {
+              if (consumer2FutureContinueSupplying.get()) {
                 CompletableFuture<Message> messageCompletableFuture =
-                        CompletableFuture.supplyAsync(() -> mock(Message.class),
-                                CompletableFuture.delayedExecutor(consumer2DelayMs, TimeUnit.MILLISECONDS));
+                    CompletableFuture.supplyAsync(
+                        () -> mock(Message.class),
+                        CompletableFuture.delayedExecutor(consumer2DelayMs, TimeUnit.MILLISECONDS));
                 consumer2FutureContinueSupplying.set(false);
                 // continue supplying while the future is cancelled or timed out
-                FutureUtil.whenCancelledOrTimedOut(messageCompletableFuture, () -> {
-                    consumer2FutureContinueSupplying.set(true);
-                });
+                FutureUtil.whenCancelledOrTimedOut(
+                    messageCompletableFuture,
+                    () -> {
+                      consumer2FutureContinueSupplying.set(true);
+                    });
                 return messageCompletableFuture;
-            } else {
+              } else {
                 return new CompletableFuture<>();
-            }
-        });
+              }
+            });
 
-        // Atomic variables to track message handling
-        AtomicInteger messageCount = new AtomicInteger(0);
+    // Atomic variables to track message handling
+    AtomicInteger messageCount = new AtomicInteger(0);
 
-        // Message handler
-        BiFunction<Consumer<Integer>, Message<Integer>, Boolean> messageHandler = (consumer, msg) -> {
-            messageCount.incrementAndGet();
-            return true;
+    // Message handler
+    BiFunction<Consumer<Integer>, Message<Integer>, Boolean> messageHandler =
+        (consumer, msg) -> {
+          messageCount.incrementAndGet();
+          return true;
         };
 
-        // Track start time
-        long startTime = System.nanoTime();
+    // Track start time
+    long startTime = System.nanoTime();
 
-        // Call receiveMessages method
-        BrokerTestUtil.receiveMessages(messageHandler, Duration.ofMillis(quietTimeMs), consumer1, consumer2);
+    // Call receiveMessages method
+    BrokerTestUtil.receiveMessages(
+        messageHandler, Duration.ofMillis(quietTimeMs), consumer1, consumer2);
 
-        // Track end time
-        long endTime = System.nanoTime();
+    // Track end time
+    long endTime = System.nanoTime();
 
-        // Verify that messages were attempted to be received
-        verify(consumer1, times(3)).receiveAsync();
-        verify(consumer2, times(2)).receiveAsync();
+    // Verify that messages were attempted to be received
+    verify(consumer1, times(3)).receiveAsync();
+    verify(consumer2, times(2)).receiveAsync();
 
-        // Verify that the message handler was called
-        assertEquals(messageCount.get(), 2);
+    // Verify that the message handler was called
+    assertEquals(messageCount.get(), 2);
 
-        // Verify the time spent is as expected (within a reasonable margin)
-        long durationMillis = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
-        assertThat(durationMillis).isBetween(consumer2DelayMs + quietTimeMs,
-                consumer2DelayMs + quietTimeMs + (quietTimeMs / 2));
-    }
+    // Verify the time spent is as expected (within a reasonable margin)
+    long durationMillis = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
+    assertThat(durationMillis)
+        .isBetween(
+            consumer2DelayMs + quietTimeMs, consumer2DelayMs + quietTimeMs + (quietTimeMs / 2));
+  }
 }

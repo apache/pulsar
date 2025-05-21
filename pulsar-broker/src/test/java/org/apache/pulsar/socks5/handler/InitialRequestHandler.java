@@ -28,28 +28,29 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.socks5.config.Socks5Config;
 
 @Slf4j
-public class InitialRequestHandler extends SimpleChannelInboundHandler<DefaultSocks5InitialRequest> {
+public class InitialRequestHandler
+    extends SimpleChannelInboundHandler<DefaultSocks5InitialRequest> {
 
-    private final Socks5Config socks5Config;
+  private final Socks5Config socks5Config;
 
-    public InitialRequestHandler(final Socks5Config socks5Config) {
-        this.socks5Config = socks5Config;
-    }
+  public InitialRequestHandler(final Socks5Config socks5Config) {
+    this.socks5Config = socks5Config;
+  }
 
-    @Override
-    protected void channelRead0(ChannelHandlerContext ctx, DefaultSocks5InitialRequest msg) throws Exception {
-        if (SocksVersion.SOCKS5.equals(msg.version())) {
-            if (msg.decoderResult().isFailure()) {
-                log.warn("decode failure : {}", msg.decoderResult());
-                ctx.fireChannelRead(msg);
-            } else {
-                if (socks5Config.isEnableAuth()) {
-                    ctx.writeAndFlush(new DefaultSocks5InitialResponse(Socks5AuthMethod.PASSWORD));
-                } else {
-                    ctx.writeAndFlush(new DefaultSocks5InitialResponse(Socks5AuthMethod.NO_AUTH));
-                }
-            }
+  @Override
+  protected void channelRead0(ChannelHandlerContext ctx, DefaultSocks5InitialRequest msg)
+      throws Exception {
+    if (SocksVersion.SOCKS5.equals(msg.version())) {
+      if (msg.decoderResult().isFailure()) {
+        log.warn("decode failure : {}", msg.decoderResult());
+        ctx.fireChannelRead(msg);
+      } else {
+        if (socks5Config.isEnableAuth()) {
+          ctx.writeAndFlush(new DefaultSocks5InitialResponse(Socks5AuthMethod.PASSWORD));
+        } else {
+          ctx.writeAndFlush(new DefaultSocks5InitialResponse(Socks5AuthMethod.NO_AUTH));
         }
+      }
     }
-
+  }
 }

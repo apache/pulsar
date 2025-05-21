@@ -27,48 +27,46 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 /**
  * A batch message whose format is customized.
  *
- * 1. First 2 bytes represent the number of messages.
- * 2. Each message is a string, whose format is
- *   1. First 2 bytes represent the length `N`.
- *   2. Followed N bytes are the bytes of the string.
+ * <p>1. First 2 bytes represent the number of messages. 2. Each message is a string, whose format
+ * is 1. First 2 bytes represent the length `N`. 2. Followed N bytes are the bytes of the string.
  */
 public class CustomBatchFormat {
 
-    public static final String KEY = "entry.format";
-    public static final String VALUE = "custom";
+  public static final String KEY = "entry.format";
+  public static final String VALUE = "custom";
 
-    @AllArgsConstructor
-    @Getter
-    public static class Metadata {
-        private final int numMessages;
-    }
+  @AllArgsConstructor
+  @Getter
+  public static class Metadata {
+    private final int numMessages;
+  }
 
-    public static ByteBuf serialize(Iterable<String> strings) {
-        final ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(1024);
-        buf.writeShort(0);
-        short numMessages = 0;
-        for (String s : strings) {
-            writeString(buf, s);
-            numMessages++;
-        }
-        buf.setShort(0, numMessages);
-        return buf;
+  public static ByteBuf serialize(Iterable<String> strings) {
+    final ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(1024);
+    buf.writeShort(0);
+    short numMessages = 0;
+    for (String s : strings) {
+      writeString(buf, s);
+      numMessages++;
     }
+    buf.setShort(0, numMessages);
+    return buf;
+  }
 
-    private static void writeString(final ByteBuf buf, final String s) {
-        final byte[] bytes = Schema.STRING.encode(s);
-        buf.writeShort(bytes.length);
-        buf.writeBytes(bytes);
-    }
+  private static void writeString(final ByteBuf buf, final String s) {
+    final byte[] bytes = Schema.STRING.encode(s);
+    buf.writeShort(bytes.length);
+    buf.writeBytes(bytes);
+  }
 
-    public static Metadata readMetadata(final ByteBuf buf) {
-        return new Metadata(buf.readShort());
-    }
+  public static Metadata readMetadata(final ByteBuf buf) {
+    return new Metadata(buf.readShort());
+  }
 
-    public static byte[] readMessage(final ByteBuf buf) {
-        final short length = buf.readShort();
-        final byte[] bytes = new byte[length];
-        buf.readBytes(bytes);
-        return bytes;
-    }
+  public static byte[] readMessage(final ByteBuf buf) {
+    final short length = buf.readShort();
+    final byte[] bytes = new byte[length];
+    buf.readBytes(bytes);
+    return bytes;
+  }
 }

@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.testng.Assert.assertEquals;
+
 import com.google.common.collect.Multimap;
 import java.io.ByteArrayOutputStream;
 import java.util.Collection;
@@ -42,104 +43,134 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class BrokerDispatchRateLimiterTest extends BrokerTestBase {
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.baseSetup();
+  @BeforeClass
+  @Override
+  protected void setup() throws Exception {
+    super.baseSetup();
+  }
+
+  @AfterClass(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
+
+  @Test
+  public void testUpdateBrokerDispatchRateLimiter() throws PulsarAdminException {
+    BrokerService service = pulsar.getBrokerService();
+    assertEquals(service.getBrokerDispatchRateLimiter().getAvailableDispatchRateLimitOnByte(), -1L);
+    assertEquals(service.getBrokerDispatchRateLimiter().getAvailableDispatchRateLimitOnMsg(), -1L);
+
+    admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", "100");
+    Awaitility.await()
+        .untilAsserted(
+            () ->
+                assertEquals(
+                    service.getBrokerDispatchRateLimiter().getAvailableDispatchRateLimitOnByte(),
+                    100L));
+    assertEquals(service.getBrokerDispatchRateLimiter().getAvailableDispatchRateLimitOnMsg(), -1L);
+
+    admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInMsg", "100");
+    Awaitility.await()
+        .untilAsserted(
+            () ->
+                assertEquals(
+                    service.getBrokerDispatchRateLimiter().getAvailableDispatchRateLimitOnMsg(),
+                    100L));
+    assertEquals(service.getBrokerDispatchRateLimiter().getAvailableDispatchRateLimitOnMsg(), 100L);
+  }
+
+  @Test
+  public void testBrokerDispatchThrottledMetrics() throws Exception {
+
+    BrokerService service = pulsar.getBrokerService();
+    admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInMsg", "10");
+    admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", "1024");
+    Awaitility.await()
+        .untilAsserted(
+            () ->
+                assertEquals(
+                    service.getBrokerDispatchRateLimiter().getAvailableDispatchRateLimitOnMsg(),
+                    10L));
+    Awaitility.await()
+        .untilAsserted(
+            () ->
+                assertEquals(
+                    service.getBrokerDispatchRateLimiter().getAvailableDispatchRateLimitOnByte(),
+                    1024L));
+
+    final String topic = "persistent://" + newTopicName();
+    final String subName = "my-sub";
+
+    @Cleanup
+    Producer<String> producer =
+        pulsarClient.newProducer(Schema.STRING).topic(topic).enableBatching(false).create();
+
+    @Cleanup
+    Consumer<String> consumer =
+        pulsarClient
+            .newConsumer(Schema.STRING)
+            .topic(topic)
+            .subscriptionType(SubscriptionType.Exclusive)
+            .subscriptionName(subName)
+            .subscribe();
+
+    for (int i = 0; i < 100; i++) {
+      producer.newMessage().value(UUID.randomUUID().toString()).send();
     }
 
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
+    for (int i = 0; i < 100; i++) {
+      Message<String> message = consumer.receive(100, TimeUnit.SECONDS);
+      Assert.assertNotNull(message);
+      consumer.acknowledge(message);
     }
 
-    @Test
-    public void testUpdateBrokerDispatchRateLimiter() throws PulsarAdminException {
-        BrokerService service = pulsar.getBrokerService();
-        assertEquals(service.getBrokerDispatchRateLimiter().getAvailableDispatchRateLimitOnByte(), -1L);
-        assertEquals(service.getBrokerDispatchRateLimiter().getAvailableDispatchRateLimitOnMsg(), -1L);
+    // Assert broker metrics
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    PrometheusMetricsTestUtil.generate(pulsar, true, false, false, output);
+    String metricsStr = output.toString();
+    Multimap<String, PrometheusMetricsClient.Metric> metrics = parseMetrics(metricsStr);
 
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", "100");
-        Awaitility.await().untilAsserted(() ->
-            assertEquals(service.getBrokerDispatchRateLimiter().getAvailableDispatchRateLimitOnByte(), 100L));
-        assertEquals(service.getBrokerDispatchRateLimiter().getAvailableDispatchRateLimitOnMsg(), -1L);
+    // Assert subscription metrics reason by broker limit
+    Collection<PrometheusMetricsClient.Metric> subscriptionDispatchThrottledMsgCountMetrics =
+        metrics.get("pulsar_subscription_dispatch_throttled_msg_events");
+    Assert.assertFalse(subscriptionDispatchThrottledMsgCountMetrics.isEmpty());
+    double subscriptionDispatchThrottledMsgCount =
+        subscriptionDispatchThrottledMsgCountMetrics.stream()
+            .filter(
+                m ->
+                    m.tags.get("subscription").equals(subName)
+                        && m.tags.get("topic").equals(topic)
+                        && m.tags.get("reason").equals("broker"))
+            .mapToDouble(m -> m.value)
+            .sum();
+    Assert.assertTrue(subscriptionDispatchThrottledMsgCount > 0);
+    double brokerAllDispatchThrottledMsgCount =
+        subscriptionDispatchThrottledMsgCountMetrics.stream()
+            .filter(m -> m.tags.get("reason").equals("broker"))
+            .mapToDouble(m -> m.value)
+            .sum();
+    Assert.assertEquals(subscriptionDispatchThrottledMsgCount, brokerAllDispatchThrottledMsgCount);
 
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInMsg", "100");
-        Awaitility.await().untilAsserted(() ->
-            assertEquals(service.getBrokerDispatchRateLimiter().getAvailableDispatchRateLimitOnMsg(), 100L));
-        assertEquals(service.getBrokerDispatchRateLimiter().getAvailableDispatchRateLimitOnMsg(), 100L);
-    }
-
-    @Test
-    public void testBrokerDispatchThrottledMetrics() throws Exception {
-
-        BrokerService service = pulsar.getBrokerService();
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInMsg", "10");
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", "1024");
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(service.getBrokerDispatchRateLimiter().getAvailableDispatchRateLimitOnMsg(), 10L));
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(service.getBrokerDispatchRateLimiter().getAvailableDispatchRateLimitOnByte(), 1024L));
-
-        final String topic= "persistent://" + newTopicName();
-        final String subName = "my-sub";
-
-        @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(topic)
-                .enableBatching(false)
-                .create();
-
-        @Cleanup
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topic)
-                .subscriptionType(SubscriptionType.Exclusive)
-                .subscriptionName(subName)
-                .subscribe();
-
-        for (int i = 0; i < 100; i++) {
-            producer.newMessage().value(UUID.randomUUID().toString()).send();
-        }
-
-        for (int i = 0; i < 100; i++) {
-            Message<String> message = consumer.receive(100, TimeUnit.SECONDS);
-            Assert.assertNotNull(message);
-            consumer.acknowledge(message);
-        }
-
-        // Assert broker metrics
-        ByteArrayOutputStream output = new ByteArrayOutputStream();
-        PrometheusMetricsTestUtil.generate(pulsar, true, false, false, output);
-        String metricsStr = output.toString();
-        Multimap<String, PrometheusMetricsClient.Metric> metrics = parseMetrics(metricsStr);
-
-        // Assert subscription metrics reason by broker limit
-        Collection<PrometheusMetricsClient.Metric> subscriptionDispatchThrottledMsgCountMetrics =
-                metrics.get("pulsar_subscription_dispatch_throttled_msg_events");
-        Assert.assertFalse(subscriptionDispatchThrottledMsgCountMetrics.isEmpty());
-        double subscriptionDispatchThrottledMsgCount = subscriptionDispatchThrottledMsgCountMetrics.stream()
-                .filter(m -> m.tags.get("subscription").equals(subName)
-                        && m.tags.get("topic").equals(topic) && m.tags.get("reason").equals("broker"))
-                .mapToDouble(m-> m.value).sum();
-        Assert.assertTrue(subscriptionDispatchThrottledMsgCount > 0);
-        double brokerAllDispatchThrottledMsgCount = subscriptionDispatchThrottledMsgCountMetrics.stream()
-                .filter(m -> m.tags.get("reason").equals("broker"))
-                .mapToDouble(m-> m.value).sum();
-        Assert.assertEquals(subscriptionDispatchThrottledMsgCount, brokerAllDispatchThrottledMsgCount);
-
-        Collection<PrometheusMetricsClient.Metric> subscriptionDispatchThrottledBytesCountMetrics =
-                metrics.get("pulsar_subscription_dispatch_throttled_bytes_events");
-        Assert.assertFalse(subscriptionDispatchThrottledBytesCountMetrics.isEmpty());
-        double subscriptionDispatchThrottledBytesCount = subscriptionDispatchThrottledBytesCountMetrics.stream()
-                .filter(m -> m.tags.get("subscription").equals(subName)
-                        && m.tags.get("topic").equals(topic) && m.tags.get("reason").equals("broker"))
-                .mapToDouble(m-> m.value).sum();
-        Assert.assertTrue(subscriptionDispatchThrottledBytesCount > 0);
-        double brokerAllDispatchThrottledBytesCount = subscriptionDispatchThrottledBytesCountMetrics.stream()
-                .filter(m -> m.tags.get("reason").equals("broker"))
-                .mapToDouble(m-> m.value).sum();
-        Assert.assertEquals(subscriptionDispatchThrottledBytesCount, brokerAllDispatchThrottledBytesCount);
-    }
-
+    Collection<PrometheusMetricsClient.Metric> subscriptionDispatchThrottledBytesCountMetrics =
+        metrics.get("pulsar_subscription_dispatch_throttled_bytes_events");
+    Assert.assertFalse(subscriptionDispatchThrottledBytesCountMetrics.isEmpty());
+    double subscriptionDispatchThrottledBytesCount =
+        subscriptionDispatchThrottledBytesCountMetrics.stream()
+            .filter(
+                m ->
+                    m.tags.get("subscription").equals(subName)
+                        && m.tags.get("topic").equals(topic)
+                        && m.tags.get("reason").equals("broker"))
+            .mapToDouble(m -> m.value)
+            .sum();
+    Assert.assertTrue(subscriptionDispatchThrottledBytesCount > 0);
+    double brokerAllDispatchThrottledBytesCount =
+        subscriptionDispatchThrottledBytesCountMetrics.stream()
+            .filter(m -> m.tags.get("reason").equals("broker"))
+            .mapToDouble(m -> m.value)
+            .sum();
+    Assert.assertEquals(
+        subscriptionDispatchThrottledBytesCount, brokerAllDispatchThrottledBytesCount);
+  }
 }

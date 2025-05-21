@@ -22,6 +22,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+
 import java.util.Collection;
 import java.util.Date;
 import java.util.Map;
@@ -54,193 +55,203 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-admin")
 public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
 
-    private static final String testTenant = "my-tenant";
-    private static final String testNamespace = "my-namespace";
+  private static final String testTenant = "my-tenant";
+  private static final String testNamespace = "my-namespace";
 
-    private PersistentTopics persistentTopics;
+  private PersistentTopics persistentTopics;
 
-    @Override
-    @BeforeMethod
-    protected void setup() throws Exception {
-        super.internalSetup();
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
-        admin.tenants().createTenant("prop",
-                new TenantInfoImpl(Set.of("appid1"), Set.of("test")));
-        admin.namespaces().createNamespace("prop/ns-abc");
-        admin.namespaces().setNamespaceReplicationClusters("prop/ns-abc", Set.of("test"));
-        persistentTopics = spy(PersistentTopics.class);
-        persistentTopics.setServletContext(new MockServletContext());
-        persistentTopics.setPulsar(pulsar);
+  @Override
+  @BeforeMethod
+  protected void setup() throws Exception {
+    super.internalSetup();
+    admin
+        .clusters()
+        .createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+    admin.tenants().createTenant("prop", new TenantInfoImpl(Set.of("appid1"), Set.of("test")));
+    admin.namespaces().createNamespace("prop/ns-abc");
+    admin.namespaces().setNamespaceReplicationClusters("prop/ns-abc", Set.of("test"));
+    persistentTopics = spy(PersistentTopics.class);
+    persistentTopics.setServletContext(new MockServletContext());
+    persistentTopics.setPulsar(pulsar);
 
-        doReturn(false).when(persistentTopics).isRequestHttps();
-        doReturn(null).when(persistentTopics).originalPrincipal();
-        doReturn("test").when(persistentTopics).clientAppId();
-        doReturn("persistent").when(persistentTopics).domain();
-        doNothing().when(persistentTopics).validateAdminAccessForTenant(this.testTenant);
-        doReturn(mock(AuthenticationDataHttps.class)).when(persistentTopics).clientAuthData();
-    }
+    doReturn(false).when(persistentTopics).isRequestHttps();
+    doReturn(null).when(persistentTopics).originalPrincipal();
+    doReturn("test").when(persistentTopics).clientAppId();
+    doReturn("persistent").when(persistentTopics).domain();
+    doNothing().when(persistentTopics).validateAdminAccessForTenant(this.testTenant);
+    doReturn(mock(AuthenticationDataHttps.class)).when(persistentTopics).clientAuthData();
+  }
 
-    @Override
-    @AfterMethod(alwaysRun = true)
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @Override
+  @AfterMethod(alwaysRun = true)
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @Test
-    public void testGetLastMessageId() throws Exception {
-        final MessageId[] id = new MessageId[1];
-        id[0] = null;
-        MessageId messageId = null;
-        AsyncResponse asyncResponse = new AsyncResponse() {
-            @Override
-            public boolean resume(Object response) {
-                id[0] = (MessageId) response;
-                return false;
-            }
+  @Test
+  public void testGetLastMessageId() throws Exception {
+    final MessageId[] id = new MessageId[1];
+    id[0] = null;
+    MessageId messageId = null;
+    AsyncResponse asyncResponse =
+        new AsyncResponse() {
+          @Override
+          public boolean resume(Object response) {
+            id[0] = (MessageId) response;
+            return false;
+          }
 
-            @Override
-            public boolean resume(Throwable response) {
-                return false;
-            }
+          @Override
+          public boolean resume(Throwable response) {
+            return false;
+          }
 
-            @Override
-            public boolean cancel() {
-                return false;
-            }
+          @Override
+          public boolean cancel() {
+            return false;
+          }
 
-            @Override
-            public boolean cancel(int retryAfter) {
-                return false;
-            }
+          @Override
+          public boolean cancel(int retryAfter) {
+            return false;
+          }
 
-            @Override
-            public boolean cancel(Date retryAfter) {
-                return false;
-            }
+          @Override
+          public boolean cancel(Date retryAfter) {
+            return false;
+          }
 
-            @Override
-            public boolean isSuspended() {
-                return false;
-            }
+          @Override
+          public boolean isSuspended() {
+            return false;
+          }
 
-            @Override
-            public boolean isCancelled() {
-                return false;
-            }
+          @Override
+          public boolean isCancelled() {
+            return false;
+          }
 
-            @Override
-            public boolean isDone() {
-                return false;
-            }
+          @Override
+          public boolean isDone() {
+            return false;
+          }
 
-            @Override
-            public boolean setTimeout(long time, TimeUnit unit) {
-                return false;
-            }
+          @Override
+          public boolean setTimeout(long time, TimeUnit unit) {
+            return false;
+          }
 
-            @Override
-            public void setTimeoutHandler(TimeoutHandler handler) {
+          @Override
+          public void setTimeoutHandler(TimeoutHandler handler) {}
 
-            }
+          @Override
+          public Collection<Class<?>> register(Class<?> callback) {
+            return null;
+          }
 
-            @Override
-            public Collection<Class<?>> register(Class<?> callback) {
-                return null;
-            }
+          @Override
+          public Map<Class<?>, Collection<Class<?>>> register(
+              Class<?> callback, Class<?>... callbacks) {
+            return null;
+          }
 
-            @Override
-            public Map<Class<?>, Collection<Class<?>>> register(Class<?> callback, Class<?>... callbacks) {
-                return null;
-            }
+          @Override
+          public Collection<Class<?>> register(Object callback) {
+            return null;
+          }
 
-            @Override
-            public Collection<Class<?>> register(Object callback) {
-                return null;
-            }
-
-            @Override
-            public Map<Class<?>, Collection<Class<?>>> register(Object callback, Object... callbacks) {
-                return null;
-            }
+          @Override
+          public Map<Class<?>, Collection<Class<?>>> register(
+              Object callback, Object... callbacks) {
+            return null;
+          }
         };
-        try {
-            persistentTopics.getLastMessageId(asyncResponse, testTenant,
-                    testNamespace, "my-topic", true);
-        } catch (Exception e) {
-            //System.out.println(e.getMessage());
-            Assert.assertTrue(e.getMessage().contains("Topic not found"));
-        }
-
-        String key = "legendtkl";
-        final String topicName = "persistent://prop/ns-abc/my-topic";
-        final String messagePredicate = "my-message-" + key + "-";
-        final int numberOfMessages = 30;
-
-        // 2. Create Producer
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .enableBatching(false)
-                .messageRoutingMode(MessageRoutingMode.SinglePartition)
-                .create();
-
-        // 3. Publish message and get message id
-        for (int i = 0; i < numberOfMessages; i++) {
-            String message = messagePredicate + i;
-            producer.send(message.getBytes());
-        }
-
-        persistentTopics.getLastMessageId(asyncResponse, "prop", "ns-abc", "my-topic", true);
-        Awaitility.await().until(() -> id[0] != null);
-        Assert.assertTrue(((MessageIdImpl)id[0]).getLedgerId() >= 0);
-        Assert.assertEquals(numberOfMessages-1, ((MessageIdImpl)id[0]).getEntryId());
-        messageId = id[0];
-
-
-        // send more numberOfMessages messages, the last message id should be numberOfMessages*2-1
-        for (int i = 0; i < numberOfMessages; i++) {
-            String message = messagePredicate + i;
-            producer.send(message.getBytes());
-        }
-        persistentTopics.getLastMessageId(asyncResponse, "prop", "ns-abc", "my-topic", true);
-        while (id[0] == messageId) {
-            Thread.sleep(1);
-        }
-        Assert.assertTrue(((MessageIdImpl)id[0]).getLedgerId() > 0);
-        Assert.assertEquals( 2 * numberOfMessages -1, ((MessageIdImpl)id[0]).getEntryId());
+    try {
+      persistentTopics.getLastMessageId(asyncResponse, testTenant, testNamespace, "my-topic", true);
+    } catch (Exception e) {
+      // System.out.println(e.getMessage());
+      Assert.assertTrue(e.getMessage().contains("Topic not found"));
     }
 
-    /**
-     * If a topic only have non-durable subscriptions or mark delete position of all the durable subscriptions
-     * are reached the LAC, all the ledgers except the current ledger will be deleted. Since the current ledger may not
-     * have any data, so the test is to ensure the get last message ID API can work in this case.
-     *
-     * In this case, the we should return the message ID (-1, -1).
-     */
-    @Test
-    public void testGetLastMessageIdWhenTopicWithoutData() throws Exception {
-        final String topic = "persistent://prop/ns-abc/testGetLastMessageIdWhenTopicWithoutData-" + UUID.randomUUID();
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(topic)
-                .create();
-        final int messages = 10;
-        for (int i = 0; i < messages; i++) {
-            producer.send("Message - " + i);
-        }
-        // To trigger the ledger rollover
-        admin.topics().unload(topic);
-        Topic topicRef = pulsar.getBrokerService().getTopicIfExists(topic).get().get();
-        ((PersistentTopic) topicRef).getManagedLedger().trimConsumedLedgersInBackground(new CompletableFuture<>());
-        Awaitility.await().untilAsserted(() -> {
-            PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
-            Assert.assertEquals(stats.ledgers.size(), 1);
-        });
-        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
-                .topic(topic)
-                .startMessageId(MessageId.earliest)
-                .create();
-        // This will call the get last message ID api.
-        boolean hasMessage = reader.hasMessageAvailable();
-        Assert.assertFalse(hasMessage);
-        MessageId messageId = admin.topics().getLastMessageId(topic);
-        Assert.assertEquals(messageId.toString(), "-1:-1:-1");
+    String key = "legendtkl";
+    final String topicName = "persistent://prop/ns-abc/my-topic";
+    final String messagePredicate = "my-message-" + key + "-";
+    final int numberOfMessages = 30;
+
+    // 2. Create Producer
+    Producer<byte[]> producer =
+        pulsarClient
+            .newProducer()
+            .topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
+
+    // 3. Publish message and get message id
+    for (int i = 0; i < numberOfMessages; i++) {
+      String message = messagePredicate + i;
+      producer.send(message.getBytes());
     }
+
+    persistentTopics.getLastMessageId(asyncResponse, "prop", "ns-abc", "my-topic", true);
+    Awaitility.await().until(() -> id[0] != null);
+    Assert.assertTrue(((MessageIdImpl) id[0]).getLedgerId() >= 0);
+    Assert.assertEquals(numberOfMessages - 1, ((MessageIdImpl) id[0]).getEntryId());
+    messageId = id[0];
+
+    // send more numberOfMessages messages, the last message id should be
+    // numberOfMessages*2-1
+    for (int i = 0; i < numberOfMessages; i++) {
+      String message = messagePredicate + i;
+      producer.send(message.getBytes());
+    }
+    persistentTopics.getLastMessageId(asyncResponse, "prop", "ns-abc", "my-topic", true);
+    while (id[0] == messageId) {
+      Thread.sleep(1);
+    }
+    Assert.assertTrue(((MessageIdImpl) id[0]).getLedgerId() > 0);
+    Assert.assertEquals(2 * numberOfMessages - 1, ((MessageIdImpl) id[0]).getEntryId());
+  }
+
+  /**
+   * If a topic only have non-durable subscriptions or mark delete position of all the durable
+   * subscriptions are reached the LAC, all the ledgers except the current ledger will be deleted.
+   * Since the current ledger may not have any data, so the test is to ensure the get last message
+   * ID API can work in this case.
+   *
+   * <p>In this case, the we should return the message ID (-1, -1).
+   */
+  @Test
+  public void testGetLastMessageIdWhenTopicWithoutData() throws Exception {
+    final String topic =
+        "persistent://prop/ns-abc/testGetLastMessageIdWhenTopicWithoutData-" + UUID.randomUUID();
+    Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+    final int messages = 10;
+    for (int i = 0; i < messages; i++) {
+      producer.send("Message - " + i);
+    }
+    // To trigger the ledger rollover
+    admin.topics().unload(topic);
+    Topic topicRef = pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+    ((PersistentTopic) topicRef)
+        .getManagedLedger()
+        .trimConsumedLedgersInBackground(new CompletableFuture<>());
+    Awaitility.await()
+        .untilAsserted(
+            () -> {
+              PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
+              Assert.assertEquals(stats.ledgers.size(), 1);
+            });
+    Reader<String> reader =
+        pulsarClient
+            .newReader(Schema.STRING)
+            .topic(topic)
+            .startMessageId(MessageId.earliest)
+            .create();
+    // This will call the get last message ID api.
+    boolean hasMessage = reader.hasMessageAvailable();
+    Assert.assertFalse(hasMessage);
+    MessageId messageId = admin.topics().getLastMessageId(topic);
+    Assert.assertEquals(messageId.toString(), "-1:-1:-1");
+  }
 }

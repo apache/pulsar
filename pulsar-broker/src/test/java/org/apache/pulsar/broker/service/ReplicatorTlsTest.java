@@ -20,10 +20,11 @@ package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+
 import java.util.List;
 import java.util.Optional;
-import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
@@ -33,41 +34,43 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class ReplicatorTlsTest extends ReplicatorTestBase {
 
-    @Override
-    @BeforeClass(timeOut = 300000)
-    public void setup() throws Exception {
-        config1.setBrokerClientTlsEnabled(true);
-        config2.setBrokerClientTlsEnabled(true);
-        config3.setBrokerClientTlsEnabled(true);
-        super.setup();
-    }
+  @Override
+  @BeforeClass(timeOut = 300000)
+  public void setup() throws Exception {
+    config1.setBrokerClientTlsEnabled(true);
+    config2.setBrokerClientTlsEnabled(true);
+    config3.setBrokerClientTlsEnabled(true);
+    super.setup();
+  }
 
-    @Override
-    @AfterClass(alwaysRun = true, timeOut = 300000)
-    public void cleanup() throws Exception {
-        super.cleanup();
-    }
+  @Override
+  @AfterClass(alwaysRun = true, timeOut = 300000)
+  public void cleanup() throws Exception {
+    super.cleanup();
+  }
 
-    @Test
-    public void testReplicationClient() throws Exception {
-        log.info("--- Starting ReplicatorTlsTest::testReplicationClient ---");
-        for (BrokerService ns : List.of(ns1, ns2, ns3)) {
-            // load the client
-            ns.getReplicationClient(cluster1, Optional.of(admin1.clusters().getCluster(cluster1)));
-            ns.getReplicationClient(cluster2, Optional.of(admin1.clusters().getCluster(cluster2)));
-            ns.getReplicationClient(cluster3, Optional.of(admin1.clusters().getCluster(cluster3)));
+  @Test
+  public void testReplicationClient() throws Exception {
+    log.info("--- Starting ReplicatorTlsTest::testReplicationClient ---");
+    for (BrokerService ns : List.of(ns1, ns2, ns3)) {
+      // load the client
+      ns.getReplicationClient(cluster1, Optional.of(admin1.clusters().getCluster(cluster1)));
+      ns.getReplicationClient(cluster2, Optional.of(admin1.clusters().getCluster(cluster2)));
+      ns.getReplicationClient(cluster3, Optional.of(admin1.clusters().getCluster(cluster3)));
 
-            // verify the client
-            ns.getReplicationClients().forEach((cluster, client) -> {
-                ClientConfigurationData configuration = ((PulsarClientImpl) client).getConfiguration();
+      // verify the client
+      ns.getReplicationClients()
+          .forEach(
+              (cluster, client) -> {
+                ClientConfigurationData configuration =
+                    ((PulsarClientImpl) client).getConfiguration();
                 assertTrue(configuration.isUseTls());
                 assertEquals(configuration.getTlsTrustCertsFilePath(), caCertFilePath);
                 assertEquals(configuration.getTlsKeyFilePath(), clientKeyFilePath);
                 assertEquals(configuration.getTlsCertificateFilePath(), clientCertFilePath);
-            });
-        }
+              });
     }
+  }
 
-    private static final Logger log = LoggerFactory.getLogger(ReplicatorTlsTest.class);
-
+  private static final Logger log = LoggerFactory.getLogger(ReplicatorTlsTest.class);
 }

@@ -26,17 +26,25 @@ import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker")
-public class AdvertisedListenersMultiBrokerLeaderElectionTest extends MultiBrokerLeaderElectionTest {
-    @Override
-    protected PulsarTestContext.Builder createPulsarTestContextBuilder(ServiceConfiguration conf) {
-        conf.setWebServicePortTls(Optional.of(0));
-        return super.createPulsarTestContextBuilder(conf).preallocatePorts(true).configOverride(config -> {
-            // use advertised address that is different than the name used in the advertised listeners
-            config.setAdvertisedAddress("localhost");
-            config.setAdvertisedListeners(
-                    "public_pulsar:pulsar://127.0.0.1:" + config.getBrokerServicePort().get()
-                            + ",public_http:http://127.0.0.1:" + config.getWebServicePort().get()
-                            + ",public_https:https://127.0.0.1:" + config.getWebServicePortTls().get());
-        });
-    }
+public class AdvertisedListenersMultiBrokerLeaderElectionTest
+    extends MultiBrokerLeaderElectionTest {
+  @Override
+  protected PulsarTestContext.Builder createPulsarTestContextBuilder(ServiceConfiguration conf) {
+    conf.setWebServicePortTls(Optional.of(0));
+    return super.createPulsarTestContextBuilder(conf)
+        .preallocatePorts(true)
+        .configOverride(
+            config -> {
+              // use advertised address that is different than the name used in the advertised
+              // listeners
+              config.setAdvertisedAddress("localhost");
+              config.setAdvertisedListeners(
+                  "public_pulsar:pulsar://127.0.0.1:"
+                      + config.getBrokerServicePort().get()
+                      + ",public_http:http://127.0.0.1:"
+                      + config.getWebServicePort().get()
+                      + ",public_https:https://127.0.0.1:"
+                      + config.getWebServicePortTls().get());
+            });
+  }
 }

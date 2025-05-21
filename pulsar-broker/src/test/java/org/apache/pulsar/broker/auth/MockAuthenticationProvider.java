@@ -27,42 +27,41 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class MockAuthenticationProvider implements AuthenticationProvider {
-    private static final Logger log = LoggerFactory.getLogger(MockAuthenticationProvider.class);
+  private static final Logger log = LoggerFactory.getLogger(MockAuthenticationProvider.class);
 
-    @Override
-    public void close() throws IOException {}
+  @Override
+  public void close() throws IOException {}
 
-    @Override
-    public void initialize(ServiceConfiguration config) throws IOException {}
+  @Override
+  public void initialize(ServiceConfiguration config) throws IOException {}
 
-    @Override
-    public String getAuthMethodName() {
-        // method name
-        return "mock";
+  @Override
+  public String getAuthMethodName() {
+    // method name
+    return "mock";
+  }
+
+  @Override
+  public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
+    String principal = "unknown";
+    if (authData.hasDataFromHttp()) {
+      principal = authData.getHttpHeader("mockuser");
+    } else if (authData.hasDataFromCommand()) {
+      principal = authData.getCommandData();
     }
 
-    @Override
-    public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
-        String principal = "unknown";
-        if (authData.hasDataFromHttp()) {
-            principal = authData.getHttpHeader("mockuser");
-        } else if (authData.hasDataFromCommand()) {
-            principal = authData.getCommandData();
-        }
-
-        String[] parts = principal.split("\\.");
-        if (parts.length == 2) {
-            switch (parts[0]) {
-                case "pass":
-                    return principal;
-                case "fail":
-                    throw new AuthenticationException("Do not pass");
-                case "error":
-                    throw new RuntimeException("Error in authn");
-            }
-        }
-        throw new IllegalArgumentException(
-                "Not a valid principle. Should be [pass|fail|error].[pass|fail|error], found " + principal);
+    String[] parts = principal.split("\\.");
+    if (parts.length == 2) {
+      switch (parts[0]) {
+        case "pass":
+          return principal;
+        case "fail":
+          throw new AuthenticationException("Do not pass");
+        case "error":
+          throw new RuntimeException("Error in authn");
+      }
     }
-
+    throw new IllegalArgumentException(
+        "Not a valid principle. Should be [pass|fail|error].[pass|fail|error], found " + principal);
+  }
 }

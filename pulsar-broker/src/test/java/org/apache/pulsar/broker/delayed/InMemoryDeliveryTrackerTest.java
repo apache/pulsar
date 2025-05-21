@@ -26,6 +26,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
@@ -47,231 +48,235 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
 
-    @DataProvider(name = "delayedTracker")
-    public Object[][] provider(Method method) throws Exception {
-        dispatcher = mock(AbstractPersistentDispatcherMultipleConsumers.class);
-        clock = mock(Clock.class);
-        clockTime = new AtomicLong();
-        when(clock.millis()).then(x -> clockTime.get());
+  @DataProvider(name = "delayedTracker")
+  public Object[][] provider(Method method) throws Exception {
+    dispatcher = mock(AbstractPersistentDispatcherMultipleConsumers.class);
+    clock = mock(Clock.class);
+    clockTime = new AtomicLong();
+    when(clock.millis()).then(x -> clockTime.get());
 
-        final String methodName = method.getName();
-        return switch (methodName) {
-            case "test" -> new Object[][]{{
-                    new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock,
-                            false, 0)
-            }};
-            case "testWithTimer" -> {
-                Timer timer = mock(Timer.class);
-
-                AtomicLong clockTime = new AtomicLong();
-                Clock clock = mock(Clock.class);
-                when(clock.millis()).then(x -> clockTime.get());
-
-                NavigableMap<Long, TimerTask> tasks = new TreeMap<>();
-
-                when(timer.newTimeout(any(), anyLong(), any())).then(invocation -> {
-                    TimerTask task = invocation.getArgument(0, TimerTask.class);
-                    long timeout = invocation.getArgument(1, Long.class);
-                    TimeUnit unit = invocation.getArgument(2, TimeUnit.class);
-                    long scheduleAt = clockTime.get() + unit.toMillis(timeout);
-                    tasks.put(scheduleAt, task);
-
-                    Timeout t = mock(Timeout.class);
-                    when(t.cancel()).then(i -> {
-                        tasks.remove(scheduleAt, task);
-                        return null;
-                    });
-                    return t;
-                });
-
-                yield new Object[][]{{
-                        new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock,
-                                false, 0),
-                        tasks
-                }};
-            }
-            case "testAddWithinTickTime" -> new Object[][]{{
-                    new InMemoryDelayedDeliveryTracker(dispatcher, timer, 100, clock,
-                            false, 0)
-            }};
-            case "testAddMessageWithStrictDelay" -> new Object[][]{{
-                    new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock,
-                            true, 0)
-            }};
-            case "testAddMessageWithDeliverAtTimeAfterNowBeforeTickTimeFrequencyWithStrict" -> new Object[][]{{
-                    new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1000, clock,
-                            true, 0)
-            }};
-            case "testAddMessageWithDeliverAtTimeAfterNowAfterTickTimeFrequencyWithStrict" -> new Object[][]{{
-                    new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock,
-                            true, 0)
-            }};
-            case "testAddMessageWithDeliverAtTimeAfterFullTickTimeWithStrict" -> new Object[][]{{
-                    new InMemoryDelayedDeliveryTracker(dispatcher, timer, 500, clock,
-                            true, 0)
-            }};
-            case "testWithFixedDelays", "testWithMixedDelays","testWithNoDelays" -> new Object[][]{{
-                    new InMemoryDelayedDeliveryTracker(dispatcher, timer, 8, clock,
-                            true, 100)
-            }};
-            default -> new Object[][]{{
-                    new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock,
-                            true, 0)
-            }};
-        };
-    }
-
-    @Test(dataProvider = "delayedTracker")
-    public void testWithFixedDelays(InMemoryDelayedDeliveryTracker tracker) throws Exception {
-        assertFalse(tracker.hasMessageAvailable());
-
-        assertTrue(tracker.addMessage(1, 1, 10));
-        assertTrue(tracker.addMessage(2, 2, 20));
-        assertTrue(tracker.addMessage(3, 3, 30));
-        assertTrue(tracker.addMessage(4, 4, 40));
-        assertTrue(tracker.addMessage(5, 5, 50));
-
-        assertFalse(tracker.hasMessageAvailable());
-        assertEquals(tracker.getNumberOfDelayedMessages(), 5);
-        assertFalse(tracker.shouldPauseAllDeliveries());
-
-        for (int i = 6; i <= tracker.getFixedDelayDetectionLookahead(); i++) {
-            assertTrue(tracker.addMessage(i, i, i * 10));
-        }
-
-        assertTrue(tracker.shouldPauseAllDeliveries());
-
-        clockTime.set(tracker.getFixedDelayDetectionLookahead() * 10);
-
-        tracker.getScheduledMessages(100);
-
-        assertFalse(tracker.shouldPauseAllDeliveries());
-
-        // Empty the tracker
-        int removed = 0;
-        do {
-            removed = tracker.getScheduledMessages(100).size();
-        } while (removed > 0);
-
-        assertFalse(tracker.shouldPauseAllDeliveries());
-
-        tracker.close();
-    }
-
-    @Test(dataProvider = "delayedTracker")
-    public void testWithMixedDelays(InMemoryDelayedDeliveryTracker tracker) throws Exception {
-        assertFalse(tracker.hasMessageAvailable());
-
-        assertTrue(tracker.addMessage(1, 1, 10));
-        assertTrue(tracker.addMessage(2, 2, 20));
-        assertTrue(tracker.addMessage(3, 3, 30));
-        assertTrue(tracker.addMessage(4, 4, 40));
-        assertTrue(tracker.addMessage(5, 5, 50));
-
-        assertFalse(tracker.shouldPauseAllDeliveries());
-
-        for (int i = 6; i <= tracker.getFixedDelayDetectionLookahead(); i++) {
-            assertTrue(tracker.addMessage(i, i, i * 10));
-        }
-
-        assertTrue(tracker.shouldPauseAllDeliveries());
-
-        // Add message with earlier delivery time
-        assertTrue(tracker.addMessage(5, 6, 5));
-
-        assertFalse(tracker.shouldPauseAllDeliveries());
-
-        tracker.close();
-    }
-
-    @Test(dataProvider = "delayedTracker")
-    public void testWithNoDelays(InMemoryDelayedDeliveryTracker tracker) throws Exception {
-        assertFalse(tracker.hasMessageAvailable());
-
-        assertTrue(tracker.addMessage(1, 1, 10));
-        assertTrue(tracker.addMessage(2, 2, 20));
-        assertTrue(tracker.addMessage(3, 3, 30));
-        assertTrue(tracker.addMessage(4, 4, 40));
-        assertTrue(tracker.addMessage(5, 5, 50));
-
-        assertFalse(tracker.shouldPauseAllDeliveries());
-
-        for (int i = 6; i <= tracker.getFixedDelayDetectionLookahead(); i++) {
-            assertTrue(tracker.addMessage(i, i, i * 10));
-        }
-
-        assertTrue(tracker.shouldPauseAllDeliveries());
-
-        // Add message with no-delay
-        assertFalse(tracker.addMessage(5, 6, -1L));
-
-        assertFalse(tracker.shouldPauseAllDeliveries());
-
-        tracker.close();
-    }
-
-    @Test
-    public void testClose() throws Exception {
-        @Cleanup("stop")
-        Timer timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-in-memory-delayed-delivery-test"),
-                1, TimeUnit.MILLISECONDS);
-
-        AbstractPersistentDispatcherMultipleConsumers dispatcher =
-                mock(AbstractPersistentDispatcherMultipleConsumers.class);
+    final String methodName = method.getName();
+    return switch (methodName) {
+      case "test" ->
+          new Object[][] {
+            {new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock, false, 0)}
+          };
+      case "testWithTimer" -> {
+        Timer timer = mock(Timer.class);
 
         AtomicLong clockTime = new AtomicLong();
         Clock clock = mock(Clock.class);
         when(clock.millis()).then(x -> clockTime.get());
 
-        final Exception[] exceptions = new Exception[1];
+        NavigableMap<Long, TimerTask> tasks = new TreeMap<>();
 
-        InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock,
-                true, 0) {
-            @Override
-            public void run(Timeout timeout) throws Exception {
-                super.timeout = timer.newTimeout(this, 1, TimeUnit.MILLISECONDS);
-                if (timeout == null || timeout.isCancelled()) {
-                    return;
-                }
-                try {
-                    this.delayedMessageMap.firstLongKey();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    exceptions[0] = e;
-                }
+        when(timer.newTimeout(any(), anyLong(), any()))
+            .then(
+                invocation -> {
+                  TimerTask task = invocation.getArgument(0, TimerTask.class);
+                  long timeout = invocation.getArgument(1, Long.class);
+                  TimeUnit unit = invocation.getArgument(2, TimeUnit.class);
+                  long scheduleAt = clockTime.get() + unit.toMillis(timeout);
+                  tasks.put(scheduleAt, task);
+
+                  Timeout t = mock(Timeout.class);
+                  when(t.cancel())
+                      .then(
+                          i -> {
+                            tasks.remove(scheduleAt, task);
+                            return null;
+                          });
+                  return t;
+                });
+
+        yield new Object[][] {
+          {new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock, false, 0), tasks}
+        };
+      }
+      case "testAddWithinTickTime" ->
+          new Object[][] {
+            {new InMemoryDelayedDeliveryTracker(dispatcher, timer, 100, clock, false, 0)}
+          };
+      case "testAddMessageWithStrictDelay" ->
+          new Object[][] {
+            {new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock, true, 0)}
+          };
+      case "testAddMessageWithDeliverAtTimeAfterNowBeforeTickTimeFrequencyWithStrict" ->
+          new Object[][] {
+            {new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1000, clock, true, 0)}
+          };
+      case "testAddMessageWithDeliverAtTimeAfterNowAfterTickTimeFrequencyWithStrict" ->
+          new Object[][] {
+            {new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock, true, 0)}
+          };
+      case "testAddMessageWithDeliverAtTimeAfterFullTickTimeWithStrict" ->
+          new Object[][] {
+            {new InMemoryDelayedDeliveryTracker(dispatcher, timer, 500, clock, true, 0)}
+          };
+      case "testWithFixedDelays", "testWithMixedDelays", "testWithNoDelays" ->
+          new Object[][] {
+            {new InMemoryDelayedDeliveryTracker(dispatcher, timer, 8, clock, true, 100)}
+          };
+      default ->
+          new Object[][] {
+            {new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock, true, 0)}
+          };
+    };
+  }
+
+  @Test(dataProvider = "delayedTracker")
+  public void testWithFixedDelays(InMemoryDelayedDeliveryTracker tracker) throws Exception {
+    assertFalse(tracker.hasMessageAvailable());
+
+    assertTrue(tracker.addMessage(1, 1, 10));
+    assertTrue(tracker.addMessage(2, 2, 20));
+    assertTrue(tracker.addMessage(3, 3, 30));
+    assertTrue(tracker.addMessage(4, 4, 40));
+    assertTrue(tracker.addMessage(5, 5, 50));
+
+    assertFalse(tracker.hasMessageAvailable());
+    assertEquals(tracker.getNumberOfDelayedMessages(), 5);
+    assertFalse(tracker.shouldPauseAllDeliveries());
+
+    for (int i = 6; i <= tracker.getFixedDelayDetectionLookahead(); i++) {
+      assertTrue(tracker.addMessage(i, i, i * 10));
+    }
+
+    assertTrue(tracker.shouldPauseAllDeliveries());
+
+    clockTime.set(tracker.getFixedDelayDetectionLookahead() * 10);
+
+    tracker.getScheduledMessages(100);
+
+    assertFalse(tracker.shouldPauseAllDeliveries());
+
+    // Empty the tracker
+    int removed = 0;
+    do {
+      removed = tracker.getScheduledMessages(100).size();
+    } while (removed > 0);
+
+    assertFalse(tracker.shouldPauseAllDeliveries());
+
+    tracker.close();
+  }
+
+  @Test(dataProvider = "delayedTracker")
+  public void testWithMixedDelays(InMemoryDelayedDeliveryTracker tracker) throws Exception {
+    assertFalse(tracker.hasMessageAvailable());
+
+    assertTrue(tracker.addMessage(1, 1, 10));
+    assertTrue(tracker.addMessage(2, 2, 20));
+    assertTrue(tracker.addMessage(3, 3, 30));
+    assertTrue(tracker.addMessage(4, 4, 40));
+    assertTrue(tracker.addMessage(5, 5, 50));
+
+    assertFalse(tracker.shouldPauseAllDeliveries());
+
+    for (int i = 6; i <= tracker.getFixedDelayDetectionLookahead(); i++) {
+      assertTrue(tracker.addMessage(i, i, i * 10));
+    }
+
+    assertTrue(tracker.shouldPauseAllDeliveries());
+
+    // Add message with earlier delivery time
+    assertTrue(tracker.addMessage(5, 6, 5));
+
+    assertFalse(tracker.shouldPauseAllDeliveries());
+
+    tracker.close();
+  }
+
+  @Test(dataProvider = "delayedTracker")
+  public void testWithNoDelays(InMemoryDelayedDeliveryTracker tracker) throws Exception {
+    assertFalse(tracker.hasMessageAvailable());
+
+    assertTrue(tracker.addMessage(1, 1, 10));
+    assertTrue(tracker.addMessage(2, 2, 20));
+    assertTrue(tracker.addMessage(3, 3, 30));
+    assertTrue(tracker.addMessage(4, 4, 40));
+    assertTrue(tracker.addMessage(5, 5, 50));
+
+    assertFalse(tracker.shouldPauseAllDeliveries());
+
+    for (int i = 6; i <= tracker.getFixedDelayDetectionLookahead(); i++) {
+      assertTrue(tracker.addMessage(i, i, i * 10));
+    }
+
+    assertTrue(tracker.shouldPauseAllDeliveries());
+
+    // Add message with no-delay
+    assertFalse(tracker.addMessage(5, 6, -1L));
+
+    assertFalse(tracker.shouldPauseAllDeliveries());
+
+    tracker.close();
+  }
+
+  @Test
+  public void testClose() throws Exception {
+    @Cleanup("stop")
+    Timer timer =
+        new HashedWheelTimer(
+            new DefaultThreadFactory("pulsar-in-memory-delayed-delivery-test"),
+            1,
+            TimeUnit.MILLISECONDS);
+
+    AbstractPersistentDispatcherMultipleConsumers dispatcher =
+        mock(AbstractPersistentDispatcherMultipleConsumers.class);
+
+    AtomicLong clockTime = new AtomicLong();
+    Clock clock = mock(Clock.class);
+    when(clock.millis()).then(x -> clockTime.get());
+
+    final Exception[] exceptions = new Exception[1];
+
+    InMemoryDelayedDeliveryTracker tracker =
+        new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock, true, 0) {
+          @Override
+          public void run(Timeout timeout) throws Exception {
+            super.timeout = timer.newTimeout(this, 1, TimeUnit.MILLISECONDS);
+            if (timeout == null || timeout.isCancelled()) {
+              return;
             }
+            try {
+              this.delayedMessageMap.firstLongKey();
+            } catch (Exception e) {
+              e.printStackTrace();
+              exceptions[0] = e;
+            }
+          }
         };
 
-        tracker.addMessage(1, 1, 10);
-        clockTime.set(10);
+    tracker.addMessage(1, 1, 10);
+    clockTime.set(10);
 
-        Thread.sleep(300);
+    Thread.sleep(300);
 
-        tracker.close();
+    tracker.close();
 
-        assertNull(exceptions[0]);
+    assertNull(exceptions[0]);
+  }
+
+  @Test(dataProvider = "delayedTracker")
+  public void testDelaySequence(InMemoryDelayedDeliveryTracker tracker) throws Exception {
+    assertFalse(tracker.hasMessageAvailable());
+
+    int messageCount = 5;
+    for (int i = 1; i <= messageCount; i++) {
+      assertTrue(tracker.addMessage(i, i, 1));
     }
+    clockTime.set(10);
+    assertTrue(tracker.hasMessageAvailable());
+    assertEquals(tracker.getNumberOfDelayedMessages(), messageCount);
 
-    @Test(dataProvider = "delayedTracker")
-    public void testDelaySequence(InMemoryDelayedDeliveryTracker tracker) throws Exception {
-        assertFalse(tracker.hasMessageAvailable());
-
-        int messageCount = 5;
-        for(int i = 1; i <= messageCount; i++) {
-            assertTrue(tracker.addMessage(i, i, 1));
-        }
-        clockTime.set(10);
-        assertTrue(tracker.hasMessageAvailable());
-        assertEquals(tracker.getNumberOfDelayedMessages(), messageCount);
-
-        for (int i = 1; i <= messageCount; i++) {
-            Set<Position> scheduled = tracker.getScheduledMessages(1);
-            assertEquals(scheduled.size(), 1);
-            Position position = scheduled.iterator().next();
-            assertEquals(position.getLedgerId(), i);
-            assertEquals(position.getEntryId(), i);
-        }
-        tracker.close();
+    for (int i = 1; i <= messageCount; i++) {
+      Set<Position> scheduled = tracker.getScheduledMessages(1);
+      assertEquals(scheduled.size(), 1);
+      Position position = scheduled.iterator().next();
+      assertEquals(position.getLedgerId(), i);
+      assertEquals(position.getEntryId(), i);
     }
-
+    tracker.close();
+  }
 }

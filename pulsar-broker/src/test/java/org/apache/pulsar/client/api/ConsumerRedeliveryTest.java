@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -51,401 +52,450 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-api")
 public class ConsumerRedeliveryTest extends ProducerConsumerBase {
 
-    private static final Logger log = LoggerFactory.getLogger(ConsumerRedeliveryTest.class);
+  private static final Logger log = LoggerFactory.getLogger(ConsumerRedeliveryTest.class);
 
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        conf.setManagedLedgerCacheEvictionIntervalMs(10000);
-        super.internalSetup();
-        super.producerBaseSetup();
+  @BeforeClass
+  @Override
+  protected void setup() throws Exception {
+    conf.setManagedLedgerCacheEvictionIntervalMs(10000);
+    super.internalSetup();
+    super.producerBaseSetup();
+  }
+
+  @AfterClass(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
+
+  @DataProvider(name = "ackReceiptEnabled")
+  public Object[][] ackReceiptEnabled() {
+    return new Object[][] {{true}, {false}};
+  }
+
+  @DataProvider(name = "batchedMessageAck")
+  public Object[][] batchedMessageAck() {
+    // When batch index ack is disabled (by default), only after all single messages were sent would
+    // the pending
+    // ACK be added into the ACK tracker.
+    return new Object[][] {
+      // numAcked, batchSize, ack type
+      {3, 5, CommandAck.AckType.Individual},
+      {5, 5, CommandAck.AckType.Individual},
+      {3, 5, CommandAck.AckType.Cumulative},
+      {5, 5, CommandAck.AckType.Cumulative}
+    };
+  }
+
+  /**
+   * It verifies that redelivered messages are sorted based on the ledger-ids.
+   *
+   * <pre>
+   * 1. client publishes 100 messages across 50 ledgers
+   * 2. broker delivers 100 messages to consumer
+   * 3. consumer ack every alternative message and doesn't ack 50 messages
+   * 4. broker sorts replay messages based on ledger and redelivers messages ledger by ledger
+   * </pre>
+   *
+   * @throws Exception
+   */
+  @Test(dataProvider = "ackReceiptEnabled")
+  public void testOrderedRedelivery(boolean ackReceiptEnabled) throws Exception {
+    String topic = "persistent://my-property/my-ns/redelivery-" + System.currentTimeMillis();
+
+    conf.setManagedLedgerMaxEntriesPerLedger(2);
+    conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+
+    @Cleanup
+    Producer<byte[]> producer =
+        pulsarClient.newProducer().topic(topic).producerName("my-producer-name").create();
+    ConsumerBuilder<byte[]> consumerBuilder =
+        pulsarClient
+            .newConsumer()
+            .topic(topic)
+            .subscriptionName("s1")
+            .subscriptionType(SubscriptionType.Shared)
+            .isAckReceiptEnabled(ackReceiptEnabled);
+    ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) consumerBuilder.subscribe();
+
+    final int totalMsgs = 100;
+
+    for (int i = 0; i < totalMsgs; i++) {
+      String message = "my-message-" + i;
+      producer.send(message.getBytes());
     }
 
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
+    int consumedCount = 0;
+    Set<MessageId> messageIds = new HashSet<>();
+    for (int i = 0; i < totalMsgs; i++) {
+      Message<byte[]> message = consumer1.receive(5, TimeUnit.SECONDS);
+      if (message != null && (consumedCount % 2) == 0) {
+        consumer1.acknowledge(message);
+      } else {
+        messageIds.add(message.getMessageId());
+      }
+      consumedCount += 1;
+    }
+    assertEquals(totalMsgs, consumedCount);
+
+    // redeliver all unack messages
+    consumer1.redeliverUnacknowledgedMessages(messageIds);
+
+    MessageIdImpl lastMsgId = null;
+    for (int i = 0; i < totalMsgs / 2; i++) {
+      Message<byte[]> message = consumer1.receive(5, TimeUnit.SECONDS);
+      MessageIdImpl msgId = (MessageIdImpl) message.getMessageId();
+      if (lastMsgId != null) {
+        assertTrue(
+            lastMsgId.getLedgerId() <= msgId.getLedgerId(),
+            "lastMsgId: " + lastMsgId + " -- msgId: " + msgId);
+      }
+      lastMsgId = msgId;
     }
 
-    @DataProvider(name = "ackReceiptEnabled")
-    public Object[][] ackReceiptEnabled() {
-        return new Object[][] { { true }, { false } };
+    // close consumer so, this consumer's unack messages will be redelivered to new consumer
+    consumer1.close();
+
+    @Cleanup Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
+    lastMsgId = null;
+    for (int i = 0; i < totalMsgs / 2; i++) {
+      Message<byte[]> message = consumer2.receive(5, TimeUnit.SECONDS);
+      MessageIdImpl msgId = (MessageIdImpl) message.getMessageId();
+      if (lastMsgId != null) {
+        assertTrue(lastMsgId.getLedgerId() <= msgId.getLedgerId());
+      }
+      lastMsgId = msgId;
+    }
+  }
+
+  @Test(dataProvider = "ackReceiptEnabled")
+  public void testUnAckMessageRedeliveryWithReceiveAsync(boolean ackReceiptEnabled)
+      throws PulsarClientException, ExecutionException, InterruptedException {
+    String topic = "persistent://my-property/my-ns/async-unack-redelivery";
+    Consumer<String> consumer =
+        pulsarClient
+            .newConsumer(Schema.STRING)
+            .topic(topic)
+            .subscriptionName("s1")
+            .isAckReceiptEnabled(ackReceiptEnabled)
+            .enableBatchIndexAcknowledgment(ackReceiptEnabled)
+            .ackTimeout(3, TimeUnit.SECONDS)
+            .subscribe();
+
+    Producer<String> producer =
+        pulsarClient
+            .newProducer(Schema.STRING)
+            .topic(topic)
+            .enableBatching(true)
+            .batchingMaxMessages(5)
+            .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
+            .create();
+
+    final int messages = 10;
+    List<CompletableFuture<Message<String>>> futures = new ArrayList<>(10);
+    for (int i = 0; i < messages; i++) {
+      futures.add(consumer.receiveAsync());
     }
 
-    @DataProvider(name = "batchedMessageAck")
-    public Object[][] batchedMessageAck() {
-        // When batch index ack is disabled (by default), only after all single messages were sent would the pending
-        // ACK be added into the ACK tracker.
-        return new Object[][] {
-                // numAcked, batchSize, ack type
-                { 3, 5, CommandAck.AckType.Individual },
-                { 5, 5, CommandAck.AckType.Individual },
-                { 3, 5, CommandAck.AckType.Cumulative },
-                { 5, 5, CommandAck.AckType.Cumulative }
-        };
+    for (int i = 0; i < messages; i++) {
+      producer.sendAsync("my-message-" + i);
     }
 
-    /**
-     * It verifies that redelivered messages are sorted based on the ledger-ids.
-     * <pre>
-     * 1. client publishes 100 messages across 50 ledgers
-     * 2. broker delivers 100 messages to consumer
-     * 3. consumer ack every alternative message and doesn't ack 50 messages
-     * 4. broker sorts replay messages based on ledger and redelivers messages ledger by ledger
-     * </pre>
-     * @throws Exception
-     */
-    @Test(dataProvider = "ackReceiptEnabled")
-    public void testOrderedRedelivery(boolean ackReceiptEnabled) throws Exception {
-        String topic = "persistent://my-property/my-ns/redelivery-" + System.currentTimeMillis();
-
-        conf.setManagedLedgerMaxEntriesPerLedger(2);
-        conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
-
-        @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .producerName("my-producer-name")
-                .create();
-        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topic).subscriptionName("s1")
-                .subscriptionType(SubscriptionType.Shared)
-                .isAckReceiptEnabled(ackReceiptEnabled);
-        ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) consumerBuilder.subscribe();
-
-        final int totalMsgs = 100;
-
-        for (int i = 0; i < totalMsgs; i++) {
-            String message = "my-message-" + i;
-            producer.send(message.getBytes());
-        }
-
-
-        int consumedCount = 0;
-        Set<MessageId> messageIds = new HashSet<>();
-        for (int i = 0; i < totalMsgs; i++) {
-            Message<byte[]> message = consumer1.receive(5, TimeUnit.SECONDS);
-            if (message != null && (consumedCount % 2) == 0) {
-                consumer1.acknowledge(message);
-            } else {
-                messageIds.add(message.getMessageId());
-            }
-            consumedCount += 1;
-        }
-        assertEquals(totalMsgs, consumedCount);
-
-        // redeliver all unack messages
-        consumer1.redeliverUnacknowledgedMessages(messageIds);
-
-        MessageIdImpl lastMsgId = null;
-        for (int i = 0; i < totalMsgs / 2; i++) {
-            Message<byte[]> message = consumer1.receive(5, TimeUnit.SECONDS);
-            MessageIdImpl msgId = (MessageIdImpl) message.getMessageId();
-            if (lastMsgId != null) {
-                assertTrue(lastMsgId.getLedgerId() <= msgId.getLedgerId(), "lastMsgId: " + lastMsgId + " -- msgId: " + msgId);
-            }
-            lastMsgId = msgId;
-        }
-
-        // close consumer so, this consumer's unack messages will be redelivered to new consumer
-        consumer1.close();
-
-        @Cleanup
-        Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
-        lastMsgId = null;
-        for (int i = 0; i < totalMsgs / 2; i++) {
-            Message<byte[]> message = consumer2.receive(5, TimeUnit.SECONDS);
-            MessageIdImpl msgId = (MessageIdImpl) message.getMessageId();
-            if (lastMsgId != null) {
-                assertTrue(lastMsgId.getLedgerId() <= msgId.getLedgerId());
-            }
-            lastMsgId = msgId;
-        }
+    int messageReceived = 0;
+    for (CompletableFuture<Message<String>> future : futures) {
+      Message<String> message = future.get();
+      assertNotNull(message);
+      messageReceived++;
+      // Don't ack message, wait for ack timeout.
     }
 
-    @Test(dataProvider = "ackReceiptEnabled")
-    public void testUnAckMessageRedeliveryWithReceiveAsync(boolean ackReceiptEnabled) throws PulsarClientException, ExecutionException, InterruptedException {
-        String topic = "persistent://my-property/my-ns/async-unack-redelivery";
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topic)
-                .subscriptionName("s1")
-                .isAckReceiptEnabled(ackReceiptEnabled)
-                .enableBatchIndexAcknowledgment(ackReceiptEnabled)
-                .ackTimeout(3, TimeUnit.SECONDS)
-                .subscribe();
-
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(topic)
-                .enableBatching(true)
-                .batchingMaxMessages(5)
-                .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
-                .create();
-
-        final int messages = 10;
-        List<CompletableFuture<Message<String>>> futures = new ArrayList<>(10);
-        for (int i = 0; i < messages; i++) {
-            futures.add(consumer.receiveAsync());
-        }
-
-        for (int i = 0; i < messages; i++) {
-            producer.sendAsync("my-message-" + i);
-        }
-
-        int messageReceived = 0;
-        for (CompletableFuture<Message<String>> future : futures) {
-            Message<String> message = future.get();
-            assertNotNull(message);
-            messageReceived++;
-            // Don't ack message, wait for ack timeout.
-        }
-
-        assertEquals(10, messageReceived);
-        for (int i = 0; i < messages; i++) {
-            Message<String> message = consumer.receive();
-            assertNotNull(message);
-            messageReceived++;
-            consumer.acknowledge(message);
-        }
-
-        assertEquals(20, messageReceived);
-
-        producer.close();
-        consumer.close();
+    assertEquals(10, messageReceived);
+    for (int i = 0; i < messages; i++) {
+      Message<String> message = consumer.receive();
+      assertNotNull(message);
+      messageReceived++;
+      consumer.acknowledge(message);
     }
 
-    /**
-     * Validates broker should dispatch messages to consumer which still has the permit to consume more messages.
-     * 
-     * @throws Exception
-     */
-    @Test
-    public void testConsumerWithPermitReceiveBatchMessages() throws Exception {
+    assertEquals(20, messageReceived);
 
-        log.info("-- Starting {} test --", methodName);
+    producer.close();
+    consumer.close();
+  }
 
-        final int queueSize = 10;
-        int batchSize = 100;
-        String subName = "my-subscriber-name";
-        String topicName = "permitReceiveBatchMessages"+(UUID.randomUUID().toString());
-        ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
-                .receiverQueueSize(queueSize).subscriptionType(SubscriptionType.Shared).subscriptionName(subName)
-                .subscribe();
+  /**
+   * Validates broker should dispatch messages to consumer which still has the permit to consume
+   * more messages.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testConsumerWithPermitReceiveBatchMessages() throws Exception {
 
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);
+    log.info("-- Starting {} test --", methodName);
 
-        producerBuilder.enableBatching(true);
-        producerBuilder.batchingMaxPublishDelay(2000, TimeUnit.MILLISECONDS);
-        producerBuilder.batchingMaxMessages(100);
-
-        Producer<byte[]> producer = producerBuilder.create();
-        for (int i = 0; i < batchSize; i++) {
-            String message = "my-message-" + i;
-            producer.sendAsync(message.getBytes());
-        }
-        producer.flush();
-
-        for (int i = 0; i < queueSize; i++) {
-            String message = "my-message-" + i;
-            producer.sendAsync(message.getBytes());
-        }
-        producer.flush();
-
-        retryStrategically((test) -> {
-            return consumer1.getTotalIncomingMessages() == batchSize;
-        }, 5, 2000);
-
-        assertEquals(consumer1.getTotalIncomingMessages(), batchSize);
-
-        ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
-                .receiverQueueSize(queueSize).subscriptionType(SubscriptionType.Shared).subscriptionName(subName)
-                .subscribe();
-
-        retryStrategically((test) -> {
-            return consumer2.getTotalIncomingMessages() == queueSize;
-        }, 5, 2000);
-        assertEquals(consumer2.getTotalIncomingMessages(), queueSize);
-        log.info("-- Exiting {} test --", methodName);
-    }
-
-    @Test(timeOut = 30000)
-    public void testMessageRedeliveryWhenTimeoutInListener() throws Exception {
-        final String subName = "sub_testMessageRedeliveryWhenTimeoutInListener";
-        final String topicName = "testMessageRedeliveryWhenTimeoutInListener" + UUID.randomUUID();
-
-        final int messages = 10;
-
-        @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+    final int queueSize = 10;
+    int batchSize = 100;
+    String subName = "my-subscriber-name";
+    String topicName = "permitReceiveBatchMessages" + (UUID.randomUUID().toString());
+    ConsumerImpl<byte[]> consumer1 =
+        (ConsumerImpl<byte[]>)
+            pulsarClient
+                .newConsumer()
                 .topic(topicName)
-                .enableBatching(false)
-                .create();
-
-        final String redeliveryMsg = "Hello-0";
-        final AtomicInteger index = new AtomicInteger(0);
-        BlockingQueue<Message<byte[]>> receivedMsgs = new LinkedBlockingQueue<>();
-        MessageListener<byte[]> listener = (consumer, msg) -> {
-            try {
-                // the first "Hello-0" will wait until timeout
-                if (index.getAndDecrement() == 0 && new String(msg.getData()).equals(redeliveryMsg)) {
-                    Thread.sleep(3000);
-                }
-                receivedMsgs.add(msg);
-                consumer.acknowledge(msg);
-            } catch (Exception e) {
-            }
-        };
-
-        @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic(topicName)
-                .subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Shared)
-                .ackTimeout(1, TimeUnit.SECONDS)
-                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
-                .messageListener(listener)
-                .subscribe();
-
-        for (int i = 0; i < messages; i++) {
-            producer.sendAsync("Hello-" + i);
-        }
-        producer.flush();
-
-        // assert only redelivery the "Hello-0" msg
-        Awaitility.await().untilAsserted(() -> assertEquals(receivedMsgs.size(), messages + 1));
-        List<Message<byte[]>> redeliveryMsgList = receivedMsgs.stream()
-                .filter(msg -> new String(msg.getData()).equals(redeliveryMsg))
-                .collect(Collectors.toList());
-        assertEquals(redeliveryMsgList.size(), 2);
-        for (int i = 0; i < redeliveryMsgList.size(); i++) {
-            assertEquals(i, redeliveryMsgList.get(i).getRedeliveryCount());
-        }
-    }
-
-    @Test(timeOut = 30000)
-    public void testMessageRedeliveryAfterUnloadedWithEarliestPosition() throws Exception {
-
-        final String subName = "my-subscriber-name";
-        final String topicName = "testMessageRedeliveryAfterUnloadedWithEarliestPosition" + UUID.randomUUID();
-        final int messages = 100;
-
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(topicName)
-                .enableBatching(false)
-                .create();
-
-        List<CompletableFuture<MessageId>> sendResults = new ArrayList<>(messages);
-        for (int i = 0; i < messages; i++) {
-            sendResults.add(producer.sendAsync("Hello - " + i));
-        }
-        producer.flush();
-
-        FutureUtil.waitForAll(sendResults).get();
-
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topicName)
+                .receiverQueueSize(queueSize)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName(subName)
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
-        List<Message<String>> received = new ArrayList<>(messages);
-        for (int i = 0; i < messages; i++) {
-            received.add(consumer.receive());
-        }
+    ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);
 
-        assertEquals(received.size(), messages);
-        assertNull(consumer.receive(1, TimeUnit.SECONDS));
+    producerBuilder.enableBatching(true);
+    producerBuilder.batchingMaxPublishDelay(2000, TimeUnit.MILLISECONDS);
+    producerBuilder.batchingMaxMessages(100);
 
-        admin.topics().unload(topicName);
-
-        // The consumer does not ack any messages, so after unloading the topic,
-        // the consumer should get the unacked messages again
-
-        received.clear();
-        for (int i = 0; i < messages; i++) {
-            received.add(consumer.receive());
-        }
-
-        assertEquals(received.size(), messages);
-        assertNull(consumer.receive(1, TimeUnit.SECONDS));
-
-        consumer.close();
-        producer.close();
+    Producer<byte[]> producer = producerBuilder.create();
+    for (int i = 0; i < batchSize; i++) {
+      String message = "my-message-" + i;
+      producer.sendAsync(message.getBytes());
     }
+    producer.flush();
 
-    @Test(timeOut = 30000, dataProvider = "batchedMessageAck")
-    public void testAckNotSent(int numAcked, int batchSize, CommandAck.AckType ackType) throws Exception {
-        String topic = "persistent://my-property/my-ns/test-ack-not-sent-"
-                + numAcked + "-" + batchSize + "-" + ackType.getValue();
-        @Cleanup Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topic)
-                .subscriptionName("sub")
-                .enableBatchIndexAcknowledgment(false)
-                .acknowledgmentGroupTime(1, TimeUnit.HOURS) // ACK won't be sent
+    for (int i = 0; i < queueSize; i++) {
+      String message = "my-message-" + i;
+      producer.sendAsync(message.getBytes());
+    }
+    producer.flush();
+
+    retryStrategically(
+        (test) -> {
+          return consumer1.getTotalIncomingMessages() == batchSize;
+        },
+        5,
+        2000);
+
+    assertEquals(consumer1.getTotalIncomingMessages(), batchSize);
+
+    ConsumerImpl<byte[]> consumer2 =
+        (ConsumerImpl<byte[]>)
+            pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .receiverQueueSize(queueSize)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName(subName)
                 .subscribe();
-        @Cleanup Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(topic)
-                .enableBatching(true)
-                .batchingMaxMessages(batchSize)
-                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
-                .create();
-        for (int i = 0; i < batchSize; i++) {
-            String value = "msg-" + i;
-            producer.sendAsync(value).thenAccept(id -> log.info("{} was sent to {}", value, id));
-        }
-        List<Message<String>> messages = new ArrayList<>();
-        for (int i = 0; i < batchSize; i++) {
-            messages.add(consumer.receive());
-        }
-        if (ackType == CommandAck.AckType.Individual) {
-            for (int i = 0; i < numAcked; i++) {
-                consumer.acknowledge(messages.get(i));
+
+    retryStrategically(
+        (test) -> {
+          return consumer2.getTotalIncomingMessages() == queueSize;
+        },
+        5,
+        2000);
+    assertEquals(consumer2.getTotalIncomingMessages(), queueSize);
+    log.info("-- Exiting {} test --", methodName);
+  }
+
+  @Test(timeOut = 30000)
+  public void testMessageRedeliveryWhenTimeoutInListener() throws Exception {
+    final String subName = "sub_testMessageRedeliveryWhenTimeoutInListener";
+    final String topicName = "testMessageRedeliveryWhenTimeoutInListener" + UUID.randomUUID();
+
+    final int messages = 10;
+
+    @Cleanup
+    Producer<String> producer =
+        pulsarClient.newProducer(Schema.STRING).topic(topicName).enableBatching(false).create();
+
+    final String redeliveryMsg = "Hello-0";
+    final AtomicInteger index = new AtomicInteger(0);
+    BlockingQueue<Message<byte[]>> receivedMsgs = new LinkedBlockingQueue<>();
+    MessageListener<byte[]> listener =
+        (consumer, msg) -> {
+          try {
+            // the first "Hello-0" will wait until timeout
+            if (index.getAndDecrement() == 0 && new String(msg.getData()).equals(redeliveryMsg)) {
+              Thread.sleep(3000);
             }
-        } else {
-            consumer.acknowledgeCumulative(messages.get(numAcked - 1));
-        }
+            receivedMsgs.add(msg);
+            consumer.acknowledge(msg);
+          } catch (Exception e) {
+          }
+        };
 
-        consumer.redeliverUnacknowledgedMessages();
+    @Cleanup
+    Consumer<byte[]> consumer =
+        pulsarClient
+            .newConsumer()
+            .topic(topicName)
+            .subscriptionName(subName)
+            .subscriptionType(SubscriptionType.Shared)
+            .ackTimeout(1, TimeUnit.SECONDS)
+            .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+            .messageListener(listener)
+            .subscribe();
 
-        messages.clear();
-        for (int i = 0; i < batchSize; i++) {
-            Message<String> msg = consumer.receive(2, TimeUnit.SECONDS);
-            if (msg == null) {
-                break;
-            }
-            log.info("Received {} from {}", msg.getValue(), msg.getMessageId());
-            messages.add(msg);
-        }
-        List<String> values = messages.stream().map(Message::getValue).collect(Collectors.toList());
-        // All messages are redelivered because only if the whole batch are acknowledged would the message ID be
-        // added into the ACK tracker.
-        if (numAcked < batchSize) {
-            assertEquals(values, IntStream.range(0, batchSize).mapToObj(i -> "msg-" + i).collect(Collectors.toList()));
-        } else {
-            assertTrue(values.isEmpty());
-        }
+    for (int i = 0; i < messages; i++) {
+      producer.sendAsync("Hello-" + i);
+    }
+    producer.flush();
+
+    // assert only redelivery the "Hello-0" msg
+    Awaitility.await().untilAsserted(() -> assertEquals(receivedMsgs.size(), messages + 1));
+    List<Message<byte[]>> redeliveryMsgList =
+        receivedMsgs.stream()
+            .filter(msg -> new String(msg.getData()).equals(redeliveryMsg))
+            .collect(Collectors.toList());
+    assertEquals(redeliveryMsgList.size(), 2);
+    for (int i = 0; i < redeliveryMsgList.size(); i++) {
+      assertEquals(i, redeliveryMsgList.get(i).getRedeliveryCount());
+    }
+  }
+
+  @Test(timeOut = 30000)
+  public void testMessageRedeliveryAfterUnloadedWithEarliestPosition() throws Exception {
+
+    final String subName = "my-subscriber-name";
+    final String topicName =
+        "testMessageRedeliveryAfterUnloadedWithEarliestPosition" + UUID.randomUUID();
+    final int messages = 100;
+
+    Producer<String> producer =
+        pulsarClient.newProducer(Schema.STRING).topic(topicName).enableBatching(false).create();
+
+    List<CompletableFuture<MessageId>> sendResults = new ArrayList<>(messages);
+    for (int i = 0; i < messages; i++) {
+      sendResults.add(producer.sendAsync("Hello - " + i));
+    }
+    producer.flush();
+
+    FutureUtil.waitForAll(sendResults).get();
+
+    Consumer<String> consumer =
+        pulsarClient
+            .newConsumer(Schema.STRING)
+            .topic(topicName)
+            .subscriptionType(SubscriptionType.Shared)
+            .subscriptionName(subName)
+            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+            .subscribe();
+
+    List<Message<String>> received = new ArrayList<>(messages);
+    for (int i = 0; i < messages; i++) {
+      received.add(consumer.receive());
     }
 
-    @Test
-    public void testRedeliverMessagesWithoutValue() throws Exception {
-        String topic = "persistent://my-property/my-ns/testRedeliverMessagesWithoutValue";
-        @Cleanup Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
-                .topic(topic)
-                .subscriptionName("sub")
-                .enableRetry(true)
-                .subscribe();
-        @Cleanup Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
-                .topic(topic)
-                .enableBatching(true)
-                .create();
-        for (int i = 0; i < 10; i++) {
-            producer.newMessage().key("messages without value").send();
-        }
+    assertEquals(received.size(), messages);
+    assertNull(consumer.receive(1, TimeUnit.SECONDS));
 
-        Message<Integer> message = consumer.receive();
-        consumer.reconsumeLater(message, 2, TimeUnit.SECONDS);
-        for (int i = 0; i < 9; i++) {
-            assertNotNull(consumer.receive(5, TimeUnit.SECONDS));
-        }
-        assertTrue(consumer.receive(5, TimeUnit.SECONDS).getTopicName().contains("sub-RETRY"));
+    admin.topics().unload(topicName);
+
+    // The consumer does not ack any messages, so after unloading the topic,
+    // the consumer should get the unacked messages again
+
+    received.clear();
+    for (int i = 0; i < messages; i++) {
+      received.add(consumer.receive());
     }
+
+    assertEquals(received.size(), messages);
+    assertNull(consumer.receive(1, TimeUnit.SECONDS));
+
+    consumer.close();
+    producer.close();
+  }
+
+  @Test(timeOut = 30000, dataProvider = "batchedMessageAck")
+  public void testAckNotSent(int numAcked, int batchSize, CommandAck.AckType ackType)
+      throws Exception {
+    String topic =
+        "persistent://my-property/my-ns/test-ack-not-sent-"
+            + numAcked
+            + "-"
+            + batchSize
+            + "-"
+            + ackType.getValue();
+    @Cleanup
+    Consumer<String> consumer =
+        pulsarClient
+            .newConsumer(Schema.STRING)
+            .topic(topic)
+            .subscriptionName("sub")
+            .enableBatchIndexAcknowledgment(false)
+            .acknowledgmentGroupTime(1, TimeUnit.HOURS) // ACK won't be sent
+            .subscribe();
+    @Cleanup
+    Producer<String> producer =
+        pulsarClient
+            .newProducer(Schema.STRING)
+            .topic(topic)
+            .enableBatching(true)
+            .batchingMaxMessages(batchSize)
+            .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+            .create();
+    for (int i = 0; i < batchSize; i++) {
+      String value = "msg-" + i;
+      producer.sendAsync(value).thenAccept(id -> log.info("{} was sent to {}", value, id));
+    }
+    List<Message<String>> messages = new ArrayList<>();
+    for (int i = 0; i < batchSize; i++) {
+      messages.add(consumer.receive());
+    }
+    if (ackType == CommandAck.AckType.Individual) {
+      for (int i = 0; i < numAcked; i++) {
+        consumer.acknowledge(messages.get(i));
+      }
+    } else {
+      consumer.acknowledgeCumulative(messages.get(numAcked - 1));
+    }
+
+    consumer.redeliverUnacknowledgedMessages();
+
+    messages.clear();
+    for (int i = 0; i < batchSize; i++) {
+      Message<String> msg = consumer.receive(2, TimeUnit.SECONDS);
+      if (msg == null) {
+        break;
+      }
+      log.info("Received {} from {}", msg.getValue(), msg.getMessageId());
+      messages.add(msg);
+    }
+    List<String> values = messages.stream().map(Message::getValue).collect(Collectors.toList());
+    // All messages are redelivered because only if the whole batch are acknowledged would the
+    // message ID be
+    // added into the ACK tracker.
+    if (numAcked < batchSize) {
+      assertEquals(
+          values,
+          IntStream.range(0, batchSize).mapToObj(i -> "msg-" + i).collect(Collectors.toList()));
+    } else {
+      assertTrue(values.isEmpty());
+    }
+  }
+
+  @Test
+  public void testRedeliverMessagesWithoutValue() throws Exception {
+    String topic = "persistent://my-property/my-ns/testRedeliverMessagesWithoutValue";
+    @Cleanup
+    Consumer<Integer> consumer =
+        pulsarClient
+            .newConsumer(Schema.INT32)
+            .topic(topic)
+            .subscriptionName("sub")
+            .enableRetry(true)
+            .subscribe();
+    @Cleanup
+    Producer<Integer> producer =
+        pulsarClient.newProducer(Schema.INT32).topic(topic).enableBatching(true).create();
+    for (int i = 0; i < 10; i++) {
+      producer.newMessage().key("messages without value").send();
+    }
+
+    Message<Integer> message = consumer.receive();
+    consumer.reconsumeLater(message, 2, TimeUnit.SECONDS);
+    for (int i = 0; i < 9; i++) {
+      assertNotNull(consumer.receive(5, TimeUnit.SECONDS));
+    }
+    assertTrue(consumer.receive(5, TimeUnit.SECONDS).getTopicName().contains("sub-RETRY"));
+  }
 }

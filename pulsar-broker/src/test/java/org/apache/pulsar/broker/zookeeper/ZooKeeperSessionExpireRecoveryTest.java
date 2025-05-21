@@ -22,7 +22,6 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import com.google.common.collect.Sets;
-
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -35,44 +34,47 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class ZooKeeperSessionExpireRecoveryTest extends MockedPulsarServiceBaseTest {
 
-    @BeforeMethod(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
+  @BeforeMethod(alwaysRun = true)
+  @Override
+  protected void setup() throws Exception {
+    super.internalSetup();
+  }
+
+  @AfterMethod(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
+
+  /** Verify we are able to recover when receiving a SessionExpired event on global ZK session */
+  @Test
+  public void testSessionExpired() throws Exception {
+    admin
+        .clusters()
+        .createCluster("my-cluster", ClusterData.builder().serviceUrl("http://test-url").build());
+
+    assertTrue(Sets.newHashSet(admin.clusters().getClusters()).contains("my-cluster"));
+
+    mockZooKeeperGlobal.failConditional(
+        Code.SESSIONEXPIRED,
+        (op, path) -> {
+          return op == MockZooKeeper.Op.CREATE && path.equals("/admin/clusters/my-cluster-2");
+        });
+
+    assertTrue(Sets.newHashSet(admin.clusters().getClusters()).contains("my-cluster"));
+
+    try {
+      admin
+          .clusters()
+          .createCluster(
+              "my-cluster-2", ClusterData.builder().serviceUrl("http://test-url").build());
+      fail("Should have failed, because global zk is down");
+    } catch (PulsarAdminException e) {
+      // Ok
     }
 
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
-
-    /**
-     * Verify we are able to recover when receiving a SessionExpired event on global ZK session
-     */
-    @Test
-    public void testSessionExpired() throws Exception {
-        admin.clusters().createCluster("my-cluster", ClusterData.builder()
-                .serviceUrl("http://test-url").build());
-
-        assertTrue(Sets.newHashSet(admin.clusters().getClusters()).contains("my-cluster"));
-
-        mockZooKeeperGlobal.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
-                return op == MockZooKeeper.Op.CREATE
-                    && path.equals("/admin/clusters/my-cluster-2");
-            });
-
-        assertTrue(Sets.newHashSet(admin.clusters().getClusters()).contains("my-cluster"));
-
-        try {
-            admin.clusters().createCluster("my-cluster-2", ClusterData.builder()
-                    .serviceUrl("http://test-url").build());
-            fail("Should have failed, because global zk is down");
-        } catch (PulsarAdminException e) {
-            // Ok
-        }
-
-        admin.clusters().createCluster("cluster-2", ClusterData.builder()
-                .serviceUrl("http://test-url").build());
-    }
+    admin
+        .clusters()
+        .createCluster("cluster-2", ClusterData.builder().serviceUrl("http://test-url").build());
+  }
 }

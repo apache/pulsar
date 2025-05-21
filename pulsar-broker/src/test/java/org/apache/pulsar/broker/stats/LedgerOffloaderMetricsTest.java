@@ -19,10 +19,11 @@
 package org.apache.pulsar.broker.stats;
 
 import static org.testng.Assert.assertEquals;
+
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.impl.LedgerOffloaderStatsImpl;
@@ -33,106 +34,106 @@ import org.testng.annotations.Test;
 
 public class LedgerOffloaderMetricsTest extends BrokerTestBase {
 
-    @Override
-    protected void setup() throws Exception {
+  @Override
+  protected void setup() throws Exception {}
+
+  @Override
+  protected ServiceConfiguration getDefaultConf() {
+    ServiceConfiguration conf = super.getDefaultConf();
+    // wait for shutdown of the broker, this prevents flakiness which could be caused by metrics
+    // being
+    // unregistered asynchronously. This impacts the execution of the next test method if this would
+    // be happening.
+    conf.setBrokerShutdownTimeoutMs(5000L);
+    return conf;
+  }
+
+  @AfterMethod(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
+
+  @Test
+  public void testTopicLevelMetrics() throws Exception {
+    conf.setExposeTopicLevelMetricsInPrometheus(true);
+    super.baseSetup();
+
+    String ns1 = "prop/ns-abc1";
+    admin.namespaces().createNamespace(ns1);
+    String[] topics = new String[3];
+
+    LedgerOffloaderStatsImpl offloaderStats = (LedgerOffloaderStatsImpl) pulsar.getOffloaderStats();
+    for (int i = 0; i < 3; i++) {
+      String topicName = "persistent://prop/ns-abc1/testMetrics" + UUID.randomUUID();
+      topics[i] = topicName;
+      offloaderStats.recordOffloadError(topicName);
+      offloaderStats.recordOffloadError(topicName);
+      offloaderStats.recordOffloadBytes(topicName, 100);
+      offloaderStats.recordReadLedgerLatency(topicName, 1000, TimeUnit.NANOSECONDS);
+      offloaderStats.recordReadOffloadError(topicName);
+      offloaderStats.recordReadOffloadError(topicName);
+      offloaderStats.recordReadOffloadIndexLatency(topicName, 1000000L, TimeUnit.NANOSECONDS);
+      offloaderStats.recordReadOffloadBytes(topicName, 100000);
+      offloaderStats.recordWriteToStorageError(topicName);
+      offloaderStats.recordWriteToStorageError(topicName);
     }
 
-    @Override
-    protected ServiceConfiguration getDefaultConf() {
-        ServiceConfiguration conf = super.getDefaultConf();
-        // wait for shutdown of the broker, this prevents flakiness which could be caused by metrics being
-        // unregistered asynchronously. This impacts the execution of the next test method if this would be happening.
-        conf.setBrokerShutdownTimeoutMs(5000L);
-        return conf;
+    for (String topicName : topics) {
+      assertEquals(offloaderStats.getOffloadError(topicName), 2);
+      assertEquals(offloaderStats.getOffloadBytes(topicName), 100);
+      assertEquals((long) offloaderStats.getReadLedgerLatency(topicName).sum, 1);
+      assertEquals(offloaderStats.getReadOffloadError(topicName), 2);
+      assertEquals((long) offloaderStats.getReadOffloadIndexLatency(topicName).sum, 1000);
+      assertEquals(offloaderStats.getReadOffloadBytes(topicName), 100000);
+      assertEquals(offloaderStats.getWriteStorageError(topicName), 2);
+    }
+  }
+
+  @Test(priority = 1)
+  public void testNamespaceLevelMetrics() throws Exception {
+    conf.setExposeTopicLevelMetricsInPrometheus(false);
+    super.baseSetup();
+
+    String ns1 = "prop/ns-abc1";
+    String ns2 = "prop/ns-abc2";
+
+    LedgerOffloaderStatsImpl offloaderStats = (LedgerOffloaderStatsImpl) pulsar.getOffloaderStats();
+    Map<String, List<String>> namespace2Topics = new HashMap<>();
+    for (int s = 0; s < 2; s++) {
+      String nameSpace = ns1;
+      if (s == 1) {
+        nameSpace = ns2;
+      }
+      namespace2Topics.put(nameSpace, new ArrayList<>());
+
+      admin.namespaces().createNamespace(nameSpace);
+      String baseTopic1 = "persistent://" + nameSpace + "/testMetrics";
+      for (int i = 0; i < 6; i++) {
+        String topicName = baseTopic1 + UUID.randomUUID();
+        List<String> topicList = namespace2Topics.get(nameSpace);
+        topicList.add(topicName);
+        offloaderStats.recordOffloadError(topicName);
+        offloaderStats.recordOffloadBytes(topicName, 100);
+        offloaderStats.recordReadLedgerLatency(topicName, 1000, TimeUnit.NANOSECONDS);
+        offloaderStats.recordReadOffloadError(topicName);
+        offloaderStats.recordReadOffloadIndexLatency(topicName, 1000000L, TimeUnit.NANOSECONDS);
+        offloaderStats.recordReadOffloadBytes(topicName, 100000);
+        offloaderStats.recordWriteToStorageError(topicName);
+      }
     }
 
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
+    for (Map.Entry<String, List<String>> entry : namespace2Topics.entrySet()) {
+      List<String> topics = entry.getValue();
+      String topicName = topics.get(0);
+
+      assertEquals(offloaderStats.getOffloadError(topicName), 6);
+      assertEquals(offloaderStats.getOffloadBytes(topicName), 600);
+      assertEquals((long) offloaderStats.getReadLedgerLatency(topicName).sum, 6);
+      assertEquals(offloaderStats.getReadOffloadError(topicName), 6);
+      assertEquals((long) offloaderStats.getReadOffloadIndexLatency(topicName).sum, 6000);
+      assertEquals(offloaderStats.getReadOffloadBytes(topicName), 600000);
+      assertEquals(offloaderStats.getWriteStorageError(topicName), 6);
     }
-
-    @Test
-    public void testTopicLevelMetrics() throws Exception {
-        conf.setExposeTopicLevelMetricsInPrometheus(true);
-        super.baseSetup();
-
-        String ns1 = "prop/ns-abc1";
-        admin.namespaces().createNamespace(ns1);
-        String[] topics = new String[3];
-
-        LedgerOffloaderStatsImpl offloaderStats = (LedgerOffloaderStatsImpl) pulsar.getOffloaderStats();
-        for (int i = 0; i < 3; i++) {
-            String topicName = "persistent://prop/ns-abc1/testMetrics" + UUID.randomUUID();
-            topics[i] = topicName;
-            offloaderStats.recordOffloadError(topicName);
-            offloaderStats.recordOffloadError(topicName);
-            offloaderStats.recordOffloadBytes(topicName, 100);
-            offloaderStats.recordReadLedgerLatency(topicName, 1000, TimeUnit.NANOSECONDS);
-            offloaderStats.recordReadOffloadError(topicName);
-            offloaderStats.recordReadOffloadError(topicName);
-            offloaderStats.recordReadOffloadIndexLatency(topicName, 1000000L, TimeUnit.NANOSECONDS);
-            offloaderStats.recordReadOffloadBytes(topicName, 100000);
-            offloaderStats.recordWriteToStorageError(topicName);
-            offloaderStats.recordWriteToStorageError(topicName);
-        }
-
-        for (String topicName : topics) {
-            assertEquals(offloaderStats.getOffloadError(topicName), 2);
-            assertEquals(offloaderStats.getOffloadBytes(topicName), 100);
-            assertEquals((long) offloaderStats.getReadLedgerLatency(topicName).sum, 1);
-            assertEquals(offloaderStats.getReadOffloadError(topicName), 2);
-            assertEquals((long) offloaderStats.getReadOffloadIndexLatency(topicName).sum, 1000);
-            assertEquals(offloaderStats.getReadOffloadBytes(topicName), 100000);
-            assertEquals(offloaderStats.getWriteStorageError(topicName), 2);
-        }
-    }
-
-    @Test(priority = 1)
-    public void testNamespaceLevelMetrics() throws Exception {
-        conf.setExposeTopicLevelMetricsInPrometheus(false);
-        super.baseSetup();
-
-        String ns1 = "prop/ns-abc1";
-        String ns2 = "prop/ns-abc2";
-
-        LedgerOffloaderStatsImpl offloaderStats = (LedgerOffloaderStatsImpl) pulsar.getOffloaderStats();
-        Map<String, List<String>> namespace2Topics = new HashMap<>();
-        for (int s = 0; s < 2; s++) {
-            String nameSpace = ns1;
-            if (s == 1) {
-                nameSpace = ns2;
-            }
-            namespace2Topics.put(nameSpace, new ArrayList<>());
-
-            admin.namespaces().createNamespace(nameSpace);
-            String baseTopic1 = "persistent://" + nameSpace + "/testMetrics";
-            for (int i = 0; i < 6; i++) {
-                String topicName = baseTopic1 + UUID.randomUUID();
-                List<String> topicList = namespace2Topics.get(nameSpace);
-                topicList.add(topicName);
-                offloaderStats.recordOffloadError(topicName);
-                offloaderStats.recordOffloadBytes(topicName, 100);
-                offloaderStats.recordReadLedgerLatency(topicName, 1000, TimeUnit.NANOSECONDS);
-                offloaderStats.recordReadOffloadError(topicName);
-                offloaderStats.recordReadOffloadIndexLatency(topicName, 1000000L, TimeUnit.NANOSECONDS);
-                offloaderStats.recordReadOffloadBytes(topicName, 100000);
-                offloaderStats.recordWriteToStorageError(topicName);
-            }
-        }
-
-        for (Map.Entry<String, List<String>> entry : namespace2Topics.entrySet()) {
-            List<String> topics = entry.getValue();
-            String topicName = topics.get(0);
-
-            assertEquals(offloaderStats.getOffloadError(topicName), 6);
-            assertEquals(offloaderStats.getOffloadBytes(topicName), 600);
-            assertEquals((long) offloaderStats.getReadLedgerLatency(topicName).sum, 6);
-            assertEquals(offloaderStats.getReadOffloadError(topicName), 6);
-            assertEquals((long) offloaderStats.getReadOffloadIndexLatency(topicName).sum, 6000);
-            assertEquals(offloaderStats.getReadOffloadBytes(topicName), 600000);
-            assertEquals(offloaderStats.getWriteStorageError(topicName), 6);
-        }
-    }
-
+  }
 }

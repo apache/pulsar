@@ -34,37 +34,41 @@ import org.testng.annotations.Test;
 @Slf4j
 public class MetricsAuthenticationTest extends MockedPulsarServiceBaseTest {
 
-    @BeforeMethod(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        conf.setAuthenticationEnabled(true);
-        conf.setAuthenticationProviders(
-                Sets.newHashSet("org.apache.pulsar.broker.auth.MockAuthenticationProvider"));
-        conf.setAuthorizationEnabled(true);
-    }
+  @BeforeMethod(alwaysRun = true)
+  @Override
+  protected void setup() throws Exception {
+    conf.setAuthenticationEnabled(true);
+    conf.setAuthenticationProviders(
+        Sets.newHashSet("org.apache.pulsar.broker.auth.MockAuthenticationProvider"));
+    conf.setAuthorizationEnabled(true);
+  }
 
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @AfterMethod(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @Test
-    void testGetMetricsByAuthenticate() throws Exception {
-        conf.setAuthenticateMetricsEndpoint(true);
-        super.internalSetup();
-        @Cleanup
-        Client client = javax.ws.rs.client.ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
-        Response r = client.target(this.pulsar.getWebServiceAddress()).path("/metrics").request().get();
-        Assert.assertEquals(r.getStatus(), Response.Status.UNAUTHORIZED.getStatusCode());
-    }
+  @Test
+  void testGetMetricsByAuthenticate() throws Exception {
+    conf.setAuthenticateMetricsEndpoint(true);
+    super.internalSetup();
+    @Cleanup
+    Client client =
+        javax.ws.rs.client.ClientBuilder.newClient(
+            new ClientConfig().register(LoggingFeature.class));
+    Response r = client.target(this.pulsar.getWebServiceAddress()).path("/metrics").request().get();
+    Assert.assertEquals(r.getStatus(), Response.Status.UNAUTHORIZED.getStatusCode());
+  }
 
-    @Test
-    void testGetMetricsByDefault() throws Exception {
-        super.internalSetup();
-        @Cleanup
-        Client client = javax.ws.rs.client.ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
-        Response r = client.target(this.pulsar.getWebServiceAddress()).path("/metrics").request().get();
-        Assert.assertEquals(r.getStatus(), Response.Status.OK.getStatusCode());
-    }
+  @Test
+  void testGetMetricsByDefault() throws Exception {
+    super.internalSetup();
+    @Cleanup
+    Client client =
+        javax.ws.rs.client.ClientBuilder.newClient(
+            new ClientConfig().register(LoggingFeature.class));
+    Response r = client.target(this.pulsar.getWebServiceAddress()).path("/metrics").request().get();
+    Assert.assertEquals(r.getStatus(), Response.Status.OK.getStatusCode());
+  }
 }

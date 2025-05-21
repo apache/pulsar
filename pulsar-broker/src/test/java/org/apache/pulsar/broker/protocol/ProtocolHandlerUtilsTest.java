@@ -39,101 +39,100 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class ProtocolHandlerUtilsTest {
 
-    @Test
-    public void testLoadProtocolHandler() throws Exception {
-        ProtocolHandlerDefinition def = new ProtocolHandlerDefinition();
-        def.setHandlerClass(MockProtocolHandler.class.getName());
-        def.setDescription("test-protocol-handler");
+  @Test
+  public void testLoadProtocolHandler() throws Exception {
+    ProtocolHandlerDefinition def = new ProtocolHandlerDefinition();
+    def.setHandlerClass(MockProtocolHandler.class.getName());
+    def.setDescription("test-protocol-handler");
 
-        String archivePath = "/path/to/protocol/handler/nar";
+    String archivePath = "/path/to/protocol/handler/nar";
 
-        ProtocolHandlerMetadata metadata = new ProtocolHandlerMetadata();
-        metadata.setDefinition(def);
-        metadata.setArchivePath(Paths.get(archivePath));
+    ProtocolHandlerMetadata metadata = new ProtocolHandlerMetadata();
+    metadata.setDefinition(def);
+    metadata.setArchivePath(Paths.get(archivePath));
 
-        NarClassLoader mockLoader = mock(NarClassLoader.class);
-        when(mockLoader.getServiceDefinition(eq(PULSAR_PROTOCOL_HANDLER_DEFINITION_FILE)))
-            .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
-        Class handlerClass = MockProtocolHandler.class;
-        when(mockLoader.loadClass(eq(MockProtocolHandler.class.getName())))
-            .thenReturn(handlerClass);
+    NarClassLoader mockLoader = mock(NarClassLoader.class);
+    when(mockLoader.getServiceDefinition(eq(PULSAR_PROTOCOL_HANDLER_DEFINITION_FILE)))
+        .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
+    Class handlerClass = MockProtocolHandler.class;
+    when(mockLoader.loadClass(eq(MockProtocolHandler.class.getName()))).thenReturn(handlerClass);
 
-        final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
-        when(mockedBuilder.build()).thenReturn(mockLoader);
-        try (MockedStatic<NarClassLoaderBuilder> builder = Mockito.mockStatic(NarClassLoaderBuilder.class)) {
-            builder.when(() -> NarClassLoaderBuilder.builder()).thenReturn(mockedBuilder);
+    final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
+    when(mockedBuilder.build()).thenReturn(mockLoader);
+    try (MockedStatic<NarClassLoaderBuilder> builder =
+        Mockito.mockStatic(NarClassLoaderBuilder.class)) {
+      builder.when(() -> NarClassLoaderBuilder.builder()).thenReturn(mockedBuilder);
 
-            ProtocolHandlerWithClassLoader returnedPhWithCL = ProtocolHandlerUtils.load(metadata, "");
-            ProtocolHandler returnedPh = returnedPhWithCL.getHandler();
+      ProtocolHandlerWithClassLoader returnedPhWithCL = ProtocolHandlerUtils.load(metadata, "");
+      ProtocolHandler returnedPh = returnedPhWithCL.getHandler();
 
-            assertSame(mockLoader, returnedPhWithCL.getClassLoader());
-            assertTrue(returnedPh instanceof MockProtocolHandler);
-        }
+      assertSame(mockLoader, returnedPhWithCL.getClassLoader());
+      assertTrue(returnedPh instanceof MockProtocolHandler);
     }
+  }
 
-    @Test
-    public void testLoadProtocolHandlerBlankHandlerClass() throws Exception {
-        ProtocolHandlerDefinition def = new ProtocolHandlerDefinition();
-        def.setDescription("test-protocol-handler");
+  @Test
+  public void testLoadProtocolHandlerBlankHandlerClass() throws Exception {
+    ProtocolHandlerDefinition def = new ProtocolHandlerDefinition();
+    def.setDescription("test-protocol-handler");
 
-        String archivePath = "/path/to/protocol/handler/nar";
+    String archivePath = "/path/to/protocol/handler/nar";
 
-        ProtocolHandlerMetadata metadata = new ProtocolHandlerMetadata();
-        metadata.setDefinition(def);
-        metadata.setArchivePath(Paths.get(archivePath));
+    ProtocolHandlerMetadata metadata = new ProtocolHandlerMetadata();
+    metadata.setDefinition(def);
+    metadata.setArchivePath(Paths.get(archivePath));
 
-        NarClassLoader mockLoader = mock(NarClassLoader.class);
-        when(mockLoader.getServiceDefinition(eq(PULSAR_PROTOCOL_HANDLER_DEFINITION_FILE)))
-                .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
-        Class handlerClass = MockProtocolHandler.class;
-        when(mockLoader.loadClass(eq(MockProtocolHandler.class.getName())))
-                .thenReturn(handlerClass);
+    NarClassLoader mockLoader = mock(NarClassLoader.class);
+    when(mockLoader.getServiceDefinition(eq(PULSAR_PROTOCOL_HANDLER_DEFINITION_FILE)))
+        .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
+    Class handlerClass = MockProtocolHandler.class;
+    when(mockLoader.loadClass(eq(MockProtocolHandler.class.getName()))).thenReturn(handlerClass);
 
-        final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
-        when(mockedBuilder.build()).thenReturn(mockLoader);
-        try (MockedStatic<NarClassLoaderBuilder> builder = Mockito.mockStatic(NarClassLoaderBuilder.class)) {
-            builder.when(() -> NarClassLoaderBuilder.builder()).thenReturn(mockedBuilder);
+    final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
+    when(mockedBuilder.build()).thenReturn(mockLoader);
+    try (MockedStatic<NarClassLoaderBuilder> builder =
+        Mockito.mockStatic(NarClassLoaderBuilder.class)) {
+      builder.when(() -> NarClassLoaderBuilder.builder()).thenReturn(mockedBuilder);
 
-            try {
-                ProtocolHandlerUtils.load(metadata, "");
-                fail("Should not reach here");
-            } catch (IOException ioe) {
-                // expected
-            }
-        }
+      try {
+        ProtocolHandlerUtils.load(metadata, "");
+        fail("Should not reach here");
+      } catch (IOException ioe) {
+        // expected
+      }
     }
+  }
 
-    @Test
-    public void testLoadProtocolHandlerWrongHandlerClass() throws Exception {
-        ProtocolHandlerDefinition def = new ProtocolHandlerDefinition();
-        def.setHandlerClass(Runnable.class.getName());
-        def.setDescription("test-protocol-handler");
+  @Test
+  public void testLoadProtocolHandlerWrongHandlerClass() throws Exception {
+    ProtocolHandlerDefinition def = new ProtocolHandlerDefinition();
+    def.setHandlerClass(Runnable.class.getName());
+    def.setDescription("test-protocol-handler");
 
-        String archivePath = "/path/to/protocol/handler/nar";
+    String archivePath = "/path/to/protocol/handler/nar";
 
-        ProtocolHandlerMetadata metadata = new ProtocolHandlerMetadata();
-        metadata.setDefinition(def);
-        metadata.setArchivePath(Paths.get(archivePath));
+    ProtocolHandlerMetadata metadata = new ProtocolHandlerMetadata();
+    metadata.setDefinition(def);
+    metadata.setArchivePath(Paths.get(archivePath));
 
-        NarClassLoader mockLoader = mock(NarClassLoader.class);
-        when(mockLoader.getServiceDefinition(eq(PULSAR_PROTOCOL_HANDLER_DEFINITION_FILE)))
-                .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
-        Class handlerClass = Runnable.class;
-        when(mockLoader.loadClass(eq(Runnable.class.getName())))
-                .thenReturn(handlerClass);
+    NarClassLoader mockLoader = mock(NarClassLoader.class);
+    when(mockLoader.getServiceDefinition(eq(PULSAR_PROTOCOL_HANDLER_DEFINITION_FILE)))
+        .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
+    Class handlerClass = Runnable.class;
+    when(mockLoader.loadClass(eq(Runnable.class.getName()))).thenReturn(handlerClass);
 
-        final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
-        when(mockedBuilder.build()).thenReturn(mockLoader);
-        try (MockedStatic<NarClassLoaderBuilder> builder = Mockito.mockStatic(NarClassLoaderBuilder.class)) {
-            builder.when(() -> NarClassLoaderBuilder.builder()).thenReturn(mockedBuilder);
+    final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
+    when(mockedBuilder.build()).thenReturn(mockLoader);
+    try (MockedStatic<NarClassLoaderBuilder> builder =
+        Mockito.mockStatic(NarClassLoaderBuilder.class)) {
+      builder.when(() -> NarClassLoaderBuilder.builder()).thenReturn(mockedBuilder);
 
-            try {
-                ProtocolHandlerUtils.load(metadata, "");
-                fail("Should not reach here");
-            } catch (IOException ioe) {
-                // expected
-            }
-        }
+      try {
+        ProtocolHandlerUtils.load(metadata, "");
+        fail("Should not reach here");
+      } catch (IOException ioe) {
+        // expected
+      }
     }
-
+  }
 }

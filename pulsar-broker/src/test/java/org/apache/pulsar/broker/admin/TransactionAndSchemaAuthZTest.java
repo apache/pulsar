@@ -51,285 +51,305 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-admin")
 public class TransactionAndSchemaAuthZTest extends AuthZTest {
 
-    @SneakyThrows
-    @BeforeClass(alwaysRun = true)
-    public void setup() {
-        configureTokenAuthentication();
-        configureDefaultAuthorization();
-        enableTransaction();
-        start();
-        createTransactionCoordinatorAssign(16);
-        this.superUserAdmin = PulsarAdmin.builder()
-                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
-                .authentication(new AuthenticationToken(SUPER_USER_TOKEN))
-                .build();
-        final TenantInfo tenantInfo = superUserAdmin.tenants().getTenantInfo("public");
-        tenantInfo.getAdminRoles().add(TENANT_ADMIN_SUBJECT);
-        superUserAdmin.tenants().updateTenant("public", tenantInfo);
-        this.tenantManagerAdmin = PulsarAdmin.builder()
-                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
-                .authentication(new AuthenticationToken(TENANT_ADMIN_TOKEN))
-                .build();
+  @SneakyThrows
+  @BeforeClass(alwaysRun = true)
+  public void setup() {
+    configureTokenAuthentication();
+    configureDefaultAuthorization();
+    enableTransaction();
+    start();
+    createTransactionCoordinatorAssign(16);
+    this.superUserAdmin =
+        PulsarAdmin.builder()
+            .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+            .authentication(new AuthenticationToken(SUPER_USER_TOKEN))
+            .build();
+    final TenantInfo tenantInfo = superUserAdmin.tenants().getTenantInfo("public");
+    tenantInfo.getAdminRoles().add(TENANT_ADMIN_SUBJECT);
+    superUserAdmin.tenants().updateTenant("public", tenantInfo);
+    this.tenantManagerAdmin =
+        PulsarAdmin.builder()
+            .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+            .authentication(new AuthenticationToken(TENANT_ADMIN_TOKEN))
+            .build();
 
-        superUserAdmin.tenants().createTenant("pulsar", tenantInfo);
-        superUserAdmin.namespaces().createNamespace("pulsar/system");
+    superUserAdmin.tenants().createTenant("pulsar", tenantInfo);
+    superUserAdmin.namespaces().createNamespace("pulsar/system");
+  }
+
+  @SneakyThrows
+  @AfterClass(alwaysRun = true)
+  public void cleanup() {
+    close();
+  }
+
+  protected void createTransactionCoordinatorAssign(int numPartitionsOfTC)
+      throws MetadataStoreException {
+    getPulsarService()
+        .getPulsarResources()
+        .getNamespaceResources()
+        .getPartitionedTopicResources()
+        .createPartitionedTopic(
+            SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
+            new PartitionedTopicMetadata(numPartitionsOfTC));
+  }
+
+  public enum OperationAuthType {
+    Lookup,
+    Produce,
+    Consume,
+    AdminOrSuperUser,
+    NOAuth
+  }
+
+  private final String testTopic = "persistent://public/default/" + UUID.randomUUID().toString();
+
+  @FunctionalInterface
+  public interface ThrowingBiConsumer<T> {
+    void accept(T t) throws PulsarAdminException;
+  }
+
+  @DataProvider(name = "authFunction")
+  public Object[][] authFunction() throws Exception {
+    String sub = "my-sub";
+    createTopic(testTopic, false);
+    @Cleanup
+    final PulsarClient pulsarClient =
+        PulsarClient.builder()
+            .serviceUrl(getPulsarService().getBrokerServiceUrl())
+            .authentication(new AuthenticationToken(SUPER_USER_TOKEN))
+            .enableTransaction(true)
+            .build();
+    @Cleanup
+    final Producer<String> producer =
+        pulsarClient.newProducer(Schema.STRING).topic(testTopic).create();
+
+    @Cleanup
+    final Consumer<String> consumer =
+        pulsarClient.newConsumer(Schema.STRING).topic(testTopic).subscriptionName(sub).subscribe();
+
+    Transaction transaction =
+        pulsarClient.newTransaction().withTransactionTimeout(5, TimeUnit.MINUTES).build().get();
+    MessageIdImpl messageId = (MessageIdImpl) producer.newMessage().value("test message").send();
+
+    consumer.acknowledgeAsync(messageId, transaction).get();
+
+    return new Object[][] {
+      // SCHEMA
+      new Object[] {
+        (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.schemas().getSchemaInfo(testTopic),
+        OperationAuthType.Lookup
+      },
+      new Object[] {
+        (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.schemas().getSchemaInfo(testTopic, 0),
+        OperationAuthType.Lookup
+      },
+      new Object[] {
+        (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.schemas().getAllSchemas(testTopic),
+        OperationAuthType.Lookup
+      },
+      new Object[] {
+        (ThrowingBiConsumer<PulsarAdmin>)
+            (admin) ->
+                admin
+                    .schemas()
+                    .createSchema(testTopic, SchemaInfo.builder().type(SchemaType.STRING).build()),
+        OperationAuthType.Produce
+      },
+      // TODO: improve the authorization check for testCompatibility and deleteSchema
+      new Object[] {
+        (ThrowingBiConsumer<PulsarAdmin>)
+            (admin) ->
+                admin
+                    .schemas()
+                    .testCompatibility(
+                        testTopic, SchemaInfo.builder().type(SchemaType.STRING).build()),
+        OperationAuthType.AdminOrSuperUser
+      },
+      new Object[] {
+        (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.schemas().deleteSchema(testTopic),
+        OperationAuthType.AdminOrSuperUser
+      },
+
+      // TRANSACTION
+
+      // Modify transaction coordinator
+      new Object[] {
+        (ThrowingBiConsumer<PulsarAdmin>)
+            (admin) -> admin.transactions().abortTransaction(transaction.getTxnID()),
+        OperationAuthType.AdminOrSuperUser
+      },
+      new Object[] {
+        (ThrowingBiConsumer<PulsarAdmin>)
+            (admin) -> admin.transactions().scaleTransactionCoordinators(17),
+        OperationAuthType.AdminOrSuperUser
+      },
+      // TODO: fix authorization check of check transaction coordinator stats.
+      // Check transaction coordinator stats
+      new Object[] {
+        (ThrowingBiConsumer<PulsarAdmin>)
+            (admin) -> admin.transactions().getCoordinatorInternalStats(1, false),
+        OperationAuthType.NOAuth
+      },
+      new Object[] {
+        (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.transactions().getCoordinatorStats(),
+        OperationAuthType.AdminOrSuperUser
+      },
+      new Object[] {
+        (ThrowingBiConsumer<PulsarAdmin>)
+            (admin) ->
+                admin.transactions().getSlowTransactionsByCoordinatorId(1, 5, TimeUnit.SECONDS),
+        OperationAuthType.NOAuth
+      },
+      new Object[] {
+        (ThrowingBiConsumer<PulsarAdmin>)
+            (admin) -> admin.transactions().getTransactionMetadata(transaction.getTxnID()),
+        OperationAuthType.NOAuth
+      },
+      new Object[] {
+        (ThrowingBiConsumer<PulsarAdmin>)
+            (admin) -> admin.transactions().listTransactionCoordinators(),
+        OperationAuthType.NOAuth
+      },
+      new Object[] {
+        (ThrowingBiConsumer<PulsarAdmin>)
+            (admin) -> admin.transactions().getSlowTransactions(5, TimeUnit.SECONDS),
+        OperationAuthType.AdminOrSuperUser
+      },
+
+      // TODO: Check the authorization of the topic when get stats of TB or TP
+      // Check stats related to transaction buffer and transaction pending ack
+      new Object[] {
+        (ThrowingBiConsumer<PulsarAdmin>)
+            (admin) -> admin.transactions().getPendingAckInternalStats(testTopic, sub, false),
+        OperationAuthType.NOAuth
+      },
+      new Object[] {
+        (ThrowingBiConsumer<PulsarAdmin>)
+            (admin) -> admin.transactions().getPendingAckStats(testTopic, sub, false),
+        OperationAuthType.NOAuth
+      },
+      new Object[] {
+        (ThrowingBiConsumer<PulsarAdmin>)
+            (admin) ->
+                admin
+                    .transactions()
+                    .getPositionStatsInPendingAck(
+                        testTopic, sub, messageId.getLedgerId(), messageId.getEntryId(), null),
+        OperationAuthType.NOAuth
+      },
+      new Object[] {
+        (ThrowingBiConsumer<PulsarAdmin>)
+            (admin) -> admin.transactions().getTransactionBufferInternalStats(testTopic, false),
+        OperationAuthType.NOAuth
+      },
+      new Object[] {
+        (ThrowingBiConsumer<PulsarAdmin>)
+            (admin) -> admin.transactions().getTransactionBufferStats(testTopic, false),
+        OperationAuthType.NOAuth
+      },
+      new Object[] {
+        (ThrowingBiConsumer<PulsarAdmin>)
+            (admin) -> admin.transactions().getTransactionBufferStats(testTopic, false),
+        OperationAuthType.NOAuth
+      },
+      new Object[] {
+        (ThrowingBiConsumer<PulsarAdmin>)
+            (admin) ->
+                admin.transactions().getTransactionInBufferStats(transaction.getTxnID(), testTopic),
+        OperationAuthType.NOAuth
+      },
+      new Object[] {
+        (ThrowingBiConsumer<PulsarAdmin>)
+            (admin) ->
+                admin.transactions().getTransactionInBufferStats(transaction.getTxnID(), testTopic),
+        OperationAuthType.NOAuth
+      },
+      new Object[] {
+        (ThrowingBiConsumer<PulsarAdmin>)
+            (admin) ->
+                admin
+                    .transactions()
+                    .getTransactionInPendingAckStats(transaction.getTxnID(), testTopic, sub),
+        OperationAuthType.NOAuth
+      },
+    };
+  }
+
+  @Test(dataProvider = "authFunction")
+  public void testSchemaAndTransactionAuthorization(
+      ThrowingBiConsumer<PulsarAdmin> adminConsumer, OperationAuthType topicOpType)
+      throws Exception {
+    final String subject = UUID.randomUUID().toString();
+    final String token = Jwts.builder().claim("sub", subject).signWith(SECRET_KEY).compact();
+
+    @Cleanup
+    final PulsarAdmin subAdmin =
+        PulsarAdmin.builder()
+            .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+            .authentication(new AuthenticationToken(token))
+            .build();
+    // test tenant manager
+    if (topicOpType != OperationAuthType.AdminOrSuperUser) {
+      adminConsumer.accept(tenantManagerAdmin);
     }
 
-    @SneakyThrows
-    @AfterClass(alwaysRun = true)
-    public void cleanup() {
-        close();
+    if (topicOpType != OperationAuthType.NOAuth) {
+      Assert.assertThrows(
+          PulsarAdminException.NotAuthorizedException.class, () -> adminConsumer.accept(subAdmin));
     }
 
-    protected void createTransactionCoordinatorAssign(int numPartitionsOfTC) throws MetadataStoreException {
-        getPulsarService().getPulsarResources()
-                .getNamespaceResources()
-                .getPartitionedTopicResources()
-                .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
-                        new PartitionedTopicMetadata(numPartitionsOfTC));
+    AtomicBoolean execFlag = null;
+    if (topicOpType == OperationAuthType.Lookup) {
+      execFlag = setAuthorizationTopicOperationChecker(subject, TopicOperation.LOOKUP);
+    } else if (topicOpType == OperationAuthType.Produce) {
+      execFlag = setAuthorizationTopicOperationChecker(subject, TopicOperation.PRODUCE);
+    } else if (topicOpType == OperationAuthType.Consume) {
+      execFlag = setAuthorizationTopicOperationChecker(subject, TopicOperation.CONSUME);
     }
 
-    public enum OperationAuthType {
-        Lookup,
-        Produce,
-        Consume,
-        AdminOrSuperUser,
-        NOAuth
+    for (AuthAction action : AuthAction.values()) {
+      superUserAdmin.topics().grantPermission(testTopic, subject, Set.of(action));
+
+      if (authActionMatchOperation(topicOpType, action)) {
+        adminConsumer.accept(subAdmin);
+      } else {
+        Assert.assertThrows(
+            PulsarAdminException.NotAuthorizedException.class,
+            () -> adminConsumer.accept(subAdmin));
+      }
+      superUserAdmin.topics().revokePermissions(testTopic, subject);
     }
 
-    private final String testTopic = "persistent://public/default/" + UUID.randomUUID().toString();
-    @FunctionalInterface
-    public interface ThrowingBiConsumer<T> {
-        void accept(T t) throws PulsarAdminException;
+    if (execFlag != null) {
+      Assert.assertTrue(execFlag.get());
     }
+  }
 
-    @DataProvider(name = "authFunction")
-    public Object[][] authFunction () throws Exception {
-        String sub = "my-sub";
-        createTopic(testTopic, false);
-        @Cleanup final PulsarClient pulsarClient = PulsarClient.builder()
-                .serviceUrl(getPulsarService().getBrokerServiceUrl())
-                .authentication(new AuthenticationToken(SUPER_USER_TOKEN))
-                .enableTransaction(true)
-                .build();
-        @Cleanup final Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(testTopic).create();
-
-        @Cleanup final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(testTopic)
-                .subscriptionName(sub)
-                .subscribe();
-
-        Transaction transaction = pulsarClient.newTransaction().withTransactionTimeout(5, TimeUnit.MINUTES)
-                .build().get();
-        MessageIdImpl messageId = (MessageIdImpl) producer.newMessage().value("test message").send();
-
-        consumer.acknowledgeAsync(messageId, transaction).get();
-
-        return new Object[][]{
-                // SCHEMA
-                new Object[] {
-                        (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.schemas().getSchemaInfo(testTopic),
-                        OperationAuthType.Lookup
-                },
-                new Object[] {
-                        (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.schemas().getSchemaInfo(
-                                testTopic, 0),
-                        OperationAuthType.Lookup
-                },
-                new Object[] {
-                        (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.schemas().getAllSchemas(
-                                testTopic),
-                        OperationAuthType.Lookup
-                },
-                new Object[] {
-                        (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.schemas().createSchema(testTopic,
-                                SchemaInfo.builder().type(SchemaType.STRING).build()),
-                        OperationAuthType.Produce
-                },
-                // TODO: improve the authorization check for testCompatibility and deleteSchema
-                new Object[] {
-                        (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.schemas().testCompatibility(
-                                testTopic, SchemaInfo.builder().type(SchemaType.STRING).build()),
-                        OperationAuthType.AdminOrSuperUser
-                },
-                new Object[] {
-                        (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.schemas().deleteSchema(
-                                testTopic),
-                        OperationAuthType.AdminOrSuperUser
-                },
-
-                // TRANSACTION
-
-                // Modify transaction coordinator
-                new Object[] {
-                        (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.transactions()
-                                .abortTransaction(transaction.getTxnID()),
-                        OperationAuthType.AdminOrSuperUser
-                },
-                new Object[] {
-                        (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.transactions()
-                                .scaleTransactionCoordinators(17),
-                        OperationAuthType.AdminOrSuperUser
-                },
-                // TODO: fix authorization check of check transaction coordinator stats.
-                // Check transaction coordinator stats
-                new Object[] {
-                        (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.transactions()
-                                .getCoordinatorInternalStats(1, false),
-                        OperationAuthType.NOAuth
-                },
-                new Object[] {
-                        (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.transactions()
-                                .getCoordinatorStats(),
-                        OperationAuthType.AdminOrSuperUser
-                },
-                new Object[] {
-                        (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.transactions()
-                                .getSlowTransactionsByCoordinatorId(1, 5, TimeUnit.SECONDS),
-                        OperationAuthType.NOAuth
-                },
-                new Object[] {
-                        (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.transactions()
-                                .getTransactionMetadata(transaction.getTxnID()),
-                        OperationAuthType.NOAuth
-                },
-                new Object[] {
-                        (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.transactions()
-                                .listTransactionCoordinators(),
-                        OperationAuthType.NOAuth
-                },
-                new Object[] {
-                        (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.transactions()
-                                .getSlowTransactions(5, TimeUnit.SECONDS),
-                        OperationAuthType.AdminOrSuperUser
-                },
-
-                // TODO: Check the authorization of the topic when get stats of TB or TP
-                // Check stats related to transaction buffer and transaction pending ack
-                new Object[] {
-                        (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.transactions()
-                                .getPendingAckInternalStats(testTopic, sub, false),
-                        OperationAuthType.NOAuth
-                },
-                new Object[] {
-                        (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.transactions()
-                                .getPendingAckStats(testTopic, sub, false),
-                        OperationAuthType.NOAuth
-                },
-                new Object[] {
-                        (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.transactions()
-                                .getPositionStatsInPendingAck(testTopic, sub, messageId.getLedgerId(),
-                                        messageId.getEntryId(), null),
-                        OperationAuthType.NOAuth
-                },
-                new Object[] {
-                        (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.transactions()
-                                .getTransactionBufferInternalStats(testTopic, false),
-                        OperationAuthType.NOAuth
-                },
-                new Object[] {
-                        (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.transactions()
-                                .getTransactionBufferStats(testTopic, false),
-                        OperationAuthType.NOAuth
-                },
-                new Object[] {
-                        (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.transactions()
-                                .getTransactionBufferStats(testTopic, false),
-                        OperationAuthType.NOAuth
-                },
-                new Object[] {
-                        (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.transactions()
-                                .getTransactionInBufferStats(transaction.getTxnID(), testTopic),
-                        OperationAuthType.NOAuth
-                },
-                new Object[] {
-                        (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.transactions()
-                                .getTransactionInBufferStats(transaction.getTxnID(), testTopic),
-                        OperationAuthType.NOAuth
-                },
-                new Object[] {
-                        (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.transactions()
-                                .getTransactionInPendingAckStats(transaction.getTxnID(), testTopic, sub),
-                        OperationAuthType.NOAuth
-                },
-        };
-    }
-
-    @Test(dataProvider = "authFunction")
-    public void testSchemaAndTransactionAuthorization(ThrowingBiConsumer<PulsarAdmin> adminConsumer, OperationAuthType topicOpType)
-            throws Exception {
-        final String subject =  UUID.randomUUID().toString();
-        final String token = Jwts.builder()
-                .claim("sub", subject).signWith(SECRET_KEY).compact();
-
-
-        @Cleanup
-        final PulsarAdmin subAdmin = PulsarAdmin.builder()
-                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
-                .authentication(new AuthenticationToken(token))
-                .build();
-        // test tenant manager
-        if (topicOpType != OperationAuthType.AdminOrSuperUser) {
-            adminConsumer.accept(tenantManagerAdmin);
+  private boolean authActionMatchOperation(OperationAuthType operationAuthType, AuthAction action) {
+    switch (operationAuthType) {
+      case Lookup -> {
+        if (AuthAction.consume == action || AuthAction.produce == action) {
+          return true;
         }
-
-        if (topicOpType != OperationAuthType.NOAuth) {
-            Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                    () -> adminConsumer.accept(subAdmin));
+      }
+      case Consume -> {
+        if (AuthAction.consume == action) {
+          return true;
         }
-
-        AtomicBoolean execFlag = null;
-        if (topicOpType == OperationAuthType.Lookup) {
-            execFlag = setAuthorizationTopicOperationChecker(subject, TopicOperation.LOOKUP);
-        } else if (topicOpType == OperationAuthType.Produce) {
-            execFlag = setAuthorizationTopicOperationChecker(subject, TopicOperation.PRODUCE);
-        } else if (topicOpType == OperationAuthType.Consume) {
-            execFlag = setAuthorizationTopicOperationChecker(subject, TopicOperation.CONSUME);
+      }
+      case Produce -> {
+        if (AuthAction.produce == action) {
+          return true;
         }
-
-        for (AuthAction action : AuthAction.values()) {
-            superUserAdmin.topics().grantPermission(testTopic, subject, Set.of(action));
-
-            if (authActionMatchOperation(topicOpType, action)) {
-                adminConsumer.accept(subAdmin);
-            } else {
-                Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                        () -> adminConsumer.accept(subAdmin));
-            }
-            superUserAdmin.topics().revokePermissions(testTopic, subject);
-        }
-
-        if (execFlag != null) {
-            Assert.assertTrue(execFlag.get());
-        }
-
-    }
-
-    private boolean authActionMatchOperation(OperationAuthType operationAuthType, AuthAction action) {
-        switch (operationAuthType) {
-            case Lookup -> {
-                if (AuthAction.consume == action || AuthAction.produce == action) {
-                    return true;
-                }
-            }
-            case Consume -> {
-                if (AuthAction.consume == action) {
-                    return true;
-                }
-            }
-            case Produce -> {
-                if (AuthAction.produce == action) {
-                    return true;
-                }
-            }
-            case AdminOrSuperUser -> {
-                return false;
-            }
-            case NOAuth -> {
-                return true;
-            }
-        }
+      }
+      case AdminOrSuperUser -> {
         return false;
+      }
+      case NOAuth -> {
+        return true;
+      }
     }
-
+    return false;
+  }
 }

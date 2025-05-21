@@ -34,58 +34,69 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class InmemoryTopicPoliciesServiceServiceTest extends MockedPulsarServiceBaseTest {
 
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        conf.setTopicPoliciesServiceClassName(InmemoryTopicPoliciesService.class.getName());
-        conf.setSystemTopicEnabled(false); // verify topic policies don't rely on system topics
-        super.internalSetup();
-        super.setupDefaultTenantAndNamespace();
-    }
+  @BeforeClass
+  @Override
+  protected void setup() throws Exception {
+    conf.setTopicPoliciesServiceClassName(InmemoryTopicPoliciesService.class.getName());
+    conf.setSystemTopicEnabled(false); // verify topic policies don't rely on system topics
+    super.internalSetup();
+    super.setupDefaultTenantAndNamespace();
+  }
 
-    @AfterClass
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @AfterClass
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    // Shadow replicator is created by the topic policies update, this test verifies the listener can be triggered
-    @Test
-    public void testShadowReplicator() throws Exception {
-        final var sourceTopic = TopicName.get("test-shadow-replicator").toString();
-        final var shadowTopic = sourceTopic + "-shadow";
+  // Shadow replicator is created by the topic policies update, this test verifies the listener can
+  // be triggered
+  @Test
+  public void testShadowReplicator() throws Exception {
+    final var sourceTopic = TopicName.get("test-shadow-replicator").toString();
+    final var shadowTopic = sourceTopic + "-shadow";
 
-        admin.topics().createNonPartitionedTopic(sourceTopic);
-        admin.topics().createShadowTopic(shadowTopic, sourceTopic);
-        admin.topics().setShadowTopics(sourceTopic, Lists.newArrayList(shadowTopic));
+    admin.topics().createNonPartitionedTopic(sourceTopic);
+    admin.topics().createShadowTopic(shadowTopic, sourceTopic);
+    admin.topics().setShadowTopics(sourceTopic, Lists.newArrayList(shadowTopic));
 
-        @Cleanup final var producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
-        @Cleanup final var consumer = pulsarClient.newConsumer(Schema.STRING).topic(shadowTopic)
-                .subscriptionName("sub").subscribe();
-        producer.send("msg");
-        final var msg = consumer.receive(5, TimeUnit.SECONDS);
-        Assert.assertNotNull(msg);
-        Assert.assertEquals(msg.getValue(), "msg");
+    @Cleanup
+    final var producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
+    @Cleanup
+    final var consumer =
+        pulsarClient
+            .newConsumer(Schema.STRING)
+            .topic(shadowTopic)
+            .subscriptionName("sub")
+            .subscribe();
+    producer.send("msg");
+    final var msg = consumer.receive(5, TimeUnit.SECONDS);
+    Assert.assertNotNull(msg);
+    Assert.assertEquals(msg.getValue(), "msg");
 
-        final var persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(sourceTopic).get()
-                .orElseThrow();
-        Assert.assertEquals(TopicPolicyTestUtils.getTopicPolicies(persistentTopic).getShadowTopics(), List.of(shadowTopic));
-        Assert.assertEquals(persistentTopic.getShadowReplicators().size(), 1);
-    }
+    final var persistentTopic =
+        (PersistentTopic)
+            pulsar.getBrokerService().getTopicIfExists(sourceTopic).get().orElseThrow();
+    Assert.assertEquals(
+        TopicPolicyTestUtils.getTopicPolicies(persistentTopic).getShadowTopics(),
+        List.of(shadowTopic));
+    Assert.assertEquals(persistentTopic.getShadowReplicators().size(), 1);
+  }
 
-    @Test
-    public void testTopicPoliciesAdmin() throws Exception {
-        final var topic = "test-topic-policies-admin";
-        admin.topics().createNonPartitionedTopic(topic);
+  @Test
+  public void testTopicPoliciesAdmin() throws Exception {
+    final var topic = "test-topic-policies-admin";
+    admin.topics().createNonPartitionedTopic(topic);
 
-        Assert.assertNull(admin.topicPolicies().getCompactionThreshold(topic));
-        admin.topicPolicies().setCompactionThreshold(topic, 1000);
-        Assert.assertEquals(admin.topicPolicies().getCompactionThreshold(topic).intValue(), 1000);
-        // Sleep here because "Directory not empty error" might occur if deleting the topic immediately
-        Thread.sleep(1000);
-        final var topicPoliciesService = (InmemoryTopicPoliciesService) pulsar.getTopicPoliciesService();
-        Assert.assertTrue(topicPoliciesService.containsKey(TopicName.get(topic)));
-        admin.topics().delete(topic);
-        Assert.assertFalse(topicPoliciesService.containsKey(TopicName.get(topic)));
-    }
+    Assert.assertNull(admin.topicPolicies().getCompactionThreshold(topic));
+    admin.topicPolicies().setCompactionThreshold(topic, 1000);
+    Assert.assertEquals(admin.topicPolicies().getCompactionThreshold(topic).intValue(), 1000);
+    // Sleep here because "Directory not empty error" might occur if deleting the topic immediately
+    Thread.sleep(1000);
+    final var topicPoliciesService =
+        (InmemoryTopicPoliciesService) pulsar.getTopicPoliciesService();
+    Assert.assertTrue(topicPoliciesService.containsKey(TopicName.get(topic)));
+    admin.topics().delete(topic);
+    Assert.assertFalse(topicPoliciesService.containsKey(TopicName.get(topic)));
+  }
 }

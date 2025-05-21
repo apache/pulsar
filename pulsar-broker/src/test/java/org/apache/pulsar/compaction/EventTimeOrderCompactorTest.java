@@ -74,12 +74,19 @@ public class EventTimeOrderCompactorTest extends CompactorTest {
 
   @Test
   public void testCompactedOutByEventTime() throws Exception {
-    String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/use/my-ns/testCompactedOutByEventTime");
+    String topicName =
+        BrokerTestUtil.newUniqueName(
+            "persistent://my-property/use/my-ns/testCompactedOutByEventTime");
     this.restartBroker();
 
     @Cleanup
-    Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-        .enableBatching(true).topic(topicName).batchingMaxMessages(3).create();
+    Producer<String> producer =
+        pulsarClient
+            .newProducer(Schema.STRING)
+            .enableBatching(true)
+            .topic(topicName)
+            .batchingMaxMessages(3)
+            .create();
 
     producer.newMessage().key("K1").value("V1").eventTime(1L).sendAsync();
     producer.newMessage().key("K2").value("V2").eventTime(1L).sendAsync();
@@ -88,37 +95,61 @@ public class EventTimeOrderCompactorTest extends CompactorTest {
 
     admin.topics().triggerCompaction(topicName);
 
-    Awaitility.await().untilAsserted(() -> {
-      Assert.assertEquals(admin.topics().compactionStatus(topicName).status,
-          LongRunningProcessStatus.Status.SUCCESS);
-    });
+    Awaitility.await()
+        .untilAsserted(
+            () -> {
+              Assert.assertEquals(
+                  admin.topics().compactionStatus(topicName).status,
+                  LongRunningProcessStatus.Status.SUCCESS);
+            });
 
-    var attributes = Attributes.builder()
-        .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
-        .put(OpenTelemetryAttributes.PULSAR_TENANT, "my-property")
-        .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "my-property/use/my-ns")
-        .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicName)
-        .build();
+    var attributes =
+        Attributes.builder()
+            .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
+            .put(OpenTelemetryAttributes.PULSAR_TENANT, "my-property")
+            .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "my-property/use/my-ns")
+            .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicName)
+            .build();
     var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
-    assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_REMOVED_COUNTER, attributes, 1);
-    assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_OPERATION_COUNTER, Attributes.builder()
+    assertMetricLongSumValue(
+        metrics, OpenTelemetryTopicStats.COMPACTION_REMOVED_COUNTER, attributes, 1);
+    assertMetricLongSumValue(
+        metrics,
+        OpenTelemetryTopicStats.COMPACTION_OPERATION_COUNTER,
+        Attributes.builder()
             .putAll(attributes)
             .put(OpenTelemetryAttributes.PULSAR_COMPACTION_STATUS, "success")
             .build(),
         1);
-    assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_OPERATION_COUNTER, Attributes.builder()
+    assertMetricLongSumValue(
+        metrics,
+        OpenTelemetryTopicStats.COMPACTION_OPERATION_COUNTER,
+        Attributes.builder()
             .putAll(attributes)
             .put(OpenTelemetryAttributes.PULSAR_COMPACTION_STATUS, "failure")
             .build(),
         0);
-    assertMetricDoubleSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_DURATION_SECONDS, attributes,
+    assertMetricDoubleSumValue(
+        metrics,
+        OpenTelemetryTopicStats.COMPACTION_DURATION_SECONDS,
+        attributes,
         actual -> assertThat(actual).isPositive());
-    assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_BYTES_IN_COUNTER, attributes,
+    assertMetricLongSumValue(
+        metrics,
+        OpenTelemetryTopicStats.COMPACTION_BYTES_IN_COUNTER,
+        attributes,
         actual -> assertThat(actual).isPositive());
-    assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_BYTES_OUT_COUNTER, attributes,
+    assertMetricLongSumValue(
+        metrics,
+        OpenTelemetryTopicStats.COMPACTION_BYTES_OUT_COUNTER,
+        attributes,
         actual -> assertThat(actual).isPositive());
-    assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_ENTRIES_COUNTER, attributes, 1);
-    assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_BYTES_COUNTER, attributes,
+    assertMetricLongSumValue(
+        metrics, OpenTelemetryTopicStats.COMPACTION_ENTRIES_COUNTER, attributes, 1);
+    assertMetricLongSumValue(
+        metrics,
+        OpenTelemetryTopicStats.COMPACTION_BYTES_COUNTER,
+        attributes,
         actual -> assertThat(actual).isPositive());
 
     producer.newMessage().key("K1").eventTime(2L).value("V1-2").sendAsync();
@@ -126,18 +157,23 @@ public class EventTimeOrderCompactorTest extends CompactorTest {
 
     admin.topics().triggerCompaction(topicName);
 
-    Awaitility.await().untilAsserted(() -> {
-      Assert.assertEquals(admin.topics().compactionStatus(topicName).status,
-          LongRunningProcessStatus.Status.SUCCESS);
-    });
+    Awaitility.await()
+        .untilAsserted(
+            () -> {
+              Assert.assertEquals(
+                  admin.topics().compactionStatus(topicName).status,
+                  LongRunningProcessStatus.Status.SUCCESS);
+            });
 
     @Cleanup
-    Reader<String> reader = pulsarClient.newReader(Schema.STRING)
-        .subscriptionName("reader-test")
-        .topic(topicName)
-        .readCompacted(true)
-        .startMessageId(MessageId.earliest)
-        .create();
+    Reader<String> reader =
+        pulsarClient
+            .newReader(Schema.STRING)
+            .subscriptionName("reader-test")
+            .topic(topicName)
+            .readCompacted(true)
+            .startMessageId(MessageId.earliest)
+            .create();
     while (reader.hasMessageAvailable()) {
       Message<String> message = reader.readNext(3, TimeUnit.SECONDS);
       Assert.assertEquals(message.getEventTime(), 2L);
@@ -149,38 +185,25 @@ public class EventTimeOrderCompactorTest extends CompactorTest {
     String topic = "persistent://my-property/use/my-ns/my-topic1";
 
     @Cleanup
-    Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
-        .enableBatching(false)
-        .messageRoutingMode(MessageRoutingMode.SinglePartition)
-        .create();
+    Producer<byte[]> producer =
+        pulsarClient
+            .newProducer()
+            .topic(topic)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
 
     Map<String, byte[]> expected = new HashMap<>();
 
-    producer.newMessage()
-        .key("a")
-        .eventTime(1L)
-        .value("A_1".getBytes())
-        .send();
-    producer.newMessage()
-        .key("b")
-        .eventTime(1L)
-        .value("B_1".getBytes())
-        .send();
-    producer.newMessage()
-        .key("a")
-        .eventTime(2L)
-        .value("A_2".getBytes())
-        .send();
+    producer.newMessage().key("a").eventTime(1L).value("A_1".getBytes()).send();
+    producer.newMessage().key("b").eventTime(1L).value("B_1".getBytes()).send();
+    producer.newMessage().key("a").eventTime(2L).value("A_2".getBytes()).send();
     expected.put("a", "A_2".getBytes());
     expected.put("b", "B_1".getBytes());
 
     compactAndVerify(topic, new HashMap<>(expected), false);
 
-    producer.newMessage()
-        .key("b")
-        .eventTime(2L)
-        .value("B_2".getBytes())
-        .send();
+    producer.newMessage().key("b").eventTime(2L).value("B_2".getBytes()).send();
     expected.put("b", "B_2".getBytes());
 
     compactAndVerify(topic, expected, false);
@@ -194,8 +217,9 @@ public class EventTimeOrderCompactorTest extends CompactorTest {
     PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
     ConnectionPool connectionPool = mock(ConnectionPool.class);
     when(mockClient.getCnxPool()).thenReturn(connectionPool);
-    EventTimeOrderCompactor compactor = new EventTimeOrderCompactor(configuration, mockClient,
-        Mockito.mock(BookKeeper.class), compactionScheduler);
+    EventTimeOrderCompactor compactor =
+        new EventTimeOrderCompactor(
+            configuration, mockClient, Mockito.mock(BookKeeper.class), compactionScheduler);
     Assert.assertEquals(compactor.getPhaseOneLoopReadTimeoutInSeconds(), 60);
   }
 }

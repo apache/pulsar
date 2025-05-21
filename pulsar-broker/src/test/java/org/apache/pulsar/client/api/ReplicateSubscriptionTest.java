@@ -22,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -37,60 +38,57 @@ import org.testng.annotations.Test;
 
 public class ReplicateSubscriptionTest extends ProducerConsumerBase {
 
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
+  @BeforeClass
+  @Override
+  protected void setup() throws Exception {
+    super.internalSetup();
+    super.producerBaseSetup();
+  }
 
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @AfterClass(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @Override
-    protected void doInitConf() throws Exception {
-        super.doInitConf();
-    }
+  @Override
+  protected void doInitConf() throws Exception {
+    super.doInitConf();
+  }
 
-    @DataProvider
-    public Object[] replicateSubscriptionState() {
-        return new Object[]{
-                Boolean.TRUE,
-                Boolean.FALSE,
-                null
-        };
-    }
+  @DataProvider
+  public Object[] replicateSubscriptionState() {
+    return new Object[] {Boolean.TRUE, Boolean.FALSE, null};
+  }
 
-    @Test(dataProvider = "replicateSubscriptionState")
-    public void testReplicateSubscriptionState(Boolean replicateSubscriptionState)
-            throws Exception {
-        String topic = "persistent://my-property/my-ns/" + System.nanoTime();
-        String subName = "sub-" + System.nanoTime();
-        ConsumerBuilder<String> consumerBuilder = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topic)
-                .subscriptionName(subName);
-        if (replicateSubscriptionState != null) {
-            consumerBuilder.replicateSubscriptionState(replicateSubscriptionState);
-        }
-        ConsumerBuilderImpl consumerBuilderImpl = (ConsumerBuilderImpl) consumerBuilder;
-        assertEquals(consumerBuilderImpl.getConf().getReplicateSubscriptionState(), replicateSubscriptionState);
-        @Cleanup
-        Consumer<String> ignored = consumerBuilder.subscribe();
-        CompletableFuture<Optional<Topic>> topicIfExists = pulsar.getBrokerService().getTopicIfExists(topic);
-        assertThat(topicIfExists)
-                .succeedsWithin(3, TimeUnit.SECONDS)
-                .matches(optionalTopic -> {
-                    assertTrue(optionalTopic.isPresent());
-                    Topic topicRef = optionalTopic.get();
-                    Subscription subscription = topicRef.getSubscription(subName);
-                    assertNotNull(subscription);
-                    assertTrue(subscription instanceof PersistentSubscription);
-                    PersistentSubscription persistentSubscription = (PersistentSubscription) subscription;
-                    assertEquals(persistentSubscription.getReplicatedControlled(), replicateSubscriptionState);
-                    return true;
-                });
+  @Test(dataProvider = "replicateSubscriptionState")
+  public void testReplicateSubscriptionState(Boolean replicateSubscriptionState) throws Exception {
+    String topic = "persistent://my-property/my-ns/" + System.nanoTime();
+    String subName = "sub-" + System.nanoTime();
+    ConsumerBuilder<String> consumerBuilder =
+        pulsarClient.newConsumer(Schema.STRING).topic(topic).subscriptionName(subName);
+    if (replicateSubscriptionState != null) {
+      consumerBuilder.replicateSubscriptionState(replicateSubscriptionState);
     }
+    ConsumerBuilderImpl consumerBuilderImpl = (ConsumerBuilderImpl) consumerBuilder;
+    assertEquals(
+        consumerBuilderImpl.getConf().getReplicateSubscriptionState(), replicateSubscriptionState);
+    @Cleanup Consumer<String> ignored = consumerBuilder.subscribe();
+    CompletableFuture<Optional<Topic>> topicIfExists =
+        pulsar.getBrokerService().getTopicIfExists(topic);
+    assertThat(topicIfExists)
+        .succeedsWithin(3, TimeUnit.SECONDS)
+        .matches(
+            optionalTopic -> {
+              assertTrue(optionalTopic.isPresent());
+              Topic topicRef = optionalTopic.get();
+              Subscription subscription = topicRef.getSubscription(subName);
+              assertNotNull(subscription);
+              assertTrue(subscription instanceof PersistentSubscription);
+              PersistentSubscription persistentSubscription = (PersistentSubscription) subscription;
+              assertEquals(
+                  persistentSubscription.getReplicatedControlled(), replicateSubscriptionState);
+              return true;
+            });
+  }
 }

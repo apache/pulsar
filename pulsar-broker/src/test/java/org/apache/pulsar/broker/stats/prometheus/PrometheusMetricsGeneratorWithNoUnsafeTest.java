@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.stats.prometheus;
 
 import static org.testng.Assert.assertFalse;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.util.internal.PlatformDependent;
 import java.time.Clock;
@@ -30,23 +31,23 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-isolated")
 public class PrometheusMetricsGeneratorWithNoUnsafeTest {
 
-    @BeforeClass
-    static void setup() {
-        System.setProperty("io.netty.noUnsafe", "true");
-    }
+  @BeforeClass
+  static void setup() {
+    System.setProperty("io.netty.noUnsafe", "true");
+  }
 
-    @Test
-    public void testWriteStringWithNoUnsafe() {
-        assertFalse(PlatformDependent.hasUnsafe());
-        @Cleanup
-        PrometheusMetricsGenerator generator = new PrometheusMetricsGenerator(null, false, false, false, false,
-            Clock.systemUTC());
-        @Cleanup("release")
-        ByteBuf buf = generator.allocateMultipartCompositeDirectBuffer();
-        for (int i = 0; i < 2; i++) {
-            buf.writeBytes(new byte[1024 * 1024]);
-        }
-        SimpleTextOutputStream outputStream = new SimpleTextOutputStream(buf);
-        outputStream.write("test");
+  @Test
+  public void testWriteStringWithNoUnsafe() {
+    assertFalse(PlatformDependent.hasUnsafe());
+    @Cleanup
+    PrometheusMetricsGenerator generator =
+        new PrometheusMetricsGenerator(null, false, false, false, false, Clock.systemUTC());
+    @Cleanup("release")
+    ByteBuf buf = generator.allocateMultipartCompositeDirectBuffer();
+    for (int i = 0; i < 2; i++) {
+      buf.writeBytes(new byte[1024 * 1024]);
     }
+    SimpleTextOutputStream outputStream = new SimpleTextOutputStream(buf);
+    outputStream.write("test");
+  }
 }

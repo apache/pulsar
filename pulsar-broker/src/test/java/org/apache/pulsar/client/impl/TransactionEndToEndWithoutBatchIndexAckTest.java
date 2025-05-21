@@ -23,24 +23,22 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-/**
- * End to end transaction test.
- */
+/** End to end transaction test. */
 @Slf4j
 @Test(groups = "broker-impl")
 public class TransactionEndToEndWithoutBatchIndexAckTest extends TransactionEndToEndTest {
 
-    @BeforeClass(alwaysRun = true)
-    protected void setup() throws Exception {
-        conf.setAcknowledgmentAtBatchIndexLevelEnabled(false);
-        setUpBase(1, NUM_PARTITIONS, TOPIC_OUTPUT, TOPIC_PARTITION);
-        admin.topics().createPartitionedTopic(TOPIC_MESSAGE_ACK_TEST, 1);
-    }
+  @BeforeClass(alwaysRun = true)
+  protected void setup() throws Exception {
+    conf.setAcknowledgmentAtBatchIndexLevelEnabled(false);
+    setUpBase(1, NUM_PARTITIONS, TOPIC_OUTPUT, TOPIC_PARTITION);
+    admin.topics().createPartitionedTopic(TOPIC_MESSAGE_ACK_TEST, 1);
+  }
 
-    // TODO need to fix which using transaction with individual ack for failover subscription
-    @Test
-    public void txnIndividualAckTestBatchAndFailoverSub() throws Exception {
-        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
-        txnAckTest(true, 200, SubscriptionType.Failover);
-    }
+  // TODO need to fix which using transaction with individual ack for failover subscription
+  @Test
+  public void txnIndividualAckTestBatchAndFailoverSub() throws Exception {
+    conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
+    txnAckTest(true, 200, SubscriptionType.Failover);
+  }
 }

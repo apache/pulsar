@@ -18,65 +18,63 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
+import com.github.zafarkhaja.semver.Version;
 import java.util.Set;
 import java.util.TreeSet;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.BrokerVersionFilter;
-import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
+import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import com.github.zafarkhaja.semver.Version;
 
 @Test(groups = "broker")
 public class BrokerVersionFilterTest {
 
-    @Test
-    public void testLatestVersion() {
-        LoadData loadData = initLoadData();
-        Set<String> brokers = new TreeSet<>();
-        brokers.add("broker1");
-        brokers.add("broker2");
-        brokers.add("broker3");
+  @Test
+  public void testLatestVersion() {
+    LoadData loadData = initLoadData();
+    Set<String> brokers = new TreeSet<>();
+    brokers.add("broker1");
+    brokers.add("broker2");
+    brokers.add("broker3");
 
-        BrokerVersionFilter filter = new BrokerVersionFilter();
-        try {
-            Version latestVersion = filter.getLatestVersionNumber(brokers, loadData);
-            Assert.assertEquals(latestVersion.getMajorVersion(), 1);
-            Assert.assertEquals(latestVersion.getMinorVersion(), 2);
-            Assert.assertEquals(latestVersion.getPatchVersion(), 0);
-        } catch (BrokerFilterBadVersionException bad) {
-            Assert.fail(bad.getMessage(), bad);
-        }
-
-        ServiceConfiguration configuration = new ServiceConfiguration();
-        configuration.setPreferLaterVersions(true);
-        try {
-            filter.filter(brokers, null, loadData, configuration);
-            // Only one broker is running the latest version
-            Assert.assertEquals(brokers.size(), 1);
-        } catch (BrokerFilterBadVersionException bad) {
-            Assert.fail(bad.getMessage(), bad);
-        }
+    BrokerVersionFilter filter = new BrokerVersionFilter();
+    try {
+      Version latestVersion = filter.getLatestVersionNumber(brokers, loadData);
+      Assert.assertEquals(latestVersion.getMajorVersion(), 1);
+      Assert.assertEquals(latestVersion.getMinorVersion(), 2);
+      Assert.assertEquals(latestVersion.getPatchVersion(), 0);
+    } catch (BrokerFilterBadVersionException bad) {
+      Assert.fail(bad.getMessage(), bad);
     }
 
-    private LoadData initLoadData() {
-        LocalBrokerData broker1Data = new LocalBrokerData();
-        broker1Data.setBrokerVersionString("1.1.0-SNAPSHOT");
-
-        LocalBrokerData broker2Data = new LocalBrokerData();
-        broker2Data.setBrokerVersionString("1.1.0-SNAPSHOT");
-
-        LocalBrokerData broker3Data = new LocalBrokerData();
-        broker3Data.setBrokerVersionString("1.2.0-SNAPSHOT");
-
-        LoadData loadData = new LoadData();
-        loadData.getBrokerData().put("broker1", new BrokerData(broker1Data));
-        loadData.getBrokerData().put("broker2", new BrokerData(broker2Data));
-        loadData.getBrokerData().put("broker3", new BrokerData(broker3Data));
-
-        return loadData;
+    ServiceConfiguration configuration = new ServiceConfiguration();
+    configuration.setPreferLaterVersions(true);
+    try {
+      filter.filter(brokers, null, loadData, configuration);
+      // Only one broker is running the latest version
+      Assert.assertEquals(brokers.size(), 1);
+    } catch (BrokerFilterBadVersionException bad) {
+      Assert.fail(bad.getMessage(), bad);
     }
+  }
+
+  private LoadData initLoadData() {
+    LocalBrokerData broker1Data = new LocalBrokerData();
+    broker1Data.setBrokerVersionString("1.1.0-SNAPSHOT");
+
+    LocalBrokerData broker2Data = new LocalBrokerData();
+    broker2Data.setBrokerVersionString("1.1.0-SNAPSHOT");
+
+    LocalBrokerData broker3Data = new LocalBrokerData();
+    broker3Data.setBrokerVersionString("1.2.0-SNAPSHOT");
+
+    LoadData loadData = new LoadData();
+    loadData.getBrokerData().put("broker1", new BrokerData(broker1Data));
+    loadData.getBrokerData().put("broker2", new BrokerData(broker2Data));
+    loadData.getBrokerData().put("broker3", new BrokerData(broker3Data));
+
+    return loadData;
+  }
 }

@@ -22,29 +22,29 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.eclipse.jetty.servlet.ServletHolder;
 
-public class MockAdditionalServletWithClassLoader implements AdditionalServletWithPulsarService{
-    @Override
-    public void loadConfig(PulsarConfiguration pulsarConfiguration) {
-        // No-op
-    }
+public class MockAdditionalServletWithClassLoader implements AdditionalServletWithPulsarService {
+  @Override
+  public void loadConfig(PulsarConfiguration pulsarConfiguration) {
+    // No-op
+  }
 
-    @Override
-    public String getBasePath() {
-        return null;
-    }
+  @Override
+  public String getBasePath() {
+    return null;
+  }
 
-    @Override
-    public ServletHolder getServletHolder() {
-        return null;
-    }
+  @Override
+  public ServletHolder getServletHolder() {
+    return null;
+  }
 
-    @Override
-    public void close() {
-        // No-op
-    }
+  @Override
+  public void close() {
+    // No-op
+  }
 
-    @Override
-    public void setPulsarService(PulsarService pulsarService) {
-        // No-op
-    }
+  @Override
+  public void setPulsarService(PulsarService pulsarService) {
+    // No-op
+  }
 }

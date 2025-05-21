@@ -21,8 +21,9 @@ package org.apache.pulsar.broker.service.persistent;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
+import com.scurrilous.circe.checksum.Crc32cIntChecksum;
+import io.netty.buffer.ByteBuf;
 import java.util.List;
-
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -35,71 +36,67 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.scurrilous.circe.checksum.Crc32cIntChecksum;
-
-import io.netty.buffer.ByteBuf;
-
 @Test(groups = "broker")
 public class ChecksumTest extends BrokerTestBase {
 
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.baseSetup();
-    }
+  @BeforeClass
+  @Override
+  protected void setup() throws Exception {
+    super.baseSetup();
+  }
 
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @AfterClass(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @Test
-    public void verifyChecksumStoredInManagedLedger() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/topic0";
+  @Test
+  public void verifyChecksumStoredInManagedLedger() throws Exception {
+    final String topicName = "persistent://prop/use/ns-abc/topic0";
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+    Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+    PersistentTopic topic =
+        (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
-        ManagedLedger ledger = topic.getManagedLedger();
-        ManagedCursor cursor = ledger.openCursor("test");
+    ManagedLedger ledger = topic.getManagedLedger();
+    ManagedCursor cursor = ledger.openCursor("test");
 
-        producer.send("Hello".getBytes());
+    producer.send("Hello".getBytes());
 
-        List<Entry> entries = cursor.readEntriesOrWait(1);
-        assertEquals(entries.size(), 1);
+    List<Entry> entries = cursor.readEntriesOrWait(1);
+    assertEquals(entries.size(), 1);
 
-        ByteBuf b = entries.get(0).getDataBuffer();
+    ByteBuf b = entries.get(0).getDataBuffer();
 
-        assertTrue(Commands.hasChecksum(b));
-        int parsedChecksum = Commands.readChecksum(b);
-        int computedChecksum = Crc32cIntChecksum.computeChecksum(b);
-        assertEquals(parsedChecksum, computedChecksum);
+    assertTrue(Commands.hasChecksum(b));
+    int parsedChecksum = Commands.readChecksum(b);
+    int computedChecksum = Crc32cIntChecksum.computeChecksum(b);
+    assertEquals(parsedChecksum, computedChecksum);
 
-        entries.get(0).release();
-        producer.close();
-    }
+    entries.get(0).release();
+    producer.close();
+  }
 
-    @Test
-    public void verifyChecksumSentToConsumer() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/topic-1";
+  @Test
+  public void verifyChecksumSentToConsumer() throws Exception {
+    final String topicName = "persistent://prop/use/ns-abc/topic-1";
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        RawReader reader = RawReader.create(pulsarClient, topicName, "sub").get();
+    Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+    RawReader reader = RawReader.create(pulsarClient, topicName, "sub").get();
 
-        producer.send("Hello".getBytes());
+    producer.send("Hello".getBytes());
 
-        RawMessage msg = reader.readNextAsync().get();
+    RawMessage msg = reader.readNextAsync().get();
 
-        ByteBuf b = msg.getHeadersAndPayload();
-        assertTrue(Commands.hasChecksum(b));
-        int parsedChecksum = Commands.readChecksum(b);
-        int computedChecksum = Crc32cIntChecksum.computeChecksum(b);
-        assertEquals(parsedChecksum, computedChecksum);
+    ByteBuf b = msg.getHeadersAndPayload();
+    assertTrue(Commands.hasChecksum(b));
+    int parsedChecksum = Commands.readChecksum(b);
+    int computedChecksum = Crc32cIntChecksum.computeChecksum(b);
+    assertEquals(parsedChecksum, computedChecksum);
 
-        producer.close();
-        reader.closeAsync().get();
-    }
-
+    producer.close();
+    reader.closeAsync().get();
+  }
 }

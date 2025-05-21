@@ -18,28 +18,30 @@
  */
 package org.apache.pulsar.broker.service.utils;
 
+import com.google.common.collect.Queues;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import java.util.Queue;
+import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
-import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
-import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
-import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
-import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
-import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
-import org.apache.pulsar.common.api.proto.CommandPing;
-import org.apache.pulsar.common.api.proto.CommandPong;
-import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
-import org.apache.pulsar.common.protocol.PulsarDecoder;
-import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.CommandConnect;
 import org.apache.pulsar.common.api.proto.CommandConnected;
+import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
+import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
+import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandError;
 import org.apache.pulsar.common.api.proto.CommandFlow;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.CommandMessage;
+import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
+import org.apache.pulsar.common.api.proto.CommandPing;
+import org.apache.pulsar.common.api.proto.CommandPong;
 import org.apache.pulsar.common.api.proto.CommandProducer;
 import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.CommandSend;
@@ -48,177 +50,181 @@ import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
-
-import com.google.common.collect.Queues;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.embedded.EmbeddedChannel;
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
+import org.apache.pulsar.common.protocol.PulsarDecoder;
 
 public class ClientChannelHelper {
-    private final EmbeddedChannel channel;
+  private final EmbeddedChannel channel;
 
-    private final Queue<Object> queue = Queues.newArrayDeque();
+  private final Queue<Object> queue = Queues.newArrayDeque();
 
-    public ClientChannelHelper() {
-        int MaxMessageSize = 5 * 1024 * 1024;
-        channel = new EmbeddedChannel(new LengthFieldBasedFrameDecoder(MaxMessageSize, 0, 4, 0, 4), decoder);
-    }
+  public ClientChannelHelper() {
+    int MaxMessageSize = 5 * 1024 * 1024;
+    channel =
+        new EmbeddedChannel(new LengthFieldBasedFrameDecoder(MaxMessageSize, 0, 4, 0, 4), decoder);
+  }
 
-    public Object getCommand(Object obj) {
-        channel.writeInbound(obj);
-        return queue.poll();
-    }
+  public Object getCommand(Object obj) {
+    channel.writeInbound(obj);
+    return queue.poll();
+  }
 
-    private final PulsarDecoder decoder = new PulsarDecoder() {
+  private final PulsarDecoder decoder =
+      new PulsarDecoder() {
 
         @Override
-        protected void messageReceived() {
-        }
+        protected void messageReceived() {}
 
         @Override
         protected void handleConnect(CommandConnect connect) {
-            queue.offer(new CommandConnect().copyFrom(connect));
+          queue.offer(new CommandConnect().copyFrom(connect));
         }
 
         @Override
         protected void handleConnected(CommandConnected connected) {
-            queue.offer(new CommandConnected().copyFrom(connected));
+          queue.offer(new CommandConnected().copyFrom(connected));
         }
 
         @Override
         protected void handleAuthChallenge(CommandAuthChallenge challenge) {
-            queue.offer(new CommandAuthChallenge().copyFrom(challenge));
+          queue.offer(new CommandAuthChallenge().copyFrom(challenge));
         }
 
         @Override
         protected void handleSubscribe(CommandSubscribe subscribe) {
-            queue.offer(new CommandSubscribe().copyFrom(subscribe));
+          queue.offer(new CommandSubscribe().copyFrom(subscribe));
         }
 
         @Override
         protected void handleProducer(CommandProducer producer) {
-            queue.offer(new CommandProducer().copyFrom(producer));
+          queue.offer(new CommandProducer().copyFrom(producer));
         }
 
         @Override
         protected void handleSend(CommandSend send, ByteBuf headersAndPayload) {
-            queue.offer(new CommandSend().copyFrom(send));
+          queue.offer(new CommandSend().copyFrom(send));
         }
 
         @Override
         protected void handleSendReceipt(CommandSendReceipt sendReceipt) {
-            queue.offer(new CommandSendReceipt().copyFrom(sendReceipt));
+          queue.offer(new CommandSendReceipt().copyFrom(sendReceipt));
         }
 
         @Override
         protected void handleSendError(CommandSendError sendError) {
-            queue.offer(new CommandSendError().copyFrom(sendError));
+          queue.offer(new CommandSendError().copyFrom(sendError));
         }
 
         @Override
         protected void handleMessage(CommandMessage cmdMessage, ByteBuf headersAndPayload) {
-            queue.offer(new CommandMessage().copyFrom(cmdMessage));
+          queue.offer(new CommandMessage().copyFrom(cmdMessage));
         }
 
         @Override
         protected void handleAck(CommandAck ack) {
-            queue.offer(new CommandAck().copyFrom(ack));
+          queue.offer(new CommandAck().copyFrom(ack));
         }
 
         @Override
         protected void handleFlow(CommandFlow flow) {
-            queue.offer(new CommandFlow().copyFrom(flow));
+          queue.offer(new CommandFlow().copyFrom(flow));
         }
 
         @Override
         protected void handleUnsubscribe(CommandUnsubscribe unsubscribe) {
-            queue.offer(new CommandUnsubscribe().copyFrom(unsubscribe));
+          queue.offer(new CommandUnsubscribe().copyFrom(unsubscribe));
         }
 
         @Override
         protected void handleSuccess(CommandSuccess success) {
-            queue.offer(new CommandSuccess().copyFrom(success));
+          queue.offer(new CommandSuccess().copyFrom(success));
         }
 
         @Override
         protected void handleError(CommandError error) {
-            queue.offer(new CommandError().copyFrom(error));
+          queue.offer(new CommandError().copyFrom(error));
         }
 
         @Override
         protected void handleCloseProducer(CommandCloseProducer closeProducer) {
-            queue.offer(new CommandCloseProducer().copyFrom(closeProducer));
+          queue.offer(new CommandCloseProducer().copyFrom(closeProducer));
         }
 
         @Override
         protected void handleCloseConsumer(CommandCloseConsumer closeConsumer) {
-            queue.offer(new CommandCloseConsumer().copyFrom(closeConsumer));
+          queue.offer(new CommandCloseConsumer().copyFrom(closeConsumer));
         }
 
         @Override
         protected void handleProducerSuccess(CommandProducerSuccess success) {
-            queue.offer(new CommandProducerSuccess().copyFrom(success));
+          queue.offer(new CommandProducerSuccess().copyFrom(success));
         }
 
         @Override
         protected void handleLookupResponse(CommandLookupTopicResponse connection) {
-            queue.offer(new CommandLookupTopicResponse().copyFrom(connection));
+          queue.offer(new CommandLookupTopicResponse().copyFrom(connection));
         }
 
         @Override
-        protected void handleGetTopicsOfNamespaceSuccess(CommandGetTopicsOfNamespaceResponse response) {
-            queue.offer(new CommandGetTopicsOfNamespaceResponse().copyFrom(response));
+        protected void handleGetTopicsOfNamespaceSuccess(
+            CommandGetTopicsOfNamespaceResponse response) {
+          queue.offer(new CommandGetTopicsOfNamespaceResponse().copyFrom(response));
         }
 
         @Override
-        protected void handleCommandWatchTopicListSuccess(CommandWatchTopicListSuccess commandWatchTopicListSuccess) {
-            queue.offer(new CommandWatchTopicListSuccess().copyFrom(commandWatchTopicListSuccess));
+        protected void handleCommandWatchTopicListSuccess(
+            CommandWatchTopicListSuccess commandWatchTopicListSuccess) {
+          queue.offer(new CommandWatchTopicListSuccess().copyFrom(commandWatchTopicListSuccess));
         }
 
         @Override
         protected void handlePartitionResponse(CommandPartitionedTopicMetadataResponse response) {
-            queue.offer(new CommandPartitionedTopicMetadataResponse().copyFrom(response));
+          queue.offer(new CommandPartitionedTopicMetadataResponse().copyFrom(response));
         }
 
         @Override
         protected void handleAddPartitionToTxnResponse(
-                CommandAddPartitionToTxnResponse commandAddPartitionToTxnResponse) {
-            queue.offer(new CommandAddPartitionToTxnResponse().copyFrom(commandAddPartitionToTxnResponse));
+            CommandAddPartitionToTxnResponse commandAddPartitionToTxnResponse) {
+          queue.offer(
+              new CommandAddPartitionToTxnResponse().copyFrom(commandAddPartitionToTxnResponse));
         }
 
         @Override
         protected void handleAddSubscriptionToTxnResponse(
-                CommandAddSubscriptionToTxnResponse commandAddSubscriptionToTxnResponse) {
-            queue.offer(new CommandAddSubscriptionToTxnResponse().copyFrom(commandAddSubscriptionToTxnResponse));
+            CommandAddSubscriptionToTxnResponse commandAddSubscriptionToTxnResponse) {
+          queue.offer(
+              new CommandAddSubscriptionToTxnResponse()
+                  .copyFrom(commandAddSubscriptionToTxnResponse));
         }
 
         @Override
         protected void handleEndTxnResponse(CommandEndTxnResponse commandEndTxnResponse) {
-            queue.offer(new CommandEndTxnResponse().copyFrom(commandEndTxnResponse));
+          queue.offer(new CommandEndTxnResponse().copyFrom(commandEndTxnResponse));
         }
 
         @Override
         protected void handleEndTxnOnPartitionResponse(
-                CommandEndTxnOnPartitionResponse commandEndTxnOnPartitionResponse) {
-            queue.offer(new CommandEndTxnOnPartitionResponse().copyFrom(commandEndTxnOnPartitionResponse));
+            CommandEndTxnOnPartitionResponse commandEndTxnOnPartitionResponse) {
+          queue.offer(
+              new CommandEndTxnOnPartitionResponse().copyFrom(commandEndTxnOnPartitionResponse));
         }
 
         @Override
         protected void handleEndTxnOnSubscriptionResponse(
-                CommandEndTxnOnSubscriptionResponse commandEndTxnOnSubscriptionResponse) {
-            queue.offer(new CommandEndTxnOnSubscriptionResponse().copyFrom(commandEndTxnOnSubscriptionResponse));
+            CommandEndTxnOnSubscriptionResponse commandEndTxnOnSubscriptionResponse) {
+          queue.offer(
+              new CommandEndTxnOnSubscriptionResponse()
+                  .copyFrom(commandEndTxnOnSubscriptionResponse));
         }
 
         @Override
         protected void handlePing(CommandPing ping) {
-            queue.offer(new CommandPing().copyFrom(ping));
+          queue.offer(new CommandPing().copyFrom(ping));
         }
 
         @Override
         protected void handlePong(CommandPong pong) {
-            return;
+          return;
         }
-    };
-
+      };
 }

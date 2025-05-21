@@ -39,156 +39,140 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-admin")
 public class BookiesApiTest extends MockedPulsarServiceBaseTest {
 
-    @BeforeMethod
-    @Override
-    public void setup() throws Exception {
-        super.internalSetup();
+  @BeforeMethod
+  @Override
+  public void setup() throws Exception {
+    super.internalSetup();
+  }
+
+  @AfterMethod(alwaysRun = true)
+  @Override
+  public void cleanup() throws Exception {
+    super.internalCleanup();
+  }
+
+  @Test
+  public void testBasic() throws Exception {
+    // no map
+    BookiesRackConfiguration conf = (BookiesRackConfiguration) admin.bookies().getBookiesRackInfo();
+    assertTrue(conf.isEmpty());
+
+    String bookie0 = "127.0.0.1:3181";
+    String bookie1 = "127.0.0.2:3181";
+
+    // get bookie doesn't exist
+    try {
+      admin.bookies().getBookieRackInfo(bookie0);
+      fail("should not reach here");
+    } catch (PulsarAdminException pae) {
+      assertEquals(404, pae.getStatusCode());
+      assertEquals(pae.getHttpError(), "Bookie rack placement configuration not found: " + bookie0);
     }
 
-    @AfterMethod(alwaysRun = true)
-    @Override
-    public void cleanup() throws Exception {
-        super.internalCleanup();
+    // delete bookie doesn't exist
+    try {
+      admin.bookies().deleteBookieRackInfo(bookie0);
+      fail("should not reach here");
+    } catch (PulsarAdminException pae) {
+      assertEquals(404, pae.getStatusCode());
+      assertEquals(pae.getHttpError(), "Bookie rack placement configuration not found: " + bookie0);
     }
 
-    @Test
-    public void testBasic() throws Exception {
-        // no map
-        BookiesRackConfiguration conf = (BookiesRackConfiguration) admin.bookies().getBookiesRackInfo();
-        assertTrue(conf.isEmpty());
+    // update the bookie info
+    BookieInfo newInfo0 = BookieInfo.builder().rack("/rack1").hostname("127.0.0.1").build();
+    BookieInfo newInfo1 = BookieInfo.builder().rack("/rack1").hostname("127.0.0.2").build();
+    admin.bookies().updateBookieRackInfo(bookie0, "default", newInfo0);
+    BookieInfo readInfo0 = admin.bookies().getBookieRackInfo(bookie0);
+    assertEquals(newInfo0, readInfo0);
+    conf = (BookiesRackConfiguration) admin.bookies().getBookiesRackInfo();
+    // number of groups
+    assertEquals(1, conf.size());
+    assertEquals(Optional.of(newInfo0), conf.getBookie(bookie0));
 
-        String bookie0 = "127.0.0.1:3181";
-        String bookie1 = "127.0.0.2:3181";
+    admin.bookies().updateBookieRackInfo(bookie1, "default", newInfo1);
+    BookieInfo readInfo1 = admin.bookies().getBookieRackInfo(bookie1);
+    assertEquals(newInfo1, readInfo1);
+    conf = (BookiesRackConfiguration) admin.bookies().getBookiesRackInfo();
+    // number of groups
+    assertEquals(1, conf.size());
+    assertEquals(Optional.of(newInfo0), conf.getBookie(bookie0));
+    assertEquals(Optional.of(newInfo1), conf.getBookie(bookie1));
 
-        // get bookie doesn't exist
-        try {
-            admin.bookies().getBookieRackInfo(bookie0);
-            fail("should not reach here");
-        } catch (PulsarAdminException pae) {
-            assertEquals(404, pae.getStatusCode());
-            assertEquals(pae.getHttpError(), "Bookie rack placement configuration not found: " + bookie0);
-        }
+    admin.bookies().deleteBookieRackInfo(bookie0);
+    try {
+      admin.bookies().getBookieRackInfo(bookie0);
+      fail("should not reach here");
+    } catch (PulsarAdminException pae) {
+      assertEquals(404, pae.getStatusCode());
+    }
+    assertEquals(newInfo1, admin.bookies().getBookieRackInfo(bookie1));
 
-        // delete bookie doesn't exist
-        try {
-            admin.bookies().deleteBookieRackInfo(bookie0);
-            fail("should not reach here");
-        } catch (PulsarAdminException pae) {
-            assertEquals(404, pae.getStatusCode());
-            assertEquals(pae.getHttpError(), "Bookie rack placement configuration not found: " + bookie0);
-        }
+    admin.bookies().deleteBookieRackInfo(bookie1);
+    try {
+      admin.bookies().getBookieRackInfo(bookie1);
+      fail("should not reach here");
+    } catch (PulsarAdminException pae) {
+      assertEquals(404, pae.getStatusCode());
+    }
 
-        // update the bookie info
-        BookieInfo newInfo0 = BookieInfo.builder()
-                .rack("/rack1")
-                .hostname("127.0.0.1")
-                .build();
-        BookieInfo newInfo1 = BookieInfo.builder()
-                .rack("/rack1")
-                .hostname("127.0.0.2")
-                .build();
-        admin.bookies().updateBookieRackInfo(bookie0, "default", newInfo0);
-        BookieInfo readInfo0 = admin.bookies().getBookieRackInfo(bookie0);
-        assertEquals(newInfo0, readInfo0);
-        conf = (BookiesRackConfiguration) admin.bookies().getBookiesRackInfo();
-        // number of groups
-        assertEquals(1, conf.size());
-        assertEquals(Optional.of(newInfo0), conf.getBookie(bookie0));
+    conf = (BookiesRackConfiguration) admin.bookies().getBookiesRackInfo();
+    assertTrue(conf.isEmpty());
 
-        admin.bookies().updateBookieRackInfo(bookie1, "default", newInfo1);
-        BookieInfo readInfo1 = admin.bookies().getBookieRackInfo(bookie1);
-        assertEquals(newInfo1, readInfo1);
-        conf = (BookiesRackConfiguration) admin.bookies().getBookiesRackInfo();
-        // number of groups
-        assertEquals(1, conf.size());
-        assertEquals(Optional.of(newInfo0), conf.getBookie(bookie0));
-        assertEquals(Optional.of(newInfo1), conf.getBookie(bookie1));
+    BookiesClusterInfo bookies = admin.bookies().getBookies();
+    log.info("bookies info {}", bookies);
+    assertEquals(
+        bookies.getBookies().size(),
+        pulsar
+            .getBookKeeperClient()
+            .getMetadataClientDriver()
+            .getRegistrationClient()
+            .getAllBookies()
+            .get()
+            .getValue()
+            .size());
 
-        admin.bookies().deleteBookieRackInfo(bookie0);
-        try {
-            admin.bookies().getBookieRackInfo(bookie0);
-            fail("should not reach here");
-        } catch (PulsarAdminException pae) {
-            assertEquals(404, pae.getStatusCode());
-        }
-        assertEquals(newInfo1, admin.bookies().getBookieRackInfo(bookie1));
-
-        admin.bookies().deleteBookieRackInfo(bookie1);
-        try {
-            admin.bookies().getBookieRackInfo(bookie1);
-            fail("should not reach here");
-        } catch (PulsarAdminException pae) {
-            assertEquals(404, pae.getStatusCode());
-        }
-
-        conf = (BookiesRackConfiguration) admin.bookies().getBookiesRackInfo();
-        assertTrue(conf.isEmpty());
-
-        BookiesClusterInfo bookies = admin.bookies().getBookies();
-        log.info("bookies info {}", bookies);
-        assertEquals(bookies.getBookies().size(),
-                pulsar.getBookKeeperClient()
-                .getMetadataClientDriver()
-                .getRegistrationClient()
-                .getAllBookies()
-                .get()
-                .getValue()
-                .size());
-
-        // test invalid rack name
-        // use rack aware placement policy
-        String errorMsg = "Bookie 'rack' parameter is invalid, When `RackawareEnsemblePlacementPolicy` is enabled, "
+    // test invalid rack name
+    // use rack aware placement policy
+    String errorMsg =
+        "Bookie 'rack' parameter is invalid, When `RackawareEnsemblePlacementPolicy` is enabled, "
             + "the rack name is not allowed to contain slash (`/`) except for the beginning and end of the rack name "
             + "string. When `RegionawareEnsemblePlacementPolicy` is enabled, the rack name can only contain "
             + "one slash (`/`) except for the beginning and end of the rack name string.";
 
-        BookieInfo newInfo3 = BookieInfo.builder()
-            .rack("/rack/a")
-            .hostname("127.0.0.2")
-            .build();
-        try {
-            admin.bookies().updateBookieRackInfo(bookie0, "default", newInfo3);
-            fail();
-        } catch (PulsarAdminException e) {
-            assertEquals(412, e.getStatusCode());
-            assertEquals(errorMsg, e.getMessage());
-        }
-
-        BookieInfo newInfo4 = BookieInfo.builder()
-            .rack("/rack")
-            .hostname("127.0.0.2")
-            .build();
-        try {
-            admin.bookies().updateBookieRackInfo(bookie0, "default", newInfo4);
-        } catch (PulsarAdminException e) {
-            fail();
-        }
-
-        // enable region aware placement policy
-        ServiceConfiguration configuration = new ServiceConfiguration();
-        configuration.setBookkeeperClientRegionawarePolicyEnabled(true);
-        doReturn(configuration).when(pulsar).getConfiguration();
-        BookieInfo newInfo5 = BookieInfo.builder()
-            .rack("/region/rack/a")
-            .hostname("127.0.0.2")
-            .build();
-        try {
-            admin.bookies().updateBookieRackInfo(bookie0, "default", newInfo5);
-            fail();
-        } catch (PulsarAdminException e) {
-            assertEquals(412, e.getStatusCode());
-            assertEquals(errorMsg, e.getMessage());
-        }
-
-        BookieInfo newInfo6 = BookieInfo.builder()
-            .rack("/region/rack/")
-            .hostname("127.0.0.2")
-            .build();
-        try {
-            admin.bookies().updateBookieRackInfo(bookie0, "default", newInfo6);
-        } catch (PulsarAdminException e) {
-            fail();
-        }
+    BookieInfo newInfo3 = BookieInfo.builder().rack("/rack/a").hostname("127.0.0.2").build();
+    try {
+      admin.bookies().updateBookieRackInfo(bookie0, "default", newInfo3);
+      fail();
+    } catch (PulsarAdminException e) {
+      assertEquals(412, e.getStatusCode());
+      assertEquals(errorMsg, e.getMessage());
     }
 
+    BookieInfo newInfo4 = BookieInfo.builder().rack("/rack").hostname("127.0.0.2").build();
+    try {
+      admin.bookies().updateBookieRackInfo(bookie0, "default", newInfo4);
+    } catch (PulsarAdminException e) {
+      fail();
+    }
+
+    // enable region aware placement policy
+    ServiceConfiguration configuration = new ServiceConfiguration();
+    configuration.setBookkeeperClientRegionawarePolicyEnabled(true);
+    doReturn(configuration).when(pulsar).getConfiguration();
+    BookieInfo newInfo5 = BookieInfo.builder().rack("/region/rack/a").hostname("127.0.0.2").build();
+    try {
+      admin.bookies().updateBookieRackInfo(bookie0, "default", newInfo5);
+      fail();
+    } catch (PulsarAdminException e) {
+      assertEquals(412, e.getStatusCode());
+      assertEquals(errorMsg, e.getMessage());
+    }
+
+    BookieInfo newInfo6 = BookieInfo.builder().rack("/region/rack/").hostname("127.0.0.2").build();
+    try {
+      admin.bookies().updateBookieRackInfo(bookie0, "default", newInfo6);
+    } catch (PulsarAdminException e) {
+      fail();
+    }
+  }
 }

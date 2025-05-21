@@ -34,50 +34,60 @@ import org.apache.pulsar.common.util.netty.EventLoopUtil;
 
 public class InjectedClientCnxClientBuilder {
 
-    public static PulsarClientImpl create(final ClientBuilderImpl clientBuilder,
-                                          final ClientCnxFactory clientCnxFactory) throws Exception {
-        ClientConfigurationData conf = clientBuilder.getClientConfigurationData();
-        ThreadFactory threadFactory = new ExecutorProvider
-                .ExtendedThreadFactory("pulsar-client-io", Thread.currentThread().isDaemon());
-        EventLoopGroup eventLoopGroup =
-                EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), conf.isEnableBusyWait(), threadFactory);
+  public static PulsarClientImpl create(
+      final ClientBuilderImpl clientBuilder, final ClientCnxFactory clientCnxFactory)
+      throws Exception {
+    ClientConfigurationData conf = clientBuilder.getClientConfigurationData();
+    ThreadFactory threadFactory =
+        new ExecutorProvider.ExtendedThreadFactory(
+            "pulsar-client-io", Thread.currentThread().isDaemon());
+    EventLoopGroup eventLoopGroup =
+        EventLoopUtil.newEventLoopGroup(
+            conf.getNumIoThreads(), conf.isEnableBusyWait(), threadFactory);
 
-        // Inject into ClientCnx.
-        ConnectionPool pool = new ConnectionPool(InstrumentProvider.NOOP, conf, eventLoopGroup,
-                () -> clientCnxFactory.generate(conf, eventLoopGroup), null);
+    // Inject into ClientCnx.
+    ConnectionPool pool =
+        new ConnectionPool(
+            InstrumentProvider.NOOP,
+            conf,
+            eventLoopGroup,
+            () -> clientCnxFactory.generate(conf, eventLoopGroup),
+            null);
 
-        return new InjectedClientCnxPulsarClientImpl(conf, eventLoopGroup, pool);
+    return new InjectedClientCnxPulsarClientImpl(conf, eventLoopGroup, pool);
+  }
+
+  public interface ClientCnxFactory {
+
+    ClientCnx generate(ClientConfigurationData conf, EventLoopGroup eventLoopGroup);
+  }
+
+  @Slf4j
+  private static class InjectedClientCnxPulsarClientImpl extends PulsarClientImpl {
+
+    public InjectedClientCnxPulsarClientImpl(
+        ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool pool)
+        throws PulsarClientException {
+      super(conf, eventLoopGroup, pool);
     }
 
-    public interface ClientCnxFactory {
-
-        ClientCnx generate(ClientConfigurationData conf, EventLoopGroup eventLoopGroup);
-    }
-
-    @Slf4j
-    private static class InjectedClientCnxPulsarClientImpl extends PulsarClientImpl {
-
-        public InjectedClientCnxPulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup,
-                                                 ConnectionPool pool)
-                throws PulsarClientException {
-            super(conf, eventLoopGroup, pool);
-        }
-
-        @Override
-        public CompletableFuture<Void> closeAsync() {
-            return super.closeAsync().handle((v, ex) -> {
+    @Override
+    public CompletableFuture<Void> closeAsync() {
+      return super.closeAsync()
+          .handle(
+              (v, ex) -> {
                 try {
-                    getCnxPool().close();
+                  getCnxPool().close();
                 } catch (Exception e) {
-                    log.warn("Failed to close cnx pool", e);
+                  log.warn("Failed to close cnx pool", e);
                 }
                 try {
-                    eventLoopGroup.shutdownGracefully().get(10, TimeUnit.SECONDS);
+                  eventLoopGroup.shutdownGracefully().get(10, TimeUnit.SECONDS);
                 } catch (Exception e) {
-                    log.warn("Failed to shutdown event loop group", e);
+                  log.warn("Failed to shutdown event loop group", e);
                 }
                 return null;
-            });
-        }
+              });
     }
+  }
 }

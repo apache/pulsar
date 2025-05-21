@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.namespace;
 
 import static org.testng.Assert.assertEquals;
+
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
@@ -28,35 +29,36 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class NamespaceEphemeralDataTest {
 
-    private static void setFields(NamespaceEphemeralData ned) throws Exception {
-        ned.setNativeUrl("pulsar://localhost:6650");
-        ned.setNativeUrlTls("pulsar+ssl://localhost:6651");
-        ned.setHttpUrl("http://localhost:8080");
-        ned.setHttpUrlTls("https://localhost:8443");
-        ned.setDisabled(false);
+  private static void setFields(NamespaceEphemeralData ned) throws Exception {
+    ned.setNativeUrl("pulsar://localhost:6650");
+    ned.setNativeUrlTls("pulsar+ssl://localhost:6651");
+    ned.setHttpUrl("http://localhost:8080");
+    ned.setHttpUrlTls("https://localhost:8443");
+    ned.setDisabled(false);
 
-        Map<String, AdvertisedListener> advertisedListeners = new HashMap<>();
-        advertisedListeners.put("test-listener", AdvertisedListener.builder()
-                .brokerServiceUrl(new URI("pulsar://adv-addr:6650"))
-                .brokerServiceUrlTls(new URI("pulsar+ssl://adv-addr:6651"))
-                .build());
-        ned.setAdvertisedListeners(advertisedListeners);
-    }
+    Map<String, AdvertisedListener> advertisedListeners = new HashMap<>();
+    advertisedListeners.put(
+        "test-listener",
+        AdvertisedListener.builder()
+            .brokerServiceUrl(new URI("pulsar://adv-addr:6650"))
+            .brokerServiceUrlTls(new URI("pulsar+ssl://adv-addr:6651"))
+            .build());
+    ned.setAdvertisedListeners(advertisedListeners);
+  }
 
-    /**
-     * We must ensure NamespaceEphemeralData respect the equals() properties because it's used as a resource lock,
-     * where equality is checked in the revalidation phase.
-     */
-    @Test
-    public void testEquals() throws Exception {
-        NamespaceEphemeralData ned1 = new NamespaceEphemeralData();
-        setFields(ned1);
+  /**
+   * We must ensure NamespaceEphemeralData respect the equals() properties because it's used as a
+   * resource lock, where equality is checked in the revalidation phase.
+   */
+  @Test
+  public void testEquals() throws Exception {
+    NamespaceEphemeralData ned1 = new NamespaceEphemeralData();
+    setFields(ned1);
 
-        NamespaceEphemeralData ned2 = new NamespaceEphemeralData();
-        setFields(ned2);
+    NamespaceEphemeralData ned2 = new NamespaceEphemeralData();
+    setFields(ned2);
 
-        assertEquals(ned1.hashCode(), ned2.hashCode());
-        assertEquals(ned1, ned2);
-    }
-
+    assertEquals(ned1.hashCode(), ned2.hashCode());
+    assertEquals(ned1, ned2);
+  }
 }

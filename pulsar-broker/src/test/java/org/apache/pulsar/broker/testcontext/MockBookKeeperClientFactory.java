@@ -33,32 +33,37 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
  * A {@link BookKeeperClientFactory} that always returns the same instance of {@link BookKeeper}.
  */
 class MockBookKeeperClientFactory implements BookKeeperClientFactory {
-    private final BookKeeper mockBookKeeper;
+  private final BookKeeper mockBookKeeper;
 
-    MockBookKeeperClientFactory(BookKeeper mockBookKeeper) {
-        this.mockBookKeeper = mockBookKeeper;
-    }
+  MockBookKeeperClientFactory(BookKeeper mockBookKeeper) {
+    this.mockBookKeeper = mockBookKeeper;
+  }
 
-    @Override
-    public CompletableFuture<BookKeeper> create(ServiceConfiguration conf, MetadataStoreExtended store,
-                                    EventLoopGroup eventLoopGroup,
-                                    Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
-                                    Map<String, Object> properties) {
-        // Always return the same instance (so that we don't loose the mock BK content on broker restart
-        return CompletableFuture.completedFuture(mockBookKeeper);
-    }
+  @Override
+  public CompletableFuture<BookKeeper> create(
+      ServiceConfiguration conf,
+      MetadataStoreExtended store,
+      EventLoopGroup eventLoopGroup,
+      Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+      Map<String, Object> properties) {
+    // Always return the same instance (so that we don't loose the mock BK content on broker restart
+    return CompletableFuture.completedFuture(mockBookKeeper);
+  }
 
-    @Override
-    public CompletableFuture<BookKeeper> create(ServiceConfiguration conf, MetadataStoreExtended store,
-                             EventLoopGroup eventLoopGroup,
-                             Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
-                             Map<String, Object> properties, StatsLogger statsLogger) {
-        // Always return the same instance (so that we don't loose the mock BK content on broker restart
-        return CompletableFuture.completedFuture(mockBookKeeper);
-    }
+  @Override
+  public CompletableFuture<BookKeeper> create(
+      ServiceConfiguration conf,
+      MetadataStoreExtended store,
+      EventLoopGroup eventLoopGroup,
+      Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+      Map<String, Object> properties,
+      StatsLogger statsLogger) {
+    // Always return the same instance (so that we don't loose the mock BK content on broker restart
+    return CompletableFuture.completedFuture(mockBookKeeper);
+  }
 
-    @Override
-    public void close() {
-        // no-op
-    }
+  @Override
+  public void close() {
+    // no-op
+  }
 }

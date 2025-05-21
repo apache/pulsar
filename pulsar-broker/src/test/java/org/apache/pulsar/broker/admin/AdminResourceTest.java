@@ -30,121 +30,121 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-/**
- * Unit test {@link AdminResource}.
- */
+/** Unit test {@link AdminResource}. */
 @Test(groups = "broker-admin")
 public class AdminResourceTest extends BrokerTestBase {
 
-    @BeforeClass
-    @Override
-    public void setup() throws Exception {
-        super.baseSetup();
+  @BeforeClass
+  @Override
+  public void setup() throws Exception {
+    super.baseSetup();
+  }
+
+  @AfterClass(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
+
+  private static AdminResource mockResource() {
+    return new AdminResource() {
+
+      @Override
+      protected String domain() {
+        return "persistent";
+      }
+    };
+  }
+
+  private static AdminResource mockNonPersistentResource() {
+    return new AdminResource() {
+
+      @Override
+      protected String domain() {
+        return "non-persistent";
+      }
+    };
+  }
+
+  @Test
+  public void testValidatePersistentTopicNameSuccess() {
+    String tenant = "test-tenant";
+    String namespace = "test-namespace";
+    String topic = Codec.encode("test-topic");
+
+    AdminResource resource = mockResource();
+    resource.validatePersistentTopicName(tenant, namespace, topic);
+  }
+
+  @Test
+  public void testValidatePersistentTopicNameInvalid() {
+    String tenant = "test-tenant";
+    String namespace = "test-namespace";
+    String topic = Codec.encode("test-topic");
+
+    AdminResource nPResource = mockNonPersistentResource();
+    try {
+      nPResource.validatePersistentTopicName(tenant, namespace, topic);
+      fail("Should fail validation on non-persistent topic");
+    } catch (RestException e) {
+      assertEquals(Status.NOT_ACCEPTABLE.getStatusCode(), e.getResponse().getStatus());
     }
+  }
 
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
+  @Test
+  public void testValidatePartitionedTopicNameSuccess() {
+    String tenant = "test-tenant";
+    String namespace = "test-namespace";
+    String topic = Codec.encode("test-topic");
+
+    AdminResource resource = mockResource();
+    resource.validatePartitionedTopicName(tenant, namespace, topic);
+  }
+
+  @Test
+  public void testValidatePartitionedTopicNameInvalid() {
+    String tenant = "test-tenant";
+    String namespace = "test-namespace";
+    String topic = Codec.encode("test-topic-partition-0");
+
+    AdminResource resource = mockResource();
+    try {
+      resource.validatePartitionedTopicName(tenant, namespace, topic);
+      fail("Should fail validation on invalid partitioned topic");
+    } catch (RestException re) {
+      assertEquals(Status.PRECONDITION_FAILED.getStatusCode(), re.getResponse().getStatus());
     }
+  }
 
-    private static AdminResource mockResource() {
-        return new AdminResource() {
+  @Test
+  public void testValidatePartitionedTopicMetadata() throws Exception {
+    String tenant = "prop";
+    String namespace = "ns-abc";
+    String partitionedTopic = "partitionedTopic";
+    String nonPartitionedTopic = "notPartitionedTopic";
+    int partitions = 3;
 
-            @Override
-            protected String domain() {
-                return "persistent";
-            }
-        };
+    String completePartitionedTopic = tenant + "/" + namespace + "/" + partitionedTopic;
+    String completeNonPartitionedTopic = tenant + "/" + namespace + "/" + nonPartitionedTopic;
+
+    admin.topics().createNonPartitionedTopic(completeNonPartitionedTopic);
+    admin.topics().createPartitionedTopic(completePartitionedTopic, partitions);
+
+    AdminResource resource = mockResource();
+    resource.setPulsar(pulsar);
+    // validate should pass when topic is partitioned topic
+    resource.validatePartitionedTopicName(tenant, namespace, Codec.encode(partitionedTopic));
+    resource.validatePartitionedTopicMetadataAsync().get();
+    // validate should failed when topic is non-partitioned topic
+    resource.validatePartitionedTopicName(tenant, namespace, Codec.encode(nonPartitionedTopic));
+    try {
+      resource.validatePartitionedTopicMetadataAsync().get();
+      fail("Should fail validation on non-partitioned topic");
+    } catch (Exception re) {
+      assertTrue(re.getCause() instanceof RestException);
+      assertEquals(
+          Status.CONFLICT.getStatusCode(),
+          ((RestException) re.getCause()).getResponse().getStatus());
     }
-
-    private static AdminResource mockNonPersistentResource() {
-        return new AdminResource() {
-
-            @Override
-            protected String domain() {
-                return "non-persistent";
-            }
-        };
-    }
-
-    @Test
-    public void testValidatePersistentTopicNameSuccess() {
-        String tenant = "test-tenant";
-        String namespace = "test-namespace";
-        String topic = Codec.encode("test-topic");
-
-        AdminResource resource = mockResource();
-        resource.validatePersistentTopicName(tenant, namespace, topic);
-    }
-
-    @Test
-    public void testValidatePersistentTopicNameInvalid() {
-        String tenant = "test-tenant";
-        String namespace = "test-namespace";
-        String topic = Codec.encode("test-topic");
-
-        AdminResource nPResource = mockNonPersistentResource();
-        try {
-            nPResource.validatePersistentTopicName(tenant, namespace, topic);
-            fail("Should fail validation on non-persistent topic");
-        } catch (RestException e) {
-            assertEquals(Status.NOT_ACCEPTABLE.getStatusCode(), e.getResponse().getStatus());
-        }
-    }
-
-    @Test
-    public void testValidatePartitionedTopicNameSuccess() {
-        String tenant = "test-tenant";
-        String namespace = "test-namespace";
-        String topic = Codec.encode("test-topic");
-
-        AdminResource resource = mockResource();
-        resource.validatePartitionedTopicName(tenant, namespace, topic);
-    }
-
-    @Test
-    public void testValidatePartitionedTopicNameInvalid() {
-        String tenant = "test-tenant";
-        String namespace = "test-namespace";
-        String topic = Codec.encode("test-topic-partition-0");
-
-        AdminResource resource = mockResource();
-        try {
-            resource.validatePartitionedTopicName(tenant, namespace, topic);
-            fail("Should fail validation on invalid partitioned topic");
-        } catch (RestException re) {
-            assertEquals(Status.PRECONDITION_FAILED.getStatusCode(), re.getResponse().getStatus());
-        }
-    }
-
-    @Test
-    public void testValidatePartitionedTopicMetadata() throws Exception {
-        String tenant = "prop";
-        String namespace = "ns-abc";
-        String partitionedTopic = "partitionedTopic";
-        String nonPartitionedTopic = "notPartitionedTopic";
-        int partitions = 3;
-
-        String completePartitionedTopic = tenant + "/" + namespace + "/" + partitionedTopic;
-        String completeNonPartitionedTopic = tenant + "/" + namespace + "/" + nonPartitionedTopic;
-
-        admin.topics().createNonPartitionedTopic(completeNonPartitionedTopic);
-        admin.topics().createPartitionedTopic(completePartitionedTopic, partitions);
-
-        AdminResource resource = mockResource();
-        resource.setPulsar(pulsar);
-        // validate should pass when topic is partitioned topic
-        resource.validatePartitionedTopicName(tenant, namespace, Codec.encode(partitionedTopic));
-        resource.validatePartitionedTopicMetadataAsync().get();
-        // validate should failed when topic is non-partitioned topic
-        resource.validatePartitionedTopicName(tenant, namespace, Codec.encode(nonPartitionedTopic));
-        try {
-            resource.validatePartitionedTopicMetadataAsync().get();
-            fail("Should fail validation on non-partitioned topic");
-        } catch (Exception re) {
-            assertTrue(re.getCause() instanceof RestException);
-            assertEquals(Status.CONFLICT.getStatusCode(), ((RestException) re.getCause()).getResponse().getStatus());
-        }
-    }
+  }
 }

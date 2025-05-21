@@ -19,39 +19,47 @@
 package org.apache.pulsar.broker.loadbalance.extensions;
 
 import static org.testng.Assert.assertEquals;
+
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class ExtensibleLoadManagerImplWithTransactionCoordinatorTest extends ExtensibleLoadManagerImplBaseTest {
+public class ExtensibleLoadManagerImplWithTransactionCoordinatorTest
+    extends ExtensibleLoadManagerImplBaseTest {
 
-    @Factory(dataProvider = "serviceUnitStateTableViewClassName")
-    public ExtensibleLoadManagerImplWithTransactionCoordinatorTest(String serviceUnitStateTableViewClassName) {
-        super("public/test-elb-with-tx", serviceUnitStateTableViewClassName);
-    }
+  @Factory(dataProvider = "serviceUnitStateTableViewClassName")
+  public ExtensibleLoadManagerImplWithTransactionCoordinatorTest(
+      String serviceUnitStateTableViewClassName) {
+    super("public/test-elb-with-tx", serviceUnitStateTableViewClassName);
+  }
 
-    @Override
-    protected ServiceConfiguration updateConfig(ServiceConfiguration conf) {
-        conf = super.updateConfig(conf);
-        conf.setTransactionCoordinatorEnabled(true);
-        return conf;
-    }
+  @Override
+  protected ServiceConfiguration updateConfig(ServiceConfiguration conf) {
+    conf = super.updateConfig(conf);
+    conf.setTransactionCoordinatorEnabled(true);
+    return conf;
+  }
 
-    @Test(timeOut = 30 * 1000)
-    public void testUnloadAdminAPI() throws Exception {
-        var topicAndBundle = getBundleIsNotOwnByChangeEventTopic("test-unload");
-        var topicName = topicAndBundle.getLeft();
-        var bundle = topicAndBundle.getRight();
+  @Test(timeOut = 30 * 1000)
+  public void testUnloadAdminAPI() throws Exception {
+    var topicAndBundle = getBundleIsNotOwnByChangeEventTopic("test-unload");
+    var topicName = topicAndBundle.getLeft();
+    var bundle = topicAndBundle.getRight();
 
-        var srcBroker = admin.lookups().lookupTopic(topicName.toString());
-        var dstBroker = srcBroker.equals(pulsar1.getBrokerServiceUrl()) ? pulsar2 : pulsar1;
-        var dstBrokerUrl = dstBroker.getBrokerId();
-        var dstBrokerServiceUrl = dstBroker.getBrokerServiceUrl();
+    var srcBroker = admin.lookups().lookupTopic(topicName.toString());
+    var dstBroker = srcBroker.equals(pulsar1.getBrokerServiceUrl()) ? pulsar2 : pulsar1;
+    var dstBrokerUrl = dstBroker.getBrokerId();
+    var dstBrokerServiceUrl = dstBroker.getBrokerServiceUrl();
 
-        admin.namespaces().unloadNamespaceBundle(topicName.getNamespace(), bundle.getBundleRange(), dstBrokerUrl);
-        Awaitility.await().untilAsserted(
-                () -> assertEquals(admin.lookups().lookupTopic(topicName.toString()), dstBrokerServiceUrl));
-    }
+    admin
+        .namespaces()
+        .unloadNamespaceBundle(topicName.getNamespace(), bundle.getBundleRange(), dstBrokerUrl);
+    Awaitility.await()
+        .untilAsserted(
+            () ->
+                assertEquals(
+                    admin.lookups().lookupTopic(topicName.toString()), dstBrokerServiceUrl));
+  }
 }

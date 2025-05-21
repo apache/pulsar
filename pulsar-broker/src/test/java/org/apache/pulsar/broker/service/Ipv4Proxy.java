@@ -41,157 +41,173 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Getter;
 
 public class Ipv4Proxy {
-    @Getter
-    private final int localPort;
-    private final String backendServerHost;
-    private final int backendServerPort;
-    private final EventLoopGroup serverGroup = new NioEventLoopGroup(1);
-    private final EventLoopGroup workerGroup = new NioEventLoopGroup();
-    private ChannelFuture localServerChannel;
-    private ServerBootstrap serverBootstrap = new ServerBootstrap();
-    private List<Channel> frontChannels = Collections.synchronizedList(new ArrayList<>());
-    private AtomicBoolean rejectAllConnections = new AtomicBoolean();
+  @Getter private final int localPort;
+  private final String backendServerHost;
+  private final int backendServerPort;
+  private final EventLoopGroup serverGroup = new NioEventLoopGroup(1);
+  private final EventLoopGroup workerGroup = new NioEventLoopGroup();
+  private ChannelFuture localServerChannel;
+  private ServerBootstrap serverBootstrap = new ServerBootstrap();
+  private List<Channel> frontChannels = Collections.synchronizedList(new ArrayList<>());
+  private AtomicBoolean rejectAllConnections = new AtomicBoolean();
 
-    public Ipv4Proxy(int localPort, String backendServerHost, int backendServerPort) {
-        this.localPort = localPort;
-        this.backendServerHost = backendServerHost;
-        this.backendServerPort = backendServerPort;
-    }
+  public Ipv4Proxy(int localPort, String backendServerHost, int backendServerPort) {
+    this.localPort = localPort;
+    this.backendServerHost = backendServerHost;
+    this.backendServerPort = backendServerPort;
+  }
 
-    public synchronized void startup() throws InterruptedException {
-        localServerChannel = serverBootstrap.group(serverGroup, workerGroup)
+  public synchronized void startup() throws InterruptedException {
+    localServerChannel =
+        serverBootstrap
+            .group(serverGroup, workerGroup)
             .channel(NioServerSocketChannel.class)
             .handler(new LoggingHandler(LogLevel.INFO))
-            .childHandler(new ChannelInitializer<SocketChannel>() {
-                @Override
-                protected void initChannel(SocketChannel ch) {
+            .childHandler(
+                new ChannelInitializer<SocketChannel>() {
+                  @Override
+                  protected void initChannel(SocketChannel ch) {
                     ch.pipeline().addLast(new FrontendHandler());
-                }
-            }).childOption(ChannelOption.AUTO_READ, false)
-            .bind(localPort).sync();
+                  }
+                })
+            .childOption(ChannelOption.AUTO_READ, false)
+            .bind(localPort)
+            .sync();
+  }
+
+  public synchronized void stop() throws InterruptedException {
+    localServerChannel.channel().close().sync();
+    serverGroup.shutdownGracefully();
+    workerGroup.shutdownGracefully();
+  }
+
+  private static void closeOnFlush(Channel ch) {
+    if (ch.isActive()) {
+      ch.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
     }
+  }
 
-    public synchronized void stop() throws InterruptedException{
-        localServerChannel.channel().close().sync();
-        serverGroup.shutdownGracefully();
-        workerGroup.shutdownGracefully();
+  public void disconnectFrontChannels() throws InterruptedException {
+    for (Channel channel : frontChannels) {
+      channel.close();
     }
+  }
 
-    private static void closeOnFlush(Channel ch) {
-        if (ch.isActive()) {
-            ch.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
-        }
-    }
+  public void rejectAllConnections() throws InterruptedException {
+    rejectAllConnections.set(true);
+  }
 
-    public void disconnectFrontChannels() throws InterruptedException {
-        for (Channel channel : frontChannels) {
-            channel.close();
-        }
-    }
+  public void unRejectAllConnections() throws InterruptedException {
+    rejectAllConnections.set(false);
+  }
 
-    public void rejectAllConnections() throws InterruptedException {
-        rejectAllConnections.set(true);
-    }
+  private class FrontendHandler extends ChannelInboundHandlerAdapter {
 
-    public void unRejectAllConnections() throws InterruptedException {
-        rejectAllConnections.set(false);
-    }
+    private Channel backendChannel;
 
-    private class FrontendHandler extends ChannelInboundHandlerAdapter {
-
-        private Channel backendChannel;
-
-        @Override
-        public void channelActive(ChannelHandlerContext ctx) {
-            if (rejectAllConnections.get()) {
-                ctx.close();
-                return;
-            }
-            final Channel frontendChannel = ctx.channel();
-            frontChannels.add(frontendChannel);
-            Bootstrap backendBootstrap = new Bootstrap();
-            backendBootstrap.group(frontendChannel.eventLoop())
-                    .channel(ctx.channel().getClass())
-                    .handler(new BackendHandler(frontendChannel))
-                    .option(ChannelOption.AUTO_READ, false);
-            ChannelFuture backendChannelFuture =
-                    backendBootstrap.connect(Ipv4Proxy.this.backendServerHost, Ipv4Proxy.this.backendServerPort);
-            backendChannel = backendChannelFuture.channel();
-            backendChannelFuture.addListener((ChannelFutureListener) future -> {
+    @Override
+    public void channelActive(ChannelHandlerContext ctx) {
+      if (rejectAllConnections.get()) {
+        ctx.close();
+        return;
+      }
+      final Channel frontendChannel = ctx.channel();
+      frontChannels.add(frontendChannel);
+      Bootstrap backendBootstrap = new Bootstrap();
+      backendBootstrap
+          .group(frontendChannel.eventLoop())
+          .channel(ctx.channel().getClass())
+          .handler(new BackendHandler(frontendChannel))
+          .option(ChannelOption.AUTO_READ, false);
+      ChannelFuture backendChannelFuture =
+          backendBootstrap.connect(
+              Ipv4Proxy.this.backendServerHost, Ipv4Proxy.this.backendServerPort);
+      backendChannel = backendChannelFuture.channel();
+      backendChannelFuture.addListener(
+          (ChannelFutureListener)
+              future -> {
                 if (future.isSuccess()) {
-                    frontendChannel.read();
+                  frontendChannel.read();
                 } else {
-                    frontChannels.remove(frontendChannel);
-                    frontendChannel.close();
+                  frontChannels.remove(frontendChannel);
+                  frontendChannel.close();
                 }
-            });
-        }
+              });
+    }
 
-        @Override
-        public void channelRead(final ChannelHandlerContext ctx, Object msg) {
-            if (backendChannel.isActive()) {
-                backendChannel.writeAndFlush(msg).addListener((ChannelFutureListener) future -> {
-                    if (future.isSuccess()) {
+    @Override
+    public void channelRead(final ChannelHandlerContext ctx, Object msg) {
+      if (backendChannel.isActive()) {
+        backendChannel
+            .writeAndFlush(msg)
+            .addListener(
+                (ChannelFutureListener)
+                    future -> {
+                      if (future.isSuccess()) {
                         ctx.channel().read();
-                    } else {
+                      } else {
                         future.channel().close();
+                      }
+                    });
+      }
+    }
+
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) {
+      frontChannels.remove(ctx.channel());
+      if (backendChannel != null) {
+        closeOnFlush(backendChannel);
+      }
+    }
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+      cause.printStackTrace();
+      closeOnFlush(ctx.channel());
+    }
+  }
+
+  private class BackendHandler extends ChannelInboundHandlerAdapter {
+
+    private final Channel frontendChannel;
+
+    public BackendHandler(Channel inboundChannel) {
+      this.frontendChannel = inboundChannel;
+    }
+
+    @Override
+    public void channelActive(ChannelHandlerContext ctx) {
+      if (!frontendChannel.isActive()) {
+        closeOnFlush(ctx.channel());
+      } else {
+        ctx.read();
+      }
+    }
+
+    @Override
+    public void channelRead(final ChannelHandlerContext ctx, Object msg) {
+      frontendChannel
+          .writeAndFlush(msg)
+          .addListener(
+              (ChannelFutureListener)
+                  future -> {
+                    if (future.isSuccess()) {
+                      ctx.channel().read();
+                    } else {
+                      future.channel().close();
                     }
-                });
-            }
-        }
-
-        @Override
-        public void channelInactive(ChannelHandlerContext ctx) {
-            frontChannels.remove(ctx.channel());
-            if (backendChannel != null) {
-                closeOnFlush(backendChannel);
-            }
-        }
-
-        @Override
-        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-            cause.printStackTrace();
-            closeOnFlush(ctx.channel());
-        }
+                  });
     }
 
-    private class BackendHandler extends ChannelInboundHandlerAdapter {
-
-        private final Channel frontendChannel;
-
-        public BackendHandler(Channel inboundChannel) {
-            this.frontendChannel = inboundChannel;
-        }
-
-        @Override
-        public void channelActive(ChannelHandlerContext ctx) {
-            if (!frontendChannel.isActive()) {
-                closeOnFlush(ctx.channel());
-            } else {
-                ctx.read();
-            }
-        }
-
-        @Override
-        public void channelRead(final ChannelHandlerContext ctx, Object msg) {
-            frontendChannel.writeAndFlush(msg).addListener((ChannelFutureListener) future -> {
-                if (future.isSuccess()) {
-                    ctx.channel().read();
-                } else {
-                    future.channel().close();
-                }
-            });
-        }
-
-        @Override
-        public void channelInactive(ChannelHandlerContext ctx) {
-            closeOnFlush(frontendChannel);
-        }
-
-        @Override
-        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-            cause.printStackTrace();
-            closeOnFlush(ctx.channel());
-        }
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) {
+      closeOnFlush(frontendChannel);
     }
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+      cause.printStackTrace();
+      closeOnFlush(ctx.channel());
+    }
+  }
 }

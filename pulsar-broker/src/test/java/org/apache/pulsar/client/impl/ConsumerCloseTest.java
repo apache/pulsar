@@ -36,56 +36,66 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-api")
 public class ConsumerCloseTest extends ProducerConsumerBase {
 
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
+  @BeforeClass
+  @Override
+  protected void setup() throws Exception {
+    super.internalSetup();
+    super.producerBaseSetup();
+  }
 
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @AfterClass(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @Test
-    public void testInterruptedWhenCreateConsumer() throws InterruptedException {
+  @Test
+  public void testInterruptedWhenCreateConsumer() throws InterruptedException {
 
-        String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
-        String subName = "test-sub";
-        String mlCursorPath = BrokerService.MANAGED_LEDGER_PATH_ZNODE + "/" + TopicName.get(tpName).getPersistenceNamingEncoding() + "/" + subName;
+    String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+    String subName = "test-sub";
+    String mlCursorPath =
+        BrokerService.MANAGED_LEDGER_PATH_ZNODE
+            + "/"
+            + TopicName.get(tpName).getPersistenceNamingEncoding()
+            + "/"
+            + subName;
 
-        // Make create cursor delay 1s
-        CountDownLatch topicLoadLatch = new CountDownLatch(1);
-        for (int i = 0; i < 5; i++) {
-            mockZooKeeper.delay(1000, (op, path) -> {
-                if (mlCursorPath.equals(path)) {
-                    topicLoadLatch.countDown();
-                    return true;
-                }
-                return false;
-            });
-        }
-
-        Thread startConsumer = new Thread(() -> {
-            try {
-                pulsarClient.newConsumer()
-                        .topic(tpName)
-                        .subscriptionName(subName)
-                        .subscribe();
-                Assert.fail("Should have thrown an exception");
-            } catch (PulsarClientException e) {
-                Assert.assertTrue(e.getCause() instanceof InterruptedException);
+    // Make create cursor delay 1s
+    CountDownLatch topicLoadLatch = new CountDownLatch(1);
+    for (int i = 0; i < 5; i++) {
+      mockZooKeeper.delay(
+          1000,
+          (op, path) -> {
+            if (mlCursorPath.equals(path)) {
+              topicLoadLatch.countDown();
+              return true;
             }
-        });
-        startConsumer.start();
-        topicLoadLatch.await();
-        startConsumer.interrupt();
-
-        PulsarClientImpl clientImpl = (PulsarClientImpl) pulsarClient;
-        Awaitility.await().ignoreExceptions().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
-            Assert.assertEquals(clientImpl.consumersCount(), 0);
-        });
+            return false;
+          });
     }
+
+    Thread startConsumer =
+        new Thread(
+            () -> {
+              try {
+                pulsarClient.newConsumer().topic(tpName).subscriptionName(subName).subscribe();
+                Assert.fail("Should have thrown an exception");
+              } catch (PulsarClientException e) {
+                Assert.assertTrue(e.getCause() instanceof InterruptedException);
+              }
+            });
+    startConsumer.start();
+    topicLoadLatch.await();
+    startConsumer.interrupt();
+
+    PulsarClientImpl clientImpl = (PulsarClientImpl) pulsarClient;
+    Awaitility.await()
+        .ignoreExceptions()
+        .atMost(10, TimeUnit.SECONDS)
+        .untilAsserted(
+            () -> {
+              Assert.assertEquals(clientImpl.consumersCount(), 0);
+            });
+  }
 }

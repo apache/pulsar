@@ -20,9 +20,9 @@ package org.apache.pulsar.client.processor;
 
 import java.util.function.Consumer;
 import lombok.Getter;
-import org.apache.pulsar.client.api.MessagePayloadContext;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessagePayload;
+import org.apache.pulsar.client.api.MessagePayloadContext;
 import org.apache.pulsar.client.api.MessagePayloadProcessor;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.MessagePayloadImpl;
@@ -30,18 +30,21 @@ import org.apache.pulsar.client.impl.MessagePayloadImpl;
 /**
  * The processor for Pulsar format messages and maintains a total reference count.
  *
- * It's used to verify {@link MessagePayloadContext#getMessageAt} and {@link MessagePayloadContext#asSingleMessage} have release the
- * ByteBuf successfully.
+ * <p>It's used to verify {@link MessagePayloadContext#getMessageAt} and {@link
+ * MessagePayloadContext#asSingleMessage} have release the ByteBuf successfully.
  */
 public class DefaultProcessorWithRefCnt implements MessagePayloadProcessor {
 
-    @Getter
-    int totalRefCnt = 0;
+  @Getter int totalRefCnt = 0;
 
-    @Override
-    public <T> void process(MessagePayload payload, MessagePayloadContext context, Schema<T> schema,
-                            Consumer<Message<T>> messageConsumer) throws Exception {
-        MessagePayloadProcessor.DEFAULT.process(payload, context, schema, messageConsumer);
-        totalRefCnt += ((MessagePayloadImpl) payload).getByteBuf().refCnt();
-    }
+  @Override
+  public <T> void process(
+      MessagePayload payload,
+      MessagePayloadContext context,
+      Schema<T> schema,
+      Consumer<Message<T>> messageConsumer)
+      throws Exception {
+    MessagePayloadProcessor.DEFAULT.process(payload, context, schema, messageConsumer);
+    totalRefCnt += ((MessagePayloadImpl) payload).getByteBuf().refCnt();
+  }
 }

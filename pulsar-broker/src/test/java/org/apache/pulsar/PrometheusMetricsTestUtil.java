@@ -35,50 +35,79 @@ import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.eclipse.jetty.server.HttpOutput;
 
 public class PrometheusMetricsTestUtil {
-    public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
-                                boolean includeProducerMetrics, OutputStream out) throws IOException {
-        generate(new PrometheusMetricsGenerator(pulsar, includeTopicMetrics, includeConsumerMetrics,
-                includeProducerMetrics, false, Clock.systemUTC()), out, null);
-    }
+  public static void generate(
+      PulsarService pulsar,
+      boolean includeTopicMetrics,
+      boolean includeConsumerMetrics,
+      boolean includeProducerMetrics,
+      OutputStream out)
+      throws IOException {
+    generate(
+        new PrometheusMetricsGenerator(
+            pulsar,
+            includeTopicMetrics,
+            includeConsumerMetrics,
+            includeProducerMetrics,
+            false,
+            Clock.systemUTC()),
+        out,
+        null);
+  }
 
-    public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
-                                boolean includeProducerMetrics, boolean splitTopicAndPartitionIndexLabel,
-                                OutputStream out) throws IOException {
-        generate(new PrometheusMetricsGenerator(pulsar, includeTopicMetrics, includeConsumerMetrics,
-                includeProducerMetrics, splitTopicAndPartitionIndexLabel, Clock.systemUTC()), out, null);
-    }
+  public static void generate(
+      PulsarService pulsar,
+      boolean includeTopicMetrics,
+      boolean includeConsumerMetrics,
+      boolean includeProducerMetrics,
+      boolean splitTopicAndPartitionIndexLabel,
+      OutputStream out)
+      throws IOException {
+    generate(
+        new PrometheusMetricsGenerator(
+            pulsar,
+            includeTopicMetrics,
+            includeConsumerMetrics,
+            includeProducerMetrics,
+            splitTopicAndPartitionIndexLabel,
+            Clock.systemUTC()),
+        out,
+        null);
+  }
 
-    public static void generate(PrometheusMetricsGenerator metricsGenerator, OutputStream out,
-                                List<PrometheusRawMetricsProvider> metricsProviders) throws IOException {
-        PrometheusMetricsGenerator.MetricsBuffer metricsBuffer =
-                metricsGenerator.renderToBuffer(MoreExecutors.directExecutor(), metricsProviders);
-        try {
-            ByteBuf buffer = null;
-            try {
-                buffer = metricsBuffer.getBufferFuture().get(5, TimeUnit.SECONDS).getUncompressedBuffer();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new IOException(e);
-            } catch (ExecutionException | TimeoutException e) {
-                throw new IOException(e);
-            }
-            if (buffer == null) {
-                return;
-            }
-            if (out instanceof HttpOutput) {
-                HttpOutput output = (HttpOutput) out;
-                ByteBuffer[] nioBuffers = buffer.nioBuffers();
-                for (ByteBuffer nioBuffer : nioBuffers) {
-                    output.write(nioBuffer);
-                }
-            } else {
-                int length = buffer.readableBytes();
-                if (length > 0) {
-                    buffer.duplicate().readBytes(out, length);
-                }
-            }
-        } finally {
-            metricsBuffer.release();
+  public static void generate(
+      PrometheusMetricsGenerator metricsGenerator,
+      OutputStream out,
+      List<PrometheusRawMetricsProvider> metricsProviders)
+      throws IOException {
+    PrometheusMetricsGenerator.MetricsBuffer metricsBuffer =
+        metricsGenerator.renderToBuffer(MoreExecutors.directExecutor(), metricsProviders);
+    try {
+      ByteBuf buffer = null;
+      try {
+        buffer = metricsBuffer.getBufferFuture().get(5, TimeUnit.SECONDS).getUncompressedBuffer();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new IOException(e);
+      } catch (ExecutionException | TimeoutException e) {
+        throw new IOException(e);
+      }
+      if (buffer == null) {
+        return;
+      }
+      if (out instanceof HttpOutput) {
+        HttpOutput output = (HttpOutput) out;
+        ByteBuffer[] nioBuffers = buffer.nioBuffers();
+        for (ByteBuffer nioBuffer : nioBuffers) {
+          output.write(nioBuffer);
         }
+      } else {
+        int length = buffer.readableBytes();
+        if (length > 0) {
+          buffer.duplicate().readBytes(out, length);
+        }
+      }
+    } finally {
+      metricsBuffer.release();
     }
+  }
 }

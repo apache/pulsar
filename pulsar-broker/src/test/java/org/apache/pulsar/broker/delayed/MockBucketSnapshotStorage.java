@@ -43,156 +43,174 @@ import org.apache.pulsar.common.util.FutureUtil;
 @Slf4j
 public class MockBucketSnapshotStorage implements BucketSnapshotStorage {
 
-    private final AtomicLong maxBucketId;
+  private final AtomicLong maxBucketId;
 
-    private final Map<Long, List<ByteBuf>> bucketSnapshots;
+  private final Map<Long, List<ByteBuf>> bucketSnapshots;
 
-    private final ExecutorService executorService =
-            new ThreadPoolExecutor(10, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
-                    new DefaultThreadFactory("bucket-snapshot-storage-io"));
+  private final ExecutorService executorService =
+      new ThreadPoolExecutor(
+          10,
+          20,
+          30,
+          TimeUnit.SECONDS,
+          new LinkedBlockingQueue<>(),
+          new DefaultThreadFactory("bucket-snapshot-storage-io"));
 
-    public MockBucketSnapshotStorage() {
-        this.bucketSnapshots = new ConcurrentHashMap<>();
-        this.maxBucketId = new AtomicLong();
+  public MockBucketSnapshotStorage() {
+    this.bucketSnapshots = new ConcurrentHashMap<>();
+    this.maxBucketId = new AtomicLong();
+  }
+
+  public Queue<Throwable> createExceptionQueue = new LinkedList<>();
+  public Queue<Throwable> getMetaDataExceptionQueue = new LinkedList<>();
+  public Queue<Throwable> getSegmentExceptionQueue = new LinkedList<>();
+  public Queue<Throwable> deleteExceptionQueue = new LinkedList<>();
+
+  public void injectCreateException(Throwable throwable) {
+    createExceptionQueue.add(throwable);
+  }
+
+  public void injectGetMetaDataException(Throwable throwable) {
+    getMetaDataExceptionQueue.add(throwable);
+  }
+
+  public void injectGetSegmentException(Throwable throwable) {
+    getSegmentExceptionQueue.add(throwable);
+  }
+
+  public void injectDeleteException(Throwable throwable) {
+    deleteExceptionQueue.add(throwable);
+  }
+
+  @Override
+  public CompletableFuture<Long> createBucketSnapshot(
+      SnapshotMetadata snapshotMetadata,
+      List<SnapshotSegment> bucketSnapshotSegments,
+      String bucketKey,
+      String topicName,
+      String cursorName) {
+    Throwable throwable = createExceptionQueue.poll();
+    if (throwable != null) {
+      return FutureUtil.failedFuture(throwable);
     }
-
-    public Queue<Throwable> createExceptionQueue = new LinkedList<>();
-    public Queue<Throwable> getMetaDataExceptionQueue = new LinkedList<>();
-    public Queue<Throwable> getSegmentExceptionQueue = new LinkedList<>();
-    public Queue<Throwable> deleteExceptionQueue = new LinkedList<>();
-
-
-    public void injectCreateException(Throwable throwable) {
-        createExceptionQueue.add(throwable);
-    }
-
-    public void injectGetMetaDataException(Throwable throwable) {
-        getMetaDataExceptionQueue.add(throwable);
-    }
-
-    public void injectGetSegmentException(Throwable throwable) {
-        getSegmentExceptionQueue.add(throwable);
-    }
-
-    public void injectDeleteException(Throwable throwable) {
-        deleteExceptionQueue.add(throwable);
-    }
-
-    @Override
-    public CompletableFuture<Long> createBucketSnapshot(
-            SnapshotMetadata snapshotMetadata, List<SnapshotSegment> bucketSnapshotSegments, String bucketKey,
-            String topicName, String cursorName) {
-        Throwable throwable = createExceptionQueue.poll();
-        if (throwable != null) {
-            return FutureUtil.failedFuture(throwable);
-        }
-        return CompletableFuture.supplyAsync(() -> {
-            long bucketId = maxBucketId.getAndIncrement();
-            List<ByteBuf> entries = new ArrayList<>();
-            byte[] bytes = snapshotMetadata.toByteArray();
-            ByteBuf byteBuf = PooledByteBufAllocator.DEFAULT.directBuffer(bytes.length);
-            byteBuf.writeBytes(bytes);
-            entries.add(byteBuf);
-            this.bucketSnapshots.put(bucketId, entries);
-            return bucketId;
-        }, executorService).thenApply(bucketId -> {
-            List<ByteBuf> bufList = new ArrayList<>();
-            for (SnapshotSegment snapshotSegment : bucketSnapshotSegments) {
+    return CompletableFuture.supplyAsync(
+            () -> {
+              long bucketId = maxBucketId.getAndIncrement();
+              List<ByteBuf> entries = new ArrayList<>();
+              byte[] bytes = snapshotMetadata.toByteArray();
+              ByteBuf byteBuf = PooledByteBufAllocator.DEFAULT.directBuffer(bytes.length);
+              byteBuf.writeBytes(bytes);
+              entries.add(byteBuf);
+              this.bucketSnapshots.put(bucketId, entries);
+              return bucketId;
+            },
+            executorService)
+        .thenApply(
+            bucketId -> {
+              List<ByteBuf> bufList = new ArrayList<>();
+              for (SnapshotSegment snapshotSegment : bucketSnapshotSegments) {
                 byte[] bytes = snapshotSegment.toByteArray();
                 ByteBuf byteBuf = PooledByteBufAllocator.DEFAULT.directBuffer(bytes.length);
                 byteBuf.writeBytes(bytes);
                 bufList.add(byteBuf);
+              }
+              bucketSnapshots.get(bucketId).addAll(bufList);
+
+              return bucketId;
+            });
+  }
+
+  @Override
+  public CompletableFuture<SnapshotMetadata> getBucketSnapshotMetadata(long bucketId) {
+    Throwable throwable = getMetaDataExceptionQueue.poll();
+    if (throwable != null) {
+      return FutureUtil.failedFuture(throwable);
+    }
+    return CompletableFuture.supplyAsync(
+        () -> {
+          ByteBuf byteBuf = this.bucketSnapshots.get(bucketId).get(0);
+          SnapshotMetadata snapshotMetadata;
+          try {
+            snapshotMetadata = SnapshotMetadata.parseFrom(byteBuf.nioBuffer());
+          } catch (InvalidProtocolBufferException e) {
+            throw new RuntimeException(e);
+          }
+          return snapshotMetadata;
+        },
+        executorService);
+  }
+
+  @Override
+  public CompletableFuture<List<SnapshotSegment>> getBucketSnapshotSegment(
+      long bucketId, long firstSegmentEntryId, long lastSegmentEntryId) {
+    Throwable throwable = getSegmentExceptionQueue.poll();
+    if (throwable != null) {
+      return FutureUtil.failedFuture(throwable);
+    }
+    return CompletableFuture.supplyAsync(
+        () -> {
+          List<SnapshotSegment> snapshotSegments = new ArrayList<>();
+          long lastEntryId =
+              Math.min(lastSegmentEntryId, this.bucketSnapshots.get(bucketId).size());
+          for (int i = (int) firstSegmentEntryId; i <= lastEntryId; i++) {
+            ByteBuf byteBuf = this.bucketSnapshots.get(bucketId).get(i);
+            SnapshotSegment snapshotSegment = new SnapshotSegment();
+            snapshotSegment.parseFrom(byteBuf, byteBuf.readableBytes());
+            snapshotSegments.add(snapshotSegment);
+          }
+          return snapshotSegments;
+        },
+        executorService);
+  }
+
+  @Override
+  public CompletableFuture<Void> deleteBucketSnapshot(long bucketId) {
+    Throwable throwable = deleteExceptionQueue.poll();
+    if (throwable != null) {
+      return FutureUtil.failedFuture(throwable);
+    }
+    return CompletableFuture.supplyAsync(
+        () -> {
+          List<ByteBuf> remove = this.bucketSnapshots.remove(bucketId);
+          if (remove != null) {
+            for (ByteBuf byteBuf : remove) {
+              byteBuf.release();
             }
-            bucketSnapshots.get(bucketId).addAll(bufList);
+          }
+          return null;
+        },
+        executorService);
+  }
 
-            return bucketId;
-        });
+  @Override
+  public CompletableFuture<Long> getBucketSnapshotLength(long bucketId) {
+    return CompletableFuture.supplyAsync(
+        () -> {
+          long length = 0;
+          List<ByteBuf> bufList = this.bucketSnapshots.get(bucketId);
+          for (ByteBuf byteBuf : bufList) {
+            length += byteBuf.readableBytes();
+          }
+          return length;
+        },
+        executorService);
+  }
+
+  @Override
+  public void start() throws Exception {}
+
+  @Override
+  public void close() throws Exception {
+    clean();
+  }
+
+  public void clean() {
+    for (List<ByteBuf> value : bucketSnapshots.values()) {
+      for (ByteBuf byteBuf : value) {
+        byteBuf.release();
+      }
     }
-
-    @Override
-    public CompletableFuture<SnapshotMetadata> getBucketSnapshotMetadata(long bucketId) {
-        Throwable throwable = getMetaDataExceptionQueue.poll();
-        if (throwable != null) {
-            return FutureUtil.failedFuture(throwable);
-        }
-        return CompletableFuture.supplyAsync(() -> {
-            ByteBuf byteBuf = this.bucketSnapshots.get(bucketId).get(0);
-            SnapshotMetadata snapshotMetadata;
-            try {
-                snapshotMetadata = SnapshotMetadata.parseFrom(byteBuf.nioBuffer());
-            } catch (InvalidProtocolBufferException e) {
-                throw new RuntimeException(e);
-            }
-            return snapshotMetadata;
-        }, executorService);
-    }
-
-    @Override
-    public CompletableFuture<List<SnapshotSegment>> getBucketSnapshotSegment(long bucketId, long firstSegmentEntryId,
-                                                                             long lastSegmentEntryId) {
-        Throwable throwable = getSegmentExceptionQueue.poll();
-        if (throwable != null) {
-            return FutureUtil.failedFuture(throwable);
-        }
-        return CompletableFuture.supplyAsync(() -> {
-            List<SnapshotSegment> snapshotSegments = new ArrayList<>();
-            long lastEntryId = Math.min(lastSegmentEntryId, this.bucketSnapshots.get(bucketId).size());
-            for (int i = (int) firstSegmentEntryId; i <= lastEntryId ; i++) {
-                ByteBuf byteBuf = this.bucketSnapshots.get(bucketId).get(i);
-                SnapshotSegment snapshotSegment = new SnapshotSegment();
-                snapshotSegment.parseFrom(byteBuf, byteBuf.readableBytes());
-                snapshotSegments.add(snapshotSegment);
-            }
-            return snapshotSegments;
-        }, executorService);
-    }
-
-    @Override
-    public CompletableFuture<Void> deleteBucketSnapshot(long bucketId) {
-        Throwable throwable = deleteExceptionQueue.poll();
-        if (throwable != null) {
-            return FutureUtil.failedFuture(throwable);
-        }
-        return CompletableFuture.supplyAsync(() -> {
-            List<ByteBuf> remove = this.bucketSnapshots.remove(bucketId);
-            if (remove != null) {
-                for (ByteBuf byteBuf : remove) {
-                    byteBuf.release();
-                }
-            }
-            return null;
-        }, executorService);
-    }
-
-    @Override
-    public CompletableFuture<Long> getBucketSnapshotLength(long bucketId) {
-        return CompletableFuture.supplyAsync(() -> {
-            long length = 0;
-            List<ByteBuf> bufList = this.bucketSnapshots.get(bucketId);
-            for (ByteBuf byteBuf : bufList) {
-                length += byteBuf.readableBytes();
-            }
-            return length;
-        }, executorService);
-    }
-
-    @Override
-    public void start() throws Exception {
-
-    }
-
-    @Override
-    public void close() throws Exception {
-        clean();
-    }
-
-    public void clean() {
-        for (List<ByteBuf> value : bucketSnapshots.values()) {
-            for (ByteBuf byteBuf : value) {
-                byteBuf.release();
-            }
-        }
-        bucketSnapshots.clear();
-        executorService.shutdownNow();
-    }
+    bucketSnapshots.clear();
+    executorService.shutdownNow();
+  }
 }

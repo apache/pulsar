@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.loadbalance.extensions;
 
 import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
+
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -28,80 +29,86 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
-/**
- * Unit test for {@link ExtensibleLoadManagerImpl with AdvertisedListeners broker configs}.
- */
+/** Unit test for {@link ExtensibleLoadManagerImpl with AdvertisedListeners broker configs}. */
 @Slf4j
 @Test(groups = "flaky")
 @SuppressWarnings("unchecked")
-public class ExtensibleLoadManagerImplWithAdvertisedListenersTest extends ExtensibleLoadManagerImplBaseTest {
+public class ExtensibleLoadManagerImplWithAdvertisedListenersTest
+    extends ExtensibleLoadManagerImplBaseTest {
 
-    public String brokerServiceUrl;
+  public String brokerServiceUrl;
 
-    @Factory(dataProvider = "serviceUnitStateTableViewClassName")
-    public ExtensibleLoadManagerImplWithAdvertisedListenersTest(String serviceUnitStateTableViewClassName) {
-        super("public/test", serviceUnitStateTableViewClassName);
-    }
+  @Factory(dataProvider = "serviceUnitStateTableViewClassName")
+  public ExtensibleLoadManagerImplWithAdvertisedListenersTest(
+      String serviceUnitStateTableViewClassName) {
+    super("public/test", serviceUnitStateTableViewClassName);
+  }
 
-    @Override
-    protected ServiceConfiguration updateConfig(ServiceConfiguration conf) {
-        super.updateConfig(conf);
-        int privatePulsarPort = nextLockedFreePort();
-        int publicPulsarPort = nextLockedFreePort();
-        conf.setInternalListenerName("internal");
-        conf.setBindAddresses("external:pulsar://localhost:" + publicPulsarPort);
-        conf.setAdvertisedListeners(
-                "external:pulsar://localhost:" + publicPulsarPort +
-                        ",internal:pulsar://localhost:" + privatePulsarPort);
-        conf.setWebServicePortTls(Optional.empty());
-        conf.setBrokerServicePortTls(Optional.empty());
-        conf.setBrokerServicePort(Optional.of(privatePulsarPort));
-        conf.setWebServicePort(Optional.of(0));
-        brokerServiceUrl = conf.getBindAddresses().replaceAll("external:", "");
-        return conf;
-    }
+  @Override
+  protected ServiceConfiguration updateConfig(ServiceConfiguration conf) {
+    super.updateConfig(conf);
+    int privatePulsarPort = nextLockedFreePort();
+    int publicPulsarPort = nextLockedFreePort();
+    conf.setInternalListenerName("internal");
+    conf.setBindAddresses("external:pulsar://localhost:" + publicPulsarPort);
+    conf.setAdvertisedListeners(
+        "external:pulsar://localhost:"
+            + publicPulsarPort
+            + ",internal:pulsar://localhost:"
+            + privatePulsarPort);
+    conf.setWebServicePortTls(Optional.empty());
+    conf.setBrokerServicePortTls(Optional.empty());
+    conf.setBrokerServicePort(Optional.of(privatePulsarPort));
+    conf.setWebServicePort(Optional.of(0));
+    brokerServiceUrl = conf.getBindAddresses().replaceAll("external:", "");
+    return conf;
+  }
 
-    @DataProvider(name = "isPersistentTopicSubscriptionTypeTest")
-    public Object[][] isPersistentTopicSubscriptionTypeTest() {
-        return new Object[][]{
-                {TopicDomain.non_persistent, SubscriptionType.Exclusive},
-                {TopicDomain.persistent, SubscriptionType.Key_Shared}
-        };
-    }
+  @DataProvider(name = "isPersistentTopicSubscriptionTypeTest")
+  public Object[][] isPersistentTopicSubscriptionTypeTest() {
+    return new Object[][] {
+      {TopicDomain.non_persistent, SubscriptionType.Exclusive},
+      {TopicDomain.persistent, SubscriptionType.Key_Shared}
+    };
+  }
 
-    @Test(timeOut = 30_000, dataProvider = "isPersistentTopicSubscriptionTypeTest")
-    public void testTransferClientReconnectionWithoutLookup(TopicDomain topicDomain, SubscriptionType subscriptionType)
-            throws Exception {
-        ExtensibleLoadManagerImplTest.testTransferClientReconnectionWithoutLookup(
-                clients,
-                topicDomain, subscriptionType,
-                defaultTestNamespace, admin,
-                brokerServiceUrl,
-                pulsar1, pulsar2, primaryLoadManager, secondaryLoadManager);
-    }
+  @Test(timeOut = 30_000, dataProvider = "isPersistentTopicSubscriptionTypeTest")
+  public void testTransferClientReconnectionWithoutLookup(
+      TopicDomain topicDomain, SubscriptionType subscriptionType) throws Exception {
+    ExtensibleLoadManagerImplTest.testTransferClientReconnectionWithoutLookup(
+        clients,
+        topicDomain,
+        subscriptionType,
+        defaultTestNamespace,
+        admin,
+        brokerServiceUrl,
+        pulsar1,
+        pulsar2,
+        primaryLoadManager,
+        secondaryLoadManager);
+  }
 
-    @Test(timeOut = 30 * 1000, dataProvider = "isPersistentTopicSubscriptionTypeTest")
-    public void testUnloadClientReconnectionWithLookup(TopicDomain topicDomain,
-                                                       SubscriptionType subscriptionType) throws Exception {
-        ExtensibleLoadManagerImplTest.testUnloadClientReconnectionWithLookup(
-                clients,
-                topicDomain, subscriptionType,
-                defaultTestNamespace, admin,
-                brokerServiceUrl,
-                pulsar1);
-    }
+  @Test(timeOut = 30 * 1000, dataProvider = "isPersistentTopicSubscriptionTypeTest")
+  public void testUnloadClientReconnectionWithLookup(
+      TopicDomain topicDomain, SubscriptionType subscriptionType) throws Exception {
+    ExtensibleLoadManagerImplTest.testUnloadClientReconnectionWithLookup(
+        clients,
+        topicDomain,
+        subscriptionType,
+        defaultTestNamespace,
+        admin,
+        brokerServiceUrl,
+        pulsar1);
+  }
 
-    @DataProvider(name = "isPersistentTopicTest")
-    public Object[][] isPersistentTopicTest() {
-        return new Object[][]{{TopicDomain.persistent}, {TopicDomain.non_persistent}};
-    }
+  @DataProvider(name = "isPersistentTopicTest")
+  public Object[][] isPersistentTopicTest() {
+    return new Object[][] {{TopicDomain.persistent}, {TopicDomain.non_persistent}};
+  }
 
-    @Test(timeOut = 30 * 1000, dataProvider = "isPersistentTopicTest")
-    public void testOptimizeUnloadDisable(TopicDomain topicDomain) throws Exception {
-        ExtensibleLoadManagerImplTest.testOptimizeUnloadDisable(
-                clients,
-                topicDomain, defaultTestNamespace, admin,
-                brokerServiceUrl, pulsar1, pulsar2);
-    }
-
+  @Test(timeOut = 30 * 1000, dataProvider = "isPersistentTopicTest")
+  public void testOptimizeUnloadDisable(TopicDomain topicDomain) throws Exception {
+    ExtensibleLoadManagerImplTest.testOptimizeUnloadDisable(
+        clients, topicDomain, defaultTestNamespace, admin, brokerServiceUrl, pulsar1, pulsar2);
+  }
 }

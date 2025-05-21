@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.stats;
 
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.assertj.core.api.Assertions.assertThat;
+
 import io.opentelemetry.api.common.Attributes;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -32,57 +33,61 @@ import org.testng.annotations.Test;
 
 public class OpenTelemetryProducerStatsTest extends BrokerTestBase {
 
-    @BeforeMethod(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        super.baseSetup();
+  @BeforeMethod(alwaysRun = true)
+  @Override
+  protected void setup() throws Exception {
+    super.baseSetup();
+  }
+
+  @AfterMethod(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
+
+  @Override
+  protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder builder) {
+    super.customizeMainPulsarTestContextBuilder(builder);
+    builder.enableOpenTelemetry(true);
+  }
+
+  @Test(timeOut = 30_000)
+  public void testMessagingMetrics() throws Exception {
+    var topicName =
+        BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/testProducerMessagingMetrics");
+    admin.topics().createNonPartitionedTopic(topicName);
+
+    var messageCount = 5;
+    var producerName = BrokerTestUtil.newUniqueName("testProducerName");
+
+    @Cleanup
+    var producer = pulsarClient.newProducer().producerName(producerName).topic(topicName).create();
+    for (int i = 0; i < messageCount; i++) {
+      producer.send(String.format("msg-%d", i).getBytes());
     }
 
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+    var attributes =
+        Attributes.builder()
+            .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
+            .put(OpenTelemetryAttributes.PULSAR_TENANT, "prop")
+            .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "prop/ns-abc")
+            .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicName)
+            .put(OpenTelemetryAttributes.PULSAR_PRODUCER_NAME, producerName)
+            .put(OpenTelemetryAttributes.PULSAR_PRODUCER_ID, 0)
+            .put(OpenTelemetryAttributes.PULSAR_PRODUCER_ACCESS_MODE, "shared")
+            .build();
 
-    @Override
-    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder builder) {
-        super.customizeMainPulsarTestContextBuilder(builder);
-        builder.enableOpenTelemetry(true);
-    }
+    var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
 
-
-    @Test(timeOut = 30_000)
-    public void testMessagingMetrics() throws Exception {
-        var topicName = BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/testProducerMessagingMetrics");
-        admin.topics().createNonPartitionedTopic(topicName);
-
-        var messageCount = 5;
-        var producerName = BrokerTestUtil.newUniqueName("testProducerName");
-
-        @Cleanup
-        var producer = pulsarClient.newProducer()
-                .producerName(producerName)
-                .topic(topicName)
-                .create();
-        for (int i = 0; i < messageCount; i++) {
-            producer.send(String.format("msg-%d", i).getBytes());
-        }
-
-        var attributes = Attributes.builder()
-                .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
-                .put(OpenTelemetryAttributes.PULSAR_TENANT, "prop")
-                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "prop/ns-abc")
-                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicName)
-                .put(OpenTelemetryAttributes.PULSAR_PRODUCER_NAME, producerName)
-                .put(OpenTelemetryAttributes.PULSAR_PRODUCER_ID, 0)
-                .put(OpenTelemetryAttributes.PULSAR_PRODUCER_ACCESS_MODE, "shared")
-                .build();
-
-        var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
-
-        assertMetricLongSumValue(metrics, OpenTelemetryProducerStats.MESSAGE_IN_COUNTER, attributes,
-                actual -> assertThat(actual).isPositive());
-        assertMetricLongSumValue(metrics, OpenTelemetryProducerStats.BYTES_IN_COUNTER, attributes,
-                actual -> assertThat(actual).isPositive());
-    }
+    assertMetricLongSumValue(
+        metrics,
+        OpenTelemetryProducerStats.MESSAGE_IN_COUNTER,
+        attributes,
+        actual -> assertThat(actual).isPositive());
+    assertMetricLongSumValue(
+        metrics,
+        OpenTelemetryProducerStats.BYTES_IN_COUNTER,
+        attributes,
+        actual -> assertThat(actual).isPositive());
+  }
 }

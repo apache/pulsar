@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.util.RetryMessageUtil;
@@ -31,49 +32,51 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-api")
 public class SimpleProducerConsumerDisallowAutoCreateTopicTest extends ProducerConsumerBase {
 
-    @BeforeClass(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
+  @BeforeClass(alwaysRun = true)
+  @Override
+  protected void setup() throws Exception {
+    super.internalSetup();
+    super.producerBaseSetup();
+  }
 
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @AfterClass(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @Override
-    protected void doInitConf() throws Exception {
-        super.doInitConf();
-        conf.setAllowAutoTopicCreation(false);
-    }
+  @Override
+  protected void doInitConf() throws Exception {
+    super.doInitConf();
+    conf.setAllowAutoTopicCreation(false);
+  }
 
-    @Test
-    public void testClearErrorIfRetryTopicNotExists() throws Exception {
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp_");
-        final String subName = "sub";
-        final String retryTopicName = RetryMessageUtil.getRetryTopic(topicName, subName);
-        admin.topics().createNonPartitionedTopic(topicName);
-        Consumer consumer = null;
-        try {
-            consumer = pulsarClient.newConsumer()
-                    .topic(topicName)
-                    .subscriptionName(subName)
-                    .enableRetry(true)
-                    .subscribe();
-            fail("");
-        } catch (Exception ex) {
-            log.info("got an expected error", ex);
-            assertTrue(ex.getMessage().contains("Not found:"));
-            assertTrue(ex.getMessage().contains(retryTopicName));
-        } finally {
-            // cleanup.
-            if (consumer != null) {
-                consumer.close();
-            }
-            admin.topics().delete(topicName);
-        }
+  @Test
+  public void testClearErrorIfRetryTopicNotExists() throws Exception {
+    final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp_");
+    final String subName = "sub";
+    final String retryTopicName = RetryMessageUtil.getRetryTopic(topicName, subName);
+    admin.topics().createNonPartitionedTopic(topicName);
+    Consumer consumer = null;
+    try {
+      consumer =
+          pulsarClient
+              .newConsumer()
+              .topic(topicName)
+              .subscriptionName(subName)
+              .enableRetry(true)
+              .subscribe();
+      fail("");
+    } catch (Exception ex) {
+      log.info("got an expected error", ex);
+      assertTrue(ex.getMessage().contains("Not found:"));
+      assertTrue(ex.getMessage().contains(retryTopicName));
+    } finally {
+      // cleanup.
+      if (consumer != null) {
+        consumer.close();
+      }
+      admin.topics().delete(topicName);
     }
+  }
 }

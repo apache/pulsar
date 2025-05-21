@@ -36,51 +36,60 @@ import org.testng.annotations.Test;
 @Slf4j
 public class PulsarClientBasedHandlerTest {
 
-    private final static String clusterName = "cluster";
-    private final static int shutdownTimeoutMs = 100;
-    private final int zkPort = PortManager.nextFreePort();
-    private final LocalBookkeeperEnsemble bk = new LocalBookkeeperEnsemble(2, zkPort, PortManager::nextFreePort);
-    private File tempDirectory;
-    private PulsarService pulsar;
+  private static final String clusterName = "cluster";
+  private static final int shutdownTimeoutMs = 100;
+  private final int zkPort = PortManager.nextFreePort();
+  private final LocalBookkeeperEnsemble bk =
+      new LocalBookkeeperEnsemble(2, zkPort, PortManager::nextFreePort);
+  private File tempDirectory;
+  private PulsarService pulsar;
 
-    @BeforeClass
-    public void setup() throws Exception {
-        bk.start();
-        final var config = new ServiceConfiguration();
-        config.setClusterName(clusterName);
-        config.setAdvertisedAddress("localhost");
-        config.setBrokerServicePort(Optional.of(0));
-        config.setWebServicePort(Optional.of(0));
-        config.setMetadataStoreUrl("zk:127.0.0.1:" + zkPort);
+  @BeforeClass
+  public void setup() throws Exception {
+    bk.start();
+    final var config = new ServiceConfiguration();
+    config.setClusterName(clusterName);
+    config.setAdvertisedAddress("localhost");
+    config.setBrokerServicePort(Optional.of(0));
+    config.setWebServicePort(Optional.of(0));
+    config.setMetadataStoreUrl("zk:127.0.0.1:" + zkPort);
 
-        tempDirectory = SimpleProtocolHandlerTestsBase.configureProtocolHandler(config,
-                PulsarClientBasedHandler.class.getName(), true);
+    tempDirectory =
+        SimpleProtocolHandlerTestsBase.configureProtocolHandler(
+            config, PulsarClientBasedHandler.class.getName(), true);
 
-        config.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
-        config.setLoadBalancerDebugModeEnabled(true);
-        config.setBrokerShutdownTimeoutMs(shutdownTimeoutMs);
+    config.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
+    config.setLoadBalancerDebugModeEnabled(true);
+    config.setBrokerShutdownTimeoutMs(shutdownTimeoutMs);
 
-        pulsar = new PulsarService(config);
-        pulsar.start();
+    pulsar = new PulsarService(config);
+    pulsar.start();
+  }
+
+  @Test(timeOut = 30000)
+  public void testStopBroker() throws PulsarServerException {
+    final var beforeStop = System.currentTimeMillis();
+    final var handler =
+        (PulsarClientBasedHandler)
+            pulsar.getProtocolHandlers().protocol(PulsarClientBasedHandler.PROTOCOL);
+    pulsar.close();
+    final var elapsedMs = System.currentTimeMillis() - beforeStop;
+    log.info(
+        "It spends {} ms to stop the broker ({} for protocol handler)",
+        elapsedMs,
+        handler.closeTimeMs);
+    Assert.assertTrue(
+        elapsedMs
+            < +handler.closeTimeMs
+                + shutdownTimeoutMs
+                + 1000); // tolerate 1 more second for other processes
+  }
+
+  @AfterClass(alwaysRun = true)
+  public void cleanup() throws Exception {
+    bk.stop();
+    if (tempDirectory != null) {
+      FileUtils.deleteDirectory(tempDirectory);
     }
-
-    @Test(timeOut = 30000)
-    public void testStopBroker() throws PulsarServerException {
-        final var beforeStop = System.currentTimeMillis();
-        final var handler = (PulsarClientBasedHandler) pulsar.getProtocolHandlers()
-                .protocol(PulsarClientBasedHandler.PROTOCOL);
-        pulsar.close();
-        final var elapsedMs = System.currentTimeMillis() - beforeStop;
-        log.info("It spends {} ms to stop the broker ({} for protocol handler)", elapsedMs, handler.closeTimeMs);
-        Assert.assertTrue(elapsedMs <
-                + handler.closeTimeMs + shutdownTimeoutMs + 1000); // tolerate 1 more second for other processes
-    }
-
-    @AfterClass(alwaysRun = true)
-    public void cleanup() throws Exception {
-        bk.stop();
-        if (tempDirectory != null) {
-            FileUtils.deleteDirectory(tempDirectory);
-        }
-    }
+  }
 }

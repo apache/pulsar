@@ -35,118 +35,131 @@ import org.testng.annotations.BeforeClass;
 
 @Slf4j
 public abstract class MultiBrokerBaseTest extends MockedPulsarServiceBaseTest {
-    protected List<PulsarTestContext> additionalPulsarTestContexts;
-    protected List<PulsarService> additionalBrokers;
-    protected List<PulsarAdmin> additionalBrokerAdmins;
-    protected List<PulsarClient> additionalBrokerClients;
+  protected List<PulsarTestContext> additionalPulsarTestContexts;
+  protected List<PulsarService> additionalBrokers;
+  protected List<PulsarAdmin> additionalBrokerAdmins;
+  protected List<PulsarClient> additionalBrokerClients;
 
-    protected int numberOfAdditionalBrokers() {
-        return 2;
+  protected int numberOfAdditionalBrokers() {
+    return 2;
+  }
+
+  @BeforeClass(alwaysRun = true)
+  @Override
+  public final void setup() throws Exception {
+    super.internalSetup();
+    additionalBrokersSetup();
+    pulsarResourcesSetup();
+  }
+
+  protected void pulsarResourcesSetup() throws PulsarAdminException {
+    admin.tenants().createTenant("public", createDefaultTenantInfo());
+    admin
+        .namespaces()
+        .createNamespace(
+            "public/default", getPulsar().getConfiguration().getDefaultNumberOfNamespaceBundles());
+  }
+
+  protected void additionalBrokersSetup() throws Exception {
+    int numberOfAdditionalBrokers = numberOfAdditionalBrokers();
+    additionalBrokers = new ArrayList<>(numberOfAdditionalBrokers);
+    additionalBrokerAdmins = new ArrayList<>(numberOfAdditionalBrokers);
+    additionalBrokerClients = new ArrayList<>(numberOfAdditionalBrokers);
+    additionalPulsarTestContexts = new ArrayList<>(numberOfAdditionalBrokers);
+    for (int i = 0; i < numberOfAdditionalBrokers; i++) {
+      PulsarTestContext pulsarTestContext = createAdditionalBroker(i);
+      additionalPulsarTestContexts.add(i, pulsarTestContext);
+      PulsarService pulsarService = pulsarTestContext.getPulsarService();
+      additionalBrokers.add(i, pulsarService);
+      PulsarAdminBuilder pulsarAdminBuilder =
+          PulsarAdmin.builder()
+              .serviceHttpUrl(
+                  pulsarService.getWebServiceAddress() != null
+                      ? pulsarService.getWebServiceAddress()
+                      : pulsarService.getWebServiceAddressTls());
+      customizeNewPulsarAdminBuilder(pulsarAdminBuilder);
+      additionalBrokerAdmins.add(i, pulsarAdminBuilder.build());
+      additionalBrokerClients.add(i, newPulsarClient(pulsarService.getBrokerServiceUrl(), 0));
     }
+  }
 
-    @BeforeClass(alwaysRun = true)
-    @Override
-    public final void setup() throws Exception {
-        super.internalSetup();
-        additionalBrokersSetup();
-        pulsarResourcesSetup();
+  protected ServiceConfiguration createConfForAdditionalBroker(int additionalBrokerIndex) {
+    return getDefaultConf();
+  }
+
+  protected PulsarTestContext createAdditionalBroker(int additionalBrokerIndex) throws Exception {
+    return createAdditionalPulsarTestContext(createConfForAdditionalBroker(additionalBrokerIndex));
+  }
+
+  @AfterClass(alwaysRun = true)
+  @Override
+  public final void cleanup() throws Exception {
+    additionalBrokersCleanup();
+    super.internalCleanup();
+  }
+
+  protected void additionalBrokersCleanup() {
+    if (additionalBrokerAdmins != null) {
+      for (PulsarAdmin additionalBrokerAdmin : additionalBrokerAdmins) {
+        additionalBrokerAdmin.close();
+      }
+      additionalBrokerAdmins = null;
     }
-
-    protected void pulsarResourcesSetup() throws PulsarAdminException {
-        admin.tenants().createTenant("public", createDefaultTenantInfo());
-        admin.namespaces()
-                .createNamespace("public/default", getPulsar().getConfiguration().getDefaultNumberOfNamespaceBundles());
-    }
-
-    protected void additionalBrokersSetup() throws Exception {
-        int numberOfAdditionalBrokers = numberOfAdditionalBrokers();
-        additionalBrokers = new ArrayList<>(numberOfAdditionalBrokers);
-        additionalBrokerAdmins = new ArrayList<>(numberOfAdditionalBrokers);
-        additionalBrokerClients = new ArrayList<>(numberOfAdditionalBrokers);
-        additionalPulsarTestContexts = new ArrayList<>(numberOfAdditionalBrokers);
-        for (int i = 0; i < numberOfAdditionalBrokers; i++) {
-            PulsarTestContext pulsarTestContext = createAdditionalBroker(i);
-            additionalPulsarTestContexts.add(i, pulsarTestContext);
-            PulsarService pulsarService = pulsarTestContext.getPulsarService();
-            additionalBrokers.add(i, pulsarService);
-            PulsarAdminBuilder pulsarAdminBuilder =
-                    PulsarAdmin.builder().serviceHttpUrl(pulsarService.getWebServiceAddress() != null
-                            ? pulsarService.getWebServiceAddress()
-                            : pulsarService.getWebServiceAddressTls());
-            customizeNewPulsarAdminBuilder(pulsarAdminBuilder);
-            additionalBrokerAdmins.add(i, pulsarAdminBuilder.build());
-            additionalBrokerClients.add(i, newPulsarClient(pulsarService.getBrokerServiceUrl(), 0));
+    if (additionalBrokerClients != null) {
+      for (PulsarClient additionalBrokerClient : additionalBrokerClients) {
+        try {
+          additionalBrokerClient.shutdown();
+        } catch (PulsarClientException e) {
+          // ignore
         }
+      }
+      additionalBrokerClients = null;
     }
-
-    protected ServiceConfiguration createConfForAdditionalBroker(int additionalBrokerIndex) {
-        return getDefaultConf();
-    }
-
-    protected PulsarTestContext createAdditionalBroker(int additionalBrokerIndex) throws Exception {
-        return createAdditionalPulsarTestContext(createConfForAdditionalBroker(additionalBrokerIndex));
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    public final void cleanup() throws Exception {
-        additionalBrokersCleanup();
-        super.internalCleanup();
-    }
-
-    protected void additionalBrokersCleanup() {
-        if (additionalBrokerAdmins != null) {
-            for (PulsarAdmin additionalBrokerAdmin : additionalBrokerAdmins) {
-                additionalBrokerAdmin.close();
-            }
-            additionalBrokerAdmins = null;
+    if (additionalPulsarTestContexts != null) {
+      for (PulsarTestContext pulsarTestContext : additionalPulsarTestContexts) {
+        PulsarService pulsarService = pulsarTestContext.getPulsarService();
+        try {
+          pulsarService.getConfiguration().setBrokerShutdownTimeoutMs(0L);
+          pulsarTestContext.close();
+          pulsarService
+              .getConfiguration()
+              .getBrokerServicePort()
+              .ifPresent(PortManager::releaseLockedPort);
+          pulsarService
+              .getConfiguration()
+              .getWebServicePort()
+              .ifPresent(PortManager::releaseLockedPort);
+          pulsarService
+              .getConfiguration()
+              .getWebServicePortTls()
+              .ifPresent(PortManager::releaseLockedPort);
+        } catch (Exception e) {
+          log.warn("Failed to stop additional broker", e);
         }
-        if (additionalBrokerClients != null) {
-            for (PulsarClient additionalBrokerClient : additionalBrokerClients) {
-                try {
-                    additionalBrokerClient.shutdown();
-                } catch (PulsarClientException e) {
-                    // ignore
-                }
-            }
-            additionalBrokerClients = null;
-        }
-        if (additionalPulsarTestContexts != null) {
-            for (PulsarTestContext pulsarTestContext : additionalPulsarTestContexts) {
-                PulsarService pulsarService = pulsarTestContext.getPulsarService();
-                try {
-                    pulsarService.getConfiguration().setBrokerShutdownTimeoutMs(0L);
-                    pulsarTestContext.close();
-                    pulsarService.getConfiguration().getBrokerServicePort().ifPresent(PortManager::releaseLockedPort);
-                    pulsarService.getConfiguration().getWebServicePort().ifPresent(PortManager::releaseLockedPort);
-                    pulsarService.getConfiguration().getWebServicePortTls().ifPresent(PortManager::releaseLockedPort);
-                } catch (Exception e) {
-                    log.warn("Failed to stop additional broker", e);
-                }
-            }
-            additionalBrokers = null;
-            additionalPulsarTestContexts = null;
-        }
+      }
+      additionalBrokers = null;
+      additionalPulsarTestContexts = null;
     }
+  }
 
-    public final List<PulsarService> getAllBrokers() {
-        List<PulsarService> brokers = new ArrayList<>(numberOfAdditionalBrokers() + 1);
-        brokers.add(getPulsar());
-        brokers.addAll(additionalBrokers);
-        return Collections.unmodifiableList(brokers);
-    }
+  public final List<PulsarService> getAllBrokers() {
+    List<PulsarService> brokers = new ArrayList<>(numberOfAdditionalBrokers() + 1);
+    brokers.add(getPulsar());
+    brokers.addAll(additionalBrokers);
+    return Collections.unmodifiableList(brokers);
+  }
 
-    public final List<PulsarAdmin> getAllAdmins() {
-        List<PulsarAdmin> admins = new ArrayList<>(numberOfAdditionalBrokers() + 1);
-        admins.add(admin);
-        admins.addAll(additionalBrokerAdmins);
-        return Collections.unmodifiableList(admins);
-    }
+  public final List<PulsarAdmin> getAllAdmins() {
+    List<PulsarAdmin> admins = new ArrayList<>(numberOfAdditionalBrokers() + 1);
+    admins.add(admin);
+    admins.addAll(additionalBrokerAdmins);
+    return Collections.unmodifiableList(admins);
+  }
 
-    public final List<PulsarClient> getAllClients() {
-        List<PulsarClient> clients = new ArrayList<>(numberOfAdditionalBrokers() + 1);
-        clients.add(pulsarClient);
-        clients.addAll(additionalBrokerClients);
-        return Collections.unmodifiableList(clients);
-    }
+  public final List<PulsarClient> getAllClients() {
+    List<PulsarClient> clients = new ArrayList<>(numberOfAdditionalBrokers() + 1);
+    clients.add(pulsarClient);
+    clients.addAll(additionalBrokerClients);
+    return Collections.unmodifiableList(clients);
+  }
 }

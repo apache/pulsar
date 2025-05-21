@@ -22,48 +22,48 @@ import static org.apache.pulsar.broker.service.plugin.EntryFilterProvider.ENTRY_
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.io.IOException;
+import java.nio.file.NoSuchFileException;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import java.io.IOException;
-import java.nio.file.NoSuchFileException;
 
 @Test(groups = "broker")
 public class EntryFilterProviderTest {
 
-    @Test
-    public void testReadYamlFile() throws IOException {
-        try (NarClassLoader cl = mock(NarClassLoader.class)) {
-            when(cl.getServiceDefinition(ENTRY_FILTER_DEFINITION_FILE + ".yaml"))
-                    .thenThrow(new NoSuchFileException(""));
-            try {
-                EntryFilterProvider.getEntryFilterDefinition(cl);
-                Assert.fail();
-            } catch (Exception e) {
-                Assert.assertFalse(e instanceof NoSuchFileException);
-            }
-        }
-        try (NarClassLoader cl = mock(NarClassLoader.class)) {
-            when(cl.getServiceDefinition(ENTRY_FILTER_DEFINITION_FILE + ".yml"))
-                    .thenThrow(new NoSuchFileException(""));
-            try {
-                EntryFilterProvider.getEntryFilterDefinition(cl);
-                Assert.fail();
-            } catch (Exception e) {
-                Assert.assertFalse(e instanceof NoSuchFileException);
-            }
-        }
-        try (NarClassLoader cl = mock(NarClassLoader.class)) {
-            when(cl.getServiceDefinition(ENTRY_FILTER_DEFINITION_FILE + ".yaml"))
-                    .thenThrow(new NoSuchFileException(""));
-            when(cl.getServiceDefinition(ENTRY_FILTER_DEFINITION_FILE + ".yml"))
-                    .thenThrow(new NoSuchFileException(""));
-            try {
-                EntryFilterProvider.getEntryFilterDefinition(cl);
-                Assert.fail();
-            } catch (Exception e) {
-                Assert.assertTrue(e instanceof NoSuchFileException);
-            }
-        }
+  @Test
+  public void testReadYamlFile() throws IOException {
+    try (NarClassLoader cl = mock(NarClassLoader.class)) {
+      when(cl.getServiceDefinition(ENTRY_FILTER_DEFINITION_FILE + ".yaml"))
+          .thenThrow(new NoSuchFileException(""));
+      try {
+        EntryFilterProvider.getEntryFilterDefinition(cl);
+        Assert.fail();
+      } catch (Exception e) {
+        Assert.assertFalse(e instanceof NoSuchFileException);
+      }
     }
+    try (NarClassLoader cl = mock(NarClassLoader.class)) {
+      when(cl.getServiceDefinition(ENTRY_FILTER_DEFINITION_FILE + ".yml"))
+          .thenThrow(new NoSuchFileException(""));
+      try {
+        EntryFilterProvider.getEntryFilterDefinition(cl);
+        Assert.fail();
+      } catch (Exception e) {
+        Assert.assertFalse(e instanceof NoSuchFileException);
+      }
+    }
+    try (NarClassLoader cl = mock(NarClassLoader.class)) {
+      when(cl.getServiceDefinition(ENTRY_FILTER_DEFINITION_FILE + ".yaml"))
+          .thenThrow(new NoSuchFileException(""));
+      when(cl.getServiceDefinition(ENTRY_FILTER_DEFINITION_FILE + ".yml"))
+          .thenThrow(new NoSuchFileException(""));
+      try {
+        EntryFilterProvider.getEntryFilterDefinition(cl);
+        Assert.fail();
+      } catch (Exception e) {
+        Assert.assertTrue(e instanceof NoSuchFileException);
+      }
+    }
+  }
 }

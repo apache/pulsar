@@ -19,35 +19,35 @@
 package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
+
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.testng.annotations.Test;
 
 public class EntryBatchIndexesAcksTest {
 
-    @Test
-    void shouldResetStateBeforeReusing() {
-        // given
-        // a bitset with 95 bits set
-        BitSetRecyclable bitSet = BitSetRecyclable.create();
-        bitSet.set(0, 95);
-        long[] nintyFiveBitsSet = bitSet.toLongArray();
-        // and a EntryBatchIndexesAcks for the size of 10
-        EntryBatchIndexesAcks acks = EntryBatchIndexesAcks.get(10);
+  @Test
+  void shouldResetStateBeforeReusing() {
+    // given
+    // a bitset with 95 bits set
+    BitSetRecyclable bitSet = BitSetRecyclable.create();
+    bitSet.set(0, 95);
+    long[] nintyFiveBitsSet = bitSet.toLongArray();
+    // and a EntryBatchIndexesAcks for the size of 10
+    EntryBatchIndexesAcks acks = EntryBatchIndexesAcks.get(10);
 
-        // when setting 2 indexes with 95/100 bits set in each (5 "acked" in each)
-        acks.setIndexesAcks(8, Pair.of(100, nintyFiveBitsSet));
-        acks.setIndexesAcks(9, Pair.of(100, nintyFiveBitsSet));
+    // when setting 2 indexes with 95/100 bits set in each (5 "acked" in each)
+    acks.setIndexesAcks(8, Pair.of(100, nintyFiveBitsSet));
+    acks.setIndexesAcks(9, Pair.of(100, nintyFiveBitsSet));
 
-        // then the totalAckedIndexCount should be 10
-        assertEquals(acks.getTotalAckedIndexCount(), 10);
+    // then the totalAckedIndexCount should be 10
+    assertEquals(acks.getTotalAckedIndexCount(), 10);
 
-        // when recycled and used again
-        acks.recycle();
-        acks = EntryBatchIndexesAcks.get(2);
+    // when recycled and used again
+    acks.recycle();
+    acks = EntryBatchIndexesAcks.get(2);
 
-        // then there should be no previous state and totalAckedIndexCount should be 0
-        assertEquals(acks.getTotalAckedIndexCount(), 0);
-    }
-
+    // then there should be no previous state and totalAckedIndexCount should be 0
+    assertEquals(acks.getTotalAckedIndexCount(), 0);
+  }
 }

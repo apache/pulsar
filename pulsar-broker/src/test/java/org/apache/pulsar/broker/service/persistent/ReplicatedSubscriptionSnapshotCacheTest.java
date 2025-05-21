@@ -29,82 +29,86 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class ReplicatedSubscriptionSnapshotCacheTest {
 
-    @Test
-    public void testSnapshotCache() {
-        ReplicatedSubscriptionSnapshotCache cache = new ReplicatedSubscriptionSnapshotCache("my-subscription", 10);
+  @Test
+  public void testSnapshotCache() {
+    ReplicatedSubscriptionSnapshotCache cache =
+        new ReplicatedSubscriptionSnapshotCache("my-subscription", 10);
 
-        assertNull(cache.advancedMarkDeletePosition(PositionFactory.create(0, 0)));
-        assertNull(cache.advancedMarkDeletePosition(PositionFactory.create(100, 0)));
+    assertNull(cache.advancedMarkDeletePosition(PositionFactory.create(0, 0)));
+    assertNull(cache.advancedMarkDeletePosition(PositionFactory.create(100, 0)));
 
-        ReplicatedSubscriptionsSnapshot s1 = new ReplicatedSubscriptionsSnapshot()
-                .setSnapshotId("snapshot-1");
-        s1.setLocalMessageId().setLedgerId(1).setEntryId(1);
+    ReplicatedSubscriptionsSnapshot s1 =
+        new ReplicatedSubscriptionsSnapshot().setSnapshotId("snapshot-1");
+    s1.setLocalMessageId().setLedgerId(1).setEntryId(1);
 
-        ReplicatedSubscriptionsSnapshot s2 = new ReplicatedSubscriptionsSnapshot()
-                .setSnapshotId("snapshot-2");
-        s2.setLocalMessageId().setLedgerId(2).setEntryId(2);
+    ReplicatedSubscriptionsSnapshot s2 =
+        new ReplicatedSubscriptionsSnapshot().setSnapshotId("snapshot-2");
+    s2.setLocalMessageId().setLedgerId(2).setEntryId(2);
 
-        ReplicatedSubscriptionsSnapshot s5 = new ReplicatedSubscriptionsSnapshot()
-                .setSnapshotId("snapshot-5");
-        s5.setLocalMessageId().setLedgerId(5).setEntryId(5);
+    ReplicatedSubscriptionsSnapshot s5 =
+        new ReplicatedSubscriptionsSnapshot().setSnapshotId("snapshot-5");
+    s5.setLocalMessageId().setLedgerId(5).setEntryId(5);
 
-        ReplicatedSubscriptionsSnapshot s7 = new ReplicatedSubscriptionsSnapshot()
-                .setSnapshotId("snapshot-7");
-        s7.setLocalMessageId().setLedgerId(7 ).setEntryId(7);
+    ReplicatedSubscriptionsSnapshot s7 =
+        new ReplicatedSubscriptionsSnapshot().setSnapshotId("snapshot-7");
+    s7.setLocalMessageId().setLedgerId(7).setEntryId(7);
 
-        cache.addNewSnapshot(s1);
-        cache.addNewSnapshot(s2);
-        cache.addNewSnapshot(s5);
-        cache.addNewSnapshot(s7);
+    cache.addNewSnapshot(s1);
+    cache.addNewSnapshot(s2);
+    cache.addNewSnapshot(s5);
+    cache.addNewSnapshot(s7);
 
-        assertNull(cache.advancedMarkDeletePosition(PositionFactory.create(0, 0)));
-        assertNull(cache.advancedMarkDeletePosition(PositionFactory.create(1, 0)));
-        ReplicatedSubscriptionsSnapshot snapshot = cache.advancedMarkDeletePosition(PositionFactory.create(1, 1));
-        assertNotNull(snapshot);
-        assertEquals(snapshot.getSnapshotId(), "snapshot-1");
+    assertNull(cache.advancedMarkDeletePosition(PositionFactory.create(0, 0)));
+    assertNull(cache.advancedMarkDeletePosition(PositionFactory.create(1, 0)));
+    ReplicatedSubscriptionsSnapshot snapshot =
+        cache.advancedMarkDeletePosition(PositionFactory.create(1, 1));
+    assertNotNull(snapshot);
+    assertEquals(snapshot.getSnapshotId(), "snapshot-1");
 
-        snapshot = cache.advancedMarkDeletePosition(PositionFactory.create(5, 6));
-        assertNotNull(snapshot);
-        assertEquals(snapshot.getSnapshotId(), "snapshot-5");
+    snapshot = cache.advancedMarkDeletePosition(PositionFactory.create(5, 6));
+    assertNotNull(snapshot);
+    assertEquals(snapshot.getSnapshotId(), "snapshot-5");
 
-        // Snapshots should have been now removed
-        assertNull(cache.advancedMarkDeletePosition(PositionFactory.create(2, 2)));
-        assertNull(cache.advancedMarkDeletePosition(PositionFactory.create(5, 5)));
-    }
+    // Snapshots should have been now removed
+    assertNull(cache.advancedMarkDeletePosition(PositionFactory.create(2, 2)));
+    assertNull(cache.advancedMarkDeletePosition(PositionFactory.create(5, 5)));
+  }
 
-    @Test
-    public void testSnapshotCachePruning() {
-        ReplicatedSubscriptionSnapshotCache cache = new ReplicatedSubscriptionSnapshotCache("my-subscription", 3);
+  @Test
+  public void testSnapshotCachePruning() {
+    ReplicatedSubscriptionSnapshotCache cache =
+        new ReplicatedSubscriptionSnapshotCache("my-subscription", 3);
 
-        ReplicatedSubscriptionsSnapshot s1 = new ReplicatedSubscriptionsSnapshot()
-                .setSnapshotId("snapshot-1");
-        s1.setLocalMessageId().setLedgerId(1).setEntryId(1);
+    ReplicatedSubscriptionsSnapshot s1 =
+        new ReplicatedSubscriptionsSnapshot().setSnapshotId("snapshot-1");
+    s1.setLocalMessageId().setLedgerId(1).setEntryId(1);
 
-        ReplicatedSubscriptionsSnapshot s2 = new ReplicatedSubscriptionsSnapshot()
-                .setSnapshotId("snapshot-2");
-        s2.setLocalMessageId().setLedgerId(2).setEntryId(2);
+    ReplicatedSubscriptionsSnapshot s2 =
+        new ReplicatedSubscriptionsSnapshot().setSnapshotId("snapshot-2");
+    s2.setLocalMessageId().setLedgerId(2).setEntryId(2);
 
-        ReplicatedSubscriptionsSnapshot s3 = new ReplicatedSubscriptionsSnapshot()
-                .setSnapshotId("snapshot-3");
-        s3.setLocalMessageId().setLedgerId(3).setEntryId(3);
+    ReplicatedSubscriptionsSnapshot s3 =
+        new ReplicatedSubscriptionsSnapshot().setSnapshotId("snapshot-3");
+    s3.setLocalMessageId().setLedgerId(3).setEntryId(3);
 
-        ReplicatedSubscriptionsSnapshot s4 = new ReplicatedSubscriptionsSnapshot()
-                .setSnapshotId("snapshot-4");
-        s4.setLocalMessageId().setLedgerId(4).setEntryId(4);
+    ReplicatedSubscriptionsSnapshot s4 =
+        new ReplicatedSubscriptionsSnapshot().setSnapshotId("snapshot-4");
+    s4.setLocalMessageId().setLedgerId(4).setEntryId(4);
 
-        cache.addNewSnapshot(s1);
-        cache.addNewSnapshot(s2);
-        cache.addNewSnapshot(s3);
-        cache.addNewSnapshot(s4);
+    cache.addNewSnapshot(s1);
+    cache.addNewSnapshot(s2);
+    cache.addNewSnapshot(s3);
+    cache.addNewSnapshot(s4);
 
-        // Snapshot-1 was already pruned
-        assertNull(cache.advancedMarkDeletePosition(PositionFactory.create(1, 1)));
-        ReplicatedSubscriptionsSnapshot snapshot = cache.advancedMarkDeletePosition(PositionFactory.create(2, 2));
-        assertNotNull(snapshot);
-        assertEquals(snapshot.getSnapshotId(), "snapshot-2");
+    // Snapshot-1 was already pruned
+    assertNull(cache.advancedMarkDeletePosition(PositionFactory.create(1, 1)));
+    ReplicatedSubscriptionsSnapshot snapshot =
+        cache.advancedMarkDeletePosition(PositionFactory.create(2, 2));
+    assertNotNull(snapshot);
+    assertEquals(snapshot.getSnapshotId(), "snapshot-2");
 
-        snapshot = cache.advancedMarkDeletePosition(PositionFactory.create(5, 5));
-        assertNotNull(snapshot);
-        assertEquals(snapshot.getSnapshotId(), "snapshot-4");
-    }
+    snapshot = cache.advancedMarkDeletePosition(PositionFactory.create(5, 5));
+    assertNotNull(snapshot);
+    assertEquals(snapshot.getSnapshotId(), "snapshot-4");
+  }
 }

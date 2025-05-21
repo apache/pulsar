@@ -23,6 +23,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+
 import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -49,100 +50,115 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class TransactionPersistentTopicTest extends ProducerConsumerBase {
 
-    private static CountDownLatch topicInitSuccessSignal = new CountDownLatch(1);
+  private static CountDownLatch topicInitSuccessSignal = new CountDownLatch(1);
 
-    @BeforeClass(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        // Intercept when the `topicFuture` is about to complete and wait until the topic close operation finishes.
-        conf.setTopicFactoryClassName(MyTopicFactory.class.getName());
-        conf.setTransactionCoordinatorEnabled(true);
-        conf.setBrokerDeduplicationEnabled(false);
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
+  @BeforeClass(alwaysRun = true)
+  @Override
+  protected void setup() throws Exception {
+    // Intercept when the `topicFuture` is about to complete and wait until the topic close
+    // operation finishes.
+    conf.setTopicFactoryClassName(MyTopicFactory.class.getName());
+    conf.setTransactionCoordinatorEnabled(true);
+    conf.setBrokerDeduplicationEnabled(false);
+    super.internalSetup();
+    super.producerBaseSetup();
+  }
 
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @AfterClass(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @Test
-    public void testNoOrphanClosedTopicIfTxnInternalFailed() {
-        String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp2");
+  @Test
+  public void testNoOrphanClosedTopicIfTxnInternalFailed() {
+    String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp2");
 
-        BrokerService brokerService = pulsar.getBrokerService();
+    BrokerService brokerService = pulsar.getBrokerService();
 
-        // 1. Mock close topic when create transactionBuffer
-        TransactionBufferProvider mockTransactionBufferProvider = originTopic -> {
-            AbortedTxnProcessor abortedTxnProcessor = mock(AbortedTxnProcessor.class);
-            doAnswer(invocation -> {
-                topicInitSuccessSignal.await();
-                return CompletableFuture.failedFuture(new RuntimeException("Mock recovery failed"));
-            }).when(abortedTxnProcessor).recoverFromSnapshot();
-            when(abortedTxnProcessor.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
-            return new TopicTransactionBuffer(
-                    (PersistentTopic) originTopic, abortedTxnProcessor, AbortedTxnProcessor.SnapshotType.Single);
+    // 1. Mock close topic when create transactionBuffer
+    TransactionBufferProvider mockTransactionBufferProvider =
+        originTopic -> {
+          AbortedTxnProcessor abortedTxnProcessor = mock(AbortedTxnProcessor.class);
+          doAnswer(
+                  invocation -> {
+                    topicInitSuccessSignal.await();
+                    return CompletableFuture.failedFuture(
+                        new RuntimeException("Mock recovery failed"));
+                  })
+              .when(abortedTxnProcessor)
+              .recoverFromSnapshot();
+          when(abortedTxnProcessor.closeAsync())
+              .thenReturn(CompletableFuture.completedFuture(null));
+          return new TopicTransactionBuffer(
+              (PersistentTopic) originTopic,
+              abortedTxnProcessor,
+              AbortedTxnProcessor.SnapshotType.Single);
         };
-        TransactionBufferProvider originalTransactionBufferProvider = pulsar.getTransactionBufferProvider();
-        pulsar.setTransactionBufferProvider(mockTransactionBufferProvider);
+    TransactionBufferProvider originalTransactionBufferProvider =
+        pulsar.getTransactionBufferProvider();
+    pulsar.setTransactionBufferProvider(mockTransactionBufferProvider);
 
-        // 2. Trigger create topic and assert topic load success.
-        CompletableFuture<Optional<Topic>> firstLoad = brokerService.getTopic(tpName, true);
-        Awaitility.await().ignoreExceptions().atMost(10, TimeUnit.SECONDS)
-                .pollInterval(200, TimeUnit.MILLISECONDS)
-                .untilAsserted(() -> {
-                    assertTrue(firstLoad.isDone());
-                    assertFalse(firstLoad.isCompletedExceptionally());
-                });
+    // 2. Trigger create topic and assert topic load success.
+    CompletableFuture<Optional<Topic>> firstLoad = brokerService.getTopic(tpName, true);
+    Awaitility.await()
+        .ignoreExceptions()
+        .atMost(10, TimeUnit.SECONDS)
+        .pollInterval(200, TimeUnit.MILLISECONDS)
+        .untilAsserted(
+            () -> {
+              assertTrue(firstLoad.isDone());
+              assertFalse(firstLoad.isCompletedExceptionally());
+            });
 
-        // 3. Assert topic removed from cache
-        Awaitility.await().ignoreExceptions().atMost(10, TimeUnit.SECONDS)
-                .pollInterval(500, TimeUnit.MILLISECONDS)
-                .untilAsserted(() -> {
-                    assertFalse(brokerService.getTopics().containsKey(tpName));
-                });
+    // 3. Assert topic removed from cache
+    Awaitility.await()
+        .ignoreExceptions()
+        .atMost(10, TimeUnit.SECONDS)
+        .pollInterval(500, TimeUnit.MILLISECONDS)
+        .untilAsserted(
+            () -> {
+              assertFalse(brokerService.getTopics().containsKey(tpName));
+            });
 
-        // 4. Set txn provider to back
-        pulsar.setTransactionBufferProvider(originalTransactionBufferProvider);
+    // 4. Set txn provider to back
+    pulsar.setTransactionBufferProvider(originalTransactionBufferProvider);
+  }
+
+  public static class MyTopicFactory implements TopicFactory {
+    @Override
+    public <T extends Topic> T create(
+        String topic, ManagedLedger ledger, BrokerService brokerService, Class<T> topicClazz) {
+      try {
+        if (topicClazz == NonPersistentTopic.class) {
+          return (T) new NonPersistentTopic(topic, brokerService);
+        } else {
+          return (T) new MyPersistentTopic(topic, ledger, brokerService);
+        }
+      } catch (Exception e) {
+        throw new IllegalStateException(e);
+      }
     }
 
-    public static class MyTopicFactory implements TopicFactory {
-        @Override
-        public <T extends Topic> T create(String topic, ManagedLedger ledger, BrokerService brokerService,
-                                          Class<T> topicClazz) {
-            try {
-                if (topicClazz == NonPersistentTopic.class) {
-                    return (T) new NonPersistentTopic(topic, brokerService);
-                } else {
-                    return (T) new MyPersistentTopic(topic, ledger, brokerService);
-                }
-            } catch (Exception e) {
-                throw new IllegalStateException(e);
-            }
-        }
+    @Override
+    public void close() throws IOException {
+      // No-op
+    }
+  }
 
-        @Override
-        public void close() throws IOException {
-            // No-op
-        }
+  public static class MyPersistentTopic extends PersistentTopic {
+
+    public MyPersistentTopic(String topic, ManagedLedger ledger, BrokerService brokerService) {
+      super(topic, ledger, brokerService);
     }
 
-    public static class MyPersistentTopic extends PersistentTopic {
-
-        public MyPersistentTopic(String topic, ManagedLedger ledger, BrokerService brokerService) {
-            super(topic, ledger, brokerService);
-        }
-
-        @SneakyThrows
-        @Override
-        public CompletableFuture<Void> checkDeduplicationStatus() {
-            topicInitSuccessSignal.countDown();
-            // Sleep 1s pending txn buffer recover failed and close topic
-            Thread.sleep(1000);
-            return CompletableFuture.completedFuture(null);
-        }
+    @SneakyThrows
+    @Override
+    public CompletableFuture<Void> checkDeduplicationStatus() {
+      topicInitSuccessSignal.countDown();
+      // Sleep 1s pending txn buffer recover failed and close topic
+      Thread.sleep(1000);
+      return CompletableFuture.completedFuture(null);
     }
-
+  }
 }

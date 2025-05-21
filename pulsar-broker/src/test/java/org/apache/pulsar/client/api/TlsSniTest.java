@@ -23,45 +23,45 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
+import lombok.Cleanup;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.testng.annotations.Test;
-
-import lombok.Cleanup;
 
 @Test(groups = "broker-api")
 public class TlsSniTest extends TlsProducerConsumerBase {
 
-    /**
-     * Verify that using an IP-address in the broker service URL will work with using the SNI capabilities
-     * of the client. If we try to create an {@link javax.net.ssl.SSLEngine} with a peer host that is an
-     * IP address, the peer host is ignored, see for example
-     * {@link io.netty.handler.ssl.ReferenceCountedOpenSslEngine}.
-     *
-     */
-    @Test
-    public void testIpAddressInBrokerServiceUrl() throws Exception {
-        String topicName = "persistent://my-property/use/my-ns/my-topic1";
+  /**
+   * Verify that using an IP-address in the broker service URL will work with using the SNI
+   * capabilities of the client. If we try to create an {@link javax.net.ssl.SSLEngine} with a peer
+   * host that is an IP address, the peer host is ignored, see for example {@link
+   * io.netty.handler.ssl.ReferenceCountedOpenSslEngine}.
+   */
+  @Test
+  public void testIpAddressInBrokerServiceUrl() throws Exception {
+    String topicName = "persistent://my-property/use/my-ns/my-topic1";
 
-        URI brokerServiceUrlTls = new URI(pulsar.getBrokerServiceUrlTls());
+    URI brokerServiceUrlTls = new URI(pulsar.getBrokerServiceUrlTls());
 
-        String brokerServiceIpAddressUrl = String.format("pulsar+ssl://%s:%d",
-                    InetAddress.getByName(brokerServiceUrlTls.getHost()).getHostAddress(),
-                    brokerServiceUrlTls.getPort());
+    String brokerServiceIpAddressUrl =
+        String.format(
+            "pulsar+ssl://%s:%d",
+            InetAddress.getByName(brokerServiceUrlTls.getHost()).getHostAddress(),
+            brokerServiceUrlTls.getPort());
 
-        ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(brokerServiceIpAddressUrl)
-                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).allowTlsInsecureConnection(false)
-                .enableTlsHostnameVerification(false)
-                .operationTimeout(1000, TimeUnit.MILLISECONDS);
-        Map<String, String> authParams = new HashMap<>();
-        authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
-        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
-        clientBuilder.authentication(AuthenticationTls.class.getName(), authParams);
+    ClientBuilder clientBuilder =
+        PulsarClient.builder()
+            .serviceUrl(brokerServiceIpAddressUrl)
+            .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
+            .allowTlsInsecureConnection(false)
+            .enableTlsHostnameVerification(false)
+            .operationTimeout(1000, TimeUnit.MILLISECONDS);
+    Map<String, String> authParams = new HashMap<>();
+    authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
+    authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
+    clientBuilder.authentication(AuthenticationTls.class.getName(), authParams);
 
-        @Cleanup
-        PulsarClient pulsarClient = clientBuilder.build();
-        // should be able to create producer successfully
-        pulsarClient.newProducer().topic(topicName).create();
-    }
+    @Cleanup PulsarClient pulsarClient = clientBuilder.build();
+    // should be able to create producer successfully
+    pulsarClient.newProducer().topic(topicName).create();
+  }
 }
-

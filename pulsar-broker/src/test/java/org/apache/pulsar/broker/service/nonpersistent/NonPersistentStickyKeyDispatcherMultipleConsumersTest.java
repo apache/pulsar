@@ -33,6 +33,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelPromise;
@@ -57,131 +58,172 @@ import org.testng.annotations.Test;
 
 public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
 
-    private PulsarService pulsarMock;
-    private BrokerService brokerMock;
-    private NonPersistentTopic topicMock;
-    private NonPersistentSubscription subscriptionMock;
-    private ServiceConfiguration configMock;
+  private PulsarService pulsarMock;
+  private BrokerService brokerMock;
+  private NonPersistentTopic topicMock;
+  private NonPersistentSubscription subscriptionMock;
+  private ServiceConfiguration configMock;
 
-    private NonPersistentStickyKeyDispatcherMultipleConsumers nonpersistentDispatcher;
-    private StickyKeyConsumerSelector selector;
+  private NonPersistentStickyKeyDispatcherMultipleConsumers nonpersistentDispatcher;
+  private StickyKeyConsumerSelector selector;
 
-    final String topicName = "non-persistent://public/default/testTopic";
+  final String topicName = "non-persistent://public/default/testTopic";
 
-    @BeforeMethod
-    public void setup() throws Exception {
-        configMock = mock(ServiceConfiguration.class);
-        doReturn(true).when(configMock).isSubscriptionRedeliveryTrackerEnabled();
-        doReturn(100).when(configMock).getDispatcherMaxReadBatchSize();
-        doReturn(true).when(configMock).isSubscriptionKeySharedUseConsistentHashing();
-        doReturn(1).when(configMock).getSubscriptionKeySharedConsistentHashingReplicaPoints();
+  @BeforeMethod
+  public void setup() throws Exception {
+    configMock = mock(ServiceConfiguration.class);
+    doReturn(true).when(configMock).isSubscriptionRedeliveryTrackerEnabled();
+    doReturn(100).when(configMock).getDispatcherMaxReadBatchSize();
+    doReturn(true).when(configMock).isSubscriptionKeySharedUseConsistentHashing();
+    doReturn(1).when(configMock).getSubscriptionKeySharedConsistentHashingReplicaPoints();
 
-        pulsarMock = mock(PulsarService.class);
-        doReturn(configMock).when(pulsarMock).getConfiguration();
+    pulsarMock = mock(PulsarService.class);
+    doReturn(configMock).when(pulsarMock).getConfiguration();
 
-        brokerMock = mock(BrokerService.class);
-        doReturn(pulsarMock).when(brokerMock).pulsar();
+    brokerMock = mock(BrokerService.class);
+    doReturn(pulsarMock).when(brokerMock).pulsar();
 
-        HierarchyTopicPolicies topicPolicies = new HierarchyTopicPolicies();
-        topicPolicies.getMaxConsumersPerSubscription().updateBrokerValue(0);
+    HierarchyTopicPolicies topicPolicies = new HierarchyTopicPolicies();
+    topicPolicies.getMaxConsumersPerSubscription().updateBrokerValue(0);
 
-        topicMock = mock(NonPersistentTopic.class);
-        doReturn(brokerMock).when(topicMock).getBrokerService();
-        doReturn(topicName).when(topicMock).getName();
-        doReturn(topicPolicies).when(topicMock).getHierarchyTopicPolicies();
+    topicMock = mock(NonPersistentTopic.class);
+    doReturn(brokerMock).when(topicMock).getBrokerService();
+    doReturn(topicName).when(topicMock).getName();
+    doReturn(topicPolicies).when(topicMock).getHierarchyTopicPolicies();
 
-        subscriptionMock = mock(NonPersistentSubscription.class);
-        selector = new HashRangeAutoSplitStickyKeyConsumerSelector();
-        nonpersistentDispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(
+    subscriptionMock = mock(NonPersistentSubscription.class);
+    selector = new HashRangeAutoSplitStickyKeyConsumerSelector();
+    nonpersistentDispatcher =
+        new NonPersistentStickyKeyDispatcherMultipleConsumers(
             topicMock, subscriptionMock, selector);
-    }
+  }
 
-    @Test(timeOut = 10000)
-    public void testAddConsumerWhenClosed() throws Exception {
-        nonpersistentDispatcher.close().get();
-        Consumer consumer = mock(Consumer.class);
-        nonpersistentDispatcher.addConsumer(consumer);
-        verify(consumer, times(1)).disconnect();
-        assertEquals(0, nonpersistentDispatcher.getConsumers().size());
-        assertTrue(selector.getConsumerKeyHashRanges().isEmpty());
-    }
+  @Test(timeOut = 10000)
+  public void testAddConsumerWhenClosed() throws Exception {
+    nonpersistentDispatcher.close().get();
+    Consumer consumer = mock(Consumer.class);
+    nonpersistentDispatcher.addConsumer(consumer);
+    verify(consumer, times(1)).disconnect();
+    assertEquals(0, nonpersistentDispatcher.getConsumers().size());
+    assertTrue(selector.getConsumerKeyHashRanges().isEmpty());
+  }
 
-    @Test(timeOut = 10000)
-    public void testSendMessage() throws BrokerServiceException {
-        Consumer consumerMock = mock(Consumer.class);
-        when(consumerMock.getAvailablePermits()).thenReturn(1000);
-        when(consumerMock.isWritable()).thenReturn(true);
-        nonpersistentDispatcher.addConsumer(consumerMock);
+  @Test(timeOut = 10000)
+  public void testSendMessage() throws BrokerServiceException {
+    Consumer consumerMock = mock(Consumer.class);
+    when(consumerMock.getAvailablePermits()).thenReturn(1000);
+    when(consumerMock.isWritable()).thenReturn(true);
+    nonpersistentDispatcher.addConsumer(consumerMock);
 
-        List<Entry> entries = new ArrayList<>();
-        entries.add(EntryImpl.create(1, 1, createMessage("message1", 1)));
-        entries.add(EntryImpl.create(1, 2, createMessage("message2", 2)));
-        doAnswer(invocationOnMock -> {
-            ChannelPromise mockPromise = mock(ChannelPromise.class);
-            List<Entry> receivedEntries = invocationOnMock.getArgument(0, List.class);
-            for (int index = 1; index <= receivedEntries.size(); index++) {
+    List<Entry> entries = new ArrayList<>();
+    entries.add(EntryImpl.create(1, 1, createMessage("message1", 1)));
+    entries.add(EntryImpl.create(1, 2, createMessage("message2", 2)));
+    doAnswer(
+            invocationOnMock -> {
+              ChannelPromise mockPromise = mock(ChannelPromise.class);
+              List<Entry> receivedEntries = invocationOnMock.getArgument(0, List.class);
+              for (int index = 1; index <= receivedEntries.size(); index++) {
                 Entry entry = receivedEntries.get(index - 1);
                 assertEquals(entry.getLedgerId(), 1);
                 assertEquals(entry.getEntryId(), index);
                 ByteBuf byteBuf = entry.getDataBuffer();
                 MessageMetadata messageMetadata = Commands.parseMessageMetadata(byteBuf);
                 assertEquals(byteBuf.toString(UTF_8), "message" + index);
-            };
-            return mockPromise;
-        }).when(consumerMock).sendMessages(any(List.class), any(List.class), any(EntryBatchSizes.class), any(),
-                anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class), anyLong());
-        try {
-            nonpersistentDispatcher.sendMessages(entries);
-        } catch (Exception e) {
-            fail("Failed to sendMessages.", e);
-        }
-        verify(consumerMock, times(1)).sendMessages(any(List.class), any(List.class), any(EntryBatchSizes.class),
-                eq(null), anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class), anyLong());
+              }
+              ;
+              return mockPromise;
+            })
+        .when(consumerMock)
+        .sendMessages(
+            any(List.class),
+            any(List.class),
+            any(EntryBatchSizes.class),
+            any(),
+            anyInt(),
+            anyLong(),
+            anyLong(),
+            any(RedeliveryTracker.class),
+            anyLong());
+    try {
+      nonpersistentDispatcher.sendMessages(entries);
+    } catch (Exception e) {
+      fail("Failed to sendMessages.", e);
     }
+    verify(consumerMock, times(1))
+        .sendMessages(
+            any(List.class),
+            any(List.class),
+            any(EntryBatchSizes.class),
+            eq(null),
+            anyInt(),
+            anyLong(),
+            anyLong(),
+            any(RedeliveryTracker.class),
+            anyLong());
+  }
 
-    @Test(timeOut = 10000)
-    public void testSendMessageRespectFlowControl() throws BrokerServiceException {
-        Consumer consumerMock = mock(Consumer.class);
-        nonpersistentDispatcher.addConsumer(consumerMock);
+  @Test(timeOut = 10000)
+  public void testSendMessageRespectFlowControl() throws BrokerServiceException {
+    Consumer consumerMock = mock(Consumer.class);
+    nonpersistentDispatcher.addConsumer(consumerMock);
 
-        List<Entry> entries = new ArrayList<>();
-        entries.add(EntryImpl.create(1, 1, createMessage("message1", 1)));
-        entries.add(EntryImpl.create(1, 2, createMessage("message2", 2)));
-        doAnswer(invocationOnMock -> {
-            ChannelPromise mockPromise = mock(ChannelPromise.class);
-            List<Entry> receivedEntries = invocationOnMock.getArgument(0, List.class);
-            for (int index = 1; index <= receivedEntries.size(); index++) {
+    List<Entry> entries = new ArrayList<>();
+    entries.add(EntryImpl.create(1, 1, createMessage("message1", 1)));
+    entries.add(EntryImpl.create(1, 2, createMessage("message2", 2)));
+    doAnswer(
+            invocationOnMock -> {
+              ChannelPromise mockPromise = mock(ChannelPromise.class);
+              List<Entry> receivedEntries = invocationOnMock.getArgument(0, List.class);
+              for (int index = 1; index <= receivedEntries.size(); index++) {
                 Entry entry = receivedEntries.get(index - 1);
                 assertEquals(entry.getLedgerId(), 1);
                 assertEquals(entry.getEntryId(), index);
                 ByteBuf byteBuf = entry.getDataBuffer();
                 MessageMetadata messageMetadata = Commands.parseMessageMetadata(byteBuf);
                 assertEquals(byteBuf.toString(UTF_8), "message" + index);
-            }
-            return mockPromise;
-        }).when(consumerMock).sendMessages(any(List.class), any(EntryBatchSizes.class), any(),
-                anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));
-        try {
-            nonpersistentDispatcher.sendMessages(entries);
-        } catch (Exception e) {
-            fail("Failed to sendMessages.", e);
-        }
-        verify(consumerMock, times(0)).sendMessages(any(List.class), any(EntryBatchSizes.class),
-                eq(null), anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));
+              }
+              return mockPromise;
+            })
+        .when(consumerMock)
+        .sendMessages(
+            any(List.class),
+            any(EntryBatchSizes.class),
+            any(),
+            anyInt(),
+            anyLong(),
+            anyLong(),
+            any(RedeliveryTracker.class));
+    try {
+      nonpersistentDispatcher.sendMessages(entries);
+    } catch (Exception e) {
+      fail("Failed to sendMessages.", e);
     }
+    verify(consumerMock, times(0))
+        .sendMessages(
+            any(List.class),
+            any(EntryBatchSizes.class),
+            eq(null),
+            anyInt(),
+            anyLong(),
+            anyLong(),
+            any(RedeliveryTracker.class));
+  }
 
-    private ByteBuf createMessage(String message, int sequenceId) {
-        return createMessage(message, sequenceId, "testKey");
-    }
+  private ByteBuf createMessage(String message, int sequenceId) {
+    return createMessage(message, sequenceId, "testKey");
+  }
 
-    private ByteBuf createMessage(String message, int sequenceId, String key) {
-        MessageMetadata messageMetadata = new MessageMetadata()
-                .setSequenceId(sequenceId)
-                .setProducerName("testProducer")
-                .setPartitionKey(key)
-                .setPartitionKeyB64Encoded(false)
-                .setPublishTime(System.currentTimeMillis());
-        return serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, Unpooled.copiedBuffer(message.getBytes(UTF_8)));
-    }
-
+  private ByteBuf createMessage(String message, int sequenceId, String key) {
+    MessageMetadata messageMetadata =
+        new MessageMetadata()
+            .setSequenceId(sequenceId)
+            .setProducerName("testProducer")
+            .setPartitionKey(key)
+            .setPartitionKeyB64Encoded(false)
+            .setPublishTime(System.currentTimeMillis());
+    return serializeMetadataAndPayload(
+        Commands.ChecksumType.Crc32c,
+        messageMetadata,
+        Unpooled.copiedBuffer(message.getBytes(UTF_8)));
+  }
 }

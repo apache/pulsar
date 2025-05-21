@@ -22,154 +22,153 @@ import static org.testng.Assert.assertEquals;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-
 import java.nio.charset.StandardCharsets;
-
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "utils")
 public class StatsOutputStreamTest {
 
-    private ByteBuf buf;
-    private StatsOutputStream stream;
+  private ByteBuf buf;
+  private StatsOutputStream stream;
 
-    @BeforeMethod
-    public void reset() {
-        buf = Unpooled.buffer(4096);
-        stream = new StatsOutputStream(buf);
-    }
+  @BeforeMethod
+  public void reset() {
+    buf = Unpooled.buffer(4096);
+    stream = new StatsOutputStream(buf);
+  }
 
-    @Test
-    public void testPairs() {
-        stream.writePair("my-count", 1);
-        assertEquals(str(), "\"my-count\":1");
+  @Test
+  public void testPairs() {
+    stream.writePair("my-count", 1);
+    assertEquals(str(), "\"my-count\":1");
 
-        stream.writePair("my-rate", 0.0);
-        assertEquals(str(), "\"my-rate\":0.0");
+    stream.writePair("my-rate", 0.0);
+    assertEquals(str(), "\"my-rate\":0.0");
 
-        stream.writePair("my-flag", true);
-        assertEquals(str(), "\"my-flag\":true");
+    stream.writePair("my-flag", true);
+    assertEquals(str(), "\"my-flag\":true");
 
-        stream.writePair("my-string", "value");
-        assertEquals(str(), "\"my-string\":\"value\"");
-    }
+    stream.writePair("my-string", "value");
+    assertEquals(str(), "\"my-string\":\"value\"");
+  }
 
-    @Test
-    public void testLists() {
-        stream.startList();
-        stream.endList();
-        assertEquals(str(), "[]");
+  @Test
+  public void testLists() {
+    stream.startList();
+    stream.endList();
+    assertEquals(str(), "[]");
 
-        stream.startList();
-        stream.writeItem(1);
-        stream.endList();
-        assertEquals(str(), "[1]");
+    stream.startList();
+    stream.writeItem(1);
+    stream.endList();
+    assertEquals(str(), "[1]");
 
-        stream.startList();
-        stream.writeItem(1).writeItem(2);
-        stream.endList();
-        assertEquals(str(), "[1,2]");
+    stream.startList();
+    stream.writeItem(1).writeItem(2);
+    stream.endList();
+    assertEquals(str(), "[1,2]");
 
-        stream.startList();
-        stream.writeItem(1).writeItem(2).writeItem(3);
-        stream.endList();
-        assertEquals(str(), "[1,2,3]");
+    stream.startList();
+    stream.writeItem(1).writeItem(2).writeItem(3);
+    stream.endList();
+    assertEquals(str(), "[1,2,3]");
 
-        stream.startList();
-        stream.writeItem(1).writeItem(2).writeItem(3).writeItem(false).writeItem(1.0).writeItem("xyz");
-        stream.endList();
-        assertEquals(str(), "[1,2,3,false,1.0,\"xyz\"]");
-    }
+    stream.startList();
+    stream.writeItem(1).writeItem(2).writeItem(3).writeItem(false).writeItem(1.0).writeItem("xyz");
+    stream.endList();
+    assertEquals(str(), "[1,2,3,false,1.0,\"xyz\"]");
+  }
 
-    @Test
-    public void testNamedLists() {
-        stream.startList("abc");
-        stream.endList();
-        assertEquals(str(), "\"abc\":[]");
+  @Test
+  public void testNamedLists() {
+    stream.startList("abc");
+    stream.endList();
+    assertEquals(str(), "\"abc\":[]");
 
-        stream.startList("abc");
-        stream.writeItem(1);
-        stream.endList();
-        assertEquals(str(), "\"abc\":[1]");
-    }
+    stream.startList("abc");
+    stream.writeItem(1);
+    stream.endList();
+    assertEquals(str(), "\"abc\":[1]");
+  }
 
-    @Test
-    public void testObjects() {
-        stream.startObject();
-        stream.endObject();
-        assertEquals(str(), "{}");
+  @Test
+  public void testObjects() {
+    stream.startObject();
+    stream.endObject();
+    assertEquals(str(), "{}");
 
-        stream.startObject();
-        stream.writePair("a", 1);
-        stream.endObject();
-        assertEquals(str(), "{\"a\":1}");
+    stream.startObject();
+    stream.writePair("a", 1);
+    stream.endObject();
+    assertEquals(str(), "{\"a\":1}");
 
-        stream.startObject();
-        stream.writePair("a", 1).writePair("b", 2);
-        stream.endObject();
-        assertEquals(str(), "{\"a\":1,\"b\":2}");
+    stream.startObject();
+    stream.writePair("a", 1).writePair("b", 2);
+    stream.endObject();
+    assertEquals(str(), "{\"a\":1,\"b\":2}");
 
-        stream.startObject();
-        stream.writePair("a", 1).writePair("b", 2).writePair("c", 3);
-        stream.endObject();
-        assertEquals(str(), "{\"a\":1,\"b\":2,\"c\":3}");
-    }
+    stream.startObject();
+    stream.writePair("a", 1).writePair("b", 2).writePair("c", 3);
+    stream.endObject();
+    assertEquals(str(), "{\"a\":1,\"b\":2,\"c\":3}");
+  }
 
-    @Test
-    public void testNamedObjects() {
-        stream.startObject("abc");
-        stream.endObject();
-        assertEquals(str(), "\"abc\":{}");
+  @Test
+  public void testNamedObjects() {
+    stream.startObject("abc");
+    stream.endObject();
+    assertEquals(str(), "\"abc\":{}");
 
-        stream.startObject("abc");
-        stream.writePair("a", 1);
-        stream.endObject();
-        assertEquals(str(), "\"abc\":{\"a\":1}");
-    }
+    stream.startObject("abc");
+    stream.writePair("a", 1);
+    stream.endObject();
+    assertEquals(str(), "\"abc\":{\"a\":1}");
+  }
 
-    @Test
-    public void testNestedObjects() {
-        stream.startList();
+  @Test
+  public void testNestedObjects() {
+    stream.startList();
 
-        stream.startObject();
-        stream.writePair("a", 1);
-        stream.endObject();
+    stream.startObject();
+    stream.writePair("a", 1);
+    stream.endObject();
 
-        stream.startObject();
-        stream.writePair("b", 2);
-        stream.endObject();
+    stream.startObject();
+    stream.writePair("b", 2);
+    stream.endObject();
 
-        stream.endList();
+    stream.endList();
 
-        assertEquals(str(), "[{\"a\":1},{\"b\":2}]");
-    }
+    assertEquals(str(), "[{\"a\":1},{\"b\":2}]");
+  }
 
-    public String str() {
-        String s = buf.toString(StandardCharsets.UTF_8);
-        reset();
-        return s;
-    }
+  public String str() {
+    String s = buf.toString(StandardCharsets.UTF_8);
+    reset();
+    return s;
+  }
 
-    @Test
-    public void testBehaviorOfStatsOutputStreamWithDeque() {
-        // Create a byte buffer for collecting output
-        ByteBuf buffer = Unpooled.buffer();
+  @Test
+  public void testBehaviorOfStatsOutputStreamWithDeque() {
+    // Create a byte buffer for collecting output
+    ByteBuf buffer = Unpooled.buffer();
 
-        // Create an instance of StatsOutputStream using Deque
-        StatsOutputStream output = new StatsOutputStream(buffer);
-        output.startObject()
-                .writePair("name", "test")
-                .startList("items")
-                .writeItem(true)
-                .writeItem(123L)
-                .writeItem("sample")
-                .endList()
-                .endObject();
-        
-        // Assert
-        assertEquals(buffer.toString(java.nio.charset.StandardCharsets.UTF_8), 
-                "{\"name\":\"test\",\"items\":[true,123,\"sample\"]}");
-    }
+    // Create an instance of StatsOutputStream using Deque
+    StatsOutputStream output = new StatsOutputStream(buffer);
+    output
+        .startObject()
+        .writePair("name", "test")
+        .startList("items")
+        .writeItem(true)
+        .writeItem(123L)
+        .writeItem("sample")
+        .endList()
+        .endObject();
 
+    // Assert
+    assertEquals(
+        buffer.toString(java.nio.charset.StandardCharsets.UTF_8),
+        "{\"name\":\"test\",\"items\":[true,123,\"sample\"]}");
+  }
 }

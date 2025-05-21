@@ -25,6 +25,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.UUID;
@@ -56,196 +57,216 @@ import org.testng.annotations.Test;
 @Slf4j
 public class TopicAutoCreationTest extends ProducerConsumerBase {
 
-    @Override
-    @BeforeMethod
-    protected void setup() throws Exception {
-        conf.setAllowAutoTopicCreationType(TopicType.PARTITIONED);
-        conf.setAllowAutoTopicCreation(true);
-        conf.setDefaultNumPartitions(3);
-        conf.setForceDeleteNamespaceAllowed(true);
-        super.internalSetup();
-        super.producerBaseSetup();
+  @Override
+  @BeforeMethod
+  protected void setup() throws Exception {
+    conf.setAllowAutoTopicCreationType(TopicType.PARTITIONED);
+    conf.setAllowAutoTopicCreation(true);
+    conf.setDefaultNumPartitions(3);
+    conf.setForceDeleteNamespaceAllowed(true);
+    super.internalSetup();
+    super.producerBaseSetup();
+  }
+
+  @Override
+  protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
+    clientBuilder.operationTimeout(2, TimeUnit.SECONDS);
+  }
+
+  @Override
+  @AfterMethod(alwaysRun = true)
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
+
+  @Test
+  public void testPartitionedTopicAutoCreation()
+      throws PulsarAdminException, PulsarClientException {
+    final String namespaceName = "my-property/my-ns";
+    final String topic =
+        "persistent://"
+            + namespaceName
+            + "/test-partitioned-topi-auto-creation-"
+            + UUID.randomUUID().toString();
+
+    Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+
+    List<String> partitionedTopics = admin.topics().getPartitionedTopicList(namespaceName);
+    List<String> topics = admin.topics().getList(namespaceName);
+    assertEquals(partitionedTopics.size(), 1);
+    assertEquals(topics.size(), 3);
+
+    producer.close();
+    for (String t : topics) {
+      admin.topics().delete(t);
     }
 
-    @Override
-    protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
-        clientBuilder.operationTimeout(2, TimeUnit.SECONDS);
-    }
+    admin.topics().deletePartitionedTopic(topic);
 
-    @Override
-    @AfterMethod(alwaysRun = true)
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+    final String partition =
+        "persistent://" + namespaceName + "/test-partitioned-topi-auto-creation-partition-0";
 
-    @Test
-    public void testPartitionedTopicAutoCreation() throws PulsarAdminException, PulsarClientException {
-        final String namespaceName = "my-property/my-ns";
-        final String topic = "persistent://" + namespaceName + "/test-partitioned-topi-auto-creation-"
-                + UUID.randomUUID().toString();
-
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .create();
-
-        List<String> partitionedTopics = admin.topics().getPartitionedTopicList(namespaceName);
-        List<String> topics = admin.topics().getList(namespaceName);
-        assertEquals(partitionedTopics.size(), 1);
-        assertEquals(topics.size(), 3);
-
-        producer.close();
-        for (String t : topics) {
-            admin.topics().delete(t);
-        }
-
-        admin.topics().deletePartitionedTopic(topic);
-
-
-        final String partition = "persistent://" + namespaceName + "/test-partitioned-topi-auto-creation-partition-0";
-
-        // The Pulsar doesn't automatically create the metadata for the single partition, so the producer creation
-        // will fail.
-        assertThrows(NotAllowedException.class, () -> {
-            @Cleanup
-            Producer<byte[]> ignored = pulsarClient.newProducer()
-                    .topic(partition)
-                    .create();
+    // The Pulsar doesn't automatically create the metadata for the single partition, so the
+    // producer creation
+    // will fail.
+    assertThrows(
+        NotAllowedException.class,
+        () -> {
+          @Cleanup Producer<byte[]> ignored = pulsarClient.newProducer().topic(partition).create();
         });
-    }
+  }
 
+  @Test
+  public void testPartitionedTopicAutoCreationForbiddenDuringNamespaceDeletion() throws Exception {
+    final String namespaceName = "my-property/my-ns";
+    final String topic =
+        "persistent://"
+            + namespaceName
+            + "/test-partitioned-topi-auto-creation-"
+            + UUID.randomUUID().toString();
 
-    @Test
-    public void testPartitionedTopicAutoCreationForbiddenDuringNamespaceDeletion()
-            throws Exception {
-        final String namespaceName = "my-property/my-ns";
-        final String topic = "persistent://" + namespaceName + "/test-partitioned-topi-auto-creation-"
-                + UUID.randomUUID().toString();
-
-        pulsar.getPulsarResources().getNamespaceResources()
-                .setPolicies(NamespaceName.get(namespaceName), old -> {
-            old.deleted = true;
-            return old;
-        });
-
-
-        LookupService original = ((PulsarClientImpl) pulsarClient).getLookup();
-        try {
-
-            // we want to skip the "lookup" phase, because it is blocked by the HTTP API
-            LookupService mockLookup = mock(LookupService.class);
-            ((PulsarClientImpl) pulsarClient).setLookup(mockLookup);
-            when(mockLookup.getPartitionedTopicMetadata(any(), anyBoolean())).thenAnswer(
-                    i -> CompletableFuture.completedFuture(new PartitionedTopicMetadata(0)));
-            when(mockLookup.getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean())).thenAnswer(
-                    i -> CompletableFuture.completedFuture(new PartitionedTopicMetadata(0)));
-            when(mockLookup.getBroker(any())).thenAnswer(ignored -> {
-                InetSocketAddress brokerAddress =
-                        new InetSocketAddress(pulsar.getAdvertisedAddress(), pulsar.getBrokerListenPort().get());
-                return CompletableFuture.completedFuture(new LookupTopicResult(brokerAddress, brokerAddress, false));
+    pulsar
+        .getPulsarResources()
+        .getNamespaceResources()
+        .setPolicies(
+            NamespaceName.get(namespaceName),
+            old -> {
+              old.deleted = true;
+              return old;
             });
-            final String topicPoliciesServiceInitException
-                    = "Topic creation encountered an exception by initialize topic policies service";
 
-            // Creating a producer and creating a Consumer may trigger automatic topic
-            // creation, let's try to create a Producer and a Consumer
-            try (Producer<byte[]> ignored = pulsarClient.newProducer()
-                    .sendTimeout(1, TimeUnit.SECONDS)
-                    .topic(topic)
-                    .create()) {
-            } catch (PulsarClientException.TopicDoesNotExistException expected) {
-                // Since the "policies.deleted" is "true", the value of "isAllowAutoTopicCreationAsync" will be false,
-                // so the "TopicDoesNotExistException" is expected.
-                log.info("Expected error", expected);
-                assertTrue(expected.getMessage().contains(topic)
-                        || expected.getMessage().contains(topicPoliciesServiceInitException));
-            }
+    LookupService original = ((PulsarClientImpl) pulsarClient).getLookup();
+    try {
 
-            try (Consumer<byte[]> ignored = pulsarClient.newConsumer()
-                    .topic(topic)
-                    .subscriptionName("test")
-                    .subscribe()) {
-            } catch (PulsarClientException.TopicDoesNotExistException expected) {
-                // Since the "policies.deleted" is "true", the value of "isAllowAutoTopicCreationAsync" will be false,
-                // so the "TopicDoesNotExistException" is expected.
-                log.info("Expected error", expected);
-                assertTrue(expected.getMessage().contains(topic)
-                        || expected.getMessage().contains(topicPoliciesServiceInitException));
-            }
+      // we want to skip the "lookup" phase, because it is blocked by the HTTP API
+      LookupService mockLookup = mock(LookupService.class);
+      ((PulsarClientImpl) pulsarClient).setLookup(mockLookup);
+      when(mockLookup.getPartitionedTopicMetadata(any(), anyBoolean()))
+          .thenAnswer(i -> CompletableFuture.completedFuture(new PartitionedTopicMetadata(0)));
+      when(mockLookup.getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean()))
+          .thenAnswer(i -> CompletableFuture.completedFuture(new PartitionedTopicMetadata(0)));
+      when(mockLookup.getBroker(any()))
+          .thenAnswer(
+              ignored -> {
+                InetSocketAddress brokerAddress =
+                    new InetSocketAddress(
+                        pulsar.getAdvertisedAddress(), pulsar.getBrokerListenPort().get());
+                return CompletableFuture.completedFuture(
+                    new LookupTopicResult(brokerAddress, brokerAddress, false));
+              });
+      final String topicPoliciesServiceInitException =
+          "Topic creation encountered an exception by initialize topic policies service";
 
+      // Creating a producer and creating a Consumer may trigger automatic topic
+      // creation, let's try to create a Producer and a Consumer
+      try (Producer<byte[]> ignored =
+          pulsarClient.newProducer().sendTimeout(1, TimeUnit.SECONDS).topic(topic).create()) {
+      } catch (PulsarClientException.TopicDoesNotExistException expected) {
+        // Since the "policies.deleted" is "true", the value of "isAllowAutoTopicCreationAsync" will
+        // be false,
+        // so the "TopicDoesNotExistException" is expected.
+        log.info("Expected error", expected);
+        assertTrue(
+            expected.getMessage().contains(topic)
+                || expected.getMessage().contains(topicPoliciesServiceInitException));
+      }
 
-            // verify that the topic does not exist
-            pulsar.getPulsarResources().getNamespaceResources()
-                    .setPolicies(NamespaceName.get(namespaceName), old -> {
-                        old.deleted = false;
-                        return old;
-                    });
+      try (Consumer<byte[]> ignored =
+          pulsarClient.newConsumer().topic(topic).subscriptionName("test").subscribe()) {
+      } catch (PulsarClientException.TopicDoesNotExistException expected) {
+        // Since the "policies.deleted" is "true", the value of "isAllowAutoTopicCreationAsync" will
+        // be false,
+        // so the "TopicDoesNotExistException" is expected.
+        log.info("Expected error", expected);
+        assertTrue(
+            expected.getMessage().contains(topic)
+                || expected.getMessage().contains(topicPoliciesServiceInitException));
+      }
 
-            admin.topics().getList(namespaceName).isEmpty();
+      // verify that the topic does not exist
+      pulsar
+          .getPulsarResources()
+          .getNamespaceResources()
+          .setPolicies(
+              NamespaceName.get(namespaceName),
+              old -> {
+                old.deleted = false;
+                return old;
+              });
 
-            // create now the topic using auto creation
-            ((PulsarClientImpl) pulsarClient).setLookup(original);
-            try (Consumer<byte[]> ignored = pulsarClient.newConsumer()
-                    .topic(topic)
-                    .subscriptionName("test")
-                    .subscribe()) {
-            }
+      admin.topics().getList(namespaceName).isEmpty();
 
-            admin.topics().getList(namespaceName).contains(topic);
-        } finally {
-            ((PulsarClientImpl) pulsarClient).setLookup(original);
-        }
+      // create now the topic using auto creation
+      ((PulsarClientImpl) pulsarClient).setLookup(original);
+      try (Consumer<byte[]> ignored =
+          pulsarClient.newConsumer().topic(topic).subscriptionName("test").subscribe()) {}
 
+      admin.topics().getList(namespaceName).contains(topic);
+    } finally {
+      ((PulsarClientImpl) pulsarClient).setLookup(original);
     }
+  }
 
-    @Test
-    public void testClientWithAutoCreationGotNotFoundException() throws PulsarAdminException, PulsarClientException {
-        final String namespace = "public/test_1";
-        final String topicName = "persistent://public/test_1/test_auto_creation_got_not_found"
-                + System.currentTimeMillis();
-        final int retryTimes = 30;
-        admin.namespaces().createNamespace(namespace);
-        admin.namespaces().setAutoTopicCreation(namespace, AutoTopicCreationOverride.builder()
+  @Test
+  public void testClientWithAutoCreationGotNotFoundException()
+      throws PulsarAdminException, PulsarClientException {
+    final String namespace = "public/test_1";
+    final String topicName =
+        "persistent://public/test_1/test_auto_creation_got_not_found" + System.currentTimeMillis();
+    final int retryTimes = 30;
+    admin.namespaces().createNamespace(namespace);
+    admin
+        .namespaces()
+        .setAutoTopicCreation(
+            namespace,
+            AutoTopicCreationOverride.builder()
                 .allowAutoTopicCreation(true)
                 .topicType("non-partitioned")
                 .build());
 
-        @Cleanup("shutdown")
-        final ExecutorService executor1 = Executors.newSingleThreadExecutor();
+    @Cleanup("shutdown")
+    final ExecutorService executor1 = Executors.newSingleThreadExecutor();
 
-        @Cleanup("shutdown")
-        final ExecutorService executor2 = Executors.newSingleThreadExecutor();
+    @Cleanup("shutdown")
+    final ExecutorService executor2 = Executors.newSingleThreadExecutor();
 
-        for (int i = 0; i < retryTimes; i++) {
-            final CompletableFuture<Void> adminListSub = CompletableFuture.runAsync(() -> {
+    for (int i = 0; i < retryTimes; i++) {
+      final CompletableFuture<Void> adminListSub =
+          CompletableFuture.runAsync(
+              () -> {
                 try {
-                    admin.topics().getSubscriptions(topicName);
+                  admin.topics().getSubscriptions(topicName);
                 } catch (PulsarAdminException e) {
-                    throw new RuntimeException(e);
+                  throw new RuntimeException(e);
                 }
-            }, executor1);
+              },
+              executor1);
 
-            final CompletableFuture<Consumer<byte[]>> consumerSub = CompletableFuture.supplyAsync(() -> {
+      final CompletableFuture<Consumer<byte[]>> consumerSub =
+          CompletableFuture.supplyAsync(
+              () -> {
                 try {
-                    return pulsarClient.newConsumer()
-                            .topic(topicName)
-                            .subscriptionName("sub-1")
-                            .subscribe();
+                  return pulsarClient
+                      .newConsumer()
+                      .topic(topicName)
+                      .subscriptionName("sub-1")
+                      .subscribe();
                 } catch (PulsarClientException e) {
-                    throw new RuntimeException(e);
+                  throw new RuntimeException(e);
                 }
-            }, executor2);
+              },
+              executor2);
 
-            try {
-                adminListSub.join();
-            } catch (Throwable ex) {
-                // we don't care the exception.
-            }
+      try {
+        adminListSub.join();
+      } catch (Throwable ex) {
+        // we don't care the exception.
+      }
 
-            consumerSub.join().close();
-            admin.topics().delete(topicName, true);
-        }
-
-        admin.namespaces().deleteNamespace(namespace, true);
+      consumerSub.join().close();
+      admin.topics().delete(topicName, true);
     }
 
+    admin.namespaces().deleteNamespace(namespace, true);
+  }
 }

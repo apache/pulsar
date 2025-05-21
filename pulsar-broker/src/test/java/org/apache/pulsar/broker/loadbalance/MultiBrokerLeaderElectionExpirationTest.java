@@ -23,6 +23,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -38,71 +39,82 @@ import org.testng.annotations.Test;
 @Slf4j
 @Test(groups = "broker")
 public class MultiBrokerLeaderElectionExpirationTest extends MultiBrokerTestZKBaseTest {
-    private static final long EXPIRE_AFTER_WRITE_MILLIS_IN_TEST = 2000L;
-    private static final long REFRESH_AFTER_WRITE_MILLIS_IN_TEST = 1000L;
+  private static final long EXPIRE_AFTER_WRITE_MILLIS_IN_TEST = 2000L;
+  private static final long REFRESH_AFTER_WRITE_MILLIS_IN_TEST = 1000L;
 
-    @Override
-    protected int numberOfAdditionalBrokers() {
-        return 9;
+  @Override
+  protected int numberOfAdditionalBrokers() {
+    return 9;
+  }
+
+  @Test
+  public void shouldElectOneLeader() {
+    int leaders = 0;
+    for (PulsarService broker : getAllBrokers()) {
+      if (broker.getLeaderElectionService().isLeader()) {
+        leaders++;
+      }
     }
+    assertEquals(leaders, 1);
+  }
 
-    @Test
-    public void shouldElectOneLeader() {
-        int leaders = 0;
-        for (PulsarService broker : getAllBrokers()) {
-            if (broker.getLeaderElectionService().isLeader()) {
-                leaders++;
-            }
-        }
-        assertEquals(leaders, 1);
-    }
+  @Override
+  protected MetadataStoreExtended createMetadataStore(String metadataStoreName) {
+    return changeDefaultMetadataCacheConfig(super.createMetadataStore(metadataStoreName));
+  }
 
-    @Override
-    protected MetadataStoreExtended createMetadataStore(String metadataStoreName) {
-        return changeDefaultMetadataCacheConfig(super.createMetadataStore(metadataStoreName));
-    }
-
-    MetadataStoreExtended changeDefaultMetadataCacheConfig(MetadataStoreExtended metadataStore) {
-        MetadataStoreExtended spy = spy(metadataStore);
-        when(spy.getDefaultMetadataCacheConfig()).thenReturn(MetadataCacheConfig
-                .builder()
+  MetadataStoreExtended changeDefaultMetadataCacheConfig(MetadataStoreExtended metadataStore) {
+    MetadataStoreExtended spy = spy(metadataStore);
+    when(spy.getDefaultMetadataCacheConfig())
+        .thenReturn(
+            MetadataCacheConfig.builder()
                 .refreshAfterWriteMillis(REFRESH_AFTER_WRITE_MILLIS_IN_TEST)
                 .expireAfterWriteMillis(EXPIRE_AFTER_WRITE_MILLIS_IN_TEST)
                 .build());
-        return spy;
+    return spy;
+  }
+
+  @Test
+  public void shouldAllBrokersBeAbleToGetTheLeaderAfterExpiration()
+      throws ExecutionException, InterruptedException, TimeoutException {
+
+    // if you want to see this test fail, modify the line in LeaderElectionImpl constructor for
+    // creating
+    // the metadata cache to not skip expirations:
+    // this.cache = store.getMetadataCache(clazz);
+
+    // Given that all brokers have the leader elected
+    Awaitility.await()
+        .untilAsserted(
+            () -> {
+              for (PulsarService broker : getAllBrokers()) {
+                Optional<LeaderBroker> currentLeader =
+                    broker.getLeaderElectionService().getCurrentLeader();
+                assertTrue(
+                    currentLeader.isPresent(),
+                    "Leader wasn't known on broker " + broker.getBrokerServiceUrl());
+              }
+            });
+
+    // Wait for metadata cache entries to expire
+    Thread.sleep(EXPIRE_AFTER_WRITE_MILLIS_IN_TEST);
+
+    // then leader should be known on all brokers and it should be the same leader
+    LeaderBroker leader = null;
+    for (PulsarService broker : getAllBrokers()) {
+      Optional<LeaderBroker> currentLeader =
+          broker.getLeaderElectionService().readCurrentLeader().get(1, TimeUnit.SECONDS);
+      assertTrue(
+          currentLeader.isPresent(),
+          "Leader wasn't known on broker " + broker.getBrokerServiceUrl());
+      if (leader != null) {
+        assertEquals(
+            currentLeader.get(),
+            leader,
+            "Different leader on broker " + broker.getBrokerServiceUrl());
+      } else {
+        leader = currentLeader.get();
+      }
     }
-
-    @Test
-    public void shouldAllBrokersBeAbleToGetTheLeaderAfterExpiration()
-            throws ExecutionException, InterruptedException, TimeoutException {
-
-        // if you want to see this test fail, modify the line in LeaderElectionImpl constructor for creating
-        // the metadata cache to not skip expirations:
-        // this.cache = store.getMetadataCache(clazz);
-
-        // Given that all brokers have the leader elected
-        Awaitility.await().untilAsserted(() -> {
-            for (PulsarService broker : getAllBrokers()) {
-                Optional<LeaderBroker> currentLeader = broker.getLeaderElectionService().getCurrentLeader();
-                assertTrue(currentLeader.isPresent(), "Leader wasn't known on broker " + broker.getBrokerServiceUrl());
-            }
-        });
-
-        // Wait for metadata cache entries to expire
-        Thread.sleep(EXPIRE_AFTER_WRITE_MILLIS_IN_TEST);
-
-        // then leader should be known on all brokers and it should be the same leader
-        LeaderBroker leader = null;
-        for (PulsarService broker : getAllBrokers()) {
-            Optional<LeaderBroker> currentLeader =
-                    broker.getLeaderElectionService().readCurrentLeader().get(1, TimeUnit.SECONDS);
-            assertTrue(currentLeader.isPresent(), "Leader wasn't known on broker " + broker.getBrokerServiceUrl());
-            if (leader != null) {
-                assertEquals(currentLeader.get(), leader,
-                        "Different leader on broker " + broker.getBrokerServiceUrl());
-            } else {
-                leader = currentLeader.get();
-            }
-        }
-    }
+  }
 }

@@ -22,40 +22,40 @@ import java.util.Arrays;
 import java.util.function.Function;
 import org.testng.SkipException;
 
-/**
- * KeyShared implementation type used in test.
- */
+/** KeyShared implementation type used in test. */
 public enum KeySharedImplementationType {
-    // default implementation, PIP-379
-    PIP379(false),
-    // classic implementation before PIP-282 and PIP-379
-    Classic(true);
+  // default implementation, PIP-379
+  PIP379(false),
+  // classic implementation before PIP-282 and PIP-379
+  Classic(true);
 
-    public static final KeySharedImplementationType DEFAULT = PIP379;
-    public final boolean classic;
+  public static final KeySharedImplementationType DEFAULT = PIP379;
+  public final boolean classic;
 
-    KeySharedImplementationType(boolean classic) {
-        this.classic = classic;
+  KeySharedImplementationType(boolean classic) {
+    this.classic = classic;
+  }
+
+  public void skipIfClassic() {
+    if (classic) {
+      throw new SkipException("Test is not applicable for classic implementation");
     }
+  }
 
-    public void skipIfClassic() {
-        if (classic) {
-            throw new SkipException("Test is not applicable for classic implementation");
-        }
-    }
+  public Object[][] prependImplementationTypeToData(Object[][] data) {
+    return Arrays.stream(data)
+        .map(
+            array -> {
+              Object[] newArray = new Object[array.length + 1];
+              newArray[0] = this;
+              System.arraycopy(array, 0, newArray, 1, array.length);
+              return newArray;
+            })
+        .toArray(Object[][]::new);
+  }
 
-    public Object[][] prependImplementationTypeToData(Object[][] data) {
-        return Arrays.stream(data)
-                .map(array -> {
-                    Object[] newArray = new Object[array.length + 1];
-                    newArray[0] = this;
-                    System.arraycopy(array, 0, newArray, 1, array.length);
-                    return newArray;
-                })
-                .toArray(Object[][]::new);
-    }
-
-    public static Object[] generateTestInstances(Function<KeySharedImplementationType, Object> testInstanceFactory) {
-        return Arrays.stream(KeySharedImplementationType.values()).map(testInstanceFactory).toArray();
-    }
+  public static Object[] generateTestInstances(
+      Function<KeySharedImplementationType, Object> testInstanceFactory) {
+    return Arrays.stream(KeySharedImplementationType.values()).map(testInstanceFactory).toArray();
+  }
 }

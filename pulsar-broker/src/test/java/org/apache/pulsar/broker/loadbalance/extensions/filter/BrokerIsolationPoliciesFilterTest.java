@@ -34,7 +34,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
@@ -47,184 +46,271 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.testng.annotations.Test;
 
-/**
- * Unit test for {@link BrokerIsolationPoliciesFilter}.
- */
+/** Unit test for {@link BrokerIsolationPoliciesFilter}. */
 @Test(groups = "broker")
 public class BrokerIsolationPoliciesFilterTest {
 
-    /**
-     * It verifies namespace-isolation policies with primary and secondary brokers.
-     *
-     * usecase:
-     *
-     * <pre>
-     *  1. Namespace: primary=broker1, secondary=broker2, shared=broker3, min_limit = 1
-     *     a. available-brokers: broker1, broker2, broker3 => result: broker1
-     *     b. available-brokers: broker2, broker3          => result: broker2
-     *     c. available-brokers: broker3                   => result: NULL
-     *  2. Namespace: primary=broker1, secondary=broker2, shared=broker3, min_limit = 2
-     *     a. available-brokers: broker1, broker2, broker3 => result: broker1, broker2
-     *     b. available-brokers: broker2, broker3          => result: broker2
-     *     c. available-brokers: broker3                   => result: NULL
-     * </pre>
-     */
-    @Test
-    public void testFilterWithNamespaceIsolationPoliciesForPrimaryAndSecondaryBrokers()
-            throws IllegalAccessException, BrokerFilterException, ExecutionException, InterruptedException {
-        var namespace = "my-tenant/my-ns";
-        NamespaceName namespaceName = NamespaceName.get(namespace);
+  /**
+   * It verifies namespace-isolation policies with primary and secondary brokers.
+   *
+   * <p>usecase:
+   *
+   * <pre>
+   *  1. Namespace: primary=broker1, secondary=broker2, shared=broker3, min_limit = 1
+   *     a. available-brokers: broker1, broker2, broker3 => result: broker1
+   *     b. available-brokers: broker2, broker3          => result: broker2
+   *     c. available-brokers: broker3                   => result: NULL
+   *  2. Namespace: primary=broker1, secondary=broker2, shared=broker3, min_limit = 2
+   *     a. available-brokers: broker1, broker2, broker3 => result: broker1, broker2
+   *     b. available-brokers: broker2, broker3          => result: broker2
+   *     c. available-brokers: broker3                   => result: NULL
+   * </pre>
+   */
+  @Test
+  public void testFilterWithNamespaceIsolationPoliciesForPrimaryAndSecondaryBrokers()
+      throws IllegalAccessException,
+          BrokerFilterException,
+          ExecutionException,
+          InterruptedException {
+    var namespace = "my-tenant/my-ns";
+    NamespaceName namespaceName = NamespaceName.get(namespace);
 
-        var policies = mock(SimpleResourceAllocationPolicies.class);
+    var policies = mock(SimpleResourceAllocationPolicies.class);
 
-        // 1. Namespace: primary=broker1, secondary=broker2, shared=broker3, min_limit = 1
-        setIsolationPolicies(policies, namespaceName, Set.of("broker1"), Set.of("broker2"), Set.of("broker3"), 1);
-        IsolationPoliciesHelper isolationPoliciesHelper = new IsolationPoliciesHelper(policies);
+    // 1. Namespace: primary=broker1, secondary=broker2, shared=broker3, min_limit = 1
+    setIsolationPolicies(
+        policies, namespaceName, Set.of("broker1"), Set.of("broker2"), Set.of("broker3"), 1);
+    IsolationPoliciesHelper isolationPoliciesHelper = new IsolationPoliciesHelper(policies);
 
-        BrokerIsolationPoliciesFilter filter = new BrokerIsolationPoliciesFilter(isolationPoliciesHelper);
+    BrokerIsolationPoliciesFilter filter =
+        new BrokerIsolationPoliciesFilter(isolationPoliciesHelper);
 
-        // a. available-brokers: broker1, broker2, broker3 => result: broker1
-        Map<String, BrokerLookupData> result = filter.filterAsync(new HashMap<>(Map.of(
-                "broker1:8080", getLookupData(),
-                "broker2:8080", getLookupData(),
-                "broker3:8080", getLookupData())), namespaceName, getContext()).get();
-        assertEquals(result.keySet(), Set.of("broker1:8080"));
+    // a. available-brokers: broker1, broker2, broker3 => result: broker1
+    Map<String, BrokerLookupData> result =
+        filter
+            .filterAsync(
+                new HashMap<>(
+                    Map.of(
+                        "broker1:8080", getLookupData(),
+                        "broker2:8080", getLookupData(),
+                        "broker3:8080", getLookupData())),
+                namespaceName,
+                getContext())
+            .get();
+    assertEquals(result.keySet(), Set.of("broker1:8080"));
 
-        // b. available-brokers: broker2, broker3          => result: broker2
-        result = filter.filterAsync(new HashMap<>(Map.of(
-                "broker2:8080", getLookupData(),
-                "broker3:8080", getLookupData())), namespaceName, getContext()).get();
-        assertEquals(result.keySet(), Set.of("broker2:8080"));
+    // b. available-brokers: broker2, broker3          => result: broker2
+    result =
+        filter
+            .filterAsync(
+                new HashMap<>(
+                    Map.of(
+                        "broker2:8080", getLookupData(),
+                        "broker3:8080", getLookupData())),
+                namespaceName,
+                getContext())
+            .get();
+    assertEquals(result.keySet(), Set.of("broker2:8080"));
 
-        // c. available-brokers: broker3                   => result: NULL
-        result = filter.filterAsync(new HashMap<>(Map.of(
-                "broker3:8080", getLookupData())), namespaceName, getContext()).get();
-        assertTrue(result.isEmpty());
+    // c. available-brokers: broker3                   => result: NULL
+    result =
+        filter
+            .filterAsync(
+                new HashMap<>(Map.of("broker3:8080", getLookupData())), namespaceName, getContext())
+            .get();
+    assertTrue(result.isEmpty());
 
-        // 2. Namespace: primary=broker1, secondary=broker2, shared=broker3, min_limit = 2
-        setIsolationPolicies(policies, namespaceName, Set.of("broker1"), Set.of("broker2"), Set.of("broker3"), 2);
+    // 2. Namespace: primary=broker1, secondary=broker2, shared=broker3, min_limit = 2
+    setIsolationPolicies(
+        policies, namespaceName, Set.of("broker1"), Set.of("broker2"), Set.of("broker3"), 2);
 
-        // a. available-brokers: broker1, broker2, broker3 => result: broker1, broker2
-        result = filter.filterAsync(new HashMap<>(Map.of(
-                "broker1:8080", getLookupData(),
-                "broker2:8080", getLookupData(),
-                "broker3:8080", getLookupData())), namespaceName, getContext()).get();
-        assertEquals(result.keySet(), Set.of("broker1:8080", "broker2:8080"));
+    // a. available-brokers: broker1, broker2, broker3 => result: broker1, broker2
+    result =
+        filter
+            .filterAsync(
+                new HashMap<>(
+                    Map.of(
+                        "broker1:8080", getLookupData(),
+                        "broker2:8080", getLookupData(),
+                        "broker3:8080", getLookupData())),
+                namespaceName,
+                getContext())
+            .get();
+    assertEquals(result.keySet(), Set.of("broker1:8080", "broker2:8080"));
 
-        // b. available-brokers: broker2, broker3          => result: broker2
-        result = filter.filterAsync(new HashMap<>(Map.of(
-                "broker2:8080", getLookupData(),
-                "broker3:8080", getLookupData())), namespaceName, getContext()).get();
-        assertEquals(result.keySet(), Set.of("broker2:8080"));
+    // b. available-brokers: broker2, broker3          => result: broker2
+    result =
+        filter
+            .filterAsync(
+                new HashMap<>(
+                    Map.of(
+                        "broker2:8080", getLookupData(),
+                        "broker3:8080", getLookupData())),
+                namespaceName,
+                getContext())
+            .get();
+    assertEquals(result.keySet(), Set.of("broker2:8080"));
 
-        // c. available-brokers: broker3                   => result: NULL
-        result = filter.filterAsync(new HashMap<>(Map.of(
-                "broker3:8080", getLookupData())), namespaceName, getContext()).get();
-        assertTrue(result.isEmpty());
-    }
+    // c. available-brokers: broker3                   => result: NULL
+    result =
+        filter
+            .filterAsync(
+                new HashMap<>(Map.of("broker3:8080", getLookupData())), namespaceName, getContext())
+            .get();
+    assertTrue(result.isEmpty());
+  }
 
-    @Test
-    public void testFilterWithPersistentOrNonPersistentDisabled()
-            throws IllegalAccessException, BrokerFilterException, ExecutionException, InterruptedException {
-        var namespace = "my-tenant/my-ns";
-        NamespaceName namespaceName = NamespaceName.get(namespace);
-        NamespaceBundle namespaceBundle = mock(NamespaceBundle.class);
-        doReturn(true).when(namespaceBundle).hasNonPersistentTopic();
-        doReturn(namespaceName).when(namespaceBundle).getNamespaceObject();
+  @Test
+  public void testFilterWithPersistentOrNonPersistentDisabled()
+      throws IllegalAccessException,
+          BrokerFilterException,
+          ExecutionException,
+          InterruptedException {
+    var namespace = "my-tenant/my-ns";
+    NamespaceName namespaceName = NamespaceName.get(namespace);
+    NamespaceBundle namespaceBundle = mock(NamespaceBundle.class);
+    doReturn(true).when(namespaceBundle).hasNonPersistentTopic();
+    doReturn(namespaceName).when(namespaceBundle).getNamespaceObject();
 
-        var policies = mock(SimpleResourceAllocationPolicies.class);
-        doReturn(CompletableFuture.completedFuture(false))
-                .when(policies).areIsolationPoliciesPresentAsync(eq(namespaceName));
-        doReturn(true).when(policies).isSharedBroker(any());
-        IsolationPoliciesHelper isolationPoliciesHelper = new IsolationPoliciesHelper(policies);
+    var policies = mock(SimpleResourceAllocationPolicies.class);
+    doReturn(CompletableFuture.completedFuture(false))
+        .when(policies)
+        .areIsolationPoliciesPresentAsync(eq(namespaceName));
+    doReturn(true).when(policies).isSharedBroker(any());
+    IsolationPoliciesHelper isolationPoliciesHelper = new IsolationPoliciesHelper(policies);
 
-        BrokerIsolationPoliciesFilter filter = new BrokerIsolationPoliciesFilter(isolationPoliciesHelper);
+    BrokerIsolationPoliciesFilter filter =
+        new BrokerIsolationPoliciesFilter(isolationPoliciesHelper);
 
+    Map<String, BrokerLookupData> result =
+        filter
+            .filterAsync(
+                new HashMap<>(
+                    Map.of(
+                        "broker1:8080", getLookupData(),
+                        "broker2:8080", getLookupData(),
+                        "broker3:8080", getLookupData())),
+                namespaceBundle,
+                getContext())
+            .get();
+    assertEquals(result.keySet(), Set.of("broker1:8080", "broker2:8080", "broker3:8080"));
 
+    result =
+        filter
+            .filterAsync(
+                new HashMap<>(
+                    Map.of(
+                        "broker1:8080", getLookupData(true, false),
+                        "broker2:8080", getLookupData(true, false),
+                        "broker3:8080", getLookupData())),
+                namespaceBundle,
+                getContext())
+            .get();
+    assertEquals(result.keySet(), Set.of("broker3:8080"));
 
-        Map<String, BrokerLookupData> result = filter.filterAsync(new HashMap<>(Map.of(
-                "broker1:8080", getLookupData(),
-                "broker2:8080", getLookupData(),
-                "broker3:8080", getLookupData())), namespaceBundle, getContext()).get();
-        assertEquals(result.keySet(), Set.of("broker1:8080", "broker2:8080", "broker3:8080"));
+    doReturn(false).when(namespaceBundle).hasNonPersistentTopic();
 
+    result =
+        filter
+            .filterAsync(
+                new HashMap<>(
+                    Map.of(
+                        "broker1:8080", getLookupData(),
+                        "broker2:8080", getLookupData(),
+                        "broker3:8080", getLookupData())),
+                namespaceBundle,
+                getContext())
+            .get();
+    assertEquals(result.keySet(), Set.of("broker1:8080", "broker2:8080", "broker3:8080"));
 
-        result = filter.filterAsync(new HashMap<>(Map.of(
-                "broker1:8080", getLookupData(true, false),
-                "broker2:8080", getLookupData(true, false),
-                "broker3:8080", getLookupData())), namespaceBundle, getContext()).get();
-        assertEquals(result.keySet(), Set.of("broker3:8080"));
+    result =
+        filter
+            .filterAsync(
+                new HashMap<>(
+                    Map.of(
+                        "broker1:8080", getLookupData(false, true),
+                        "broker2:8080", getLookupData(),
+                        "broker3:8080", getLookupData())),
+                namespaceBundle,
+                getContext())
+            .get();
+    assertEquals(result.keySet(), Set.of("broker2:8080", "broker3:8080"));
+  }
 
-        doReturn(false).when(namespaceBundle).hasNonPersistentTopic();
+  private void setIsolationPolicies(
+      SimpleResourceAllocationPolicies policies,
+      NamespaceName namespaceName,
+      Set<String> primary,
+      Set<String> secondary,
+      Set<String> shared,
+      int min_limit) {
+    reset(policies);
+    doReturn(CompletableFuture.completedFuture(true))
+        .when(policies)
+        .areIsolationPoliciesPresentAsync(eq(namespaceName));
+    doReturn(false).when(policies).isPrimaryBroker(eq(namespaceName), any());
+    doReturn(false).when(policies).isSecondaryBroker(eq(namespaceName), any());
+    doReturn(false).when(policies).isSharedBroker(any());
 
-        result = filter.filterAsync(new HashMap<>(Map.of(
-                "broker1:8080", getLookupData(),
-                "broker2:8080", getLookupData(),
-                "broker3:8080", getLookupData())), namespaceBundle, getContext()).get();
-        assertEquals(result.keySet(), Set.of("broker1:8080", "broker2:8080", "broker3:8080"));
-
-        result = filter.filterAsync(new HashMap<>(Map.of(
-                "broker1:8080", getLookupData(false, true),
-                "broker2:8080", getLookupData(),
-                "broker3:8080", getLookupData())), namespaceBundle, getContext()).get();
-        assertEquals(result.keySet(), Set.of("broker2:8080", "broker3:8080"));
-    }
-
-    private void setIsolationPolicies(SimpleResourceAllocationPolicies policies,
-                                      NamespaceName namespaceName,
-                                      Set<String> primary,
-                                      Set<String> secondary,
-                                      Set<String> shared,
-                                      int min_limit) {
-        reset(policies);
-        doReturn(CompletableFuture.completedFuture(true))
-                .when(policies).areIsolationPoliciesPresentAsync(eq(namespaceName));
-        doReturn(false).when(policies).isPrimaryBroker(eq(namespaceName), any());
-        doReturn(false).when(policies).isSecondaryBroker(eq(namespaceName), any());
-        doReturn(false).when(policies).isSharedBroker(any());
-
-        primary.forEach(broker -> {
-            doReturn(true).when(policies).isPrimaryBroker(eq(namespaceName), eq(broker));
+    primary.forEach(
+        broker -> {
+          doReturn(true).when(policies).isPrimaryBroker(eq(namespaceName), eq(broker));
         });
 
-        secondary.forEach(broker -> {
-            doReturn(true).when(policies).isSecondaryBroker(eq(namespaceName), eq(broker));
+    secondary.forEach(
+        broker -> {
+          doReturn(true).when(policies).isSecondaryBroker(eq(namespaceName), eq(broker));
         });
 
-        shared.forEach(broker -> {
-            doReturn(true).when(policies).isSharedBroker(eq(broker));
+    shared.forEach(
+        broker -> {
+          doReturn(true).when(policies).isSharedBroker(eq(broker));
         });
 
-        doAnswer(invocationOnMock -> {
-            Integer totalPrimaryCandidates = invocationOnMock.getArgument(1, Integer.class);
-            return totalPrimaryCandidates < min_limit;
-        }).when(policies).shouldFailoverToSecondaries(eq(namespaceName), anyInt());
-    }
+    doAnswer(
+            invocationOnMock -> {
+              Integer totalPrimaryCandidates = invocationOnMock.getArgument(1, Integer.class);
+              return totalPrimaryCandidates < min_limit;
+            })
+        .when(policies)
+        .shouldFailoverToSecondaries(eq(namespaceName), anyInt());
+  }
 
-    public BrokerLookupData getLookupData() {
-        return getLookupData(true, true);
-    }
+  public BrokerLookupData getLookupData() {
+    return getLookupData(true, true);
+  }
 
-    public BrokerLookupData getLookupData(boolean persistentTopicsEnabled,
-                                          boolean nonPersistentTopicsEnabled) {
-        String webServiceUrl = "http://localhost:8080";
-        String webServiceUrlTls = "https://localhoss:8081";
-        String pulsarServiceUrl = "pulsar://localhost:6650";
-        String pulsarServiceUrlTls = "pulsar+ssl://localhost:6651";
-        Map<String, AdvertisedListener> advertisedListeners = new HashMap<>();
-        Map<String, String> protocols = new HashMap<>(){{
+  public BrokerLookupData getLookupData(
+      boolean persistentTopicsEnabled, boolean nonPersistentTopicsEnabled) {
+    String webServiceUrl = "http://localhost:8080";
+    String webServiceUrlTls = "https://localhoss:8081";
+    String pulsarServiceUrl = "pulsar://localhost:6650";
+    String pulsarServiceUrlTls = "pulsar+ssl://localhost:6651";
+    Map<String, AdvertisedListener> advertisedListeners = new HashMap<>();
+    Map<String, String> protocols =
+        new HashMap<>() {
+          {
             put("kafka", "9092");
-        }};
-        return new BrokerLookupData(
-                webServiceUrl, webServiceUrlTls, pulsarServiceUrl,
-                pulsarServiceUrlTls, advertisedListeners, protocols,
-                persistentTopicsEnabled, nonPersistentTopicsEnabled,
-                ExtensibleLoadManagerImpl.class.getName(), System.currentTimeMillis(), "3.0.0", Collections.emptyMap());
-    }
+          }
+        };
+    return new BrokerLookupData(
+        webServiceUrl,
+        webServiceUrlTls,
+        pulsarServiceUrl,
+        pulsarServiceUrlTls,
+        advertisedListeners,
+        protocols,
+        persistentTopicsEnabled,
+        nonPersistentTopicsEnabled,
+        ExtensibleLoadManagerImpl.class.getName(),
+        System.currentTimeMillis(),
+        "3.0.0",
+        Collections.emptyMap());
+  }
 
-    public LoadManagerContext getContext() {
-        LoadManagerContext mockContext = mock(LoadManagerContext.class);
-        doReturn(new ServiceConfiguration()).when(mockContext).brokerConfiguration();
-        return mockContext;
-    }
+  public LoadManagerContext getContext() {
+    LoadManagerContext mockContext = mock(LoadManagerContext.class);
+    doReturn(new ServiceConfiguration()).when(mockContext).brokerConfiguration();
+    return mockContext;
+  }
 }

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service.plugin;
 
-
 import java.util.List;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.commons.collections4.MapUtils;
@@ -26,26 +25,24 @@ import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.common.api.proto.KeyValue;
 
 public class EntryFilter2Test implements EntryFilter {
-    @Override
-    public FilterResult filterEntry(Entry entry, FilterContext context) {
-        if (context.getMsgMetadata() == null || context.getMsgMetadata().getPropertiesCount() <= 0) {
-            return FilterResult.ACCEPT;
-        }
-        List<KeyValue> list = context.getMsgMetadata().getPropertiesList();
-        // filter by subscription properties
-        PersistentSubscription subscription = (PersistentSubscription) context.getSubscription();
-        if (!MapUtils.isEmpty(subscription.getSubscriptionProperties())) {
-            for (KeyValue keyValue : list) {
-                if(subscription.getSubscriptionProperties().containsKey(keyValue.getKey())){
-                    return FilterResult.ACCEPT;
-                }
-            }
-        }
-        return FilterResult.REJECT;
+  @Override
+  public FilterResult filterEntry(Entry entry, FilterContext context) {
+    if (context.getMsgMetadata() == null || context.getMsgMetadata().getPropertiesCount() <= 0) {
+      return FilterResult.ACCEPT;
     }
-
-    @Override
-    public void close() {
-
+    List<KeyValue> list = context.getMsgMetadata().getPropertiesList();
+    // filter by subscription properties
+    PersistentSubscription subscription = (PersistentSubscription) context.getSubscription();
+    if (!MapUtils.isEmpty(subscription.getSubscriptionProperties())) {
+      for (KeyValue keyValue : list) {
+        if (subscription.getSubscriptionProperties().containsKey(keyValue.getKey())) {
+          return FilterResult.ACCEPT;
+        }
+      }
     }
+    return FilterResult.REJECT;
+  }
+
+  @Override
+  public void close() {}
 }

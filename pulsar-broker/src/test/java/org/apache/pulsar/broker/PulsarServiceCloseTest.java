@@ -20,6 +20,7 @@ package org.apache.pulsar.broker;
 
 import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertTrue;
+
 import java.util.concurrent.ScheduledFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.reflect.FieldUtils;
@@ -33,44 +34,45 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class PulsarServiceCloseTest extends MockedPulsarServiceBaseTest {
 
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
+  @BeforeClass
+  @Override
+  protected void setup() throws Exception {
+    super.internalSetup();
+  }
+
+  @AfterClass(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
+
+  @Override
+  protected ServiceConfiguration getDefaultConf() {
+    ServiceConfiguration conf = super.getDefaultConf();
+    conf.setBrokerShutdownTimeoutMs(1000 * 60 * 5);
+    conf.setLoadBalancerSheddingIntervalMinutes(30);
+    return conf;
+  }
+
+  @Test(timeOut = 30_000)
+  public void closeInTimeTest() throws Exception {
+    LoadSheddingTask task = pulsar.getLoadSheddingTask();
+
+    {
+      assertFalse((boolean) FieldUtils.readField(task, "isCancel", true));
+      ScheduledFuture<?> loadSheddingFuture =
+          (ScheduledFuture<?>) FieldUtils.readField(task, "future", true);
+      assertFalse(loadSheddingFuture.isCancelled());
     }
 
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
+    // The pulsar service is not used, so it should be closed gracefully in short time.
+    pulsar.close();
+
+    {
+      assertTrue((boolean) FieldUtils.readField(task, "isCancel", true));
+      ScheduledFuture<?> loadSheddingFuture =
+          (ScheduledFuture<?>) FieldUtils.readField(task, "future", true);
+      assertTrue(loadSheddingFuture.isCancelled());
     }
-
-    @Override
-    protected ServiceConfiguration getDefaultConf() {
-        ServiceConfiguration conf = super.getDefaultConf();
-        conf.setBrokerShutdownTimeoutMs(1000 * 60 * 5);
-        conf.setLoadBalancerSheddingIntervalMinutes(30);
-        return conf;
-    }
-
-    @Test(timeOut = 30_000)
-    public void closeInTimeTest() throws Exception {
-        LoadSheddingTask task = pulsar.getLoadSheddingTask();
-
-        {
-            assertFalse((boolean) FieldUtils.readField(task, "isCancel", true));
-            ScheduledFuture<?> loadSheddingFuture = (ScheduledFuture<?>) FieldUtils.readField(task, "future", true);
-            assertFalse(loadSheddingFuture.isCancelled());
-        }
-
-        // The pulsar service is not used, so it should be closed gracefully in short time.
-        pulsar.close();
-
-        {
-            assertTrue((boolean) FieldUtils.readField(task, "isCancel", true));
-            ScheduledFuture<?> loadSheddingFuture = (ScheduledFuture<?>) FieldUtils.readField(task, "future", true);
-            assertTrue(loadSheddingFuture.isCancelled());
-        }
-    }
-
+  }
 }

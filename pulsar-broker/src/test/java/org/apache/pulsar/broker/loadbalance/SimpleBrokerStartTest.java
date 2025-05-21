@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.loadbalance;
 
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
 import com.google.common.io.Resources;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -38,102 +39,98 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class SimpleBrokerStartTest {
 
-    final static String caCertPath = Resources.getResource("certificate-authority/certs/ca.cert.pem")
-            .getPath();
-    final static String brokerCertPath =
-            Resources.getResource("certificate-authority/server-keys/broker.cert.pem").getPath();
-    final static String brokerKeyPath =
-            Resources.getResource("certificate-authority/server-keys/broker.key-pk8.pem").getPath();
+  static final String caCertPath =
+      Resources.getResource("certificate-authority/certs/ca.cert.pem").getPath();
+  static final String brokerCertPath =
+      Resources.getResource("certificate-authority/server-keys/broker.cert.pem").getPath();
+  static final String brokerKeyPath =
+      Resources.getResource("certificate-authority/server-keys/broker.key-pk8.pem").getPath();
 
-    public void testHasNICSpeed() throws Exception {
-        if (!LinuxInfoUtils.isLinux()) {
-            return;
-        }
-        // Start local bookkeeper ensemble
-        @Cleanup("stop")
-        LocalBookkeeperEnsemble bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
-        bkEnsemble.start();
-        // Start broker
-        ServiceConfiguration config = new ServiceConfiguration();
-        config.setClusterName("use");
-        config.setWebServicePort(Optional.of(0));
-        config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
-        config.setBrokerShutdownTimeoutMs(0L);
-        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
-        config.setBrokerServicePort(Optional.of(0));
-        config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
-        config.setBrokerServicePortTls(Optional.of(0));
-        config.setWebServicePortTls(Optional.of(0));
-        config.setAdvertisedAddress("localhost");
-        config.setTlsTrustCertsFilePath(caCertPath);
-        config.setTlsCertificateFilePath(brokerCertPath);
-        config.setTlsKeyFilePath(brokerKeyPath);
-        boolean hasNicSpeeds = LinuxInfoUtils.checkHasNicSpeeds();
-        if (hasNicSpeeds) {
-            @Cleanup
-            PulsarService pulsarService = new PulsarService(config);
-            pulsarService.start();
-        }
+  public void testHasNICSpeed() throws Exception {
+    if (!LinuxInfoUtils.isLinux()) {
+      return;
+    }
+    // Start local bookkeeper ensemble
+    @Cleanup("stop")
+    LocalBookkeeperEnsemble bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+    bkEnsemble.start();
+    // Start broker
+    ServiceConfiguration config = new ServiceConfiguration();
+    config.setClusterName("use");
+    config.setWebServicePort(Optional.of(0));
+    config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
+    config.setBrokerShutdownTimeoutMs(0L);
+    config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
+    config.setBrokerServicePort(Optional.of(0));
+    config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
+    config.setBrokerServicePortTls(Optional.of(0));
+    config.setWebServicePortTls(Optional.of(0));
+    config.setAdvertisedAddress("localhost");
+    config.setTlsTrustCertsFilePath(caCertPath);
+    config.setTlsCertificateFilePath(brokerCertPath);
+    config.setTlsKeyFilePath(brokerKeyPath);
+    boolean hasNicSpeeds = LinuxInfoUtils.checkHasNicSpeeds();
+    if (hasNicSpeeds) {
+      @Cleanup PulsarService pulsarService = new PulsarService(config);
+      pulsarService.start();
+    }
+  }
+
+  public void testNoNICSpeed() throws Exception {
+    if (!LinuxInfoUtils.isLinux()) {
+      return;
+    }
+    // Start local bookkeeper ensemble
+    @Cleanup("stop")
+    LocalBookkeeperEnsemble bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+    bkEnsemble.start();
+    // Start broker
+    ServiceConfiguration config = new ServiceConfiguration();
+    config.setClusterName("use");
+    config.setWebServicePort(Optional.of(0));
+    config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
+    config.setBrokerShutdownTimeoutMs(0L);
+    config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
+    config.setBrokerServicePort(Optional.of(0));
+    config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
+    config.setBrokerServicePortTls(Optional.of(0));
+    config.setWebServicePortTls(Optional.of(0));
+    config.setAdvertisedAddress("localhost");
+    config.setTlsTrustCertsFilePath(caCertPath);
+    config.setTlsCertificateFilePath(brokerCertPath);
+    config.setTlsKeyFilePath(brokerKeyPath);
+    boolean hasNicSpeeds = LinuxInfoUtils.checkHasNicSpeeds();
+    if (!hasNicSpeeds) {
+      @Cleanup PulsarService pulsarService = new PulsarService(config);
+      try {
+        pulsarService.start();
+        fail("unexpected behaviour");
+      } catch (PulsarServerException ex) {
+        assertTrue(ex.getCause() instanceof IllegalStateException);
+      }
+    }
+  }
+
+  @Test
+  public void testCGroupMetrics() {
+    if (!LinuxInfoUtils.isLinux()) {
+      return;
     }
 
-    public void testNoNICSpeed() throws Exception {
-        if (!LinuxInfoUtils.isLinux()) {
-            return;
-        }
-        // Start local bookkeeper ensemble
-        @Cleanup("stop")
-        LocalBookkeeperEnsemble bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
-        bkEnsemble.start();
-        // Start broker
-        ServiceConfiguration config = new ServiceConfiguration();
-        config.setClusterName("use");
-        config.setWebServicePort(Optional.of(0));
-        config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
-        config.setBrokerShutdownTimeoutMs(0L);
-        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
-        config.setBrokerServicePort(Optional.of(0));
-        config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
-        config.setBrokerServicePortTls(Optional.of(0));
-        config.setWebServicePortTls(Optional.of(0));
-        config.setAdvertisedAddress("localhost");
-        config.setTlsTrustCertsFilePath(caCertPath);
-        config.setTlsCertificateFilePath(brokerCertPath);
-        config.setTlsKeyFilePath(brokerKeyPath);
-        boolean hasNicSpeeds = LinuxInfoUtils.checkHasNicSpeeds();
-        if (!hasNicSpeeds) {
-            @Cleanup
-            PulsarService pulsarService = new PulsarService(config);
-            try {
-                pulsarService.start();
-                fail("unexpected behaviour");
-            } catch (PulsarServerException ex) {
-                assertTrue(ex.getCause() instanceof IllegalStateException);
-            }
-        }
+    boolean existsCGroup = Files.exists(Paths.get("/sys/fs/cgroup"));
+    boolean cGroupEnabled = LinuxInfoUtils.isCGroupEnabled();
+    Assert.assertEquals(cGroupEnabled, existsCGroup);
+
+    double totalCpuLimit = LinuxInfoUtils.getTotalCpuLimit(cGroupEnabled);
+    log.info("totalCpuLimit: {}", totalCpuLimit);
+    Assert.assertTrue(totalCpuLimit > 0.0);
+
+    if (cGroupEnabled) {
+      Assert.assertNotNull(LinuxInfoUtils.getMetrics());
+
+      long cpuUsageForCGroup = LinuxInfoUtils.getCpuUsageForCGroup();
+      log.info("cpuUsageForCGroup: {}", cpuUsageForCGroup);
+      Assert.assertTrue(cpuUsageForCGroup > 0);
     }
-
-
-    @Test
-    public void testCGroupMetrics() {
-        if (!LinuxInfoUtils.isLinux()) {
-            return;
-        }
-
-        boolean existsCGroup = Files.exists(Paths.get("/sys/fs/cgroup"));
-        boolean cGroupEnabled = LinuxInfoUtils.isCGroupEnabled();
-        Assert.assertEquals(cGroupEnabled, existsCGroup);
-
-        double totalCpuLimit = LinuxInfoUtils.getTotalCpuLimit(cGroupEnabled);
-        log.info("totalCpuLimit: {}", totalCpuLimit);
-        Assert.assertTrue(totalCpuLimit > 0.0);
-
-        if (cGroupEnabled) {
-            Assert.assertNotNull(LinuxInfoUtils.getMetrics());
-
-            long cpuUsageForCGroup = LinuxInfoUtils.getCpuUsageForCGroup();
-            log.info("cpuUsageForCGroup: {}", cpuUsageForCGroup);
-            Assert.assertTrue(cpuUsageForCGroup > 0);
-        }
-    }
-
+  }
 }

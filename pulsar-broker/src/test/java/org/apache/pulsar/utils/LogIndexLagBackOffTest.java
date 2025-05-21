@@ -24,32 +24,31 @@ import org.testng.annotations.Test;
 
 @Test(groups = "utils")
 public class LogIndexLagBackOffTest {
-    @Test
-    public void testGenerateNextLogIndexLag() {
-        LogIndexLagBackoff logIndexLagBackoff = new LogIndexLagBackoff(1, 10, 1);
-        Assert.assertEquals(logIndexLagBackoff.next(0), 1);
-        Assert.assertEquals(logIndexLagBackoff.next(6), 6);
+  @Test
+  public void testGenerateNextLogIndexLag() {
+    LogIndexLagBackoff logIndexLagBackoff = new LogIndexLagBackoff(1, 10, 1);
+    Assert.assertEquals(logIndexLagBackoff.next(0), 1);
+    Assert.assertEquals(logIndexLagBackoff.next(6), 6);
 
-        Assert.assertEquals(logIndexLagBackoff.next(77), 10);
+    Assert.assertEquals(logIndexLagBackoff.next(77), 10);
 
-        logIndexLagBackoff = new LogIndexLagBackoff(1, 10, 2);
-        Assert.assertEquals(logIndexLagBackoff.next(3), 9);
+    logIndexLagBackoff = new LogIndexLagBackoff(1, 10, 2);
+    Assert.assertEquals(logIndexLagBackoff.next(3), 9);
 
-        try {
-            new LogIndexLagBackoff(-1, 2, 3);
-        } catch (IllegalArgumentException e) {
-            Assert.assertEquals(e.getMessage(), "min lag must be > 0");
-        }
-        try {
-            new LogIndexLagBackoff(2, 1, 3);
-        } catch (IllegalArgumentException e) {
-            Assert.assertEquals(e.getMessage(), "maxLag should be >= minLag");
-        }
-        try {
-            new LogIndexLagBackoff(1, 1, 0.2);
-        } catch (IllegalArgumentException e) {
-            Assert.assertEquals(e.getMessage(), "exponent must be > 0");
-        }
-
+    try {
+      new LogIndexLagBackoff(-1, 2, 3);
+    } catch (IllegalArgumentException e) {
+      Assert.assertEquals(e.getMessage(), "min lag must be > 0");
     }
+    try {
+      new LogIndexLagBackoff(2, 1, 3);
+    } catch (IllegalArgumentException e) {
+      Assert.assertEquals(e.getMessage(), "maxLag should be >= minLag");
+    }
+    try {
+      new LogIndexLagBackoff(1, 1, 0.2);
+    } catch (IllegalArgumentException e) {
+      Assert.assertEquals(e.getMessage(), "exponent must be > 0");
+    }
+  }
 }

@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -33,38 +34,37 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class ManagedLedgerConfigTest extends ProducerConsumerBase {
 
-    @BeforeClass(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
+  @BeforeClass(alwaysRun = true)
+  @Override
+  protected void setup() throws Exception {
+    super.internalSetup();
+    super.producerBaseSetup();
+  }
 
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @AfterClass(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @DataProvider(name = "booleans")
-    public Object[][] booleans() {
-        return new Object[][] {
-                {true},
-                {false},
-        };
-    }
+  @DataProvider(name = "booleans")
+  public Object[][] booleans() {
+    return new Object[][] {
+      {true}, {false},
+    };
+  }
 
-    @Test(dataProvider = "booleans")
-    public void testConfigPersistIndividualAckAsLongArray(boolean enabled) throws Exception {
-        pulsar.getConfiguration().setManagedLedgerPersistIndividualAckAsLongArray(enabled);
-        final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
-        admin.topics().createNonPartitionedTopic(tpName);
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, true).get().get();
-        ManagedLedgerConfig mlConf = topic.getManagedLedger().getConfig();
-        assertEquals(mlConf.isPersistIndividualAckAsLongArray(), enabled);
+  @Test(dataProvider = "booleans")
+  public void testConfigPersistIndividualAckAsLongArray(boolean enabled) throws Exception {
+    pulsar.getConfiguration().setManagedLedgerPersistIndividualAckAsLongArray(enabled);
+    final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+    admin.topics().createNonPartitionedTopic(tpName);
+    PersistentTopic topic =
+        (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, true).get().get();
+    ManagedLedgerConfig mlConf = topic.getManagedLedger().getConfig();
+    assertEquals(mlConf.isPersistIndividualAckAsLongArray(), enabled);
 
-        // cleanup.
-        admin.topics().delete(tpName);
-    }
+    // cleanup.
+    admin.topics().delete(tpName);
+  }
 }
-

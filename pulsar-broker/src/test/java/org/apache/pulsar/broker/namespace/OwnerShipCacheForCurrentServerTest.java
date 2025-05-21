@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.namespace;
 
 import static org.testng.AssertJUnit.assertTrue;
+
 import com.google.common.collect.Sets;
 import java.util.Random;
 import lombok.extern.slf4j.Slf4j;
@@ -38,58 +39,65 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class OwnerShipCacheForCurrentServerTest extends OwnerShipForCurrentServerTestBase {
 
-    private static final String TENANT = "ownership";
-    private static final String NAMESPACE = TENANT + "/ns1";
-    private static final Random RANDOM = new Random();
+  private static final String TENANT = "ownership";
+  private static final String NAMESPACE = TENANT + "/ns1";
+  private static final Random RANDOM = new Random();
 
-    @BeforeMethod
-    protected void setup() throws Exception {
-        internalSetup();
-        String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
-        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:" + webServicePort).build());
-        admin.tenants().createTenant(TENANT,
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
-        admin.namespaces().createNamespace(NAMESPACE);
-    }
+  @BeforeMethod
+  protected void setup() throws Exception {
+    internalSetup();
+    String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
+    String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length - 1];
+    admin
+        .clusters()
+        .createCluster(
+            CLUSTER_NAME,
+            ClusterData.builder().serviceUrl("http://localhost:" + webServicePort).build());
+    admin
+        .tenants()
+        .createTenant(
+            TENANT, new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
+    admin.namespaces().createNamespace(NAMESPACE);
+  }
 
-    @AfterMethod(alwaysRun = true)
-    protected void cleanup() {
-        super.internalCleanup();
-    }
+  @AfterMethod(alwaysRun = true)
+  protected void cleanup() {
+    super.internalCleanup();
+  }
 
-    @Test
-    public void testOwnershipForCurrentServer() throws Exception {
-        for (int i = 0; i < getPulsarServiceList().size(); i++) {
-            String topicName = newTopicName();
-            admin.topics().createNonPartitionedTopic(topicName);
-            NamespaceService namespaceService = getPulsarServiceList().get(i).getNamespaceService();
-            NamespaceBundle bundle = namespaceService.getBundle(TopicName.get(topicName));
-            Assert.assertEquals(namespaceService.getOwnerAsync(bundle).get().get().getNativeUrl(),
-                    namespaceService.getOwnerAsync(bundle).get().get().getNativeUrl());
-        }
+  @Test
+  public void testOwnershipForCurrentServer() throws Exception {
+    for (int i = 0; i < getPulsarServiceList().size(); i++) {
+      String topicName = newTopicName();
+      admin.topics().createNonPartitionedTopic(topicName);
+      NamespaceService namespaceService = getPulsarServiceList().get(i).getNamespaceService();
+      NamespaceBundle bundle = namespaceService.getBundle(TopicName.get(topicName));
+      Assert.assertEquals(
+          namespaceService.getOwnerAsync(bundle).get().get().getNativeUrl(),
+          namespaceService.getOwnerAsync(bundle).get().get().getNativeUrl());
     }
+  }
 
-    @Test(timeOut = 30000)
-    public void testCreateTopicWithNotTopicNsOwnedBroker() {
-        String topicName = newTopicName();
-        int verifiedBrokerNum = 0;
-        for (PulsarService pulsarService : this.getPulsarServiceList()) {
-            BrokerService bs = pulsarService.getBrokerService();
-            if (bs.isTopicNsOwnedByBrokerAsync(TopicName.get(topicName)).join()) {
-                continue;
-            }
-            verifiedBrokerNum ++;
-            try {
-                bs.getOrCreateTopic(topicName).get();
-            } catch (Exception ex) {
-                assertTrue(ex.getCause() instanceof BrokerServiceException.ServiceUnitNotReadyException);
-            }
-        }
-        assertTrue(verifiedBrokerNum > 0);
+  @Test(timeOut = 30000)
+  public void testCreateTopicWithNotTopicNsOwnedBroker() {
+    String topicName = newTopicName();
+    int verifiedBrokerNum = 0;
+    for (PulsarService pulsarService : this.getPulsarServiceList()) {
+      BrokerService bs = pulsarService.getBrokerService();
+      if (bs.isTopicNsOwnedByBrokerAsync(TopicName.get(topicName)).join()) {
+        continue;
+      }
+      verifiedBrokerNum++;
+      try {
+        bs.getOrCreateTopic(topicName).get();
+      } catch (Exception ex) {
+        assertTrue(ex.getCause() instanceof BrokerServiceException.ServiceUnitNotReadyException);
+      }
     }
+    assertTrue(verifiedBrokerNum > 0);
+  }
 
-    protected String newTopicName() {
-        return "persistent://" + NAMESPACE + "/topic-" + Long.toHexString(RANDOM.nextLong());
-    }
+  protected String newTopicName() {
+    return "persistent://" + NAMESPACE + "/topic-" + Long.toHexString(RANDOM.nextLong());
+  }
 }

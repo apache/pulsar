@@ -18,9 +18,8 @@
  */
 package org.apache.pulsar.broker.service;
 
-import org.apache.pulsar.client.api.Range;
-import org.testng.Assert;
-import org.testng.annotations.Test;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -28,59 +27,59 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import org.apache.pulsar.client.api.Range;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class HashRangeAutoSplitStickyKeyConsumerSelectorTest {
 
-    @Test
-    public void testGetConsumerKeyHashRanges() throws BrokerServiceException.ConsumerAssignException {
-        HashRangeAutoSplitStickyKeyConsumerSelector selector =
-                new HashRangeAutoSplitStickyKeyConsumerSelector(2 << 5, false);
-        List<String> consumerName = Arrays.asList("consumer1", "consumer2", "consumer3", "consumer4");
-        List<Consumer> consumers = new ArrayList<>();
-        for (String s : consumerName) {
-            Consumer consumer = mock(Consumer.class);
-            when(consumer.consumerName()).thenReturn(s);
-            selector.addConsumer(consumer);
-            consumers.add(consumer);
-        }
-
-        Map<Consumer, List<Range>> expectedResult = new HashMap<>();
-        expectedResult.put(consumers.get(0), Collections.singletonList(Range.of(49, 64)));
-        expectedResult.put(consumers.get(3), Collections.singletonList(Range.of(33, 48)));
-        expectedResult.put(consumers.get(1), Collections.singletonList(Range.of(17, 32)));
-        expectedResult.put(consumers.get(2), Collections.singletonList(Range.of(0, 16)));
-        for (Map.Entry<Consumer, List<Range>> entry : selector.getConsumerKeyHashRanges().entrySet()) {
-            Assert.assertEquals(entry.getValue(), expectedResult.get(entry.getKey()));
-            expectedResult.remove(entry.getKey());
-        }
-        Assert.assertEquals(expectedResult.size(), 0);
+  @Test
+  public void testGetConsumerKeyHashRanges() throws BrokerServiceException.ConsumerAssignException {
+    HashRangeAutoSplitStickyKeyConsumerSelector selector =
+        new HashRangeAutoSplitStickyKeyConsumerSelector(2 << 5, false);
+    List<String> consumerName = Arrays.asList("consumer1", "consumer2", "consumer3", "consumer4");
+    List<Consumer> consumers = new ArrayList<>();
+    for (String s : consumerName) {
+      Consumer consumer = mock(Consumer.class);
+      when(consumer.consumerName()).thenReturn(s);
+      selector.addConsumer(consumer);
+      consumers.add(consumer);
     }
 
-    @Test
-    public void testGetConsumerKeyHashRangesWithSameConsumerName() throws Exception {
-        HashRangeAutoSplitStickyKeyConsumerSelector selector =
-                new HashRangeAutoSplitStickyKeyConsumerSelector(2 << 5, false);
-        final String consumerName = "My-consumer";
-        List<Consumer> consumers = new ArrayList<>();
-        for (int i = 0; i < 3; i++) {
-            Consumer consumer = mock(Consumer.class);
-            when(consumer.consumerName()).thenReturn(consumerName);
-            selector.addConsumer(consumer);
-            consumers.add(consumer);
-        }
-
-        List<Range> prev = null;
-        for (Consumer consumer : consumers) {
-            List<Range> ranges = selector.getConsumerKeyHashRanges().get(consumer);
-            Assert.assertEquals(ranges.size(), 1);
-            if (prev != null) {
-                Assert.assertNotEquals(prev, ranges);
-            }
-            prev = ranges;
-        }
+    Map<Consumer, List<Range>> expectedResult = new HashMap<>();
+    expectedResult.put(consumers.get(0), Collections.singletonList(Range.of(49, 64)));
+    expectedResult.put(consumers.get(3), Collections.singletonList(Range.of(33, 48)));
+    expectedResult.put(consumers.get(1), Collections.singletonList(Range.of(17, 32)));
+    expectedResult.put(consumers.get(2), Collections.singletonList(Range.of(0, 16)));
+    for (Map.Entry<Consumer, List<Range>> entry : selector.getConsumerKeyHashRanges().entrySet()) {
+      Assert.assertEquals(entry.getValue(), expectedResult.get(entry.getKey()));
+      expectedResult.remove(entry.getKey());
     }
+    Assert.assertEquals(expectedResult.size(), 0);
+  }
+
+  @Test
+  public void testGetConsumerKeyHashRangesWithSameConsumerName() throws Exception {
+    HashRangeAutoSplitStickyKeyConsumerSelector selector =
+        new HashRangeAutoSplitStickyKeyConsumerSelector(2 << 5, false);
+    final String consumerName = "My-consumer";
+    List<Consumer> consumers = new ArrayList<>();
+    for (int i = 0; i < 3; i++) {
+      Consumer consumer = mock(Consumer.class);
+      when(consumer.consumerName()).thenReturn(consumerName);
+      selector.addConsumer(consumer);
+      consumers.add(consumer);
+    }
+
+    List<Range> prev = null;
+    for (Consumer consumer : consumers) {
+      List<Range> ranges = selector.getConsumerKeyHashRanges().get(consumer);
+      Assert.assertEquals(ranges.size(), 1);
+      if (prev != null) {
+        Assert.assertNotEquals(prev, ranges);
+      }
+      prev = ranges;
+    }
+  }
 }

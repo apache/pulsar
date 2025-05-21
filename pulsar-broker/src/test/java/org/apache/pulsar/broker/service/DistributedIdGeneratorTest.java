@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
+
 import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -41,88 +42,91 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class DistributedIdGeneratorTest {
 
-    private MetadataStoreExtended store;
-    private CoordinationService coordinationService;
+  private MetadataStoreExtended store;
+  private CoordinationService coordinationService;
 
-    @BeforeMethod(alwaysRun = true)
-    public void setup() throws Exception {
-        store  = MetadataStoreExtended.create("memory:local", MetadataStoreConfig.builder().build());
-        coordinationService = new CoordinationServiceImpl(store);
+  @BeforeMethod(alwaysRun = true)
+  public void setup() throws Exception {
+    store = MetadataStoreExtended.create("memory:local", MetadataStoreConfig.builder().build());
+    coordinationService = new CoordinationServiceImpl(store);
+  }
+
+  @AfterMethod(alwaysRun = true)
+  public void teardown() throws Exception {
+    coordinationService.close();
+    store.close();
+  }
+
+  @Test
+  public void simple() throws Exception {
+    DistributedIdGenerator gen1 =
+        new DistributedIdGenerator(coordinationService, "/my/test/simple", "p");
+
+    assertEquals(gen1.getNextId(), "p-0-0");
+    assertEquals(gen1.getNextId(), "p-0-1");
+    assertEquals(gen1.getNextId(), "p-0-2");
+    assertEquals(gen1.getNextId(), "p-0-3");
+
+    DistributedIdGenerator gen2 =
+        new DistributedIdGenerator(coordinationService, "/my/test/simple", "p");
+    assertEquals(gen2.getNextId(), "p-1-0");
+    assertEquals(gen2.getNextId(), "p-1-1");
+
+    assertEquals(gen1.getNextId(), "p-0-4");
+    assertEquals(gen2.getNextId(), "p-1-2");
+  }
+
+  /** Use multiple threads to generate many Id. Ensure no holes and no dups in the sequence */
+  @Test
+  public void concurrent() throws Exception {
+    int Threads = 10;
+    int Iterations = 100;
+
+    CyclicBarrier barrier = new CyclicBarrier(Threads);
+    CountDownLatch counter = new CountDownLatch(Threads);
+    @Cleanup("shutdownNow")
+    ExecutorService executor = Executors.newCachedThreadPool();
+
+    List<String> results = Collections.synchronizedList(new ArrayList<>());
+
+    for (int i = 0; i < Threads; i++) {
+      executor.execute(
+          () -> {
+            try {
+              DistributedIdGenerator gen =
+                  new DistributedIdGenerator(coordinationService, "/my/test/concurrent", "prefix");
+
+              barrier.await();
+
+              for (int j = 0; j < Iterations; j++) {
+                results.add(gen.getNextId());
+              }
+
+            } catch (Exception e) {
+              e.printStackTrace();
+            } finally {
+              counter.countDown();
+            }
+          });
     }
 
-    @AfterMethod(alwaysRun = true)
-    public void teardown() throws Exception {
-        coordinationService.close();
-        store.close();
-    }
+    counter.await();
 
-    @Test
-    public void simple() throws Exception {
-        DistributedIdGenerator gen1 = new DistributedIdGenerator(coordinationService, "/my/test/simple", "p");
+    assertEquals(results.size(), Threads * Iterations);
 
-        assertEquals(gen1.getNextId(), "p-0-0");
-        assertEquals(gen1.getNextId(), "p-0-1");
-        assertEquals(gen1.getNextId(), "p-0-2");
-        assertEquals(gen1.getNextId(), "p-0-3");
+    // Check the list contains no duplicates
+    Set<String> set = Sets.newHashSet(results);
+    assertEquals(set.size(), results.size());
+  }
 
-        DistributedIdGenerator gen2 = new DistributedIdGenerator(coordinationService, "/my/test/simple", "p");
-        assertEquals(gen2.getNextId(), "p-1-0");
-        assertEquals(gen2.getNextId(), "p-1-1");
+  @Test
+  public void invalidZnode() throws Exception {
+    store.put("/my/test/invalid", "invalid-number".getBytes(), Optional.of(-1L));
 
-        assertEquals(gen1.getNextId(), "p-0-4");
-        assertEquals(gen2.getNextId(), "p-1-2");
-    }
+    DistributedIdGenerator gen =
+        new DistributedIdGenerator(coordinationService, "/my/test/invalid", "p");
 
-    /**
-     * Use multiple threads to generate many Id. Ensure no holes and no dups in the sequence
-     */
-    @Test
-    public void concurrent() throws Exception {
-        int Threads = 10;
-        int Iterations = 100;
-
-        CyclicBarrier barrier = new CyclicBarrier(Threads);
-        CountDownLatch counter = new CountDownLatch(Threads);
-        @Cleanup("shutdownNow")
-        ExecutorService executor = Executors.newCachedThreadPool();
-
-        List<String> results = Collections.synchronizedList(new ArrayList<>());
-
-        for (int i = 0; i < Threads; i++) {
-            executor.execute(() -> {
-                try {
-                    DistributedIdGenerator gen = new DistributedIdGenerator(coordinationService, "/my/test/concurrent", "prefix");
-
-                    barrier.await();
-
-                    for (int j = 0; j < Iterations; j++) {
-                        results.add(gen.getNextId());
-                    }
-
-                } catch (Exception e) {
-                    e.printStackTrace();
-                } finally {
-                    counter.countDown();
-                }
-            });
-        }
-
-        counter.await();
-
-        assertEquals(results.size(), Threads * Iterations);
-
-        // Check the list contains no duplicates
-        Set<String> set = Sets.newHashSet(results);
-        assertEquals(set.size(), results.size());
-    }
-
-    @Test
-    public void invalidZnode() throws Exception {
-        store.put("/my/test/invalid", "invalid-number".getBytes(), Optional.of(-1L));
-
-        DistributedIdGenerator gen = new DistributedIdGenerator(coordinationService, "/my/test/invalid", "p");
-
-        // It should not get exception if content is there
-        assertEquals(gen.getNextId(), "p-0-0");
-    }
+    // It should not get exception if content is there
+    assertEquals(gen.getNextId(), "p-0-0");
+  }
 }

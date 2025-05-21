@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
+
 import java.util.AbstractMap;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -49,103 +50,107 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespaceGroupTest {
 
-    final String bundle = "0x00000000_0xffffffff";
-    final String nsSuffix = "-antiaffinity-enabled";
+  final String bundle = "0x00000000_0xffffffff";
+  final String nsSuffix = "-antiaffinity-enabled";
 
-    protected Object getBundleOwnershipData() {
-        return new HashSet<Map.Entry<String, ServiceUnitStateData>>();
+  protected Object getBundleOwnershipData() {
+    return new HashSet<Map.Entry<String, ServiceUnitStateData>>();
+  }
+
+  protected String getLoadManagerClassName() {
+    return ExtensibleLoadManagerImpl.class.getName();
+  }
+
+  protected String selectBroker(ServiceUnitId serviceUnit, Object loadManager) {
+    try {
+      return ((ExtensibleLoadManagerImpl) loadManager)
+          .assign(Optional.empty(), serviceUnit, LookupOptions.builder().build())
+          .get()
+          .get()
+          .getPulsarServiceUrl();
+    } catch (Throwable e) {
+      throw new RuntimeException(e);
     }
+  }
 
-    protected String getLoadManagerClassName() {
-        return ExtensibleLoadManagerImpl.class.getName();
-    }
+  protected void selectBrokerForNamespace(
+      Object ownershipData, String broker, String namespace, String assignedBundleName) {
 
-    protected String selectBroker(ServiceUnitId serviceUnit, Object loadManager) {
-        try {
-            return ((ExtensibleLoadManagerImpl) loadManager)
-                    .assign(Optional.empty(), serviceUnit, LookupOptions.builder().build()).get()
-                    .get().getPulsarServiceUrl();
-        } catch (Throwable e) {
-            throw new RuntimeException(e);
-        }
-    }
+    Set<Map.Entry<String, ServiceUnitStateData>> ownershipDataSet =
+        (Set<Map.Entry<String, ServiceUnitStateData>>) ownershipData;
+    ownershipDataSet.add(
+        new AbstractMap.SimpleEntry<String, ServiceUnitStateData>(
+            assignedBundleName, new ServiceUnitStateData(Owned, broker, 1)));
+  }
 
-    protected void selectBrokerForNamespace(
-            Object ownershipData,
-            String broker, String namespace, String assignedBundleName) {
+  protected void verifyLoadSheddingWithAntiAffinityNamespace(String namespace, String bundle) {
+    // No-op
+  }
 
-        Set<Map.Entry<String, ServiceUnitStateData>> ownershipDataSet =
-                (Set<Map.Entry<String, ServiceUnitStateData>>) ownershipData;
-        ownershipDataSet.add(
-                new AbstractMap.SimpleEntry<String, ServiceUnitStateData>(
-                        assignedBundleName,
-                        new ServiceUnitStateData(Owned, broker, 1)));
+  protected boolean isLoadManagerUpdatedDomainCache(Object loadManager) throws Exception {
+    @SuppressWarnings("unchecked")
+    var antiAffinityGroupPolicyHelper =
+        (AntiAffinityGroupPolicyHelper)
+            FieldUtils.readDeclaredField(loadManager, "antiAffinityGroupPolicyHelper", true);
+    var brokerToFailureDomainMap =
+        (Map<String, String>)
+            org.apache.commons.lang.reflect.FieldUtils.readDeclaredField(
+                antiAffinityGroupPolicyHelper, "brokerToFailureDomainMap", true);
+    return !brokerToFailureDomainMap.isEmpty();
+  }
 
-    }
+  @Test
+  public void testAntiAffinityGroupPolicyFilter()
+      throws IllegalAccessException,
+          ExecutionException,
+          InterruptedException,
+          TimeoutException,
+          PulsarAdminException,
+          PulsarClientException {
 
-    protected void verifyLoadSheddingWithAntiAffinityNamespace(String namespace, String bundle) {
-        // No-op
-    }
+    final String namespace = "my-tenant/test/my-ns-filter";
+    final String namespaceAntiAffinityGroup = "my-antiaffinity-filter";
 
-    protected boolean isLoadManagerUpdatedDomainCache(Object loadManager) throws Exception {
-        @SuppressWarnings("unchecked")
-        var antiAffinityGroupPolicyHelper =
-                (AntiAffinityGroupPolicyHelper)
-                        FieldUtils.readDeclaredField(
-                                loadManager, "antiAffinityGroupPolicyHelper", true);
-        var brokerToFailureDomainMap = (Map<String, String>)
-                org.apache.commons.lang.reflect.FieldUtils.readDeclaredField(antiAffinityGroupPolicyHelper,
-                        "brokerToFailureDomainMap", true);
-        return !brokerToFailureDomainMap.isEmpty();
-    }
+    final String antiAffinityEnabledNameSpace = namespace + nsSuffix;
+    admin.namespaces().createNamespace(antiAffinityEnabledNameSpace);
+    admin
+        .namespaces()
+        .setNamespaceAntiAffinityGroup(antiAffinityEnabledNameSpace, namespaceAntiAffinityGroup);
+    @Cleanup
+    PulsarClient pulsarClient =
+        PulsarClient.builder().serviceUrl(pulsar.getSafeWebServiceAddress()).build();
+    @Cleanup
+    Producer<byte[]> producer =
+        pulsarClient
+            .newProducer()
+            .topic("persistent://" + antiAffinityEnabledNameSpace + "/my-topic1")
+            .create();
+    pulsar.getBrokerService().updateRates();
+    var brokerRegistry =
+        (BrokerRegistry) FieldUtils.readDeclaredField(primaryLoadManager, "brokerRegistry", true);
+    var antiAffinityGroupPolicyFilter =
+        (AntiAffinityGroupPolicyFilter)
+            FieldUtils.readDeclaredField(primaryLoadManager, "antiAffinityGroupPolicyFilter", true);
+    var context = ((ExtensibleLoadManagerImpl) primaryLoadManager).getContext();
+    var brokers = brokerRegistry.getAvailableBrokerLookupDataAsync().get(5, TimeUnit.SECONDS);
+    ServiceUnitId namespaceBundle = mock(ServiceUnitId.class);
+    doReturn(namespace + "/" + bundle).when(namespaceBundle).toString();
 
-    @Test
-    public void testAntiAffinityGroupPolicyFilter()
-            throws IllegalAccessException, ExecutionException, InterruptedException,
-            TimeoutException, PulsarAdminException, PulsarClientException {
+    var expected = new HashMap<>(brokers);
+    var actual = antiAffinityGroupPolicyFilter.filterAsync(brokers, namespaceBundle, context).get();
+    assertEquals(actual, expected);
 
-        final String namespace = "my-tenant/test/my-ns-filter";
-        final String namespaceAntiAffinityGroup = "my-antiaffinity-filter";
-
-
-        final String antiAffinityEnabledNameSpace = namespace + nsSuffix;
-        admin.namespaces().createNamespace(antiAffinityEnabledNameSpace);
-        admin.namespaces().setNamespaceAntiAffinityGroup(antiAffinityEnabledNameSpace, namespaceAntiAffinityGroup);
-        @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsar.getSafeWebServiceAddress()).build();
-        @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(
-                        "persistent://" + antiAffinityEnabledNameSpace + "/my-topic1")
-                .create();
-        pulsar.getBrokerService().updateRates();
-        var brokerRegistry =
-                (BrokerRegistry)
-                        FieldUtils.readDeclaredField(
-                                primaryLoadManager, "brokerRegistry", true);
-        var antiAffinityGroupPolicyFilter =
-                (AntiAffinityGroupPolicyFilter)
-                        FieldUtils.readDeclaredField(
-                                primaryLoadManager, "antiAffinityGroupPolicyFilter", true);
-        var context = ((ExtensibleLoadManagerImpl) primaryLoadManager).getContext();
-        var brokers = brokerRegistry
-                .getAvailableBrokerLookupDataAsync().get(5, TimeUnit.SECONDS);
-        ServiceUnitId namespaceBundle = mock(ServiceUnitId.class);
-        doReturn(namespace + "/" + bundle).when(namespaceBundle).toString();
-
-        var expected = new HashMap<>(brokers);
-        var actual = antiAffinityGroupPolicyFilter.filterAsync(
-                brokers, namespaceBundle, context).get();
-        assertEquals(actual, expected);
-
-        doReturn(antiAffinityEnabledNameSpace + "/" + bundle).when(namespaceBundle).toString();
-        var serviceUnitStateChannel = (ServiceUnitStateChannel)
-                FieldUtils.readDeclaredField(
-                        primaryLoadManager, "serviceUnitStateChannel", true);
-        var srcBroker = serviceUnitStateChannel.getOwnerAsync(namespaceBundle.toString())
-                .get(5, TimeUnit.SECONDS).get();
-        expected.remove(srcBroker);
-        actual = antiAffinityGroupPolicyFilter.filterAsync(
-                brokers, namespaceBundle, context).get();
-        assertEquals(actual, expected);
-    }
+    doReturn(antiAffinityEnabledNameSpace + "/" + bundle).when(namespaceBundle).toString();
+    var serviceUnitStateChannel =
+        (ServiceUnitStateChannel)
+            FieldUtils.readDeclaredField(primaryLoadManager, "serviceUnitStateChannel", true);
+    var srcBroker =
+        serviceUnitStateChannel
+            .getOwnerAsync(namespaceBundle.toString())
+            .get(5, TimeUnit.SECONDS)
+            .get();
+    expected.remove(srcBroker);
+    actual = antiAffinityGroupPolicyFilter.filterAsync(brokers, namespaceBundle, context).get();
+    assertEquals(actual, expected);
+  }
 }

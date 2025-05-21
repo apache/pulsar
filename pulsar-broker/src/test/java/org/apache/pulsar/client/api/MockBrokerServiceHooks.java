@@ -20,7 +20,6 @@ package org.apache.pulsar.client.api;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
-
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
@@ -35,51 +34,51 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
 
 public interface MockBrokerServiceHooks {
-    interface CommandConnectHook {
-        void apply(ChannelHandlerContext ctx, CommandConnect connect);
-    }
+  interface CommandConnectHook {
+    void apply(ChannelHandlerContext ctx, CommandConnect connect);
+  }
 
-    interface CommandPartitionLookupHook {
-        void apply(ChannelHandlerContext ctx, CommandPartitionedTopicMetadata connect);
-    }
+  interface CommandPartitionLookupHook {
+    void apply(ChannelHandlerContext ctx, CommandPartitionedTopicMetadata connect);
+  }
 
-    interface CommandTopicLookupHook {
-        void apply(ChannelHandlerContext ctx, CommandLookupTopic connect);
-    }
+  interface CommandTopicLookupHook {
+    void apply(ChannelHandlerContext ctx, CommandLookupTopic connect);
+  }
 
-    interface CommandSubscribeHook {
-        void apply(ChannelHandlerContext ctx, CommandSubscribe subscribe);
-    }
+  interface CommandSubscribeHook {
+    void apply(ChannelHandlerContext ctx, CommandSubscribe subscribe);
+  }
 
-    interface CommandProducerHook {
-        void apply(ChannelHandlerContext ctx, CommandProducer producer);
-    }
+  interface CommandProducerHook {
+    void apply(ChannelHandlerContext ctx, CommandProducer producer);
+  }
 
-    interface CommandSendHook {
-        void apply(ChannelHandlerContext ctx, CommandSend send, ByteBuf headersAndPayload);
-    }
+  interface CommandSendHook {
+    void apply(ChannelHandlerContext ctx, CommandSend send, ByteBuf headersAndPayload);
+  }
 
-    interface CommandAckHook {
-        void apply(ChannelHandlerContext ctx, CommandAck ack);
-    }
+  interface CommandAckHook {
+    void apply(ChannelHandlerContext ctx, CommandAck ack);
+  }
 
-    interface CommandFlowHook {
-        void apply(ChannelHandlerContext ctx, CommandFlow flow);
-    }
+  interface CommandFlowHook {
+    void apply(ChannelHandlerContext ctx, CommandFlow flow);
+  }
 
-    interface CommandUnsubscribeHook {
-        void apply(ChannelHandlerContext ctx, CommandUnsubscribe unsubscribe);
-    }
+  interface CommandUnsubscribeHook {
+    void apply(ChannelHandlerContext ctx, CommandUnsubscribe unsubscribe);
+  }
 
-    interface CommandCloseProducerHook {
-        void apply(ChannelHandlerContext ctx, CommandCloseProducer closeProducer);
-    }
+  interface CommandCloseProducerHook {
+    void apply(ChannelHandlerContext ctx, CommandCloseProducer closeProducer);
+  }
 
-    interface CommandCloseConsumerHook {
-        void apply(ChannelHandlerContext ctx, CommandCloseConsumer closeConsumer);
-    }
+  interface CommandCloseConsumerHook {
+    void apply(ChannelHandlerContext ctx, CommandCloseConsumer closeConsumer);
+  }
 
-    interface CommandGetOrCreateSchemaHook {
-        void apply(ChannelHandlerContext ctx, CommandGetOrCreateSchema closeConsumer);
-    }
+  interface CommandGetOrCreateSchemaHook {
+    void apply(ChannelHandlerContext ctx, CommandGetOrCreateSchema closeConsumer);
+  }
 }

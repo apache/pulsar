@@ -43,113 +43,124 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 
 public class PulsarClientBasedHandler implements ProtocolHandler {
 
-    static final String PROTOCOL = "test";
+  static final String PROTOCOL = "test";
 
-    private String topic;
-    private int partitions;
-    private String cluster;
-    private PulsarClient client;
-    private List<Reader<byte[]>> readers;
-    private ExecutorService executor;
-    private volatile boolean running = false;
-    volatile long closeTimeMs;
+  private String topic;
+  private int partitions;
+  private String cluster;
+  private PulsarClient client;
+  private List<Reader<byte[]>> readers;
+  private ExecutorService executor;
+  private volatile boolean running = false;
+  volatile long closeTimeMs;
 
-    @Override
-    public String protocolName() {
-        return PROTOCOL;
+  @Override
+  public String protocolName() {
+    return PROTOCOL;
+  }
+
+  @Override
+  public boolean accept(String protocol) {
+    return protocol.equals(PROTOCOL);
+  }
+
+  @Override
+  public void initialize(ServiceConfiguration conf) throws Exception {
+    final var properties = conf.getProperties();
+    topic = (String) properties.getOrDefault("metadata.topic", "metadata-topic");
+    partitions = (Integer) properties.getOrDefault("metadata.partitions", 1);
+    cluster = conf.getClusterName();
+  }
+
+  @Override
+  public String getProtocolDataToAdvertise() {
+    return "";
+  }
+
+  @Override
+  public void start(BrokerService service) {
+    @Cleanup PulsarAdmin admin = null;
+    try {
+      final var port = service.getPulsar().getListenPortHTTP().orElseThrow();
+      admin = PulsarAdmin.builder().serviceHttpUrl("http://localhost:" + port).build();
+      try {
+        admin
+            .clusters()
+            .createCluster(
+                cluster,
+                ClusterData.builder()
+                    .serviceUrl(service.getPulsar().getWebServiceAddress())
+                    .serviceUrlTls(service.getPulsar().getWebServiceAddressTls())
+                    .brokerServiceUrl(service.getPulsar().getBrokerServiceUrl())
+                    .brokerServiceUrlTls(service.getPulsar().getBrokerServiceUrlTls())
+                    .build());
+      } catch (PulsarAdminException ignored) {
+      }
+      try {
+        admin
+            .tenants()
+            .createTenant("public", TenantInfo.builder().allowedClusters(Set.of(cluster)).build());
+      } catch (PulsarAdminException ignored) {
+      }
+      try {
+        admin.namespaces().createNamespace("public/default");
+      } catch (PulsarAdminException ignored) {
+      }
+    } catch (PulsarClientException e) {
+      throw new RuntimeException(e);
     }
-
-    @Override
-    public boolean accept(String protocol) {
-        return protocol.equals(PROTOCOL);
-    }
-
-    @Override
-    public void initialize(ServiceConfiguration conf) throws Exception {
-        final var properties = conf.getProperties();
-        topic = (String) properties.getOrDefault("metadata.topic", "metadata-topic");
-        partitions = (Integer) properties.getOrDefault("metadata.partitions", 1);
-        cluster = conf.getClusterName();
-    }
-
-    @Override
-    public String getProtocolDataToAdvertise() {
-        return "";
-    }
-
-    @Override
-    public void start(BrokerService service) {
-        @Cleanup
-        PulsarAdmin admin = null;
-        try {
-            final var port = service.getPulsar().getListenPortHTTP().orElseThrow();
-            admin = PulsarAdmin.builder().serviceHttpUrl("http://localhost:" + port).build();
-            try {
-                admin.clusters().createCluster(cluster, ClusterData.builder()
-                        .serviceUrl(service.getPulsar().getWebServiceAddress())
-                        .serviceUrlTls(service.getPulsar().getWebServiceAddressTls())
-                        .brokerServiceUrl(service.getPulsar().getBrokerServiceUrl())
-                        .brokerServiceUrlTls(service.getPulsar().getBrokerServiceUrlTls())
-                        .build());
-            } catch (PulsarAdminException ignored) {
+    try {
+      admin.topics().createPartitionedTopic(topic, partitions);
+      final var port = service.getListenPort().orElseThrow();
+      client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + port).build();
+      readers = new ArrayList<>();
+      for (int i = 0; i < partitions; i++) {
+        readers.add(
+            client
+                .newReader()
+                .topic(topic + TopicName.PARTITIONED_TOPIC_SUFFIX + i)
+                .startMessageId(MessageId.earliest)
+                .create());
+      }
+      running = true;
+      executor = Executors.newSingleThreadExecutor();
+      executor.execute(
+          () -> {
+            while (running) {
+              readers.forEach(
+                  reader -> {
+                    try {
+                      reader.readNext(1, TimeUnit.MILLISECONDS);
+                    } catch (PulsarClientException ignored) {
+                    }
+                  });
             }
-            try {
-                admin.tenants().createTenant("public", TenantInfo.builder().allowedClusters(Set.of(cluster)).build());
-            } catch (PulsarAdminException ignored) {
-            }
-            try {
-                admin.namespaces().createNamespace("public/default");
-            } catch (PulsarAdminException ignored) {
-            }
-        } catch (PulsarClientException e) {
-            throw new RuntimeException(e);
-        }
-        try {
-            admin.topics().createPartitionedTopic(topic, partitions);
-            final var port = service.getListenPort().orElseThrow();
-            client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + port).build();
-            readers = new ArrayList<>();
-            for (int i = 0; i < partitions; i++) {
-                readers.add(client.newReader().topic(topic + TopicName.PARTITIONED_TOPIC_SUFFIX + i)
-                        .startMessageId(MessageId.earliest).create());
-            }
-            running = true;
-            executor = Executors.newSingleThreadExecutor();
-            executor.execute(() -> {
-                while (running) {
-                    readers.forEach(reader -> {
-                        try {
-                            reader.readNext(1, TimeUnit.MILLISECONDS);
-                        } catch (PulsarClientException ignored) {
-                        }
-                    });
-                }
-            });
-        } catch (PulsarClientException | PulsarAdminException e) {
-            throw new RuntimeException(e);
-        }
+          });
+    } catch (PulsarClientException | PulsarAdminException e) {
+      throw new RuntimeException(e);
     }
+  }
 
-    @Override
-    public Map<InetSocketAddress, ChannelInitializer<SocketChannel>> newChannelInitializers() {
-        return Map.of();
-    }
+  @Override
+  public Map<InetSocketAddress, ChannelInitializer<SocketChannel>> newChannelInitializers() {
+    return Map.of();
+  }
 
-    @Override
-    public void close() {
-        final var start = System.currentTimeMillis();
-        running = false;
-        if (client != null) {
-            try {
-                client.close();
-            } catch (PulsarClientException ignored) {
-            }
-            client = null;
-        }
-        if (executor != null) {
-            executor.shutdown();
-            executor = null;
-        }
-        closeTimeMs = System.currentTimeMillis() - start;
+  @Override
+  public void close() {
+    final var start = System.currentTimeMillis();
+    running = false;
+    if (client != null) {
+      try {
+        client.close();
+      } catch (PulsarClientException ignored) {
+      }
+      client = null;
     }
+    if (executor != null) {
+      executor.shutdown();
+      executor = null;
+    }
+    closeTimeMs = System.currentTimeMillis() - start;
+  }
 }

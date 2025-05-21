@@ -46,112 +46,126 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-impl")
 public class ConnectionHandlerTest extends ProducerConsumerBase {
 
-    private static final Backoff BACKOFF = new BackoffBuilder().setInitialTime(1, TimeUnit.MILLISECONDS)
-            .setMandatoryStop(1, TimeUnit.SECONDS)
-            .setMax(3, TimeUnit.SECONDS).create();
-    private ExecutorService executor;
+  private static final Backoff BACKOFF =
+      new BackoffBuilder()
+          .setInitialTime(1, TimeUnit.MILLISECONDS)
+          .setMandatoryStop(1, TimeUnit.SECONDS)
+          .setMax(3, TimeUnit.SECONDS)
+          .create();
+  private ExecutorService executor;
 
-    @BeforeClass(alwaysRun = true)
+  @BeforeClass(alwaysRun = true)
+  @Override
+  protected void setup() throws Exception {
+    super.internalSetup();
+    super.producerBaseSetup();
+    executor = Executors.newFixedThreadPool(4);
+  }
+
+  @AfterClass
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+    executor.shutdownNow();
+  }
+
+  @Test(timeOut = 30000)
+  public void testSynchronousGrabCnx() {
+    for (int i = 0; i < 10; i++) {
+      final CompletableFuture<Integer> future = new CompletableFuture<>();
+      final int index = i;
+      final ConnectionHandler handler =
+          new ConnectionHandler(
+              new MockedHandlerState((PulsarClientImpl) pulsarClient, "my-topic"),
+              BACKOFF,
+              cnx -> {
+                future.complete(index);
+                return CompletableFuture.completedFuture(null);
+              });
+      handler.grabCnx();
+      Assert.assertEquals(future.join(), i);
+    }
+  }
+
+  @Test
+  public void testConcurrentGrabCnx() {
+    final AtomicInteger cnt = new AtomicInteger(0);
+    final ConnectionHandler handler =
+        new ConnectionHandler(
+            new MockedHandlerState((PulsarClientImpl) pulsarClient, "my-topic"),
+            BACKOFF,
+            cnx -> {
+              cnt.incrementAndGet();
+              return CompletableFuture.completedFuture(null);
+            });
+    final int numGrab = 10;
+    for (int i = 0; i < numGrab; i++) {
+      handler.grabCnx();
+    }
+    Awaitility.await().atMost(Duration.ofSeconds(3)).until(() -> cnt.get() > 0);
+    Assert.assertThrows(
+        ConditionTimeoutException.class,
+        () -> Awaitility.await().atMost(Duration.ofMillis(500)).until(() -> cnt.get() == numGrab));
+    Assert.assertEquals(cnt.get(), 1);
+  }
+
+  @Test
+  public void testDuringConnectInvokeCount() throws IllegalAccessException {
+    // 1. connectionOpened completes with null
+    final AtomicBoolean duringConnect = spy(new AtomicBoolean());
+    final ConnectionHandler handler1 =
+        new ConnectionHandler(
+            new MockedHandlerState((PulsarClientImpl) pulsarClient, "my-topic"),
+            BACKOFF,
+            cnx -> CompletableFuture.completedFuture(null));
+    FieldUtils.writeField(handler1, "duringConnect", duringConnect, true);
+    handler1.grabCnx();
+    Awaitility.await().atMost(Duration.ofSeconds(3)).until(() -> !duringConnect.get());
+    verify(duringConnect, times(1)).compareAndSet(false, true);
+    verify(duringConnect, times(1)).set(false);
+
+    // 2. connectionFailed is called
+    final ConnectionHandler handler2 =
+        new ConnectionHandler(
+            new MockedHandlerState((PulsarClientImpl) pulsarClient, null),
+            new MockedBackoff(),
+            cnx -> CompletableFuture.completedFuture(null));
+    FieldUtils.writeField(handler2, "duringConnect", duringConnect, true);
+    handler2.grabCnx();
+    Awaitility.await().atMost(Duration.ofSeconds(3)).until(() -> !duringConnect.get());
+    verify(duringConnect, times(2)).compareAndSet(false, true);
+    verify(duringConnect, times(2)).set(false);
+
+    // 3. connectionOpened completes exceptionally
+    final ConnectionHandler handler3 =
+        new ConnectionHandler(
+            new MockedHandlerState((PulsarClientImpl) pulsarClient, "my-topic"),
+            new MockedBackoff(),
+            cnx -> FutureUtil.failedFuture(new RuntimeException("fail")));
+    FieldUtils.writeField(handler3, "duringConnect", duringConnect, true);
+    handler3.grabCnx();
+    Awaitility.await().atMost(Duration.ofSeconds(3)).until(() -> !duringConnect.get());
+    verify(duringConnect, times(3)).compareAndSet(false, true);
+    verify(duringConnect, times(3)).set(false);
+  }
+
+  private static class MockedHandlerState extends HandlerState {
+
+    public MockedHandlerState(PulsarClientImpl client, String topic) {
+      super(client, topic);
+    }
+
     @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-        executor = Executors.newFixedThreadPool(4);
+    String getHandlerName() {
+      return "mocked";
     }
+  }
 
-    @AfterClass
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-        executor.shutdownNow();
+  private static class MockedBackoff extends Backoff {
+
+    // Set a large backoff so that reconnection won't happen in tests
+    public MockedBackoff() {
+      super(1, TimeUnit.HOURS, 2, TimeUnit.HOURS, 1, TimeUnit.HOURS);
     }
-
-    @Test(timeOut = 30000)
-    public void testSynchronousGrabCnx() {
-        for (int i = 0; i < 10; i++) {
-            final CompletableFuture<Integer> future = new CompletableFuture<>();
-            final int index = i;
-            final ConnectionHandler handler = new ConnectionHandler(
-                    new MockedHandlerState((PulsarClientImpl) pulsarClient, "my-topic"), BACKOFF,
-                    cnx -> {
-                        future.complete(index);
-                        return CompletableFuture.completedFuture(null);
-                    });
-            handler.grabCnx();
-            Assert.assertEquals(future.join(), i);
-        }
-    }
-
-    @Test
-    public void testConcurrentGrabCnx() {
-        final AtomicInteger cnt = new AtomicInteger(0);
-        final ConnectionHandler handler = new ConnectionHandler(
-                new MockedHandlerState((PulsarClientImpl) pulsarClient, "my-topic"), BACKOFF,
-                cnx -> {
-                    cnt.incrementAndGet();
-                    return CompletableFuture.completedFuture(null);
-                });
-        final int numGrab = 10;
-        for (int i = 0; i < numGrab; i++) {
-            handler.grabCnx();
-        }
-        Awaitility.await().atMost(Duration.ofSeconds(3)).until(() -> cnt.get() > 0);
-        Assert.assertThrows(ConditionTimeoutException.class,
-                () -> Awaitility.await().atMost(Duration.ofMillis(500)).until(() -> cnt.get() == numGrab));
-        Assert.assertEquals(cnt.get(), 1);
-    }
-
-    @Test
-    public void testDuringConnectInvokeCount() throws IllegalAccessException {
-        // 1. connectionOpened completes with null
-        final AtomicBoolean duringConnect = spy(new AtomicBoolean());
-        final ConnectionHandler handler1 = new ConnectionHandler(
-                new MockedHandlerState((PulsarClientImpl) pulsarClient, "my-topic"), BACKOFF,
-                cnx -> CompletableFuture.completedFuture(null));
-        FieldUtils.writeField(handler1, "duringConnect", duringConnect, true);
-        handler1.grabCnx();
-        Awaitility.await().atMost(Duration.ofSeconds(3)).until(() -> !duringConnect.get());
-        verify(duringConnect, times(1)).compareAndSet(false, true);
-        verify(duringConnect, times(1)).set(false);
-
-        // 2. connectionFailed is called
-        final ConnectionHandler handler2 = new ConnectionHandler(
-                new MockedHandlerState((PulsarClientImpl) pulsarClient, null), new MockedBackoff(),
-                cnx -> CompletableFuture.completedFuture(null));
-        FieldUtils.writeField(handler2, "duringConnect", duringConnect, true);
-        handler2.grabCnx();
-        Awaitility.await().atMost(Duration.ofSeconds(3)).until(() -> !duringConnect.get());
-        verify(duringConnect, times(2)).compareAndSet(false, true);
-        verify(duringConnect, times(2)).set(false);
-
-        // 3. connectionOpened completes exceptionally
-        final ConnectionHandler handler3 = new ConnectionHandler(
-                new MockedHandlerState((PulsarClientImpl) pulsarClient, "my-topic"), new MockedBackoff(),
-                cnx -> FutureUtil.failedFuture(new RuntimeException("fail")));
-        FieldUtils.writeField(handler3, "duringConnect", duringConnect, true);
-        handler3.grabCnx();
-        Awaitility.await().atMost(Duration.ofSeconds(3)).until(() -> !duringConnect.get());
-        verify(duringConnect, times(3)).compareAndSet(false, true);
-        verify(duringConnect, times(3)).set(false);
-    }
-
-    private static class MockedHandlerState extends HandlerState {
-
-        public MockedHandlerState(PulsarClientImpl client, String topic) {
-            super(client, topic);
-        }
-
-        @Override
-        String getHandlerName() {
-            return "mocked";
-        }
-    }
-
-    private static class MockedBackoff extends Backoff {
-
-        // Set a large backoff so that reconnection won't happen in tests
-        public MockedBackoff() {
-            super(1, TimeUnit.HOURS, 2, TimeUnit.HOURS, 1, TimeUnit.HOURS);
-        }
-    }
+  }
 }

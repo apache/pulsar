@@ -30,48 +30,49 @@ import org.testng.Assert;
 
 public class CryptoKeyReaderForTest implements CryptoKeyReader {
 
-    public static final Map<String, String> RANDOM_METADATA = new HashMap<>();
+  public static final Map<String, String> RANDOM_METADATA = new HashMap<>();
 
-    static {
-        RANDOM_METADATA.put(UUID.randomUUID().toString(), UUID.randomUUID().toString());
-        RANDOM_METADATA.put(UUID.randomUUID().toString(), UUID.randomUUID().toString());
-        RANDOM_METADATA.put(UUID.randomUUID().toString(), UUID.randomUUID().toString());
-    }
+  static {
+    RANDOM_METADATA.put(UUID.randomUUID().toString(), UUID.randomUUID().toString());
+    RANDOM_METADATA.put(UUID.randomUUID().toString(), UUID.randomUUID().toString());
+    RANDOM_METADATA.put(UUID.randomUUID().toString(), UUID.randomUUID().toString());
+  }
 
-    @Override
-    public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> metadata) {
-        EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
-        String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
-        if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
-            try {
-                keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
-                // The metadata is meaningless, just to test that it can be transferred to the consumer.
-                keyInfo.setMetadata(RANDOM_METADATA);
-                return keyInfo;
-            } catch (IOException e) {
-                Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
-            }
-        } else {
-            Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
-        }
-        return null;
+  @Override
+  public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> metadata) {
+    EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+    String cert_file_path = "./src/test/resources/certificate/public-key." + keyName;
+    if (Files.isReadable(Paths.get(cert_file_path))) {
+      try {
+        keyInfo.setKey(Files.readAllBytes(Paths.get(cert_file_path)));
+        // The metadata is meaningless, just to test that it can be transferred to the
+        // consumer.
+        keyInfo.setMetadata(RANDOM_METADATA);
+        return keyInfo;
+      } catch (IOException e) {
+        Assert.fail("Failed to read certificate from " + cert_file_path);
+      }
+    } else {
+      Assert.fail("Certificate file " + cert_file_path + " is not present or not readable.");
     }
+    return null;
+  }
 
-    @Override
-    public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> metadata) {
-        EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
-        String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
-        if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
-            try {
-                keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
-                keyInfo.setMetadata(RANDOM_METADATA);
-                return keyInfo;
-            } catch (IOException e) {
-                Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
-            }
-        } else {
-            Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
-        }
-        return null;
+  @Override
+  public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> metadata) {
+    EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+    String cert_file_path = "./src/test/resources/certificate/private-key." + keyName;
+    if (Files.isReadable(Paths.get(cert_file_path))) {
+      try {
+        keyInfo.setKey(Files.readAllBytes(Paths.get(cert_file_path)));
+        keyInfo.setMetadata(RANDOM_METADATA);
+        return keyInfo;
+      } catch (IOException e) {
+        Assert.fail("Failed to read certificate from " + cert_file_path);
+      }
+    } else {
+      Assert.fail("Certificate file " + cert_file_path + " is not present or not readable.");
     }
+    return null;
+  }
 }

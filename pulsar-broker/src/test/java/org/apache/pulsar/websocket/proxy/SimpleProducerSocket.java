@@ -42,70 +42,69 @@ import org.slf4j.LoggerFactory;
 @WebSocket(maxTextMessageSize = 64 * 1024)
 public class SimpleProducerSocket {
 
-    private final CountDownLatch closeLatch;
-    private Session session;
-    private final List<String> producerBuffer;
-    private final int messagesToSendWhenConnected;
+  private final CountDownLatch closeLatch;
+  private Session session;
+  private final List<String> producerBuffer;
+  private final int messagesToSendWhenConnected;
 
-    public SimpleProducerSocket() {
-        this(10);
+  public SimpleProducerSocket() {
+    this(10);
+  }
+
+  public SimpleProducerSocket(int messagesToSendWhenConnected) {
+    this.closeLatch = new CountDownLatch(1);
+    this.producerBuffer = Collections.synchronizedList(new ArrayList<>());
+    this.messagesToSendWhenConnected = messagesToSendWhenConnected;
+  }
+
+  private static String getTestJsonPayload(int index) throws JsonProcessingException {
+    ProducerMessage msg = new ProducerMessage();
+    msg.payload = Base64.getEncoder().encodeToString(("test" + index).getBytes());
+    msg.key = Integer.toString(index);
+    return ObjectMapperFactory.getMapper().writer().writeValueAsString(msg);
+  }
+
+  public boolean awaitClose(int duration, TimeUnit unit) throws InterruptedException {
+    return this.closeLatch.await(duration, unit);
+  }
+
+  @OnWebSocketClose
+  public void onClose(int statusCode, String reason) {
+    log.info("Connection closed: {} - {}", statusCode, reason);
+    this.session = null;
+    this.closeLatch.countDown();
+  }
+
+  @OnWebSocketConnect
+  public void onConnect(Session session) throws Exception {
+    log.info("Got connect: {}", session);
+    this.session = session;
+    sendMessage(this.messagesToSendWhenConnected);
+  }
+
+  public void sendMessage(int totalMsgs) throws Exception {
+    for (int i = 0; i < totalMsgs; i++) {
+      this.session.getRemote().sendString(getTestJsonPayload(i));
     }
+  }
 
-    public SimpleProducerSocket(int messagesToSendWhenConnected) {
-        this.closeLatch = new CountDownLatch(1);
-        this.producerBuffer = Collections.synchronizedList(new ArrayList<>());
-        this.messagesToSendWhenConnected = messagesToSendWhenConnected;
-    }
+  @OnWebSocketMessage
+  public synchronized void onMessage(String msg) throws JsonParseException {
+    JsonObject ack = new Gson().fromJson(msg, JsonObject.class);
+    producerBuffer.add(ack.get("messageId").getAsString());
+  }
 
-    private static String getTestJsonPayload(int index) throws JsonProcessingException {
-        ProducerMessage msg = new ProducerMessage();
-        msg.payload = Base64.getEncoder().encodeToString(("test" + index).getBytes());
-        msg.key = Integer.toString(index);
-        return ObjectMapperFactory.getMapper().writer().writeValueAsString(msg);
-    }
+  public RemoteEndpoint getRemote() {
+    return this.session.getRemote();
+  }
 
-    public boolean awaitClose(int duration, TimeUnit unit) throws InterruptedException {
-        return this.closeLatch.await(duration, unit);
-    }
+  public Session getSession() {
+    return this.session;
+  }
 
-    @OnWebSocketClose
-    public void onClose(int statusCode, String reason) {
-        log.info("Connection closed: {} - {}", statusCode, reason);
-        this.session = null;
-        this.closeLatch.countDown();
-    }
+  public List<String> getBuffer() {
+    return producerBuffer;
+  }
 
-    @OnWebSocketConnect
-    public void onConnect(Session session) throws Exception {
-        log.info("Got connect: {}", session);
-        this.session = session;
-        sendMessage(this.messagesToSendWhenConnected);
-    }
-
-    public void sendMessage(int totalMsgs) throws Exception {
-        for (int i = 0; i < totalMsgs; i++) {
-            this.session.getRemote().sendString(getTestJsonPayload(i));
-        }
-    }
-
-    @OnWebSocketMessage
-    public synchronized void onMessage(String msg) throws JsonParseException {
-        JsonObject ack = new Gson().fromJson(msg, JsonObject.class);
-        producerBuffer.add(ack.get("messageId").getAsString());
-    }
-
-    public RemoteEndpoint getRemote() {
-        return this.session.getRemote();
-    }
-
-    public Session getSession() {
-        return this.session;
-    }
-
-    public List<String> getBuffer() {
-        return producerBuffer;
-    }
-
-    private static final Logger log = LoggerFactory.getLogger(SimpleProducerSocket.class);
-
+  private static final Logger log = LoggerFactory.getLogger(SimpleProducerSocket.class);
 }

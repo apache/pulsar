@@ -51,166 +51,184 @@ import org.testng.annotations.Test;
 
 @Test(groups = "flaky")
 public class StrategicCompactionTest extends CompactionTest {
-    private TopicCompactionStrategy strategy;
-    private StrategicTwoPhaseCompactor compactor;
+  private TopicCompactionStrategy strategy;
+  private StrategicTwoPhaseCompactor compactor;
 
-    @BeforeMethod
-    @Override
-    public void setup() throws Exception {
-        super.setup();
-        compactor = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        strategy = new TopicCompactionStrategyTest.DummyTopicCompactionStrategy();
-    }
+  @BeforeMethod
+  @Override
+  public void setup() throws Exception {
+    super.setup();
+    compactor = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+    strategy = new TopicCompactionStrategyTest.DummyTopicCompactionStrategy();
+  }
 
-    @Override
-    protected long compact(String topic) throws ExecutionException, InterruptedException {
-        return (long) compactor.compact(topic, strategy).get();
-    }
+  @Override
+  protected long compact(String topic) throws ExecutionException, InterruptedException {
+    return (long) compactor.compact(topic, strategy).get();
+  }
 
-    @Override
-    protected long compact(String topic, CryptoKeyReader cryptoKeyReader)
-            throws ExecutionException, InterruptedException {
-        return (long) compactor.compact(topic, strategy, cryptoKeyReader).get();
-    }
+  @Override
+  protected long compact(String topic, CryptoKeyReader cryptoKeyReader)
+      throws ExecutionException, InterruptedException {
+    return (long) compactor.compact(topic, strategy, cryptoKeyReader).get();
+  }
 
-    @Override
-    protected PublishingOrderCompactor getCompactor() {
-        return compactor;
-    }
+  @Override
+  protected PublishingOrderCompactor getCompactor() {
+    return compactor;
+  }
 
+  @Test
+  public void testNumericOrderCompaction() throws Exception {
 
-    @Test
-    public void testNumericOrderCompaction() throws Exception {
+    strategy = new NumericOrderCompactionStrategy();
 
-        strategy = new NumericOrderCompactionStrategy();
+    String topic = "persistent://my-property/use/my-ns/my-topic1";
+    final int numMessages = 50;
+    final int maxKeys = 5;
 
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
-        final int numMessages = 50;
-        final int maxKeys = 5;
+    Producer<Integer> producer =
+        pulsarClient
+            .newProducer(strategy.getSchema())
+            .topic(topic)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
 
-        Producer<Integer> producer = pulsarClient.newProducer(strategy.getSchema())
-                .topic(topic)
-                .enableBatching(false)
-                .messageRoutingMode(MessageRoutingMode.SinglePartition)
-                .create();
+    Map<String, Integer> expected = new HashMap<>();
+    List<Pair<String, Integer>> all = new ArrayList<>();
+    Random r = new Random(0);
 
-        Map<String, Integer> expected = new HashMap<>();
-        List<Pair<String, Integer>> all = new ArrayList<>();
-        Random r = new Random(0);
+    pulsarClient
+        .newConsumer()
+        .topic(topic)
+        .subscriptionName("sub1")
+        .readCompacted(true)
+        .subscribe()
+        .close();
 
-        pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").readCompacted(true).subscribe().close();
-
-        for (int j = 0; j < numMessages; j++) {
-            int keyIndex = r.nextInt(maxKeys);
-            String key = "key" + keyIndex;
-            int seed = r.nextInt(j + 1);
-            Integer cur = seed < j / 5 ? null : seed;
-            producer.newMessage().key(key).value(cur).send();
-            Integer prev = expected.get(key);
-            if (!strategy.shouldKeepLeft(prev, cur)) {
-                if (cur == null) {
-                    expected.remove(key);
-                } else {
-                    expected.put(key, cur);
-                }
-            }
-            all.add(Pair.of(key, cur));
+    for (int j = 0; j < numMessages; j++) {
+      int keyIndex = r.nextInt(maxKeys);
+      String key = "key" + keyIndex;
+      int seed = r.nextInt(j + 1);
+      Integer cur = seed < j / 5 ? null : seed;
+      producer.newMessage().key(key).value(cur).send();
+      Integer prev = expected.get(key);
+      if (!strategy.shouldKeepLeft(prev, cur)) {
+        if (cur == null) {
+          expected.remove(key);
+        } else {
+          expected.put(key, cur);
         }
-
-        compact(topic);
-
-        PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic, false);
-        // Compacted topic ledger should have same number of entry equals to number of unique key.
-        Assert.assertEquals(expected.size(), internalStats.compactedLedger.entries);
-        Assert.assertTrue(internalStats.compactedLedger.ledgerId > -1);
-        Assert.assertFalse(internalStats.compactedLedger.offloaded);
-
-        Map<String, Integer> expectedCopy = new HashMap<>(expected);
-        // consumer with readCompacted enabled only get compacted entries
-        try (Consumer<Integer> consumer = pulsarClient.newConsumer(strategy.getSchema()).topic(topic).subscriptionName("sub1")
-                .readCompacted(true).subscribe()) {
-            while (!expected.isEmpty()) {
-                Message<Integer> m = consumer.receive(2, TimeUnit.SECONDS);
-                Assert.assertEquals(m.getValue(), expected.remove(m.getKey()), m.getKey());
-            }
-            Assert.assertTrue(expected.isEmpty());
-        }
-
-        // can get full backlog if read compacted disabled
-        try (Consumer<Integer> consumer = pulsarClient.newConsumer(strategy.getSchema()).topic(topic).subscriptionName("sub1")
-                .readCompacted(false).subscribe()) {
-            while (true) {
-                Message<Integer> m = consumer.receive(2, TimeUnit.SECONDS);
-                Pair<String, Integer> expectedMessage = all.remove(0);
-                Assert.assertEquals(m.getKey(), expectedMessage.getLeft());
-                Assert.assertEquals(m.getValue(), expectedMessage.getRight());
-                if (all.isEmpty()) {
-                    break;
-                }
-            }
-            Assert.assertTrue(all.isEmpty());
-        }
-
-        TableView<Integer> tableView = pulsar.getClient().newTableViewBuilder(strategy.getSchema())
-                .topic(topic)
-                .loadConf(Map.of(
-                        "topicCompactionStrategyClassName", strategy.getClass().getCanonicalName()))
-                .create();
-        Assert.assertEquals(tableView.entrySet(), expectedCopy.entrySet());
+      }
+      all.add(Pair.of(key, cur));
     }
 
-    @Test(timeOut = 20000)
-    public void testSameBatchCompactToSameBatch() throws Exception {
-        final String topic =
-                "persistent://my-property/use/my-ns/testSameBatchCompactToSameBatch" + UUID.randomUUID();
+    compact(topic);
 
-        // Use odd number to make sure the last message is flush by `reader.hasNext() == false`.
-        final int messages = 11;
+    PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic, false);
+    // Compacted topic ledger should have same number of entry equals to number of unique key.
+    Assert.assertEquals(expected.size(), internalStats.compactedLedger.entries);
+    Assert.assertTrue(internalStats.compactedLedger.ledgerId > -1);
+    Assert.assertFalse(internalStats.compactedLedger.offloaded);
 
-        // 1.create producer and publish message to the topic.
-        ProducerBuilder<Integer> builder = pulsarClient.newProducer(Schema.INT32)
-                .compressionType(MSG_COMPRESSION_TYPE).topic(topic);
-        builder.batchingMaxMessages(2)
-                .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS);
-
-        Producer<Integer> producer = builder.create();
-
-        List<CompletableFuture<MessageId>> futures = new ArrayList<>(messages);
-        for (int i = 0; i < messages; i++) {
-            futures.add(producer.newMessage().key(String.valueOf(i))
-                    .value(i)
-                    .sendAsync());
-        }
-        FutureUtil.waitForAll(futures).get();
-
-        // 2.compact the topic.
-        StrategicTwoPhaseCompactor compactor
-                = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic, strategy).get();
-
-        // consumer with readCompacted enabled only get compacted entries
-        try (Consumer<Integer> consumer = pulsarClient
-                .newConsumer(Schema.INT32)
-                .topic(topic)
-                .subscriptionName("sub1")
-                .readCompacted(true)
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe()) {
-            int received = 0;
-            while (true) {
-                Message<Integer> m = consumer.receive(2, TimeUnit.SECONDS);
-                if (m == null) {
-                    break;
-                }
-                MessageIdAdv messageId = (MessageIdAdv) m.getMessageId();
-                if (received < messages - 1) {
-                    assertEquals(messageId.getBatchSize(), 2);
-                } else {
-                    assertEquals(messageId.getBatchSize(), 0);
-                }
-                received++;
-            }
-            assertEquals(received, messages);
-        }
-
+    Map<String, Integer> expectedCopy = new HashMap<>(expected);
+    // consumer with readCompacted enabled only get compacted entries
+    try (Consumer<Integer> consumer =
+        pulsarClient
+            .newConsumer(strategy.getSchema())
+            .topic(topic)
+            .subscriptionName("sub1")
+            .readCompacted(true)
+            .subscribe()) {
+      while (!expected.isEmpty()) {
+        Message<Integer> m = consumer.receive(2, TimeUnit.SECONDS);
+        Assert.assertEquals(m.getValue(), expected.remove(m.getKey()), m.getKey());
+      }
+      Assert.assertTrue(expected.isEmpty());
     }
+
+    // can get full backlog if read compacted disabled
+    try (Consumer<Integer> consumer =
+        pulsarClient
+            .newConsumer(strategy.getSchema())
+            .topic(topic)
+            .subscriptionName("sub1")
+            .readCompacted(false)
+            .subscribe()) {
+      while (true) {
+        Message<Integer> m = consumer.receive(2, TimeUnit.SECONDS);
+        Pair<String, Integer> expectedMessage = all.remove(0);
+        Assert.assertEquals(m.getKey(), expectedMessage.getLeft());
+        Assert.assertEquals(m.getValue(), expectedMessage.getRight());
+        if (all.isEmpty()) {
+          break;
+        }
+      }
+      Assert.assertTrue(all.isEmpty());
+    }
+
+    TableView<Integer> tableView =
+        pulsar
+            .getClient()
+            .newTableViewBuilder(strategy.getSchema())
+            .topic(topic)
+            .loadConf(
+                Map.of("topicCompactionStrategyClassName", strategy.getClass().getCanonicalName()))
+            .create();
+    Assert.assertEquals(tableView.entrySet(), expectedCopy.entrySet());
+  }
+
+  @Test(timeOut = 20000)
+  public void testSameBatchCompactToSameBatch() throws Exception {
+    final String topic =
+        "persistent://my-property/use/my-ns/testSameBatchCompactToSameBatch" + UUID.randomUUID();
+
+    // Use odd number to make sure the last message is flush by `reader.hasNext() == false`.
+    final int messages = 11;
+
+    // 1.create producer and publish message to the topic.
+    ProducerBuilder<Integer> builder =
+        pulsarClient.newProducer(Schema.INT32).compressionType(MSG_COMPRESSION_TYPE).topic(topic);
+    builder.batchingMaxMessages(2).batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS);
+
+    Producer<Integer> producer = builder.create();
+
+    List<CompletableFuture<MessageId>> futures = new ArrayList<>(messages);
+    for (int i = 0; i < messages; i++) {
+      futures.add(producer.newMessage().key(String.valueOf(i)).value(i).sendAsync());
+    }
+    FutureUtil.waitForAll(futures).get();
+
+    // 2.compact the topic.
+    StrategicTwoPhaseCompactor compactor =
+        new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+    compactor.compact(topic, strategy).get();
+
+    // consumer with readCompacted enabled only get compacted entries
+    try (Consumer<Integer> consumer =
+        pulsarClient
+            .newConsumer(Schema.INT32)
+            .topic(topic)
+            .subscriptionName("sub1")
+            .readCompacted(true)
+            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+            .subscribe()) {
+      int received = 0;
+      while (true) {
+        Message<Integer> m = consumer.receive(2, TimeUnit.SECONDS);
+        if (m == null) {
+          break;
+        }
+        MessageIdAdv messageId = (MessageIdAdv) m.getMessageId();
+        if (received < messages - 1) {
+          assertEquals(messageId.getBatchSize(), 2);
+        } else {
+          assertEquals(messageId.getBatchSize(), 0);
+        }
+        received++;
+      }
+      assertEquals(received, messages);
+    }
+  }
 }

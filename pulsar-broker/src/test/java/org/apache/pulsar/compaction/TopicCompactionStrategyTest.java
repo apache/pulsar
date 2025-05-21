@@ -25,30 +25,30 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker-compaction")
 public class TopicCompactionStrategyTest {
-    public static class DummyTopicCompactionStrategy implements TopicCompactionStrategy<byte[]> {
+  public static class DummyTopicCompactionStrategy implements TopicCompactionStrategy<byte[]> {
 
-        @Override
-        public Schema getSchema() {
-            return Schema.BYTES;
-        }
-
-        @Override
-        public boolean shouldKeepLeft(byte[] prev, byte[] cur) {
-            return false;
-        }
+    @Override
+    public Schema getSchema() {
+      return Schema.BYTES;
     }
 
-
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testLoadInvalidTopicCompactionStrategy() {
-        TopicCompactionStrategy.load("uknown", "uknown");
+    @Override
+    public boolean shouldKeepLeft(byte[] prev, byte[] cur) {
+      return false;
     }
+  }
 
-    @Test
-    public void testNumericOrderCompactionStrategy() {
-        TopicCompactionStrategy<Integer> strategy =
-                TopicCompactionStrategy.load("numeric", NumericOrderCompactionStrategy.class.getCanonicalName());
-        Assert.assertFalse(strategy.shouldKeepLeft(1, 2));
-        Assert.assertTrue(strategy.shouldKeepLeft(2, 1));
-    }
+  @Test(expectedExceptions = IllegalArgumentException.class)
+  public void testLoadInvalidTopicCompactionStrategy() {
+    TopicCompactionStrategy.load("uknown", "uknown");
+  }
+
+  @Test
+  public void testNumericOrderCompactionStrategy() {
+    TopicCompactionStrategy<Integer> strategy =
+        TopicCompactionStrategy.load(
+            "numeric", NumericOrderCompactionStrategy.class.getCanonicalName());
+    Assert.assertFalse(strategy.shouldKeepLeft(1, 2));
+    Assert.assertTrue(strategy.shouldKeepLeft(2, 1));
+  }
 }

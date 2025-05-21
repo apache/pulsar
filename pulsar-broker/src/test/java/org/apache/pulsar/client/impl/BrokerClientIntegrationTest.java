@@ -36,6 +36,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
@@ -113,1010 +114,1188 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
 public class BrokerClientIntegrationTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(BrokerClientIntegrationTest.class);
+  private static final Logger log = LoggerFactory.getLogger(BrokerClientIntegrationTest.class);
 
-    @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
+  @BeforeMethod
+  @Override
+  protected void setup() throws Exception {
+    super.internalSetup();
+    super.producerBaseSetup();
+  }
 
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @AfterMethod(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @DataProvider
-    public Object[][] subType() {
-        return new Object[][] { { SubscriptionType.Shared }, { SubscriptionType.Failover } };
-    }
+  @DataProvider
+  public Object[][] subType() {
+    return new Object[][] {{SubscriptionType.Shared}, {SubscriptionType.Failover}};
+  }
 
-    @DataProvider(name = "booleanFlagProvider")
-    public Object[][] booleanFlagProvider() {
-        return new Object[][] { { true }, { false } };
-    }
+  @DataProvider(name = "booleanFlagProvider")
+  public Object[][] booleanFlagProvider() {
+    return new Object[][] {{true}, {false}};
+  }
 
-    /**
-     * Verifies unload namespace-bundle doesn't close shared connection used by other namespace-bundle.
-     *
-     * <pre>
-     * 1. after disabling broker fron loadbalancer
-     * 2. unload namespace-bundle "my-ns1" which disconnects client (producer/consumer) connected on that namespacebundle
-     * 3. but doesn't close the connection for namesapce-bundle "my-ns2" and clients are still connected
-     * 4. verifies unloaded "my-ns1" should not connected again with the broker as broker is disabled
-     * 5. unload "my-ns2" which closes the connection as broker doesn't have any more client connected on that connection
-     * 6. all namespace-bundles are in "connecting" state and waiting for available broker
-     * </pre>
-     *
-     * @throws Exception
-     */
-    @SuppressWarnings({ "rawtypes", "unchecked" })
-    @Test
-    public void testDisconnectClientWithoutClosingConnection() throws Exception {
+  /**
+   * Verifies unload namespace-bundle doesn't close shared connection used by other
+   * namespace-bundle.
+   *
+   * <pre>
+   * 1. after disabling broker fron loadbalancer
+   * 2. unload namespace-bundle "my-ns1" which disconnects client (producer/consumer) connected on that namespacebundle
+   * 3. but doesn't close the connection for namesapce-bundle "my-ns2" and clients are still connected
+   * 4. verifies unloaded "my-ns1" should not connected again with the broker as broker is disabled
+   * 5. unload "my-ns2" which closes the connection as broker doesn't have any more client connected on that connection
+   * 6. all namespace-bundles are in "connecting" state and waiting for available broker
+   * </pre>
+   *
+   * @throws Exception
+   */
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  @Test
+  public void testDisconnectClientWithoutClosingConnection() throws Exception {
 
-        final String ns1 = "my-property/con-ns1";
-        final String ns2 = "my-property/con-ns2";
-        admin.namespaces().createNamespace(ns1, Sets.newHashSet("test"));
-        admin.namespaces().createNamespace(ns2, Sets.newHashSet("test"));
+    final String ns1 = "my-property/con-ns1";
+    final String ns2 = "my-property/con-ns2";
+    admin.namespaces().createNamespace(ns1, Sets.newHashSet("test"));
+    admin.namespaces().createNamespace(ns2, Sets.newHashSet("test"));
 
-        final String topic1 = "persistent://" + ns1 + "/my-topic";
-        final String topic2 = "persistent://" + ns2 + "/my-topic";
-        ConsumerImpl<byte[]> cons1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic1)
-                .subscriptionName("my-subscriber-name").subscribe();
+    final String topic1 = "persistent://" + ns1 + "/my-topic";
+    final String topic2 = "persistent://" + ns2 + "/my-topic";
+    ConsumerImpl<byte[]> cons1 =
+        (ConsumerImpl<byte[]>)
+            pulsarClient
+                .newConsumer()
+                .topic(topic1)
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
 
-        ProducerImpl<byte[]> prod1 = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topic1).create();
-        ProducerImpl<byte[]> prod2 = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topic2).create();
-        ConsumerImpl<byte[]> consumer1 = spy(cons1);
-        doAnswer(invocationOnMock -> cons1.getState()).when(consumer1).getState();
-        doAnswer(invocationOnMock -> cons1.getClientCnx()).when(consumer1).getClientCnx();
-        doAnswer(invocationOnMock -> cons1.cnx()).when(consumer1).cnx();
-        doAnswer(InvocationOnMock::callRealMethod).when(consumer1).connectionClosed(any(), any(), any());
-        ProducerImpl<byte[]> producer1 = spy(prod1);
-        doAnswer(invocationOnMock -> prod1.getState()).when(producer1).getState();
-        doAnswer(invocationOnMock -> prod1.getClientCnx()).when(producer1).getClientCnx();
-        doAnswer(invocationOnMock -> prod1.cnx()).when(producer1).cnx();
-        ProducerImpl<byte[]> producer2 = spy(prod2);
-        doAnswer(invocationOnMock -> prod2.getState()).when(producer2).getState();
-        doAnswer(invocationOnMock -> prod2.getClientCnx()).when(producer2).getClientCnx();
-        doAnswer(invocationOnMock -> prod2.cnx()).when(producer2).cnx();
+    ProducerImpl<byte[]> prod1 =
+        (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topic1).create();
+    ProducerImpl<byte[]> prod2 =
+        (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topic2).create();
+    ConsumerImpl<byte[]> consumer1 = spy(cons1);
+    doAnswer(invocationOnMock -> cons1.getState()).when(consumer1).getState();
+    doAnswer(invocationOnMock -> cons1.getClientCnx()).when(consumer1).getClientCnx();
+    doAnswer(invocationOnMock -> cons1.cnx()).when(consumer1).cnx();
+    doAnswer(InvocationOnMock::callRealMethod)
+        .when(consumer1)
+        .connectionClosed(any(), any(), any());
+    ProducerImpl<byte[]> producer1 = spy(prod1);
+    doAnswer(invocationOnMock -> prod1.getState()).when(producer1).getState();
+    doAnswer(invocationOnMock -> prod1.getClientCnx()).when(producer1).getClientCnx();
+    doAnswer(invocationOnMock -> prod1.cnx()).when(producer1).cnx();
+    ProducerImpl<byte[]> producer2 = spy(prod2);
+    doAnswer(invocationOnMock -> prod2.getState()).when(producer2).getState();
+    doAnswer(invocationOnMock -> prod2.getClientCnx()).when(producer2).getClientCnx();
+    doAnswer(invocationOnMock -> prod2.cnx()).when(producer2).cnx();
 
-        ClientCnx clientCnx = producer1.getClientCnx();
+    ClientCnx clientCnx = producer1.getClientCnx();
 
-        Field pfield = ClientCnx.class.getDeclaredField("producers");
-        pfield.setAccessible(true);
-        Field cfield = ClientCnx.class.getDeclaredField("consumers");
-        cfield.setAccessible(true);
+    Field pfield = ClientCnx.class.getDeclaredField("producers");
+    pfield.setAccessible(true);
+    Field cfield = ClientCnx.class.getDeclaredField("consumers");
+    cfield.setAccessible(true);
 
-        ConcurrentLongHashMap<ProducerImpl<byte[]>> producers = (ConcurrentLongHashMap) pfield.get(clientCnx);
-        ConcurrentLongHashMap<ConsumerImpl<byte[]>> consumers = (ConcurrentLongHashMap) cfield.get(clientCnx);
+    ConcurrentLongHashMap<ProducerImpl<byte[]>> producers =
+        (ConcurrentLongHashMap) pfield.get(clientCnx);
+    ConcurrentLongHashMap<ConsumerImpl<byte[]>> consumers =
+        (ConcurrentLongHashMap) cfield.get(clientCnx);
 
-        producers.put(2, producers.get(0));
-        producers.put(3, producers.get(1));
-        consumers.put(1, consumers.get(0));
+    producers.put(2, producers.get(0));
+    producers.put(3, producers.get(1));
+    consumers.put(1, consumers.get(0));
 
-        producers.put(0, producer1);
-        producers.put(1, producer2);
-        consumers.put(0, consumer1);
+    producers.put(0, producer1);
+    producers.put(1, producer2);
+    consumers.put(0, consumer1);
 
-        // disable this broker to avoid any new requests
-        pulsar.getLoadManager().get().disableBroker();
+    // disable this broker to avoid any new requests
+    pulsar.getLoadManager().get().disableBroker();
 
-        NamespaceBundle bundle1 = pulsar.getNamespaceService().getBundle(TopicName.get(topic1));
-        NamespaceBundle bundle2 = pulsar.getNamespaceService().getBundle(TopicName.get(topic2));
+    NamespaceBundle bundle1 = pulsar.getNamespaceService().getBundle(TopicName.get(topic1));
+    NamespaceBundle bundle2 = pulsar.getNamespaceService().getBundle(TopicName.get(topic2));
 
-        // unload ns-bundle:1
-        pulsar.getNamespaceService().unloadNamespaceBundle((NamespaceBundle) bundle1).join();
-        // let server send signal to close-connection and client close the connection
-        Thread.sleep(1000);
-        // [1] Verify: producer1 must get connectionClosed signal
-        verify(producer1, atLeastOnce()).connectionClosed(any(), any(), any());
-        // [2] Verify: consumer1 must get connectionClosed signal
-        verify(consumer1, atLeastOnce()).connectionClosed(any(), any(), any());
-        // [3] Verify: producer2 should have not received connectionClosed signal
-        verify(producer2, never()).connectionClosed(any(), any(), any());
+    // unload ns-bundle:1
+    pulsar.getNamespaceService().unloadNamespaceBundle((NamespaceBundle) bundle1).join();
+    // let server send signal to close-connection and client close the connection
+    Thread.sleep(1000);
+    // [1] Verify: producer1 must get connectionClosed signal
+    verify(producer1, atLeastOnce()).connectionClosed(any(), any(), any());
+    // [2] Verify: consumer1 must get connectionClosed signal
+    verify(consumer1, atLeastOnce()).connectionClosed(any(), any(), any());
+    // [3] Verify: producer2 should have not received connectionClosed signal
+    verify(producer2, never()).connectionClosed(any(), any(), any());
 
-        // sleep for sometime to let other disconnected producer and consumer connect again: but they should not get
-        // connected with same broker as that broker is already out from active-broker list
-        Thread.sleep(200);
+    // sleep for sometime to let other disconnected producer and consumer connect again: but they
+    // should not get
+    // connected with same broker as that broker is already out from active-broker list
+    Thread.sleep(200);
 
-        // producer1 must not be able to connect again
-        assertNull(prod1.getClientCnx());
-        assertEquals(State.Connecting, prod1.getState());
-        // consumer1 must not be able to connect again
-        assertNull(cons1.getClientCnx());
-        assertEquals(State.Connecting, cons1.getState());
-        // producer2 must have live connection
-        assertNotNull(prod2.getClientCnx());
-        assertEquals(State.Ready, prod2.getState());
+    // producer1 must not be able to connect again
+    assertNull(prod1.getClientCnx());
+    assertEquals(State.Connecting, prod1.getState());
+    // consumer1 must not be able to connect again
+    assertNull(cons1.getClientCnx());
+    assertEquals(State.Connecting, cons1.getState());
+    // producer2 must have live connection
+    assertNotNull(prod2.getClientCnx());
+    assertEquals(State.Ready, prod2.getState());
 
-        // unload ns-bundle2 as well
-        pulsar.getNamespaceService().unloadNamespaceBundle((NamespaceBundle) bundle2).join();
-        // let producer2 give some time to get disconnect signal and get disconnected
-        Thread.sleep(200);
-        verify(producer2, atLeastOnce()).connectionClosed(any(), any(), any());
+    // unload ns-bundle2 as well
+    pulsar.getNamespaceService().unloadNamespaceBundle((NamespaceBundle) bundle2).join();
+    // let producer2 give some time to get disconnect signal and get disconnected
+    Thread.sleep(200);
+    verify(producer2, atLeastOnce()).connectionClosed(any(), any(), any());
 
-        // producer1 must not be able to connect again
-        assertNull(prod1.getClientCnx());
-        assertEquals(State.Connecting, prod1.getState());
-        // consumer1 must not be able to connect again
-        assertNull(cons1.getClientCnx());
-        assertEquals(State.Connecting, cons1.getState());
-        // producer2 must not be able to connect again
-        assertNull(prod2.getClientCnx());
-        assertEquals(State.Connecting, prod2.getState());
+    // producer1 must not be able to connect again
+    assertNull(prod1.getClientCnx());
+    assertEquals(State.Connecting, prod1.getState());
+    // consumer1 must not be able to connect again
+    assertNull(cons1.getClientCnx());
+    assertEquals(State.Connecting, cons1.getState());
+    // producer2 must not be able to connect again
+    assertNull(prod2.getClientCnx());
+    assertEquals(State.Connecting, prod2.getState());
 
-        producer1.close();
-        producer2.close();
-        consumer1.close();
-        prod1.close();
-        prod2.close();
-        cons1.close();
-    }
+    producer1.close();
+    producer2.close();
+    consumer1.close();
+    prod1.close();
+    prod2.close();
+    cons1.close();
+  }
 
-    /**
-     * Verifies: 1. Closing of Broker service unloads all bundle gracefully and there must not be any connected bundles
-     * after closing broker service
-     *
-     * @throws Exception
-     */
-    @Test
-    public void testCloseBrokerService() throws Exception {
+  /**
+   * Verifies: 1. Closing of Broker service unloads all bundle gracefully and there must not be any
+   * connected bundles after closing broker service
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testCloseBrokerService() throws Exception {
 
-        final String ns1 = "my-property/brok-ns1";
-        final String ns2 = "my-property/brok-ns2";
-        admin.namespaces().createNamespace(ns1, Sets.newHashSet("test"));
-        admin.namespaces().createNamespace(ns2, Sets.newHashSet("test"));
+    final String ns1 = "my-property/brok-ns1";
+    final String ns2 = "my-property/brok-ns2";
+    admin.namespaces().createNamespace(ns1, Sets.newHashSet("test"));
+    admin.namespaces().createNamespace(ns2, Sets.newHashSet("test"));
 
-        final String topic1 = "persistent://" + ns1 + "/my-topic";
-        final String topic2 = "persistent://" + ns2 + "/my-topic";
+    final String topic1 = "persistent://" + ns1 + "/my-topic";
+    final String topic2 = "persistent://" + ns2 + "/my-topic";
 
-        ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic1)
-                .subscriptionName("my-subscriber-name").subscribe();
-        ProducerImpl<byte[]> producer1 = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topic1).create();
-        ProducerImpl<byte[]> producer2 = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topic2).create();
+    ConsumerImpl<byte[]> consumer1 =
+        (ConsumerImpl<byte[]>)
+            pulsarClient
+                .newConsumer()
+                .topic(topic1)
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
+    ProducerImpl<byte[]> producer1 =
+        (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topic1).create();
+    ProducerImpl<byte[]> producer2 =
+        (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topic2).create();
 
-        // unload all other namespace
-        pulsar.getBrokerService().close();
+    // unload all other namespace
+    pulsar.getBrokerService().close();
 
-        // [1] OwnershipCache should not contain any more namespaces
-        OwnershipCache ownershipCache = pulsar.getNamespaceService().getOwnershipCache();
-        assertTrue(ownershipCache.getOwnedBundles().keySet().isEmpty());
-        // Strategical retry
-        retryStrategically((test) -> (producer1.getClientCnx() == null && consumer1.getClientCnx() == null
-                && producer2.getClientCnx() == null), 5, 100);
-        // [2] All clients must be disconnected and in connecting state
-        // producer1 must not be able to connect again
-        assertNull(producer1.getClientCnx());
-        assertEquals(State.Connecting, producer1.getState());
-        // consumer1 must not be able to connect again
-        assertNull(consumer1.getClientCnx());
-        assertEquals(State.Connecting, consumer1.getState());
-        // producer2 must not be able to connect again
-        assertNull(producer2.getClientCnx());
-        assertEquals(State.Connecting, producer2.getState());
+    // [1] OwnershipCache should not contain any more namespaces
+    OwnershipCache ownershipCache = pulsar.getNamespaceService().getOwnershipCache();
+    assertTrue(ownershipCache.getOwnedBundles().keySet().isEmpty());
+    // Strategical retry
+    retryStrategically(
+        (test) ->
+            (producer1.getClientCnx() == null
+                && consumer1.getClientCnx() == null
+                && producer2.getClientCnx() == null),
+        5,
+        100);
+    // [2] All clients must be disconnected and in connecting state
+    // producer1 must not be able to connect again
+    assertNull(producer1.getClientCnx());
+    assertEquals(State.Connecting, producer1.getState());
+    // consumer1 must not be able to connect again
+    assertNull(consumer1.getClientCnx());
+    assertEquals(State.Connecting, consumer1.getState());
+    // producer2 must not be able to connect again
+    assertNull(producer2.getClientCnx());
+    assertEquals(State.Connecting, producer2.getState());
 
-        producer1.close();
-        producer2.close();
-        consumer1.close();
+    producer1.close();
+    producer2.close();
+    consumer1.close();
+  }
 
-    }
+  /**
+   * It verifies that consumer which doesn't support batch-message:
+   *
+   * <p>1. broker disconnects that consumer
+   *
+   * <p>2. redeliver all those messages to other supported consumer under the same subscription
+   *
+   * @param subType
+   * @throws Exception
+   */
+  @Test(dataProvider = "subType")
+  public void testUnsupportedBatchMessageConsumer(SubscriptionType subType) throws Exception {
+    log.info("-- Starting {} test --", methodName);
 
-    /**
-     * It verifies that consumer which doesn't support batch-message:
-     * <p>
-     * 1. broker disconnects that consumer
-     * <p>
-     * 2. redeliver all those messages to other supported consumer under the same subscription
-     *
-     * @param subType
-     * @throws Exception
-     */
-    @Test(dataProvider = "subType")
-    public void testUnsupportedBatchMessageConsumer(SubscriptionType subType) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+    final String topicName = "persistent://my-property/my-ns/my-topic1";
+    final String subscriptionName = "my-subscriber-name" + subType;
 
-        final String topicName = "persistent://my-property/my-ns/my-topic1";
-        final String subscriptionName = "my-subscriber-name" + subType;
-
-        ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
+    ConsumerImpl<byte[]> consumer1 =
+        (ConsumerImpl<byte[]>)
+            pulsarClient
+                .newConsumer()
                 .topic(topicName)
                 .subscriptionName(subscriptionName)
                 .subscriptionType(subType)
                 .subscribe();
 
-        final int numMessagesPerBatch = 10;
+    final int numMessagesPerBatch = 10;
 
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                    .topic(topicName)
-                    .enableBatching(false)
-                    .create();
-        Producer<byte[]> batchProducer = pulsarClient.newProducer()
-                .topic(topicName).enableBatching(true)
-                .batchingMaxPublishDelay(Long.MAX_VALUE, TimeUnit.SECONDS)
-                .batchingMaxMessages(numMessagesPerBatch)
-                .create();
+    Producer<byte[]> producer =
+        pulsarClient.newProducer().topic(topicName).enableBatching(false).create();
+    Producer<byte[]> batchProducer =
+        pulsarClient
+            .newProducer()
+            .topic(topicName)
+            .enableBatching(true)
+            .batchingMaxPublishDelay(Long.MAX_VALUE, TimeUnit.SECONDS)
+            .batchingMaxMessages(numMessagesPerBatch)
+            .create();
 
-        // update consumer's version to incompatible batch-message version = Version.V3
-        Topic topic = pulsar.getBrokerService().getOrCreateTopic(topicName).get();
-        org.apache.pulsar.broker.service.Consumer brokerConsumer = topic.getSubscriptions().get(subscriptionName)
-                .getConsumers().get(0);
-        Field cnxField = org.apache.pulsar.broker.service.Consumer.class.getDeclaredField("cnx");
-        cnxField.setAccessible(true);
-        PulsarHandler cnx = (PulsarHandler) cnxField.get(brokerConsumer);
-        Field versionField = PulsarHandler.class.getDeclaredField("remoteEndpointProtocolVersion");
-        versionField.setAccessible(true);
-        versionField.set(cnx, 3);
+    // update consumer's version to incompatible batch-message version = Version.V3
+    Topic topic = pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+    org.apache.pulsar.broker.service.Consumer brokerConsumer =
+        topic.getSubscriptions().get(subscriptionName).getConsumers().get(0);
+    Field cnxField = org.apache.pulsar.broker.service.Consumer.class.getDeclaredField("cnx");
+    cnxField.setAccessible(true);
+    PulsarHandler cnx = (PulsarHandler) cnxField.get(brokerConsumer);
+    Field versionField = PulsarHandler.class.getDeclaredField("remoteEndpointProtocolVersion");
+    versionField.setAccessible(true);
+    versionField.set(cnx, 3);
 
-        // (1) send non-batch message: consumer should be able to consume
-        MessageId lastNonBatchedMessageId = null;
-        for (int i = 0; i < numMessagesPerBatch; i++) {
-            String message = "my-message-" + i;
-            lastNonBatchedMessageId = producer.send(message.getBytes());
-        }
-        Set<String> messageSet = new HashSet<>();
-        Message<byte[]> msg = null;
-        for (int i = 0; i < numMessagesPerBatch; i++) {
-            msg = consumer1.receive(1, TimeUnit.SECONDS);
-            String receivedMessage = new String(msg.getData());
-            String expectedMessage = "my-message-" + i;
-            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
-            consumer1.acknowledge(msg);
-        }
-
-        // Also set clientCnx of the consumer to null so, it avoid reconnection so, other consumer can consume for
-        // verification
-        consumer1.setClientCnx(null);
-        // (2) send batch-message which should not be able to consume: as broker will disconnect the consumer
-        for (int i = 0; i < numMessagesPerBatch; i++) {
-            String message = "my-batch-message-" + i;
-            batchProducer.sendAsync(message.getBytes());
-        }
-        batchProducer.flush();
-
-        // consumer should have not received any message as it should have been disconnected
-        msg = consumer1.receive(100, TimeUnit.MILLISECONDS);
-        assertNull(msg);
-
-        // subscribe consumer2 with supporting batch version
-        @Cleanup
-        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
-        Consumer<byte[]> consumer2 = newPulsarClient.newConsumer()
-                .topic(topicName)
-                .subscriptionName(subscriptionName)
-                .subscriptionType(subType)
-                .subscribe();
-        consumer2.seek(lastNonBatchedMessageId);
-
-        messageSet.clear();
-        for (int i = 0; i < numMessagesPerBatch; i++) {
-            msg = consumer2.receive();
-            String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
-            String expectedMessage = "my-batch-message-" + i;
-            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
-            consumer2.acknowledge(msg);
-        }
-
-        consumer2.close();
-        producer.close();
-        batchProducer.close();
-        log.info("-- Exiting {} test --", methodName);
+    // (1) send non-batch message: consumer should be able to consume
+    MessageId lastNonBatchedMessageId = null;
+    for (int i = 0; i < numMessagesPerBatch; i++) {
+      String message = "my-message-" + i;
+      lastNonBatchedMessageId = producer.send(message.getBytes());
+    }
+    Set<String> messageSet = new HashSet<>();
+    Message<byte[]> msg = null;
+    for (int i = 0; i < numMessagesPerBatch; i++) {
+      msg = consumer1.receive(1, TimeUnit.SECONDS);
+      String receivedMessage = new String(msg.getData());
+      String expectedMessage = "my-message-" + i;
+      testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+      consumer1.acknowledge(msg);
     }
 
-    @Test(dataProvider = "subType")
-    public void testResetCursor(SubscriptionType subType) throws Exception {
-        final RetentionPolicies policy = new RetentionPolicies(60, 52 * 1024);
-        final TopicName topicName = TopicName.get("persistent://my-property/my-ns/unacked-topic");
-        final int warmup = 20;
-        final int testSize = 150;
-        final List<Message<byte[]>> received = new ArrayList<>();
-        final String subsId = "sub";
+    // Also set clientCnx of the consumer to null so, it avoid reconnection so, other consumer can
+    // consume for
+    // verification
+    consumer1.setClientCnx(null);
+    // (2) send batch-message which should not be able to consume: as broker will disconnect the
+    // consumer
+    for (int i = 0; i < numMessagesPerBatch; i++) {
+      String message = "my-batch-message-" + i;
+      batchProducer.sendAsync(message.getBytes());
+    }
+    batchProducer.flush();
 
-        final NavigableMap<Long, TimestampEntryCount> publishTimeIdMap = new ConcurrentSkipListMap<>();
+    // consumer should have not received any message as it should have been disconnected
+    msg = consumer1.receive(100, TimeUnit.MILLISECONDS);
+    assertNull(msg);
 
-        // set delay time to start dispatching messages to active consumer in order to avoid message duplication
-        conf.setActiveConsumerFailoverDelayTimeMillis(500);
-        restartBroker();
+    // subscribe consumer2 with supporting batch version
+    @Cleanup
+    PulsarClient newPulsarClient =
+        newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
+    Consumer<byte[]> consumer2 =
+        newPulsarClient
+            .newConsumer()
+            .topic(topicName)
+            .subscriptionName(subscriptionName)
+            .subscriptionType(subType)
+            .subscribe();
+    consumer2.seek(lastNonBatchedMessageId);
 
-        admin.namespaces().setRetention(topicName.getNamespace(), policy);
+    messageSet.clear();
+    for (int i = 0; i < numMessagesPerBatch; i++) {
+      msg = consumer2.receive();
+      String receivedMessage = new String(msg.getData());
+      log.debug("Received message: [{}]", receivedMessage);
+      String expectedMessage = "my-batch-message-" + i;
+      testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+      consumer2.acknowledge(msg);
+    }
 
-        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName.toString())
-                .startMessageIdInclusive()
-                .subscriptionName(subsId).subscriptionType(subType).messageListener((consumer, msg) -> {
-                    try {
-                        synchronized (received) {
-                            received.add(msg);
-                        }
-                        consumer.acknowledge(msg);
-                        long publishTime = msg.getPublishTime();
-                        log.info(" publish time is " + publishTime + "," + msg.getMessageId());
-                        TimestampEntryCount timestampEntryCount = publishTimeIdMap.computeIfAbsent(publishTime,
-                                (k) -> new TimestampEntryCount(publishTime));
-                        timestampEntryCount.incrementAndGet();
-                    } catch (final PulsarClientException e) {
-                        log.warn("Failed to ack!");
+    consumer2.close();
+    producer.close();
+    batchProducer.close();
+    log.info("-- Exiting {} test --", methodName);
+  }
+
+  @Test(dataProvider = "subType")
+  public void testResetCursor(SubscriptionType subType) throws Exception {
+    final RetentionPolicies policy = new RetentionPolicies(60, 52 * 1024);
+    final TopicName topicName = TopicName.get("persistent://my-property/my-ns/unacked-topic");
+    final int warmup = 20;
+    final int testSize = 150;
+    final List<Message<byte[]>> received = new ArrayList<>();
+    final String subsId = "sub";
+
+    final NavigableMap<Long, TimestampEntryCount> publishTimeIdMap = new ConcurrentSkipListMap<>();
+
+    // set delay time to start dispatching messages to active consumer in order to avoid message
+    // duplication
+    conf.setActiveConsumerFailoverDelayTimeMillis(500);
+    restartBroker();
+
+    admin.namespaces().setRetention(topicName.getNamespace(), policy);
+
+    ConsumerBuilder<byte[]> consumerBuilder =
+        pulsarClient
+            .newConsumer()
+            .topic(topicName.toString())
+            .startMessageIdInclusive()
+            .subscriptionName(subsId)
+            .subscriptionType(subType)
+            .messageListener(
+                (consumer, msg) -> {
+                  try {
+                    synchronized (received) {
+                      received.add(msg);
                     }
+                    consumer.acknowledge(msg);
+                    long publishTime = msg.getPublishTime();
+                    log.info(" publish time is " + publishTime + "," + msg.getMessageId());
+                    TimestampEntryCount timestampEntryCount =
+                        publishTimeIdMap.computeIfAbsent(
+                            publishTime, (k) -> new TimestampEntryCount(publishTime));
+                    timestampEntryCount.incrementAndGet();
+                  } catch (final PulsarClientException e) {
+                    log.warn("Failed to ack!");
+                  }
                 });
-        Consumer<byte[]> consumer1 = consumerBuilder.subscribe();
-        Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
-        final Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName.toString()).create();
+    Consumer<byte[]> consumer1 = consumerBuilder.subscribe();
+    Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
+    final Producer<byte[]> producer =
+        pulsarClient.newProducer().topic(topicName.toString()).create();
 
-        log.info("warm up started for " + topicName.toString());
-        // send warmup msgs
-        byte[] msgBytes = new byte[1000];
-        for (int i = 0; i < warmup; i++) {
-            producer.send(msgBytes);
-        }
-        log.info("warm up finished.");
+    log.info("warm up started for " + topicName.toString());
+    // send warmup msgs
+    byte[] msgBytes = new byte[1000];
+    for (int i = 0; i < warmup; i++) {
+      producer.send(msgBytes);
+    }
+    log.info("warm up finished.");
 
-        // sleep to ensure receiving of msgs
-        for (int n = 0; n < 10 && received.size() < warmup; n++) {
-            Thread.sleep(200);
-        }
-
-        // validate received msgs
-        Assert.assertEquals(received.size(), warmup);
-        received.clear();
-
-        // publish testSize num of msgs
-        log.info("Sending more messages.");
-        for (int n = 0; n < testSize; n++) {
-            producer.send(msgBytes);
-            Thread.sleep(1);
-        }
-        log.info("Sending more messages done.");
-
-        Thread.sleep(3000);
-
-        long begints = publishTimeIdMap.firstEntry().getKey();
-        long endts = publishTimeIdMap.lastEntry().getKey();
-        // find reset timestamp
-        long timestamp = (endts - begints) / 2 + begints;
-        timestamp = publishTimeIdMap.floorKey(timestamp);
-
-        NavigableMap<Long, TimestampEntryCount> expectedMessages = new ConcurrentSkipListMap<>();
-        expectedMessages.putAll(publishTimeIdMap.tailMap(timestamp, true));
-
-        received.clear();
-
-        log.info("reset cursor to " + timestamp + " for topic " + topicName.toString() + " for subs " + subsId);
-        log.info("issuing admin operation on " + admin.getServiceUrl());
-        List<String> subList = admin.topics().getSubscriptions(topicName.toString());
-        for (String subs : subList) {
-            log.info("got sub " + subs);
-        }
-        publishTimeIdMap.clear();
-        // reset the cursor to this timestamp
-        Assert.assertTrue(subList.contains(subsId));
-        admin.topics().resetCursor(topicName.toString(), subsId, timestamp);
-
-        Thread.sleep(3000);
-        int totalExpected = 0;
-        for (TimestampEntryCount tec : expectedMessages.values()) {
-            totalExpected += tec.numMessages;
-        }
-        // validate that replay happens after the timestamp
-        Assert.assertTrue(publishTimeIdMap.firstEntry().getKey() >= timestamp);
-        consumer1.close();
-        consumer2.close();
-        producer.close();
-        // validate that expected and received counts match
-        int totalReceived = 0;
-        for (TimestampEntryCount tec : publishTimeIdMap.values()) {
-            totalReceived += tec.numMessages;
-        }
-        Assert.assertEquals(totalReceived, totalExpected, "did not receive all messages on replay after reset");
-
-        resetConfig();
-        restartBroker();
+    // sleep to ensure receiving of msgs
+    for (int n = 0; n < 10 && received.size() < warmup; n++) {
+      Thread.sleep(200);
     }
 
-    /**
-     * It verifies that broker throttles down configured concurrent topic loading requests
-     *
-     * <pre>
-     * 1. Start broker with N maxConcurrentTopicLoadRequest
-     * 2. create concurrent producers on different topics which makes broker to load topics concurrently
-     * 3. Producer operationtimeout = 1 ms so, if producers creation will fail for throttled topics
-     * 4. verify all producers should have connected
-     * </pre>
-     *
-     * @throws Exception
-     */
-    @Test
-    public void testMaxConcurrentTopicLoading() throws Exception {
-        final String topicName = "persistent://prop/usw/my-ns/cocurrentLoadingTopic";
-        int concurrentTopic = pulsar.getConfiguration().getMaxConcurrentTopicLoadRequest();
-        final int concurrentLookupRequests = 20;
-        @Cleanup("shutdownNow")
-        ExecutorService executor = Executors.newFixedThreadPool(concurrentLookupRequests);
+    // validate received msgs
+    Assert.assertEquals(received.size(), warmup);
+    received.clear();
 
-        try {
-            pulsar.getConfiguration().setAuthorizationEnabled(false);
-            stopBroker();
-            startBroker();
-            pulsar.getConfiguration().setMaxConcurrentTopicLoadRequest(1);
-            String lookupUrl = pulsar.getBrokerServiceUrl();
-
-            try (PulsarClientImpl pulsarClient = (PulsarClientImpl) PulsarClient.builder().serviceUrl(lookupUrl)
-                    .statsInterval(0, TimeUnit.SECONDS).maxNumberOfRejectedRequestPerConnection(0).build();
-                 PulsarClientImpl pulsarClient2 = (PulsarClientImpl) PulsarClient.builder().serviceUrl(lookupUrl)
-                    .statsInterval(0, TimeUnit.SECONDS).ioThreads(concurrentLookupRequests)
-                         .connectionsPerBroker(20).build()) {
-
-                ProducerImpl<byte[]> producer =
-                        (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName).create();
-                ClientCnx cnx = producer.cnx();
-                assertTrue(cnx.channel().isActive());
-
-                final List<CompletableFuture<Producer<byte[]>>> futures = new ArrayList<>();
-                final int totalProducers = 10;
-                CountDownLatch latch = new CountDownLatch(totalProducers);
-                for (int i = 0; i < totalProducers; i++) {
-                    executor.submit(() -> {
-                        final String randomTopicName1 = topicName + randomUUID().toString();
-                        final String randomTopicName2 = topicName + randomUUID().toString();
-                        // pass producer-name to avoid exception: producer is already connected to topic
-                        synchronized (futures) {
-                            futures.add(pulsarClient2.newProducer().topic(randomTopicName1).createAsync());
-                            futures.add(pulsarClient.newProducer().topic(randomTopicName2).createAsync());
-                        }
-                        latch.countDown();
-                    });
-                }
-
-                latch.await();
-                synchronized (futures) {
-                    FutureUtil.waitForAll(futures).get();
-                }
-            }
-        } finally {
-            // revert back to original value
-            pulsar.getConfiguration().setMaxConcurrentTopicLoadRequest(concurrentTopic);
-        }
+    // publish testSize num of msgs
+    log.info("Sending more messages.");
+    for (int n = 0; n < testSize; n++) {
+      producer.send(msgBytes);
+      Thread.sleep(1);
     }
+    log.info("Sending more messages done.");
 
-    /**
-     * It verifies that client closes the connection on internalServerError which is "ServiceNotReady" from Broker-side
-     *
-     * @throws Exception
-     */
-    @Test
-    public void testCloseConnectionOnInternalServerError() throws Exception {
+    Thread.sleep(3000);
 
-        final String topicName = "persistent://prop/usw/my-ns/newTopic";
+    long begints = publishTimeIdMap.firstEntry().getKey();
+    long endts = publishTimeIdMap.lastEntry().getKey();
+    // find reset timestamp
+    long timestamp = (endts - begints) / 2 + begints;
+    timestamp = publishTimeIdMap.floorKey(timestamp);
 
-        @Cleanup
-        final PulsarClient pulsarClient = PulsarClient.builder()
-                .serviceUrl(pulsar.getBrokerServiceUrl())
-                .statsInterval(0, TimeUnit.SECONDS)
-                .operationTimeout(1000, TimeUnit.MILLISECONDS)
-                .build();
+    NavigableMap<Long, TimestampEntryCount> expectedMessages = new ConcurrentSkipListMap<>();
+    expectedMessages.putAll(publishTimeIdMap.tailMap(timestamp, true));
 
-        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName).create();
+    received.clear();
+
+    log.info(
+        "reset cursor to "
+            + timestamp
+            + " for topic "
+            + topicName.toString()
+            + " for subs "
+            + subsId);
+    log.info("issuing admin operation on " + admin.getServiceUrl());
+    List<String> subList = admin.topics().getSubscriptions(topicName.toString());
+    for (String subs : subList) {
+      log.info("got sub " + subs);
+    }
+    publishTimeIdMap.clear();
+    // reset the cursor to this timestamp
+    Assert.assertTrue(subList.contains(subsId));
+    admin.topics().resetCursor(topicName.toString(), subsId, timestamp);
+
+    Thread.sleep(3000);
+    int totalExpected = 0;
+    for (TimestampEntryCount tec : expectedMessages.values()) {
+      totalExpected += tec.numMessages;
+    }
+    // validate that replay happens after the timestamp
+    Assert.assertTrue(publishTimeIdMap.firstEntry().getKey() >= timestamp);
+    consumer1.close();
+    consumer2.close();
+    producer.close();
+    // validate that expected and received counts match
+    int totalReceived = 0;
+    for (TimestampEntryCount tec : publishTimeIdMap.values()) {
+      totalReceived += tec.numMessages;
+    }
+    Assert.assertEquals(
+        totalReceived, totalExpected, "did not receive all messages on replay after reset");
+
+    resetConfig();
+    restartBroker();
+  }
+
+  /**
+   * It verifies that broker throttles down configured concurrent topic loading requests
+   *
+   * <pre>
+   * 1. Start broker with N maxConcurrentTopicLoadRequest
+   * 2. create concurrent producers on different topics which makes broker to load topics concurrently
+   * 3. Producer operationtimeout = 1 ms so, if producers creation will fail for throttled topics
+   * 4. verify all producers should have connected
+   * </pre>
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testMaxConcurrentTopicLoading() throws Exception {
+    final String topicName = "persistent://prop/usw/my-ns/cocurrentLoadingTopic";
+    int concurrentTopic = pulsar.getConfiguration().getMaxConcurrentTopicLoadRequest();
+    final int concurrentLookupRequests = 20;
+    @Cleanup("shutdownNow")
+    ExecutorService executor = Executors.newFixedThreadPool(concurrentLookupRequests);
+
+    try {
+      pulsar.getConfiguration().setAuthorizationEnabled(false);
+      stopBroker();
+      startBroker();
+      pulsar.getConfiguration().setMaxConcurrentTopicLoadRequest(1);
+      String lookupUrl = pulsar.getBrokerServiceUrl();
+
+      try (PulsarClientImpl pulsarClient =
+              (PulsarClientImpl)
+                  PulsarClient.builder()
+                      .serviceUrl(lookupUrl)
+                      .statsInterval(0, TimeUnit.SECONDS)
+                      .maxNumberOfRejectedRequestPerConnection(0)
+                      .build();
+          PulsarClientImpl pulsarClient2 =
+              (PulsarClientImpl)
+                  PulsarClient.builder()
+                      .serviceUrl(lookupUrl)
+                      .statsInterval(0, TimeUnit.SECONDS)
+                      .ioThreads(concurrentLookupRequests)
+                      .connectionsPerBroker(20)
+                      .build()) {
+
+        ProducerImpl<byte[]> producer =
+            (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName).create();
         ClientCnx cnx = producer.cnx();
         assertTrue(cnx.channel().isActive());
 
-        Field cacheField = BaseResources.class.getDeclaredField("cache");
-        cacheField.setAccessible(true);
-        cacheField.set(pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources(), null);
-
-        try {
-            pulsarClient.newProducer().topic(topicName).create();
-            fail("it should have fail with lookup-exception:");
-        } catch (Exception e) {
-            // ok
-        }
-        // connection must be closed
-        assertFalse(cnx.channel().isActive());
-    }
-
-    @Test
-    public void testInvalidDynamicConfiguration() throws Exception {
-
-        // (1) try to update invalid loadManagerClass name
-        try {
-            admin.brokers().updateDynamicConfiguration("loadManagerClassName", "org.apache.pulsar.invalid.loadmanager");
-            fail("it should have failed due to invalid argument");
-        } catch (PulsarAdminException e) {
-            // Ok: should have failed due to invalid config value
-        }
-
-        // (2) try to update with valid loadManagerClass name
-        try {
-            admin.brokers().updateDynamicConfiguration("loadManagerClassName",
-                    "org.apache.pulsar.broker.loadbalance.ModularLoadManager");
-        } catch (PulsarAdminException e) {
-            fail("it should have failed due to invalid argument", e);
-        }
-
-        // (3) restart broker with invalid config value
-        pulsar.getPulsarResources().getDynamicConfigResources()
-                .setDynamicConfiguration(m -> {
-                    m.put("loadManagerClassName", "org.apache.pulsar.invalid.loadmanager");
-                    return m;
-                });
-    }
-
-    static class TimestampEntryCount {
-        private final long timestamp;
-        private int numMessages;
-
-        public TimestampEntryCount(long ts) {
-            this.numMessages = 0;
-            this.timestamp = ts;
-        }
-
-        public int incrementAndGet() {
-            return ++numMessages;
-        }
-
-        public long getTimestamp() {
-            return timestamp;
-        }
-    }
-
-    @Test
-    public void testCleanProducer() throws Exception {
-        log.info("-- Starting {} test --", methodName);
-
-        admin.clusters().createCluster("global", ClusterData.builder().build());
-        admin.namespaces().createNamespace("my-property/global/lookup");
-
-        final int operationTimeOut = 500;
-        @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString())
-                .statsInterval(0, TimeUnit.SECONDS).operationTimeout(operationTimeOut, TimeUnit.MILLISECONDS).build();
-        CountDownLatch latch = new CountDownLatch(1);
-        pulsarClient.newProducer().topic("persistent://my-property/global/lookup/my-topic1").createAsync()
-                .handle((producer, e) -> {
-                    latch.countDown();
-                    return null;
-                });
-
-        latch.await(operationTimeOut + 1000, TimeUnit.MILLISECONDS);
-        Field prodField = PulsarClientImpl.class.getDeclaredField("producers");
-        prodField.setAccessible(true);
-        @SuppressWarnings("unchecked")
-        Set<ProducerBase<byte[]>> producers = (Set<ProducerBase<byte[]>>) prodField
-                .get(pulsarClient);
-        assertTrue(producers.isEmpty());
-        log.info("-- Exiting {} test --", methodName);
-    }
-
-    /**
-     * It verifies that if broker fails to complete producer/consumer operation then client times out rather waiting
-     * forever.
-     *
-     * @throws PulsarClientException
-     */
-    @Test(expectedExceptions = PulsarClientException.TimeoutException.class)
-    public void testOperationTimeout() throws PulsarClientException {
-        final String topicName = "persistent://my-property/my-ns/my-topic1";
-        final var topics = pulsar.getBrokerService().getTopics();
-        // non-complete topic future so, create topic should timeout
-        topics.put(topicName, new CompletableFuture<>());
-        try (PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString())
-                .operationTimeout(2, TimeUnit.SECONDS).statsInterval(0, TimeUnit.SECONDS).build()) {
-
-            Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        } finally {
-            topics.clear();
-        }
-    }
-
-    @Test
-    public void testAddEntryOperationTimeout() throws Exception {
-
-        log.info("-- Starting {} test --", methodName);
-
-        conf.setManagedLedgerAddEntryTimeoutSeconds(1);
-
-        final String topicName = "persistent://my-property/my-ns/addEntryTimeoutTopic";
-
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
-                .subscriptionName("my-subscriber-name").subscribe();
-
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
-        ManagedLedgerImpl ml = (ManagedLedgerImpl) topic.getManagedLedger();
-
-        class MockLedgerHandle extends PulsarMockLedgerHandle {
-            public MockLedgerHandle(PulsarMockBookKeeper bk, long id, DigestType digest, byte[] passwd)
-                    throws GeneralSecurityException {
-                super(bk, id, digest, passwd);
-            }
-
-            @Override
-            public void asyncAddEntry(final byte[] data, final AddCallback cb, final Object ctx) {
-                // do nothing
-            }
-
-            @Override
-            public void asyncClose(org.apache.bookkeeper.client.AsyncCallback.CloseCallback cb, Object ctx) {
-                cb.closeComplete(BKException.Code.OK, this, ctx);
-            }
-        }
-        MockLedgerHandle ledgerHandle = mock(MockLedgerHandle.class);
-        final byte[] data = "data".getBytes();
-        // this will make first entry to be timed out but then managed-ledger will create a new ledger and next time add
-        // entry should be successful.
-        doNothing().when(ledgerHandle).asyncAddEntry(data, null, null);
-
-        MockedPulsarServiceBaseTest.setFieldValue(ManagedLedgerImpl.class, ml, "currentLedger", ledgerHandle);
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicBoolean addedSuccessfully = new AtomicBoolean(false);
-        producer.sendAsync(data).handle((res, ex) -> {
-            if (ex == null) {
-                addedSuccessfully.set(true);
-            } else {
-                log.error("add-entry failed for {}", methodName, ex);
-            }
-            latch.countDown();
-            return null;
-        });
-        latch.await();
-
-        // broker should be resilient enough to add-entry timeout and add entry successfully.
-        assertTrue(addedSuccessfully.get());
-
-        byte[] receivedData = consumer.receive().getData();
-        assertEquals(receivedData, data);
-
-        producer.close();
-        consumer.close();
-    }
-
-
-    @Test
-    public void testAvroSchemaProducerConsumerWithSpecifiedReaderAndWriter() throws PulsarClientException {
-        final String topicName = "persistent://my-property/my-ns/my-topic1";
-        TestMessageObject object = new TestMessageObject();
-        SchemaReader<TestMessageObject> reader = Mockito.mock(SchemaReader.class);
-        SchemaWriter<TestMessageObject> writer = Mockito.mock(SchemaWriter.class);
-        Mockito.when(reader.read(Mockito.any(InputStream.class), Mockito.any(byte[].class))).thenReturn(object);
-        Mockito.when(writer.write(Mockito.any(TestMessageObject.class))).thenReturn("fake data".getBytes(StandardCharsets.UTF_8));
-        SchemaDefinition<TestMessageObject> schemaDefinition = new SchemaDefinitionBuilderImpl<TestMessageObject>()
-                .withPojo(TestMessageObject.class)
-                .withSchemaReader(reader)
-                .withSchemaWriter(writer)
-                .build();
-        Schema<TestMessageObject> schema = Schema.AVRO(schemaDefinition);
-
-        try (PulsarClient client = PulsarClient.builder()
-                .serviceUrl(lookupUrl.toString())
-                .build(); Producer<TestMessageObject> producer = client.newProducer(schema).topic(topicName).create();
-             Consumer<TestMessageObject> consumer =
-                     client.newConsumer(schema).topic(topicName).subscriptionName("my-subscriber-name").subscribe()) {
-
-            assertNotNull(producer);
-            assertNotNull(consumer);
-            producer.newMessage().value(object).send();
-            TestMessageObject testObject = consumer.receive().getValue();
-            Assert.assertEquals(object.getValue(), testObject.getValue());
-            Mockito.verify(writer, Mockito.times(1)).write(Mockito.any());
-            Mockito.verify(reader, Mockito.times(1)).read(Mockito.any(InputStream.class), Mockito.any(byte[].class));
-        }
-    }
-
-    @Test
-    public void testJsonSchemaProducerConsumerWithSpecifiedReaderAndWriter() throws PulsarClientException {
-        final String topicName = "persistent://my-property/my-ns/my-topic1";
-        ObjectMapper mapper = new ObjectMapper();
-        SchemaReader<TestMessageObject> reader =
-                spyWithClassAndConstructorArgsRecordingInvocations(JacksonJsonReader.class, mapper,
-                        TestMessageObject.class);
-        SchemaWriter<TestMessageObject> writer =
-                spyWithClassAndConstructorArgsRecordingInvocations(JacksonJsonWriter.class, mapper);
-
-        SchemaDefinition<TestMessageObject> schemaDefinition = new SchemaDefinitionBuilderImpl<TestMessageObject>()
-                .withPojo(TestMessageObject.class)
-                .withSchemaReader(reader)
-                .withSchemaWriter(writer)
-                .build();
-        Schema<TestMessageObject> schema = Schema.JSON(schemaDefinition);
-
-        try (PulsarClient client = PulsarClient.builder()
-                .serviceUrl(lookupUrl.toString())
-                .build(); Producer<TestMessageObject> producer = client.newProducer(schema).topic(topicName).create();
-             Consumer<TestMessageObject> consumer = client.newConsumer(schema).topic(topicName).subscriptionName("my-subscriber-name").subscribe()) {
-
-            assertNotNull(producer);
-            assertNotNull(consumer);
-
-            TestMessageObject object = new TestMessageObject();
-            object.setValue("fooooo");
-            producer.newMessage().value(object).send();
-
-            TestMessageObject testObject = consumer.receive().getValue();
-            Assert.assertEquals(object.getValue(), testObject.getValue());
-
-            Mockito.verify(writer, Mockito.times(1)).write(Mockito.any());
-            Mockito.verify(reader, Mockito.times(1)).read(Mockito.any(InputStream.class));
-        }
-    }
-
-    @Getter
-    @Setter
-    @EqualsAndHashCode
-    private static final class TestMessageObject{
-        private String value;
-    }
-
-    /**
-     * It validates pooled message consumption for batch and non-batch messages.
-     *
-     * @throws Exception
-     */
-    @Test(dataProvider = "booleanFlagProvider")
-    public void testConsumerWithPooledMessages(boolean isBatchingEnabled) throws Exception {
-        log.info("-- Starting {} test --", methodName);
-
-        @Cleanup
-        PulsarClient newPulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).build();
-
-        final String topic = "persistent://my-property/my-ns/testConsumerWithPooledMessages" + isBatchingEnabled;
-
-        @Cleanup
-        Consumer<ByteBuffer> consumer = newPulsarClient.newConsumer(Schema.BYTEBUFFER).topic(topic)
-                .subscriptionName("my-sub").poolMessages(true).subscribe();
-
-        @Cleanup
-        Producer<byte[]> producer = newPulsarClient.newProducer().topic(topic).enableBatching(isBatchingEnabled).create();
-
-        final int numMessages = 100;
-        for (int i = 0; i < numMessages; i++) {
-            producer.newMessage().value(("value-" + i).getBytes(UTF_8))
-            .eventTime((i + 1) * 100L).sendAsync();
-        }
-        producer.flush();
-
-        // Reuse pre-allocated pooled buffer to process every message
-        byte[] val = null;
-        int size = 0;
-        for (int i = 0; i < numMessages; i++) {
-            Message<ByteBuffer> msg = consumer.receive();
-            ByteBuffer value;
-            try {
-                value = msg.getValue();
-                int capacity = value.remaining();
-                // expand the size of buffer if needed
-                if (capacity > size) {
-                    val = new byte[capacity];
-                    size = capacity;
+        final List<CompletableFuture<Producer<byte[]>>> futures = new ArrayList<>();
+        final int totalProducers = 10;
+        CountDownLatch latch = new CountDownLatch(totalProducers);
+        for (int i = 0; i < totalProducers; i++) {
+          executor.submit(
+              () -> {
+                final String randomTopicName1 = topicName + randomUUID().toString();
+                final String randomTopicName2 = topicName + randomUUID().toString();
+                // pass producer-name to avoid exception: producer is already connected to topic
+                synchronized (futures) {
+                  futures.add(pulsarClient2.newProducer().topic(randomTopicName1).createAsync());
+                  futures.add(pulsarClient.newProducer().topic(randomTopicName2).createAsync());
                 }
-                // read message into pooled buffer
-                value.get(val, 0, capacity);
-                // process the message
-                assertEquals(("value-" + i), new String(val, 0, capacity));
-            } finally {
-                msg.release();
-            }
-        }
-        consumer.close();
-        producer.close();
-    }
-
-    /**
-     * It verifies that expiry/redelivery of messages relesaes the messages without leak.
-     *
-     * @param isBatchingEnabled
-     * @throws Exception
-     */
-    @Test(dataProvider = "booleanFlagProvider")
-    public void testPooledMessageWithAckTimeout(boolean isBatchingEnabled) throws Exception {
-        log.info("-- Starting {} test --", methodName);
-
-        @Cleanup
-        PulsarClient newPulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).build();
-
-        final String topic = "persistent://my-property/my-ns/testPooledMessageWithAckTimeout" + isBatchingEnabled;
-
-        @Cleanup
-        ConsumerImpl<ByteBuffer> consumer = (ConsumerImpl<ByteBuffer>) newPulsarClient.newConsumer(Schema.BYTEBUFFER)
-                .topic(topic).subscriptionName("my-sub").poolMessages(true).subscribe();
-
-        @Cleanup
-        Producer<byte[]> producer = newPulsarClient.newProducer().topic(topic).enableBatching(isBatchingEnabled)
-                .create();
-
-        final int numMessages = 100;
-        for (int i = 0; i < numMessages; i++) {
-            producer.newMessage().value(("value-" + i).getBytes(UTF_8)).eventTime((i + 1) * 100L).sendAsync();
-        }
-        producer.flush();
-
-        retryStrategically((test) -> consumer.incomingMessages.peek() != null, 5, 500);
-        MessageImpl<ByteBuffer> msg = (MessageImpl) consumer.incomingMessages.peek();
-        assertNotNull(msg);
-        ByteBuf payload = ((MessageImpl) msg).getPayload();
-        assertNotEquals(payload.refCnt(), 0);
-        consumer.redeliverUnacknowledgedMessages();
-        Awaitility.await().untilAsserted(() -> {
-            assertTrue(consumer.incomingMessages.size() >= 100);
-        });
-        consumer.close();
-        producer.close();
-        admin.topics().delete(topic, false);
-        assertEquals(consumer.incomingMessages.size(), 0);
-        assertEquals(payload.refCnt(), 0);
-    }
-
-    /**
-     * It validates pooled message consumption for batch and non-batch messages.
-     *
-     * @throws Exception
-     */
-    @Test(dataProvider = "booleanFlagProvider")
-    public void testConsumerWithPooledMessagesWithReader(boolean isBatchingEnabled) throws Exception {
-        log.info("-- Starting {} test --", methodName);
-
-        @Cleanup
-        PulsarClient newPulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).build();
-
-        final String topic = "persistent://my-property/my-ns/testConsumerWithPooledMessages" + isBatchingEnabled;
-
-        @Cleanup
-        Reader<ByteBuffer> reader = newPulsarClient.newReader(Schema.BYTEBUFFER).topic(topic).poolMessages(true)
-                .startMessageId(MessageId.latest).create();
-
-        @Cleanup
-        Producer<byte[]> producer = newPulsarClient.newProducer().topic(topic).enableBatching(isBatchingEnabled).create();
-
-        final int numMessages = 100;
-        for (int i = 0; i < numMessages; i++) {
-            producer.newMessage().value(("value-" + i).getBytes(UTF_8))
-            .eventTime((i + 1) * 100L).sendAsync();
-        }
-        producer.flush();
-
-        // Reuse pre-allocated pooled buffer to process every message
-        byte[] val = null;
-        int size = 0;
-        for (int i = 0; i < numMessages; i++) {
-            Message<ByteBuffer> msg = reader.readNext();
-            ByteBuffer value;
-            try {
-                value = msg.getValue();
-                int capacity = value.remaining();
-                // expand the size of buffer if needed
-                if (capacity > size) {
-                    val = new byte[capacity];
-                    size = capacity;
-                }
-                // read message into pooled buffer
-                value.get(val, 0, capacity);
-                // process the message
-                assertEquals(("value-" + i), new String(val, 0, capacity));
-                assertTrue(value.isDirect());
-            } finally {
-                msg.release();
-            }
-        }
-        reader.close();
-        producer.close();
-    }
-
-    @Test
-    public void testActiveConsumerCleanup() throws Exception {
-        log.info("-- Starting {} test --", methodName);
-
-        int numMessages = 100;
-        final CountDownLatch latch = new CountDownLatch(numMessages);
-        String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/closed-cnx-topic");
-        admin.topics().createNonPartitionedTopic(topic);
-        String sub = "my-subscriber-name";
-        @Cleanup
-        PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
-        ConsumerImpl c =
-            (ConsumerImpl) pulsarClient.newConsumer().topic(topic).subscriptionName(sub).messageListener((c1, msg) -> {
-                Assert.assertNotNull(msg, "Message cannot be null");
-                String receivedMessage = new String(msg.getData());
-                log.debug("Received message [{}] in the listener", receivedMessage);
-                c1.acknowledgeAsync(msg);
                 latch.countDown();
-            }).subscribe();
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
-        AbstractDispatcherSingleActiveConsumer dispatcher = (AbstractDispatcherSingleActiveConsumer) topicRef
-                .getSubscription(sub).getDispatcher();
-        assertNotNull(dispatcher.getActiveConsumer());
+              });
+        }
 
-        // Inject an blocker to make the "ping & pong" does not work.
-        CountDownLatch countDownLatch = new CountDownLatch(1);
-        ConnectionHandler connectionHandler = c.getConnectionHandler();
-        ClientCnx clientCnx = connectionHandler.cnx();
-        clientCnx.ctx().executor().submit(() -> {
-            try {
+        latch.await();
+        synchronized (futures) {
+          FutureUtil.waitForAll(futures).get();
+        }
+      }
+    } finally {
+      // revert back to original value
+      pulsar.getConfiguration().setMaxConcurrentTopicLoadRequest(concurrentTopic);
+    }
+  }
+
+  /**
+   * It verifies that client closes the connection on internalServerError which is "ServiceNotReady"
+   * from Broker-side
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testCloseConnectionOnInternalServerError() throws Exception {
+
+    final String topicName = "persistent://prop/usw/my-ns/newTopic";
+
+    @Cleanup
+    final PulsarClient pulsarClient =
+        PulsarClient.builder()
+            .serviceUrl(pulsar.getBrokerServiceUrl())
+            .statsInterval(0, TimeUnit.SECONDS)
+            .operationTimeout(1000, TimeUnit.MILLISECONDS)
+            .build();
+
+    ProducerImpl<byte[]> producer =
+        (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName).create();
+    ClientCnx cnx = producer.cnx();
+    assertTrue(cnx.channel().isActive());
+
+    Field cacheField = BaseResources.class.getDeclaredField("cache");
+    cacheField.setAccessible(true);
+    cacheField.set(
+        pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources(), null);
+
+    try {
+      pulsarClient.newProducer().topic(topicName).create();
+      fail("it should have fail with lookup-exception:");
+    } catch (Exception e) {
+      // ok
+    }
+    // connection must be closed
+    assertFalse(cnx.channel().isActive());
+  }
+
+  @Test
+  public void testInvalidDynamicConfiguration() throws Exception {
+
+    // (1) try to update invalid loadManagerClass name
+    try {
+      admin
+          .brokers()
+          .updateDynamicConfiguration(
+              "loadManagerClassName", "org.apache.pulsar.invalid.loadmanager");
+      fail("it should have failed due to invalid argument");
+    } catch (PulsarAdminException e) {
+      // Ok: should have failed due to invalid config value
+    }
+
+    // (2) try to update with valid loadManagerClass name
+    try {
+      admin
+          .brokers()
+          .updateDynamicConfiguration(
+              "loadManagerClassName", "org.apache.pulsar.broker.loadbalance.ModularLoadManager");
+    } catch (PulsarAdminException e) {
+      fail("it should have failed due to invalid argument", e);
+    }
+
+    // (3) restart broker with invalid config value
+    pulsar
+        .getPulsarResources()
+        .getDynamicConfigResources()
+        .setDynamicConfiguration(
+            m -> {
+              m.put("loadManagerClassName", "org.apache.pulsar.invalid.loadmanager");
+              return m;
+            });
+  }
+
+  static class TimestampEntryCount {
+    private final long timestamp;
+    private int numMessages;
+
+    public TimestampEntryCount(long ts) {
+      this.numMessages = 0;
+      this.timestamp = ts;
+    }
+
+    public int incrementAndGet() {
+      return ++numMessages;
+    }
+
+    public long getTimestamp() {
+      return timestamp;
+    }
+  }
+
+  @Test
+  public void testCleanProducer() throws Exception {
+    log.info("-- Starting {} test --", methodName);
+
+    admin.clusters().createCluster("global", ClusterData.builder().build());
+    admin.namespaces().createNamespace("my-property/global/lookup");
+
+    final int operationTimeOut = 500;
+    @Cleanup
+    PulsarClient pulsarClient =
+        PulsarClient.builder()
+            .serviceUrl(lookupUrl.toString())
+            .statsInterval(0, TimeUnit.SECONDS)
+            .operationTimeout(operationTimeOut, TimeUnit.MILLISECONDS)
+            .build();
+    CountDownLatch latch = new CountDownLatch(1);
+    pulsarClient
+        .newProducer()
+        .topic("persistent://my-property/global/lookup/my-topic1")
+        .createAsync()
+        .handle(
+            (producer, e) -> {
+              latch.countDown();
+              return null;
+            });
+
+    latch.await(operationTimeOut + 1000, TimeUnit.MILLISECONDS);
+    Field prodField = PulsarClientImpl.class.getDeclaredField("producers");
+    prodField.setAccessible(true);
+    @SuppressWarnings("unchecked")
+    Set<ProducerBase<byte[]>> producers = (Set<ProducerBase<byte[]>>) prodField.get(pulsarClient);
+    assertTrue(producers.isEmpty());
+    log.info("-- Exiting {} test --", methodName);
+  }
+
+  /**
+   * It verifies that if broker fails to complete producer/consumer operation then client times out
+   * rather waiting forever.
+   *
+   * @throws PulsarClientException
+   */
+  @Test(expectedExceptions = PulsarClientException.TimeoutException.class)
+  public void testOperationTimeout() throws PulsarClientException {
+    final String topicName = "persistent://my-property/my-ns/my-topic1";
+    final var topics = pulsar.getBrokerService().getTopics();
+    // non-complete topic future so, create topic should timeout
+    topics.put(topicName, new CompletableFuture<>());
+    try (PulsarClient pulsarClient =
+        PulsarClient.builder()
+            .serviceUrl(lookupUrl.toString())
+            .operationTimeout(2, TimeUnit.SECONDS)
+            .statsInterval(0, TimeUnit.SECONDS)
+            .build()) {
+
+      Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+    } finally {
+      topics.clear();
+    }
+  }
+
+  @Test
+  public void testAddEntryOperationTimeout() throws Exception {
+
+    log.info("-- Starting {} test --", methodName);
+
+    conf.setManagedLedgerAddEntryTimeoutSeconds(1);
+
+    final String topicName = "persistent://my-property/my-ns/addEntryTimeoutTopic";
+
+    Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+    ConsumerImpl<byte[]> consumer =
+        (ConsumerImpl<byte[]>)
+            pulsarClient
+                .newConsumer()
+                .topic(topicName)
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
+
+    PersistentTopic topic =
+        (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+    ManagedLedgerImpl ml = (ManagedLedgerImpl) topic.getManagedLedger();
+
+    class MockLedgerHandle extends PulsarMockLedgerHandle {
+      public MockLedgerHandle(PulsarMockBookKeeper bk, long id, DigestType digest, byte[] passwd)
+          throws GeneralSecurityException {
+        super(bk, id, digest, passwd);
+      }
+
+      @Override
+      public void asyncAddEntry(final byte[] data, final AddCallback cb, final Object ctx) {
+        // do nothing
+      }
+
+      @Override
+      public void asyncClose(
+          org.apache.bookkeeper.client.AsyncCallback.CloseCallback cb, Object ctx) {
+        cb.closeComplete(BKException.Code.OK, this, ctx);
+      }
+    }
+    MockLedgerHandle ledgerHandle = mock(MockLedgerHandle.class);
+    final byte[] data = "data".getBytes();
+    // this will make first entry to be timed out but then managed-ledger will create a new ledger
+    // and next time add
+    // entry should be successful.
+    doNothing().when(ledgerHandle).asyncAddEntry(data, null, null);
+
+    MockedPulsarServiceBaseTest.setFieldValue(
+        ManagedLedgerImpl.class, ml, "currentLedger", ledgerHandle);
+    CountDownLatch latch = new CountDownLatch(1);
+    AtomicBoolean addedSuccessfully = new AtomicBoolean(false);
+    producer
+        .sendAsync(data)
+        .handle(
+            (res, ex) -> {
+              if (ex == null) {
+                addedSuccessfully.set(true);
+              } else {
+                log.error("add-entry failed for {}", methodName, ex);
+              }
+              latch.countDown();
+              return null;
+            });
+    latch.await();
+
+    // broker should be resilient enough to add-entry timeout and add entry successfully.
+    assertTrue(addedSuccessfully.get());
+
+    byte[] receivedData = consumer.receive().getData();
+    assertEquals(receivedData, data);
+
+    producer.close();
+    consumer.close();
+  }
+
+  @Test
+  public void testAvroSchemaProducerConsumerWithSpecifiedReaderAndWriter()
+      throws PulsarClientException {
+    final String topicName = "persistent://my-property/my-ns/my-topic1";
+    TestMessageObject object = new TestMessageObject();
+    SchemaReader<TestMessageObject> reader = Mockito.mock(SchemaReader.class);
+    SchemaWriter<TestMessageObject> writer = Mockito.mock(SchemaWriter.class);
+    Mockito.when(reader.read(Mockito.any(InputStream.class), Mockito.any(byte[].class)))
+        .thenReturn(object);
+    Mockito.when(writer.write(Mockito.any(TestMessageObject.class)))
+        .thenReturn("fake data".getBytes(StandardCharsets.UTF_8));
+    SchemaDefinition<TestMessageObject> schemaDefinition =
+        new SchemaDefinitionBuilderImpl<TestMessageObject>()
+            .withPojo(TestMessageObject.class)
+            .withSchemaReader(reader)
+            .withSchemaWriter(writer)
+            .build();
+    Schema<TestMessageObject> schema = Schema.AVRO(schemaDefinition);
+
+    try (PulsarClient client = PulsarClient.builder().serviceUrl(lookupUrl.toString()).build();
+        Producer<TestMessageObject> producer =
+            client.newProducer(schema).topic(topicName).create();
+        Consumer<TestMessageObject> consumer =
+            client
+                .newConsumer(schema)
+                .topic(topicName)
+                .subscriptionName("my-subscriber-name")
+                .subscribe()) {
+
+      assertNotNull(producer);
+      assertNotNull(consumer);
+      producer.newMessage().value(object).send();
+      TestMessageObject testObject = consumer.receive().getValue();
+      Assert.assertEquals(object.getValue(), testObject.getValue());
+      Mockito.verify(writer, Mockito.times(1)).write(Mockito.any());
+      Mockito.verify(reader, Mockito.times(1))
+          .read(Mockito.any(InputStream.class), Mockito.any(byte[].class));
+    }
+  }
+
+  @Test
+  public void testJsonSchemaProducerConsumerWithSpecifiedReaderAndWriter()
+      throws PulsarClientException {
+    final String topicName = "persistent://my-property/my-ns/my-topic1";
+    ObjectMapper mapper = new ObjectMapper();
+    SchemaReader<TestMessageObject> reader =
+        spyWithClassAndConstructorArgsRecordingInvocations(
+            JacksonJsonReader.class, mapper, TestMessageObject.class);
+    SchemaWriter<TestMessageObject> writer =
+        spyWithClassAndConstructorArgsRecordingInvocations(JacksonJsonWriter.class, mapper);
+
+    SchemaDefinition<TestMessageObject> schemaDefinition =
+        new SchemaDefinitionBuilderImpl<TestMessageObject>()
+            .withPojo(TestMessageObject.class)
+            .withSchemaReader(reader)
+            .withSchemaWriter(writer)
+            .build();
+    Schema<TestMessageObject> schema = Schema.JSON(schemaDefinition);
+
+    try (PulsarClient client = PulsarClient.builder().serviceUrl(lookupUrl.toString()).build();
+        Producer<TestMessageObject> producer =
+            client.newProducer(schema).topic(topicName).create();
+        Consumer<TestMessageObject> consumer =
+            client
+                .newConsumer(schema)
+                .topic(topicName)
+                .subscriptionName("my-subscriber-name")
+                .subscribe()) {
+
+      assertNotNull(producer);
+      assertNotNull(consumer);
+
+      TestMessageObject object = new TestMessageObject();
+      object.setValue("fooooo");
+      producer.newMessage().value(object).send();
+
+      TestMessageObject testObject = consumer.receive().getValue();
+      Assert.assertEquals(object.getValue(), testObject.getValue());
+
+      Mockito.verify(writer, Mockito.times(1)).write(Mockito.any());
+      Mockito.verify(reader, Mockito.times(1)).read(Mockito.any(InputStream.class));
+    }
+  }
+
+  @Getter
+  @Setter
+  @EqualsAndHashCode
+  private static final class TestMessageObject {
+    private String value;
+  }
+
+  /**
+   * It validates pooled message consumption for batch and non-batch messages.
+   *
+   * @throws Exception
+   */
+  @Test(dataProvider = "booleanFlagProvider")
+  public void testConsumerWithPooledMessages(boolean isBatchingEnabled) throws Exception {
+    log.info("-- Starting {} test --", methodName);
+
+    @Cleanup
+    PulsarClient newPulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).build();
+
+    final String topic =
+        "persistent://my-property/my-ns/testConsumerWithPooledMessages" + isBatchingEnabled;
+
+    @Cleanup
+    Consumer<ByteBuffer> consumer =
+        newPulsarClient
+            .newConsumer(Schema.BYTEBUFFER)
+            .topic(topic)
+            .subscriptionName("my-sub")
+            .poolMessages(true)
+            .subscribe();
+
+    @Cleanup
+    Producer<byte[]> producer =
+        newPulsarClient.newProducer().topic(topic).enableBatching(isBatchingEnabled).create();
+
+    final int numMessages = 100;
+    for (int i = 0; i < numMessages; i++) {
+      producer
+          .newMessage()
+          .value(("value-" + i).getBytes(UTF_8))
+          .eventTime((i + 1) * 100L)
+          .sendAsync();
+    }
+    producer.flush();
+
+    // Reuse pre-allocated pooled buffer to process every message
+    byte[] val = null;
+    int size = 0;
+    for (int i = 0; i < numMessages; i++) {
+      Message<ByteBuffer> msg = consumer.receive();
+      ByteBuffer value;
+      try {
+        value = msg.getValue();
+        int capacity = value.remaining();
+        // expand the size of buffer if needed
+        if (capacity > size) {
+          val = new byte[capacity];
+          size = capacity;
+        }
+        // read message into pooled buffer
+        value.get(val, 0, capacity);
+        // process the message
+        assertEquals(("value-" + i), new String(val, 0, capacity));
+      } finally {
+        msg.release();
+      }
+    }
+    consumer.close();
+    producer.close();
+  }
+
+  /**
+   * It verifies that expiry/redelivery of messages relesaes the messages without leak.
+   *
+   * @param isBatchingEnabled
+   * @throws Exception
+   */
+  @Test(dataProvider = "booleanFlagProvider")
+  public void testPooledMessageWithAckTimeout(boolean isBatchingEnabled) throws Exception {
+    log.info("-- Starting {} test --", methodName);
+
+    @Cleanup
+    PulsarClient newPulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).build();
+
+    final String topic =
+        "persistent://my-property/my-ns/testPooledMessageWithAckTimeout" + isBatchingEnabled;
+
+    @Cleanup
+    ConsumerImpl<ByteBuffer> consumer =
+        (ConsumerImpl<ByteBuffer>)
+            newPulsarClient
+                .newConsumer(Schema.BYTEBUFFER)
+                .topic(topic)
+                .subscriptionName("my-sub")
+                .poolMessages(true)
+                .subscribe();
+
+    @Cleanup
+    Producer<byte[]> producer =
+        newPulsarClient.newProducer().topic(topic).enableBatching(isBatchingEnabled).create();
+
+    final int numMessages = 100;
+    for (int i = 0; i < numMessages; i++) {
+      producer
+          .newMessage()
+          .value(("value-" + i).getBytes(UTF_8))
+          .eventTime((i + 1) * 100L)
+          .sendAsync();
+    }
+    producer.flush();
+
+    retryStrategically((test) -> consumer.incomingMessages.peek() != null, 5, 500);
+    MessageImpl<ByteBuffer> msg = (MessageImpl) consumer.incomingMessages.peek();
+    assertNotNull(msg);
+    ByteBuf payload = ((MessageImpl) msg).getPayload();
+    assertNotEquals(payload.refCnt(), 0);
+    consumer.redeliverUnacknowledgedMessages();
+    Awaitility.await()
+        .untilAsserted(
+            () -> {
+              assertTrue(consumer.incomingMessages.size() >= 100);
+            });
+    consumer.close();
+    producer.close();
+    admin.topics().delete(topic, false);
+    assertEquals(consumer.incomingMessages.size(), 0);
+    assertEquals(payload.refCnt(), 0);
+  }
+
+  /**
+   * It validates pooled message consumption for batch and non-batch messages.
+   *
+   * @throws Exception
+   */
+  @Test(dataProvider = "booleanFlagProvider")
+  public void testConsumerWithPooledMessagesWithReader(boolean isBatchingEnabled) throws Exception {
+    log.info("-- Starting {} test --", methodName);
+
+    @Cleanup
+    PulsarClient newPulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).build();
+
+    final String topic =
+        "persistent://my-property/my-ns/testConsumerWithPooledMessages" + isBatchingEnabled;
+
+    @Cleanup
+    Reader<ByteBuffer> reader =
+        newPulsarClient
+            .newReader(Schema.BYTEBUFFER)
+            .topic(topic)
+            .poolMessages(true)
+            .startMessageId(MessageId.latest)
+            .create();
+
+    @Cleanup
+    Producer<byte[]> producer =
+        newPulsarClient.newProducer().topic(topic).enableBatching(isBatchingEnabled).create();
+
+    final int numMessages = 100;
+    for (int i = 0; i < numMessages; i++) {
+      producer
+          .newMessage()
+          .value(("value-" + i).getBytes(UTF_8))
+          .eventTime((i + 1) * 100L)
+          .sendAsync();
+    }
+    producer.flush();
+
+    // Reuse pre-allocated pooled buffer to process every message
+    byte[] val = null;
+    int size = 0;
+    for (int i = 0; i < numMessages; i++) {
+      Message<ByteBuffer> msg = reader.readNext();
+      ByteBuffer value;
+      try {
+        value = msg.getValue();
+        int capacity = value.remaining();
+        // expand the size of buffer if needed
+        if (capacity > size) {
+          val = new byte[capacity];
+          size = capacity;
+        }
+        // read message into pooled buffer
+        value.get(val, 0, capacity);
+        // process the message
+        assertEquals(("value-" + i), new String(val, 0, capacity));
+        assertTrue(value.isDirect());
+      } finally {
+        msg.release();
+      }
+    }
+    reader.close();
+    producer.close();
+  }
+
+  @Test
+  public void testActiveConsumerCleanup() throws Exception {
+    log.info("-- Starting {} test --", methodName);
+
+    int numMessages = 100;
+    final CountDownLatch latch = new CountDownLatch(numMessages);
+    String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/closed-cnx-topic");
+    admin.topics().createNonPartitionedTopic(topic);
+    String sub = "my-subscriber-name";
+    @Cleanup PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+    ConsumerImpl c =
+        (ConsumerImpl)
+            pulsarClient
+                .newConsumer()
+                .topic(topic)
+                .subscriptionName(sub)
+                .messageListener(
+                    (c1, msg) -> {
+                      Assert.assertNotNull(msg, "Message cannot be null");
+                      String receivedMessage = new String(msg.getData());
+                      log.debug("Received message [{}] in the listener", receivedMessage);
+                      c1.acknowledgeAsync(msg);
+                      latch.countDown();
+                    })
+                .subscribe();
+    PersistentTopic topicRef =
+        (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
+    AbstractDispatcherSingleActiveConsumer dispatcher =
+        (AbstractDispatcherSingleActiveConsumer) topicRef.getSubscription(sub).getDispatcher();
+    assertNotNull(dispatcher.getActiveConsumer());
+
+    // Inject an blocker to make the "ping & pong" does not work.
+    CountDownLatch countDownLatch = new CountDownLatch(1);
+    ConnectionHandler connectionHandler = c.getConnectionHandler();
+    ClientCnx clientCnx = connectionHandler.cnx();
+    clientCnx
+        .ctx()
+        .executor()
+        .submit(
+            () -> {
+              try {
                 countDownLatch.await();
-            } catch (InterruptedException e) {
+              } catch (InterruptedException e) {
                 throw new RuntimeException(e);
-            }
-        });
+              }
+            });
 
-        @Cleanup
-        PulsarClient pulsarClient2 = newPulsarClient(lookupUrl.toString(), 0);
-        Consumer<byte[]> consumer = null;
-        for (int i = 0; i < 2; i++) {
-            try {
-                consumer = pulsarClient2.newConsumer().topic(topic).subscriptionName(sub).messageListener((c1, msg) -> {
-                    Assert.assertNotNull(msg, "Message cannot be null");
-                    String receivedMessage = new String(msg.getData());
-                    log.debug("Received message [{}] in the listener", receivedMessage);
-                    c1.acknowledgeAsync(msg);
-                    latch.countDown();
-                }).subscribe();
-            } catch (PulsarClientException.ConsumerBusyException ignore) {
-               // It's ok.
-            }
-        }
-        assertNotNull(consumer);
-        log.info("-- Exiting {} test --", methodName);
+    @Cleanup PulsarClient pulsarClient2 = newPulsarClient(lookupUrl.toString(), 0);
+    Consumer<byte[]> consumer = null;
+    for (int i = 0; i < 2; i++) {
+      try {
+        consumer =
+            pulsarClient2
+                .newConsumer()
+                .topic(topic)
+                .subscriptionName(sub)
+                .messageListener(
+                    (c1, msg) -> {
+                      Assert.assertNotNull(msg, "Message cannot be null");
+                      String receivedMessage = new String(msg.getData());
+                      log.debug("Received message [{}] in the listener", receivedMessage);
+                      c1.acknowledgeAsync(msg);
+                      latch.countDown();
+                    })
+                .subscribe();
+      } catch (PulsarClientException.ConsumerBusyException ignore) {
+        // It's ok.
+      }
+    }
+    assertNotNull(consumer);
+    log.info("-- Exiting {} test --", methodName);
 
-        // cleanup.
-        countDownLatch.countDown();
-        consumer.close();
-        pulsarClient.close();
-        pulsarClient2.close();
-        admin.topics().delete(topic, false);
+    // cleanup.
+    countDownLatch.countDown();
+    consumer.close();
+    pulsarClient.close();
+    pulsarClient2.close();
+    admin.topics().delete(topic, false);
+  }
+
+  @Test
+  public void testManagedLedgerLazyCursorLedgerCreation() throws Exception {
+    String topic =
+        "persistent://my-property/my-ns/testManagedLedgerLazyCursorLedgerCreationEnabled";
+    String sub = "my-subscriber-name";
+
+    @Cleanup Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+    @Cleanup
+    Consumer<byte[]> consumer =
+        pulsarClient.newConsumer().topic(topic).subscriptionName(sub).subscribe();
+    PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
+    assertEquals(stats.cursors.get(sub).state, "NoLedger");
+    producer.send("test".getBytes(UTF_8));
+    consumer.acknowledgeCumulative(consumer.receive());
+    Awaitility.await()
+        .untilAsserted(
+            () -> {
+              PersistentTopicInternalStats stats1 = admin.topics().getInternalStats(topic);
+              assertEquals(stats1.cursors.get(sub).state, "Open");
+              assertEquals(stats1.lastConfirmedEntry, stats1.cursors.get(sub).markDeletePosition);
+            });
+  }
+
+  @Test
+  public void testSharedConsumerUnsubscribe() throws Exception {
+    String topic = "persistent://my-property/my-ns/sharedUnsubscribe";
+    String sub = "my-subscriber-name";
+    @Cleanup
+    Consumer<byte[]> consumer1 =
+        pulsarClient
+            .newConsumer()
+            .topic(topic)
+            .subscriptionType(SubscriptionType.Shared)
+            .subscriptionName(sub)
+            .subscribe();
+    @Cleanup
+    Consumer<byte[]> consumer2 =
+        pulsarClient
+            .newConsumer()
+            .topic(topic)
+            .subscriptionType(SubscriptionType.Shared)
+            .subscriptionName(sub)
+            .subscribe();
+    try {
+      consumer1.unsubscribe();
+      fail("should have failed as consumer-2 is already connected");
+    } catch (Exception e) {
+      // Ok
     }
 
-    @Test
-    public void testManagedLedgerLazyCursorLedgerCreation() throws Exception {
-        String topic = "persistent://my-property/my-ns/testManagedLedgerLazyCursorLedgerCreationEnabled";
-        String sub = "my-subscriber-name";
-
-        @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
-        @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName(sub).subscribe();
-        PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
-        assertEquals(stats.cursors.get(sub).state, "NoLedger");
-        producer.send("test".getBytes(UTF_8));
-        consumer.acknowledgeCumulative(consumer.receive());
-        Awaitility.await().untilAsserted(() -> {
-            PersistentTopicInternalStats stats1 = admin.topics().getInternalStats(topic);
-            assertEquals(stats1.cursors.get(sub).state, "Open");
-            assertEquals(stats1.lastConfirmedEntry, stats1.cursors.get(sub).markDeletePosition);
-        });
+    consumer1.unsubscribe(true);
+    try {
+      consumer2.unsubscribe(true);
+    } catch (PulsarClientException.NotConnectedException e) {
+      // Ok. consumer-2 is already disconnected with force unsubscription
     }
+    assertFalse(consumer1.isConnected());
+    assertFalse(consumer2.isConnected());
+  }
 
-    @Test
-    public void testSharedConsumerUnsubscribe() throws Exception {
-        String topic = "persistent://my-property/my-ns/sharedUnsubscribe";
-        String sub = "my-subscriber-name";
-        @Cleanup
-        Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topic).subscriptionType(SubscriptionType.Shared)
-                .subscriptionName(sub).subscribe();
-        @Cleanup
-        Consumer<byte[]> consumer2 = pulsarClient.newConsumer().topic(topic).subscriptionType(SubscriptionType.Shared)
-                .subscriptionName(sub).subscribe();
-        try {
-            consumer1.unsubscribe();
-            fail("should have failed as consumer-2 is already connected");
-        } catch (Exception e) {
-            // Ok
-        }
-
-        consumer1.unsubscribe(true);
-        try {
-            consumer2.unsubscribe(true);
-        } catch (PulsarClientException.NotConnectedException e) {
-            // Ok. consumer-2 is already disconnected with force unsubscription
-        }
-        assertFalse(consumer1.isConnected());
-        assertFalse(consumer2.isConnected());
-    }
-
-    @Test(dataProvider = "subType")
-    public void testUnsubscribeForce(SubscriptionType type) throws Exception {
-        String topic = "persistent://my-property/my-ns/sharedUnsubscribe";
-        String sub = "my-subscriber-name";
-        @Cleanup
-        Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topic).subscriptionType(type)
-                .subscriptionName(sub).subscribe();
-        consumer1.unsubscribe(true);
-        assertFalse(consumer1.isConnected());
-    }
+  @Test(dataProvider = "subType")
+  public void testUnsubscribeForce(SubscriptionType type) throws Exception {
+    String topic = "persistent://my-property/my-ns/sharedUnsubscribe";
+    String sub = "my-subscriber-name";
+    @Cleanup
+    Consumer<byte[]> consumer1 =
+        pulsarClient
+            .newConsumer()
+            .topic(topic)
+            .subscriptionType(type)
+            .subscriptionName(sub)
+            .subscribe();
+    consumer1.unsubscribe(true);
+    assertFalse(consumer1.isConnected());
+  }
 }

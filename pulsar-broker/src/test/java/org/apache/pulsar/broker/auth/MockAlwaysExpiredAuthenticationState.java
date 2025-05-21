@@ -21,16 +21,16 @@ package org.apache.pulsar.broker.auth;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 
 /**
- * Class to use when verifying the behavior around expired authentication data because it will always return
- * true when isExpired is called.
+ * Class to use when verifying the behavior around expired authentication data because it will
+ * always return true when isExpired is called.
  */
 public class MockAlwaysExpiredAuthenticationState extends MockMutableAuthenticationState {
-    MockAlwaysExpiredAuthenticationState(AuthenticationProvider provider) {
-        super(provider);
-    }
+  MockAlwaysExpiredAuthenticationState(AuthenticationProvider provider) {
+    super(provider);
+  }
 
-    @Override
-    public boolean isExpired() {
-        return true;
-    }
+  @Override
+  public boolean isExpired() {
+    return true;
+  }
 }

@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mockStatic;
 import static org.testng.Assert.assertEquals;
+
 import java.nio.file.Files;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
@@ -31,20 +32,23 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class LinuxInfoUtilsTest {
 
-    /**
-     * simulate reading first line of /proc/stat to get total cpu usage.
-     */
-    @Test
-    public void testGetCpuUsageForEntireHost(){
-        try (MockedStatic<Files> filesMockedStatic = mockStatic(Files.class)) {
-            filesMockedStatic.when(() -> Files.lines(any())).thenReturn(
-                    Stream.generate(() -> "cpu  317808 128  58637  2503692 7634   0   13472   0    0     0"));
-            long idle = 2503692 + 7634, total = 2901371;
-            LinuxInfoUtils.ResourceUsage resourceUsage = LinuxInfoUtils.ResourceUsage.builder()
-                    .usage(total - idle)
-                    .idle(idle)
-                    .total(total).build();
-            assertEquals(LinuxInfoUtils.getCpuUsageForEntireHost(), resourceUsage);
-        }
+  /** simulate reading first line of /proc/stat to get total cpu usage. */
+  @Test
+  public void testGetCpuUsageForEntireHost() {
+    try (MockedStatic<Files> filesMockedStatic = mockStatic(Files.class)) {
+      filesMockedStatic
+          .when(() -> Files.lines(any()))
+          .thenReturn(
+              Stream.generate(
+                  () -> "cpu  317808 128  58637  2503692 7634   0   13472   0    0     0"));
+      long idle = 2503692 + 7634, total = 2901371;
+      LinuxInfoUtils.ResourceUsage resourceUsage =
+          LinuxInfoUtils.ResourceUsage.builder()
+              .usage(total - idle)
+              .idle(idle)
+              .total(total)
+              .build();
+      assertEquals(LinuxInfoUtils.getCpuUsageForEntireHost(), resourceUsage);
     }
+  }
 }

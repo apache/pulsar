@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.admin.v3;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -34,71 +35,76 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-admin")
 public class PackagesApiNotEnabledTest extends MockedPulsarServiceBaseTest {
 
-    @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        // not enable Package Management Service
-        conf.setEnablePackagesManagement(false);
-        super.internalSetup();
-    }
+  @BeforeMethod
+  @Override
+  protected void setup() throws Exception {
+    // not enable Package Management Service
+    conf.setEnablePackagesManagement(false);
+    super.internalSetup();
+  }
 
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @AfterMethod(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @Test(timeOut = 60000)
-    public void testPackagesOperationsWithoutPackagesServiceEnabled() throws Exception {
-        // download package api should return 503 Service Unavailable exception
-        String unknownPackageName = "function://public/default/unknown@v1";
-        Path tmp = Files.createTempDirectory("package-test-tmp");
-        try {
-            admin.packages().download(unknownPackageName, tmp.toAbsolutePath().toString() + "/unknown");
-            fail("should throw 503 error");
-        } catch (PulsarAdminException e) {
-            assertEquals(503, e.getStatusCode());
-        } finally {
-            Files.walk(tmp).sorted(Comparator.reverseOrder()).forEach(p -> {
+  @Test(timeOut = 60000)
+  public void testPackagesOperationsWithoutPackagesServiceEnabled() throws Exception {
+    // download package api should return 503 Service Unavailable exception
+    String unknownPackageName = "function://public/default/unknown@v1";
+    Path tmp = Files.createTempDirectory("package-test-tmp");
+    try {
+      admin.packages().download(unknownPackageName, tmp.toAbsolutePath().toString() + "/unknown");
+      fail("should throw 503 error");
+    } catch (PulsarAdminException e) {
+      assertEquals(503, e.getStatusCode());
+    } finally {
+      Files.walk(tmp)
+          .sorted(Comparator.reverseOrder())
+          .forEach(
+              p -> {
                 try {
-                    Files.delete(p);
+                  Files.delete(p);
                 } catch (IOException e) {
-                    throw new RuntimeException(e);
+                  throw new RuntimeException(e);
                 }
-            });
-        }
-
-        // get metadata api should return 503 Service Unavailable exception
-        try {
-            admin.packages().getMetadata(unknownPackageName);
-            fail("should throw 503 error");
-        } catch (PulsarAdminException e) {
-            assertEquals(503, e.getStatusCode());
-        }
-
-        // update metadata api should return 503 Service Unavailable exception
-        try {
-            admin.packages().updateMetadata(unknownPackageName,
-                    PackageMetadata.builder().description("unknown").build());
-            fail("should throw 503 error");
-        } catch (PulsarAdminException e) {
-            assertEquals(503, e.getStatusCode());
-        }
-
-        // list all the packages api should return 503 Service Unavailable exception
-        try {
-            admin.packages().listPackages("function", "unknown/unknown");
-            fail("should throw 503 error");
-        } catch (PulsarAdminException e) {
-            assertEquals(503, e.getStatusCode());
-        }
-
-        // list all the versions api should return 503 Service Unavailable exception
-        try {
-            admin.packages().listPackageVersions(unknownPackageName);
-            fail("should throw 503 error");
-        } catch (PulsarAdminException e) {
-            assertEquals(503, e.getStatusCode());
-        }
+              });
     }
+
+    // get metadata api should return 503 Service Unavailable exception
+    try {
+      admin.packages().getMetadata(unknownPackageName);
+      fail("should throw 503 error");
+    } catch (PulsarAdminException e) {
+      assertEquals(503, e.getStatusCode());
+    }
+
+    // update metadata api should return 503 Service Unavailable exception
+    try {
+      admin
+          .packages()
+          .updateMetadata(
+              unknownPackageName, PackageMetadata.builder().description("unknown").build());
+      fail("should throw 503 error");
+    } catch (PulsarAdminException e) {
+      assertEquals(503, e.getStatusCode());
+    }
+
+    // list all the packages api should return 503 Service Unavailable exception
+    try {
+      admin.packages().listPackages("function", "unknown/unknown");
+      fail("should throw 503 error");
+    } catch (PulsarAdminException e) {
+      assertEquals(503, e.getStatusCode());
+    }
+
+    // list all the versions api should return 503 Service Unavailable exception
+    try {
+      admin.packages().listPackageVersions(unknownPackageName);
+      fail("should throw 503 error");
+    } catch (PulsarAdminException e) {
+      assertEquals(503, e.getStatusCode());
+    }
+  }
 }

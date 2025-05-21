@@ -24,6 +24,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
+
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -48,233 +49,221 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class LeastResourceUsageWithWeightTest {
 
-    // Test that least resource usage with weight works correctly.
-    ServiceUnitId bundleData = new ServiceUnitId() {
+  // Test that least resource usage with weight works correctly.
+  ServiceUnitId bundleData =
+      new ServiceUnitId() {
         @Override
         public NamespaceName getNamespaceObject() {
-            return null;
+          return null;
         }
 
         @Override
         public boolean includes(TopicName topicName) {
-            return false;
+          return false;
         }
-    };
+      };
 
-    public LoadManagerContext setupContext() {
-        var ctx = getContext();
+  public LoadManagerContext setupContext() {
+    var ctx = getContext();
 
-        var brokerLoadDataStore = ctx.brokerLoadDataStore();
-        brokerLoadDataStore.pushAsync("1", createBrokerData(ctx, 10, 100));
-        brokerLoadDataStore.pushAsync("2", createBrokerData(ctx, 30, 100));
-        brokerLoadDataStore.pushAsync("3", createBrokerData(ctx, 60, 100));
-        brokerLoadDataStore.pushAsync("4", createBrokerData(ctx, 5, 100));
+    var brokerLoadDataStore = ctx.brokerLoadDataStore();
+    brokerLoadDataStore.pushAsync("1", createBrokerData(ctx, 10, 100));
+    brokerLoadDataStore.pushAsync("2", createBrokerData(ctx, 30, 100));
+    brokerLoadDataStore.pushAsync("3", createBrokerData(ctx, 60, 100));
+    brokerLoadDataStore.pushAsync("4", createBrokerData(ctx, 5, 100));
 
-        return ctx;
-    }
+    return ctx;
+  }
 
-    public void testSelect() {
+  public void testSelect() {
 
-        var ctx = setupContext();
-        LeastResourceUsageWithWeight strategy = new LeastResourceUsageWithWeight();
+    var ctx = setupContext();
+    LeastResourceUsageWithWeight strategy = new LeastResourceUsageWithWeight();
 
-        // Should choice broker from broker1 2 3.
-        Set<String> candidates = new HashSet<>();
-        candidates.add("1");
-        candidates.add("2");
-        candidates.add("3");
+    // Should choice broker from broker1 2 3.
+    Set<String> candidates = new HashSet<>();
+    candidates.add("1");
+    candidates.add("2");
+    candidates.add("3");
 
-        assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("1"));
+    assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("1"));
 
-        var brokerLoadDataStore = ctx.brokerLoadDataStore();
-        brokerLoadDataStore.pushAsync("1", createBrokerData(ctx, 20, 100));
-        brokerLoadDataStore.pushAsync("2", createBrokerData(ctx, 30, 100));
-        brokerLoadDataStore.pushAsync("3", createBrokerData(ctx, 50, 100));
+    var brokerLoadDataStore = ctx.brokerLoadDataStore();
+    brokerLoadDataStore.pushAsync("1", createBrokerData(ctx, 20, 100));
+    brokerLoadDataStore.pushAsync("2", createBrokerData(ctx, 30, 100));
+    brokerLoadDataStore.pushAsync("3", createBrokerData(ctx, 50, 100));
 
-        assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("1"));
+    assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("1"));
 
-        updateLoad(ctx, "1", 30);
-        updateLoad(ctx, "2", 30);
-        updateLoad(ctx, "3", 40);
+    updateLoad(ctx, "1", 30);
+    updateLoad(ctx, "2", 30);
+    updateLoad(ctx, "3", 40);
 
-        assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("1"));
+    assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("1"));
 
-        updateLoad(ctx, "1", 30);
-        updateLoad(ctx, "2", 30);
-        updateLoad(ctx, "3", 40);
+    updateLoad(ctx, "1", 30);
+    updateLoad(ctx, "2", 30);
+    updateLoad(ctx, "3", 40);
 
-        assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("1"));
+    assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("1"));
 
-        updateLoad(ctx, "1", 35);
-        updateLoad(ctx, "2", 20);
-        updateLoad(ctx, "3", 45);
+    updateLoad(ctx, "1", 35);
+    updateLoad(ctx, "2", 20);
+    updateLoad(ctx, "3", 45);
 
-        assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("2"));
+    assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("2"));
 
-        // test restart broker can load bundle as one of the best brokers.
-        updateLoad(ctx, "1", 35);
-        updateLoad(ctx, "2", 20);
-        brokerLoadDataStore.pushAsync("3", createBrokerData(ctx, 0, 100));
+    // test restart broker can load bundle as one of the best brokers.
+    updateLoad(ctx, "1", 35);
+    updateLoad(ctx, "2", 20);
+    brokerLoadDataStore.pushAsync("3", createBrokerData(ctx, 0, 100));
 
-        assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("3"));
-    }
+    assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("3"));
+  }
 
-    public void testArithmeticException()
-            throws NoSuchFieldException, IllegalAccessException {
-        var ctx = setupContext();
-        var brokerLoadStore = ctx.brokerLoadDataStore();
-        LeastResourceUsageWithWeight strategy = new LeastResourceUsageWithWeight();
+  public void testArithmeticException() throws NoSuchFieldException, IllegalAccessException {
+    var ctx = setupContext();
+    var brokerLoadStore = ctx.brokerLoadDataStore();
+    LeastResourceUsageWithWeight strategy = new LeastResourceUsageWithWeight();
 
-        // Should choice broker from broker1 2 3.
-        Set<String> candidates = new HashSet<>();
-        candidates.add("1");
-        candidates.add("2");
-        candidates.add("3");
+    // Should choice broker from broker1 2 3.
+    Set<String> candidates = new HashSet<>();
+    candidates.add("1");
+    candidates.add("2");
+    candidates.add("3");
 
-        FieldUtils.writeDeclaredField(brokerLoadStore.get("1").get(), "weightedMaxEMA", 0.1d, true);
-        FieldUtils.writeDeclaredField(brokerLoadStore.get("2").get(), "weightedMaxEMA", 0.3d, true);
-        FieldUtils.writeDeclaredField(brokerLoadStore.get("4").get(), "weightedMaxEMA", 0.05d, true);
-        assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("1"));
-    }
+    FieldUtils.writeDeclaredField(brokerLoadStore.get("1").get(), "weightedMaxEMA", 0.1d, true);
+    FieldUtils.writeDeclaredField(brokerLoadStore.get("2").get(), "weightedMaxEMA", 0.3d, true);
+    FieldUtils.writeDeclaredField(brokerLoadStore.get("4").get(), "weightedMaxEMA", 0.05d, true);
+    assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("1"));
+  }
 
-    public void testNoLoadDataBrokers() {
-        var ctx = setupContext();
+  public void testNoLoadDataBrokers() {
+    var ctx = setupContext();
 
-        LeastResourceUsageWithWeight strategy = new LeastResourceUsageWithWeight();
+    LeastResourceUsageWithWeight strategy = new LeastResourceUsageWithWeight();
 
-        Set<String> candidates = new HashSet<>();
-        var brokerLoadDataStore = ctx.brokerLoadDataStore();
-        brokerLoadDataStore.pushAsync("1", createBrokerData(ctx,50, 100));
-        brokerLoadDataStore.pushAsync("2", createBrokerData(ctx,100, 100));
-        brokerLoadDataStore.pushAsync("3", null);
-        brokerLoadDataStore.pushAsync("4", null);
-        candidates.add("1");
-        candidates.add("2");
-        candidates.add("5");
-        var result = strategy.select(candidates, bundleData, ctx).get();
-        assertEquals(result, "1");
+    Set<String> candidates = new HashSet<>();
+    var brokerLoadDataStore = ctx.brokerLoadDataStore();
+    brokerLoadDataStore.pushAsync("1", createBrokerData(ctx, 50, 100));
+    brokerLoadDataStore.pushAsync("2", createBrokerData(ctx, 100, 100));
+    brokerLoadDataStore.pushAsync("3", null);
+    brokerLoadDataStore.pushAsync("4", null);
+    candidates.add("1");
+    candidates.add("2");
+    candidates.add("5");
+    var result = strategy.select(candidates, bundleData, ctx).get();
+    assertEquals(result, "1");
 
-        strategy = new LeastResourceUsageWithWeight();
-        brokerLoadDataStore.pushAsync("1", createBrokerData(ctx,100, 100));
-        result = strategy.select(candidates, bundleData, ctx).get();
-        assertThat(result, anyOf(equalTo("1"), equalTo("2"), equalTo("5")));
+    strategy = new LeastResourceUsageWithWeight();
+    brokerLoadDataStore.pushAsync("1", createBrokerData(ctx, 100, 100));
+    result = strategy.select(candidates, bundleData, ctx).get();
+    assertThat(result, anyOf(equalTo("1"), equalTo("2"), equalTo("5")));
 
-        brokerLoadDataStore.pushAsync("1", null);
-        brokerLoadDataStore.pushAsync("2", null);
+    brokerLoadDataStore.pushAsync("1", null);
+    brokerLoadDataStore.pushAsync("2", null);
 
-        result = strategy.select(candidates, bundleData, ctx).get();
-        assertThat(result, anyOf(equalTo("1"), equalTo("2"), equalTo("5")));
-    }
+    result = strategy.select(candidates, bundleData, ctx).get();
+    assertThat(result, anyOf(equalTo("1"), equalTo("2"), equalTo("5")));
+  }
 
+  private BrokerLoadData createBrokerData(LoadManagerContext ctx, double usage, double limit) {
+    var brokerLoadData = new BrokerLoadData();
+    SystemResourceUsage usages = createUsage(usage, limit);
+    brokerLoadData.update(usages, 1, 1, 1, 1, 1, 1, ctx.brokerConfiguration());
+    return brokerLoadData;
+  }
 
-    private BrokerLoadData createBrokerData(LoadManagerContext ctx, double usage, double limit) {
-        var brokerLoadData = new BrokerLoadData();
-        SystemResourceUsage usages = createUsage(usage, limit);
-        brokerLoadData.update(usages, 1, 1, 1, 1, 1, 1,
-                ctx.brokerConfiguration());
-        return brokerLoadData;
-    }
+  private SystemResourceUsage createUsage(double usage, double limit) {
+    SystemResourceUsage usages = new SystemResourceUsage();
+    usages.setCpu(new ResourceUsage(usage, limit));
+    usages.setMemory(new ResourceUsage(usage, limit));
+    usages.setDirectMemory(new ResourceUsage(usage, limit));
+    usages.setBandwidthIn(new ResourceUsage(usage, limit));
+    usages.setBandwidthOut(new ResourceUsage(usage, limit));
+    return usages;
+  }
 
-    private SystemResourceUsage createUsage(double usage, double limit) {
-        SystemResourceUsage usages = new SystemResourceUsage();
-        usages.setCpu(new ResourceUsage(usage, limit));
-        usages.setMemory(new ResourceUsage(usage, limit));
-        usages.setDirectMemory(new ResourceUsage(usage, limit));
-        usages.setBandwidthIn(new ResourceUsage(usage, limit));
-        usages.setBandwidthOut(new ResourceUsage(usage, limit));
-        return usages;
-    }
+  private void updateLoad(LoadManagerContext ctx, String broker, double usage) {
+    ctx.brokerLoadDataStore()
+        .get(broker)
+        .get()
+        .update(createUsage(usage, 100.0), 1, 1, 1, 1, 1, 1, ctx.brokerConfiguration());
+  }
 
-    private void updateLoad(LoadManagerContext ctx, String broker, double usage) {
-        ctx.brokerLoadDataStore().get(broker).get().update(createUsage(usage, 100.0),
-                1, 1, 1, 1, 1, 1, ctx.brokerConfiguration());
-    }
+  public static LoadManagerContext getContext() {
+    var ctx = mock(LoadManagerContext.class);
+    var conf = new ServiceConfiguration();
+    conf.setLoadBalancerCPUResourceWeight(1.0);
+    conf.setLoadBalancerMemoryResourceWeight(0.1);
+    conf.setLoadBalancerDirectMemoryResourceWeight(0.1);
+    conf.setLoadBalancerBandwidthInResourceWeight(1.0);
+    conf.setLoadBalancerBandwidthOutResourceWeight(1.0);
+    conf.setLoadBalancerHistoryResourcePercentage(0.5);
+    conf.setLoadBalancerAverageResourceUsageDifferenceThresholdPercentage(5);
+    var brokerLoadDataStore =
+        new LoadDataStore<BrokerLoadData>() {
+          Map<String, BrokerLoadData> map = new HashMap<>();
 
-    public static LoadManagerContext getContext() {
-        var ctx = mock(LoadManagerContext.class);
-        var conf = new ServiceConfiguration();
-        conf.setLoadBalancerCPUResourceWeight(1.0);
-        conf.setLoadBalancerMemoryResourceWeight(0.1);
-        conf.setLoadBalancerDirectMemoryResourceWeight(0.1);
-        conf.setLoadBalancerBandwidthInResourceWeight(1.0);
-        conf.setLoadBalancerBandwidthOutResourceWeight(1.0);
-        conf.setLoadBalancerHistoryResourcePercentage(0.5);
-        conf.setLoadBalancerAverageResourceUsageDifferenceThresholdPercentage(5);
-        var brokerLoadDataStore = new LoadDataStore<BrokerLoadData>() {
-            Map<String, BrokerLoadData> map = new HashMap<>();
-            @Override
-            public void close() {
+          @Override
+          public void close() {}
 
+          @Override
+          public CompletableFuture<Void> pushAsync(String key, BrokerLoadData loadData) {
+            if (loadData == null) {
+              map.remove(key);
+            } else {
+              map.put(key, loadData);
             }
+            return null;
+          }
 
-            @Override
-            public CompletableFuture<Void> pushAsync(String key, BrokerLoadData loadData) {
-                if (loadData == null) {
-                    map.remove(key);
-                } else {
-                    map.put(key, loadData);
-                }
-                return null;
+          @Override
+          public CompletableFuture<Void> removeAsync(String key) {
+            map.remove(key);
+            return CompletableFuture.completedFuture(null);
+          }
+
+          @Override
+          public Optional<BrokerLoadData> get(String key) {
+            var val = map.get(key);
+            if (val == null) {
+              return Optional.empty();
             }
+            return Optional.of(val);
+          }
 
-            @Override
-            public CompletableFuture<Void> removeAsync(String key) {
-                map.remove(key);
-                return CompletableFuture.completedFuture(null);
-            }
+          @Override
+          public void forEach(BiConsumer<String, BrokerLoadData> action) {}
 
-            @Override
-            public Optional<BrokerLoadData> get(String key) {
-                var val = map.get(key);
-                if (val == null) {
-                    return Optional.empty();
-                }
-                return Optional.of(val);
-            }
+          @Override
+          public Set<Map.Entry<String, BrokerLoadData>> entrySet() {
+            return map.entrySet();
+          }
 
-            @Override
-            public void forEach(BiConsumer<String, BrokerLoadData> action) {
+          @Override
+          public int size() {
+            return map.size();
+          }
 
-            }
+          @Override
+          public void closeTableView() throws IOException {}
 
-            @Override
-            public Set<Map.Entry<String, BrokerLoadData>> entrySet() {
-                return map.entrySet();
-            }
+          @Override
+          public void start() throws LoadDataStoreException {}
 
-            @Override
-            public int size() {
-                return map.size();
-            }
+          @Override
+          public void init() throws IOException {}
 
-            @Override
-            public void closeTableView() throws IOException {
+          @Override
+          public void startTableView() throws LoadDataStoreException {}
 
-            }
-
-            @Override
-            public void start() throws LoadDataStoreException {
-
-            }
-
-            @Override
-            public void init() throws IOException {
-
-            }
-
-            @Override
-            public void startTableView() throws LoadDataStoreException {
-
-            }
-
-            @Override
-            public void startProducer() throws LoadDataStoreException {
-
-            }
+          @Override
+          public void startProducer() throws LoadDataStoreException {}
         };
 
-        doReturn(conf).when(ctx).brokerConfiguration();
-        doReturn(brokerLoadDataStore).when(ctx).brokerLoadDataStore();
-        return ctx;
-    }
+    doReturn(conf).when(ctx).brokerConfiguration();
+    doReturn(brokerLoadDataStore).when(ctx).brokerLoadDataStore();
+    return ctx;
+  }
 }

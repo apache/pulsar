@@ -23,23 +23,20 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.functions.instance.state.PulsarMetadataStateStoreProviderImpl;
 import org.testng.annotations.Test;
 
-/**
- * Test Pulsar sink on function
- */
+/** Test Pulsar sink on function */
 @Slf4j
 @Test
 public class PulsarFunctionMetadataStoreTest extends PulsarFunctionLocalRunTest {
 
+  protected WorkerConfig createWorkerConfig(ServiceConfiguration config) {
+    WorkerConfig wc = super.createWorkerConfig(config);
+    wc.setStateStorageProviderImplementation(PulsarMetadataStateStoreProviderImpl.class.getName());
+    wc.setStateStorageServiceUrl("memory:local");
+    return wc;
+  }
 
-    protected WorkerConfig createWorkerConfig(ServiceConfiguration config) {
-        WorkerConfig wc = super.createWorkerConfig(config);
-        wc.setStateStorageProviderImplementation(PulsarMetadataStateStoreProviderImpl.class.getName());
-        wc.setStateStorageServiceUrl("memory:local");
-        return wc;
-    }
-
-    @Test
-    public void testE2EPulsarFunctionLocalRun() throws Throwable {
-        runWithPulsarFunctionsClassLoader(() -> testE2EPulsarFunctionLocalRun(null));
-    }
+  @Test
+  public void testE2EPulsarFunctionLocalRun() throws Throwable {
+    runWithPulsarFunctionsClassLoader(() -> testE2EPulsarFunctionLocalRun(null));
+  }
 }

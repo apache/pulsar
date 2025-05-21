@@ -24,6 +24,7 @@ import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.UnpooledByteBufAllocator;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -36,53 +37,56 @@ import org.testng.annotations.Test;
 
 public class BrokerMessageDeduplicationTest {
 
-    @Test
-    public void markerMessageNotDeduplicated() {
-        PulsarService pulsarService = mock(PulsarService.class);
-        ServiceConfiguration configuration = new ServiceConfiguration();
-        doReturn(configuration).when(pulsarService).getConfiguration();
-        MessageDeduplication deduplication = spy(new MessageDeduplication(pulsarService,
-                mock(PersistentTopic.class), mock(ManagedLedger.class)));
-        doReturn(true).when(deduplication).isEnabled();
-        Topic.PublishContext context = mock(Topic.PublishContext.class);
-        doReturn(true).when(context).isMarkerMessage();
+  @Test
+  public void markerMessageNotDeduplicated() {
+    PulsarService pulsarService = mock(PulsarService.class);
+    ServiceConfiguration configuration = new ServiceConfiguration();
+    doReturn(configuration).when(pulsarService).getConfiguration();
+    MessageDeduplication deduplication =
+        spy(
+            new MessageDeduplication(
+                pulsarService, mock(PersistentTopic.class), mock(ManagedLedger.class)));
+    doReturn(true).when(deduplication).isEnabled();
+    Topic.PublishContext context = mock(Topic.PublishContext.class);
+    doReturn(true).when(context).isMarkerMessage();
 
-        MessageMetadata msgMetadata = new MessageMetadata();
-        msgMetadata.setMarkerType(MarkerType.TXN_ABORT_VALUE);
-        msgMetadata.setProducerName("p1");
-        msgMetadata.setSequenceId(0);
-        msgMetadata.setPublishTime(System.currentTimeMillis());
-        byte[] metadataData = msgMetadata.toByteArray();
-        ByteBuf byteBuf = UnpooledByteBufAllocator.DEFAULT.heapBuffer(metadataData.length + 4);
-        byteBuf.writeInt(metadataData.length);
-        byteBuf.writeBytes(metadataData);
+    MessageMetadata msgMetadata = new MessageMetadata();
+    msgMetadata.setMarkerType(MarkerType.TXN_ABORT_VALUE);
+    msgMetadata.setProducerName("p1");
+    msgMetadata.setSequenceId(0);
+    msgMetadata.setPublishTime(System.currentTimeMillis());
+    byte[] metadataData = msgMetadata.toByteArray();
+    ByteBuf byteBuf = UnpooledByteBufAllocator.DEFAULT.heapBuffer(metadataData.length + 4);
+    byteBuf.writeInt(metadataData.length);
+    byteBuf.writeBytes(metadataData);
 
-        MessageDeduplication.MessageDupStatus status = deduplication.isDuplicate(context, byteBuf);
-        assertEquals(status, MessageDeduplication.MessageDupStatus.NotDup);
+    MessageDeduplication.MessageDupStatus status = deduplication.isDuplicate(context, byteBuf);
+    assertEquals(status, MessageDeduplication.MessageDupStatus.NotDup);
+  }
+
+  @Test
+  public void markerMessageNotRecordPersistent() {
+    PulsarService pulsarService = mock(PulsarService.class);
+    ServiceConfiguration configuration = new ServiceConfiguration();
+    doReturn(configuration).when(pulsarService).getConfiguration();
+    MessageDeduplication deduplication =
+        spy(
+            new MessageDeduplication(
+                pulsarService, mock(PersistentTopic.class), mock(ManagedLedger.class)));
+    doReturn(true).when(deduplication).isEnabled();
+    Topic.PublishContext context = mock(Topic.PublishContext.class);
+    // marker message don't record message persisted.
+    doReturn(true).when(context).isMarkerMessage();
+    deduplication.recordMessagePersisted(context, null);
+
+    // if is not a marker message, we will get NPE. because context is mocked with null value
+    // fields.
+    doReturn(false).when(context).isMarkerMessage();
+    try {
+      deduplication.recordMessagePersisted(context, null);
+      fail();
+    } catch (Exception npe) {
+      assertTrue(npe instanceof NullPointerException);
     }
-
-    @Test
-    public void markerMessageNotRecordPersistent() {
-        PulsarService pulsarService = mock(PulsarService.class);
-        ServiceConfiguration configuration = new ServiceConfiguration();
-        doReturn(configuration).when(pulsarService).getConfiguration();
-        MessageDeduplication deduplication = spy(new MessageDeduplication(pulsarService,
-                mock(PersistentTopic.class), mock(ManagedLedger.class)));
-        doReturn(true).when(deduplication).isEnabled();
-        Topic.PublishContext context = mock(Topic.PublishContext.class);
-         // marker message don't record message persisted.
-        doReturn(true).when(context).isMarkerMessage();
-        deduplication.recordMessagePersisted(context, null);
-
-        // if is not a marker message, we will get NPE. because context is mocked with null value fields.
-        doReturn(false).when(context).isMarkerMessage();
-        try {
-            deduplication.recordMessagePersisted(context, null);
-            fail();
-        } catch (Exception npe) {
-            assertTrue(npe instanceof NullPointerException);
-        }
-    }
-
-
+  }
 }

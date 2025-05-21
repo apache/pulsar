@@ -57,126 +57,134 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBaseTest {
 
-    private static final Logger log = LoggerFactory.getLogger(NamespaceEventsSystemTopicServiceTest.class);
+  private static final Logger log =
+      LoggerFactory.getLogger(NamespaceEventsSystemTopicServiceTest.class);
 
-    private static final String NAMESPACE1 = "system-topic/namespace-1";
-    private static final String NAMESPACE2 = "system-topic/namespace-2";
-    private static final String NAMESPACE3 = "system-topic/namespace-3";
+  private static final String NAMESPACE1 = "system-topic/namespace-1";
+  private static final String NAMESPACE2 = "system-topic/namespace-2";
+  private static final String NAMESPACE3 = "system-topic/namespace-3";
 
-    private NamespaceEventsSystemTopicFactory systemTopicFactory;
+  private NamespaceEventsSystemTopicFactory systemTopicFactory;
 
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        prepareData();
-    }
+  @BeforeClass
+  @Override
+  protected void setup() throws Exception {
+    super.internalSetup();
+    prepareData();
+  }
 
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @AfterClass(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @Test
-    public void testSchemaCompatibility() throws Exception {
-        TopicPoliciesSystemTopicClient systemTopicClientForNamespace1 = systemTopicFactory
-                .createTopicPoliciesSystemTopicClient(NamespaceName.get(NAMESPACE1));
-        String topicName = systemTopicClientForNamespace1.getTopicName().toString();
-        @Cleanup
-        Reader<byte[]> reader = pulsarClient.newReader(Schema.BYTES)
-                .topic(topicName)
-                .startMessageId(MessageId.earliest)
-                .create();
+  @Test
+  public void testSchemaCompatibility() throws Exception {
+    TopicPoliciesSystemTopicClient systemTopicClientForNamespace1 =
+        systemTopicFactory.createTopicPoliciesSystemTopicClient(NamespaceName.get(NAMESPACE1));
+    String topicName = systemTopicClientForNamespace1.getTopicName().toString();
+    @Cleanup
+    Reader<byte[]> reader =
+        pulsarClient
+            .newReader(Schema.BYTES)
+            .topic(topicName)
+            .startMessageId(MessageId.earliest)
+            .create();
 
-        PersistentTopic topic =
-                (PersistentTopic) pulsar.getBrokerService()
-                        .getTopic(topicName, false)
-                        .join().get();
+    PersistentTopic topic =
+        (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
 
-        Assert.assertEquals(SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE, topic.getSchemaCompatibilityStrategy());
-    }
+    Assert.assertEquals(
+        SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE, topic.getSchemaCompatibilityStrategy());
+  }
 
-    @Test
-    public void testSystemTopicSchemaCompatibility() throws Exception {
-        TopicPoliciesSystemTopicClient systemTopicClientForNamespace1 = systemTopicFactory
-                .createTopicPoliciesSystemTopicClient(NamespaceName.get(NAMESPACE1));
-        String topicName = systemTopicClientForNamespace1.getTopicName().toString();
-        final var mockManagedLedger = mock(ManagedLedger.class);
-        when(mockManagedLedger.getConfig()).thenReturn(new ManagedLedgerConfig());
-        SystemTopic topic = new SystemTopic(topicName, mockManagedLedger, pulsar.getBrokerService());
+  @Test
+  public void testSystemTopicSchemaCompatibility() throws Exception {
+    TopicPoliciesSystemTopicClient systemTopicClientForNamespace1 =
+        systemTopicFactory.createTopicPoliciesSystemTopicClient(NamespaceName.get(NAMESPACE1));
+    String topicName = systemTopicClientForNamespace1.getTopicName().toString();
+    final var mockManagedLedger = mock(ManagedLedger.class);
+    when(mockManagedLedger.getConfig()).thenReturn(new ManagedLedgerConfig());
+    SystemTopic topic = new SystemTopic(topicName, mockManagedLedger, pulsar.getBrokerService());
 
-        Assert.assertEquals(SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE, topic.getSchemaCompatibilityStrategy());
-    }
+    Assert.assertEquals(
+        SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE, topic.getSchemaCompatibilityStrategy());
+  }
 
-    @Test
-    public void testSendAndReceiveNamespaceEvents() throws Exception {
-        TopicPoliciesSystemTopicClient systemTopicClientForNamespace1 = systemTopicFactory
-                .createTopicPoliciesSystemTopicClient(NamespaceName.get(NAMESPACE1));
-        TopicPolicies policies = TopicPolicies.builder()
-            .maxProducerPerTopic(10)
-            .build();
-        PulsarEvent event = PulsarEvent.builder()
+  @Test
+  public void testSendAndReceiveNamespaceEvents() throws Exception {
+    TopicPoliciesSystemTopicClient systemTopicClientForNamespace1 =
+        systemTopicFactory.createTopicPoliciesSystemTopicClient(NamespaceName.get(NAMESPACE1));
+    TopicPolicies policies = TopicPolicies.builder().maxProducerPerTopic(10).build();
+    PulsarEvent event =
+        PulsarEvent.builder()
             .eventType(EventType.TOPIC_POLICY)
             .actionType(ActionType.INSERT)
-            .topicPoliciesEvent(TopicPoliciesEvent.builder()
-                .domain("persistent")
-                .tenant("system-topic")
-                .namespace(NamespaceName.get(NAMESPACE1).getLocalName())
-                .topic("my-topic")
-                .policies(policies)
-                .build())
+            .topicPoliciesEvent(
+                TopicPoliciesEvent.builder()
+                    .domain("persistent")
+                    .tenant("system-topic")
+                    .namespace(NamespaceName.get(NAMESPACE1).getLocalName())
+                    .topic("my-topic")
+                    .policies(policies)
+                    .build())
             .build();
-        systemTopicClientForNamespace1.newWriter().write(getEventKey(event), event);
-        SystemTopicClient.Reader reader = systemTopicClientForNamespace1.newReader();
-        @Cleanup("release")
-        Message<PulsarEvent> received = reader.readNext();
-        log.info("Receive pulsar event from system topic : {}", received.getValue());
+    systemTopicClientForNamespace1.newWriter().write(getEventKey(event), event);
+    SystemTopicClient.Reader reader = systemTopicClientForNamespace1.newReader();
+    @Cleanup("release")
+    Message<PulsarEvent> received = reader.readNext();
+    log.info("Receive pulsar event from system topic : {}", received.getValue());
 
-        // test event send and receive
-        Assert.assertEquals(received.getValue(), event);
-        Assert.assertEquals(systemTopicClientForNamespace1.getWriters().size(), 1);
-        Assert.assertEquals(systemTopicClientForNamespace1.getReaders().size(), 1);
+    // test event send and receive
+    Assert.assertEquals(received.getValue(), event);
+    Assert.assertEquals(systemTopicClientForNamespace1.getWriters().size(), 1);
+    Assert.assertEquals(systemTopicClientForNamespace1.getReaders().size(), 1);
 
-        // test new reader read
-        SystemTopicClient.Reader reader1 = systemTopicClientForNamespace1.newReader();
-        @Cleanup("release")
-        Message<PulsarEvent> received1 = reader1.readNext();
-        log.info("Receive pulsar event from system topic : {}", received1.getValue());
-        Assert.assertEquals(received1.getValue(), event);
+    // test new reader read
+    SystemTopicClient.Reader reader1 = systemTopicClientForNamespace1.newReader();
+    @Cleanup("release")
+    Message<PulsarEvent> received1 = reader1.readNext();
+    log.info("Receive pulsar event from system topic : {}", received1.getValue());
+    Assert.assertEquals(received1.getValue(), event);
 
-        // test writers and readers
-        Assert.assertEquals(systemTopicClientForNamespace1.getReaders().size(), 2);
-        SystemTopicClient.Writer writer = systemTopicClientForNamespace1.newWriter();
-        Assert.assertEquals(systemTopicClientForNamespace1.getWriters().size(), 2);
-        writer.close();
-        reader.close();
-        Assert.assertEquals(systemTopicClientForNamespace1.getWriters().size(), 1);
-        Assert.assertEquals(systemTopicClientForNamespace1.getReaders().size(), 1);
-        systemTopicClientForNamespace1.close();
-        Assert.assertEquals(systemTopicClientForNamespace1.getWriters().size(), 0);
-        Assert.assertEquals(systemTopicClientForNamespace1.getReaders().size(), 0);
-    }
+    // test writers and readers
+    Assert.assertEquals(systemTopicClientForNamespace1.getReaders().size(), 2);
+    SystemTopicClient.Writer writer = systemTopicClientForNamespace1.newWriter();
+    Assert.assertEquals(systemTopicClientForNamespace1.getWriters().size(), 2);
+    writer.close();
+    reader.close();
+    Assert.assertEquals(systemTopicClientForNamespace1.getWriters().size(), 1);
+    Assert.assertEquals(systemTopicClientForNamespace1.getReaders().size(), 1);
+    systemTopicClientForNamespace1.close();
+    Assert.assertEquals(systemTopicClientForNamespace1.getWriters().size(), 0);
+    Assert.assertEquals(systemTopicClientForNamespace1.getReaders().size(), 0);
+  }
 
-    @Test(timeOut = 30000)
-    public void checkSystemTopic() throws PulsarAdminException {
-        final String systemTopic = "persistent://" + NAMESPACE1 + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
-        final String normalTopic = "persistent://" + NAMESPACE1 + "/normal_topic";
-        admin.topics().createPartitionedTopic(normalTopic, 3);
-        TopicName systemTopicName = TopicName.get(systemTopic);
-        TopicName normalTopicName = TopicName.get(normalTopic);
-        BrokerService brokerService = pulsar.getBrokerService();
-        Assert.assertEquals(brokerService.isSystemTopic(systemTopicName), true);
-        Assert.assertEquals(brokerService.isSystemTopic(normalTopicName), false);
-    }
+  @Test(timeOut = 30000)
+  public void checkSystemTopic() throws PulsarAdminException {
+    final String systemTopic =
+        "persistent://" + NAMESPACE1 + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
+    final String normalTopic = "persistent://" + NAMESPACE1 + "/normal_topic";
+    admin.topics().createPartitionedTopic(normalTopic, 3);
+    TopicName systemTopicName = TopicName.get(systemTopic);
+    TopicName normalTopicName = TopicName.get(normalTopic);
+    BrokerService brokerService = pulsar.getBrokerService();
+    Assert.assertEquals(brokerService.isSystemTopic(systemTopicName), true);
+    Assert.assertEquals(brokerService.isSystemTopic(normalTopicName), false);
+  }
 
-    private void prepareData() throws PulsarAdminException {
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        admin.tenants().createTenant("system-topic",
-            new TenantInfoImpl(new HashSet<>(), Sets.newHashSet("test")));
-        admin.namespaces().createNamespace(NAMESPACE1);
-        admin.namespaces().createNamespace(NAMESPACE2);
-        admin.namespaces().createNamespace(NAMESPACE3);
-        systemTopicFactory = new NamespaceEventsSystemTopicFactory(pulsarClient);
-    }
+  private void prepareData() throws PulsarAdminException {
+    admin
+        .clusters()
+        .createCluster(
+            "test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+    admin
+        .tenants()
+        .createTenant("system-topic", new TenantInfoImpl(new HashSet<>(), Sets.newHashSet("test")));
+    admin.namespaces().createNamespace(NAMESPACE1);
+    admin.namespaces().createNamespace(NAMESPACE2);
+    admin.namespaces().createNamespace(NAMESPACE3);
+    systemTopicFactory = new NamespaceEventsSystemTopicFactory(pulsarClient);
+  }
 }

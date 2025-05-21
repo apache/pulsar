@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.stats.prometheus;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -39,47 +40,52 @@ import org.testng.annotations.Test;
 
 public class PrometheusMetricsGeneratorTest {
 
-    // reproduce issue #22575
-    @Test
-    public void testReproducingBufferOverflowExceptionAndEOFExceptionBugsInGzipCompression()
-            throws ExecutionException, InterruptedException, IOException {
-        PulsarService pulsar = mock(PulsarService.class);
-        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
-        when(pulsar.getConfiguration()).thenReturn(serviceConfiguration);
+  // reproduce issue #22575
+  @Test
+  public void testReproducingBufferOverflowExceptionAndEOFExceptionBugsInGzipCompression()
+      throws ExecutionException, InterruptedException, IOException {
+    PulsarService pulsar = mock(PulsarService.class);
+    ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
+    when(pulsar.getConfiguration()).thenReturn(serviceConfiguration);
 
-        // generate a random byte buffer which is 8 bytes less than the minimum compress buffer size limit
-        // this will trigger the BufferOverflowException bug in writing the gzip trailer
-        // it will also trigger another bug in finishing the gzip compression stream when the compress buffer is full
-        // which results in EOFException
-        Random random = new Random();
-        byte[] inputBytes = new byte[8192 - 8];
-        random.nextBytes(inputBytes);
-        ByteBuf byteBuf = Unpooled.wrappedBuffer(inputBytes);
+    // generate a random byte buffer which is 8 bytes less than the minimum compress buffer size
+    // limit
+    // this will trigger the BufferOverflowException bug in writing the gzip trailer
+    // it will also trigger another bug in finishing the gzip compression stream when the compress
+    // buffer is full
+    // which results in EOFException
+    Random random = new Random();
+    byte[] inputBytes = new byte[8192 - 8];
+    random.nextBytes(inputBytes);
+    ByteBuf byteBuf = Unpooled.wrappedBuffer(inputBytes);
 
-        PrometheusMetricsGenerator generator =
-                new PrometheusMetricsGenerator(pulsar, false, false, false, false, Clock.systemUTC()) {
-                    // override the generateMetrics method to return the random byte buffer for gzip compression
-                    // instead of the actual metrics
-                    @Override
-                    protected ByteBuf generateMetrics(List<PrometheusRawMetricsProvider> metricsProviders) {
-                        return byteBuf;
-                    }
-                };
+    PrometheusMetricsGenerator generator =
+        new PrometheusMetricsGenerator(pulsar, false, false, false, false, Clock.systemUTC()) {
+          // override the generateMetrics method to return the random byte buffer for gzip
+          // compression
+          // instead of the actual metrics
+          @Override
+          protected ByteBuf generateMetrics(List<PrometheusRawMetricsProvider> metricsProviders) {
+            return byteBuf;
+          }
+        };
 
-        PrometheusMetricsGenerator.MetricsBuffer metricsBuffer =
-                generator.renderToBuffer(MoreExecutors.directExecutor(), Collections.emptyList());
-        try {
-            PrometheusMetricsGenerator.ResponseBuffer responseBuffer = metricsBuffer.getBufferFuture().get();
+    PrometheusMetricsGenerator.MetricsBuffer metricsBuffer =
+        generator.renderToBuffer(MoreExecutors.directExecutor(), Collections.emptyList());
+    try {
+      PrometheusMetricsGenerator.ResponseBuffer responseBuffer =
+          metricsBuffer.getBufferFuture().get();
 
-            ByteBuf compressed = responseBuffer.getCompressedBuffer(MoreExecutors.directExecutor()).get();
-            byte[] compressedBytes = new byte[compressed.readableBytes()];
-            compressed.readBytes(compressedBytes);
-            try (GZIPInputStream gzipInputStream = new GZIPInputStream(new ByteArrayInputStream(compressedBytes))) {
-                byte[] uncompressedBytes = IOUtils.toByteArray(gzipInputStream);
-                assertEquals(uncompressedBytes, inputBytes);
-            }
-        } finally {
-            metricsBuffer.release();
-        }
+      ByteBuf compressed = responseBuffer.getCompressedBuffer(MoreExecutors.directExecutor()).get();
+      byte[] compressedBytes = new byte[compressed.readableBytes()];
+      compressed.readBytes(compressedBytes);
+      try (GZIPInputStream gzipInputStream =
+          new GZIPInputStream(new ByteArrayInputStream(compressedBytes))) {
+        byte[] uncompressedBytes = IOUtils.toByteArray(gzipInputStream);
+        assertEquals(uncompressedBytes, inputBytes);
+      }
+    } finally {
+      metricsBuffer.release();
     }
+  }
 }

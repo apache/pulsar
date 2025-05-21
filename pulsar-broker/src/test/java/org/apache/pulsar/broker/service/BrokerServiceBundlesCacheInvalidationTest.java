@@ -18,11 +18,12 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.Assert.assertEquals;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.policies.data.BundlesData;
-import static org.testng.Assert.assertEquals;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -30,40 +31,38 @@ import org.testng.annotations.Test;
 @Slf4j
 public class BrokerServiceBundlesCacheInvalidationTest extends BrokerTestBase {
 
-    @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        super.baseSetup();
-    }
+  @BeforeMethod
+  @Override
+  protected void setup() throws Exception {
+    super.baseSetup();
+  }
 
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @AfterMethod(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @Test
-    public void testRecreateNamespace() throws Exception {
-        String namespace = "prop/test-" + System.nanoTime();
-        String topic = namespace + "/my-topic";
+  @Test
+  public void testRecreateNamespace() throws Exception {
+    String namespace = "prop/test-" + System.nanoTime();
+    String topic = namespace + "/my-topic";
 
-        // First create namespace with 20 bundles
-        admin.namespaces().createNamespace(namespace, 20);
+    // First create namespace with 20 bundles
+    admin.namespaces().createNamespace(namespace, 20);
 
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(topic)
-                .create();
+    Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
 
-        producer.send("Hello");
-        producer.close();
+    producer.send("Hello");
+    producer.close();
 
-        // Delete and recreate with 32 bundles
-        admin.topics().delete(topic);
-        deleteNamespaceWithRetry(namespace, false);
-        admin.namespaces().createNamespace(namespace, 32);
+    // Delete and recreate with 32 bundles
+    admin.topics().delete(topic);
+    deleteNamespaceWithRetry(namespace, false);
+    admin.namespaces().createNamespace(namespace, 32);
 
-        BundlesData bundlesData = admin.namespaces().getBundles(namespace);
-        log.info("BUNDLES: {}", admin.namespaces().getBundles(namespace));
-        assertEquals(bundlesData.getNumBundles(), 32);
-    }
+    BundlesData bundlesData = admin.namespaces().getBundles(namespace);
+    log.info("BUNDLES: {}", admin.namespaces().getBundles(namespace));
+    assertEquals(bundlesData.getNumBundles(), 32);
+  }
 }

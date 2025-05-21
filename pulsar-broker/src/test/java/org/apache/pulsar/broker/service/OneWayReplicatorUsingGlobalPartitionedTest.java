@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -47,196 +48,221 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicatorTest {
 
-    @Override
-    @BeforeClass(alwaysRun = true, timeOut = 300000)
-    public void setup() throws Exception {
-        super.usingGlobalZK = true;
-        super.setup();
-    }
+  @Override
+  @BeforeClass(alwaysRun = true, timeOut = 300000)
+  public void setup() throws Exception {
+    super.usingGlobalZK = true;
+    super.setup();
+  }
 
-    @Override
-    @AfterClass(alwaysRun = true, timeOut = 300000)
-    public void cleanup() throws Exception {
-        super.cleanup();
-    }
+  @Override
+  @AfterClass(alwaysRun = true, timeOut = 300000)
+  public void cleanup() throws Exception {
+    super.cleanup();
+  }
 
-    @Override
-    protected void setConfigDefaults(ServiceConfiguration config, String clusterName,
-                                     LocalBookkeeperEnsemble bookkeeperEnsemble, ZookeeperServerTest brokerConfigZk) {
-        super.setConfigDefaults(config, clusterName, bookkeeperEnsemble, brokerConfigZk);
-        config.setAllowAutoTopicCreationType(TopicType.PARTITIONED);
-        config.setDefaultNumPartitions(1);
-    }
+  @Override
+  protected void setConfigDefaults(
+      ServiceConfiguration config,
+      String clusterName,
+      LocalBookkeeperEnsemble bookkeeperEnsemble,
+      ZookeeperServerTest brokerConfigZk) {
+    super.setConfigDefaults(config, clusterName, bookkeeperEnsemble, brokerConfigZk);
+    config.setAllowAutoTopicCreationType(TopicType.PARTITIONED);
+    config.setDefaultNumPartitions(1);
+  }
 
-    @Override
-    @Test(enabled = false)
-    public void testReplicatorProducerStatInTopic() throws Exception {
-        super.testReplicatorProducerStatInTopic();
-    }
+  @Override
+  @Test(enabled = false)
+  public void testReplicatorProducerStatInTopic() throws Exception {
+    super.testReplicatorProducerStatInTopic();
+  }
 
-    @Override
-    @Test(enabled = false)
-    public void testCreateRemoteConsumerFirst() throws Exception {
-        super.testReplicatorProducerStatInTopic();
-    }
+  @Override
+  @Test(enabled = false)
+  public void testCreateRemoteConsumerFirst() throws Exception {
+    super.testReplicatorProducerStatInTopic();
+  }
 
-    @Override
-    @Test(enabled = false)
-    public void testTopicCloseWhenInternalProducerCloseErrorOnce() throws Exception {
-        super.testReplicatorProducerStatInTopic();
-    }
+  @Override
+  @Test(enabled = false)
+  public void testTopicCloseWhenInternalProducerCloseErrorOnce() throws Exception {
+    super.testReplicatorProducerStatInTopic();
+  }
 
-    @Override
-    @Test(enabled = false)
-    public void testConcurrencyOfUnloadBundleAndRecreateProducer() throws Exception {
-        super.testConcurrencyOfUnloadBundleAndRecreateProducer();
-    }
+  @Override
+  @Test(enabled = false)
+  public void testConcurrencyOfUnloadBundleAndRecreateProducer() throws Exception {
+    super.testConcurrencyOfUnloadBundleAndRecreateProducer();
+  }
 
-    @Override
-    @Test(enabled = false)
-    public void testPartitionedTopicLevelReplication() throws Exception {
-        super.testPartitionedTopicLevelReplication();
-    }
+  @Override
+  @Test(enabled = false)
+  public void testPartitionedTopicLevelReplication() throws Exception {
+    super.testPartitionedTopicLevelReplication();
+  }
 
-    @Override
-    @Test(enabled = false)
-    public void testPartitionedTopicLevelReplicationRemoteTopicExist() throws Exception {
-        super.testPartitionedTopicLevelReplicationRemoteTopicExist();
-    }
+  @Override
+  @Test(enabled = false)
+  public void testPartitionedTopicLevelReplicationRemoteTopicExist() throws Exception {
+    super.testPartitionedTopicLevelReplicationRemoteTopicExist();
+  }
 
-    @Override
-    @Test(enabled = false)
-    public void testPartitionedTopicLevelReplicationRemoteConflictTopicExist() throws Exception {
-        super.testPartitionedTopicLevelReplicationRemoteConflictTopicExist();
-    }
+  @Override
+  @Test(enabled = false)
+  public void testPartitionedTopicLevelReplicationRemoteConflictTopicExist() throws Exception {
+    super.testPartitionedTopicLevelReplicationRemoteConflictTopicExist();
+  }
 
-    @Override
-    @Test(enabled = false)
-    public void testConcurrencyOfUnloadBundleAndRecreateProducer2() throws Exception {
-        super.testConcurrencyOfUnloadBundleAndRecreateProducer2();
-    }
+  @Override
+  @Test(enabled = false)
+  public void testConcurrencyOfUnloadBundleAndRecreateProducer2() throws Exception {
+    super.testConcurrencyOfUnloadBundleAndRecreateProducer2();
+  }
 
-    @Override
-    @Test(enabled = false)
-    public void testUnFenceTopicToReuse() throws Exception {
-        super.testUnFenceTopicToReuse();
-    }
+  @Override
+  @Test(enabled = false)
+  public void testUnFenceTopicToReuse() throws Exception {
+    super.testUnFenceTopicToReuse();
+  }
 
-    @Override
-    @Test(enabled = false)
-    public void testDeleteNonPartitionedTopic() throws Exception {
-        super.testDeleteNonPartitionedTopic();
-    }
+  @Override
+  @Test(enabled = false)
+  public void testDeleteNonPartitionedTopic() throws Exception {
+    super.testDeleteNonPartitionedTopic();
+  }
 
-    @Override
-    @Test(enabled = false)
-    public void testDeletePartitionedTopic() throws Exception {
-        super.testDeletePartitionedTopic();
-    }
+  @Override
+  @Test(enabled = false)
+  public void testDeletePartitionedTopic() throws Exception {
+    super.testDeletePartitionedTopic();
+  }
 
-    @Override
-    @Test(enabled = false)
-    public void testNoExpandTopicPartitionsWhenDisableTopicLevelReplication() throws Exception {
-        super.testNoExpandTopicPartitionsWhenDisableTopicLevelReplication();
-    }
+  @Override
+  @Test(enabled = false)
+  public void testNoExpandTopicPartitionsWhenDisableTopicLevelReplication() throws Exception {
+    super.testNoExpandTopicPartitionsWhenDisableTopicLevelReplication();
+  }
 
-    @Override
-    @Test(enabled = false)
-    public void testExpandTopicPartitionsOnNamespaceLevelReplication() throws Exception {
-        super.testExpandTopicPartitionsOnNamespaceLevelReplication();
-    }
+  @Override
+  @Test(enabled = false)
+  public void testExpandTopicPartitionsOnNamespaceLevelReplication() throws Exception {
+    super.testExpandTopicPartitionsOnNamespaceLevelReplication();
+  }
 
-    @Override
-    @Test(enabled = false)
-    public void testReloadWithTopicLevelGeoReplication(ReplicationLevel replicationLevel) throws Exception {
-        super.testReloadWithTopicLevelGeoReplication(replicationLevel);
-    }
+  @Override
+  @Test(enabled = false)
+  public void testReloadWithTopicLevelGeoReplication(ReplicationLevel replicationLevel)
+      throws Exception {
+    super.testReloadWithTopicLevelGeoReplication(replicationLevel);
+  }
 
-    @Test(enabled = false)
-    @Override
-    public void testConfigReplicationStartAt() throws Exception {
-        super.testConfigReplicationStartAt();
-    }
+  @Test(enabled = false)
+  @Override
+  public void testConfigReplicationStartAt() throws Exception {
+    super.testConfigReplicationStartAt();
+  }
 
-    @Test(enabled = false)
-    @Override
-    public void testDifferentTopicCreationRule(ReplicationMode replicationMode) throws Exception {
-        super.testDifferentTopicCreationRule(replicationMode);
-    }
+  @Test(enabled = false)
+  @Override
+  public void testDifferentTopicCreationRule(ReplicationMode replicationMode) throws Exception {
+    super.testDifferentTopicCreationRule(replicationMode);
+  }
 
-    @Test(enabled = false)
-    @Override
-    public void testReplicationCountMetrics() throws Exception {
-        super.testReplicationCountMetrics();
-    }
+  @Test(enabled = false)
+  @Override
+  public void testReplicationCountMetrics() throws Exception {
+    super.testReplicationCountMetrics();
+  }
 
-    @Test(timeOut = 60_000)
-    public void testRemoveCluster() throws Exception {
-        // Initialize.
-        final String ns1 = defaultTenant + "/" + "ns_73b1a31afce34671a5ddc48fe5ad7fc8";
-        final String topic = "persistent://" + ns1 + "/___tp-5dd50794-7af8-4a34-8a0b-06188052c66a";
-        final String topicP0 = TopicName.get(topic).getPartition(0).toString();
-        final String topicP1 = TopicName.get(topic).getPartition(1).toString();
-        final String topicChangeEvents = "persistent://" + ns1 + "/__change_events-partition-0";
-        admin1.namespaces().createNamespace(ns1);
-        admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster1, cluster2)));
-        admin1.topics().createPartitionedTopic(topic, 2);
-        Awaitility.await().untilAsserted(() -> {
-           assertTrue(pulsar2.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
-                   .partitionedTopicExists(TopicName.get(topic)));
-            List<CompletableFuture<StoredSchema>> schemaList11
-                    = pulsar1.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
-            assertEquals(schemaList11.size(), 0);
-            List<CompletableFuture<StoredSchema>> schemaList21
-                    = pulsar2.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
-            assertEquals(schemaList21.size(), 0);
-        });
+  @Test(timeOut = 60_000)
+  public void testRemoveCluster() throws Exception {
+    // Initialize.
+    final String ns1 = defaultTenant + "/" + "ns_73b1a31afce34671a5ddc48fe5ad7fc8";
+    final String topic = "persistent://" + ns1 + "/___tp-5dd50794-7af8-4a34-8a0b-06188052c66a";
+    final String topicP0 = TopicName.get(topic).getPartition(0).toString();
+    final String topicP1 = TopicName.get(topic).getPartition(1).toString();
+    final String topicChangeEvents = "persistent://" + ns1 + "/__change_events-partition-0";
+    admin1.namespaces().createNamespace(ns1);
+    admin1
+        .namespaces()
+        .setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+    admin1.topics().createPartitionedTopic(topic, 2);
+    Awaitility.await()
+        .untilAsserted(
+            () -> {
+              assertTrue(
+                  pulsar2
+                      .getPulsarResources()
+                      .getNamespaceResources()
+                      .getPartitionedTopicResources()
+                      .partitionedTopicExists(TopicName.get(topic)));
+              List<CompletableFuture<StoredSchema>> schemaList11 =
+                  pulsar1.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
+              assertEquals(schemaList11.size(), 0);
+              List<CompletableFuture<StoredSchema>> schemaList21 =
+                  pulsar2.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
+              assertEquals(schemaList21.size(), 0);
+            });
 
-        // Wait for copying messages.
-        Producer<String> p = client1.newProducer(Schema.STRING).topic(topic).create();
-        p.send("msg-1");
-        p.close();
-        Awaitility.await().untilAsserted(() -> {
-            Map<String, CompletableFuture<Optional<Topic>>> tps = pulsar1.getBrokerService().getTopics();
-            assertTrue(tps.containsKey(topicP0));
-            assertTrue(tps.containsKey(topicP1));
-            assertTrue(tps.containsKey(topicChangeEvents));
-            List<CompletableFuture<StoredSchema>> schemaList12
-                    = pulsar1.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
-            assertEquals(schemaList12.size(), 1);
-            List<CompletableFuture<StoredSchema>> schemaList22
-                    = pulsar2.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
-            assertEquals(schemaList12.size(), 1);
-        });
+    // Wait for copying messages.
+    Producer<String> p = client1.newProducer(Schema.STRING).topic(topic).create();
+    p.send("msg-1");
+    p.close();
+    Awaitility.await()
+        .untilAsserted(
+            () -> {
+              Map<String, CompletableFuture<Optional<Topic>>> tps =
+                  pulsar1.getBrokerService().getTopics();
+              assertTrue(tps.containsKey(topicP0));
+              assertTrue(tps.containsKey(topicP1));
+              assertTrue(tps.containsKey(topicChangeEvents));
+              List<CompletableFuture<StoredSchema>> schemaList12 =
+                  pulsar1.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
+              assertEquals(schemaList12.size(), 1);
+              List<CompletableFuture<StoredSchema>> schemaList22 =
+                  pulsar2.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
+              assertEquals(schemaList12.size(), 1);
+            });
 
-        // The topics under the namespace of the cluster-1 will be deleted.
-        // Verify the result.
-        admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster2)));
-        Awaitility.await().atMost(Duration.ofSeconds(60)).ignoreExceptions().untilAsserted(() -> {
-            Map<String, CompletableFuture<Optional<Topic>>> tps = pulsar1.getBrokerService().getTopics();
-            assertFalse(tps.containsKey(topicP0));
-            assertFalse(tps.containsKey(topicP1));
-            assertFalse(tps.containsKey(topicChangeEvents));
-            assertFalse(pulsar1.getNamespaceService()
-                    .checkTopicExistsAsync(TopicName.get(topicChangeEvents))
-                    .get(5, TimeUnit.SECONDS).isExists());
-            // Verify: schema will be removed in local cluster, and remote cluster will not.
-            List<CompletableFuture<StoredSchema>> schemaList13
-                    = pulsar1.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
-            assertEquals(schemaList13.size(), 0);
-            List<CompletableFuture<StoredSchema>> schemaList23
-                    = pulsar2.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
-            assertEquals(schemaList23.size(), 1);
-        });
+    // The topics under the namespace of the cluster-1 will be deleted.
+    // Verify the result.
+    admin1
+        .namespaces()
+        .setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster2)));
+    Awaitility.await()
+        .atMost(Duration.ofSeconds(60))
+        .ignoreExceptions()
+        .untilAsserted(
+            () -> {
+              Map<String, CompletableFuture<Optional<Topic>>> tps =
+                  pulsar1.getBrokerService().getTopics();
+              assertFalse(tps.containsKey(topicP0));
+              assertFalse(tps.containsKey(topicP1));
+              assertFalse(tps.containsKey(topicChangeEvents));
+              assertFalse(
+                  pulsar1
+                      .getNamespaceService()
+                      .checkTopicExistsAsync(TopicName.get(topicChangeEvents))
+                      .get(5, TimeUnit.SECONDS)
+                      .isExists());
+              // Verify: schema will be removed in local cluster, and remote cluster will not.
+              List<CompletableFuture<StoredSchema>> schemaList13 =
+                  pulsar1.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
+              assertEquals(schemaList13.size(), 0);
+              List<CompletableFuture<StoredSchema>> schemaList23 =
+                  pulsar2.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
+              assertEquals(schemaList23.size(), 1);
+            });
 
-        // cleanup.
-        admin2.topics().deletePartitionedTopic(topic);
-        admin2.namespaces().deleteNamespace(ns1);
-    }
+    // cleanup.
+    admin2.topics().deletePartitionedTopic(topic);
+    admin2.namespaces().deleteNamespace(ns1);
+  }
 
-    @Override
-    @Test(dataProvider = "enableDeduplication", enabled = false)
-    public void testIncompatibleMultiVersionSchema(boolean enableDeduplication) throws Exception {
-        super.testIncompatibleMultiVersionSchema(enableDeduplication);
-    }
+  @Override
+  @Test(dataProvider = "enableDeduplication", enabled = false)
+  public void testIncompatibleMultiVersionSchema(boolean enableDeduplication) throws Exception {
+    super.testIncompatibleMultiVersionSchema(enableDeduplication);
+  }
 }

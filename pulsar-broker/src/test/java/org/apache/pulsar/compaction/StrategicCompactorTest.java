@@ -25,25 +25,25 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker-compaction")
 public class StrategicCompactorTest extends CompactorTest {
-    private TopicCompactionStrategy strategy;
+  private TopicCompactionStrategy strategy;
 
-    private StrategicTwoPhaseCompactor compactor;
+  private StrategicTwoPhaseCompactor compactor;
 
-    @BeforeMethod
-    @Override
-    public void setup() throws Exception {
-        super.setup();
-        compactor = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        strategy = new TopicCompactionStrategyTest.DummyTopicCompactionStrategy();
-    }
+  @BeforeMethod
+  @Override
+  public void setup() throws Exception {
+    super.setup();
+    compactor = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+    strategy = new TopicCompactionStrategyTest.DummyTopicCompactionStrategy();
+  }
 
-    @Override
-    protected long compact(String topic) throws ExecutionException, InterruptedException {
-        return (long) compactor.compact(topic, strategy).get();
-    }
+  @Override
+  protected long compact(String topic) throws ExecutionException, InterruptedException {
+    return (long) compactor.compact(topic, strategy).get();
+  }
 
-    @Override
-    protected Compactor getCompactor() {
-        return compactor;
-    }
+  @Override
+  protected Compactor getCompactor() {
+    return compactor;
+  }
 }

@@ -27,50 +27,50 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class LoadManagerSharedTest {
 
-    @Test
-    public void testRemoveMostServicingBrokersForNamespace() {
-        String namespace = "tenant1/ns1";
-        String assignedBundle = namespace + "/0x00000000_0x40000000";
+  @Test
+  public void testRemoveMostServicingBrokersForNamespace() {
+    String namespace = "tenant1/ns1";
+    String assignedBundle = namespace + "/0x00000000_0x40000000";
 
-        Set<String> candidates = new HashSet<>();
-        final var cache = new BundleRangeCache();
-        LoadManagerShared.removeMostServicingBrokersForNamespace(assignedBundle, candidates, cache);
-        Assert.assertEquals(candidates.size(), 0);
+    Set<String> candidates = new HashSet<>();
+    final var cache = new BundleRangeCache();
+    LoadManagerShared.removeMostServicingBrokersForNamespace(assignedBundle, candidates, cache);
+    Assert.assertEquals(candidates.size(), 0);
 
-        candidates = Sets.newHashSet("broker1");
-        LoadManagerShared.removeMostServicingBrokersForNamespace(assignedBundle, candidates, cache);
-        Assert.assertEquals(candidates.size(), 1);
-        Assert.assertTrue(candidates.contains("broker1"));
+    candidates = Sets.newHashSet("broker1");
+    LoadManagerShared.removeMostServicingBrokersForNamespace(assignedBundle, candidates, cache);
+    Assert.assertEquals(candidates.size(), 1);
+    Assert.assertTrue(candidates.contains("broker1"));
 
-        candidates = Sets.newHashSet("broker1");
-        cache.add("broker1", namespace, "0x40000000_0x80000000");
-        LoadManagerShared.removeMostServicingBrokersForNamespace(assignedBundle, candidates, cache);
-        Assert.assertEquals(candidates.size(), 1);
-        Assert.assertTrue(candidates.contains("broker1"));
+    candidates = Sets.newHashSet("broker1");
+    cache.add("broker1", namespace, "0x40000000_0x80000000");
+    LoadManagerShared.removeMostServicingBrokersForNamespace(assignedBundle, candidates, cache);
+    Assert.assertEquals(candidates.size(), 1);
+    Assert.assertTrue(candidates.contains("broker1"));
 
-        candidates = Sets.newHashSet("broker1", "broker2");
-        LoadManagerShared.removeMostServicingBrokersForNamespace(assignedBundle, candidates, cache);
-        Assert.assertEquals(candidates.size(), 1);
-        Assert.assertTrue(candidates.contains("broker2"));
+    candidates = Sets.newHashSet("broker1", "broker2");
+    LoadManagerShared.removeMostServicingBrokersForNamespace(assignedBundle, candidates, cache);
+    Assert.assertEquals(candidates.size(), 1);
+    Assert.assertTrue(candidates.contains("broker2"));
 
-        candidates = Sets.newHashSet("broker1", "broker2");
-        cache.add("broker2", namespace, "0x80000000_0xc0000000");
-        LoadManagerShared.removeMostServicingBrokersForNamespace(assignedBundle, candidates, cache);
-        Assert.assertEquals(candidates.size(), 2);
-        Assert.assertTrue(candidates.contains("broker1"));
-        Assert.assertTrue(candidates.contains("broker2"));
+    candidates = Sets.newHashSet("broker1", "broker2");
+    cache.add("broker2", namespace, "0x80000000_0xc0000000");
+    LoadManagerShared.removeMostServicingBrokersForNamespace(assignedBundle, candidates, cache);
+    Assert.assertEquals(candidates.size(), 2);
+    Assert.assertTrue(candidates.contains("broker1"));
+    Assert.assertTrue(candidates.contains("broker2"));
 
-        candidates = Sets.newHashSet("broker1", "broker2");
-        cache.add("broker2", namespace, "0xc0000000_0xd0000000");
-        LoadManagerShared.removeMostServicingBrokersForNamespace(assignedBundle, candidates, cache);
-        Assert.assertEquals(candidates.size(), 1);
-        Assert.assertTrue(candidates.contains("broker1"));
+    candidates = Sets.newHashSet("broker1", "broker2");
+    cache.add("broker2", namespace, "0xc0000000_0xd0000000");
+    LoadManagerShared.removeMostServicingBrokersForNamespace(assignedBundle, candidates, cache);
+    Assert.assertEquals(candidates.size(), 1);
+    Assert.assertTrue(candidates.contains("broker1"));
 
-        candidates = Sets.newHashSet("broker1", "broker2", "broker3");
-        cache.add("broker3", namespace, "0xd0000000_0xffffffff");
-        LoadManagerShared.removeMostServicingBrokersForNamespace(assignedBundle, candidates, cache);
-        Assert.assertEquals(candidates.size(), 2);
-        Assert.assertTrue(candidates.contains("broker1"));
-        Assert.assertTrue(candidates.contains("broker3"));
-    }
+    candidates = Sets.newHashSet("broker1", "broker2", "broker3");
+    cache.add("broker3", namespace, "0xd0000000_0xffffffff");
+    LoadManagerShared.removeMostServicingBrokersForNamespace(assignedBundle, candidates, cache);
+    Assert.assertEquals(candidates.size(), 2);
+    Assert.assertTrue(candidates.contains("broker1"));
+    Assert.assertTrue(candidates.contains("broker3"));
+  }
 }

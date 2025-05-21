@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.auth;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import java.io.IOException;
@@ -63,230 +64,253 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class AuthorizationWithAuthDataTest extends MockedPulsarServiceBaseTest {
 
-    private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
-    private static final String ADMIN_ROLE = "admin";
-    private static final String ADMIN_TOKEN = Jwts.builder().setSubject(ADMIN_ROLE).signWith(SECRET_KEY).compact();
+  private static final SecretKey SECRET_KEY =
+      AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+  private static final String ADMIN_ROLE = "admin";
+  private static final String ADMIN_TOKEN =
+      Jwts.builder().setSubject(ADMIN_ROLE).signWith(SECRET_KEY).compact();
 
-    public static class MyAuthorizationProvider implements AuthorizationProvider {
+  public static class MyAuthorizationProvider implements AuthorizationProvider {
 
-        public MyAuthorizationProvider() {
-        }
+    public MyAuthorizationProvider() {}
 
-        private void assertRoleAndAuthenticationData(String role, AuthenticationDataSource authenticationData) {
-            assertEquals(role, ADMIN_ROLE);
-            if (authenticationData.hasDataFromHttp()) {
-                String authorization = authenticationData.getHttpHeader("Authorization");
-                assertEquals(authorization, "Bearer " + ADMIN_TOKEN);
-            } else {
-                assertEquals(authenticationData.getCommandData(), ADMIN_TOKEN);
-            }
-        }
-
-        @Override
-        public CompletableFuture<Boolean> isSuperUser(String role, AuthenticationDataSource authenticationData,
-                                                      ServiceConfiguration serviceConfiguration) {
-            assertRoleAndAuthenticationData(role, authenticationData);
-            return CompletableFuture.completedFuture(true);
-        }
-
-        @Override
-        public CompletableFuture<Boolean> isTenantAdmin(String tenant, String role, TenantInfo tenantInfo,
-                                                        AuthenticationDataSource authenticationData) {
-            assertRoleAndAuthenticationData(role, authenticationData);
-            return CompletableFuture.completedFuture(true);
-        }
-
-        @Override
-        public CompletableFuture<Boolean> canProduceAsync(TopicName topicName, String role,
-                                                          AuthenticationDataSource authenticationData) {
-            assertRoleAndAuthenticationData(role, authenticationData);
-            return CompletableFuture.completedFuture(true);
-        }
-
-        @Override
-        public CompletableFuture<Boolean> canConsumeAsync(TopicName topicName, String role,
-                                                          AuthenticationDataSource authenticationData,
-                                                          String subscription) {
-            assertRoleAndAuthenticationData(role, authenticationData);
-            return CompletableFuture.completedFuture(true);
-        }
-
-        @Override
-        public CompletableFuture<Boolean> canLookupAsync(TopicName topicName, String role,
-                                                         AuthenticationDataSource authenticationData) {
-            assertRoleAndAuthenticationData(role, authenticationData);
-            return CompletableFuture.completedFuture(true);
-        }
-
-        @Override
-        public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role,
-                                                                AuthenticationDataSource authenticationData) {
-            assertRoleAndAuthenticationData(role, authenticationData);
-            return CompletableFuture.completedFuture(true);
-        }
-
-        @Override
-        public CompletableFuture<Boolean> allowSourceOpsAsync(NamespaceName namespaceName, String role,
-                                                              AuthenticationDataSource authenticationData) {
-            assertRoleAndAuthenticationData(role, authenticationData);
-            return CompletableFuture.completedFuture(true);
-        }
-
-        @Override
-        public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role,
-                                                            AuthenticationDataSource authenticationData) {
-            assertRoleAndAuthenticationData(role, authenticationData);
-            return CompletableFuture.completedFuture(true);
-        }
-
-        @Override
-        public CompletableFuture<Void> grantPermissionAsync(NamespaceName namespace, Set<AuthAction> actions,
-                                                            String role, String authDataJson) {
-            return CompletableFuture.completedFuture(null);
-        }
-
-        @Override
-        public CompletableFuture<Void> grantSubscriptionPermissionAsync(NamespaceName namespace,
-                                                                        String subscriptionName, Set<String> roles,
-                                                                        String authDataJson) {
-            return CompletableFuture.completedFuture(null);
-        }
-
-        @Override
-        public CompletableFuture<Void> revokeSubscriptionPermissionAsync(NamespaceName namespace,
-                                                                         String subscriptionName, String role,
-                                                                         String authDataJson) {
-            return CompletableFuture.completedFuture(null);
-        }
-
-        @Override
-        public CompletableFuture<Void> grantPermissionAsync(TopicName topicName, Set<AuthAction> actions, String role,
-                                                            String authDataJson) {
-            return CompletableFuture.completedFuture(null);
-        }
-
-        @Override
-        public CompletableFuture<Boolean> allowTenantOperationAsync(String tenantName, String role,
-                                                                    TenantOperation operation,
-                                                                    AuthenticationDataSource authData) {
-            assertRoleAndAuthenticationData(role, authData);
-            return CompletableFuture.completedFuture(true);
-        }
-
-        @Override
-        public CompletableFuture<Boolean> allowNamespaceOperationAsync(NamespaceName namespaceName, String role,
-                                                                       NamespaceOperation operation,
-                                                                       AuthenticationDataSource authData) {
-            assertRoleAndAuthenticationData(role, authData);
-            return CompletableFuture.completedFuture(true);
-        }
-
-        @Override
-        public CompletableFuture<Boolean> allowNamespacePolicyOperationAsync(NamespaceName namespaceName,
-                                                                             PolicyName policy,
-                                                                             PolicyOperation operation, String role,
-                                                                             AuthenticationDataSource authData) {
-            assertRoleAndAuthenticationData(role, authData);
-            return CompletableFuture.completedFuture(true);
-        }
-
-        @Override
-        public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topic, String role,
-                                                                   TopicOperation operation,
-                                                                   AuthenticationDataSource authData) {
-            assertRoleAndAuthenticationData(role, authData);
-            return CompletableFuture.completedFuture(true);
-        }
-
-        @Override
-        public CompletableFuture<Boolean> allowTopicPolicyOperationAsync(TopicName topic, String role,
-                                                                         PolicyName policy, PolicyOperation operation,
-                                                                         AuthenticationDataSource authData) {
-            assertRoleAndAuthenticationData(role, authData);
-            return CompletableFuture.completedFuture(true);
-        }
-
-        @Override
-        public void close() throws IOException {
-            // noop
-        }
+    private void assertRoleAndAuthenticationData(
+        String role, AuthenticationDataSource authenticationData) {
+      assertEquals(role, ADMIN_ROLE);
+      if (authenticationData.hasDataFromHttp()) {
+        String authorization = authenticationData.getHttpHeader("Authorization");
+        assertEquals(authorization, "Bearer " + ADMIN_TOKEN);
+      } else {
+        assertEquals(authenticationData.getCommandData(), ADMIN_TOKEN);
+      }
     }
 
     @Override
-    protected void doInitConf() throws Exception {
-        super.doInitConf();
-        conf.setAuthenticationEnabled(true);
-        conf.getProperties().setProperty("tokenSecretKey", "data:;base64,"
-                + Base64.getEncoder().encodeToString(SECRET_KEY.getEncoded()));
-        Set<String> providers = new HashSet<>();
-        providers.add(AuthenticationProviderToken.class.getName());
-        conf.setAuthenticationProviders(providers);
-        Set<String> superUserRoles = new HashSet<>();
-        superUserRoles.add("admin");
-        conf.setSuperUserRoles(superUserRoles);
-
-        conf.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
-        conf.setBrokerClientAuthenticationParameters(ADMIN_TOKEN);
-
-        conf.setAuthorizationEnabled(true);
-        conf.setAuthorizationProvider(MyAuthorizationProvider.class.getName());
+    public CompletableFuture<Boolean> isSuperUser(
+        String role,
+        AuthenticationDataSource authenticationData,
+        ServiceConfiguration serviceConfiguration) {
+      assertRoleAndAuthenticationData(role, authenticationData);
+      return CompletableFuture.completedFuture(true);
     }
 
-    @SneakyThrows
     @Override
-    protected void customizeNewPulsarAdminBuilder(PulsarAdminBuilder pulsarAdminBuilder) {
-        super.customizeNewPulsarAdminBuilder(pulsarAdminBuilder);
-        pulsarAdminBuilder.authentication(AuthenticationToken.class.getName(), ADMIN_TOKEN);
+    public CompletableFuture<Boolean> isTenantAdmin(
+        String tenant,
+        String role,
+        TenantInfo tenantInfo,
+        AuthenticationDataSource authenticationData) {
+      assertRoleAndAuthenticationData(role, authenticationData);
+      return CompletableFuture.completedFuture(true);
     }
 
-    @SneakyThrows
     @Override
-    protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
-        super.customizeNewPulsarClientBuilder(clientBuilder);
-        clientBuilder.authentication(AuthenticationToken.class.getName(), ADMIN_TOKEN);
+    public CompletableFuture<Boolean> canProduceAsync(
+        TopicName topicName, String role, AuthenticationDataSource authenticationData) {
+      assertRoleAndAuthenticationData(role, authenticationData);
+      return CompletableFuture.completedFuture(true);
     }
 
-    @BeforeClass(alwaysRun = true)
     @Override
-    protected void setup() throws Exception {
-        internalSetup();
-        setupDefaultTenantAndNamespace();
+    public CompletableFuture<Boolean> canConsumeAsync(
+        TopicName topicName,
+        String role,
+        AuthenticationDataSource authenticationData,
+        String subscription) {
+      assertRoleAndAuthenticationData(role, authenticationData);
+      return CompletableFuture.completedFuture(true);
     }
 
-    @AfterClass(alwaysRun = true)
     @Override
-    protected void cleanup() throws Exception {
-        internalCleanup();
+    public CompletableFuture<Boolean> canLookupAsync(
+        TopicName topicName, String role, AuthenticationDataSource authenticationData) {
+      assertRoleAndAuthenticationData(role, authenticationData);
+      return CompletableFuture.completedFuture(true);
     }
 
-    @Test
-    public void testAdmin() throws PulsarAdminException {
-        admin.tenants().createTenant("test-tenant-1",
-                TenantInfo.builder().allowedClusters(Set.of(configClusterName)).build());
-        admin.namespaces().createNamespace("test-tenant-1/test-namespace-1");
-        String partitionedTopic = UUID.randomUUID().toString();
-        admin.topics().createPartitionedTopic(partitionedTopic,3);
-        String nonPartitionedTopic = UUID.randomUUID().toString();
-        admin.topics().createNonPartitionedTopic(nonPartitionedTopic);
-        admin.lookups().lookupPartitionedTopic(partitionedTopic);
-        admin.lookups().lookupTopic(nonPartitionedTopic);
-        admin.topics().delete(nonPartitionedTopic);
+    @Override
+    public CompletableFuture<Boolean> allowFunctionOpsAsync(
+        NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+      assertRoleAndAuthenticationData(role, authenticationData);
+      return CompletableFuture.completedFuture(true);
     }
 
-    @Test
-    public void testClient() throws PulsarClientException {
-        String topic = UUID.randomUUID().toString();
-        @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
-        byte[] msg = "Hello".getBytes(StandardCharsets.UTF_8);
-        producer.send(msg);
-
-        @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscriptionName("test").subscribe();
-        Message<byte[]> receive = consumer.receive(3, TimeUnit.SECONDS);
-        assertNotNull(receive);
-        assertEquals(receive.getData(), msg);
+    @Override
+    public CompletableFuture<Boolean> allowSourceOpsAsync(
+        NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+      assertRoleAndAuthenticationData(role, authenticationData);
+      return CompletableFuture.completedFuture(true);
     }
+
+    @Override
+    public CompletableFuture<Boolean> allowSinkOpsAsync(
+        NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+      assertRoleAndAuthenticationData(role, authenticationData);
+      return CompletableFuture.completedFuture(true);
+    }
+
+    @Override
+    public CompletableFuture<Void> grantPermissionAsync(
+        NamespaceName namespace, Set<AuthAction> actions, String role, String authDataJson) {
+      return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<Void> grantSubscriptionPermissionAsync(
+        NamespaceName namespace, String subscriptionName, Set<String> roles, String authDataJson) {
+      return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<Void> revokeSubscriptionPermissionAsync(
+        NamespaceName namespace, String subscriptionName, String role, String authDataJson) {
+      return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<Void> grantPermissionAsync(
+        TopicName topicName, Set<AuthAction> actions, String role, String authDataJson) {
+      return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> allowTenantOperationAsync(
+        String tenantName,
+        String role,
+        TenantOperation operation,
+        AuthenticationDataSource authData) {
+      assertRoleAndAuthenticationData(role, authData);
+      return CompletableFuture.completedFuture(true);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> allowNamespaceOperationAsync(
+        NamespaceName namespaceName,
+        String role,
+        NamespaceOperation operation,
+        AuthenticationDataSource authData) {
+      assertRoleAndAuthenticationData(role, authData);
+      return CompletableFuture.completedFuture(true);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> allowNamespacePolicyOperationAsync(
+        NamespaceName namespaceName,
+        PolicyName policy,
+        PolicyOperation operation,
+        String role,
+        AuthenticationDataSource authData) {
+      assertRoleAndAuthenticationData(role, authData);
+      return CompletableFuture.completedFuture(true);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> allowTopicOperationAsync(
+        TopicName topic, String role, TopicOperation operation, AuthenticationDataSource authData) {
+      assertRoleAndAuthenticationData(role, authData);
+      return CompletableFuture.completedFuture(true);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> allowTopicPolicyOperationAsync(
+        TopicName topic,
+        String role,
+        PolicyName policy,
+        PolicyOperation operation,
+        AuthenticationDataSource authData) {
+      assertRoleAndAuthenticationData(role, authData);
+      return CompletableFuture.completedFuture(true);
+    }
+
+    @Override
+    public void close() throws IOException {
+      // noop
+    }
+  }
+
+  @Override
+  protected void doInitConf() throws Exception {
+    super.doInitConf();
+    conf.setAuthenticationEnabled(true);
+    conf.getProperties()
+        .setProperty(
+            "tokenSecretKey",
+            "data:;base64," + Base64.getEncoder().encodeToString(SECRET_KEY.getEncoded()));
+    Set<String> providers = new HashSet<>();
+    providers.add(AuthenticationProviderToken.class.getName());
+    conf.setAuthenticationProviders(providers);
+    Set<String> superUserRoles = new HashSet<>();
+    superUserRoles.add("admin");
+    conf.setSuperUserRoles(superUserRoles);
+
+    conf.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
+    conf.setBrokerClientAuthenticationParameters(ADMIN_TOKEN);
+
+    conf.setAuthorizationEnabled(true);
+    conf.setAuthorizationProvider(MyAuthorizationProvider.class.getName());
+  }
+
+  @SneakyThrows
+  @Override
+  protected void customizeNewPulsarAdminBuilder(PulsarAdminBuilder pulsarAdminBuilder) {
+    super.customizeNewPulsarAdminBuilder(pulsarAdminBuilder);
+    pulsarAdminBuilder.authentication(AuthenticationToken.class.getName(), ADMIN_TOKEN);
+  }
+
+  @SneakyThrows
+  @Override
+  protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
+    super.customizeNewPulsarClientBuilder(clientBuilder);
+    clientBuilder.authentication(AuthenticationToken.class.getName(), ADMIN_TOKEN);
+  }
+
+  @BeforeClass(alwaysRun = true)
+  @Override
+  protected void setup() throws Exception {
+    internalSetup();
+    setupDefaultTenantAndNamespace();
+  }
+
+  @AfterClass(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    internalCleanup();
+  }
+
+  @Test
+  public void testAdmin() throws PulsarAdminException {
+    admin
+        .tenants()
+        .createTenant(
+            "test-tenant-1",
+            TenantInfo.builder().allowedClusters(Set.of(configClusterName)).build());
+    admin.namespaces().createNamespace("test-tenant-1/test-namespace-1");
+    String partitionedTopic = UUID.randomUUID().toString();
+    admin.topics().createPartitionedTopic(partitionedTopic, 3);
+    String nonPartitionedTopic = UUID.randomUUID().toString();
+    admin.topics().createNonPartitionedTopic(nonPartitionedTopic);
+    admin.lookups().lookupPartitionedTopic(partitionedTopic);
+    admin.lookups().lookupTopic(nonPartitionedTopic);
+    admin.topics().delete(nonPartitionedTopic);
+  }
+
+  @Test
+  public void testClient() throws PulsarClientException {
+    String topic = UUID.randomUUID().toString();
+    @Cleanup Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+    byte[] msg = "Hello".getBytes(StandardCharsets.UTF_8);
+    producer.send(msg);
+
+    @Cleanup
+    Consumer<byte[]> consumer =
+        pulsarClient
+            .newConsumer()
+            .topic(topic)
+            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+            .subscriptionName("test")
+            .subscribe();
+    Message<byte[]> receive = consumer.receive(3, TimeUnit.SECONDS);
+    assertNotNull(receive);
+    assertEquals(receive.getData(), msg);
+  }
 }

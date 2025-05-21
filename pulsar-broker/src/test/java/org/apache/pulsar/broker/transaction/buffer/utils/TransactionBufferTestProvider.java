@@ -25,9 +25,8 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 
 public class TransactionBufferTestProvider implements TransactionBufferProvider {
 
-    @Override
-    public TransactionBuffer newTransactionBuffer(Topic originTopic) {
-        return new TransactionBufferTestImpl((PersistentTopic) originTopic);
-    }
+  @Override
+  public TransactionBuffer newTransactionBuffer(Topic originTopic) {
+    return new TransactionBufferTestImpl((PersistentTopic) originTopic);
+  }
 }
-

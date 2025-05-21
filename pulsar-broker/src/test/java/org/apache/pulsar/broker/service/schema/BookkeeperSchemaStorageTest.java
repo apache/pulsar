@@ -18,6 +18,13 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import static org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.bkException;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+
 import java.nio.ByteBuffer;
 import org.apache.bookkeeper.client.api.BKException;
 import org.apache.pulsar.broker.PulsarService;
@@ -26,51 +33,51 @@ import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.testng.annotations.Test;
 
-import static org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.bkException;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
-
 @Test(groups = "broker")
 public class BookkeeperSchemaStorageTest {
 
-    @Test
-    public void testBkException() {
-        Exception ex = bkException("test", BKException.Code.ReadException, 1, -1, false);
-        assertEquals("Error while reading ledger -  ledger=1 - operation=test", ex.getMessage());
-        ex = bkException("test", BKException.Code.ReadException, 1, 0, false);
-        assertEquals("Error while reading ledger -  ledger=1 - operation=test - entry=0",
-                ex.getMessage());
-        ex = bkException("test", BKException.Code.QuorumException, 1, -1, false);
-        assertEquals("Invalid quorum size on ensemble size -  ledger=1 - operation=test",
-                ex.getMessage());
-        ex = bkException("test", BKException.Code.QuorumException, 1, 0, false);
-        assertEquals("Invalid quorum size on ensemble size -  ledger=1 - operation=test - entry=0",
-                ex.getMessage());
-        SchemaException sc = (SchemaException) bkException("test", BKException.Code.BookieHandleNotAvailableException, 1, 0, false);
-        assertTrue(sc.isRecoverable());
-        sc = (SchemaException) bkException("test", BKException.Code.BookieHandleNotAvailableException, 1, 0, true);
-        assertFalse(sc.isRecoverable());
-    }
+  @Test
+  public void testBkException() {
+    Exception ex = bkException("test", BKException.Code.ReadException, 1, -1, false);
+    assertEquals("Error while reading ledger -  ledger=1 - operation=test", ex.getMessage());
+    ex = bkException("test", BKException.Code.ReadException, 1, 0, false);
+    assertEquals(
+        "Error while reading ledger -  ledger=1 - operation=test - entry=0", ex.getMessage());
+    ex = bkException("test", BKException.Code.QuorumException, 1, -1, false);
+    assertEquals(
+        "Invalid quorum size on ensemble size -  ledger=1 - operation=test", ex.getMessage());
+    ex = bkException("test", BKException.Code.QuorumException, 1, 0, false);
+    assertEquals(
+        "Invalid quorum size on ensemble size -  ledger=1 - operation=test - entry=0",
+        ex.getMessage());
+    SchemaException sc =
+        (SchemaException)
+            bkException("test", BKException.Code.BookieHandleNotAvailableException, 1, 0, false);
+    assertTrue(sc.isRecoverable());
+    sc =
+        (SchemaException)
+            bkException("test", BKException.Code.BookieHandleNotAvailableException, 1, 0, true);
+    assertFalse(sc.isRecoverable());
+  }
 
-    @Test
-    public void testVersionFromBytes() {
-        long version = System.currentTimeMillis();
+  @Test
+  public void testVersionFromBytes() {
+    long version = System.currentTimeMillis();
 
-        ByteBuffer bbPre240 = ByteBuffer.allocate(Long.SIZE);
-        bbPre240.putLong(version);
-        byte[] versionBytesPre240 = bbPre240.array();
+    ByteBuffer bbPre240 = ByteBuffer.allocate(Long.SIZE);
+    bbPre240.putLong(version);
+    byte[] versionBytesPre240 = bbPre240.array();
 
-        ByteBuffer bbPost240 = ByteBuffer.allocate(Long.BYTES);
-        bbPost240.putLong(version);
-        byte[] versionBytesPost240 = bbPost240.array();
+    ByteBuffer bbPost240 = ByteBuffer.allocate(Long.BYTES);
+    bbPost240.putLong(version);
+    byte[] versionBytesPost240 = bbPost240.array();
 
-        PulsarService mockPulsarService = mock(PulsarService.class);
-        when(mockPulsarService.getLocalMetadataStore()).thenReturn(mock(MetadataStoreExtended.class));
-        BookkeeperSchemaStorage schemaStorage = new BookkeeperSchemaStorage(mockPulsarService);
-        assertEquals(new LongSchemaVersion(version), schemaStorage.versionFromBytes(versionBytesPre240));
-        assertEquals(new LongSchemaVersion(version), schemaStorage.versionFromBytes(versionBytesPost240));
-    }
+    PulsarService mockPulsarService = mock(PulsarService.class);
+    when(mockPulsarService.getLocalMetadataStore()).thenReturn(mock(MetadataStoreExtended.class));
+    BookkeeperSchemaStorage schemaStorage = new BookkeeperSchemaStorage(mockPulsarService);
+    assertEquals(
+        new LongSchemaVersion(version), schemaStorage.versionFromBytes(versionBytesPre240));
+    assertEquals(
+        new LongSchemaVersion(version), schemaStorage.versionFromBytes(versionBytesPost240));
+  }
 }

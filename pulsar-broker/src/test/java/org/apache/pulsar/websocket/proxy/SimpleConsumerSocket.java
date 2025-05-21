@@ -40,102 +40,102 @@ import org.slf4j.LoggerFactory;
 
 @WebSocket(maxTextMessageSize = 64 * 1024)
 public class SimpleConsumerSocket {
-    private static final String X_PULSAR_MESSAGE_ID = "messageId";
-    private final CountDownLatch closeLatch;
-    private Session session;
-    private final List<String> consumerBuffer;
-    private final List<JsonObject> messages;
-    private final AtomicInteger receivedMessages = new AtomicInteger();
-    // Custom message handler to override standard message processing, if it's needed
-    private SimpleConsumerMessageHandler customMessageHandler;
+  private static final String X_PULSAR_MESSAGE_ID = "messageId";
+  private final CountDownLatch closeLatch;
+  private Session session;
+  private final List<String> consumerBuffer;
+  private final List<JsonObject> messages;
+  private final AtomicInteger receivedMessages = new AtomicInteger();
+  // Custom message handler to override standard message processing, if it's needed
+  private SimpleConsumerMessageHandler customMessageHandler;
 
-    public SimpleConsumerSocket() {
-        this.closeLatch = new CountDownLatch(1);
-        consumerBuffer = Collections.synchronizedList(new ArrayList<>());
-        this.messages = Collections.synchronizedList(new ArrayList<>());
+  public SimpleConsumerSocket() {
+    this.closeLatch = new CountDownLatch(1);
+    consumerBuffer = Collections.synchronizedList(new ArrayList<>());
+    this.messages = Collections.synchronizedList(new ArrayList<>());
+  }
+
+  public boolean awaitClose(int duration, TimeUnit unit) throws InterruptedException {
+    return this.closeLatch.await(duration, unit);
+  }
+
+  public void setMessageHandler(SimpleConsumerMessageHandler handler) {
+    customMessageHandler = handler;
+  }
+
+  @OnWebSocketClose
+  public void onClose(int statusCode, String reason) {
+    log.info("Connection closed: {} - {}", statusCode, reason);
+    this.session = null;
+    this.closeLatch.countDown();
+  }
+
+  @OnWebSocketConnect
+  public void onConnect(Session session) throws InterruptedException {
+    log.info("Got connect: {}", session);
+    this.session = session;
+    log.debug("Got connected: {}", session);
+  }
+
+  @OnWebSocketMessage
+  public synchronized void onMessage(String msg) throws JsonParseException, IOException {
+    receivedMessages.incrementAndGet();
+    JsonObject message = new Gson().fromJson(msg, JsonObject.class);
+    this.messages.add(message);
+    if (message.get(X_PULSAR_MESSAGE_ID) != null) {
+      String messageId = message.get(X_PULSAR_MESSAGE_ID).getAsString();
+      consumerBuffer.add(messageId);
+      if (customMessageHandler != null) {
+        this.getRemote().sendString(customMessageHandler.handle(messageId, message));
+      } else {
+        JsonObject ack = new JsonObject();
+        ack.add("messageId", new JsonPrimitive(messageId));
+        // Acking the proxy
+        this.getRemote().sendString(ack.toString());
+      }
+    } else {
+      consumerBuffer.add(message.toString());
     }
+  }
 
-    public boolean awaitClose(int duration, TimeUnit unit) throws InterruptedException {
-        return this.closeLatch.await(duration, unit);
-    }
+  public void sendPermits(int nbPermits) throws IOException {
+    JsonObject permitMessage = new JsonObject();
+    permitMessage.add("type", new JsonPrimitive("permit"));
+    permitMessage.add("permitMessages", new JsonPrimitive(nbPermits));
+    this.getRemote().sendString(permitMessage.toString());
+  }
 
-    public void setMessageHandler(SimpleConsumerMessageHandler handler) {
-        customMessageHandler = handler;
-    }
+  public void unsubscribe() throws IOException {
+    JsonObject message = new JsonObject();
+    message.add("type", new JsonPrimitive("unsubscribe"));
+    this.getRemote().sendString(message.toString());
+  }
 
-    @OnWebSocketClose
-    public void onClose(int statusCode, String reason) {
-        log.info("Connection closed: {} - {}", statusCode, reason);
-        this.session = null;
-        this.closeLatch.countDown();
-    }
+  public void isEndOfTopic() throws IOException {
+    JsonObject message = new JsonObject();
+    message.add("type", new JsonPrimitive("isEndOfTopic"));
+    this.getRemote().sendString(message.toString());
+  }
 
-    @OnWebSocketConnect
-    public void onConnect(Session session) throws InterruptedException {
-        log.info("Got connect: {}", session);
-        this.session = session;
-        log.debug("Got connected: {}", session);
-    }
+  public RemoteEndpoint getRemote() {
+    return this.session.getRemote();
+  }
 
-    @OnWebSocketMessage
-    public synchronized void onMessage(String msg) throws JsonParseException, IOException {
-        receivedMessages.incrementAndGet();
-        JsonObject message = new Gson().fromJson(msg, JsonObject.class);
-        this.messages.add(message);
-        if (message.get(X_PULSAR_MESSAGE_ID) != null) {
-            String messageId = message.get(X_PULSAR_MESSAGE_ID).getAsString();
-            consumerBuffer.add(messageId);
-            if (customMessageHandler != null) {
-                this.getRemote().sendString(customMessageHandler.handle(messageId, message));
-            } else {
-                JsonObject ack = new JsonObject();
-                ack.add("messageId", new JsonPrimitive(messageId));
-                // Acking the proxy
-                this.getRemote().sendString(ack.toString());
-            }
-        } else {
-            consumerBuffer.add(message.toString());
-        }
-    }
+  public Session getSession() {
+    return this.session;
+  }
 
-    public void sendPermits(int nbPermits) throws IOException {
-        JsonObject permitMessage = new JsonObject();
-        permitMessage.add("type", new JsonPrimitive("permit"));
-        permitMessage.add("permitMessages", new JsonPrimitive(nbPermits));
-        this.getRemote().sendString(permitMessage.toString());
-    }
+  public List<String> getBuffer() {
+    return consumerBuffer;
+  }
 
-    public void unsubscribe() throws IOException {
-        JsonObject message = new JsonObject();
-        message.add("type", new JsonPrimitive("unsubscribe"));
-        this.getRemote().sendString(message.toString());
-    }
+  public int getReceivedMessagesCount() {
+    return receivedMessages.get();
+  }
 
-    public void isEndOfTopic() throws IOException {
-        JsonObject message = new JsonObject();
-        message.add("type", new JsonPrimitive("isEndOfTopic"));
-        this.getRemote().sendString(message.toString());
-    }
+  private static final Logger log = LoggerFactory.getLogger(SimpleConsumerSocket.class);
 
-    public RemoteEndpoint getRemote() {
-        return this.session.getRemote();
-    }
-
-    public Session getSession() {
-        return this.session;
-    }
-
-    public List<String> getBuffer() {
-        return consumerBuffer;
-    }
-
-    public int getReceivedMessagesCount() {
-        return receivedMessages.get();
-    }
-
-    private static final Logger log = LoggerFactory.getLogger(SimpleConsumerSocket.class);
-
-    public List<JsonObject> getMessages() {
-        return messages;
-    }
+  public List<JsonObject> getMessages() {
+    return messages;
+  }
 }

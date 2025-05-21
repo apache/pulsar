@@ -25,6 +25,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
@@ -56,294 +57,304 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class AbstractBaseDispatcherTest {
 
-    private AbstractBaseDispatcherTestHelper helper;
+  private AbstractBaseDispatcherTestHelper helper;
 
-    private ServiceConfiguration svcConfig;
+  private ServiceConfiguration svcConfig;
 
-    private PersistentSubscription subscriptionMock;
+  private PersistentSubscription subscriptionMock;
 
-    @BeforeMethod
-    public void setup() throws Exception {
-        this.svcConfig = mock(ServiceConfiguration.class);
-        when(svcConfig.isDispatchThrottlingForFilteredEntriesEnabled()).thenReturn(true);
-        this.subscriptionMock = mock(PersistentSubscription.class);
-        this.helper = new AbstractBaseDispatcherTestHelper(this.subscriptionMock, this.svcConfig, null);
+  @BeforeMethod
+  public void setup() throws Exception {
+    this.svcConfig = mock(ServiceConfiguration.class);
+    when(svcConfig.isDispatchThrottlingForFilteredEntriesEnabled()).thenReturn(true);
+    this.subscriptionMock = mock(PersistentSubscription.class);
+    this.helper = new AbstractBaseDispatcherTestHelper(this.subscriptionMock, this.svcConfig, null);
+  }
+
+  @Test
+  public void testFilterEntriesForConsumerOfNullElement() {
+    List<Entry> entries = new ArrayList<>();
+    entries.add(null);
+
+    SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
+    EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
+
+    int size =
+        this.helper.filterEntriesForConsumer(
+            entries, batchSizes, sendMessageInfo, null, null, false, null);
+    assertEquals(size, 0);
+  }
+
+  @Test
+  public void testFilterEntriesForConsumerOfEntryFilter() throws Exception {
+    Topic mockTopic = mock(Topic.class);
+    when(this.subscriptionMock.getTopic()).thenReturn(mockTopic);
+
+    final EntryFilterProvider entryFilterProvider = mock(EntryFilterProvider.class);
+    final ServiceConfiguration serviceConfiguration = mock(ServiceConfiguration.class);
+    when(serviceConfiguration.isAllowOverrideEntryFilters()).thenReturn(true);
+    final PulsarService pulsar = mock(PulsarService.class);
+    when(pulsar.getConfiguration()).thenReturn(serviceConfiguration);
+    BrokerService mockBrokerService = mock(BrokerService.class);
+    when(mockBrokerService.pulsar()).thenReturn(pulsar);
+    when(mockBrokerService.getEntryFilterProvider()).thenReturn(entryFilterProvider);
+    when(mockTopic.getBrokerService()).thenReturn(mockBrokerService);
+    EntryFilter mockFilter = mock(EntryFilter.class);
+    when(mockFilter.filterEntry(any(Entry.class), any(FilterContext.class)))
+        .thenReturn(EntryFilter.FilterResult.REJECT);
+    when(mockTopic.getEntryFilters()).thenReturn(List.of(mockFilter));
+    DispatchRateLimiter subscriptionDispatchRateLimiter = mock(DispatchRateLimiter.class);
+
+    this.helper =
+        new AbstractBaseDispatcherTestHelper(
+            this.subscriptionMock, this.svcConfig, subscriptionDispatchRateLimiter);
+
+    List<Entry> entries = new ArrayList<>();
+
+    ByteBuf message = createMessage("message1", 1);
+    Entry e = EntryImpl.create(1, 2, message);
+    message.release();
+    long expectedBytePermits = e.getLength();
+    entries.add(e);
+    SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
+    EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
+
+    ManagedCursor cursor = mock(ManagedCursor.class);
+
+    int size =
+        this.helper.filterEntriesForConsumer(
+            entries, batchSizes, sendMessageInfo, null, cursor, false, null);
+    assertEquals(size, 0);
+    verify(subscriptionDispatchRateLimiter).consumeDispatchQuota(1, expectedBytePermits);
+  }
+
+  @Test
+  public void testFilterEntriesForConsumerOfTxnMsgAbort() {
+    List<Entry> entries = new ArrayList<>();
+    ByteBuf message = createTnxAbortMessage("message1", 1);
+    entries.add(EntryImpl.create(1, 1, message));
+    message.release();
+
+    SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
+    EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
+    int size =
+        this.helper.filterEntriesForConsumer(
+            entries, batchSizes, sendMessageInfo, null, null, false, null);
+    assertEquals(size, 0);
+  }
+
+  @Test
+  public void testFilterEntriesForConsumerOfTxnBufferAbort() {
+    PersistentTopic mockTopic = mock(PersistentTopic.class);
+    when(this.subscriptionMock.getTopic()).thenReturn(mockTopic);
+
+    when(mockTopic.isTxnAborted(any(TxnID.class), any())).thenReturn(true);
+
+    List<Entry> entries = new ArrayList<>();
+    ByteBuf message = createTnxMessage("message1", 1);
+    entries.add(EntryImpl.create(1, 1, message));
+    message.release();
+
+    SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
+    EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
+    int size =
+        this.helper.filterEntriesForConsumer(
+            entries, batchSizes, sendMessageInfo, null, null, false, null);
+    assertEquals(size, 0);
+  }
+
+  @Test
+  public void testFilterEntriesForConsumerOfServerOnlyMarker() {
+    List<Entry> entries = new ArrayList<>();
+    ByteBuf markerMessage =
+        Markers.newReplicatedSubscriptionsSnapshotRequest("testSnapshotId", "testSourceCluster");
+    entries.add(EntryImpl.create(1, 1, markerMessage));
+    markerMessage.release();
+
+    SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
+    EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
+    int size =
+        this.helper.filterEntriesForConsumer(
+            entries, batchSizes, sendMessageInfo, null, null, false, null);
+    assertEquals(size, 0);
+  }
+
+  @Test
+  public void testFilterEntriesForConsumerOfDelayedMsg() {
+    List<Entry> entries = new ArrayList<>();
+    ByteBuf message = createDelayedMessage("message1", 1);
+    entries.add(EntryImpl.create(1, 1, message));
+    message.release();
+
+    SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
+    EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
+    int size =
+        this.helper.filterEntriesForConsumer(
+            entries, batchSizes, sendMessageInfo, null, null, false, null);
+    assertEquals(size, 0);
+  }
+
+  private ByteBuf createMessage(String message, int sequenceId) {
+    MessageMetadata messageMetadata =
+        new MessageMetadata()
+            .setSequenceId(sequenceId)
+            .setProducerName("testProducer")
+            .setPartitionKeyB64Encoded(false)
+            .setPublishTime(System.currentTimeMillis());
+    return serializeMetadataAndPayload(
+        Commands.ChecksumType.Crc32c,
+        messageMetadata,
+        Unpooled.copiedBuffer(message.getBytes(UTF_8)));
+  }
+
+  private ByteBuf createTnxMessage(String message, int sequenceId) {
+    MessageMetadata messageMetadata =
+        new MessageMetadata()
+            .setSequenceId(sequenceId)
+            .setProducerName("testProducer")
+            .setPartitionKeyB64Encoded(false)
+            .setPublishTime(System.currentTimeMillis())
+            .setTxnidMostBits(8)
+            .setTxnidLeastBits(0);
+    return serializeMetadataAndPayload(
+        Commands.ChecksumType.Crc32c,
+        messageMetadata,
+        Unpooled.copiedBuffer(message.getBytes(UTF_8)));
+  }
+
+  private ByteBuf createTnxAbortMessage(String message, int sequenceId) {
+    MessageMetadata messageMetadata =
+        new MessageMetadata()
+            .setSequenceId(sequenceId)
+            .setProducerName("testProducer")
+            .setPartitionKeyB64Encoded(false)
+            .setPublishTime(System.currentTimeMillis())
+            .setTxnidMostBits(8)
+            .setTxnidLeastBits(0)
+            .setMarkerType(MarkerType.TXN_ABORT_VALUE);
+    return serializeMetadataAndPayload(
+        Commands.ChecksumType.Crc32c,
+        messageMetadata,
+        Unpooled.copiedBuffer(message.getBytes(UTF_8)));
+  }
+
+  private ByteBuf createDelayedMessage(String message, int sequenceId) {
+    MessageMetadata messageMetadata =
+        new MessageMetadata()
+            .setSequenceId(sequenceId)
+            .setProducerName("testProducer")
+            .setPartitionKeyB64Encoded(false)
+            .setPublishTime(System.currentTimeMillis())
+            .setDeliverAtTime(System.currentTimeMillis() + 5000);
+    return serializeMetadataAndPayload(
+        Commands.ChecksumType.Crc32c,
+        messageMetadata,
+        Unpooled.copiedBuffer(message.getBytes(UTF_8)));
+  }
+
+  private static class AbstractBaseDispatcherTestHelper extends AbstractBaseDispatcher {
+
+    private final Optional<DispatchRateLimiter> dispatchRateLimiter;
+
+    protected AbstractBaseDispatcherTestHelper(
+        Subscription subscription,
+        ServiceConfiguration serviceConfig,
+        DispatchRateLimiter rateLimiter) {
+      super(subscription, serviceConfig);
+      dispatchRateLimiter = Optional.ofNullable(rateLimiter);
     }
 
-    @Test
-    public void testFilterEntriesForConsumerOfNullElement() {
-        List<Entry> entries = new ArrayList<>();
-        entries.add(null);
-
-        SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
-        EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
-
-        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false, null);
-        assertEquals(size, 0);
+    @Override
+    public Optional<DispatchRateLimiter> getRateLimiter() {
+      return dispatchRateLimiter;
     }
 
-
-    @Test
-    public void testFilterEntriesForConsumerOfEntryFilter() throws Exception {
-        Topic mockTopic = mock(Topic.class);
-        when(this.subscriptionMock.getTopic()).thenReturn(mockTopic);
-
-        final EntryFilterProvider entryFilterProvider = mock(EntryFilterProvider.class);
-        final ServiceConfiguration serviceConfiguration = mock(ServiceConfiguration.class);
-        when(serviceConfiguration.isAllowOverrideEntryFilters()).thenReturn(true);
-        final PulsarService pulsar = mock(PulsarService.class);
-        when(pulsar.getConfiguration()).thenReturn(serviceConfiguration);
-        BrokerService mockBrokerService = mock(BrokerService.class);
-        when(mockBrokerService.pulsar()).thenReturn(pulsar);
-        when(mockBrokerService.getEntryFilterProvider()).thenReturn(entryFilterProvider);
-        when(mockTopic.getBrokerService()).thenReturn(mockBrokerService);
-        EntryFilter mockFilter = mock(EntryFilter.class);
-        when(mockFilter.filterEntry(any(Entry.class), any(FilterContext.class))).thenReturn(
-                EntryFilter.FilterResult.REJECT);
-        when(mockTopic.getEntryFilters()).thenReturn(List.of(mockFilter));
-        DispatchRateLimiter subscriptionDispatchRateLimiter = mock(DispatchRateLimiter.class);
-
-        this.helper = new AbstractBaseDispatcherTestHelper(this.subscriptionMock, this.svcConfig,
-                subscriptionDispatchRateLimiter);
-
-        List<Entry> entries = new ArrayList<>();
-
-        ByteBuf message = createMessage("message1", 1);
-        Entry e = EntryImpl.create(1, 2, message);
-        message.release();
-        long expectedBytePermits = e.getLength();
-        entries.add(e);
-        SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
-        EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
-
-        ManagedCursor cursor = mock(ManagedCursor.class);
-
-        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, cursor, false, null);
-        assertEquals(size, 0);
-        verify(subscriptionDispatchRateLimiter).consumeDispatchQuota(1, expectedBytePermits);
+    @Override
+    protected boolean isConsumersExceededOnSubscription() {
+      return false;
     }
 
-    @Test
-    public void testFilterEntriesForConsumerOfTxnMsgAbort() {
-        List<Entry> entries = new ArrayList<>();
-        ByteBuf message = createTnxAbortMessage("message1", 1);
-        entries.add(EntryImpl.create(1, 1, message));
-        message.release();
-
-        SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
-        EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
-        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false, null);
-        assertEquals(size, 0);
+    @Override
+    public boolean trackDelayedDelivery(long ledgerId, long entryId, MessageMetadata msgMetadata) {
+      return msgMetadata.hasDeliverAtTime();
     }
 
-    @Test
-    public void testFilterEntriesForConsumerOfTxnBufferAbort() {
-        PersistentTopic mockTopic = mock(PersistentTopic.class);
-        when(this.subscriptionMock.getTopic()).thenReturn(mockTopic);
+    @Override
+    protected void reScheduleRead() {}
 
-        when(mockTopic.isTxnAborted(any(TxnID.class), any())).thenReturn(true);
-
-        List<Entry> entries = new ArrayList<>();
-        ByteBuf message = createTnxMessage("message1", 1);
-        entries.add(EntryImpl.create(1, 1, message));
-        message.release();
-
-        SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
-        EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
-        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false, null);
-        assertEquals(size, 0);
+    @Override
+    public String getName() {
+      return "AbstractBaseDispatcherTestHelper for subscription" + subscription.getName();
     }
 
-    @Test
-    public void testFilterEntriesForConsumerOfServerOnlyMarker() {
-        List<Entry> entries = new ArrayList<>();
-        ByteBuf markerMessage =
-                Markers.newReplicatedSubscriptionsSnapshotRequest("testSnapshotId", "testSourceCluster");
-        entries.add(EntryImpl.create(1, 1, markerMessage));
-        markerMessage.release();
-
-        SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
-        EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
-        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false, null);
-        assertEquals(size, 0);
+    @Override
+    public CompletableFuture<Void> addConsumer(Consumer consumer) {
+      return CompletableFuture.completedFuture(null);
     }
 
-    @Test
-    public void testFilterEntriesForConsumerOfDelayedMsg() {
-        List<Entry> entries = new ArrayList<>();
-        ByteBuf message = createDelayedMessage("message1", 1);
-        entries.add(EntryImpl.create(1, 1, message));
-        message.release();
+    @Override
+    public void removeConsumer(Consumer consumer) throws BrokerServiceException {}
 
-        SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
-        EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
-        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false, null);
-        assertEquals(size, 0);
+    @Override
+    public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {}
+
+    @Override
+    public boolean isConsumerConnected() {
+      return false;
     }
 
-    private ByteBuf createMessage(String message, int sequenceId) {
-        MessageMetadata messageMetadata = new MessageMetadata()
-                .setSequenceId(sequenceId)
-                .setProducerName("testProducer")
-                .setPartitionKeyB64Encoded(false)
-                .setPublishTime(System.currentTimeMillis());
-        return serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata,
-                Unpooled.copiedBuffer(message.getBytes(UTF_8)));
+    @Override
+    public List<Consumer> getConsumers() {
+      return null;
     }
 
-    private ByteBuf createTnxMessage(String message, int sequenceId) {
-        MessageMetadata messageMetadata = new MessageMetadata()
-                .setSequenceId(sequenceId)
-                .setProducerName("testProducer")
-                .setPartitionKeyB64Encoded(false)
-                .setPublishTime(System.currentTimeMillis())
-                .setTxnidMostBits(8)
-                .setTxnidLeastBits(0);
-        return serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata,
-                Unpooled.copiedBuffer(message.getBytes(UTF_8)));
+    @Override
+    public boolean canUnsubscribe(Consumer consumer) {
+      return false;
     }
 
-    private ByteBuf createTnxAbortMessage(String message, int sequenceId) {
-        MessageMetadata messageMetadata = new MessageMetadata()
-                .setSequenceId(sequenceId)
-                .setProducerName("testProducer")
-                .setPartitionKeyB64Encoded(false)
-                .setPublishTime(System.currentTimeMillis())
-                .setTxnidMostBits(8)
-                .setTxnidLeastBits(0)
-                .setMarkerType(MarkerType.TXN_ABORT_VALUE);
-        return serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata,
-                Unpooled.copiedBuffer(message.getBytes(UTF_8)));
+    @Override
+    public CompletableFuture<Void> close(
+        boolean disconnectConsumers, Optional<BrokerLookupData> assignedBrokerLookupData) {
+      return null;
     }
 
-    private ByteBuf createDelayedMessage(String message, int sequenceId) {
-        MessageMetadata messageMetadata = new MessageMetadata()
-                .setSequenceId(sequenceId)
-                .setProducerName("testProducer")
-                .setPartitionKeyB64Encoded(false)
-                .setPublishTime(System.currentTimeMillis())
-                .setDeliverAtTime(System.currentTimeMillis() + 5000);
-        return serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata,
-                Unpooled.copiedBuffer(message.getBytes(UTF_8)));
+    @Override
+    public boolean isClosed() {
+      return false;
     }
 
-    private static class AbstractBaseDispatcherTestHelper extends AbstractBaseDispatcher {
-
-        private final Optional<DispatchRateLimiter> dispatchRateLimiter;
-
-        protected AbstractBaseDispatcherTestHelper(Subscription subscription,
-                                                   ServiceConfiguration serviceConfig,
-                                                   DispatchRateLimiter rateLimiter) {
-            super(subscription, serviceConfig);
-            dispatchRateLimiter = Optional.ofNullable(rateLimiter);
-        }
-
-        @Override
-        public Optional<DispatchRateLimiter> getRateLimiter() {
-            return dispatchRateLimiter;
-        }
-
-        @Override
-        protected boolean isConsumersExceededOnSubscription() {
-            return false;
-        }
-
-        @Override
-        public boolean trackDelayedDelivery(long ledgerId, long entryId, MessageMetadata msgMetadata) {
-            return msgMetadata.hasDeliverAtTime();
-        }
-
-        @Override
-        protected void reScheduleRead() {
-
-        }
-
-        @Override
-        public String getName() {
-            return "AbstractBaseDispatcherTestHelper for subscription" + subscription.getName();
-        }
-
-        @Override
-        public CompletableFuture<Void> addConsumer(Consumer consumer) {
-            return CompletableFuture.completedFuture(null);
-        }
-
-        @Override
-        public void removeConsumer(Consumer consumer) throws BrokerServiceException {
-
-        }
-
-        @Override
-        public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-
-        }
-
-        @Override
-        public boolean isConsumerConnected() {
-            return false;
-        }
-
-        @Override
-        public List<Consumer> getConsumers() {
-            return null;
-        }
-
-        @Override
-        public boolean canUnsubscribe(Consumer consumer) {
-            return false;
-        }
-
-        @Override
-        public CompletableFuture<Void> close(boolean disconnectConsumers,
-                                             Optional<BrokerLookupData> assignedBrokerLookupData) {
-            return null;
-        }
-
-        @Override
-        public boolean isClosed() {
-            return false;
-        }
-
-        @Override
-        public CompletableFuture<Void> disconnectActiveConsumers(boolean isResetCursor) {
-            return null;
-        }
-
-        @Override
-        public CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor,
-                                                              Optional<BrokerLookupData> assignedBrokerLookupData) {
-            return null;
-        }
-
-        @Override
-        public void reset() {
-
-        }
-
-        @Override
-        public CommandSubscribe.SubType getType() {
-            return null;
-        }
-
-        @Override
-        public void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
-
-        }
-
-        @Override
-        public void redeliverUnacknowledgedMessages(Consumer consumer, List<Position> positions) {
-
-        }
-
-        @Override
-        public void addUnAckedMessages(int unAckMessages) {
-
-        }
-
-        @Override
-        public RedeliveryTracker getRedeliveryTracker() {
-            return null;
-        }
+    @Override
+    public CompletableFuture<Void> disconnectActiveConsumers(boolean isResetCursor) {
+      return null;
     }
 
+    @Override
+    public CompletableFuture<Void> disconnectAllConsumers(
+        boolean isResetCursor, Optional<BrokerLookupData> assignedBrokerLookupData) {
+      return null;
+    }
+
+    @Override
+    public void reset() {}
+
+    @Override
+    public CommandSubscribe.SubType getType() {
+      return null;
+    }
+
+    @Override
+    public void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {}
+
+    @Override
+    public void redeliverUnacknowledgedMessages(Consumer consumer, List<Position> positions) {}
+
+    @Override
+    public void addUnAckedMessages(int unAckMessages) {}
+
+    @Override
+    public RedeliveryTracker getRedeliveryTracker() {
+      return null;
+    }
+  }
 }

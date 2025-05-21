@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.intercept;
 
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -42,143 +43,141 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 import org.testng.collections.Sets;
 
-/**
- * Tests for the the interceptor filter out.
- */
+/** Tests for the the interceptor filter out. */
 @Test(groups = "broker")
 public class InterceptFilterOutTest {
 
-    private static final String[] shouldBeFilterOutContentTypes = new String[] {
-            "multipart/form-data",
-            "Multipart/form-data",
-            "multipart/form-data; boundary=------",
-            "multipart/Form-data; boundary=------",
-            "application/octet-stream",
-            "application/Octet-stream",
-            "application/octet-stream; xxx"
-    };
+  private static final String[] shouldBeFilterOutContentTypes =
+      new String[] {
+        "multipart/form-data",
+        "Multipart/form-data",
+        "multipart/form-data; boundary=------",
+        "multipart/Form-data; boundary=------",
+        "application/octet-stream",
+        "application/Octet-stream",
+        "application/octet-stream; xxx"
+      };
 
-    @Test
-    public void testFilterOutForPreInterceptFilter() throws Exception {
-        CounterBrokerInterceptor interceptor = new CounterBrokerInterceptor();
-        ExceptionHandler handler = new ExceptionHandler();
-        PreInterceptFilter filter = new PreInterceptFilter(interceptor, handler);
+  @Test
+  public void testFilterOutForPreInterceptFilter() throws Exception {
+    CounterBrokerInterceptor interceptor = new CounterBrokerInterceptor();
+    ExceptionHandler handler = new ExceptionHandler();
+    PreInterceptFilter filter = new PreInterceptFilter(interceptor, handler);
 
-        HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
-        HttpServletResponse response = Mockito.mock(HttpServletResponse.class);
-        FilterChain chain = Mockito.mock(FilterChain.class);
-        Mockito.doNothing().when(chain).doFilter(Mockito.any(), Mockito.any());
-        HttpServletRequestWrapper mockInputStream = new MockRequestWrapper(request);
-        Mockito.doReturn(mockInputStream.getInputStream()).when(request).getInputStream();
-        Mockito.doReturn(new StringBuffer("http://127.0.0.1:8080")).when(request).getRequestURL();
+    HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
+    HttpServletResponse response = Mockito.mock(HttpServletResponse.class);
+    FilterChain chain = Mockito.mock(FilterChain.class);
+    Mockito.doNothing().when(chain).doFilter(Mockito.any(), Mockito.any());
+    HttpServletRequestWrapper mockInputStream = new MockRequestWrapper(request);
+    Mockito.doReturn(mockInputStream.getInputStream()).when(request).getInputStream();
+    Mockito.doReturn(new StringBuffer("http://127.0.0.1:8080")).when(request).getRequestURL();
 
-        // "application/json" should be intercepted
-        Mockito.doReturn("application/json").when(request).getContentType();
-        filter.doFilter(request, response, chain);
-        Assert.assertEquals(interceptor.getCount(), 1);
+    // "application/json" should be intercepted
+    Mockito.doReturn("application/json").when(request).getContentType();
+    filter.doFilter(request, response, chain);
+    Assert.assertEquals(interceptor.getCount(), 1);
 
-        for (String shouldBeFilterOutContentType : shouldBeFilterOutContentTypes) {
-            Mockito.doReturn(shouldBeFilterOutContentType).when(request).getContentType();
-            filter.doFilter(request, response, chain);
-            Assert.assertEquals(interceptor.getCount(), 1);
-        }
+    for (String shouldBeFilterOutContentType : shouldBeFilterOutContentTypes) {
+      Mockito.doReturn(shouldBeFilterOutContentType).when(request).getContentType();
+      filter.doFilter(request, response, chain);
+      Assert.assertEquals(interceptor.getCount(), 1);
+    }
+  }
+
+  @Test
+  public void testOnFilter() throws Exception {
+    CounterBrokerInterceptor interceptor = new CounterBrokerInterceptor();
+    PulsarService pulsarService = Mockito.mock(PulsarService.class);
+    Mockito.doReturn("pulsar://127.0.0.1:6650").when(pulsarService).getAdvertisedAddress();
+    Mockito.doReturn(interceptor).when(pulsarService).getBrokerInterceptor();
+    ServiceConfiguration conf = Mockito.mock(ServiceConfiguration.class);
+    Mockito.doReturn(Sets.newHashSet("interceptor")).when(conf).getBrokerInterceptors();
+    Mockito.doReturn(conf).when(pulsarService).getConfig();
+    // init filter
+    ProcessHandlerFilter filter = new ProcessHandlerFilter(pulsarService.getBrokerInterceptor());
+
+    HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
+    HttpServletResponse response = Mockito.mock(HttpServletResponse.class);
+    FilterChain chain = Mockito.mock(FilterChain.class);
+    Mockito.doNothing().when(chain).doFilter(Mockito.any(), Mockito.any());
+    HttpServletRequestWrapper mockInputStream = new MockRequestWrapper(request);
+    Mockito.doReturn(mockInputStream.getInputStream()).when(request).getInputStream();
+    Mockito.doReturn(new StringBuffer("http://127.0.0.1:8080")).when(request).getRequestURL();
+    // "application/json" should be intercepted
+    Mockito.doReturn("application/json").when(request).getContentType();
+
+    filter.doFilter(request, response, chain);
+    Assert.assertEquals(interceptor.getCount(), 100);
+    verify(chain, times(1)).doFilter(request, response);
+  }
+
+  @Test
+  public void testFilterOutForResponseInterceptFilter() throws Exception {
+    CounterBrokerInterceptor interceptor = new CounterBrokerInterceptor();
+    PulsarService pulsarService = Mockito.mock(PulsarService.class);
+    Mockito.doReturn("pulsar://127.0.0.1:6650").when(pulsarService).getAdvertisedAddress();
+    Mockito.doReturn(interceptor).when(pulsarService).getBrokerInterceptor();
+    ServiceConfiguration conf = Mockito.mock(ServiceConfiguration.class);
+    Mockito.doReturn(Sets.newHashSet("interceptor")).when(conf).getBrokerInterceptors();
+    Mockito.doReturn(conf).when(pulsarService).getConfig();
+    ResponseHandlerFilter filter = new ResponseHandlerFilter(pulsarService);
+
+    HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
+    HttpServletResponse response = Mockito.mock(HttpServletResponse.class);
+    FilterChain chain = Mockito.mock(FilterChain.class);
+    Mockito.doNothing().when(chain).doFilter(Mockito.any(), Mockito.any());
+    HttpServletRequestWrapper mockInputStream = new MockRequestWrapper(request);
+    Mockito.doReturn(mockInputStream.getInputStream()).when(request).getInputStream();
+    Mockito.doReturn(new StringBuffer("http://127.0.0.1:8080")).when(request).getRequestURL();
+
+    // "application/json" should be intercepted
+    Mockito.doReturn("application/json").when(request).getContentType();
+    filter.doFilter(request, response, chain);
+    Assert.assertEquals(interceptor.getCount(), 1);
+
+    for (String shouldBeFilterOutContentType : shouldBeFilterOutContentTypes) {
+      Mockito.doReturn(shouldBeFilterOutContentType).when(request).getContentType();
+      filter.doFilter(request, response, chain);
+      Assert.assertEquals(interceptor.getCount(), 1);
+    }
+  }
+
+  private static class MockRequestWrapper extends HttpServletRequestWrapper {
+
+    public MockRequestWrapper(HttpServletRequest request) {
+      super(request);
+      this.body = new byte[] {0, 1, 2, 3, 4, 5};
     }
 
-    @Test
-    public void testOnFilter() throws Exception {
-        CounterBrokerInterceptor interceptor = new CounterBrokerInterceptor();
-        PulsarService pulsarService = Mockito.mock(PulsarService.class);
-        Mockito.doReturn("pulsar://127.0.0.1:6650").when(pulsarService).getAdvertisedAddress();
-        Mockito.doReturn(interceptor).when(pulsarService).getBrokerInterceptor();
-        ServiceConfiguration conf = Mockito.mock(ServiceConfiguration.class);
-        Mockito.doReturn(Sets.newHashSet("interceptor")).when(conf).getBrokerInterceptors();
-        Mockito.doReturn(conf).when(pulsarService).getConfig();
-        //init filter
-        ProcessHandlerFilter filter = new ProcessHandlerFilter(pulsarService.getBrokerInterceptor());
+    private final byte[] body;
 
-        HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
-        HttpServletResponse response = Mockito.mock(HttpServletResponse.class);
-        FilterChain chain = Mockito.mock(FilterChain.class);
-        Mockito.doNothing().when(chain).doFilter(Mockito.any(), Mockito.any());
-        HttpServletRequestWrapper mockInputStream = new MockRequestWrapper(request);
-        Mockito.doReturn(mockInputStream.getInputStream()).when(request).getInputStream();
-        Mockito.doReturn(new StringBuffer("http://127.0.0.1:8080")).when(request).getRequestURL();
-        // "application/json" should be intercepted
-        Mockito.doReturn("application/json").when(request).getContentType();
-
-        filter.doFilter(request, response, chain);
-        Assert.assertEquals(interceptor.getCount(), 100);
-        verify(chain, times(1)).doFilter(request, response);
-    }
-
-    @Test
-    public void testFilterOutForResponseInterceptFilter() throws Exception {
-        CounterBrokerInterceptor interceptor = new CounterBrokerInterceptor();
-        PulsarService pulsarService = Mockito.mock(PulsarService.class);
-        Mockito.doReturn("pulsar://127.0.0.1:6650").when(pulsarService).getAdvertisedAddress();
-        Mockito.doReturn(interceptor).when(pulsarService).getBrokerInterceptor();
-        ServiceConfiguration conf = Mockito.mock(ServiceConfiguration.class);
-        Mockito.doReturn(Sets.newHashSet("interceptor")).when(conf).getBrokerInterceptors();
-        Mockito.doReturn(conf).when(pulsarService).getConfig();
-        ResponseHandlerFilter filter = new ResponseHandlerFilter(pulsarService);
-
-        HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
-        HttpServletResponse response = Mockito.mock(HttpServletResponse.class);
-        FilterChain chain = Mockito.mock(FilterChain.class);
-        Mockito.doNothing().when(chain).doFilter(Mockito.any(), Mockito.any());
-        HttpServletRequestWrapper mockInputStream = new MockRequestWrapper(request);
-        Mockito.doReturn(mockInputStream.getInputStream()).when(request).getInputStream();
-        Mockito.doReturn(new StringBuffer("http://127.0.0.1:8080")).when(request).getRequestURL();
-
-        // "application/json" should be intercepted
-        Mockito.doReturn("application/json").when(request).getContentType();
-        filter.doFilter(request, response, chain);
-        Assert.assertEquals(interceptor.getCount(), 1);
-
-        for (String shouldBeFilterOutContentType : shouldBeFilterOutContentTypes) {
-            Mockito.doReturn(shouldBeFilterOutContentType).when(request).getContentType();
-            filter.doFilter(request, response, chain);
-            Assert.assertEquals(interceptor.getCount(), 1);
-        }
-    }
-
-    private static class MockRequestWrapper extends HttpServletRequestWrapper {
-
-        public MockRequestWrapper(HttpServletRequest request) {
-            super(request);
-            this.body = new byte[]{0, 1, 2, 3, 4, 5};
-        }
-
-        private final byte[] body;
-
+    @Override
+    public ServletInputStream getInputStream() {
+      final ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(body);
+      return new ServletInputStream() {
         @Override
-        public ServletInputStream getInputStream() {
-            final ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(body);
-            return new ServletInputStream() {
-                @Override
-                public boolean isFinished() {
-                    return false;
-                }
-
-                @Override
-                public boolean isReady() {
-                    return true;
-                }
-
-                @Override
-                public void setReadListener(ReadListener readListener) {
-
-                }
-
-                public int read() {
-                    return byteArrayInputStream.read();
-                }
-            };
+        public boolean isFinished() {
+          return false;
         }
 
         @Override
-        public BufferedReader getReader() throws IOException {
-            return new BufferedReader(new InputStreamReader(this.getInputStream(), Charset.defaultCharset()));
+        public boolean isReady() {
+          return true;
         }
+
+        @Override
+        public void setReadListener(ReadListener readListener) {}
+
+        public int read() {
+          return byteArrayInputStream.read();
+        }
+      };
     }
+
+    @Override
+    public BufferedReader getReader() throws IOException {
+      return new BufferedReader(
+          new InputStreamReader(this.getInputStream(), Charset.defaultCharset()));
+    }
+  }
 }

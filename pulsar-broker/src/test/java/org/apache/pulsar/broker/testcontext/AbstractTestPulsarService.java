@@ -38,65 +38,70 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 /**
- * This is an internal class used by {@link PulsarTestContext} as the abstract base class for
- * {@link PulsarService} implementations for a PulsarService instance used in tests.
- * Please see {@link PulsarTestContext} for more details.
+ * This is an internal class used by {@link PulsarTestContext} as the abstract base class for {@link
+ * PulsarService} implementations for a PulsarService instance used in tests. Please see {@link
+ * PulsarTestContext} for more details.
  */
-
 @Slf4j
 abstract class AbstractTestPulsarService extends PulsarService {
-    protected final SpyConfig spyConfig;
+  protected final SpyConfig spyConfig;
 
-    public AbstractTestPulsarService(SpyConfig spyConfig, ServiceConfiguration config,
-                                     MetadataStoreExtended localMetadataStore,
-                                     MetadataStoreExtended configurationMetadataStore,
-                                     CompactionServiceFactory compactionServiceFactory,
-                                     BrokerInterceptor brokerInterceptor,
-                                     BookKeeperClientFactory bookKeeperClientFactory,
-                                     Consumer<AutoConfiguredOpenTelemetrySdkBuilder> openTelemetrySdkBuilderCustomizer) {
-        super(config, new WorkerConfig(), Optional.empty(),
-                exitCode -> log.info("Pulsar process termination requested with code {}.", exitCode),
-                openTelemetrySdkBuilderCustomizer);
+  public AbstractTestPulsarService(
+      SpyConfig spyConfig,
+      ServiceConfiguration config,
+      MetadataStoreExtended localMetadataStore,
+      MetadataStoreExtended configurationMetadataStore,
+      CompactionServiceFactory compactionServiceFactory,
+      BrokerInterceptor brokerInterceptor,
+      BookKeeperClientFactory bookKeeperClientFactory,
+      Consumer<AutoConfiguredOpenTelemetrySdkBuilder> openTelemetrySdkBuilderCustomizer) {
+    super(
+        config,
+        new WorkerConfig(),
+        Optional.empty(),
+        exitCode -> log.info("Pulsar process termination requested with code {}.", exitCode),
+        openTelemetrySdkBuilderCustomizer);
 
-        this.spyConfig = spyConfig;
-        setLocalMetadataStore(
-                NonClosingProxyHandler.createNonClosingProxy(localMetadataStore, MetadataStoreExtended.class));
-        setConfigurationMetadataStore(
-                NonClosingProxyHandler.createNonClosingProxy(configurationMetadataStore, MetadataStoreExtended.class));
-        super.setCompactionServiceFactory(compactionServiceFactory);
-        setBrokerInterceptor(brokerInterceptor);
-        setBkClientFactory(bookKeeperClientFactory);
+    this.spyConfig = spyConfig;
+    setLocalMetadataStore(
+        NonClosingProxyHandler.createNonClosingProxy(
+            localMetadataStore, MetadataStoreExtended.class));
+    setConfigurationMetadataStore(
+        NonClosingProxyHandler.createNonClosingProxy(
+            configurationMetadataStore, MetadataStoreExtended.class));
+    super.setCompactionServiceFactory(compactionServiceFactory);
+    setBrokerInterceptor(brokerInterceptor);
+    setBkClientFactory(bookKeeperClientFactory);
+  }
+
+  @Override
+  public MetadataStore createConfigurationMetadataStore(
+      PulsarMetadataEventSynchronizer synchronizer, OpenTelemetry openTelemetry)
+      throws MetadataStoreException {
+    if (synchronizer != null) {
+      synchronizer.registerSyncListener(
+          ((MetadataStoreExtended) getConfigurationMetadataStore())::handleMetadataEvent);
     }
+    return getConfigurationMetadataStore();
+  }
 
-    @Override
-    public MetadataStore createConfigurationMetadataStore(PulsarMetadataEventSynchronizer synchronizer,
-                                                          OpenTelemetry openTelemetry)
-            throws MetadataStoreException {
-        if (synchronizer != null) {
-            synchronizer.registerSyncListener(
-                    ((MetadataStoreExtended) getConfigurationMetadataStore())::handleMetadataEvent);
-        }
-        return getConfigurationMetadataStore();
+  @Override
+  public MetadataStoreExtended createLocalMetadataStore(
+      PulsarMetadataEventSynchronizer synchronizer, OpenTelemetry openTelemetry)
+      throws MetadataStoreException, PulsarServerException {
+    if (synchronizer != null) {
+      synchronizer.registerSyncListener(getLocalMetadataStore()::handleMetadataEvent);
     }
+    return getLocalMetadataStore();
+  }
 
-    @Override
-    public MetadataStoreExtended createLocalMetadataStore(PulsarMetadataEventSynchronizer synchronizer,
-                                                          OpenTelemetry openTelemetry)
-            throws MetadataStoreException, PulsarServerException {
-        if (synchronizer != null) {
-            synchronizer.registerSyncListener(
-                    getLocalMetadataStore()::handleMetadataEvent);
-        }
-        return getLocalMetadataStore();
-    }
+  @Override
+  public BookKeeperClientFactory newBookKeeperClientFactory() {
+    return getBkClientFactory();
+  }
 
-    @Override
-    public BookKeeperClientFactory newBookKeeperClientFactory() {
-        return getBkClientFactory();
-    }
-
-    @Override
-    protected BrokerInterceptor newBrokerInterceptor() throws IOException {
-        return getBrokerInterceptor() != null ? getBrokerInterceptor() : super.newBrokerInterceptor();
-    }
+  @Override
+  protected BrokerInterceptor newBrokerInterceptor() throws IOException {
+    return getBrokerInterceptor() != null ? getBrokerInterceptor() : super.newBrokerInterceptor();
+  }
 }

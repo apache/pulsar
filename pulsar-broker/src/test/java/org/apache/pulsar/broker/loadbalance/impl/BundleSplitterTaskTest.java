@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -35,10 +38,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-
 /**
  * @author hezhangjian
  */
@@ -46,129 +45,135 @@ import java.util.Optional;
 @Test(groups = "broker")
 public class BundleSplitterTaskTest {
 
-    public final static String CA_CERT_FILE_PATH =
-            ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
-    public final static String BROKER_CERT_FILE_PATH =
-            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
-    public final static String BROKER_KEY_FILE_PATH =
-            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
+  public static final String CA_CERT_FILE_PATH =
+      ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
+  public static final String BROKER_CERT_FILE_PATH =
+      ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
+  public static final String BROKER_KEY_FILE_PATH =
+      ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
 
-    private LocalBookkeeperEnsemble bkEnsemble;
+  private LocalBookkeeperEnsemble bkEnsemble;
 
-    private PulsarService pulsar;
+  private PulsarService pulsar;
 
-    @BeforeMethod
-    void setup() throws Exception {
-        // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
-        bkEnsemble.start();
-        // Start broker
-        ServiceConfiguration config = new ServiceConfiguration();
-        config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
-        config.setClusterName("use");
-        config.setWebServicePort(Optional.of(0));
-        config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
+  @BeforeMethod
+  void setup() throws Exception {
+    // Start local bookkeeper ensemble
+    bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+    bkEnsemble.start();
+    // Start broker
+    ServiceConfiguration config = new ServiceConfiguration();
+    config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+    config.setClusterName("use");
+    config.setWebServicePort(Optional.of(0));
+    config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
 
-        config.setAdvertisedAddress("localhost");
-        config.setBrokerShutdownTimeoutMs(0L);
-        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
-        config.setBrokerServicePort(Optional.of(0));
-        config.setBrokerServicePortTls(Optional.of(0));
-        config.setWebServicePortTls(Optional.of(0));
-        config.setTlsCertificateFilePath(CA_CERT_FILE_PATH);
-        config.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
-        config.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
-        pulsar = new PulsarService(config);
-        pulsar.start();
+    config.setAdvertisedAddress("localhost");
+    config.setBrokerShutdownTimeoutMs(0L);
+    config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
+    config.setBrokerServicePort(Optional.of(0));
+    config.setBrokerServicePortTls(Optional.of(0));
+    config.setWebServicePortTls(Optional.of(0));
+    config.setTlsCertificateFilePath(CA_CERT_FILE_PATH);
+    config.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+    config.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
+    pulsar = new PulsarService(config);
+    pulsar.start();
+  }
+
+  @Test
+  public void testSplitTaskWhenTopicJustOne() {
+    final BundleSplitterTask bundleSplitterTask = new BundleSplitterTask();
+    LoadData loadData = new LoadData();
+
+    LocalBrokerData brokerData = new LocalBrokerData();
+    Map<String, NamespaceBundleStats> lastStats = new HashMap<>();
+    final NamespaceBundleStats namespaceBundleStats = new NamespaceBundleStats();
+    namespaceBundleStats.topics = 1;
+    lastStats.put("ten/ns/0x00000000_0x80000000", namespaceBundleStats);
+    brokerData.setLastStats(lastStats);
+    loadData.getBrokerData().put("broker", new BrokerData(brokerData));
+
+    BundleData bundleData = new BundleData();
+    TimeAverageMessageData averageMessageData = new TimeAverageMessageData();
+    averageMessageData.setMsgRateIn(
+        pulsar.getConfiguration().getLoadBalancerNamespaceBundleMaxMsgRate());
+    averageMessageData.setMsgRateOut(1);
+    bundleData.setLongTermData(averageMessageData);
+    loadData.getBundleData().put("ten/ns/0x00000000_0x80000000", bundleData);
+
+    final Map<String, String> bundlesToSplit =
+        bundleSplitterTask.findBundlesToSplit(loadData, pulsar);
+    Assert.assertEquals(bundlesToSplit.size(), 0);
+  }
+
+  @Test
+  public void testLoadBalancerNamespaceMaximumBundles() throws Exception {
+    pulsar.getConfiguration().setLoadBalancerNamespaceMaximumBundles(3);
+
+    final BundleSplitterTask bundleSplitterTask = new BundleSplitterTask();
+    LoadData loadData = new LoadData();
+
+    LocalBrokerData brokerData = new LocalBrokerData();
+    Map<String, NamespaceBundleStats> lastStats = new HashMap<>();
+    final NamespaceBundleStats namespaceBundleStats = new NamespaceBundleStats();
+    namespaceBundleStats.topics = 5;
+    lastStats.put("ten/ns/0x00000000_0x20000000", namespaceBundleStats);
+
+    final NamespaceBundleStats namespaceBundleStats2 = new NamespaceBundleStats();
+    namespaceBundleStats2.topics = 5;
+    lastStats.put("ten/ns/0x20000000_0x40000000", namespaceBundleStats2);
+
+    final NamespaceBundleStats namespaceBundleStats3 = new NamespaceBundleStats();
+    namespaceBundleStats3.topics = 5;
+    lastStats.put("ten/ns/0x40000000_0x60000000", namespaceBundleStats3);
+
+    brokerData.setLastStats(lastStats);
+    loadData.getBrokerData().put("broker", new BrokerData(brokerData));
+
+    BundleData bundleData1 = new BundleData();
+    TimeAverageMessageData averageMessageData1 = new TimeAverageMessageData();
+    averageMessageData1.setMsgRateIn(
+        pulsar.getConfiguration().getLoadBalancerNamespaceBundleMaxMsgRate() * 2);
+    averageMessageData1.setMsgRateOut(1);
+    bundleData1.setLongTermData(averageMessageData1);
+    loadData.getBundleData().put("ten/ns/0x00000000_0x20000000", bundleData1);
+
+    BundleData bundleData2 = new BundleData();
+    TimeAverageMessageData averageMessageData2 = new TimeAverageMessageData();
+    averageMessageData2.setMsgRateIn(
+        pulsar.getConfiguration().getLoadBalancerNamespaceBundleMaxMsgRate() * 2);
+    averageMessageData2.setMsgRateOut(1);
+    bundleData2.setLongTermData(averageMessageData2);
+    loadData.getBundleData().put("ten/ns/0x20000000_0x40000000", bundleData2);
+
+    BundleData bundleData3 = new BundleData();
+    TimeAverageMessageData averageMessageData3 = new TimeAverageMessageData();
+    averageMessageData3.setMsgRateIn(
+        pulsar.getConfiguration().getLoadBalancerNamespaceBundleMaxMsgRate() * 2);
+    averageMessageData3.setMsgRateOut(1);
+    bundleData3.setLongTermData(averageMessageData3);
+    loadData.getBundleData().put("ten/ns/0x40000000_0x60000000", bundleData3);
+
+    int currentBundleCount =
+        pulsar.getNamespaceService().getBundleCount(NamespaceName.get("ten/ns"));
+    final Map<String, String> bundlesToSplit =
+        bundleSplitterTask.findBundlesToSplit(loadData, pulsar);
+    Assert.assertEquals(
+        bundlesToSplit.size() + currentBundleCount,
+        pulsar.getConfiguration().getLoadBalancerNamespaceMaximumBundles());
+  }
+
+  @AfterMethod(alwaysRun = true)
+  void shutdown() throws Exception {
+    log.info("--- Shutting down ---");
+    if (pulsar != null) {
+      pulsar.close();
+      pulsar = null;
     }
-
-    @Test
-    public void testSplitTaskWhenTopicJustOne() {
-        final BundleSplitterTask bundleSplitterTask = new BundleSplitterTask();
-        LoadData loadData = new LoadData();
-
-        LocalBrokerData brokerData = new LocalBrokerData();
-        Map<String, NamespaceBundleStats> lastStats = new HashMap<>();
-        final NamespaceBundleStats namespaceBundleStats = new NamespaceBundleStats();
-        namespaceBundleStats.topics = 1;
-        lastStats.put("ten/ns/0x00000000_0x80000000", namespaceBundleStats);
-        brokerData.setLastStats(lastStats);
-        loadData.getBrokerData().put("broker", new BrokerData(brokerData));
-
-        BundleData bundleData = new BundleData();
-        TimeAverageMessageData averageMessageData = new TimeAverageMessageData();
-        averageMessageData.setMsgRateIn(pulsar.getConfiguration().getLoadBalancerNamespaceBundleMaxMsgRate());
-        averageMessageData.setMsgRateOut(1);
-        bundleData.setLongTermData(averageMessageData);
-        loadData.getBundleData().put("ten/ns/0x00000000_0x80000000", bundleData);
-
-        final Map<String, String> bundlesToSplit = bundleSplitterTask.findBundlesToSplit(loadData, pulsar);
-        Assert.assertEquals(bundlesToSplit.size(), 0);
+    if (bkEnsemble != null) {
+      bkEnsemble.stop();
+      bkEnsemble = null;
     }
-
-    @Test
-    public void testLoadBalancerNamespaceMaximumBundles() throws Exception {
-        pulsar.getConfiguration().setLoadBalancerNamespaceMaximumBundles(3);
-
-        final BundleSplitterTask bundleSplitterTask = new BundleSplitterTask();
-        LoadData loadData = new LoadData();
-
-        LocalBrokerData brokerData = new LocalBrokerData();
-        Map<String, NamespaceBundleStats> lastStats = new HashMap<>();
-        final NamespaceBundleStats namespaceBundleStats = new NamespaceBundleStats();
-        namespaceBundleStats.topics = 5;
-        lastStats.put("ten/ns/0x00000000_0x20000000", namespaceBundleStats);
-
-        final NamespaceBundleStats namespaceBundleStats2 = new NamespaceBundleStats();
-        namespaceBundleStats2.topics = 5;
-        lastStats.put("ten/ns/0x20000000_0x40000000", namespaceBundleStats2);
-
-        final NamespaceBundleStats namespaceBundleStats3 = new NamespaceBundleStats();
-        namespaceBundleStats3.topics = 5;
-        lastStats.put("ten/ns/0x40000000_0x60000000", namespaceBundleStats3);
-
-        brokerData.setLastStats(lastStats);
-        loadData.getBrokerData().put("broker", new BrokerData(brokerData));
-
-        BundleData bundleData1 = new BundleData();
-        TimeAverageMessageData averageMessageData1 = new TimeAverageMessageData();
-        averageMessageData1.setMsgRateIn(pulsar.getConfiguration().getLoadBalancerNamespaceBundleMaxMsgRate() * 2);
-        averageMessageData1.setMsgRateOut(1);
-        bundleData1.setLongTermData(averageMessageData1);
-        loadData.getBundleData().put("ten/ns/0x00000000_0x20000000", bundleData1);
-
-        BundleData bundleData2 = new BundleData();
-        TimeAverageMessageData averageMessageData2 = new TimeAverageMessageData();
-        averageMessageData2.setMsgRateIn(pulsar.getConfiguration().getLoadBalancerNamespaceBundleMaxMsgRate() * 2);
-        averageMessageData2.setMsgRateOut(1);
-        bundleData2.setLongTermData(averageMessageData2);
-        loadData.getBundleData().put("ten/ns/0x20000000_0x40000000", bundleData2);
-
-        BundleData bundleData3 = new BundleData();
-        TimeAverageMessageData averageMessageData3 = new TimeAverageMessageData();
-        averageMessageData3.setMsgRateIn(pulsar.getConfiguration().getLoadBalancerNamespaceBundleMaxMsgRate() * 2);
-        averageMessageData3.setMsgRateOut(1);
-        bundleData3.setLongTermData(averageMessageData3);
-        loadData.getBundleData().put("ten/ns/0x40000000_0x60000000", bundleData3);
-
-        int currentBundleCount = pulsar.getNamespaceService().getBundleCount(NamespaceName.get("ten/ns"));
-        final Map<String, String> bundlesToSplit = bundleSplitterTask.findBundlesToSplit(loadData, pulsar);
-        Assert.assertEquals(bundlesToSplit.size() + currentBundleCount,
-                pulsar.getConfiguration().getLoadBalancerNamespaceMaximumBundles());
-    }
-
-
-    @AfterMethod(alwaysRun = true)
-    void shutdown() throws Exception {
-        log.info("--- Shutting down ---");
-        if (pulsar != null) {
-            pulsar.close();
-            pulsar = null;
-        }
-        if (bkEnsemble != null) {
-            bkEnsemble.stop();
-            bkEnsemble = null;
-        }
-    }
-
+  }
 }

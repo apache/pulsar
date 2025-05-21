@@ -20,6 +20,5 @@ package org.apache.pulsar.socks5.auth;
 
 public interface PasswordAuth {
 
-    boolean auth(String username, String password);
-
+  boolean auth(String username, String password);
 }

@@ -49,164 +49,185 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 /**
- * A test interceptor for broker tests that allows to decorate persistent topics, subscriptions, dispatchers
- * managed ledger factory, managed ledger and managed cursor instances.
+ * A test interceptor for broker tests that allows to decorate persistent topics, subscriptions,
+ * dispatchers managed ledger factory, managed ledger and managed cursor instances.
  */
 public class BrokerTestInterceptor {
-    public static final BrokerTestInterceptor INSTANCE = new BrokerTestInterceptor();
+  public static final BrokerTestInterceptor INSTANCE = new BrokerTestInterceptor();
 
-    // Suppress default constructor for noninstantiability
-    private BrokerTestInterceptor() {
+  // Suppress default constructor for noninstantiability
+  private BrokerTestInterceptor() {}
 
+  public static class TestTopicFactory implements TopicFactory {
+    @Override
+    public <T extends Topic> T create(
+        String topic, ManagedLedger ledger, BrokerService brokerService, Class<T> topicClazz) {
+      if (!topicClazz.isAssignableFrom(PersistentTopic.class)) {
+        throw new UnsupportedOperationException("Unsupported topic class");
+      }
+      return topicClazz.cast(
+          INSTANCE
+              .getPersistentTopicDecorator()
+              .apply(new TestTopic(topic, ledger, brokerService)));
+    }
+  }
+
+  static class TestTopic extends PersistentTopic {
+
+    public TestTopic(String topic, ManagedLedger ledger, BrokerService brokerService) {
+      super(topic, ledger, brokerService);
     }
 
-    public static class TestTopicFactory implements TopicFactory {
-        @Override
-        public <T extends Topic> T create(String topic, ManagedLedger ledger, BrokerService brokerService,
-                                          Class<T> topicClazz) {
-            if (!topicClazz.isAssignableFrom(PersistentTopic.class)) {
-                throw new UnsupportedOperationException("Unsupported topic class");
-            }
-            return topicClazz.cast(
-                    INSTANCE.getPersistentTopicDecorator().apply(new TestTopic(topic, ledger, brokerService)));
-        }
+    @Override
+    protected PersistentSubscription createPersistentSubscription(
+        String subscriptionName,
+        ManagedCursor cursor,
+        Boolean replicated,
+        Map<String, String> subscriptionProperties) {
+      return INSTANCE
+          .getPersistentSubscriptionDecorator()
+          .apply(
+              new TestSubscription(
+                  this, subscriptionName, cursor, replicated, subscriptionProperties));
+    }
+  }
+
+  static class TestSubscription extends PersistentSubscription {
+    public TestSubscription(
+        PersistentTopic topic,
+        String subscriptionName,
+        ManagedCursor cursor,
+        Boolean replicated,
+        Map<String, String> subscriptionProperties) {
+      super(topic, subscriptionName, cursor, replicated, subscriptionProperties);
     }
 
-    static class TestTopic extends PersistentTopic {
+    @Override
+    protected Dispatcher reuseOrCreateDispatcher(Dispatcher dispatcher, Consumer consumer) {
+      Dispatcher previousInstance = dispatcher;
+      dispatcher = super.reuseOrCreateDispatcher(dispatcher, consumer);
+      if (dispatcher != previousInstance) {
+        dispatcher = INSTANCE.getDispatcherDecorator().apply(dispatcher);
+      }
+      return dispatcher;
+    }
+  }
 
-        public TestTopic(String topic, ManagedLedger ledger, BrokerService brokerService) {
-            super(topic, ledger, brokerService);
-        }
+  public static class TestManagedLedgerStorage extends ManagedLedgerClientFactory {
+    @Override
+    protected ManagedLedgerFactoryImpl createManagedLedgerFactory(
+        MetadataStoreExtended metadataStore,
+        OpenTelemetry openTelemetry,
+        ManagedLedgerFactoryImpl.BookkeeperFactoryForCustomEnsemblePlacementPolicy bkFactory,
+        ManagedLedgerFactoryConfig managedLedgerFactoryConfig,
+        StatsLogger statsLogger)
+        throws Exception {
+      return INSTANCE.managedLedgerFactoryDecorator.apply(
+          new TestManagedLedgerFactoryImpl(
+              metadataStore, bkFactory, managedLedgerFactoryConfig, statsLogger, openTelemetry));
+    }
+  }
 
-        @Override
-        protected PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,
-                                                                      Boolean replicated,
-                                                                      Map<String, String> subscriptionProperties) {
-            return INSTANCE.getPersistentSubscriptionDecorator()
-                    .apply(new TestSubscription(this, subscriptionName, cursor, replicated, subscriptionProperties));
-        }
+  static class TestManagedLedgerFactoryImpl extends ManagedLedgerFactoryImpl {
+    public TestManagedLedgerFactoryImpl(
+        MetadataStoreExtended metadataStore,
+        BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory,
+        ManagedLedgerFactoryConfig config,
+        StatsLogger statsLogger,
+        OpenTelemetry openTelemetry)
+        throws Exception {
+      super(metadataStore, bookKeeperGroupFactory, config, statsLogger, openTelemetry);
     }
 
-    static class TestSubscription extends PersistentSubscription {
-        public TestSubscription(PersistentTopic topic, String subscriptionName, ManagedCursor cursor,
-                                Boolean replicated,
-                                Map<String, String> subscriptionProperties) {
-            super(topic, subscriptionName, cursor, replicated, subscriptionProperties);
-        }
+    @Override
+    protected ManagedLedgerImpl createManagedLedger(
+        BookKeeper bk,
+        MetaStore store,
+        String name,
+        ManagedLedgerConfig config,
+        Supplier<CompletableFuture<Boolean>> mlOwnershipChecker) {
+      return INSTANCE.managedLedgerDecorator.apply(
+          new TestManagedLedgerImpl(
+              this, bk, store, config, scheduledExecutor, name, mlOwnershipChecker));
+    }
+  }
 
-        @Override
-        protected Dispatcher reuseOrCreateDispatcher(Dispatcher dispatcher,
-                                                     Consumer consumer) {
-            Dispatcher previousInstance = dispatcher;
-            dispatcher = super.reuseOrCreateDispatcher(dispatcher, consumer);
-            if (dispatcher != previousInstance) {
-                dispatcher = INSTANCE.getDispatcherDecorator().apply(dispatcher);
-            }
-            return dispatcher;
-        }
+  static class TestManagedLedgerImpl extends ManagedLedgerImpl {
+    public TestManagedLedgerImpl(
+        ManagedLedgerFactoryImpl factory,
+        BookKeeper bookKeeper,
+        MetaStore store,
+        ManagedLedgerConfig config,
+        OrderedScheduler scheduledExecutor,
+        String name,
+        Supplier<CompletableFuture<Boolean>> mlOwnershipChecker) {
+      super(factory, bookKeeper, store, config, scheduledExecutor, name, mlOwnershipChecker);
     }
 
-    public static class TestManagedLedgerStorage extends ManagedLedgerClientFactory {
-        @Override
-        protected ManagedLedgerFactoryImpl createManagedLedgerFactory(MetadataStoreExtended metadataStore,
-                                                                      OpenTelemetry openTelemetry,
-                                                                      ManagedLedgerFactoryImpl.BookkeeperFactoryForCustomEnsemblePlacementPolicy bkFactory,
-                                                                      ManagedLedgerFactoryConfig managedLedgerFactoryConfig,
-                                                                      StatsLogger statsLogger) throws Exception {
-            return INSTANCE.managedLedgerFactoryDecorator.apply(
-                    new TestManagedLedgerFactoryImpl(metadataStore, bkFactory, managedLedgerFactoryConfig, statsLogger,
-                            openTelemetry));
-        }
+    @Override
+    protected ManagedCursorImpl createCursor(BookKeeper bookKeeper, String cursorName) {
+      return INSTANCE.managedCursorDecorator.apply(super.createCursor(bookKeeper, cursorName));
     }
+  }
 
-    static class TestManagedLedgerFactoryImpl extends ManagedLedgerFactoryImpl {
-        public TestManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore,
-                                            BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory,
-                                            ManagedLedgerFactoryConfig config, StatsLogger statsLogger,
-                                            OpenTelemetry openTelemetry) throws Exception {
-            super(metadataStore, bookKeeperGroupFactory, config, statsLogger, openTelemetry);
-        }
+  @Getter @Setter
+  private Function<PersistentTopic, PersistentTopic> persistentTopicDecorator = Function.identity();
 
-        @Override
-        protected ManagedLedgerImpl createManagedLedger(BookKeeper bk, MetaStore store, String name,
-                                                        ManagedLedgerConfig config,
-                                                        Supplier<CompletableFuture<Boolean>> mlOwnershipChecker) {
-            return INSTANCE.managedLedgerDecorator.apply(
-                    new TestManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name, mlOwnershipChecker));
-        }
-    }
+  @Getter @Setter
+  private Function<PersistentSubscription, PersistentSubscription> persistentSubscriptionDecorator =
+      Function.identity();
 
-    static class TestManagedLedgerImpl extends ManagedLedgerImpl {
-        public TestManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
-                                     ManagedLedgerConfig config,
-                                     OrderedScheduler scheduledExecutor, String name,
-                                     Supplier<CompletableFuture<Boolean>> mlOwnershipChecker) {
-            super(factory, bookKeeper, store, config, scheduledExecutor, name, mlOwnershipChecker);
-        }
+  @Getter @Setter
+  private Function<Dispatcher, Dispatcher> dispatcherDecorator = Function.identity();
 
-        @Override
-        protected ManagedCursorImpl createCursor(BookKeeper bookKeeper, String cursorName) {
-            return INSTANCE.managedCursorDecorator.apply(super.createCursor(bookKeeper, cursorName));
-        }
-    }
+  @Getter @Setter
+  private Function<ManagedLedgerFactoryImpl, ManagedLedgerFactoryImpl>
+      managedLedgerFactoryDecorator = Function.identity();
 
-    @Getter
-    @Setter
-    private Function<PersistentTopic, PersistentTopic> persistentTopicDecorator = Function.identity();
+  @Getter @Setter
+  private Function<ManagedLedgerImpl, ManagedLedgerImpl> managedLedgerDecorator =
+      Function.identity();
 
-    @Getter
-    @Setter
-    private Function<PersistentSubscription, PersistentSubscription> persistentSubscriptionDecorator = Function.identity();
+  @Getter @Setter
+  private Function<ManagedCursorImpl, ManagedCursorImpl> managedCursorDecorator =
+      Function.identity();
 
-    @Getter
-    @Setter
-    private Function<Dispatcher, Dispatcher> dispatcherDecorator = Function.identity();
+  public void reset() {
+    persistentTopicDecorator = Function.identity();
+    persistentSubscriptionDecorator = Function.identity();
+    dispatcherDecorator = Function.identity();
+    managedLedgerFactoryDecorator = Function.identity();
+    managedLedgerDecorator = Function.identity();
+    managedCursorDecorator = Function.identity();
+  }
 
-    @Getter
-    @Setter
-    private Function<ManagedLedgerFactoryImpl, ManagedLedgerFactoryImpl> managedLedgerFactoryDecorator = Function.identity();
+  public void configure(ServiceConfiguration conf) {
+    conf.setTopicFactoryClassName(TestTopicFactory.class.getName());
+    conf.setManagedLedgerStorageClassName(TestManagedLedgerStorage.class.getName());
+  }
 
-    @Getter
-    @Setter
-    private Function<ManagedLedgerImpl, ManagedLedgerImpl> managedLedgerDecorator = Function.identity();
+  public <T extends Dispatcher> void applyDispatcherSpyDecorator(
+      Class<T> dispatcherClass, java.util.function.Consumer<T> spyCustomizer) {
+    setDispatcherDecorator(createDispatcherSpyDecorator(dispatcherClass, spyCustomizer));
+  }
 
-    @Getter
-    @Setter
-    private Function<ManagedCursorImpl, ManagedCursorImpl> managedCursorDecorator = Function.identity();
+  public static <T extends Dispatcher>
+      Function<Dispatcher, Dispatcher> createDispatcherSpyDecorator(
+          Class<T> dispatcherClass, java.util.function.Consumer<T> spyCustomizer) {
+    return dispatcher -> {
+      Dispatcher spy = BrokerTestUtil.spyWithoutRecordingInvocations(dispatcher);
+      spyCustomizer.accept(dispatcherClass.cast(spy));
+      return spy;
+    };
+  }
 
-    public void reset() {
-        persistentTopicDecorator = Function.identity();
-        persistentSubscriptionDecorator = Function.identity();
-        dispatcherDecorator = Function.identity();
-        managedLedgerFactoryDecorator = Function.identity();
-        managedLedgerDecorator = Function.identity();
-        managedCursorDecorator = Function.identity();
-    }
-
-    public void configure(ServiceConfiguration conf) {
-        conf.setTopicFactoryClassName(TestTopicFactory.class.getName());
-        conf.setManagedLedgerStorageClassName(TestManagedLedgerStorage.class.getName());
-    }
-
-    public  <T extends Dispatcher> void applyDispatcherSpyDecorator(Class<T> dispatcherClass,
-                                                                    java.util.function.Consumer<T> spyCustomizer) {
-        setDispatcherDecorator(createDispatcherSpyDecorator(dispatcherClass, spyCustomizer));
-    }
-
-    public static <T extends Dispatcher> Function<Dispatcher, Dispatcher> createDispatcherSpyDecorator(
-            Class<T> dispatcherClass, java.util.function.Consumer<T> spyCustomizer) {
-        return dispatcher -> {
-            Dispatcher spy = BrokerTestUtil.spyWithoutRecordingInvocations(dispatcher);
-            spyCustomizer.accept(dispatcherClass.cast(spy));
-            return spy;
-        };
-    }
-
-    public void applyCursorSpyDecorator(java.util.function.Consumer<ManagedCursorImpl> spyCustomizer) {
-        setManagedCursorDecorator(cursor -> {
-            ManagedCursorImpl spy = BrokerTestUtil.spyWithoutRecordingInvocations(cursor);
-            spyCustomizer.accept(spy);
-            return spy;
+  public void applyCursorSpyDecorator(
+      java.util.function.Consumer<ManagedCursorImpl> spyCustomizer) {
+    setManagedCursorDecorator(
+        cursor -> {
+          ManagedCursorImpl spy = BrokerTestUtil.spyWithoutRecordingInvocations(cursor);
+          spyCustomizer.accept(spy);
+          return spy;
         });
-    }
+  }
 }

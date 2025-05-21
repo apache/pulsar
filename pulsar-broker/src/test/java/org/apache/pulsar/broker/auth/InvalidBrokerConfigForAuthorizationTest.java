@@ -20,38 +20,38 @@ package org.apache.pulsar.broker.auth;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
+
 import org.apache.pulsar.broker.PulsarServerException;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
 public class InvalidBrokerConfigForAuthorizationTest extends MockedPulsarServiceBaseTest {
 
-    @Test
-    void startupShouldFailWhenAuthorizationIsEnabledWithoutAuthentication() throws Exception {
-        conf.setAuthorizationEnabled(true);
-        conf.setAuthenticationEnabled(false);
-        try {
-            internalSetup();
-            fail("An exception should have been thrown");
-        } catch (Exception rte) {
-            Throwable e = rte.getCause();
-            assertEquals(e.getClass(), PulsarServerException.class);
-            assertEquals(e.getCause().getClass(), IllegalStateException.class);
-            assertEquals(e.getCause().getMessage(), "Invalid broker configuration. Authentication must be "
-                    + "enabled with authenticationEnabled=true when authorization is enabled with "
-                    + "authorizationEnabled=true.");
-        }
+  @Test
+  void startupShouldFailWhenAuthorizationIsEnabledWithoutAuthentication() throws Exception {
+    conf.setAuthorizationEnabled(true);
+    conf.setAuthenticationEnabled(false);
+    try {
+      internalSetup();
+      fail("An exception should have been thrown");
+    } catch (Exception rte) {
+      Throwable e = rte.getCause();
+      assertEquals(e.getClass(), PulsarServerException.class);
+      assertEquals(e.getCause().getClass(), IllegalStateException.class);
+      assertEquals(
+          e.getCause().getMessage(),
+          "Invalid broker configuration. Authentication must be "
+              + "enabled with authenticationEnabled=true when authorization is enabled with "
+              + "authorizationEnabled=true.");
     }
+  }
 
-    @Override
-    protected void setup() throws Exception {
+  @Override
+  protected void setup() throws Exception {}
 
-    }
-
-
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        internalCleanup();
-    }
+  @AfterMethod(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    internalCleanup();
+  }
 }

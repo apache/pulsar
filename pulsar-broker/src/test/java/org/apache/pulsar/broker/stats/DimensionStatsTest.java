@@ -19,25 +19,26 @@
 package org.apache.pulsar.broker.stats;
 
 import static org.testng.Assert.assertEquals;
+
 import java.util.concurrent.TimeUnit;
 import org.testng.annotations.Test;
 
 public class DimensionStatsTest {
-    @Test
-    void shouldCalculateQuantiles() {
-        DimensionStats dimensionStats = new DimensionStats("test", 100, false);
-        for (int i = 1; i <= 10000; i++) {
-            dimensionStats.recordDimensionTimeValue(i, TimeUnit.MILLISECONDS);
-        }
-        DimensionStats.DimensionStatsSnapshot snapshot = dimensionStats.getSnapshot();
-        assertEquals(snapshot.getMeanDimension(), 5000, 1);
-        assertEquals(snapshot.getMedianDimension(), 5000, 100);
-        assertEquals(snapshot.getDimension75(), 7500, 100);
-        assertEquals(snapshot.getDimension95(), 9500, 100);
-        assertEquals(snapshot.getDimension99(), 9900, 100);
-        assertEquals(snapshot.getDimension999(), 9990, 10);
-        assertEquals(snapshot.getDimension9999(), 9999, 1);
-        assertEquals(snapshot.getDimensionCount(), 10000);
-        assertEquals(snapshot.getDimensionSum(), 50005000);
+  @Test
+  void shouldCalculateQuantiles() {
+    DimensionStats dimensionStats = new DimensionStats("test", 100, false);
+    for (int i = 1; i <= 10000; i++) {
+      dimensionStats.recordDimensionTimeValue(i, TimeUnit.MILLISECONDS);
     }
+    DimensionStats.DimensionStatsSnapshot snapshot = dimensionStats.getSnapshot();
+    assertEquals(snapshot.getMeanDimension(), 5000, 1);
+    assertEquals(snapshot.getMedianDimension(), 5000, 100);
+    assertEquals(snapshot.getDimension75(), 7500, 100);
+    assertEquals(snapshot.getDimension95(), 9500, 100);
+    assertEquals(snapshot.getDimension99(), 9900, 100);
+    assertEquals(snapshot.getDimension999(), 9990, 10);
+    assertEquals(snapshot.getDimension9999(), 9999, 1);
+    assertEquals(snapshot.getDimensionCount(), 10000);
+    assertEquals(snapshot.getDimensionSum(), 50005000);
+  }
 }

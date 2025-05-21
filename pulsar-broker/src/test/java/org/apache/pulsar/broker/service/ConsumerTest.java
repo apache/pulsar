@@ -26,6 +26,7 @@ import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+
 import java.net.SocketAddress;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -36,41 +37,54 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class ConsumerTest {
-    private Consumer consumer;
-    private final ConsumerStatsImpl stats = new ConsumerStatsImpl();
+  private Consumer consumer;
+  private final ConsumerStatsImpl stats = new ConsumerStatsImpl();
 
-    @BeforeMethod
-    public void beforeMethod() {
-        Subscription subscription = mock(Subscription.class);
-        ServerCnx cnx = mock(ServerCnx.class);
-        SocketAddress address = mock(SocketAddress.class);
-        Topic topic = mock(Topic.class);
-        BrokerService brokerService = mock(BrokerService.class);
-        PulsarService pulsarService = mock(PulsarService.class);
-        ServiceConfiguration serviceConfiguration = mock(ServiceConfiguration.class);
+  @BeforeMethod
+  public void beforeMethod() {
+    Subscription subscription = mock(Subscription.class);
+    ServerCnx cnx = mock(ServerCnx.class);
+    SocketAddress address = mock(SocketAddress.class);
+    Topic topic = mock(Topic.class);
+    BrokerService brokerService = mock(BrokerService.class);
+    PulsarService pulsarService = mock(PulsarService.class);
+    ServiceConfiguration serviceConfiguration = mock(ServiceConfiguration.class);
 
-        when(cnx.clientAddress()).thenReturn(address);
-        when(subscription.getTopic()).thenReturn(topic);
-        when(topic.getBrokerService()).thenReturn(brokerService);
-        when(brokerService.getPulsar()).thenReturn(pulsarService);
-        when(pulsarService.getConfiguration()).thenReturn(serviceConfiguration);
+    when(cnx.clientAddress()).thenReturn(address);
+    when(subscription.getTopic()).thenReturn(topic);
+    when(topic.getBrokerService()).thenReturn(brokerService);
+    when(brokerService.getPulsar()).thenReturn(pulsarService);
+    when(pulsarService.getConfiguration()).thenReturn(serviceConfiguration);
 
-        consumer =
-                new Consumer(subscription, Exclusive, "topic", 1, 0, "Cons1", true, cnx, "myrole-1", emptyMap(), false,
-                        new KeySharedMeta().setKeySharedMode(AUTO_SPLIT), latest, DEFAULT_CONSUMER_EPOCH);
-    }
+    consumer =
+        new Consumer(
+            subscription,
+            Exclusive,
+            "topic",
+            1,
+            0,
+            "Cons1",
+            true,
+            cnx,
+            "myrole-1",
+            emptyMap(),
+            false,
+            new KeySharedMeta().setKeySharedMode(AUTO_SPLIT),
+            latest,
+            DEFAULT_CONSUMER_EPOCH);
+  }
 
-    @Test
-    public void testGetMsgOutCounter() {
-        stats.msgOutCounter = 1L;
-        consumer.updateStats(stats);
-        assertEquals(consumer.getMsgOutCounter(), 1L);
-    }
+  @Test
+  public void testGetMsgOutCounter() {
+    stats.msgOutCounter = 1L;
+    consumer.updateStats(stats);
+    assertEquals(consumer.getMsgOutCounter(), 1L);
+  }
 
-    @Test
-    public void testGetBytesOutCounter() {
-        stats.bytesOutCounter = 1L;
-        consumer.updateStats(stats);
-        assertEquals(consumer.getBytesOutCounter(), 1L);
-    }
+  @Test
+  public void testGetBytesOutCounter() {
+    stats.bytesOutCounter = 1L;
+    consumer.updateStats(stats);
+    assertEquals(consumer.getBytesOutCounter(), 1L);
+  }
 }

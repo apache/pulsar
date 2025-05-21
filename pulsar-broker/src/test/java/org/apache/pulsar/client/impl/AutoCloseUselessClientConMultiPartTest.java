@@ -34,69 +34,72 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-impl")
 public class AutoCloseUselessClientConMultiPartTest extends AutoCloseUselessClientConSupports {
 
-    private static String topicName = UUID.randomUUID().toString().replaceAll("-","");
-    private static String topicFullName = "persistent://public/default/" + topicName;
+  private static String topicName = UUID.randomUUID().toString().replaceAll("-", "");
+  private static String topicFullName = "persistent://public/default/" + topicName;
 
-    @BeforeMethod
-    public void before() throws PulsarAdminException {
-        // Create Topics
-        PulsarAdmin pulsarAdmin_0 = super.getAllAdmins().get(0);
-        List<String> topicList = pulsarAdmin_0.topics().getList("public/default");
-        if (!topicList.contains(topicName) && !topicList.contains(topicFullName + "-partition-0")
-                && !topicList.contains(topicFullName)){
-            pulsarAdmin_0.topics().createPartitionedTopic(topicFullName, 2);
-        }
+  @BeforeMethod
+  public void before() throws PulsarAdminException {
+    // Create Topics
+    PulsarAdmin pulsarAdmin_0 = super.getAllAdmins().get(0);
+    List<String> topicList = pulsarAdmin_0.topics().getList("public/default");
+    if (!topicList.contains(topicName)
+        && !topicList.contains(topicFullName + "-partition-0")
+        && !topicList.contains(topicFullName)) {
+      pulsarAdmin_0.topics().createPartitionedTopic(topicFullName, 2);
     }
+  }
 
-    @Test
-    public void testConnectionAutoReleasePartitionedTopic() throws Exception {
-        // Init clients
-        PulsarClientImpl pulsarClient = (PulsarClientImpl) super.getAllClients().get(0);
-        Consumer consumer = pulsarClient.newConsumer()
-                .topic(topicName)
-                .subscriptionName("my-subscription-x")
-                .subscribe();
-        Producer producer = pulsarClient.newProducer()
-                .topic(topicName)
-                .create();
-        // Ensure producer and consumer works
-        ensureProducerAndConsumerWorks(producer, consumer);
-        // Connection to every Broker
-        connectionToEveryBrokerWithUnloadBundle(pulsarClient);
-        try {
-            // Ensure that the consumer has reconnected finish after unload-bundle
-            Awaitility.waitAtMost(Duration.ofSeconds(5)).until(consumer::isConnected);
-        } catch (Exception e){
-            // When consumer reconnect failure, create a new one.
-            consumer.close();
-            consumer = pulsarClient.newConsumer(Schema.BYTES)
-                    .topic(topicName)
-                    .isAckReceiptEnabled(true)
-                    .subscriptionName("my-subscription-x")
-                    .subscribe();
-        }
-        try {
-            // Ensure that the producer has reconnected finish after unload-bundle
-            Awaitility.waitAtMost(Duration.ofSeconds(5)).until(producer::isConnected);
-        } catch (Exception e){
-            // When producer reconnect failure, create a new one.
-            producer.close();
-            producer = pulsarClient.newProducer(Schema.BYTES)
-                    .topic(topicName)
-                    .create();
-        }
-        // Assert "auto release works"
-        trigReleaseConnection(pulsarClient);
-        Awaitility.waitAtMost(Duration.ofSeconds(5)).until(()-> {
-            // wait for async task done, then assert auto release success
-            return pulsarClient.getCnxPool().getPoolSize() <= 2;
-        });
-        // Ensure all things still works
-        ensureProducerAndConsumerWorks(producer, consumer);
-        // Verify that the number of connections did not increase after the work was completed
-        Assert.assertTrue(pulsarClient.getCnxPool().getPoolSize() <= 2);
-        // Release sources
-        consumer.close();
-        producer.close();
+  @Test
+  public void testConnectionAutoReleasePartitionedTopic() throws Exception {
+    // Init clients
+    PulsarClientImpl pulsarClient = (PulsarClientImpl) super.getAllClients().get(0);
+    Consumer consumer =
+        pulsarClient
+            .newConsumer()
+            .topic(topicName)
+            .subscriptionName("my-subscription-x")
+            .subscribe();
+    Producer producer = pulsarClient.newProducer().topic(topicName).create();
+    // Ensure producer and consumer works
+    ensureProducerAndConsumerWorks(producer, consumer);
+    // Connection to every Broker
+    connectionToEveryBrokerWithUnloadBundle(pulsarClient);
+    try {
+      // Ensure that the consumer has reconnected finish after unload-bundle
+      Awaitility.waitAtMost(Duration.ofSeconds(5)).until(consumer::isConnected);
+    } catch (Exception e) {
+      // When consumer reconnect failure, create a new one.
+      consumer.close();
+      consumer =
+          pulsarClient
+              .newConsumer(Schema.BYTES)
+              .topic(topicName)
+              .isAckReceiptEnabled(true)
+              .subscriptionName("my-subscription-x")
+              .subscribe();
     }
+    try {
+      // Ensure that the producer has reconnected finish after unload-bundle
+      Awaitility.waitAtMost(Duration.ofSeconds(5)).until(producer::isConnected);
+    } catch (Exception e) {
+      // When producer reconnect failure, create a new one.
+      producer.close();
+      producer = pulsarClient.newProducer(Schema.BYTES).topic(topicName).create();
+    }
+    // Assert "auto release works"
+    trigReleaseConnection(pulsarClient);
+    Awaitility.waitAtMost(Duration.ofSeconds(5))
+        .until(
+            () -> {
+              // wait for async task done, then assert auto release success
+              return pulsarClient.getCnxPool().getPoolSize() <= 2;
+            });
+    // Ensure all things still works
+    ensureProducerAndConsumerWorks(producer, consumer);
+    // Verify that the number of connections did not increase after the work was completed
+    Assert.assertTrue(pulsarClient.getCnxPool().getPoolSize() <= 2);
+    // Release sources
+    consumer.close();
+    producer.close();
+  }
 }

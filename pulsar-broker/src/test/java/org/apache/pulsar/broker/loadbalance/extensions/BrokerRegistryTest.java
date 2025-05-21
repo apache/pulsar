@@ -28,6 +28,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
@@ -64,373 +65,388 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-
-/**
- * Unit test for {@link BrokerRegistry}.
- */
+/** Unit test for {@link BrokerRegistry}. */
 @Slf4j
 @Test(groups = "broker")
 public class BrokerRegistryTest {
 
-    private final List<PulsarService> pulsarServices = new CopyOnWriteArrayList<>();
-    private final List<BrokerRegistryImpl> brokerRegistries = new CopyOnWriteArrayList<>();
+  private final List<PulsarService> pulsarServices = new CopyOnWriteArrayList<>();
+  private final List<BrokerRegistryImpl> brokerRegistries = new CopyOnWriteArrayList<>();
 
-    private ExecutorService executor;
+  private ExecutorService executor;
 
-    private LocalBookkeeperEnsemble bkEnsemble;
+  private LocalBookkeeperEnsemble bkEnsemble;
 
+  // Make sure the load manager don't register itself to `/loadbalance/brokers/{brokerId}`.
+  public static class MockLoadManager implements LoadManager {
 
-    // Make sure the load manager don't register itself to `/loadbalance/brokers/{brokerId}`.
-    public static class MockLoadManager implements LoadManager {
-
-        @Override
-        public void start() throws PulsarServerException {
-            // No-op
-        }
-
-        @Override
-        public boolean isCentralized() {
-            return false;
-        }
-
-        @Override
-        public Optional<ResourceUnit> getLeastLoaded(ServiceUnitId su) throws Exception {
-            return Optional.empty();
-        }
-
-        @Override
-        public LoadManagerReport generateLoadReport() throws Exception {
-            return null;
-        }
-
-        @Override
-        public void setLoadReportForceUpdateFlag() {
-            // No-op
-        }
-
-        @Override
-        public void writeLoadReportOnZookeeper() throws Exception {
-            // No-op
-        }
-
-        @Override
-        public void writeResourceQuotasToZooKeeper() throws Exception {
-            // No-op
-        }
-
-        @Override
-        public List<Metrics> getLoadBalancingMetrics() {
-            return null;
-        }
-
-        @Override
-        public void doLoadShedding() {
-            // No-op
-        }
-
-        @Override
-        public void doNamespaceBundleSplit() throws Exception {
-            // No-op
-        }
-
-        @Override
-        public void disableBroker() throws Exception {
-            // No-op
-        }
-
-        @Override
-        public Set<String> getAvailableBrokers() throws Exception {
-            return null;
-        }
-
-        @Override
-        public CompletableFuture<Set<String>> getAvailableBrokersAsync() {
-            return null;
-        }
-
-        @Override
-        public String setNamespaceBundleAffinity(String bundle, String broker) {
-            return null;
-        }
-
-        @Override
-        public void stop() throws PulsarServerException {
-            // No-op
-        }
-
-        @Override
-        public void initialize(PulsarService pulsar) {
-            // No-op
-        }
+    @Override
+    public void start() throws PulsarServerException {
+      // No-op
     }
 
-    @BeforeClass
-    void setup() throws Exception {
-        executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS,
-                new LinkedBlockingQueue<>());
-        // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
-        bkEnsemble.start();
+    @Override
+    public boolean isCentralized() {
+      return false;
     }
 
-    @SneakyThrows
-    private PulsarService createPulsarService() {
-        ServiceConfiguration config = new ServiceConfiguration();
-        config.setLoadBalancerEnabled(false);
-        config.setLoadManagerClassName(MockLoadManager.class.getName());
-        config.setClusterName("use");
-        config.setWebServicePort(Optional.of(0));
-        config.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
-        config.setBrokerShutdownTimeoutMs(0L);
-        config.setBrokerServicePort(Optional.of(0));
-        config.setAdvertisedAddress("localhost");
-        PulsarService pulsar = spy(new PulsarService(config));
-        pulsarServices.add(pulsar);
-        return pulsar;
+    @Override
+    public Optional<ResourceUnit> getLeastLoaded(ServiceUnitId su) throws Exception {
+      return Optional.empty();
     }
 
-    private BrokerRegistryImpl createBrokerRegistryImpl(PulsarService pulsar) {
-        BrokerRegistryImpl brokerRegistry = spy(new BrokerRegistryImpl(pulsar));
-        brokerRegistries.add(brokerRegistry);
-        return brokerRegistry;
+    @Override
+    public LoadManagerReport generateLoadReport() throws Exception {
+      return null;
     }
 
-    @AfterClass(alwaysRun = true)
-    void shutdown() throws Exception {
-        if (executor != null) {
-            executor.shutdownNow();
-            executor = null;
-        }
-        if (bkEnsemble != null) {
-            bkEnsemble.stop();
-            bkEnsemble = null;
-        }
+    @Override
+    public void setLoadReportForceUpdateFlag() {
+      // No-op
     }
 
-    @AfterMethod(alwaysRun = true)
-    void cleanUp() {
-        log.info("Cleaning up the broker registry...");
-        brokerRegistries.forEach(brokerRegistry -> {
-            if (brokerRegistry.isStarted()) {
-                try {
-                    brokerRegistry.close();
-                } catch (PulsarServerException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        });
-        brokerRegistries.clear();
-        log.info("Cleaning up the pulsar services...");
-        pulsarServices.forEach(pulsarService -> {
+    @Override
+    public void writeLoadReportOnZookeeper() throws Exception {
+      // No-op
+    }
+
+    @Override
+    public void writeResourceQuotasToZooKeeper() throws Exception {
+      // No-op
+    }
+
+    @Override
+    public List<Metrics> getLoadBalancingMetrics() {
+      return null;
+    }
+
+    @Override
+    public void doLoadShedding() {
+      // No-op
+    }
+
+    @Override
+    public void doNamespaceBundleSplit() throws Exception {
+      // No-op
+    }
+
+    @Override
+    public void disableBroker() throws Exception {
+      // No-op
+    }
+
+    @Override
+    public Set<String> getAvailableBrokers() throws Exception {
+      return null;
+    }
+
+    @Override
+    public CompletableFuture<Set<String>> getAvailableBrokersAsync() {
+      return null;
+    }
+
+    @Override
+    public String setNamespaceBundleAffinity(String bundle, String broker) {
+      return null;
+    }
+
+    @Override
+    public void stop() throws PulsarServerException {
+      // No-op
+    }
+
+    @Override
+    public void initialize(PulsarService pulsar) {
+      // No-op
+    }
+  }
+
+  @BeforeClass
+  void setup() throws Exception {
+    executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
+    // Start local bookkeeper ensemble
+    bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+    bkEnsemble.start();
+  }
+
+  @SneakyThrows
+  private PulsarService createPulsarService() {
+    ServiceConfiguration config = new ServiceConfiguration();
+    config.setLoadBalancerEnabled(false);
+    config.setLoadManagerClassName(MockLoadManager.class.getName());
+    config.setClusterName("use");
+    config.setWebServicePort(Optional.of(0));
+    config.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+    config.setBrokerShutdownTimeoutMs(0L);
+    config.setBrokerServicePort(Optional.of(0));
+    config.setAdvertisedAddress("localhost");
+    PulsarService pulsar = spy(new PulsarService(config));
+    pulsarServices.add(pulsar);
+    return pulsar;
+  }
+
+  private BrokerRegistryImpl createBrokerRegistryImpl(PulsarService pulsar) {
+    BrokerRegistryImpl brokerRegistry = spy(new BrokerRegistryImpl(pulsar));
+    brokerRegistries.add(brokerRegistry);
+    return brokerRegistry;
+  }
+
+  @AfterClass(alwaysRun = true)
+  void shutdown() throws Exception {
+    if (executor != null) {
+      executor.shutdownNow();
+      executor = null;
+    }
+    if (bkEnsemble != null) {
+      bkEnsemble.stop();
+      bkEnsemble = null;
+    }
+  }
+
+  @AfterMethod(alwaysRun = true)
+  void cleanUp() {
+    log.info("Cleaning up the broker registry...");
+    brokerRegistries.forEach(
+        brokerRegistry -> {
+          if (brokerRegistry.isStarted()) {
             try {
-                pulsarService.close();
+              brokerRegistry.close();
             } catch (PulsarServerException e) {
-                throw new RuntimeException(e);
+              throw new RuntimeException(e);
             }
+          }
         });
-        pulsarServices.clear();
-    }
+    brokerRegistries.clear();
+    log.info("Cleaning up the pulsar services...");
+    pulsarServices.forEach(
+        pulsarService -> {
+          try {
+            pulsarService.close();
+          } catch (PulsarServerException e) {
+            throw new RuntimeException(e);
+          }
+        });
+    pulsarServices.clear();
+  }
 
-    @Test(timeOut = 30 * 1000)
-    public void testRegisterAndLookup() throws Exception {
-        PulsarService pulsar1 = createPulsarService();
-        PulsarService pulsar2 = createPulsarService();
-        PulsarService pulsar3 = createPulsarService();
-        pulsar1.start();
-        pulsar2.start();
-        pulsar3.start();
-        BrokerRegistryImpl brokerRegistry1 = createBrokerRegistryImpl(pulsar1);
-        BrokerRegistryImpl brokerRegistry2 = createBrokerRegistryImpl(pulsar2);
-        BrokerRegistryImpl brokerRegistry3 = createBrokerRegistryImpl(pulsar3);
+  @Test(timeOut = 30 * 1000)
+  public void testRegisterAndLookup() throws Exception {
+    PulsarService pulsar1 = createPulsarService();
+    PulsarService pulsar2 = createPulsarService();
+    PulsarService pulsar3 = createPulsarService();
+    pulsar1.start();
+    pulsar2.start();
+    pulsar3.start();
+    BrokerRegistryImpl brokerRegistry1 = createBrokerRegistryImpl(pulsar1);
+    BrokerRegistryImpl brokerRegistry2 = createBrokerRegistryImpl(pulsar2);
+    BrokerRegistryImpl brokerRegistry3 = createBrokerRegistryImpl(pulsar3);
 
-        Set<String> brokerIds = new HashSet<>();
-        brokerRegistry1.addListener((brokerId, type) -> {
-            brokerIds.add(brokerId);
+    Set<String> brokerIds = new HashSet<>();
+    brokerRegistry1.addListener(
+        (brokerId, type) -> {
+          brokerIds.add(brokerId);
         });
 
-        brokerRegistry1.start();
-        brokerRegistry2.start();
+    brokerRegistry1.start();
+    brokerRegistry2.start();
 
-        Awaitility.await().atMost(Duration.ofSeconds(5))
-                .untilAsserted(() -> assertEquals(brokerIds.size(), 2));
+    Awaitility.await()
+        .atMost(Duration.ofSeconds(5))
+        .untilAsserted(() -> assertEquals(brokerIds.size(), 2));
 
-        assertEquals(brokerRegistry1.getAvailableBrokersAsync().get().size(), 2);
-        assertEquals(brokerRegistry2.getAvailableBrokersAsync().get().size(), 2);
+    assertEquals(brokerRegistry1.getAvailableBrokersAsync().get().size(), 2);
+    assertEquals(brokerRegistry2.getAvailableBrokersAsync().get().size(), 2);
 
-        // Check three broker cache are flush successes.
-        brokerRegistry3.start();
-        assertEquals(brokerRegistry3.getAvailableBrokersAsync().get().size(), 3);
-        Awaitility.await().atMost(Duration.ofSeconds(5))
-                .untilAsserted(() -> assertEquals(brokerIds.size(), 3));
+    // Check three broker cache are flush successes.
+    brokerRegistry3.start();
+    assertEquals(brokerRegistry3.getAvailableBrokersAsync().get().size(), 3);
+    Awaitility.await()
+        .atMost(Duration.ofSeconds(5))
+        .untilAsserted(() -> assertEquals(brokerIds.size(), 3));
 
-        assertEquals(brokerIds, new HashSet<>(brokerRegistry1.getAvailableBrokersAsync().get()));
-        assertEquals(brokerIds, new HashSet<>(brokerRegistry2.getAvailableBrokersAsync().get()));
-        assertEquals(brokerIds, new HashSet<>(brokerRegistry3.getAvailableBrokersAsync().get()));
-        assertEquals(brokerIds, brokerRegistry1.getAvailableBrokerLookupDataAsync().get().keySet());
-        assertEquals(brokerIds, brokerRegistry2.getAvailableBrokerLookupDataAsync().get().keySet());
-        assertEquals(brokerIds, brokerRegistry3.getAvailableBrokerLookupDataAsync().get().keySet());
+    assertEquals(brokerIds, new HashSet<>(brokerRegistry1.getAvailableBrokersAsync().get()));
+    assertEquals(brokerIds, new HashSet<>(brokerRegistry2.getAvailableBrokersAsync().get()));
+    assertEquals(brokerIds, new HashSet<>(brokerRegistry3.getAvailableBrokersAsync().get()));
+    assertEquals(brokerIds, brokerRegistry1.getAvailableBrokerLookupDataAsync().get().keySet());
+    assertEquals(brokerIds, brokerRegistry2.getAvailableBrokerLookupDataAsync().get().keySet());
+    assertEquals(brokerIds, brokerRegistry3.getAvailableBrokerLookupDataAsync().get().keySet());
 
-        Optional<BrokerLookupData> lookupDataOpt =
-                brokerRegistry1.lookupAsync(brokerRegistry2.getBrokerId()).get();
-        assertTrue(lookupDataOpt.isPresent());
-        assertEquals(lookupDataOpt.get().getWebServiceUrl(), pulsar2.getSafeWebServiceAddress());
-        assertEquals(lookupDataOpt.get().getWebServiceUrlTls(), pulsar2.getWebServiceAddressTls());
-        assertEquals(lookupDataOpt.get().getPulsarServiceUrl(), pulsar2.getBrokerServiceUrl());
-        assertEquals(lookupDataOpt.get().getPulsarServiceUrlTls(), pulsar2.getBrokerServiceUrlTls());
-        assertEquals(lookupDataOpt.get().advertisedListeners(), pulsar2.getAdvertisedListeners());
-        assertEquals(lookupDataOpt.get().protocols(), pulsar2.getProtocolDataToAdvertise());
-        assertEquals(lookupDataOpt.get().persistentTopicsEnabled(), pulsar2.getConfiguration()
-                .isEnablePersistentTopics());
-        assertEquals(lookupDataOpt.get().nonPersistentTopicsEnabled(), pulsar2.getConfiguration()
-                .isEnableNonPersistentTopics());
-        assertEquals(lookupDataOpt.get().brokerVersion(), pulsar2.getBrokerVersion());
+    Optional<BrokerLookupData> lookupDataOpt =
+        brokerRegistry1.lookupAsync(brokerRegistry2.getBrokerId()).get();
+    assertTrue(lookupDataOpt.isPresent());
+    assertEquals(lookupDataOpt.get().getWebServiceUrl(), pulsar2.getSafeWebServiceAddress());
+    assertEquals(lookupDataOpt.get().getWebServiceUrlTls(), pulsar2.getWebServiceAddressTls());
+    assertEquals(lookupDataOpt.get().getPulsarServiceUrl(), pulsar2.getBrokerServiceUrl());
+    assertEquals(lookupDataOpt.get().getPulsarServiceUrlTls(), pulsar2.getBrokerServiceUrlTls());
+    assertEquals(lookupDataOpt.get().advertisedListeners(), pulsar2.getAdvertisedListeners());
+    assertEquals(lookupDataOpt.get().protocols(), pulsar2.getProtocolDataToAdvertise());
+    assertEquals(
+        lookupDataOpt.get().persistentTopicsEnabled(),
+        pulsar2.getConfiguration().isEnablePersistentTopics());
+    assertEquals(
+        lookupDataOpt.get().nonPersistentTopicsEnabled(),
+        pulsar2.getConfiguration().isEnableNonPersistentTopics());
+    assertEquals(lookupDataOpt.get().brokerVersion(), pulsar2.getBrokerVersion());
 
-        // Unregister and see the available brokers.
-        brokerRegistry1.unregister();
+    // Unregister and see the available brokers.
+    brokerRegistry1.unregister();
 
-        // After unregistering, the other broker registry lock manager's metadata cache might not be updated yet,
-        // so we need to wait for it to synchronize.
-        Awaitility.await().untilAsserted(() -> {
-            assertEquals(brokerRegistry2.getAvailableBrokersAsync().get().size(), 2);
-        });
-    }
-
-    @Test
-    public void testRegisterWithSameBrokerId() throws Exception {
-        PulsarService pulsar1 = createPulsarService();
-        PulsarService pulsar2 = createPulsarService();
-        pulsar1.start();
-        pulsar2.start();
-
-        doReturn(pulsar1.getBrokerId()).when(pulsar2).getBrokerId();
-        BrokerRegistryImpl brokerRegistry1 = createBrokerRegistryImpl(pulsar1);
-        BrokerRegistryImpl brokerRegistry2 = createBrokerRegistryImpl(pulsar2);
-        brokerRegistry1.start();
-        brokerRegistry2.start();
-
-        pulsar1.close();
-        pulsar2.close();
-    }
-
-    @Test
-    public void testCloseRegister() throws Exception {
-        PulsarService pulsar1 = createPulsarService();
-        pulsar1.start();
-        BrokerRegistryImpl brokerRegistry = createBrokerRegistryImpl(pulsar1);
-        assertEquals(getState(brokerRegistry), BrokerRegistryImpl.State.Init);
-
-        // Check state after stated.
-        brokerRegistry.start();
-        assertEquals(getState(brokerRegistry), BrokerRegistryImpl.State.Registered);
-
-        // Add a listener
-        brokerRegistry.addListener((brokerId, type) -> {
-            // Ignore.
-        });
-        assertTrue(brokerRegistry.isStarted());
-        List<BiConsumer<String, NotificationType>> listeners =
-                WhiteboxImpl.getInternalState(brokerRegistry, "listeners");
-        assertFalse(listeners.isEmpty());
-
-        // Check state after unregister.
-        brokerRegistry.unregister();
-        assertEquals(getState(brokerRegistry), BrokerRegistryImpl.State.Started);
-
-        // Check state after re-register.
-        brokerRegistry.registerAsync().get();
-        assertEquals(getState(brokerRegistry), BrokerRegistryImpl.State.Registered);
-
-        // Check state after close.
-        brokerRegistry.close();
-        assertFalse(brokerRegistry.isStarted());
-        assertEquals(getState(brokerRegistry), BrokerRegistryImpl.State.Closed);
-        listeners = WhiteboxImpl.getInternalState(brokerRegistry, "listeners");
-        assertTrue(listeners.isEmpty());
-
-        try {
-            brokerRegistry.getAvailableBrokersAsync().get();
-            fail();
-        } catch (Exception ex) {
-            log.info("Failed to getAvailableBrokersAsync.", ex);
-            assertTrue(FutureUtil.unwrapCompletionException(ex) instanceof IllegalStateException);
-        }
-
-        try {
-            brokerRegistry.getAvailableBrokerLookupDataAsync().get();
-            fail();
-        } catch (Exception ex) {
-            log.info("Failed to getAvailableBrokerLookupDataAsync.", ex);
-            assertTrue(FutureUtil.unwrapCompletionException(ex) instanceof IllegalStateException);
-        }
-
-        try {
-            brokerRegistry.lookupAsync("test").get();
-            fail();
-        } catch (Exception ex) {
-            log.info("Failed to lookupAsync.", ex);
-            assertTrue(FutureUtil.unwrapCompletionException(ex) instanceof IllegalStateException);
-        }
-
-        try {
-            brokerRegistry.addListener((brokerId, type) -> {
-                // Ignore.
+    // After unregistering, the other broker registry lock manager's metadata cache might not be
+    // updated yet,
+    // so we need to wait for it to synchronize.
+    Awaitility.await()
+        .untilAsserted(
+            () -> {
+              assertEquals(brokerRegistry2.getAvailableBrokersAsync().get().size(), 2);
             });
-            fail();
-        } catch (Exception ex) {
-            log.info("Failed to lookupAsync.", ex);
-            assertTrue(FutureUtil.unwrapCompletionException(ex) instanceof IllegalStateException);
-        }
+  }
+
+  @Test
+  public void testRegisterWithSameBrokerId() throws Exception {
+    PulsarService pulsar1 = createPulsarService();
+    PulsarService pulsar2 = createPulsarService();
+    pulsar1.start();
+    pulsar2.start();
+
+    doReturn(pulsar1.getBrokerId()).when(pulsar2).getBrokerId();
+    BrokerRegistryImpl brokerRegistry1 = createBrokerRegistryImpl(pulsar1);
+    BrokerRegistryImpl brokerRegistry2 = createBrokerRegistryImpl(pulsar2);
+    brokerRegistry1.start();
+    brokerRegistry2.start();
+
+    pulsar1.close();
+    pulsar2.close();
+  }
+
+  @Test
+  public void testCloseRegister() throws Exception {
+    PulsarService pulsar1 = createPulsarService();
+    pulsar1.start();
+    BrokerRegistryImpl brokerRegistry = createBrokerRegistryImpl(pulsar1);
+    assertEquals(getState(brokerRegistry), BrokerRegistryImpl.State.Init);
+
+    // Check state after stated.
+    brokerRegistry.start();
+    assertEquals(getState(brokerRegistry), BrokerRegistryImpl.State.Registered);
+
+    // Add a listener
+    brokerRegistry.addListener(
+        (brokerId, type) -> {
+          // Ignore.
+        });
+    assertTrue(brokerRegistry.isStarted());
+    List<BiConsumer<String, NotificationType>> listeners =
+        WhiteboxImpl.getInternalState(brokerRegistry, "listeners");
+    assertFalse(listeners.isEmpty());
+
+    // Check state after unregister.
+    brokerRegistry.unregister();
+    assertEquals(getState(brokerRegistry), BrokerRegistryImpl.State.Started);
+
+    // Check state after re-register.
+    brokerRegistry.registerAsync().get();
+    assertEquals(getState(brokerRegistry), BrokerRegistryImpl.State.Registered);
+
+    // Check state after close.
+    brokerRegistry.close();
+    assertFalse(brokerRegistry.isStarted());
+    assertEquals(getState(brokerRegistry), BrokerRegistryImpl.State.Closed);
+    listeners = WhiteboxImpl.getInternalState(brokerRegistry, "listeners");
+    assertTrue(listeners.isEmpty());
+
+    try {
+      brokerRegistry.getAvailableBrokersAsync().get();
+      fail();
+    } catch (Exception ex) {
+      log.info("Failed to getAvailableBrokersAsync.", ex);
+      assertTrue(FutureUtil.unwrapCompletionException(ex) instanceof IllegalStateException);
     }
 
-    @Test
-    public void testIsVerifiedNotification() {
-        assertFalse(BrokerRegistryImpl.isVerifiedNotification(new Notification(NotificationType.Created, "/")));
-        assertFalse(BrokerRegistryImpl.isVerifiedNotification(new Notification(NotificationType.Created,
-                LOADBALANCE_BROKERS_ROOT + "xyz")));
-        assertFalse(BrokerRegistryImpl.isVerifiedNotification(new Notification(NotificationType.Created,
-                LOADBALANCE_BROKERS_ROOT)));
-        assertTrue(BrokerRegistryImpl.isVerifiedNotification(
-                new Notification(NotificationType.Created, LOADBALANCE_BROKERS_ROOT + "/brokerId")));
-        assertTrue(BrokerRegistryImpl.isVerifiedNotification(
-                new Notification(NotificationType.Created, LOADBALANCE_BROKERS_ROOT + "/brokerId/xyz")));
+    try {
+      brokerRegistry.getAvailableBrokerLookupDataAsync().get();
+      fail();
+    } catch (Exception ex) {
+      log.info("Failed to getAvailableBrokerLookupDataAsync.", ex);
+      assertTrue(FutureUtil.unwrapCompletionException(ex) instanceof IllegalStateException);
     }
 
-    @Test
-    public void testKeyPath() {
-        String keyPath = BrokerRegistryImpl.keyPath("brokerId");
-        assertEquals(keyPath, LOADBALANCE_BROKERS_ROOT + "/brokerId");
+    try {
+      brokerRegistry.lookupAsync("test").get();
+      fail();
+    } catch (Exception ex) {
+      log.info("Failed to lookupAsync.", ex);
+      assertTrue(FutureUtil.unwrapCompletionException(ex) instanceof IllegalStateException);
     }
 
-    @Test
-    public void testRegisterAsyncTimeout() throws Exception {
-        var pulsar1 = createPulsarService();
-        pulsar1.start();
-        pulsar1.getConfiguration().setMetadataStoreOperationTimeoutSeconds(1);
-        var metadataCache = mock(MetadataCache.class);
-        var brokerRegistry = new BrokerRegistryImpl(pulsar1, metadataCache);
+    try {
+      brokerRegistry.addListener(
+          (brokerId, type) -> {
+            // Ignore.
+          });
+      fail();
+    } catch (Exception ex) {
+      log.info("Failed to lookupAsync.", ex);
+      assertTrue(FutureUtil.unwrapCompletionException(ex) instanceof IllegalStateException);
+    }
+  }
 
-        // happy case
-        doReturn(CompletableFuture.completedFuture(null)).when(metadataCache).put(any(), any(), any());
-        brokerRegistry.start();
+  @Test
+  public void testIsVerifiedNotification() {
+    assertFalse(
+        BrokerRegistryImpl.isVerifiedNotification(new Notification(NotificationType.Created, "/")));
+    assertFalse(
+        BrokerRegistryImpl.isVerifiedNotification(
+            new Notification(NotificationType.Created, LOADBALANCE_BROKERS_ROOT + "xyz")));
+    assertFalse(
+        BrokerRegistryImpl.isVerifiedNotification(
+            new Notification(NotificationType.Created, LOADBALANCE_BROKERS_ROOT)));
+    assertTrue(
+        BrokerRegistryImpl.isVerifiedNotification(
+            new Notification(NotificationType.Created, LOADBALANCE_BROKERS_ROOT + "/brokerId")));
+    assertTrue(
+        BrokerRegistryImpl.isVerifiedNotification(
+            new Notification(
+                NotificationType.Created, LOADBALANCE_BROKERS_ROOT + "/brokerId/xyz")));
+  }
 
-        // unhappy case (timeout)
-        doAnswer(invocationOnMock -> {
-            return CompletableFuture.supplyAsync(() -> null, CompletableFuture.delayedExecutor(5, TimeUnit.SECONDS));
-        }).when(metadataCache).put(any(), any(), any());
-        try {
-            brokerRegistry.registerAsync().join();
-        } catch (Exception e) {
-            assertTrue(e.getCause() instanceof TimeoutException);
-        }
+  @Test
+  public void testKeyPath() {
+    String keyPath = BrokerRegistryImpl.keyPath("brokerId");
+    assertEquals(keyPath, LOADBALANCE_BROKERS_ROOT + "/brokerId");
+  }
 
-        // happy case again
-        doReturn(CompletableFuture.completedFuture(null)).when(metadataCache).put(any(), any(), any());
-        brokerRegistry.registerAsync().join();
+  @Test
+  public void testRegisterAsyncTimeout() throws Exception {
+    var pulsar1 = createPulsarService();
+    pulsar1.start();
+    pulsar1.getConfiguration().setMetadataStoreOperationTimeoutSeconds(1);
+    var metadataCache = mock(MetadataCache.class);
+    var brokerRegistry = new BrokerRegistryImpl(pulsar1, metadataCache);
+
+    // happy case
+    doReturn(CompletableFuture.completedFuture(null)).when(metadataCache).put(any(), any(), any());
+    brokerRegistry.start();
+
+    // unhappy case (timeout)
+    doAnswer(
+            invocationOnMock -> {
+              return CompletableFuture.supplyAsync(
+                  () -> null, CompletableFuture.delayedExecutor(5, TimeUnit.SECONDS));
+            })
+        .when(metadataCache)
+        .put(any(), any(), any());
+    try {
+      brokerRegistry.registerAsync().join();
+    } catch (Exception e) {
+      assertTrue(e.getCause() instanceof TimeoutException);
     }
 
+    // happy case again
+    doReturn(CompletableFuture.completedFuture(null)).when(metadataCache).put(any(), any(), any());
+    brokerRegistry.registerAsync().join();
+  }
 
-    private static BrokerRegistryImpl.State getState(BrokerRegistryImpl brokerRegistry) {
-        return brokerRegistry.state.get();
-    }
+  private static BrokerRegistryImpl.State getState(BrokerRegistryImpl brokerRegistry) {
+    return brokerRegistry.state.get();
+  }
 }
-

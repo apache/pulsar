@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
+
 import java.util.Optional;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -37,48 +38,51 @@ import org.testng.annotations.Test;
 
 @Test(groups = "websocket")
 public class ProxyConfigurationTest extends ProducerConsumerBase {
-    private WebSocketProxyConfiguration config;
+  private WebSocketProxyConfiguration config;
 
-    @BeforeMethod
-    public void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
+  @BeforeMethod
+  public void setup() throws Exception {
+    super.internalSetup();
+    super.producerBaseSetup();
 
-        config = new WebSocketProxyConfiguration();
-        config.setWebServicePort(Optional.of(0));
-        config.setClusterName("test");
-        config.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
-    }
+    config = new WebSocketProxyConfiguration();
+    config.setWebServicePort(Optional.of(0));
+    config.setClusterName("test");
+    config.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
+  }
 
-    @AfterMethod(alwaysRun = true)
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @AfterMethod(alwaysRun = true)
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @DataProvider(name = "setProxyConfig")
-    public Object[][] setProxyConfig() {
-        return new Object[][] { {2, 1}, {4, 2} };
-    }
+  @DataProvider(name = "setProxyConfig")
+  public Object[][] setProxyConfig() {
+    return new Object[][] {{2, 1}, {4, 2}};
+  }
 
-    @Test(dataProvider = "setProxyConfig", timeOut = 10000)
-    public void configTest(int numIoThreads, int connectionsPerBroker) throws Exception {
-        config.setWebSocketNumIoThreads(numIoThreads);
-        config.setWebSocketConnectionsPerBroker(connectionsPerBroker);
-        config.getProperties().setProperty("brokerClient_serviceUrl", "https://broker.com:8080");
-        config.setServiceUrl("http://localhost:8080");
-        config.getProperties().setProperty("brokerClient_lookupTimeoutMs", "100");
-        WebSocketService service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
-        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(service)
-                .createConfigMetadataStore(anyString(), anyInt(), anyBoolean());
-        service.start();
+  @Test(dataProvider = "setProxyConfig", timeOut = 10000)
+  public void configTest(int numIoThreads, int connectionsPerBroker) throws Exception {
+    config.setWebSocketNumIoThreads(numIoThreads);
+    config.setWebSocketConnectionsPerBroker(connectionsPerBroker);
+    config.getProperties().setProperty("brokerClient_serviceUrl", "https://broker.com:8080");
+    config.setServiceUrl("http://localhost:8080");
+    config.getProperties().setProperty("brokerClient_lookupTimeoutMs", "100");
+    WebSocketService service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
+    doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal)))
+        .when(service)
+        .createConfigMetadataStore(anyString(), anyInt(), anyBoolean());
+    service.start();
 
-        PulsarClientImpl client = (PulsarClientImpl) service.getPulsarClient();
-        assertEquals(client.getConfiguration().getNumIoThreads(), numIoThreads);
-        assertEquals(client.getConfiguration().getConnectionsPerBroker(), connectionsPerBroker);
-        assertEquals(client.getConfiguration().getServiceUrl(), "http://localhost:8080",
-                "brokerClient_ configs take precedence");
-        assertEquals(client.getConfiguration().getLookupTimeoutMs(), 100);
+    PulsarClientImpl client = (PulsarClientImpl) service.getPulsarClient();
+    assertEquals(client.getConfiguration().getNumIoThreads(), numIoThreads);
+    assertEquals(client.getConfiguration().getConnectionsPerBroker(), connectionsPerBroker);
+    assertEquals(
+        client.getConfiguration().getServiceUrl(),
+        "http://localhost:8080",
+        "brokerClient_ configs take precedence");
+    assertEquals(client.getConfiguration().getLookupTimeoutMs(), 100);
 
-        service.close();
-    }
+    service.close();
+  }
 }

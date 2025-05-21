@@ -31,40 +31,44 @@ import org.apache.pulsar.common.protocol.Commands;
 @Slf4j
 public class CustomBatchProducer {
 
-    private final List<String> messages = new ArrayList<>();
-    private final PersistentTopic persistentTopic;
-    private final int batchingMaxMessages;
+  private final List<String> messages = new ArrayList<>();
+  private final PersistentTopic persistentTopic;
+  private final int batchingMaxMessages;
 
-    public void sendAsync(final String value) {
-        messages.add(value);
-        if (messages.size() >= batchingMaxMessages) {
-            flush();
-        }
+  public void sendAsync(final String value) {
+    messages.add(value);
+    if (messages.size() >= batchingMaxMessages) {
+      flush();
     }
+  }
 
-    public void flush() {
-        final ByteBuf buf = CustomBatchFormat.serialize(messages);
-        final ByteBuf headerAndPayload = Commands.serializeMetadataAndPayload(Commands.ChecksumType.None,
-                createCustomMetadata(), buf);
-        buf.release();
-        persistentTopic.publishMessage(headerAndPayload, (e, ledgerId, entryId) -> {
-            if (e == null) {
-                log.info("Send successfully to {} ({}, {})", persistentTopic.getName(), ledgerId, entryId);
-            } else {
-                log.error("Failed to send: {}", e.getMessage());
-            }
+  public void flush() {
+    final ByteBuf buf = CustomBatchFormat.serialize(messages);
+    final ByteBuf headerAndPayload =
+        Commands.serializeMetadataAndPayload(
+            Commands.ChecksumType.None, createCustomMetadata(), buf);
+    buf.release();
+    persistentTopic.publishMessage(
+        headerAndPayload,
+        (e, ledgerId, entryId) -> {
+          if (e == null) {
+            log.info(
+                "Send successfully to {} ({}, {})", persistentTopic.getName(), ledgerId, entryId);
+          } else {
+            log.error("Failed to send: {}", e.getMessage());
+          }
         });
-        messages.clear();
-    }
+    messages.clear();
+  }
 
-    private static MessageMetadata createCustomMetadata() {
-        final MessageMetadata messageMetadata = new MessageMetadata();
-        // Here are required fields
-        messageMetadata.setProducerName("");
-        messageMetadata.setSequenceId(0L);
-        messageMetadata.setPublishTime(0L);
-        // Add the property to identify the message format
-        messageMetadata.addProperty().setKey(CustomBatchFormat.KEY).setValue(CustomBatchFormat.VALUE);
-        return messageMetadata;
-    }
+  private static MessageMetadata createCustomMetadata() {
+    final MessageMetadata messageMetadata = new MessageMetadata();
+    // Here are required fields
+    messageMetadata.setProducerName("");
+    messageMetadata.setSequenceId(0L);
+    messageMetadata.setPublishTime(0L);
+    // Add the property to identify the message format
+    messageMetadata.addProperty().setKey(CustomBatchFormat.KEY).setValue(CustomBatchFormat.VALUE);
+    return messageMetadata;
+  }
 }

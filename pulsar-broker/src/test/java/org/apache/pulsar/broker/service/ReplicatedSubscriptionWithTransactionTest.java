@@ -23,31 +23,29 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-/**
- * Tests replicated subscriptions with transaction (PIP-33)
- */
+/** Tests replicated subscriptions with transaction (PIP-33) */
 @Test(groups = "broker")
 public class ReplicatedSubscriptionWithTransactionTest extends ReplicatedSubscriptionTest {
 
-    @Override
-    @BeforeClass(timeOut = 300000)
-    public void setup() throws Exception {
-        config1.setTransactionCoordinatorEnabled(true);
-        config2.setTransactionCoordinatorEnabled(true);
-        config3.setTransactionCoordinatorEnabled(true);
-        config4.setTransactionCoordinatorEnabled(true);
-        super.setup();
-    }
+  @Override
+  @BeforeClass(timeOut = 300000)
+  public void setup() throws Exception {
+    config1.setTransactionCoordinatorEnabled(true);
+    config2.setTransactionCoordinatorEnabled(true);
+    config3.setTransactionCoordinatorEnabled(true);
+    config4.setTransactionCoordinatorEnabled(true);
+    super.setup();
+  }
 
-    @Override
-    @AfterClass(alwaysRun = true, timeOut = 300000)
-    public void cleanup() throws Exception {
-        super.cleanup();
-    }
+  @Override
+  @AfterClass(alwaysRun = true, timeOut = 300000)
+  public void cleanup() throws Exception {
+    super.cleanup();
+  }
 
-    @DataProvider(name = "isTopicPolicyEnabled")
-    private Object[][] isTopicPolicyEnabled() {
-        // Todo: fix replication can not be enabled at topic level.
-        return new Object[][] { { Boolean.FALSE } };
-    }
+  @DataProvider(name = "isTopicPolicyEnabled")
+  private Object[][] isTopicPolicyEnabled() {
+    // Todo: fix replication can not be enabled at topic level.
+    return new Object[][] {{Boolean.FALSE}};
+  }
 }

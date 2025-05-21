@@ -20,44 +20,45 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers.getEffectiveLookAheadLimit;
 import static org.testng.Assert.assertEquals;
+
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.testng.annotations.Test;
 
 public class KeySharedLookAheadConfigTest {
 
-    @Test
-    public void testGetEffectiveLookAheadLimit() {
-        ServiceConfiguration config = new ServiceConfiguration();
+  @Test
+  public void testGetEffectiveLookAheadLimit() {
+    ServiceConfiguration config = new ServiceConfiguration();
 
-        config.setKeySharedLookAheadMsgInReplayThresholdPerConsumer(5);
-        config.setKeySharedLookAheadMsgInReplayThresholdPerSubscription(100);
-        assertEquals(getEffectiveLookAheadLimit(config, 5), 25);
-        assertEquals(getEffectiveLookAheadLimit(config, 100), 100);
+    config.setKeySharedLookAheadMsgInReplayThresholdPerConsumer(5);
+    config.setKeySharedLookAheadMsgInReplayThresholdPerSubscription(100);
+    assertEquals(getEffectiveLookAheadLimit(config, 5), 25);
+    assertEquals(getEffectiveLookAheadLimit(config, 100), 100);
 
-        config.setKeySharedLookAheadMsgInReplayThresholdPerConsumer(5);
-        config.setKeySharedLookAheadMsgInReplayThresholdPerSubscription(0);
-        assertEquals(getEffectiveLookAheadLimit(config, 100), 500);
+    config.setKeySharedLookAheadMsgInReplayThresholdPerConsumer(5);
+    config.setKeySharedLookAheadMsgInReplayThresholdPerSubscription(0);
+    assertEquals(getEffectiveLookAheadLimit(config, 100), 500);
 
-        config.setKeySharedLookAheadMsgInReplayThresholdPerConsumer(0);
-        config.setKeySharedLookAheadMsgInReplayThresholdPerSubscription(6000);
-        assertEquals(getEffectiveLookAheadLimit(config, 100), 6000);
+    config.setKeySharedLookAheadMsgInReplayThresholdPerConsumer(0);
+    config.setKeySharedLookAheadMsgInReplayThresholdPerSubscription(6000);
+    assertEquals(getEffectiveLookAheadLimit(config, 100), 6000);
 
-        config.setKeySharedLookAheadMsgInReplayThresholdPerConsumer(0);
-        config.setKeySharedLookAheadMsgInReplayThresholdPerSubscription(0);
-        config.setMaxUnackedMessagesPerConsumer(0);
-        config.setMaxUnackedMessagesPerSubscription(0);
-        assertEquals(getEffectiveLookAheadLimit(config, 100), Integer.MAX_VALUE);
+    config.setKeySharedLookAheadMsgInReplayThresholdPerConsumer(0);
+    config.setKeySharedLookAheadMsgInReplayThresholdPerSubscription(0);
+    config.setMaxUnackedMessagesPerConsumer(0);
+    config.setMaxUnackedMessagesPerSubscription(0);
+    assertEquals(getEffectiveLookAheadLimit(config, 100), Integer.MAX_VALUE);
 
-        config.setKeySharedLookAheadMsgInReplayThresholdPerConsumer(0);
-        config.setKeySharedLookAheadMsgInReplayThresholdPerSubscription(0);
-        config.setMaxUnackedMessagesPerConsumer(1);
-        config.setMaxUnackedMessagesPerSubscription(10);
-        assertEquals(getEffectiveLookAheadLimit(config, 100), 10);
+    config.setKeySharedLookAheadMsgInReplayThresholdPerConsumer(0);
+    config.setKeySharedLookAheadMsgInReplayThresholdPerSubscription(0);
+    config.setMaxUnackedMessagesPerConsumer(1);
+    config.setMaxUnackedMessagesPerSubscription(10);
+    assertEquals(getEffectiveLookAheadLimit(config, 100), 10);
 
-        config.setKeySharedLookAheadMsgInReplayThresholdPerConsumer(0);
-        config.setKeySharedLookAheadMsgInReplayThresholdPerSubscription(0);
-        config.setMaxUnackedMessagesPerConsumer(22);
-        config.setMaxUnackedMessagesPerSubscription(0);
-        assertEquals(getEffectiveLookAheadLimit(config, 100), 2200);
-    }
+    config.setKeySharedLookAheadMsgInReplayThresholdPerConsumer(0);
+    config.setKeySharedLookAheadMsgInReplayThresholdPerSubscription(0);
+    config.setMaxUnackedMessagesPerConsumer(22);
+    config.setMaxUnackedMessagesPerSubscription(0);
+    assertEquals(getEffectiveLookAheadLimit(config, 100), 2200);
+  }
 }

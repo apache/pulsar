@@ -18,21 +18,19 @@
  */
 package org.apache.pulsar.websocket.proxy;
 
-import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-
 import javax.naming.AuthenticationException;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 
 public class MockUnauthenticationProvider extends MockAuthenticationProvider {
 
-    @Override
-    public String getAuthMethodName() {
-        // method name
-        return "mockunauth";
-    }
+  @Override
+  public String getAuthMethodName() {
+    // method name
+    return "mockunauth";
+  }
 
-    @Override
-    public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
-        throw new AuthenticationException();
-    }
-
+  @Override
+  public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
+    throw new AuthenticationException();
+  }
 }

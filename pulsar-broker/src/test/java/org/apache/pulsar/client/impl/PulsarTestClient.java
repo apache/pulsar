@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
+
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
@@ -40,212 +41,242 @@ import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.awaitility.Awaitility;
 
 /**
- * A Pulsar Client that is used for testing scenarios where the different
- * asynchronous operations of the client-broker interaction must be orchestrated by the test
- * so that race conditions caused by the test code can be eliminated.
+ * A Pulsar Client that is used for testing scenarios where the different asynchronous operations of
+ * the client-broker interaction must be orchestrated by the test so that race conditions caused by
+ * the test code can be eliminated.
  *
- * features:
- * - can override remote endpoint protocol version in a thread safe manner
- * - can reject new connections from the client to the broker
- * - can drop all OpSend messages after they have been added to pendingMessages and processed
- *   by the client. This simulates a situation where sending messages go to a "black hole".
- * - can synchronize operations with the help of the pending message callback which gets
- *   called after the message to send out has been added to the pending messages in the client.
- *
+ * <p>features: - can override remote endpoint protocol version in a thread safe manner - can reject
+ * new connections from the client to the broker - can drop all OpSend messages after they have been
+ * added to pendingMessages and processed by the client. This simulates a situation where sending
+ * messages go to a "black hole". - can synchronize operations with the help of the pending message
+ * callback which gets called after the message to send out has been added to the pending messages
+ * in the client.
  */
 @Slf4j
 public class PulsarTestClient extends PulsarClientImpl {
-    private volatile int overrideRemoteEndpointProtocolVersion;
-    private volatile boolean rejectNewConnections;
-    private volatile boolean dropOpSendMessages;
-    private volatile Consumer<ProducerImpl.OpSendMsg> pendingMessageCallback;
+  private volatile int overrideRemoteEndpointProtocolVersion;
+  private volatile boolean rejectNewConnections;
+  private volatile boolean dropOpSendMessages;
+  private volatile Consumer<ProducerImpl.OpSendMsg> pendingMessageCallback;
 
-    /**
-     * Create a new PulsarTestClient instance.
-     *
-     * @param clientBuilder ClientBuilder instance containing the configuration of the client
-     * @return a new
-     * @throws PulsarClientException
-     */
-    public static PulsarTestClient create(ClientBuilder clientBuilder) throws PulsarClientException {
-        ClientConfigurationData clientConfigurationData =
-                ((ClientBuilderImpl) clientBuilder).getClientConfigurationData();
+  /**
+   * Create a new PulsarTestClient instance.
+   *
+   * @param clientBuilder ClientBuilder instance containing the configuration of the client
+   * @return a new
+   * @throws PulsarClientException
+   */
+  public static PulsarTestClient create(ClientBuilder clientBuilder) throws PulsarClientException {
+    ClientConfigurationData clientConfigurationData =
+        ((ClientBuilderImpl) clientBuilder).getClientConfigurationData();
 
-        // the reason to do all the following is to be able to pass the supplier for creating new ClientCnx
-        // instances after the constructor of PulsarClientImpl has been called.
-        // An anonymous subclass of ClientCnx class is used to override the getRemoteEndpointProtocolVersion()
-        // method.
-        EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(clientConfigurationData.getNumIoThreads(),
-                false,
-                new DefaultThreadFactory("pulsar-test-client-io", Thread.currentThread().isDaemon()));
+    // the reason to do all the following is to be able to pass the supplier for creating new
+    // ClientCnx
+    // instances after the constructor of PulsarClientImpl has been called.
+    // An anonymous subclass of ClientCnx class is used to override the
+    // getRemoteEndpointProtocolVersion()
+    // method.
+    EventLoopGroup eventLoopGroup =
+        EventLoopUtil.newEventLoopGroup(
+            clientConfigurationData.getNumIoThreads(),
+            false,
+            new DefaultThreadFactory("pulsar-test-client-io", Thread.currentThread().isDaemon()));
 
-        AtomicReference<Supplier<ClientCnx>> clientCnxSupplierReference = new AtomicReference<>();
-        ConnectionPool connectionPool = new ConnectionPool(InstrumentProvider.NOOP, clientConfigurationData, eventLoopGroup,
-                () -> clientCnxSupplierReference.get().get(), null);
+    AtomicReference<Supplier<ClientCnx>> clientCnxSupplierReference = new AtomicReference<>();
+    ConnectionPool connectionPool =
+        new ConnectionPool(
+            InstrumentProvider.NOOP,
+            clientConfigurationData,
+            eventLoopGroup,
+            () -> clientCnxSupplierReference.get().get(),
+            null);
 
-        return new PulsarTestClient(clientConfigurationData, eventLoopGroup, connectionPool,
-                clientCnxSupplierReference);
+    return new PulsarTestClient(
+        clientConfigurationData, eventLoopGroup, connectionPool, clientCnxSupplierReference);
+  }
+
+  private PulsarTestClient(
+      ClientConfigurationData conf,
+      EventLoopGroup eventLoopGroup,
+      ConnectionPool cnxPool,
+      AtomicReference<Supplier<ClientCnx>> clientCnxSupplierReference)
+      throws PulsarClientException {
+    super(conf, eventLoopGroup, cnxPool);
+    // workaround initialization order issue so that ClientCnx can be created in this class
+    clientCnxSupplierReference.set(this::createClientCnx);
+  }
+
+  /**
+   * Overrides the default ClientCnx implementation with an implementation that overrides the
+   * getRemoteEndpointProtocolVersion() method. This is used to test client behaviour in certain
+   * cases.
+   *
+   * @return new ClientCnx instance
+   */
+  protected ClientCnx createClientCnx() {
+    return new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
+      @Override
+      public int getRemoteEndpointProtocolVersion() {
+        return overrideRemoteEndpointProtocolVersion != 0
+            ? overrideRemoteEndpointProtocolVersion
+            : super.getRemoteEndpointProtocolVersion();
+      }
+    };
+  }
+
+  /**
+   * Overrides the getConnection method to reject new connections from being established between the
+   * client and brokers.
+   *
+   * @param topic the topic for the connection
+   * @return the ClientCnx to use, passed a future. Will complete with an exception when connections
+   *     are rejected.
+   */
+  @Override
+  public CompletableFuture<ClientCnx> getConnection(String topic) {
+    if (rejectNewConnections) {
+      CompletableFuture<ClientCnx> result = new CompletableFuture<>();
+      result.completeExceptionally(new IOException("New connections are rejected."));
+      return result;
+    } else {
+      return super.getConnection(topic);
     }
+  }
 
-    private PulsarTestClient(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool cnxPool,
-                             AtomicReference<Supplier<ClientCnx>> clientCnxSupplierReference)
-            throws PulsarClientException {
-        super(conf, eventLoopGroup, cnxPool);
-        // workaround initialization order issue so that ClientCnx can be created in this class
-        clientCnxSupplierReference.set(this::createClientCnx);
-    }
-
-    /**
-     * Overrides the default ClientCnx implementation with an implementation that overrides the
-     * getRemoteEndpointProtocolVersion() method. This is used to test client behaviour in certain cases.
-     *
-     * @return new ClientCnx instance
-     */
-    protected ClientCnx createClientCnx() {
-        return new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
-            @Override
-            public int getRemoteEndpointProtocolVersion() {
-                return overrideRemoteEndpointProtocolVersion != 0
-                        ? overrideRemoteEndpointProtocolVersion
-                        : super.getRemoteEndpointProtocolVersion();
+  /**
+   * Overrides the producer instance with an anonymous subclass that adds hooks for observing new
+   * OpSendMsg instances being added to pending messages in the client. It also configures the hook
+   * to drop OpSend messages when dropping is enabled.
+   */
+  @Override
+  protected <T> ProducerImpl<T> newProducerImpl(
+      String topic,
+      int partitionIndex,
+      ProducerConfigurationData conf,
+      Schema<T> schema,
+      ProducerInterceptors interceptors,
+      CompletableFuture<Producer<T>> producerCreatedFuture,
+      Optional<String> overrideProducerName) {
+    return new ProducerImpl<T>(
+        this,
+        topic,
+        conf,
+        producerCreatedFuture,
+        partitionIndex,
+        schema,
+        interceptors,
+        overrideProducerName) {
+      @Override
+      protected OpSendMsgQueue createPendingMessagesQueue() {
+        return new OpSendMsgQueue() {
+          @Override
+          public boolean add(OpSendMsg opSendMsg) {
+            boolean added = super.add(opSendMsg);
+            if (pendingMessageCallback != null) {
+              pendingMessageCallback.accept(opSendMsg);
             }
+            return added;
+          }
         };
-    }
+      }
 
-    /**
-     * Overrides the getConnection method to reject new connections from being established between
-     * the client and brokers.
-     *
-     * @param topic the topic for the connection
-     * @return the ClientCnx to use, passed a future. Will complete with an exception when connections are rejected.
-     */
-    @Override
-    public CompletableFuture<ClientCnx> getConnection(String topic) {
-        if (rejectNewConnections) {
-            CompletableFuture<ClientCnx> result = new CompletableFuture<>();
-            result.completeExceptionally(new IOException("New connections are rejected."));
-            return result;
+      @Override
+      protected ClientCnx getCnxIfReady() {
+        if (dropOpSendMessages) {
+          return null;
         } else {
-            return super.getConnection(topic);
+          return super.getCnxIfReady();
         }
-    }
+      }
+    };
+  }
 
-    /**
-     * Overrides the producer instance with an anonymous subclass that adds hooks for observing new
-     * OpSendMsg instances being added to pending messages in the client.
-     * It also configures the hook to drop OpSend messages when dropping is enabled.
-     */
-    @Override
-    protected <T> ProducerImpl<T> newProducerImpl(String topic, int partitionIndex, ProducerConfigurationData conf,
-                                                  Schema<T> schema, ProducerInterceptors interceptors,
-                                                  CompletableFuture<Producer<T>> producerCreatedFuture,
-                                                  Optional<String> overrideProducerName) {
-        return new ProducerImpl<T>(this, topic, conf, producerCreatedFuture, partitionIndex, schema,
-                interceptors, overrideProducerName) {
-            @Override
-            protected OpSendMsgQueue createPendingMessagesQueue() {
-                return new OpSendMsgQueue() {
-                    @Override
-                    public boolean add(OpSendMsg opSendMsg) {
-                        boolean added = super.add(opSendMsg);
-                        if (pendingMessageCallback != null) {
-                            pendingMessageCallback.accept(opSendMsg);
-                        }
-                        return added;
-                    }
-                };
-            }
+  public void setOverrideRemoteEndpointProtocolVersion(int overrideRemoteEndpointProtocolVersion) {
+    this.overrideRemoteEndpointProtocolVersion = overrideRemoteEndpointProtocolVersion;
+  }
 
-            @Override
-            protected ClientCnx getCnxIfReady() {
-                if (dropOpSendMessages) {
-                    return null;
-                } else {
-                    return super.getCnxIfReady();
-                }
-            }
-        };
-    }
+  public void setRejectNewConnections(boolean rejectNewConnections) {
+    this.rejectNewConnections = rejectNewConnections;
+  }
 
-    public void setOverrideRemoteEndpointProtocolVersion(int overrideRemoteEndpointProtocolVersion) {
-        this.overrideRemoteEndpointProtocolVersion = overrideRemoteEndpointProtocolVersion;
-    }
-
-    public void setRejectNewConnections(boolean rejectNewConnections) {
-        this.rejectNewConnections = rejectNewConnections;
-    }
-
-    /**
-     * Simulates the producer connection getting dropped. Will also reject reconnections to simulate an
-     * outage. This reduces race conditions since the reconnection has to be explicitly enabled by calling
-     * allowReconnecting() method.
-     */
-    public void disconnectProducerAndRejectReconnecting(ProducerImpl<?> producer) throws IOException {
-        // wait until all possible in-flight messages have been delivered
-        Awaitility.await().untilAsserted(() -> {
-            if (!dropOpSendMessages && producer.isConnected()) {
+  /**
+   * Simulates the producer connection getting dropped. Will also reject reconnections to simulate
+   * an outage. This reduces race conditions since the reconnection has to be explicitly enabled by
+   * calling allowReconnecting() method.
+   */
+  public void disconnectProducerAndRejectReconnecting(ProducerImpl<?> producer) throws IOException {
+    // wait until all possible in-flight messages have been delivered
+    Awaitility.await()
+        .untilAsserted(
+            () -> {
+              if (!dropOpSendMessages && producer.isConnected()) {
                 assertEquals(producer.getPendingQueueSize(), 0);
-            }
-        });
+              }
+            });
 
-        // reject new connection attempts
-        setRejectNewConnections(true);
+    // reject new connection attempts
+    setRejectNewConnections(true);
 
-        // make the existing connection between the producer and broker to break by explicitly closing it
-        ClientCnx cnx = producer.cnx();
-        producer.connectionClosed(cnx, Optional.empty(), Optional.empty());
-        cnx.close();
+    // make the existing connection between the producer and broker to break by explicitly closing
+    // it
+    ClientCnx cnx = producer.cnx();
+    producer.connectionClosed(cnx, Optional.empty(), Optional.empty());
+    cnx.close();
+  }
+
+  /**
+   * Resets possible dropping of OpSend messages and allows the client to reconnect to the broker.
+   */
+  public void allowReconnecting() {
+    dropOpSendMessages = false;
+    setRejectNewConnections(false);
+  }
+
+  /**
+   * Assigns the callback to use for handling OpSend messages once a message had been added to
+   * pending messages.
+   *
+   * @param pendingMessageCallback
+   */
+  public void setPendingMessageCallback(Consumer<ProducerImpl.OpSendMsg> pendingMessageCallback) {
+    this.pendingMessageCallback = pendingMessageCallback;
+  }
+
+  /**
+   * Enable dropping of OpSend messages after they have been added to pendingMessages and processed
+   * by the client. The OpSend messages won't be delivered until the allowReconnecting method has
+   * been called.
+   */
+  public void dropOpSendMessages() {
+    this.dropOpSendMessages = true;
+  }
+
+  @Override
+  public CompletableFuture<Void> closeAsync() {
+    return super.closeAsync()
+        .handle(
+            (__, t) -> {
+              shutdownCnxPoolAndEventLoopGroup();
+              return null;
+            });
+  }
+
+  @Override
+  public void shutdown() throws PulsarClientException {
+    super.shutdown();
+    shutdownCnxPoolAndEventLoopGroup();
+  }
+
+  private void shutdownCnxPoolAndEventLoopGroup() {
+    try {
+      getCnxPool().close();
+    } catch (Exception e) {
+      log.warn("Error closing connection pool", e);
     }
-
-    /**
-     * Resets possible dropping of OpSend messages and allows the client to reconnect to the broker.
-     */
-    public void allowReconnecting() {
-        dropOpSendMessages = false;
-        setRejectNewConnections(false);
+    try {
+      eventLoopGroup.shutdownGracefully().get(5, TimeUnit.SECONDS);
+    } catch (Exception e) {
+      log.warn("Error closing event loop group", e);
     }
-
-    /**
-     * Assigns the callback to use for handling OpSend messages once a message had been added to pending messages.
-     * @param pendingMessageCallback
-     */
-    public void setPendingMessageCallback(
-            Consumer<ProducerImpl.OpSendMsg> pendingMessageCallback) {
-        this.pendingMessageCallback = pendingMessageCallback;
-    }
-
-    /**
-     * Enable dropping of OpSend messages after they have been added to pendingMessages and processed
-     * by the client. The OpSend messages won't be delivered until the allowReconnecting method has been called.
-     */
-    public void dropOpSendMessages() {
-        this.dropOpSendMessages = true;
-    }
-
-    @Override
-    public CompletableFuture<Void> closeAsync() {
-        return super.closeAsync().handle((__, t) -> {
-            shutdownCnxPoolAndEventLoopGroup();
-            return null;
-        });
-    }
-
-    @Override
-    public void shutdown() throws PulsarClientException {
-        super.shutdown();
-        shutdownCnxPoolAndEventLoopGroup();
-    }
-
-    private void shutdownCnxPoolAndEventLoopGroup() {
-        try {
-            getCnxPool().close();
-        } catch (Exception e) {
-            log.warn("Error closing connection pool", e);
-        }
-        try {
-            eventLoopGroup.shutdownGracefully().get(5, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            log.warn("Error closing event loop group", e);
-        }
-    }
+  }
 }

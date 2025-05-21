@@ -31,83 +31,87 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 
 public abstract class AbstractMessageDispatchThrottlingTest extends ProducerConsumerBase {
-    public static <T> T[] merge(T[] first, T[] last) {
-        int totalLength = first.length + last.length;
-        T[] result = Arrays.copyOf(first, totalLength);
-        int offset = first.length;
-        System.arraycopy(last, 0, result, offset, first.length);
-        return result;
+  public static <T> T[] merge(T[] first, T[] last) {
+    int totalLength = first.length + last.length;
+    T[] result = Arrays.copyOf(first, totalLength);
+    int offset = first.length;
+    System.arraycopy(last, 0, result, offset, first.length);
+    return result;
+  }
+
+  @BeforeClass(alwaysRun = true)
+  @Override
+  protected void setup() throws Exception {
+    this.conf.setClusterName("test");
+    internalSetup();
+    producerBaseSetup();
+  }
+
+  @AfterClass(alwaysRun = true)
+  @Override
+  protected void cleanup() throws Exception {
+    internalCleanup();
+  }
+
+  @AfterMethod(alwaysRun = true)
+  protected void reset() throws Exception {
+    pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
+    pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
+
+    for (String tenant : admin.tenants().getTenants()) {
+      for (String namespace : admin.namespaces().getNamespaces(tenant)) {
+        admin.namespaces().deleteNamespace(namespace, true);
+      }
+      admin.tenants().deleteTenant(tenant, true);
     }
 
-    @BeforeClass(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        this.conf.setClusterName("test");
-        internalSetup();
-        producerBaseSetup();
+    for (String cluster : admin.clusters().getClusters()) {
+      admin.clusters().deleteCluster(cluster);
     }
 
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        internalCleanup();
+    pulsar.getConfiguration().setForceDeleteTenantAllowed(false);
+    pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
+
+    producerBaseSetup();
+  }
+
+  @DataProvider(name = "subscriptions")
+  public Object[][] subscriptionsProvider() {
+    return new Object[][] {new Object[] {SubscriptionType.Shared}, {SubscriptionType.Exclusive}};
+  }
+
+  @DataProvider(name = "dispatchRateType")
+  public Object[][] dispatchRateProvider() {
+    return new Object[][] {{DispatchRateType.messageRate}, {DispatchRateType.byteRate}};
+  }
+
+  @DataProvider(name = "subscriptionAndDispatchRateType")
+  public Object[][] subDisTypeProvider() {
+    List<Object[]> mergeList = new LinkedList<>();
+    for (Object[] sub : subscriptionsProvider()) {
+      for (Object[] dispatch : dispatchRateProvider()) {
+        mergeList.add(AbstractMessageDispatchThrottlingTest.merge(sub, dispatch));
+      }
     }
+    return mergeList.toArray(new Object[0][0]);
+  }
 
-    @AfterMethod(alwaysRun = true)
-    protected void reset() throws Exception {
-        pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
-        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
+  protected void deactiveCursors(ManagedLedgerImpl ledger) throws Exception {
+    Field statsUpdaterField = BrokerService.class.getDeclaredField("statsUpdater");
+    statsUpdaterField.setAccessible(true);
+    ScheduledExecutorService statsUpdater =
+        (ScheduledExecutorService) statsUpdaterField.get(pulsar.getBrokerService());
+    statsUpdater.shutdownNow();
+    ledger
+        .getCursors()
+        .forEach(
+            cursor -> {
+              ledger.deactivateCursor(cursor);
+            });
+  }
 
-        for (String tenant : admin.tenants().getTenants()) {
-            for (String namespace : admin.namespaces().getNamespaces(tenant)) {
-                admin.namespaces().deleteNamespace(namespace, true);
-            }
-            admin.tenants().deleteTenant(tenant, true);
-        }
-
-        for (String cluster : admin.clusters().getClusters()) {
-            admin.clusters().deleteCluster(cluster);
-        }
-
-        pulsar.getConfiguration().setForceDeleteTenantAllowed(false);
-        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
-
-        producerBaseSetup();
-    }
-
-    @DataProvider(name = "subscriptions")
-    public Object[][] subscriptionsProvider() {
-        return new Object[][]{new Object[]{SubscriptionType.Shared}, {SubscriptionType.Exclusive}};
-    }
-
-    @DataProvider(name = "dispatchRateType")
-    public Object[][] dispatchRateProvider() {
-        return new Object[][]{{DispatchRateType.messageRate}, {DispatchRateType.byteRate}};
-    }
-
-    @DataProvider(name = "subscriptionAndDispatchRateType")
-    public Object[][] subDisTypeProvider() {
-        List<Object[]> mergeList = new LinkedList<>();
-        for (Object[] sub : subscriptionsProvider()) {
-            for (Object[] dispatch : dispatchRateProvider()) {
-                mergeList.add(AbstractMessageDispatchThrottlingTest.merge(sub, dispatch));
-            }
-        }
-        return mergeList.toArray(new Object[0][0]);
-    }
-
-    protected void deactiveCursors(ManagedLedgerImpl ledger) throws Exception {
-        Field statsUpdaterField = BrokerService.class.getDeclaredField("statsUpdater");
-        statsUpdaterField.setAccessible(true);
-        ScheduledExecutorService statsUpdater = (ScheduledExecutorService) statsUpdaterField
-                .get(pulsar.getBrokerService());
-        statsUpdater.shutdownNow();
-        ledger.getCursors().forEach(cursor -> {
-            ledger.deactivateCursor(cursor);
-        });
-    }
-
-    enum DispatchRateType {
-        messageRate, byteRate;
-    }
+  enum DispatchRateType {
+    messageRate,
+    byteRate;
+  }
 }

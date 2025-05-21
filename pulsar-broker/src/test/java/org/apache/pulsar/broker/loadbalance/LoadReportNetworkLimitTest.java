@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.loadbalance;
 
 import static org.testng.Assert.assertEquals;
+
 import java.util.Optional;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -29,44 +30,44 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class LoadReportNetworkLimitTest extends MockedPulsarServiceBaseTest {
-    int usableNicCount;
+  int usableNicCount;
 
-    @Override
-    protected void doInitConf() throws Exception {
-        super.doInitConf();
-        conf.setLoadBalancerEnabled(true);
-        conf.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(5.4));
+  @Override
+  protected void doInitConf() throws Exception {
+    super.doInitConf();
+    conf.setLoadBalancerEnabled(true);
+    conf.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(5.4));
+  }
+
+  @BeforeClass
+  @Override
+  public void setup() throws Exception {
+    super.internalSetup();
+    if (SystemUtils.IS_OS_LINUX) {
+      usableNicCount = LinuxInfoUtils.getUsablePhysicalNICs().size();
     }
+  }
 
-    @BeforeClass
-    @Override
-    public void setup() throws Exception {
-        super.internalSetup();
-        if (SystemUtils.IS_OS_LINUX) {
-            usableNicCount = LinuxInfoUtils.getUsablePhysicalNICs().size();
-        }
+  @AfterClass(alwaysRun = true)
+  @Override
+  public void cleanup() throws Exception {
+    super.internalCleanup();
+  }
+
+  @Test
+  public void checkLoadReportNicSpeed() throws Exception {
+    // Since we have overridden the NIC speed in the configuration, the load report for the broker
+    // should always
+
+    LoadManagerReport report = admin.brokerStats().getLoadReport();
+
+    if (SystemUtils.IS_OS_LINUX) {
+      assertEquals(report.getBandwidthIn().limit, usableNicCount * 5.4 * 1000 * 1000, 0.0001);
+      assertEquals(report.getBandwidthOut().limit, usableNicCount * 5.4 * 1000 * 1000, 0.0001);
+    } else {
+      // On non-Linux system we don't report the network usage
+      assertEquals(report.getBandwidthIn().limit, -1.0, 0.0001);
+      assertEquals(report.getBandwidthOut().limit, -1.0, 0.0001);
     }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    public void cleanup() throws Exception {
-        super.internalCleanup();
-    }
-
-    @Test
-    public void checkLoadReportNicSpeed() throws Exception {
-        // Since we have overridden the NIC speed in the configuration, the load report for the broker should always
-
-        LoadManagerReport report = admin.brokerStats().getLoadReport();
-
-        if (SystemUtils.IS_OS_LINUX) {
-            assertEquals(report.getBandwidthIn().limit, usableNicCount * 5.4 * 1000 * 1000, 0.0001);
-            assertEquals(report.getBandwidthOut().limit, usableNicCount * 5.4 * 1000 * 1000, 0.0001);
-        } else {
-            // On non-Linux system we don't report the network usage
-            assertEquals(report.getBandwidthIn().limit, -1.0, 0.0001);
-            assertEquals(report.getBandwidthOut().limit, -1.0, 0.0001);
-        }
-    }
-
+  }
 }

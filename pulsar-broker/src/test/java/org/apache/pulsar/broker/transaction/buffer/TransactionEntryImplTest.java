@@ -28,26 +28,18 @@ import org.apache.pulsar.broker.transaction.buffer.impl.TransactionEntryImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.testng.annotations.Test;
 
-/**
- * Unit test {@link TransactionEntryImpl}.
- */
+/** Unit test {@link TransactionEntryImpl}. */
 @Test(groups = "broker")
 public class TransactionEntryImplTest {
 
-    @Test
-    public void testCloseShouldReleaseBuffer() {
-        ByteBuf buffer = Unpooled.copiedBuffer("test-value", UTF_8);
-        TransactionEntryImpl entry = new TransactionEntryImpl(
-                new TxnID(1234L, 3456L),
-                0L,
-                EntryImpl.create(-1L, -1L, buffer),
-                33L,
-                44L,
-                1
-        );
-        assertEquals(buffer.refCnt(), 2);
-        entry.close();
-        assertEquals(buffer.refCnt(), 0);
-    }
-
+  @Test
+  public void testCloseShouldReleaseBuffer() {
+    ByteBuf buffer = Unpooled.copiedBuffer("test-value", UTF_8);
+    TransactionEntryImpl entry =
+        new TransactionEntryImpl(
+            new TxnID(1234L, 3456L), 0L, EntryImpl.create(-1L, -1L, buffer), 33L, 44L, 1);
+    assertEquals(buffer.refCnt(), 2);
+    entry.close();
+    assertEquals(buffer.refCnt(), 0);
+  }
 }

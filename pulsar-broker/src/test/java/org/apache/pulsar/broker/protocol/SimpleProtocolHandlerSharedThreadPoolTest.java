@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.protocol;
 
 public class SimpleProtocolHandlerSharedThreadPoolTest extends SimpleProtocolHandlerTestsBase {
-    public SimpleProtocolHandlerSharedThreadPoolTest() {
-        super(false);
-    }
+  public SimpleProtocolHandlerSharedThreadPoolTest() {
+    super(false);
+  }
 }

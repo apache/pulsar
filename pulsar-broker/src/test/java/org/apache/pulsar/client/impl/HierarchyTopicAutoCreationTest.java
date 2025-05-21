@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.util.List;
+import java.util.UUID;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import java.util.List;
-import java.util.UUID;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.common.naming.TopicName;
@@ -38,58 +38,62 @@ import org.testng.annotations.Test;
 @Slf4j
 public class HierarchyTopicAutoCreationTest extends ProducerConsumerBase {
 
-    @Override
-    @BeforeMethod
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
+  @Override
+  @BeforeMethod
+  protected void setup() throws Exception {
+    super.internalSetup();
+    super.producerBaseSetup();
+  }
 
-    @Override
-    @AfterMethod(alwaysRun = true)
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+  @Override
+  @AfterMethod(alwaysRun = true)
+  protected void cleanup() throws Exception {
+    super.internalCleanup();
+  }
 
-    @Test(invocationCount = 3)
-    @SneakyThrows
-    public void testPartitionedTopicAutoCreation() {
-        // Create namespace
-        final String namespace = "public/testPartitionedTopicAutoCreation";
-        admin.namespaces().createNamespace(namespace);
-        // Set policies
-        final AutoTopicCreationOverride expectedPolicies = AutoTopicCreationOverride.builder()
-                .allowAutoTopicCreation(true)
-                .topicType("partitioned")
-                .defaultNumPartitions(1)
-                .build();
-        admin.namespaces().setAutoTopicCreation(namespace, expectedPolicies);
-        // Double-check the policies
-        final AutoTopicCreationOverride nsAutoTopicCreationOverride = admin.namespaces()
-                .getAutoTopicCreation(namespace);
-        Assert.assertEquals(nsAutoTopicCreationOverride, expectedPolicies);
-        // Background invalidate cache
-        final MetadataCache<Policies> nsCache = pulsar.getPulsarResources().getNamespaceResources().getCache();
-        @Cleanup("interrupt")
-        final Thread t1 = new Thread(() -> {
-            while (!Thread.currentThread().isInterrupted()) {
+  @Test(invocationCount = 3)
+  @SneakyThrows
+  public void testPartitionedTopicAutoCreation() {
+    // Create namespace
+    final String namespace = "public/testPartitionedTopicAutoCreation";
+    admin.namespaces().createNamespace(namespace);
+    // Set policies
+    final AutoTopicCreationOverride expectedPolicies =
+        AutoTopicCreationOverride.builder()
+            .allowAutoTopicCreation(true)
+            .topicType("partitioned")
+            .defaultNumPartitions(1)
+            .build();
+    admin.namespaces().setAutoTopicCreation(namespace, expectedPolicies);
+    // Double-check the policies
+    final AutoTopicCreationOverride nsAutoTopicCreationOverride =
+        admin.namespaces().getAutoTopicCreation(namespace);
+    Assert.assertEquals(nsAutoTopicCreationOverride, expectedPolicies);
+    // Background invalidate cache
+    final MetadataCache<Policies> nsCache =
+        pulsar.getPulsarResources().getNamespaceResources().getCache();
+    @Cleanup("interrupt")
+    final Thread t1 =
+        new Thread(
+            () -> {
+              while (!Thread.currentThread().isInterrupted()) {
                 nsCache.invalidate("/admin/policies/" + namespace);
-            }
-        });
-        t1.start();
+              }
+            });
+    t1.start();
 
-        // trigger auto-creation
-        final String topicName = "persistent://" + namespace + "/test-" + UUID.randomUUID();
-        @Cleanup final Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topicName)
-                .create();
-        final List<String> topics = admin.topics().getList(namespace);
-        Assert.assertEquals(topics.size(), 1);  // expect only one topic
-        Assert.assertEquals(topics.get(0),
-                TopicName.get(topicName).getPartition(0).toString()); // expect partitioned topic
+    // trigger auto-creation
+    final String topicName = "persistent://" + namespace + "/test-" + UUID.randomUUID();
+    @Cleanup final Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+    final List<String> topics = admin.topics().getList(namespace);
+    Assert.assertEquals(topics.size(), 1); // expect only one topic
+    Assert.assertEquals(
+        topics.get(0),
+        TopicName.get(topicName).getPartition(0).toString()); // expect partitioned topic
 
-        // double-check policies
-        final AutoTopicCreationOverride actualPolicies2 = admin.namespaces().getAutoTopicCreation(namespace);
-        Assert.assertEquals(actualPolicies2, expectedPolicies);
-    }
+    // double-check policies
+    final AutoTopicCreationOverride actualPolicies2 =
+        admin.namespaces().getAutoTopicCreation(namespace);
+    Assert.assertEquals(actualPolicies2, expectedPolicies);
+  }
 }

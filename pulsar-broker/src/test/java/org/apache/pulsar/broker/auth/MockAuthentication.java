@@ -28,60 +28,67 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class MockAuthentication implements Authentication {
-    private static final Logger log = LoggerFactory.getLogger(MockAuthentication.class);
-    private String user;
+  private static final Logger log = LoggerFactory.getLogger(MockAuthentication.class);
+  private String user;
 
-    public MockAuthentication() {
-    }
+  public MockAuthentication() {}
 
-    public MockAuthentication(String user) {
-        this.user = user;
-    }
+  public MockAuthentication(String user) {
+    this.user = user;
+  }
 
-    @Override
-    public void close() {}
+  @Override
+  public void close() {}
 
-    @Override
-    public String getAuthMethodName() {
+  @Override
+  public String getAuthMethodName() {
+    return "mock";
+  }
+
+  @Override
+  public AuthenticationDataProvider getAuthData() throws PulsarClientException {
+    return new AuthenticationDataProvider() {
+      @Override
+      public boolean hasDataForHttp() {
+        return true;
+      }
+
+      @Override
+      public String getHttpAuthType() {
         return "mock";
-    }
+      }
 
-    @Override
-    public AuthenticationDataProvider getAuthData() throws PulsarClientException {
-        return new AuthenticationDataProvider() {
-            @Override
-            public boolean hasDataForHttp() { return true; }
-            @Override
-            public String getHttpAuthType() { return "mock"; }
-            @Override
-            public Set<Map.Entry<String, String>> getHttpHeaders() {
-                return Map.of("mockuser", user).entrySet();
-            }
-            @Override
-            public boolean hasDataFromCommand() {
-                return true;
-            }
-            @Override
-            public String getCommandData() {
-                return user;
-            }
-        };
-    }
+      @Override
+      public Set<Map.Entry<String, String>> getHttpHeaders() {
+        return Map.of("mockuser", user).entrySet();
+      }
 
-    @Override
-    public void configure(Map<String, String> authParams) {
-        this.user = authParams.get("user");
-    }
+      @Override
+      public boolean hasDataFromCommand() {
+        return true;
+      }
 
-    @Override
-    public void start() throws PulsarClientException {}
+      @Override
+      public String getCommandData() {
+        return user;
+      }
+    };
+  }
 
+  @Override
+  public void configure(Map<String, String> authParams) {
+    this.user = authParams.get("user");
+  }
 
-    @Override
-    public void authenticationStage(String requestUrl,
-                                     AuthenticationDataProvider authData,
-                                     Map<String, String> previousResHeaders,
-                                     CompletableFuture<Map<String, String>> authFuture) {
-        authFuture.complete(null);
-    }
+  @Override
+  public void start() throws PulsarClientException {}
+
+  @Override
+  public void authenticationStage(
+      String requestUrl,
+      AuthenticationDataProvider authData,
+      Map<String, String> previousResHeaders,
+      CompletableFuture<Map<String, String>> authFuture) {
+    authFuture.complete(null);
+  }
 }

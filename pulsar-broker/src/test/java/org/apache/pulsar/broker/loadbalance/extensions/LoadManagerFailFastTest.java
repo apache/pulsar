@@ -37,84 +37,98 @@ import org.testng.annotations.Test;
 
 public class LoadManagerFailFastTest {
 
-    private static final String cluster = "test";
-    private final int zkPort = PortManager.nextLockedFreePort();
-    private final LocalBookkeeperEnsemble bk = new LocalBookkeeperEnsemble(2, zkPort, PortManager::nextLockedFreePort);
-    private final ServiceConfiguration config = new ServiceConfiguration();
+  private static final String cluster = "test";
+  private final int zkPort = PortManager.nextLockedFreePort();
+  private final LocalBookkeeperEnsemble bk =
+      new LocalBookkeeperEnsemble(2, zkPort, PortManager::nextLockedFreePort);
+  private final ServiceConfiguration config = new ServiceConfiguration();
 
-    @BeforeClass
-    protected void setup() throws Exception {
-        bk.start();
-        config.setClusterName(cluster);
-        config.setAdvertisedAddress("localhost");
-        config.setBrokerServicePort(Optional.of(0));
-        config.setWebServicePort(Optional.of(0));
-        config.setMetadataStoreUrl("zk:localhost:" + zkPort);
+  @BeforeClass
+  protected void setup() throws Exception {
+    bk.start();
+    config.setClusterName(cluster);
+    config.setAdvertisedAddress("localhost");
+    config.setBrokerServicePort(Optional.of(0));
+    config.setWebServicePort(Optional.of(0));
+    config.setMetadataStoreUrl("zk:localhost:" + zkPort);
+  }
+
+  @AfterClass
+  protected void cleanup() throws Exception {
+    bk.stop();
+  }
+
+  @Test(timeOut = 30000)
+  public void testBrokerRegistryFailure() throws Exception {
+    config.setLoadManagerClassName(BrokerRegistryLoadManager.class.getName());
+    @Cleanup final var pulsar = new PulsarService(config);
+    try {
+      pulsar.start();
+      Assert.fail();
+    } catch (PulsarServerException e) {
+      Assert.assertNull(e.getCause());
+      Assert.assertEquals(e.getMessage(), "Cannot start BrokerRegistry");
     }
+    Assert.assertTrue(
+        pulsar
+            .getLocalMetadataStore()
+            .getChildren(LoadManager.LOADBALANCE_BROKERS_ROOT)
+            .get()
+            .isEmpty());
+  }
 
-    @AfterClass
-    protected void cleanup() throws Exception {
-        bk.stop();
+  @Test(timeOut = 30000)
+  public void testServiceUnitStateChannelFailure() throws Exception {
+    config.setLoadManagerClassName(ChannelLoadManager.class.getName());
+    @Cleanup final var pulsar = new PulsarService(config);
+    try {
+      pulsar.start();
+      Assert.fail();
+    } catch (PulsarServerException e) {
+      Assert.assertNull(e.getCause());
+      Assert.assertEquals(e.getMessage(), "Cannot start ServiceUnitStateChannel");
     }
+    Awaitility.await()
+        .untilAsserted(
+            () ->
+                Assert.assertTrue(
+                    pulsar
+                        .getLocalMetadataStore()
+                        .getChildren(LoadManager.LOADBALANCE_BROKERS_ROOT)
+                        .get()
+                        .isEmpty()));
+  }
 
-    @Test(timeOut = 30000)
-    public void testBrokerRegistryFailure() throws Exception {
-        config.setLoadManagerClassName(BrokerRegistryLoadManager.class.getName());
-        @Cleanup final var pulsar = new PulsarService(config);
-        try {
-            pulsar.start();
-            Assert.fail();
-        } catch (PulsarServerException e) {
-            Assert.assertNull(e.getCause());
-            Assert.assertEquals(e.getMessage(), "Cannot start BrokerRegistry");
-        }
-        Assert.assertTrue(pulsar.getLocalMetadataStore().getChildren(LoadManager.LOADBALANCE_BROKERS_ROOT).get()
-                .isEmpty());
+  private static class BrokerRegistryLoadManager extends ExtensibleLoadManagerImpl {
+
+    @Override
+    protected BrokerRegistry createBrokerRegistry(PulsarService pulsar) {
+      final var mockBrokerRegistry = Mockito.mock(BrokerRegistryImpl.class);
+      try {
+        Mockito.doThrow(new PulsarServerException("Cannot start BrokerRegistry"))
+            .when(mockBrokerRegistry)
+            .start();
+      } catch (PulsarServerException e) {
+        throw new RuntimeException(e);
+      }
+      return mockBrokerRegistry;
     }
+  }
 
-    @Test(timeOut = 30000)
-    public void testServiceUnitStateChannelFailure() throws Exception {
-        config.setLoadManagerClassName(ChannelLoadManager.class.getName());
-        @Cleanup final var pulsar = new PulsarService(config);
-        try {
-            pulsar.start();
-            Assert.fail();
-        } catch (PulsarServerException e) {
-            Assert.assertNull(e.getCause());
-            Assert.assertEquals(e.getMessage(), "Cannot start ServiceUnitStateChannel");
-        }
-        Awaitility.await().untilAsserted(() -> Assert.assertTrue(pulsar.getLocalMetadataStore()
-                .getChildren(LoadManager.LOADBALANCE_BROKERS_ROOT).get().isEmpty()));
+  private static class ChannelLoadManager extends ExtensibleLoadManagerImpl {
+
+    @Override
+    protected ServiceUnitStateChannel createServiceUnitStateChannel(PulsarService pulsar) {
+      final var channel = Mockito.mock(ServiceUnitStateChannelImpl.class);
+      try {
+        Mockito.doThrow(new PulsarServerException("Cannot start ServiceUnitStateChannel"))
+            .when(channel)
+            .start();
+      } catch (PulsarServerException e) {
+        throw new RuntimeException(e);
+      }
+      Mockito.doAnswer(__ -> null).when(channel).listen(Mockito.any());
+      return channel;
     }
-
-    private static class BrokerRegistryLoadManager extends ExtensibleLoadManagerImpl {
-
-        @Override
-        protected BrokerRegistry createBrokerRegistry(PulsarService pulsar) {
-            final var mockBrokerRegistry = Mockito.mock(BrokerRegistryImpl.class);
-            try {
-                Mockito.doThrow(new PulsarServerException("Cannot start BrokerRegistry")).when(mockBrokerRegistry)
-                        .start();
-            } catch (PulsarServerException e) {
-                throw new RuntimeException(e);
-            }
-            return mockBrokerRegistry;
-        }
-    }
-
-    private static class ChannelLoadManager extends ExtensibleLoadManagerImpl {
-
-        @Override
-        protected ServiceUnitStateChannel createServiceUnitStateChannel(PulsarService pulsar) {
-            final var channel = Mockito.mock(ServiceUnitStateChannelImpl.class);
-            try {
-                Mockito.doThrow(new PulsarServerException("Cannot start ServiceUnitStateChannel")).when(channel)
-                        .start();
-            } catch (PulsarServerException e) {
-                throw new RuntimeException(e);
-            }
-            Mockito.doAnswer(__ -> null).when(channel).listen(Mockito.any());
-            return channel;
-        }
-    }
+  }
 }

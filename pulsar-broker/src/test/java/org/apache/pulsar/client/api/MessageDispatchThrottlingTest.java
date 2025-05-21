@@ -26,6 +26,7 @@ import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.util.HashMap;
@@ -58,1152 +59,1364 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
 public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrottlingTest {
-    private static final Logger log = LoggerFactory.getLogger(MessageDispatchThrottlingTest.class);
+  private static final Logger log = LoggerFactory.getLogger(MessageDispatchThrottlingTest.class);
 
-    /**
-     * verifies: message-rate change gets reflected immediately into topic at runtime
-     *
-     * @throws Exception
-     */
-    @SuppressWarnings("deprecation")
-    @Test
-    public void testMessageRateDynamicallyChange() throws Exception {
+  /**
+   * verifies: message-rate change gets reflected immediately into topic at runtime
+   *
+   * @throws Exception
+   */
+  @SuppressWarnings("deprecation")
+  @Test
+  public void testMessageRateDynamicallyChange() throws Exception {
 
-        log.info("-- Starting {} test --", methodName);
+    log.info("-- Starting {} test --", methodName);
 
-        final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
-        final String topicName = "persistent://" + namespace + "/throttlingBlock";
+    final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
+    final String topicName = "persistent://" + namespace + "/throttlingBlock";
 
-        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
-        // create producer and topic
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
-        // (1) verify message-rate is -1 initially
-        Assert.assertFalse(topic.getDispatchRateLimiter().isPresent());
+    admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+    // create producer and topic
+    Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+    PersistentTopic topic =
+        (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+    // (1) verify message-rate is -1 initially
+    Assert.assertFalse(topic.getDispatchRateLimiter().isPresent());
 
-        // (2) change to 100
-        int messageRate = 100;
-        DispatchRate dispatchRate = DispatchRate.builder()
-                .dispatchThrottlingRateInMsg(messageRate)
-                .dispatchThrottlingRateInByte(-1)
-                .ratePeriodInSecond(360)
-                .build();
-        admin.namespaces().setDispatchRate(namespace, dispatchRate);
-        boolean isDispatchRateUpdate = false;
-        int retry = 5;
-        for (int i = 0; i < retry; i++) {
-            if (topic.getDispatchRateLimiter().isPresent()) {
-                isDispatchRateUpdate = true;
-                break;
-            } else {
-                if (i != retry - 1) {
-                    Thread.sleep(100);
-                }
-            }
+    // (2) change to 100
+    int messageRate = 100;
+    DispatchRate dispatchRate =
+        DispatchRate.builder()
+            .dispatchThrottlingRateInMsg(messageRate)
+            .dispatchThrottlingRateInByte(-1)
+            .ratePeriodInSecond(360)
+            .build();
+    admin.namespaces().setDispatchRate(namespace, dispatchRate);
+    boolean isDispatchRateUpdate = false;
+    int retry = 5;
+    for (int i = 0; i < retry; i++) {
+      if (topic.getDispatchRateLimiter().isPresent()) {
+        isDispatchRateUpdate = true;
+        break;
+      } else {
+        if (i != retry - 1) {
+          Thread.sleep(100);
         }
-        Assert.assertTrue(isDispatchRateUpdate);
-        Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
-        Policies policies = admin.namespaces().getPolicies(namespace);
-        Map<String, DispatchRate> dispatchRateMap = new HashMap<>();
-        dispatchRateMap.put("test", dispatchRate);
-        Assert.assertEquals(policies.clusterDispatchRate, dispatchRateMap);
-        Assert.assertEquals(policies.topicDispatchRate, dispatchRateMap);
+      }
+    }
+    Assert.assertTrue(isDispatchRateUpdate);
+    Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
+    Policies policies = admin.namespaces().getPolicies(namespace);
+    Map<String, DispatchRate> dispatchRateMap = new HashMap<>();
+    dispatchRateMap.put("test", dispatchRate);
+    Assert.assertEquals(policies.clusterDispatchRate, dispatchRateMap);
+    Assert.assertEquals(policies.topicDispatchRate, dispatchRateMap);
 
-        // (3) change to 500
-        messageRate = 500;
-        dispatchRate = DispatchRate.builder()
-                .dispatchThrottlingRateInMsg(-1)
-                .dispatchThrottlingRateInByte(messageRate)
-                .ratePeriodInSecond(360)
-                .build();
-        admin.namespaces().setDispatchRate(namespace, dispatchRate);
-        isDispatchRateUpdate = false;
-        for (int i = 0; i < retry; i++) {
-            if (topic.getDispatchRateLimiter().get().getDispatchRateOnByte() == messageRate) {
-                isDispatchRateUpdate = true;
-                break;
-            } else {
-                if (i != retry - 1) {
-                    Thread.sleep(100);
-                }
-            }
+    // (3) change to 500
+    messageRate = 500;
+    dispatchRate =
+        DispatchRate.builder()
+            .dispatchThrottlingRateInMsg(-1)
+            .dispatchThrottlingRateInByte(messageRate)
+            .ratePeriodInSecond(360)
+            .build();
+    admin.namespaces().setDispatchRate(namespace, dispatchRate);
+    isDispatchRateUpdate = false;
+    for (int i = 0; i < retry; i++) {
+      if (topic.getDispatchRateLimiter().get().getDispatchRateOnByte() == messageRate) {
+        isDispatchRateUpdate = true;
+        break;
+      } else {
+        if (i != retry - 1) {
+          Thread.sleep(100);
         }
-        Assert.assertTrue(isDispatchRateUpdate);
-        Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
-        policies = admin.namespaces().getPolicies(namespace);
-        dispatchRateMap.put("test", dispatchRate);
-        Assert.assertEquals(policies.clusterDispatchRate, dispatchRateMap);
-        Assert.assertEquals(policies.topicDispatchRate, dispatchRateMap);
+      }
+    }
+    Assert.assertTrue(isDispatchRateUpdate);
+    Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
+    policies = admin.namespaces().getPolicies(namespace);
+    dispatchRateMap.put("test", dispatchRate);
+    Assert.assertEquals(policies.clusterDispatchRate, dispatchRateMap);
+    Assert.assertEquals(policies.topicDispatchRate, dispatchRateMap);
 
-        producer.close();
+    producer.close();
+  }
+
+  @SuppressWarnings("deprecation")
+  @Test
+  public void testSystemTopicDeliveryNonBlock() throws Exception {
+    final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
+    admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+    final String topicName =
+        "persistent://" + namespace + "/" + UUID.randomUUID().toString().replaceAll("-", "");
+    admin.topics().createNonPartitionedTopic(topicName);
+    // Set a rate limitation.
+    DispatchRate dispatchRate =
+        DispatchRate.builder()
+            .dispatchThrottlingRateInMsg(1)
+            .dispatchThrottlingRateInByte(-1)
+            .ratePeriodInSecond(360)
+            .build();
+    admin.namespaces().setDispatchRate(namespace, dispatchRate);
+
+    // Verify the limitation does not take effect. in other words, the topic policies should takes
+    // effect.
+    PersistentTopic persistentTopic =
+        (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
+    admin.topicPolicies().setPublishRate(topicName, new PublishRate(1000, 1000));
+    Awaitility.await()
+        .untilAsserted(
+            () -> {
+              assertNotNull(
+                  persistentTopic.getHierarchyTopicPolicies().getPublishRate().getTopicValue());
+            });
+    admin.topicPolicies().setRetention(topicName, new RetentionPolicies(1000, 1000));
+    Awaitility.await()
+        .untilAsserted(
+            () -> {
+              assertNotNull(
+                  persistentTopic
+                      .getHierarchyTopicPolicies()
+                      .getRetentionPolicies()
+                      .getTopicValue());
+            });
+    admin.topicPolicies().setMessageTTL(topicName, 1000);
+    Awaitility.await()
+        .untilAsserted(
+            () -> {
+              assertNotNull(
+                  persistentTopic
+                      .getHierarchyTopicPolicies()
+                      .getMessageTTLInSeconds()
+                      .getTopicValue());
+            });
+
+    // cleanup.
+    admin.topics().delete(topicName);
+    admin.namespaces().removeDispatchRate(namespace);
+  }
+
+  /**
+   * verify: consumer should not receive all messages due to message-rate throttling
+   *
+   * @param subscription
+   * @throws Exception
+   */
+  @Test(dataProvider = "subscriptionAndDispatchRateType", timeOut = 5000)
+  public void testMessageRateLimitingNotReceiveAllMessages(
+      SubscriptionType subscription, DispatchRateType dispatchRateType) throws Exception {
+    log.info("-- Starting {} test --", methodName);
+
+    final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
+    final String topicName = "persistent://" + namespace + "/throttlingBlock";
+
+    final int messageRate = 100;
+    DispatchRate dispatchRate = null;
+    if (DispatchRateType.messageRate.equals(dispatchRateType)) {
+      dispatchRate =
+          DispatchRate.builder()
+              .dispatchThrottlingRateInMsg(messageRate)
+              .dispatchThrottlingRateInByte(-1)
+              .ratePeriodInSecond(360)
+              .build();
+    } else {
+      dispatchRate =
+          DispatchRate.builder()
+              .dispatchThrottlingRateInMsg(-1)
+              .dispatchThrottlingRateInByte(messageRate)
+              .ratePeriodInSecond(360)
+              .build();
     }
 
-    @SuppressWarnings("deprecation")
-    @Test
-    public void testSystemTopicDeliveryNonBlock() throws Exception {
-        final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
-        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
-        final String topicName = "persistent://" + namespace + "/" + UUID.randomUUID().toString().replaceAll("-", "");
-        admin.topics().createNonPartitionedTopic(topicName);
-        // Set a rate limitation.
-        DispatchRate dispatchRate = DispatchRate.builder()
-                .dispatchThrottlingRateInMsg(1)
-                .dispatchThrottlingRateInByte(-1)
-                .ratePeriodInSecond(360)
-                .build();
-        admin.namespaces().setDispatchRate(namespace, dispatchRate);
+    admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+    admin.namespaces().setDispatchRate(namespace, dispatchRate);
+    // create producer and topic
+    Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+    PersistentTopic topic =
+        (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
 
-        // Verify the limitation does not take effect. in other words, the topic policies should takes effect.
-        PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
-        admin.topicPolicies().setPublishRate(topicName, new PublishRate(1000, 1000));
-        Awaitility.await().untilAsserted(() -> {
-            assertNotNull(persistentTopic.getHierarchyTopicPolicies().getPublishRate().getTopicValue());
-        });
-        admin.topicPolicies().setRetention(topicName, new RetentionPolicies(1000, 1000));
-        Awaitility.await().untilAsserted(() -> {
-            assertNotNull(persistentTopic.getHierarchyTopicPolicies().getRetentionPolicies().getTopicValue());
-        });
-        admin.topicPolicies().setMessageTTL(topicName, 1000);
-        Awaitility.await().untilAsserted(() -> {
-            assertNotNull(persistentTopic.getHierarchyTopicPolicies().getMessageTTLInSeconds().getTopicValue());
-        });
+    Awaitility.await()
+        .ignoreExceptions()
+        .until(
+            () ->
+                topic.getDispatchRateLimiter().get().getDispatchRateOnMsg() > 0
+                    || topic.getDispatchRateLimiter().get().getDispatchRateOnByte() > 0);
 
-        // cleanup.
-        admin.topics().delete(topicName);
-        admin.namespaces().removeDispatchRate(namespace);
+    Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
+
+    int numMessages = 500;
+
+    final AtomicInteger totalReceived = new AtomicInteger(0);
+
+    Consumer<byte[]> consumer =
+        pulsarClient
+            .newConsumer()
+            .topic(topicName)
+            .subscriptionName("my-subscriber-name")
+            .subscriptionType(subscription)
+            .messageListener(
+                (c1, msg) -> {
+                  Assert.assertNotNull(msg, "Message cannot be null");
+                  String receivedMessage = new String(msg.getData());
+                  log.debug("Received message [{}] in the listener", receivedMessage);
+                  totalReceived.incrementAndGet();
+                })
+            .subscribe();
+    // deactive cursors
+    deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
+
+    // Asynchronously produce messages
+    for (int i = 0; i < numMessages; i++) {
+      producer.send(new byte[80]);
     }
 
-    /**
-     * verify: consumer should not receive all messages due to message-rate throttling
-     *
-     * @param subscription
-     * @throws Exception
-     */
-    @Test(dataProvider = "subscriptionAndDispatchRateType", timeOut = 5000)
-    public void testMessageRateLimitingNotReceiveAllMessages(SubscriptionType subscription,
-            DispatchRateType dispatchRateType) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+    // consumer should not have received all published message due to message-rate throttling
+    Assert.assertTrue(totalReceived.get() < messageRate * 2);
 
-        final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
-        final String topicName = "persistent://" + namespace + "/throttlingBlock";
+    consumer.close();
+    producer.close();
+    log.info("-- Exiting {} test --", methodName);
+  }
 
-        final int messageRate = 100;
-        DispatchRate dispatchRate = null;
-        if (DispatchRateType.messageRate.equals(dispatchRateType)) {
-            dispatchRate = DispatchRate.builder()
-                    .dispatchThrottlingRateInMsg(messageRate)
-                    .dispatchThrottlingRateInByte(-1)
-                    .ratePeriodInSecond(360)
-                    .build();
-        } else {
-            dispatchRate = DispatchRate.builder()
-                    .dispatchThrottlingRateInMsg(-1)
-                    .dispatchThrottlingRateInByte(messageRate)
-                    .ratePeriodInSecond(360)
-                    .build();
-        }
+  /**
+   * It verifies that dispatch-rate throttling with cluster-configuration
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testClusterMsgByteRateLimitingClusterConfig() throws Exception {
+    log.info("-- Starting {} test --", methodName);
 
-        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
-        admin.namespaces().setDispatchRate(namespace, dispatchRate);
-        // create producer and topic
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+    final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
+    final String topicName = "persistent://" + namespace + "/throttlingBlock";
+    final int messageRate = 5;
+    final long byteRate = 1024 * 1024; // 1MB rate enough to let all msg to be delivered
 
-        Awaitility.await()
-                .ignoreExceptions()
-                .until(() -> topic.getDispatchRateLimiter().get().getDispatchRateOnMsg() > 0
-                        || topic.getDispatchRateLimiter().get().getDispatchRateOnByte() > 0);
+    int initValue = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg();
+    long initBytes = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInByte();
+    // (1) Update message-dispatch-rate limit
+    admin
+        .brokers()
+        .updateDynamicConfiguration(
+            "dispatchThrottlingRatePerTopicInMsg", Integer.toString(messageRate));
+    admin
+        .brokers()
+        .updateDynamicConfiguration(
+            "dispatchThrottlingRatePerTopicInByte", Long.toString(byteRate));
+    // sleep incrementally as zk-watch notification is async and may take some time
+    for (int i = 0; i < 5; i++) {
+      if (pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg() == initValue) {
+        Thread.sleep(50 + (i * 10));
+      }
+    }
+    Assert.assertNotEquals(
+        pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg(), initValue);
 
-        Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
+    admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+    // create producer and topic
+    Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+    PersistentTopic topic =
+        (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+    int numMessages = 500;
 
-        int numMessages = 500;
+    final AtomicInteger totalReceived = new AtomicInteger(0);
 
-        final AtomicInteger totalReceived = new AtomicInteger(0);
+    Consumer<byte[]> consumer =
+        pulsarClient
+            .newConsumer()
+            .topic(topicName)
+            .subscriptionName("my-subscriber-name")
+            .subscriptionType(SubscriptionType.Shared)
+            .messageListener(
+                (c1, msg) -> {
+                  Assert.assertNotNull(msg, "Message cannot be null");
+                  String receivedMessage = new String(msg.getData());
+                  log.debug("Received message [{}] in the listener", receivedMessage);
+                  totalReceived.incrementAndGet();
+                })
+            .subscribe();
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
-                .subscriptionType(subscription).messageListener((c1, msg) -> {
-                    Assert.assertNotNull(msg, "Message cannot be null");
-                    String receivedMessage = new String(msg.getData());
-                    log.debug("Received message [{}] in the listener", receivedMessage);
-                    totalReceived.incrementAndGet();
-                }).subscribe();
-        // deactive cursors
-        deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
+    // deactive cursors
+    deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
 
-        // Asynchronously produce messages
-        for (int i = 0; i < numMessages; i++) {
-            producer.send(new byte[80]);
-        }
-
-        // consumer should not have received all published message due to message-rate throttling
-        Assert.assertTrue(totalReceived.get() < messageRate * 2);
-
-        consumer.close();
-        producer.close();
-        log.info("-- Exiting {} test --", methodName);
+    // Asynchronously produce messages
+    for (int i = 0; i < numMessages; i++) {
+      final String message = "my-message-" + i;
+      producer.send(message.getBytes());
     }
 
-    /**
-     * It verifies that dispatch-rate throttling with cluster-configuration
-     *
-     * @throws Exception
-     */
-    @Test
-    public void testClusterMsgByteRateLimitingClusterConfig() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+    // it can make sure that consumer had enough time to consume message but couldn't consume due to
+    // throttling
+    Thread.sleep(500);
 
-        final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
-        final String topicName = "persistent://" + namespace + "/throttlingBlock";
-        final int messageRate = 5;
-        final long byteRate = 1024 * 1024;// 1MB rate enough to let all msg to be delivered
+    // consumer should not have received all published message due to message-rate throttling
+    Assert.assertNotEquals(totalReceived.get(), numMessages);
 
-        int initValue = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg();
-        long initBytes = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInByte();
-        // (1) Update message-dispatch-rate limit
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg",
-                Integer.toString(messageRate));
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInByte", Long.toString(byteRate));
-        // sleep incrementally as zk-watch notification is async and may take some time
-        for (int i = 0; i < 5; i++) {
-            if (pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg() == initValue) {
-                Thread.sleep(50 + (i * 10));
-            }
-        }
-        Assert.assertNotEquals(pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg(), initValue);
+    consumer.close();
+    producer.close();
+    admin
+        .brokers()
+        .updateDynamicConfiguration(
+            "dispatchThrottlingRatePerTopicInMsg", Integer.toString(initValue));
+    admin
+        .brokers()
+        .updateDynamicConfiguration(
+            "dispatchThrottlingRatePerTopicInByte", Long.toString(initBytes));
+    log.info("-- Exiting {} test --", methodName);
+  }
 
-        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
-        // create producer and topic
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
-        int numMessages = 500;
+  /**
+   * verify rate-limiting should throttle message-dispatching based on message-rate
+   *
+   * <pre>
+   *  1. dispatch-msg-rate = 10 msg/sec
+   *  2. send 20 msgs
+   *  3. it should take up to 2 second to receive all messages
+   * </pre>
+   *
+   * @param subscription
+   * @throws Exception
+   */
+  @Test(dataProvider = "subscriptions", timeOut = 5000)
+  public void testMessageRateLimitingReceiveAllMessagesAfterThrottling(
+      SubscriptionType subscription) throws Exception {
+    log.info("-- Starting {} test --", methodName);
 
-        final AtomicInteger totalReceived = new AtomicInteger(0);
+    final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
+    final String topicName = "persistent://" + namespace + "/throttlingAll";
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
-                .subscriptionType(SubscriptionType.Shared).messageListener((c1, msg) -> {
-                    Assert.assertNotNull(msg, "Message cannot be null");
-                    String receivedMessage = new String(msg.getData());
-                    log.debug("Received message [{}] in the listener", receivedMessage);
-                    totalReceived.incrementAndGet();
-                }).subscribe();
+    final int messageRate = 10;
+    DispatchRate dispatchRate =
+        DispatchRate.builder()
+            .dispatchThrottlingRateInMsg(messageRate)
+            .dispatchThrottlingRateInByte(-1)
+            .ratePeriodInSecond(1)
+            .build();
+    admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+    admin.namespaces().setDispatchRate(namespace, dispatchRate);
+    // create producer and topic
+    Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+    PersistentTopic topic =
+        (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
 
-        // deactive cursors
-        deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
+    Awaitility.await()
+        .ignoreExceptions()
+        .until(() -> topic.getDispatchRateLimiter().get().getDispatchRateOnMsg() > 0);
 
-        // Asynchronously produce messages
-        for (int i = 0; i < numMessages; i++) {
-            final String message = "my-message-" + i;
-            producer.send(message.getBytes());
-        }
+    Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
 
-        // it can make sure that consumer had enough time to consume message but couldn't consume due to throttling
-        Thread.sleep(500);
+    final int numProducedMessages = 20;
+    final CountDownLatch latch = new CountDownLatch(numProducedMessages);
 
-        // consumer should not have received all published message due to message-rate throttling
-        Assert.assertNotEquals(totalReceived.get(), numMessages);
+    final AtomicInteger totalReceived = new AtomicInteger(0);
 
-        consumer.close();
-        producer.close();
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg",
-                Integer.toString(initValue));
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInByte", Long.toString(initBytes));
-        log.info("-- Exiting {} test --", methodName);
+    Consumer<byte[]> consumer =
+        pulsarClient
+            .newConsumer()
+            .topic(topicName)
+            .subscriptionName("my-subscriber-name")
+            .subscriptionType(subscription)
+            .messageListener(
+                (c1, msg) -> {
+                  Assert.assertNotNull(msg, "Message cannot be null");
+                  String receivedMessage = new String(msg.getData());
+                  log.debug("Received message [{}] in the listener", receivedMessage);
+                  totalReceived.incrementAndGet();
+                  latch.countDown();
+                })
+            .subscribe();
+    // deactive cursors
+    deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
+
+    // Asynchronously produce messages
+    for (int i = 0; i < numProducedMessages; i++) {
+      final String message = "my-message-" + i;
+      producer.send(message.getBytes());
     }
 
-    /**
-     * verify rate-limiting should throttle message-dispatching based on message-rate
-     *
-     * <pre>
-     *  1. dispatch-msg-rate = 10 msg/sec
-     *  2. send 20 msgs
-     *  3. it should take up to 2 second to receive all messages
-     * </pre>
-     *
-     * @param subscription
-     * @throws Exception
-     */
-    @Test(dataProvider = "subscriptions", timeOut = 5000)
-    public void testMessageRateLimitingReceiveAllMessagesAfterThrottling(SubscriptionType subscription)
-            throws Exception {
-        log.info("-- Starting {} test --", methodName);
+    latch.await();
+    Assert.assertEquals(totalReceived.get(), numProducedMessages);
 
-        final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
-        final String topicName = "persistent://" + namespace + "/throttlingAll";
+    consumer.close();
+    producer.close();
+    log.info("-- Exiting {} test --", methodName);
+  }
 
-        final int messageRate = 10;
-        DispatchRate dispatchRate = DispatchRate.builder()
-                .dispatchThrottlingRateInMsg(messageRate)
-                .dispatchThrottlingRateInByte(-1)
-                .ratePeriodInSecond(1)
-                .build();
-        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
-        admin.namespaces().setDispatchRate(namespace, dispatchRate);
-        // create producer and topic
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+  /**
+   * verify rate-limiting should throttle message-dispatching based on byte-rate
+   *
+   * <pre>
+   *  1. dispatch-byte-rate = 100 bytes/sec
+   *  2. send 20 msgs : each with 10 byte
+   *  3. it should take up to 2 second to receive all messages
+   * </pre>
+   *
+   * @param subscription
+   * @throws Exception
+   */
+  @Test(dataProvider = "subscriptions", timeOut = 5000)
+  public void testBytesRateLimitingReceiveAllMessagesAfterThrottling(SubscriptionType subscription)
+      throws Exception {
+    conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(true);
+    log.info("-- Starting {} test --", methodName);
 
-        Awaitility.await()
-                .ignoreExceptions()
-                .until(() -> topic.getDispatchRateLimiter().get().getDispatchRateOnMsg() > 0);
+    final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
+    final String topicName = "persistent://" + namespace + "/throttlingAll";
+    final String subscriptionName = "my-subscriber-name";
 
-        Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
+    //
+    final int byteRate = 250;
+    DispatchRate dispatchRate =
+        DispatchRate.builder()
+            .dispatchThrottlingRateInMsg(-1)
+            .dispatchThrottlingRateInByte(byteRate)
+            .ratePeriodInSecond(1)
+            .build();
+    admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+    admin.namespaces().setDispatchRate(namespace, dispatchRate);
+    admin.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+    // create producer and topic
+    Producer<byte[]> producer =
+        pulsarClient.newProducer().topic(topicName).enableBatching(false).create();
+    PersistentTopic topic =
+        (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+    Awaitility.await()
+        .until(() -> topic.getDispatchRateLimiter().get().getDispatchRateOnByte() > 0);
+    Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
 
-        final int numProducedMessages = 20;
-        final CountDownLatch latch = new CountDownLatch(numProducedMessages);
+    final int numProducedMessages = 20;
 
-        final AtomicInteger totalReceived = new AtomicInteger(0);
+    final AtomicInteger totalReceived = new AtomicInteger(0);
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
-                .subscriptionType(subscription).messageListener((c1, msg) -> {
-                    Assert.assertNotNull(msg, "Message cannot be null");
-                    String receivedMessage = new String(msg.getData());
-                    log.debug("Received message [{}] in the listener", receivedMessage);
-                    totalReceived.incrementAndGet();
-                    latch.countDown();
-                }).subscribe();
-        // deactive cursors
-        deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
-
-        // Asynchronously produce messages
-        for (int i = 0; i < numProducedMessages; i++) {
-            final String message = "my-message-" + i;
-            producer.send(message.getBytes());
-        }
-
-        latch.await();
-        Assert.assertEquals(totalReceived.get(), numProducedMessages);
-
-        consumer.close();
-        producer.close();
-        log.info("-- Exiting {} test --", methodName);
+    for (int i = 0; i < numProducedMessages; i++) {
+      producer.send(new byte[99]);
     }
 
-    /**
-     * verify rate-limiting should throttle message-dispatching based on byte-rate
-     *
-     * <pre>
-     *  1. dispatch-byte-rate = 100 bytes/sec
-     *  2. send 20 msgs : each with 10 byte
-     *  3. it should take up to 2 second to receive all messages
-     * </pre>
-     *
-     * @param subscription
-     * @throws Exception
-     */
-    @Test(dataProvider = "subscriptions", timeOut = 5000)
-    public void testBytesRateLimitingReceiveAllMessagesAfterThrottling(SubscriptionType subscription) throws Exception {
-        conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(true);
-        log.info("-- Starting {} test --", methodName);
+    Consumer<byte[]> consumer =
+        pulsarClient
+            .newConsumer()
+            .topic(topicName)
+            .subscriptionName(subscriptionName)
+            .subscriptionType(subscription)
+            .messageListener(
+                (c1, msg) -> {
+                  Assert.assertNotNull(msg, "Message cannot be null");
+                  String receivedMessage = new String(msg.getData());
+                  log.debug("Received message [{}] in the listener", receivedMessage);
+                  totalReceived.incrementAndGet();
+                })
+            .subscribe();
 
-        final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
-        final String topicName = "persistent://" + namespace + "/throttlingAll";
-        final String subscriptionName = "my-subscriber-name";
+    Awaitility.await()
+        .atLeast(3, TimeUnit.SECONDS)
+        .atMost(5, TimeUnit.SECONDS)
+        .until(() -> totalReceived.get() > 6 && totalReceived.get() < 10);
 
-        //
-        final int byteRate = 250;
-        DispatchRate dispatchRate = DispatchRate.builder()
-                .dispatchThrottlingRateInMsg(-1)
-                .dispatchThrottlingRateInByte(byteRate)
-                .ratePeriodInSecond(1)
-                .build();
-        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
-        admin.namespaces().setDispatchRate(namespace, dispatchRate);
-        admin.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
-        // create producer and topic
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(false).create();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
-        Awaitility.await().until(() -> topic.getDispatchRateLimiter().get().getDispatchRateOnByte() > 0);
-        Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
+    consumer.close();
+    producer.close();
+    log.info("-- Exiting {} test --", methodName);
+  }
 
-        final int numProducedMessages = 20;
+  /**
+   * verify message-rate on multiple consumers with shared-subscription
+   *
+   * @throws Exception
+   */
+  @Test(timeOut = 10000)
+  public void testRateLimitingMultipleConsumers() throws Exception {
+    log.info("-- Starting {} test --", methodName);
 
-        final AtomicInteger totalReceived = new AtomicInteger(0);
+    final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
+    final String topicName = "persistent://" + namespace + "/throttlingMultipleConsumers";
+    conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(true);
 
-        for (int i = 0; i < numProducedMessages; i++) {
-            producer.send(new byte[99]);
-        }
+    final int messageRate = 5;
+    DispatchRate dispatchRate =
+        DispatchRate.builder()
+            .dispatchThrottlingRateInMsg(messageRate)
+            .dispatchThrottlingRateInByte(-1)
+            .ratePeriodInSecond(360)
+            .build();
+    admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+    admin.namespaces().setDispatchRate(namespace, dispatchRate);
+    // create producer and topic
+    @Cleanup
+    Producer<byte[]> producer =
+        pulsarClient.newProducer().enableBatching(false).topic(topicName).create();
+    PersistentTopic topic =
+        (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
-                .subscriptionType(subscription).messageListener((c1, msg) -> {
-                    Assert.assertNotNull(msg, "Message cannot be null");
-                    String receivedMessage = new String(msg.getData());
-                    log.debug("Received message [{}] in the listener", receivedMessage);
-                    totalReceived.incrementAndGet();
-                }).subscribe();
+    Awaitility.await()
+        .ignoreExceptions()
+        .until(() -> topic.getDispatchRateLimiter().get().getDispatchRateOnMsg() > 0);
 
-        Awaitility.await().atLeast(3, TimeUnit.SECONDS)
-                .atMost(5, TimeUnit.SECONDS).until(() -> totalReceived.get() > 6 && totalReceived.get() < 10);
+    Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
 
-        consumer.close();
-        producer.close();
-        log.info("-- Exiting {} test --", methodName);
-    }
+    final int numProducedMessages = 500;
 
-    /**
-     * verify message-rate on multiple consumers with shared-subscription
-     *
-     * @throws Exception
-     */
-    @Test(timeOut = 10000)
-    public void testRateLimitingMultipleConsumers() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+    final AtomicInteger totalReceived = new AtomicInteger(0);
 
-        final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
-        final String topicName = "persistent://" + namespace + "/throttlingMultipleConsumers";
-        conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(true);
-
-        final int messageRate = 5;
-        DispatchRate dispatchRate = DispatchRate.builder()
-                .dispatchThrottlingRateInMsg(messageRate)
-                .dispatchThrottlingRateInByte(-1)
-                .ratePeriodInSecond(360)
-                .build();
-        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
-        admin.namespaces().setDispatchRate(namespace, dispatchRate);
-        // create producer and topic
-        @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer().enableBatching(false).topic(topicName).create();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
-
-        Awaitility.await()
-                .ignoreExceptions()
-                .until(() -> topic.getDispatchRateLimiter().get().getDispatchRateOnMsg() > 0);
-
-        Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
-
-        final int numProducedMessages = 500;
-
-        final AtomicInteger totalReceived = new AtomicInteger(0);
-
-        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
-                .receiverQueueSize(1)
-                .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Shared).messageListener((c1, msg) -> {
-                    Assert.assertNotNull(msg, "Message cannot be null");
-                    String receivedMessage = new String(msg.getData());
-                    log.debug("Received message [{}] in the listener", receivedMessage);
-                    totalReceived.incrementAndGet();
-                    try {
-                        c1.acknowledge(msg);
-                    } catch (PulsarClientException e) {
-                        throw new RuntimeException(e);
-                    }
+    ConsumerBuilder<byte[]> consumerBuilder =
+        pulsarClient
+            .newConsumer()
+            .topic(topicName)
+            .receiverQueueSize(1)
+            .subscriptionName("my-subscriber-name")
+            .subscriptionType(SubscriptionType.Shared)
+            .messageListener(
+                (c1, msg) -> {
+                  Assert.assertNotNull(msg, "Message cannot be null");
+                  String receivedMessage = new String(msg.getData());
+                  log.debug("Received message [{}] in the listener", receivedMessage);
+                  totalReceived.incrementAndGet();
+                  try {
+                    c1.acknowledge(msg);
+                  } catch (PulsarClientException e) {
+                    throw new RuntimeException(e);
+                  }
                 });
-        @Cleanup
-        Consumer<byte[]> consumer1 = consumerBuilder.subscribe();
-        @Cleanup
-        Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
-        @Cleanup
-        Consumer<byte[]> consumer3 = consumerBuilder.subscribe();
-        @Cleanup
-        Consumer<byte[]> consumer4 = consumerBuilder.subscribe();
-        @Cleanup
-        Consumer<byte[]> consumer5 = consumerBuilder.subscribe();
+    @Cleanup Consumer<byte[]> consumer1 = consumerBuilder.subscribe();
+    @Cleanup Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
+    @Cleanup Consumer<byte[]> consumer3 = consumerBuilder.subscribe();
+    @Cleanup Consumer<byte[]> consumer4 = consumerBuilder.subscribe();
+    @Cleanup Consumer<byte[]> consumer5 = consumerBuilder.subscribe();
 
-        // deactive cursors
-        deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
+    // deactive cursors
+    deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
 
-        // Asynchronously produce messages
-        for (int i = 0; i < numProducedMessages; i++) {
-            final String message = "my-message-" + i;
-            producer.send(message.getBytes());
-        }
-
-        // it can make sure that consumer had enough time to consume message but couldn't consume due to throttling
-        Thread.sleep(1000);
-
-        // rate limiter should have limited messages with at least 10% accuracy (or 2 messages if messageRate is low)
-        assertThat(totalReceived.get()).isCloseTo(messageRate, Offset.offset(Math.max(messageRate / 10, 2)));
-
-        log.info("-- Exiting {} test --", methodName);
-        conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(false);
+    // Asynchronously produce messages
+    for (int i = 0; i < numProducedMessages; i++) {
+      final String message = "my-message-" + i;
+      producer.send(message.getBytes());
     }
 
-    @Test
-    public void testRateLimitingWithBatchMsgEnabled() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+    // it can make sure that consumer had enough time to consume message but couldn't consume due to
+    // throttling
+    Thread.sleep(1000);
 
-        conf.setDispatchThrottlingOnBatchMessageEnabled(true);
+    // rate limiter should have limited messages with at least 10% accuracy (or 2 messages if
+    // messageRate is low)
+    assertThat(totalReceived.get())
+        .isCloseTo(messageRate, Offset.offset(Math.max(messageRate / 10, 2)));
 
-        final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
-        final String topicName = "persistent://" + namespace + "/throttlingMultipleConsumers";
+    log.info("-- Exiting {} test --", methodName);
+    conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(false);
+  }
 
-        final int messageRate = 5;
-        DispatchRate dispatchRate = DispatchRate.builder().dispatchThrottlingRateInMsg(messageRate)
-                .dispatchThrottlingRateInByte(-1).ratePeriodInSecond(360).build();
-        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
-        admin.namespaces().setDispatchRate(namespace, dispatchRate);
+  @Test
+  public void testRateLimitingWithBatchMsgEnabled() throws Exception {
+    log.info("-- Starting {} test --", methodName);
 
-        final int messagesPerBatch = 100;
-        final int numProducedMessages = messageRate * messagesPerBatch;
-        // create producer and topic
-        @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(true)
-                .batchingMaxPublishDelay(1, TimeUnit.SECONDS).batchingMaxMessages(messagesPerBatch).create();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+    conf.setDispatchThrottlingOnBatchMessageEnabled(true);
 
-        Awaitility.await()
-                .ignoreExceptions()
-                .until(() -> topic.getDispatchRateLimiter().get().getDispatchRateOnMsg() > 0);
+    final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
+    final String topicName = "persistent://" + namespace + "/throttlingMultipleConsumers";
 
-        Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
+    final int messageRate = 5;
+    DispatchRate dispatchRate =
+        DispatchRate.builder()
+            .dispatchThrottlingRateInMsg(messageRate)
+            .dispatchThrottlingRateInByte(-1)
+            .ratePeriodInSecond(360)
+            .build();
+    admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+    admin.namespaces().setDispatchRate(namespace, dispatchRate);
 
-        final AtomicInteger totalReceived = new AtomicInteger(0);
+    final int messagesPerBatch = 100;
+    final int numProducedMessages = messageRate * messagesPerBatch;
+    // create producer and topic
+    @Cleanup
+    Producer<byte[]> producer =
+        pulsarClient
+            .newProducer()
+            .topic(topicName)
+            .enableBatching(true)
+            .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
+            .batchingMaxMessages(messagesPerBatch)
+            .create();
+    PersistentTopic topic =
+        (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
 
-        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
-                .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Shared)
-                .messageListener((c1, msg) -> {
-                    Assert.assertNotNull(msg, "Message cannot be null");
-                    String receivedMessage = new String(msg.getData());
-                    log.debug("Received message [{}] in the listener", receivedMessage);
-                    totalReceived.incrementAndGet();
+    Awaitility.await()
+        .ignoreExceptions()
+        .until(() -> topic.getDispatchRateLimiter().get().getDispatchRateOnMsg() > 0);
+
+    Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
+
+    final AtomicInteger totalReceived = new AtomicInteger(0);
+
+    ConsumerBuilder<byte[]> consumerBuilder =
+        pulsarClient
+            .newConsumer()
+            .topic(topicName)
+            .subscriptionName("my-subscriber-name")
+            .subscriptionType(SubscriptionType.Shared)
+            .messageListener(
+                (c1, msg) -> {
+                  Assert.assertNotNull(msg, "Message cannot be null");
+                  String receivedMessage = new String(msg.getData());
+                  log.debug("Received message [{}] in the listener", receivedMessage);
+                  totalReceived.incrementAndGet();
                 });
-        @Cleanup
-        Consumer<byte[]> consumer1 = consumerBuilder.subscribe();
-        @Cleanup
-        Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
-        @Cleanup
-        Consumer<byte[]> consumer3 = consumerBuilder.subscribe();
-        @Cleanup
-        Consumer<byte[]> consumer4 = consumerBuilder.subscribe();
-        @Cleanup
-        Consumer<byte[]> consumer5 = consumerBuilder.subscribe();
+    @Cleanup Consumer<byte[]> consumer1 = consumerBuilder.subscribe();
+    @Cleanup Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
+    @Cleanup Consumer<byte[]> consumer3 = consumerBuilder.subscribe();
+    @Cleanup Consumer<byte[]> consumer4 = consumerBuilder.subscribe();
+    @Cleanup Consumer<byte[]> consumer5 = consumerBuilder.subscribe();
 
-        // deactive cursors
-        deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
+    // deactive cursors
+    deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
 
-        // Asynchronously produce messages
-        CountDownLatch latch = new CountDownLatch(numProducedMessages);
-        for (int i = 0; i < numProducedMessages; i++) {
-            final String message = "my-message-" + i;
-            producer.sendAsync(message.getBytes()).thenAccept(__ -> latch.countDown());
-        }
-
-        latch.await();
-
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> totalReceived.get() == numProducedMessages);
-
-        // consumer should not have received all published message due to message-rate throttling
-        Assert.assertEquals(totalReceived.get(), numProducedMessages);
-
-        log.info("-- Exiting {} test --", methodName);
+    // Asynchronously produce messages
+    CountDownLatch latch = new CountDownLatch(numProducedMessages);
+    for (int i = 0; i < numProducedMessages; i++) {
+      final String message = "my-message-" + i;
+      producer.sendAsync(message.getBytes()).thenAccept(__ -> latch.countDown());
     }
 
-    @Test(dataProvider = "subscriptions", timeOut = 5000)
-    public void testClusterRateLimitingConfiguration(SubscriptionType subscription) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+    latch.await();
 
-        final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
-        final String topicName = "persistent://" + namespace + "/throttlingBlock";
-        final int messageRate = 5;
+    Awaitility.await()
+        .atMost(10, TimeUnit.SECONDS)
+        .until(() -> totalReceived.get() == numProducedMessages);
 
-        int initValue = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg();
-        // (1) Update message-dispatch-rate limit
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg",
-                Integer.toString(messageRate));
-        // sleep incrementally as zk-watch notification is async and may take some time
-        for (int i = 0; i < 5; i++) {
-            if (pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg() == initValue) {
-                Thread.sleep(50 + (i * 10));
-            }
-        }
-        Assert.assertNotEquals(pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg(), initValue);
+    // consumer should not have received all published message due to message-rate throttling
+    Assert.assertEquals(totalReceived.get(), numProducedMessages);
 
-        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
-        // create producer and topic
-        @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
-        int numMessages = 500;
+    log.info("-- Exiting {} test --", methodName);
+  }
 
-        final AtomicInteger totalReceived = new AtomicInteger(0);
+  @Test(dataProvider = "subscriptions", timeOut = 5000)
+  public void testClusterRateLimitingConfiguration(SubscriptionType subscription) throws Exception {
+    log.info("-- Starting {} test --", methodName);
 
-        @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
-                .subscriptionType(subscription).messageListener((c1, msg) -> {
-                    Assert.assertNotNull(msg, "Message cannot be null");
-                    String receivedMessage = new String(msg.getData());
-                    log.debug("Received message [{}] in the listener", receivedMessage);
-                    totalReceived.incrementAndGet();
-                }).subscribe();
-        // deactive cursors
-        deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
+    final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
+    final String topicName = "persistent://" + namespace + "/throttlingBlock";
+    final int messageRate = 5;
 
-        // Asynchronously produce messages
-        for (int i = 0; i < numMessages; i++) {
-            final String message = "my-message-" + i;
-            producer.send(message.getBytes());
-        }
+    int initValue = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg();
+    // (1) Update message-dispatch-rate limit
+    admin
+        .brokers()
+        .updateDynamicConfiguration(
+            "dispatchThrottlingRatePerTopicInMsg", Integer.toString(messageRate));
+    // sleep incrementally as zk-watch notification is async and may take some time
+    for (int i = 0; i < 5; i++) {
+      if (pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg() == initValue) {
+        Thread.sleep(50 + (i * 10));
+      }
+    }
+    Assert.assertNotEquals(
+        pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg(), initValue);
 
-        // it can make sure that consumer had enough time to consume message but couldn't consume due to throttling
-        Thread.sleep(500);
+    admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+    // create producer and topic
+    @Cleanup Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+    PersistentTopic topic =
+        (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+    int numMessages = 500;
 
-        // consumer should not have received all published message due to message-rate throttling
-        Assert.assertNotEquals(totalReceived.get(), numMessages);
+    final AtomicInteger totalReceived = new AtomicInteger(0);
 
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg",
-                Integer.toString(initValue));
-        log.info("-- Exiting {} test --", methodName);
+    @Cleanup
+    Consumer<byte[]> consumer =
+        pulsarClient
+            .newConsumer()
+            .topic(topicName)
+            .subscriptionName("my-subscriber-name")
+            .subscriptionType(subscription)
+            .messageListener(
+                (c1, msg) -> {
+                  Assert.assertNotNull(msg, "Message cannot be null");
+                  String receivedMessage = new String(msg.getData());
+                  log.debug("Received message [{}] in the listener", receivedMessage);
+                  totalReceived.incrementAndGet();
+                })
+            .subscribe();
+    // deactive cursors
+    deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
+
+    // Asynchronously produce messages
+    for (int i = 0; i < numMessages; i++) {
+      final String message = "my-message-" + i;
+      producer.send(message.getBytes());
     }
 
-    /**
-     * It verifies that that dispatch-throttling considers both msg/byte rate if both of them are configured together
-     *
-     * @param subscription
-     * @throws Exception
-     */
-    @Test(dataProvider = "subscriptions", timeOut = 5000)
-    public void testMessageByteRateThrottlingCombined(SubscriptionType subscription) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+    // it can make sure that consumer had enough time to consume message but couldn't consume due to
+    // throttling
+    Thread.sleep(500);
 
-        final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
-        final String topicName = "persistent://" + namespace + "/throttlingAll";
+    // consumer should not have received all published message due to message-rate throttling
+    Assert.assertNotEquals(totalReceived.get(), numMessages);
 
-        final int messageRate = 5; // 5 msgs per second
-        final long byteRate = 10; // 10 bytes per second
-        DispatchRate dispatchRate = DispatchRate.builder()
-                .dispatchThrottlingRateInMsg(messageRate)
-                .dispatchThrottlingRateInByte(byteRate)
-                .ratePeriodInSecond(360)
-                .build();
-        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
-        admin.namespaces().setDispatchRate(namespace, dispatchRate);
-        // create producer and topic
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+    admin
+        .brokers()
+        .updateDynamicConfiguration(
+            "dispatchThrottlingRatePerTopicInMsg", Integer.toString(initValue));
+    log.info("-- Exiting {} test --", methodName);
+  }
 
-        Awaitility.await()
-                .ignoreExceptions()
-                .until(() -> topic.getDispatchRateLimiter().get().getDispatchRateOnMsg() > 0
-                        || topic.getDispatchRateLimiter().get().getDispatchRateOnByte() > 0);
+  /**
+   * It verifies that that dispatch-throttling considers both msg/byte rate if both of them are
+   * configured together
+   *
+   * @param subscription
+   * @throws Exception
+   */
+  @Test(dataProvider = "subscriptions", timeOut = 5000)
+  public void testMessageByteRateThrottlingCombined(SubscriptionType subscription)
+      throws Exception {
+    log.info("-- Starting {} test --", methodName);
 
-        Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
+    final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
+    final String topicName = "persistent://" + namespace + "/throttlingAll";
 
-        final int numProducedMessages = 200;
+    final int messageRate = 5; // 5 msgs per second
+    final long byteRate = 10; // 10 bytes per second
+    DispatchRate dispatchRate =
+        DispatchRate.builder()
+            .dispatchThrottlingRateInMsg(messageRate)
+            .dispatchThrottlingRateInByte(byteRate)
+            .ratePeriodInSecond(360)
+            .build();
+    admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+    admin.namespaces().setDispatchRate(namespace, dispatchRate);
+    // create producer and topic
+    Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+    PersistentTopic topic =
+        (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
 
-        final AtomicInteger totalReceived = new AtomicInteger(0);
+    Awaitility.await()
+        .ignoreExceptions()
+        .until(
+            () ->
+                topic.getDispatchRateLimiter().get().getDispatchRateOnMsg() > 0
+                    || topic.getDispatchRateLimiter().get().getDispatchRateOnByte() > 0);
 
-        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
-                .subscriptionName("my-subscriber-name").subscriptionType(subscription).messageListener((c1, msg) -> {
-                    Assert.assertNotNull(msg, "Message cannot be null");
-                    String receivedMessage = new String(msg.getData());
-                    log.debug("Received message [{}] in the listener", receivedMessage);
-                    totalReceived.incrementAndGet();
+    Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
+
+    final int numProducedMessages = 200;
+
+    final AtomicInteger totalReceived = new AtomicInteger(0);
+
+    ConsumerBuilder<byte[]> consumerBuilder =
+        pulsarClient
+            .newConsumer()
+            .topic(topicName)
+            .subscriptionName("my-subscriber-name")
+            .subscriptionType(subscription)
+            .messageListener(
+                (c1, msg) -> {
+                  Assert.assertNotNull(msg, "Message cannot be null");
+                  String receivedMessage = new String(msg.getData());
+                  log.debug("Received message [{}] in the listener", receivedMessage);
+                  totalReceived.incrementAndGet();
                 });
-        Consumer<byte[]> consumer = consumerBuilder.subscribe();
-        // deactive cursors
-        deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
-        consumer.close();
+    Consumer<byte[]> consumer = consumerBuilder.subscribe();
+    // deactive cursors
+    deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
+    consumer.close();
 
-        // Asynchronously produce messages
-        final int dataSize = 50;
-        final byte[] data = new byte[dataSize];
-        for (int i = 0; i < numProducedMessages; i++) {
-            producer.send(data);
-        }
-
-        consumer = consumerBuilder.subscribe();
-        final int totalReceivedBytes = dataSize * totalReceived.get();
-        Assert.assertNotEquals(totalReceivedBytes, byteRate * 2);
-
-        consumer.close();
-        producer.close();
-        log.info("-- Exiting {} test --", methodName);
+    // Asynchronously produce messages
+    final int dataSize = 50;
+    final byte[] data = new byte[dataSize];
+    for (int i = 0; i < numProducedMessages; i++) {
+      producer.send(data);
     }
 
-    /**
-     * <pre>
-     * Verifies setting dispatch-rate on global namespace.
-     * 1. It sets dispatch-rate for a local cluster into global-zk.policies
-     * 2. Topic fetches dispatch-rate for the local cluster from policies
-     * 3. applies dispatch rate
-     *
-     * </pre>
-     *
-     * @throws Exception
-     */
-    @Test
-    public void testGlobalNamespaceThrottling() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+    consumer = consumerBuilder.subscribe();
+    final int totalReceivedBytes = dataSize * totalReceived.get();
+    Assert.assertNotEquals(totalReceivedBytes, byteRate * 2);
 
-        final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
-        final String topicName = "persistent://" + namespace + "/throttlingBlock";
+    consumer.close();
+    producer.close();
+    log.info("-- Exiting {} test --", methodName);
+  }
 
-        final int messageRate = 5;
-        DispatchRate dispatchRate = DispatchRate.builder()
-                .dispatchThrottlingRateInMsg(messageRate)
-                .dispatchThrottlingRateInByte(-1)
-                .ratePeriodInSecond(360)
-                .build();
+  /**
+   *
+   *
+   * <pre>
+   * Verifies setting dispatch-rate on global namespace.
+   * 1. It sets dispatch-rate for a local cluster into global-zk.policies
+   * 2. Topic fetches dispatch-rate for the local cluster from policies
+   * 3. applies dispatch rate
+   *
+   * </pre>
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testGlobalNamespaceThrottling() throws Exception {
+    log.info("-- Starting {} test --", methodName);
 
-        admin.clusters().createCluster("global", ClusterData.builder().serviceUrl("http://global:8080").build());
-        admin.namespaces().createNamespace(namespace);
-        admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("test"));
-        admin.namespaces().setDispatchRate(namespace, dispatchRate);
+    final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
+    final String topicName = "persistent://" + namespace + "/throttlingBlock";
 
-        // create producer and topic
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+    final int messageRate = 5;
+    DispatchRate dispatchRate =
+        DispatchRate.builder()
+            .dispatchThrottlingRateInMsg(messageRate)
+            .dispatchThrottlingRateInByte(-1)
+            .ratePeriodInSecond(360)
+            .build();
 
-        Awaitility.await()
-                .ignoreExceptions()
-                .until(() -> topic.getDispatchRateLimiter().get().getDispatchRateOnMsg() > 0
-                        || topic.getDispatchRateLimiter().get().getDispatchRateOnByte() > 0);
+    admin
+        .clusters()
+        .createCluster("global", ClusterData.builder().serviceUrl("http://global:8080").build());
+    admin.namespaces().createNamespace(namespace);
+    admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("test"));
+    admin.namespaces().setDispatchRate(namespace, dispatchRate);
 
-        Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
+    // create producer and topic
+    Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+    PersistentTopic topic =
+        (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
 
-        int numMessages = 500;
+    Awaitility.await()
+        .ignoreExceptions()
+        .until(
+            () ->
+                topic.getDispatchRateLimiter().get().getDispatchRateOnMsg() > 0
+                    || topic.getDispatchRateLimiter().get().getDispatchRateOnByte() > 0);
 
-        final AtomicInteger totalReceived = new AtomicInteger(0);
+    Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
-                .subscriptionType(SubscriptionType.Shared).messageListener((c1, msg) -> {
-                    Assert.assertNotNull(msg, "Message cannot be null");
-                    String receivedMessage = new String(msg.getData());
-                    log.debug("Received message [{}] in the listener", receivedMessage);
-                    totalReceived.incrementAndGet();
-                }).subscribe();
-        // deactive cursors
-        deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
+    int numMessages = 500;
 
-        // Asynchronously produce messages
-        for (int i = 0; i < numMessages; i++) {
-            producer.send(new byte[80]);
-        }
+    final AtomicInteger totalReceived = new AtomicInteger(0);
 
-        // it can make sure that consumer had enough time to consume message but couldn't consume due to throttling
-        Thread.sleep(500);
+    Consumer<byte[]> consumer =
+        pulsarClient
+            .newConsumer()
+            .topic(topicName)
+            .subscriptionName("my-subscriber-name")
+            .subscriptionType(SubscriptionType.Shared)
+            .messageListener(
+                (c1, msg) -> {
+                  Assert.assertNotNull(msg, "Message cannot be null");
+                  String receivedMessage = new String(msg.getData());
+                  log.debug("Received message [{}] in the listener", receivedMessage);
+                  totalReceived.incrementAndGet();
+                })
+            .subscribe();
+    // deactive cursors
+    deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
 
-        // consumer should not have received all published message due to message-rate throttling
-        Assert.assertNotEquals(totalReceived.get(), numMessages);
-
-        consumer.close();
-        producer.close();
-        log.info("-- Exiting {} test --", methodName);
+    // Asynchronously produce messages
+    for (int i = 0; i < numMessages; i++) {
+      producer.send(new byte[80]);
     }
 
-    /**
-     * It verifies that broker throttles already caught-up consumer which doesn't have backlog if the flag is enabled
-     *
-     * @param subscription
-     * @throws Exception
-     */
-    @Test(dataProvider = "subscriptions", timeOut = 5000)
-    public void testNonBacklogConsumerWithThrottlingEnabled(SubscriptionType subscription) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+    // it can make sure that consumer had enough time to consume message but couldn't consume due to
+    // throttling
+    Thread.sleep(500);
 
-        final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
-        final String topicName = "persistent://" + namespace + "/throttlingBlock";
+    // consumer should not have received all published message due to message-rate throttling
+    Assert.assertNotEquals(totalReceived.get(), numMessages);
 
-        final int messageRate = 10;
-        DispatchRate dispatchRate = DispatchRate.builder()
-                .dispatchThrottlingRateInMsg(messageRate)
-                .dispatchThrottlingRateInByte(-1)
-                .ratePeriodInSecond(360)
-                .build();
+    consumer.close();
+    producer.close();
+    log.info("-- Exiting {} test --", methodName);
+  }
 
-        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
-        admin.namespaces().setDispatchRate(namespace, dispatchRate);
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingOnNonBacklogConsumerEnabled",
-                Boolean.TRUE.toString());
-        // create producer and topic
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
-        boolean isUpdated = false;
-        int retry = 5;
-        for (int i = 0; i < retry; i++) {
-            if (topic.getDispatchRateLimiter().get().getDispatchRateOnMsg() > 0) {
-                isUpdated = true;
-                break;
-            } else {
-                if (i != retry - 1) {
-                    Thread.sleep(100);
-                }
-            }
+  /**
+   * It verifies that broker throttles already caught-up consumer which doesn't have backlog if the
+   * flag is enabled
+   *
+   * @param subscription
+   * @throws Exception
+   */
+  @Test(dataProvider = "subscriptions", timeOut = 5000)
+  public void testNonBacklogConsumerWithThrottlingEnabled(SubscriptionType subscription)
+      throws Exception {
+    log.info("-- Starting {} test --", methodName);
+
+    final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
+    final String topicName = "persistent://" + namespace + "/throttlingBlock";
+
+    final int messageRate = 10;
+    DispatchRate dispatchRate =
+        DispatchRate.builder()
+            .dispatchThrottlingRateInMsg(messageRate)
+            .dispatchThrottlingRateInByte(-1)
+            .ratePeriodInSecond(360)
+            .build();
+
+    admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+    admin.namespaces().setDispatchRate(namespace, dispatchRate);
+    admin
+        .brokers()
+        .updateDynamicConfiguration(
+            "dispatchThrottlingOnNonBacklogConsumerEnabled", Boolean.TRUE.toString());
+    // create producer and topic
+    Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+    PersistentTopic topic =
+        (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+    boolean isUpdated = false;
+    int retry = 5;
+    for (int i = 0; i < retry; i++) {
+      if (topic.getDispatchRateLimiter().get().getDispatchRateOnMsg() > 0) {
+        isUpdated = true;
+        break;
+      } else {
+        if (i != retry - 1) {
+          Thread.sleep(100);
         }
-        Assert.assertTrue(isUpdated);
-        Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
+      }
+    }
+    Assert.assertTrue(isUpdated);
+    Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
 
-        // enable throttling for nonBacklog consumers
-        conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(true);
+    // enable throttling for nonBacklog consumers
+    conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(true);
 
-        int numMessages = 500;
+    int numMessages = 500;
 
-        final AtomicInteger totalReceived = new AtomicInteger(0);
+    final AtomicInteger totalReceived = new AtomicInteger(0);
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
-                .subscriptionType(subscription).messageListener((c1, msg) -> {
-                    Assert.assertNotNull(msg, "Message cannot be null");
-                    String receivedMessage = new String(msg.getData());
-                    log.debug("Received message [{}] in the listener", receivedMessage);
-                    totalReceived.incrementAndGet();
-                }).subscribe();
+    Consumer<byte[]> consumer =
+        pulsarClient
+            .newConsumer()
+            .topic(topicName)
+            .subscriptionName("my-subscriber-name")
+            .subscriptionType(subscription)
+            .messageListener(
+                (c1, msg) -> {
+                  Assert.assertNotNull(msg, "Message cannot be null");
+                  String receivedMessage = new String(msg.getData());
+                  log.debug("Received message [{}] in the listener", receivedMessage);
+                  totalReceived.incrementAndGet();
+                })
+            .subscribe();
 
-        // Asynchronously produce messages
-        for (int i = 0; i < numMessages; i++) {
-            producer.send(new byte[80]);
-        }
-
-        // consumer should not have received all published message due to message-rate throttling
-        Assert.assertTrue(totalReceived.get() < messageRate * 2);
-
-        consumer.close();
-        producer.close();
-        // revert default value
-        this.conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(false);
-        log.info("-- Exiting {} test --", methodName);
+    // Asynchronously produce messages
+    for (int i = 0; i < numMessages; i++) {
+      producer.send(new byte[80]);
     }
 
-    /**
-     * <pre>
-     * It verifies that cluster-throttling value gets considered when namespace-policy throttling is disabled.
-     *
-     *  1. Update cluster-throttling-config: topic rate-limiter has cluster-config
-     *  2. Update namespace-throttling-config: topic rate-limiter has namespace-config
-     *  3. Disable namespace-throttling-config: topic rate-limiter has cluster-config
-     *  4. Create new topic with disable namespace-config and enabled cluster-config: it takes cluster-config
-     *
-     * </pre>
-     *
-     * @throws Exception
-     */
-    @Test
-    public void testClusterPolicyOverrideConfiguration() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+    // consumer should not have received all published message due to message-rate throttling
+    Assert.assertTrue(totalReceived.get() < messageRate * 2);
 
-        final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
-        final String topicName1 = "persistent://" + namespace + "/throttlingOverride1";
-        final String topicName2 = "persistent://" + namespace + "/throttlingOverride2";
-        final int clusterMessageRate = 100;
+    consumer.close();
+    producer.close();
+    // revert default value
+    this.conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(false);
+    log.info("-- Exiting {} test --", methodName);
+  }
 
-        int initValue = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg();
-        // (1) Update message-dispatch-rate limit
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg",
-                Integer.toString(clusterMessageRate));
-        // sleep incrementally as zk-watch notification is async and may take some time
-        for (int i = 0; i < 5; i++) {
-            if (pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg() == initValue) {
-                Thread.sleep(50 + (i * 10));
-            }
-        }
-        Assert.assertNotEquals(pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg(), initValue);
+  /**
+   *
+   *
+   * <pre>
+   * It verifies that cluster-throttling value gets considered when namespace-policy throttling is disabled.
+   *
+   *  1. Update cluster-throttling-config: topic rate-limiter has cluster-config
+   *  2. Update namespace-throttling-config: topic rate-limiter has namespace-config
+   *  3. Disable namespace-throttling-config: topic rate-limiter has cluster-config
+   *  4. Create new topic with disable namespace-config and enabled cluster-config: it takes cluster-config
+   *
+   * </pre>
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testClusterPolicyOverrideConfiguration() throws Exception {
+    log.info("-- Starting {} test --", methodName);
 
-        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
-        // create producer and topic
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName1).create();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName1).get();
+    final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
+    final String topicName1 = "persistent://" + namespace + "/throttlingOverride1";
+    final String topicName2 = "persistent://" + namespace + "/throttlingOverride2";
+    final int clusterMessageRate = 100;
 
-        // (1) Update dispatch rate on cluster-config update
-        Assert.assertEquals(clusterMessageRate, topic.getDispatchRateLimiter().get().getDispatchRateOnMsg());
+    int initValue = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg();
+    // (1) Update message-dispatch-rate limit
+    admin
+        .brokers()
+        .updateDynamicConfiguration(
+            "dispatchThrottlingRatePerTopicInMsg", Integer.toString(clusterMessageRate));
+    // sleep incrementally as zk-watch notification is async and may take some time
+    for (int i = 0; i < 5; i++) {
+      if (pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg() == initValue) {
+        Thread.sleep(50 + (i * 10));
+      }
+    }
+    Assert.assertNotEquals(
+        pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg(), initValue);
 
-        // (2) Update namespace throttling limit
-        int nsMessageRate = 500;
-        DispatchRate dispatchRate = DispatchRate.builder()
-                .dispatchThrottlingRateInMsg(nsMessageRate)
-                .dispatchThrottlingRateInByte(0)
-                .ratePeriodInSecond(1)
-                .build();
-        admin.namespaces().setDispatchRate(namespace, dispatchRate);
-        for (int i = 0; i < 5; i++) {
-            if (topic.getDispatchRateLimiter().get().getDispatchRateOnMsg() != nsMessageRate) {
-                Thread.sleep(50 + (i * 10));
-            }
-        }
-        Assert.assertEquals(nsMessageRate, topic.getDispatchRateLimiter().get().getDispatchRateOnMsg());
+    admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+    // create producer and topic
+    Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName1).create();
+    PersistentTopic topic =
+        (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName1).get();
 
-        // (3) Disable namespace throttling limit will force to take cluster-config
-        dispatchRate = DispatchRate.builder()
-                .dispatchThrottlingRateInMsg(0)
-                .dispatchThrottlingRateInByte(0)
-                .ratePeriodInSecond(1)
-                .build();
-        admin.namespaces().setDispatchRate(namespace, dispatchRate);
-        for (int i = 0; i < 5; i++) {
-            if (topic.getDispatchRateLimiter().get().getDispatchRateOnMsg() == nsMessageRate) {
-                Thread.sleep(50 + (i * 10));
-            }
-        }
-        Assert.assertEquals(clusterMessageRate, topic.getDispatchRateLimiter().get().getDispatchRateOnMsg());
+    // (1) Update dispatch rate on cluster-config update
+    Assert.assertEquals(
+        clusterMessageRate, topic.getDispatchRateLimiter().get().getDispatchRateOnMsg());
 
-        // (5) Namespace throttling is disabled so, new topic should take cluster throttling limit
-        Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2).create();
-        PersistentTopic topic2 = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName2).get();
-        Assert.assertEquals(clusterMessageRate, topic2.getDispatchRateLimiter().get().getDispatchRateOnMsg());
+    // (2) Update namespace throttling limit
+    int nsMessageRate = 500;
+    DispatchRate dispatchRate =
+        DispatchRate.builder()
+            .dispatchThrottlingRateInMsg(nsMessageRate)
+            .dispatchThrottlingRateInByte(0)
+            .ratePeriodInSecond(1)
+            .build();
+    admin.namespaces().setDispatchRate(namespace, dispatchRate);
+    for (int i = 0; i < 5; i++) {
+      if (topic.getDispatchRateLimiter().get().getDispatchRateOnMsg() != nsMessageRate) {
+        Thread.sleep(50 + (i * 10));
+      }
+    }
+    Assert.assertEquals(nsMessageRate, topic.getDispatchRateLimiter().get().getDispatchRateOnMsg());
 
-        producer.close();
-        producer2.close();
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg",
-                Integer.toString(initValue));
-        log.info("-- Exiting {} test --", methodName);
+    // (3) Disable namespace throttling limit will force to take cluster-config
+    dispatchRate =
+        DispatchRate.builder()
+            .dispatchThrottlingRateInMsg(0)
+            .dispatchThrottlingRateInByte(0)
+            .ratePeriodInSecond(1)
+            .build();
+    admin.namespaces().setDispatchRate(namespace, dispatchRate);
+    for (int i = 0; i < 5; i++) {
+      if (topic.getDispatchRateLimiter().get().getDispatchRateOnMsg() == nsMessageRate) {
+        Thread.sleep(50 + (i * 10));
+      }
+    }
+    Assert.assertEquals(
+        clusterMessageRate, topic.getDispatchRateLimiter().get().getDispatchRateOnMsg());
+
+    // (5) Namespace throttling is disabled so, new topic should take cluster throttling limit
+    Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2).create();
+    PersistentTopic topic2 =
+        (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName2).get();
+    Assert.assertEquals(
+        clusterMessageRate, topic2.getDispatchRateLimiter().get().getDispatchRateOnMsg());
+
+    producer.close();
+    producer2.close();
+    admin
+        .brokers()
+        .updateDynamicConfiguration(
+            "dispatchThrottlingRatePerTopicInMsg", Integer.toString(initValue));
+    log.info("-- Exiting {} test --", methodName);
+  }
+
+  @Test(dataProvider = "subscriptions", timeOut = 10000)
+  public void testClosingRateLimiter(SubscriptionType subscription) throws Exception {
+    log.info("-- Starting {} test --", methodName);
+
+    final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
+    final String topicName =
+        "persistent://" + namespace + "/closingRateLimiter" + subscription.name();
+    final String subName = "mySubscription" + subscription.name();
+
+    DispatchRate dispatchRate =
+        DispatchRate.builder()
+            .dispatchThrottlingRateInMsg(10)
+            .dispatchThrottlingRateInByte(1024)
+            .ratePeriodInSecond(1)
+            .build();
+    admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+    admin.namespaces().setDispatchRate(namespace, dispatchRate);
+
+    Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+    Consumer<byte[]> consumer =
+        pulsarClient
+            .newConsumer()
+            .topic(topicName)
+            .subscriptionName(subName)
+            .subscriptionType(subscription)
+            .subscribe();
+
+    PersistentTopic topic =
+        (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+
+    final int numProducedMessages = 10;
+
+    for (int i = 0; i < numProducedMessages; i++) {
+      final String message = "my-message-" + i;
+      producer.send(message.getBytes());
     }
 
-    @Test(dataProvider = "subscriptions", timeOut = 10000)
-    public void testClosingRateLimiter(SubscriptionType subscription) throws Exception {
-        log.info("-- Starting {} test --", methodName);
-
-        final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
-        final String topicName = "persistent://" + namespace + "/closingRateLimiter" + subscription.name();
-        final String subName = "mySubscription" + subscription.name();
-
-        DispatchRate dispatchRate = DispatchRate.builder()
-                .dispatchThrottlingRateInMsg(10)
-                .dispatchThrottlingRateInByte(1024)
-                .ratePeriodInSecond(1)
-                .build();
-        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
-        admin.namespaces().setDispatchRate(namespace, dispatchRate);
-
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
-                .subscriptionType(subscription).subscribe();
-
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
-
-        final int numProducedMessages = 10;
-
-        for (int i = 0; i < numProducedMessages; i++) {
-            final String message = "my-message-" + i;
-            producer.send(message.getBytes());
-        }
-
-        for (int i = 0; i < numProducedMessages; i++) {
-            Message<byte[]> msg = consumer.receive();
-            consumer.acknowledge(msg);
-        }
-
-        Assert.assertTrue(topic.getDispatchRateLimiter().isPresent());
-        DispatchRateLimiter dispatchRateLimiter = topic.getDispatchRateLimiter().get();
-
-        producer.close();
-        consumer.unsubscribe();
-        consumer.close();
-        topic.close().get();
-
-        // Make sure that the rate limiter is closed
-        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), -1);
-        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(), -1);
-
-        log.info("-- Exiting {} test --", methodName);
+    for (int i = 0; i < numProducedMessages; i++) {
+      Message<byte[]> msg = consumer.receive();
+      consumer.acknowledge(msg);
     }
 
-    @SuppressWarnings("deprecation")
-    @Test
-    public void testDispatchRateCompatibility2() throws Exception {
-        final String namespace = BrokerTestUtil.newUniqueName("my-property/dispatch-rate-compatibility");
-        final String topicName = "persistent://" + namespace + "/t1";
-        final String cluster = "test";
-        admin.namespaces().createNamespace(namespace, Sets.newHashSet(cluster));
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
-        Optional<DispatchRateLimiter> dispatchRateLimiter;
+    Assert.assertTrue(topic.getDispatchRateLimiter().isPresent());
+    DispatchRateLimiter dispatchRateLimiter = topic.getDispatchRateLimiter().get();
 
-        Policies policies = admin.namespaces().getPolicies(namespace);
-        policies.clusterSubscribeRate = new HashMap<>();
-        DispatchRateImpl clusterDispatchRate = DispatchRateImpl.builder()
-                .dispatchThrottlingRateInMsg(100)
-                .dispatchThrottlingRateInByte(512)
-                .ratePeriodInSecond(1)
-                .build();
-        DispatchRateImpl topicDispatchRate = DispatchRateImpl.builder()
-                .dispatchThrottlingRateInMsg(200)
-                .dispatchThrottlingRateInByte(1024)
-                .ratePeriodInSecond(1)
-                .build();
+    producer.close();
+    consumer.unsubscribe();
+    consumer.close();
+    topic.close().get();
 
-        // (1) If both clusterDispatchRate and topicDispatchRate are empty, dispatch throttling is disabled
-        topic.onPoliciesUpdate(policies).get();
-        dispatchRateLimiter = topic.getDispatchRateLimiter();
-        Assert.assertFalse(dispatchRateLimiter.isPresent());
+    // Make sure that the rate limiter is closed
+    Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), -1);
+    Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(), -1);
 
-        // (2) If topicDispatchRate is empty, clusterDispatchRate is effective
-        policies.clusterDispatchRate.put(cluster, clusterDispatchRate);
-        topic.onPoliciesUpdate(policies).get();
-        dispatchRateLimiter = topic.getDispatchRateLimiter();
-        Assert.assertTrue(dispatchRateLimiter.isPresent());
-        Assert.assertEquals(dispatchRateLimiter.get().getDispatchRateOnMsg(), 100);
-        Assert.assertEquals(dispatchRateLimiter.get().getDispatchRateOnByte(), 512);
+    log.info("-- Exiting {} test --", methodName);
+  }
 
-        // (3) If topicDispatchRate is not empty, topicDispatchRate is effective
-        policies.topicDispatchRate.put(cluster, topicDispatchRate);
-        topic.onPoliciesUpdate(policies).get();
-        dispatchRateLimiter = topic.getDispatchRateLimiter();
-        Assert.assertTrue(dispatchRateLimiter.isPresent());
-        Assert.assertEquals(dispatchRateLimiter.get().getDispatchRateOnMsg(), 200);
-        Assert.assertEquals(dispatchRateLimiter.get().getDispatchRateOnByte(), 1024);
+  @SuppressWarnings("deprecation")
+  @Test
+  public void testDispatchRateCompatibility2() throws Exception {
+    final String namespace =
+        BrokerTestUtil.newUniqueName("my-property/dispatch-rate-compatibility");
+    final String topicName = "persistent://" + namespace + "/t1";
+    final String cluster = "test";
+    admin.namespaces().createNamespace(namespace, Sets.newHashSet(cluster));
+    Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+    PersistentTopic topic =
+        (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+    Optional<DispatchRateLimiter> dispatchRateLimiter;
 
-        producer.close();
-        topic.close().get();
+    Policies policies = admin.namespaces().getPolicies(namespace);
+    policies.clusterSubscribeRate = new HashMap<>();
+    DispatchRateImpl clusterDispatchRate =
+        DispatchRateImpl.builder()
+            .dispatchThrottlingRateInMsg(100)
+            .dispatchThrottlingRateInByte(512)
+            .ratePeriodInSecond(1)
+            .build();
+    DispatchRateImpl topicDispatchRate =
+        DispatchRateImpl.builder()
+            .dispatchThrottlingRateInMsg(200)
+            .dispatchThrottlingRateInByte(1024)
+            .ratePeriodInSecond(1)
+            .build();
+
+    // (1) If both clusterDispatchRate and topicDispatchRate are empty, dispatch throttling is
+    // disabled
+    topic.onPoliciesUpdate(policies).get();
+    dispatchRateLimiter = topic.getDispatchRateLimiter();
+    Assert.assertFalse(dispatchRateLimiter.isPresent());
+
+    // (2) If topicDispatchRate is empty, clusterDispatchRate is effective
+    policies.clusterDispatchRate.put(cluster, clusterDispatchRate);
+    topic.onPoliciesUpdate(policies).get();
+    dispatchRateLimiter = topic.getDispatchRateLimiter();
+    Assert.assertTrue(dispatchRateLimiter.isPresent());
+    Assert.assertEquals(dispatchRateLimiter.get().getDispatchRateOnMsg(), 100);
+    Assert.assertEquals(dispatchRateLimiter.get().getDispatchRateOnByte(), 512);
+
+    // (3) If topicDispatchRate is not empty, topicDispatchRate is effective
+    policies.topicDispatchRate.put(cluster, topicDispatchRate);
+    topic.onPoliciesUpdate(policies).get();
+    dispatchRateLimiter = topic.getDispatchRateLimiter();
+    Assert.assertTrue(dispatchRateLimiter.isPresent());
+    Assert.assertEquals(dispatchRateLimiter.get().getDispatchRateOnMsg(), 200);
+    Assert.assertEquals(dispatchRateLimiter.get().getDispatchRateOnByte(), 1024);
+
+    producer.close();
+    topic.close().get();
+  }
+
+  /**
+   * It verifies that relative throttling at least dispatch messages as publish-rate.
+   *
+   * @param subscription
+   * @throws Exception
+   */
+  @Test(dataProvider = "subscriptions")
+  public void testRelativeMessageRateLimitingThrottling(SubscriptionType subscription)
+      throws Exception {
+    log.info("-- Starting {} test --", methodName);
+
+    final String namespace = BrokerTestUtil.newUniqueName("my-property/relative_throttling_ns");
+    final String topicName = "persistent://" + namespace + "/relative-throttle" + subscription;
+
+    final int messageRate = 1;
+    DispatchRate dispatchRate =
+        DispatchRate.builder()
+            .dispatchThrottlingRateInMsg(messageRate)
+            .dispatchThrottlingRateInByte(-1)
+            .ratePeriodInSecond(1)
+            .relativeToPublishRate(true)
+            .build();
+    admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
+    admin.namespaces().setDispatchRate(namespace, dispatchRate);
+    // create producer and topic
+    Producer<byte[]> producer =
+        pulsarClient.newProducer().topic(topicName).enableBatching(false).create();
+    PersistentTopic topic =
+        (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+
+    Awaitility.await()
+        .ignoreExceptions()
+        .until(() -> topic.getDispatchRateLimiter().get().getDispatchRateOnMsg() > 0);
+
+    Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
+    Thread.sleep(2000);
+
+    final int numProducedMessages = 1000;
+
+    Consumer<byte[]> consumer =
+        pulsarClient
+            .newConsumer()
+            .topic(topicName)
+            .subscriptionName("my-subscriber-name")
+            .subscriptionType(subscription)
+            .subscribe();
+    // deactive cursors
+    deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
+
+    // send a message, which will make dispatcher-ratelimiter initialize and schedule renew task
+    producer.send("test".getBytes());
+    assertNotNull(consumer.receive());
+
+    Field lastUpdatedMsgRateIn =
+        PersistentTopic.class.getDeclaredField("lastUpdatedAvgPublishRateInMsg");
+    lastUpdatedMsgRateIn.setAccessible(true);
+    lastUpdatedMsgRateIn.set(topic, numProducedMessages);
+
+    for (int i = 0; i < numProducedMessages; i++) {
+      final String message = "my-message-" + i;
+      producer.send(message.getBytes());
     }
 
-    /**
-     * It verifies that relative throttling at least dispatch messages as publish-rate.
-     *
-     * @param subscription
-     * @throws Exception
-     */
-    @Test(dataProvider = "subscriptions")
-    public void testRelativeMessageRateLimitingThrottling(SubscriptionType subscription) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+    int totalReceived = 0;
+    // Relative throttling will let it drain immediately because it allows to dispatch =
+    // (publish-rate +
+    // dispatch-rate)
+    // All messages should be received in the next 1.1 seconds. 100 millis should be enough for the
+    // actual delivery,
+    // while the previous call to receive above may have thrown the dispatcher into a read backoff,
+    // as nothing
+    // may have been produced before the call to readNext() and the permits for dispatch had already
+    // been used.
+    // The backoff is 1 second, so we expect to be able to receive all messages in at most 1.1
+    // seconds, while the
+    // basic dispatch rate limit would only allow one message in that time.
+    long maxTimeNanos = TimeUnit.MILLISECONDS.toNanos(1100);
+    long startNanos = System.nanoTime();
+    for (int i = 0; i < numProducedMessages; i++) {
+      Message<byte[]> msg = consumer.receive((int) maxTimeNanos, TimeUnit.NANOSECONDS);
+      totalReceived++;
+      assertNotNull(msg);
+      long elapsedNanos = System.nanoTime() - startNanos;
+      if (elapsedNanos > maxTimeNanos) { // fail fast
+        log.info(
+            "Test has only received {} messages in {}ms, {} expected",
+            totalReceived,
+            TimeUnit.NANOSECONDS.toMillis(elapsedNanos),
+            numProducedMessages);
+        Assert.fail("Messages not received in time");
+      }
+      log.info("Received {}-{}", msg.getMessageId(), new String(msg.getData()));
+    }
+    Assert.assertEquals(totalReceived, numProducedMessages);
+    long elapsedNanos = System.nanoTime() - startNanos;
+    Assert.assertTrue(elapsedNanos < maxTimeNanos);
 
-        final String namespace = BrokerTestUtil.newUniqueName("my-property/relative_throttling_ns");
-        final String topicName = "persistent://" + namespace + "/relative-throttle" + subscription;
+    consumer.close();
+    producer.close();
+    log.info("-- Exiting {} test --", methodName);
+  }
 
-        final int messageRate = 1;
-        DispatchRate dispatchRate = DispatchRate.builder()
-                .dispatchThrottlingRateInMsg(messageRate)
-                .dispatchThrottlingRateInByte(-1)
-                .ratePeriodInSecond(1)
-                .relativeToPublishRate(true)
-                .build();
-        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
-        admin.namespaces().setDispatchRate(namespace, dispatchRate);
-        // create producer and topic
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(false).create();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+  /**
+   * Validates that backlog consumers cache the reads and reused by other backlog consumers while
+   * draining the backlog.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testBacklogConsumerCacheReads() throws Exception {
+    log.info("-- Starting {} test --", methodName);
 
-        Awaitility.await()
-                .ignoreExceptions()
-                .until(() -> topic.getDispatchRateLimiter().get().getDispatchRateOnMsg() > 0);
+    conf.setManagedLedgerMinimumBacklogCursorsForCaching(2);
+    conf.setManagedLedgerMinimumBacklogEntriesForCaching(10);
+    conf.setManagedLedgerCacheEvictionTimeThresholdMillis(60 * 1000);
+    restartBroker();
+    final long totalMessages = 200;
+    final int receiverSize = 10;
+    final String topicName = "cache-read";
+    final String sub1 = "sub";
+    int totalSub = 10;
+    Consumer<byte[]>[] consumers = new Consumer[totalSub];
 
-        Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
-        Thread.sleep(2000);
-
-        final int numProducedMessages = 1000;
-
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
-                .subscriptionType(subscription).subscribe();
-        // deactive cursors
-        deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
-
-        // send a message, which will make dispatcher-ratelimiter initialize and schedule renew task
-        producer.send("test".getBytes());
-        assertNotNull(consumer.receive());
-
-        Field lastUpdatedMsgRateIn = PersistentTopic.class.getDeclaredField("lastUpdatedAvgPublishRateInMsg");
-        lastUpdatedMsgRateIn.setAccessible(true);
-        lastUpdatedMsgRateIn.set(topic, numProducedMessages);
-
-        for (int i = 0; i < numProducedMessages; i++) {
-            final String message = "my-message-" + i;
-            producer.send(message.getBytes());
-        }
-
-        int totalReceived = 0;
-        // Relative throttling will let it drain immediately because it allows to dispatch = (publish-rate +
-        // dispatch-rate)
-        // All messages should be received in the next 1.1 seconds. 100 millis should be enough for the actual delivery,
-        // while the previous call to receive above may have thrown the dispatcher into a read backoff, as nothing
-        // may have been produced before the call to readNext() and the permits for dispatch had already been used.
-        // The backoff is 1 second, so we expect to be able to receive all messages in at most 1.1 seconds, while the
-        // basic dispatch rate limit would only allow one message in that time.
-        long maxTimeNanos = TimeUnit.MILLISECONDS.toNanos(1100);
-        long startNanos = System.nanoTime();
-        for (int i = 0; i < numProducedMessages; i++) {
-            Message<byte[]> msg = consumer.receive((int)maxTimeNanos, TimeUnit.NANOSECONDS);
-            totalReceived++;
-            assertNotNull(msg);
-            long elapsedNanos = System.nanoTime() - startNanos;
-            if (elapsedNanos > maxTimeNanos) { // fail fast
-                log.info("Test has only received {} messages in {}ms, {} expected",
-                         totalReceived, TimeUnit.NANOSECONDS.toMillis(elapsedNanos), numProducedMessages);
-                Assert.fail("Messages not received in time");
-            }
-            log.info("Received {}-{}", msg.getMessageId(), new String(msg.getData()));
-        }
-        Assert.assertEquals(totalReceived, numProducedMessages);
-        long elapsedNanos = System.nanoTime() - startNanos;
-        Assert.assertTrue(elapsedNanos < maxTimeNanos);
-
-        consumer.close();
-        producer.close();
-        log.info("-- Exiting {} test --", methodName);
+    for (int i = 0; i < totalSub; i++) {
+      consumers[i] =
+          pulsarClient
+              .newConsumer()
+              .topic("persistent://my-property/my-ns/" + topicName)
+              .subscriptionName(sub1 + "-" + i)
+              .subscriptionType(SubscriptionType.Shared)
+              .receiverQueueSize(receiverSize)
+              .subscribe();
+    }
+    for (int i = 0; i < totalSub; i++) {
+      consumers[i].close();
     }
 
-    /**
-     * Validates that backlog consumers cache the reads and reused by other backlog consumers while draining the
-     * backlog.
-     *
-     * @throws Exception
-     */
-    @Test
-    public void testBacklogConsumerCacheReads() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+    final String topic = "persistent://my-property/my-ns/" + topicName;
+    ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic);
 
-        conf.setManagedLedgerMinimumBacklogCursorsForCaching(2);
-        conf.setManagedLedgerMinimumBacklogEntriesForCaching(10);
-        conf.setManagedLedgerCacheEvictionTimeThresholdMillis(60 * 1000);
-        restartBroker();
-        final long totalMessages = 200;
-        final int receiverSize = 10;
-        final String topicName = "cache-read";
-        final String sub1 = "sub";
-        int totalSub = 10;
-        Consumer<byte[]>[] consumers = new Consumer[totalSub];
+    producerBuilder.enableBatching(false);
+    @Cleanup Producer<byte[]> producer = producerBuilder.create();
 
-        for (int i = 0; i < totalSub; i++) {
-            consumers[i] = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/" + topicName)
-                    .subscriptionName(sub1 + "-" + i).subscriptionType(SubscriptionType.Shared)
-                    .receiverQueueSize(receiverSize).subscribe();
-        }
-        for (int i = 0; i < totalSub; i++) {
-            consumers[i].close();
-        }
+    PersistentTopic topicRef =
+        (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
+    ManagedLedgerImpl ledger = (ManagedLedgerImpl) topicRef.getManagedLedger();
+    Field cacheField = ManagedLedgerImpl.class.getDeclaredField("entryCache");
+    cacheField.setAccessible(true);
+    RangeEntryCacheImpl entryCache = spy((RangeEntryCacheImpl) cacheField.get(ledger));
+    cacheField.set(ledger, entryCache);
 
-        final String topic = "persistent://my-property/my-ns/" + topicName;
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic);
+    Field pendingReadsManagerField =
+        RangeEntryCacheImpl.class.getDeclaredField("pendingReadsManager");
+    pendingReadsManagerField.setAccessible(true);
+    PendingReadsManager pendingReadsManager =
+        (PendingReadsManager) pendingReadsManagerField.get(entryCache);
+    Field cacheFieldInManager = PendingReadsManager.class.getDeclaredField("rangeEntryCache");
+    cacheFieldInManager.setAccessible(true);
+    cacheFieldInManager.set(pendingReadsManager, entryCache);
 
-        producerBuilder.enableBatching(false);
-        @Cleanup
-        Producer<byte[]> producer = producerBuilder.create();
+    // 2. Produce messages
+    for (int i = 0; i < totalMessages; i++) {
+      String message = "my-message-" + i;
+      producer.send(message.getBytes());
+    }
+    ledger.checkCursorsToCacheEntries();
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) topicRef.getManagedLedger();
-        Field cacheField = ManagedLedgerImpl.class.getDeclaredField("entryCache");
-        cacheField.setAccessible(true);
-        RangeEntryCacheImpl entryCache = spy((RangeEntryCacheImpl) cacheField.get(ledger));
-        cacheField.set(ledger, entryCache);
+    ledger
+        .getCursors()
+        .forEach(
+            cursor -> {
+              assertTrue(((ManagedCursorImpl) cursor).isCacheReadEntry());
+            });
 
-        Field pendingReadsManagerField = RangeEntryCacheImpl.class.getDeclaredField("pendingReadsManager");
-        pendingReadsManagerField.setAccessible(true);
-        PendingReadsManager pendingReadsManager = (PendingReadsManager) pendingReadsManagerField.get(entryCache);
-        Field cacheFieldInManager = PendingReadsManager.class.getDeclaredField("rangeEntryCache");
-        cacheFieldInManager.setAccessible(true);
-        cacheFieldInManager.set(pendingReadsManager, entryCache);
-
-        // 2. Produce messages
-        for (int i = 0; i < totalMessages; i++) {
-            String message = "my-message-" + i;
-            producer.send(message.getBytes());
-        }
-        ledger.checkCursorsToCacheEntries();
-
-        ledger.getCursors().forEach(cursor -> {
-            assertTrue(((ManagedCursorImpl) cursor).isCacheReadEntry());
-        });
-
-        // 3. Consume messages
-        CountDownLatch latch = new CountDownLatch((int) (totalSub * totalMessages));
-        for (int i = 0; i < totalSub; i++) {
-            consumers[i] = (Consumer<byte[]>) pulsarClient.newConsumer()
-                    .topic("persistent://my-property/my-ns/" + topicName).subscriptionName(sub1 + "-" + i)
-                    .subscriptionType(SubscriptionType.Shared).receiverQueueSize(receiverSize)
-                    .messageListener((c, m) -> {
+    // 3. Consume messages
+    CountDownLatch latch = new CountDownLatch((int) (totalSub * totalMessages));
+    for (int i = 0; i < totalSub; i++) {
+      consumers[i] =
+          (Consumer<byte[]>)
+              pulsarClient
+                  .newConsumer()
+                  .topic("persistent://my-property/my-ns/" + topicName)
+                  .subscriptionName(sub1 + "-" + i)
+                  .subscriptionType(SubscriptionType.Shared)
+                  .receiverQueueSize(receiverSize)
+                  .messageListener(
+                      (c, m) -> {
                         latch.countDown();
                         try {
-                            c.acknowledge(m);
+                          c.acknowledge(m);
                         } catch (PulsarClientException e) {
-                            fail("failed to ack message");
+                          fail("failed to ack message");
                         }
-                    }).subscribe();
-        }
-
-        latch.await();
-
-        // Verify: EntryCache has been invalidated
-        verify(entryCache, atLeastOnce()).insert(any());
-
-        for (int i = 0; i < totalSub; i++) {
-            consumers[i].close();
-        }
+                      })
+                  .subscribe();
     }
+
+    latch.await();
+
+    // Verify: EntryCache has been invalidated
+    verify(entryCache, atLeastOnce()).insert(any());
+
+    for (int i = 0; i < totalSub; i++) {
+      consumers[i].close();
+    }
+  }
 }
