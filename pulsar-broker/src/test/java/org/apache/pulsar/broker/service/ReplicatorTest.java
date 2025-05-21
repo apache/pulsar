@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
 import static org.apache.pulsar.broker.BrokerTestUtil.newUniqueName;
+import static org.apache.pulsar.broker.service.persistent.BrokerServicePersistInternalMethodInvoker.ensureNoBacklogByInflightTask;
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricDoubleGaugeValue;
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.mockito.ArgumentMatchers.eq;
@@ -73,7 +74,6 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.broker.service.persistent.ShadowReplicatorTest;
 import org.apache.pulsar.broker.stats.OpenTelemetryReplicatorStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -462,7 +462,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         // Verify "pendingMessages" still is correct even if error occurs.
         PersistentReplicator replicator = ensureReplicatorCreated(topic, pulsar1);
         waitReplicateFinish(topic, admin1);
-        ShadowReplicatorTest.ensureNoBacklogByInflightTask(replicator);
+        ensureNoBacklogByInflightTask(replicator);
     }
 
     @Test
@@ -1807,7 +1807,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
                 assertEquals(persistentReplicator.getState(), AbstractReplicator.State.Started);
             });
             assertEquals(persistentReplicator.getState(), AbstractReplicator.State.Started);
-            ShadowReplicatorTest.ensureNoBacklogByInflightTask(persistentReplicator);
+            ensureNoBacklogByInflightTask(persistentReplicator);
         });
         waitReplicateFinish(topic, admin1);
 
