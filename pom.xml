@@ -166,6 +166,7 @@ flexible messaging model and an intuitive client API.</description>
     <surefire.shutdown>kill</surefire.shutdown>
     <docker.organization>apachepulsar</docker.organization>
     <docker.image>pulsar</docker.image>
+    <!-- git.commit.id.abbrev will be injected by git-commit-id-plugin-->
     <docker.tag>${project.version}-${git.commit.id.abbrev}</docker.tag>
     <skipSourceReleaseAssembly>false</skipSourceReleaseAssembly>
     <skipBuildDistribution>false</skipBuildDistribution>
