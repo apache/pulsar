@@ -29,7 +29,6 @@ import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.DecimalNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
@@ -341,12 +340,21 @@ public class PulsarJsonFieldDecoder
             } else {
                 blockBuilder = type.createBlockBuilder(null, 1);
             }
-
-            assert value instanceof DecimalNode;
-            final DecimalNode node = (DecimalNode) value;
+            if (value == null) {
+                return null;
+            }
+            JsonNode jsonNode;
+            if (value instanceof JsonNode) {
+                jsonNode = (JsonNode) value;
+            } else {
+                throw new TrinoException(DECODER_CONVERSION_NOT_SUPPORTED,
+                        format("decimal object of '%s' as '%s' for column '%s' cannot be converted to JsonNode",
+                                value.getClass(), type, columnName));
+            }
+            String textValue = jsonNode.isValueNode() ? jsonNode.asText() : jsonNode.toString();
             // For decimalType, need to eliminate the decimal point,
             // and give it to trino to set the decimal point
-            type.writeObject(blockBuilder, Int128.valueOf(node.asText().replace(".", "")));
+            type.writeObject(blockBuilder, Int128.valueOf(textValue.replace(".", "")));
 
             if (parentBlockBuilder == null) {
                 return blockBuilder.getSingleValueBlock(0);
