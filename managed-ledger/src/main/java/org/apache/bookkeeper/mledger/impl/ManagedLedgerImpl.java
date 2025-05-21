@@ -345,7 +345,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     Map<String, byte[]> createdLedgerCustomMetadata;
 
     private long lastEvictOffloadedLedgers;
-    private boolean evictOffloadedLedgersInProgress;
     private static final int MINIMUM_EVICTION_INTERVAL_DIVIDER = 10;
 
     public ManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
@@ -2735,11 +2734,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return Collections.emptyList();
         }
 
-        // allow only one eviction run at a time
-        if (evictOffloadedLedgersInProgress) {
-            return Collections.emptyList();
-        }
-
         long now = clock.millis();
         long minimumEvictionIntervalMs = inactiveOffloadedLedgerEvictionTimeMs / MINIMUM_EVICTION_INTERVAL_DIVIDER;
         if (now - lastEvictOffloadedLedgers < minimumEvictionIntervalMs) {
@@ -2748,7 +2742,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         try {
-            evictOffloadedLedgersInProgress = true;
             List<Long> ledgersToRelease = new ArrayList<>();
 
             ledgerCache.forEach((ledgerId, ledger) -> {
@@ -2777,7 +2770,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return ledgersToRelease;
         } finally {
             lastEvictOffloadedLedgers = now;
-            evictOffloadedLedgersInProgress = false;
         }
     }
 
