@@ -49,17 +49,6 @@
 
   <profiles>
     <profile>
-      <id>git-commit-id-no-git</id>
-      <activation>
-        <file>
-          <missing>${basedir}/../../.git</missing>
-        </file>
-      </activation>
-      <properties>
-        <git.commit.id.abbrev>no-git</git.commit.id.abbrev>
-      </properties>
-    </profile>
-    <profile>
       <id>docker</id>
       <build>
         <plugins>
