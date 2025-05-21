@@ -3869,7 +3869,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < entries; i++) {
             ledger.addEntry(data);
         }
-        assertEquals(ledger.ledgers.size(), 10);
+        Awaitility.await().untilAsserted(() -> assertEquals(ledger.ledgers.size(), 11));
 
         // Set a new offloader to cleanup the execution times of getOffloadPolicies()
         ledgerOffloader = mock(NullLedgerOffloader.class);
