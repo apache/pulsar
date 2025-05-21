@@ -27,6 +27,8 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicPoliciesCach
 import org.apache.pulsar.client.util.RetryUtil;
 import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.Backoff;
@@ -39,6 +41,8 @@ import org.jetbrains.annotations.NotNull;
  */
 @InterfaceStability.Evolving
 public interface TopicPoliciesService extends AutoCloseable {
+
+    String GLOBAL_POLICIES_MSG_KEY_PREFIX = "__G__";
 
     TopicPoliciesService DISABLED = new TopicPoliciesServiceDisabled();
     long DEFAULT_GET_TOPIC_POLICY_TIMEOUT = 30_000;
@@ -244,5 +248,38 @@ public interface TopicPoliciesService extends AutoCloseable {
         public void close() {
             //No-op
         }
+    }
+
+    static String getEventKey(PulsarEvent event, boolean isGlobal) {
+        return wrapEventKey(TopicName.get(event.getTopicPoliciesEvent().getDomain(),
+            event.getTopicPoliciesEvent().getTenant(),
+            event.getTopicPoliciesEvent().getNamespace(),
+            event.getTopicPoliciesEvent().getTopic()).toString(), isGlobal);
+    }
+
+    static String getEventKey(TopicName topicName, boolean isGlobal) {
+        return wrapEventKey(TopicName.get(topicName.getDomain().toString(),
+            topicName.getTenant(),
+            topicName.getNamespace(),
+            TopicName.get(topicName.getPartitionedTopicName()).getLocalName()).toString(), isGlobal);
+    }
+
+    static String wrapEventKey(String originalKey, boolean isGlobalPolicies) {
+        if (!isGlobalPolicies) {
+            return originalKey;
+        }
+        return GLOBAL_POLICIES_MSG_KEY_PREFIX + originalKey;
+    }
+
+    static boolean isGlobalPolicy(Message<PulsarEvent> msg) {
+        return msg.getKey().startsWith(GLOBAL_POLICIES_MSG_KEY_PREFIX);
+    }
+
+    static TopicName unwrapEventKey(String originalKey) {
+        String tpName = originalKey;
+        if (originalKey.startsWith(GLOBAL_POLICIES_MSG_KEY_PREFIX)) {
+            tpName = originalKey.substring(GLOBAL_POLICIES_MSG_KEY_PREFIX.length());
+        }
+        return TopicName.get(tpName);
     }
 }
