@@ -149,12 +149,13 @@ public class PulsarShellTest {
         final Properties props = new Properties();
         props.setProperty("webServiceUrl", "http://localhost:8080");
         linereader.addCmd("admin topics create my-topic --metadata a=b ");
+        linereader.addCmd("client produce -m msg my-topic");
         linereader.addCmd("client produce -m \"hello pulsar\" my-topic");
         linereader.addCmd("quit");
         final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{}, props, pulsarAdmin);
         testPulsarShell.run((a) -> linereader, () -> terminal);
         verify(topics).createNonPartitionedTopic(eq("persistent://public/default/my-topic"), any(Map.class));
-        verify(testPulsarShell.cmdProduceHolder.get()).call();
+        verify(testPulsarShell.cmdProduceHolder.get(), times(2)).call();
         assertEquals((int) testPulsarShell.exitCode, 0);
 
     }
