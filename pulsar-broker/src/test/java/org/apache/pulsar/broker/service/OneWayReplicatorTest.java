@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.service.persistent.BrokerServicePersistInternalMethodInvoker.ensureNoBacklogByInflightTask;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -75,7 +76,6 @@ import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.BrokerServicePersistInternalMethodInvoker;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.broker.service.persistent.ShadowReplicatorTest;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
@@ -1651,6 +1651,6 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         // Start replication.
         waitForReplicationTaskFinish(topicName);
         // Verify: all inflight tasks are done.
-        ShadowReplicatorTest.ensureNoBacklogByInflightTask(getReplicator(topicName));
+        ensureNoBacklogByInflightTask(getReplicator(topicName));
     }
 }

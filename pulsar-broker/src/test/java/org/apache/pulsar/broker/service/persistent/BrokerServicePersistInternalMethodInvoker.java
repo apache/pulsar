@@ -18,9 +18,28 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import java.util.concurrent.TimeUnit;
+import org.awaitility.Awaitility;
+
 public class BrokerServicePersistInternalMethodInvoker {
 
     public static void replicatorReadMoreEntries(GeoPersistentReplicator replicator) {
         replicator.readMoreEntries();
+    }
+
+    public static void ensureNoBacklogByInflightTask(PersistentReplicator replicator) {
+        Awaitility.await().atMost(20, TimeUnit.SECONDS).until(() -> {
+            synchronized (replicator.inFlightTasks) {
+                for (PersistentReplicator.InFlightTask task : replicator.inFlightTasks) {
+                    if (task.readPos.compareTo(replicator.cursor.getManagedLedger().getLastConfirmedEntry()) >= 0) {
+                        continue;
+                    }
+                    if (!task.isDone()) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        });
     }
 }

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.pulsar.broker.service.persistent.BrokerServicePersistInternalMethodInvoker.ensureNoBacklogByInflightTask;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -195,19 +196,5 @@ public class ShadowReplicatorTest extends BrokerTestBase {
         ensureNoBacklogByInflightTask(replicator);
     }
 
-    public static void ensureNoBacklogByInflightTask(PersistentReplicator replicator) {
-        Awaitility.await().atMost(20, TimeUnit.SECONDS).until(() -> {
-            synchronized (replicator.inFlightTasks) {
-                for (PersistentReplicator.InFlightTask task : replicator.inFlightTasks) {
-                    if (task.readPos.compareTo(replicator.cursor.getManagedLedger().getLastConfirmedEntry()) >= 0) {
-                        continue;
-                    }
-                    if (!task.isDone()) {
-                        return false;
-                    }
-                }
-            }
-            return true;
-        });
-    }
+
 }
