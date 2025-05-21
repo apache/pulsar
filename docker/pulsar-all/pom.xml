@@ -157,14 +157,10 @@
                       <name>${docker.organization}/${docker.image}-all:${docker.tag}</name>
                       <build>
                         <contextDir>${project.basedir}</contextDir>
-                        <skipTag>${docker.skip.tag}</skipTag>
-                        <tags>
-                          <tag>${project.version}-${git.commit.id.abbrev}</tag>
-                        </tags>
                         <args>
                           <PULSAR_IO_DIR>target/apache-pulsar-io-connectors-${project.version}-bin</PULSAR_IO_DIR>
                           <PULSAR_OFFLOADER_TARBALL>target/pulsar-offloader-distribution-${project.version}-bin.tar.gz</PULSAR_OFFLOADER_TARBALL>
-                          <PULSAR_IMAGE>${docker.organization}/${docker.image}:${project.version}-${git.commit.id.abbrev}</PULSAR_IMAGE>
+                          <PULSAR_IMAGE>${docker.organization}/${docker.image}:${docker.tag}</PULSAR_IMAGE>
                           <PULSAR_IO_KINESIS_KPL_IMAGE>${PULSAR_IO_KINESIS_KPL_IMAGE}</PULSAR_IO_KINESIS_KPL_IMAGE>
                         </args>
                         <buildx>
