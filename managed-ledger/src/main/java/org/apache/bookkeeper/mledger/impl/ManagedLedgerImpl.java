@@ -2730,7 +2730,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @VisibleForTesting
     synchronized List<Long> internalEvictOffloadedLedgers() {
-        int inactiveOffloadedLedgerEvictionTimeMs = config.getInactiveOffloadedLedgerEvictionTimeMs();
+        long inactiveOffloadedLedgerEvictionTimeMs = config.getInactiveOffloadedLedgerEvictionTimeMs();
         if (inactiveOffloadedLedgerEvictionTimeMs <= 0) {
             return Collections.emptyList();
         }
@@ -2741,7 +2741,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         long now = clock.millis();
-        int minimumEvictionIntervalMs = inactiveOffloadedLedgerEvictionTimeMs / MINIMUM_EVICTION_INTERVAL_DIVIDER;
+        long minimumEvictionIntervalMs = inactiveOffloadedLedgerEvictionTimeMs / MINIMUM_EVICTION_INTERVAL_DIVIDER;
         if (now - lastEvictOffloadedLedgers < minimumEvictionIntervalMs) {
             // skip eviction if we have done it recently
             return Collections.emptyList();

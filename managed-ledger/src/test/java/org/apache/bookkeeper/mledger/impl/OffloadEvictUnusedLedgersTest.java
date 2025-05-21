@@ -47,7 +47,7 @@ public class OffloadEvictUnusedLedgersTest extends MockedBookKeeperTestCase {
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(10, TimeUnit.MINUTES);
         config.setRetentionSizeInMB(10);
-        int inactiveOffloadedLedgerEvictionTimeMs = 1000;
+        long inactiveOffloadedLedgerEvictionTimeMs = 1000;
         config.setInactiveOffloadedLedgerEvictionTime(inactiveOffloadedLedgerEvictionTimeMs, TimeUnit.MILLISECONDS);
         config.setLedgerOffloader(offloader);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger_evict", config);
