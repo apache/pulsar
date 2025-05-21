@@ -2114,7 +2114,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     log.info("[{}] Closing ledger {} from offload driver {}", name, ledgerId,
                             config.getLedgerOffloader().getOffloadDriverName());
                 }
-                return r.closeAsync();
+                return r.closeAsync().exceptionally(ex -> {
+                    log.warn("[{}] Failed to close ledger {} ReadHandle with type {}", name, ledgerId,
+                            r.getClass().getName(), ex);
+                    return null;
+                });
             }).exceptionally(ex -> {
                 log.warn("[{}] Failed to close Ledger ReadHandle {}:", name, ledgerId, ex);
                 return null;
