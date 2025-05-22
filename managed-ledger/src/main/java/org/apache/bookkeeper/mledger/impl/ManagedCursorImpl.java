@@ -3259,8 +3259,8 @@ public class ManagedCursorImpl implements ManagedCursor {
          * and deserialization error.
          */
         if (getConfig().isUnackedRangesOpenCacheSetEnabled() && getConfig().isPersistIndividualAckAsLongArray()) {
+            lock.readLock().lock();
             try {
-                lock.readLock().lock();
                 internalRanges = individualDeletedMessages.toRanges(getConfig().getMaxUnackedRangesToPersist());
             } catch (Exception e) {
                 log.warn("[{}]-{} Failed to serialize individualDeletedMessages", ledger.getName(), name, e);
