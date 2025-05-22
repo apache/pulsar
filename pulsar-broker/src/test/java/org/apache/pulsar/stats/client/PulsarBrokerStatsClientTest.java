@@ -133,6 +133,7 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
         assertTrue(cursor.active);
 
         producer.close();
+        // Call close to ensure that all acknowledge requests are executed.
         consumer.close();
 
         topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
