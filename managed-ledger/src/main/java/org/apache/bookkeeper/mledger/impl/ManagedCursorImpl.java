@@ -641,8 +641,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (positionInfo.getIndividualDeletedMessagesCount() > 0) {
             recoverIndividualDeletedMessages(positionInfo.getIndividualDeletedMessagesList());
         } else if (positionInfo.getIndividualDeletedMessageRangesCount() > 0) {
-            lock.writeLock().lock();
             List<LongListMap> rangeList = positionInfo.getIndividualDeletedMessageRangesList();
+            lock.writeLock().lock();
             try {
                 Map<Long, long[]> rangeMap = rangeList.stream().collect(Collectors.toMap(LongListMap::getKey,
                         list -> list.getValuesList().stream().mapToLong(i -> i).toArray()));
