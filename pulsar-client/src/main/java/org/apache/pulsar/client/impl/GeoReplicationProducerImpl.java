@@ -56,7 +56,7 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
     }
 
     @Override
-    protected void ackReceived(ClientCnx cnx, long seq, long highSeq, long ledgerId, long entryId) {
+    public void ackReceived(ClientCnx cnx, long seq, long highSeq, long ledgerId, long entryId) {
         if (!isBrokerSupportsReplDedupByLidAndEid(cnx)) {
             // Repl V1 is the same as normal for this handling.
             super.ackReceived(cnx, seq, highSeq, ledgerId, entryId);
