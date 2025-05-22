@@ -641,6 +641,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (positionInfo.getIndividualDeletedMessagesCount() > 0) {
             recoverIndividualDeletedMessages(positionInfo.getIndividualDeletedMessagesList());
         } else if (positionInfo.getIndividualDeletedMessageRangesCount() > 0) {
+            lock.writeLock().lock();
             List<LongListMap> rangeList = positionInfo.getIndividualDeletedMessageRangesList();
             try {
                 Map<Long, long[]> rangeMap = rangeList.stream().collect(Collectors.toMap(LongListMap::getKey,
@@ -664,6 +665,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             } catch (Exception e) {
                 log.warn("[{}]-{} Failed to recover individualDeletedMessages from serialized data", ledger.getName(),
                         name, e);
+            } finally {
+                lock.writeLock().unlock();
             }
         }
     }
