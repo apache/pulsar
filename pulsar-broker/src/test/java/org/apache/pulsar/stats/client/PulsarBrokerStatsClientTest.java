@@ -130,14 +130,20 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
         assertTrue(internalStats.ledgers.get(0).underReplicated);
 
         CursorStats cursor = internalStats.cursors.get(subscriptionName);
+        assertTrue(cursor.active);
+
+        producer.close();
+        consumer.close();
+
+        topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        internalStats = topic.getInternalStats(true).get();
+        cursor = internalStats.cursors.get(subscriptionName);
         assertEquals(cursor.numberOfEntriesSinceFirstNotAckedMessage, numberOfMsgs);
         assertTrue(cursor.totalNonContiguousDeletedMessagesRange > 0
                 && (cursor.totalNonContiguousDeletedMessagesRange) < numberOfMsgs / 2);
         assertFalse(cursor.subscriptionHavePendingRead);
         assertFalse(cursor.subscriptionHavePendingReplayRead);
-        assertTrue(cursor.active);
-        producer.close();
-        consumer.close();
+        assertFalse(cursor.active);
         log.info("-- Exiting {} test --", methodName);
     }
 
