@@ -768,4 +768,6 @@ public interface ManagedLedger {
     }
 
     Position getFirstPosition();
+
+    void updateMaxReadPosition(Position position);
 }
