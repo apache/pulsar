@@ -240,6 +240,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
                 .enableBatching(batching)
+                .batchingMaxPublishDelay(30, TimeUnit.SECONDS)
                 .create();
 
         Set<String> sentMessages = new HashSet<>();
@@ -259,7 +260,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
             Message<String> msg = null;
             for (int j = 0; j < N; j++) {
                 msg = consumer.receive();
-                log.info("Received message {}", msg.getValue());
+                log.info("Received msgId: {}, message {}", msg.getMessageId(), msg.getValue());
                 if (!batching) {
                     consumer.negativeAcknowledge(msg);
                 }
