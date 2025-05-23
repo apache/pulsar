@@ -4558,4 +4558,20 @@ public interface Topics {
     default CompletableFuture<Void> createShadowTopicAsync(String shadowTopic, String sourceTopic) {
         return createShadowTopicAsync(shadowTopic, sourceTopic, null);
     }
+
+    /**
+     * Get the message id by index.
+     * @param topicName the partitioned topic name or non-partitioned topic name
+     * @param index the index of a message
+     * @return the message id of the message
+     */
+    MessageId getMessageIdByIndex(String topicName, long index) throws PulsarAdminException;
+
+    /**
+     * Get the message id by index asynchronously.
+     * @param topicName the topic name
+     * @param index the index of a message
+     * @return the message id of the message
+     */
+    CompletableFuture<MessageId> getMessageIdByIndexAsync(String topicName, long index);
 }
