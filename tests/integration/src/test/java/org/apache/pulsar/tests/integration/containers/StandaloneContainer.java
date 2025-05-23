@@ -30,22 +30,15 @@ public class StandaloneContainer extends PulsarContainer<StandaloneContainer> {
 
     public static final String NAME = "standalone";
 
-    public StandaloneContainer(String clusterName) {
-        super(clusterName,
-            NAME,
-            NAME + "-cluster",
-            "bin/pulsar",
-            BROKER_PORT,
-            BROKER_HTTP_PORT);
-    }
-
     public StandaloneContainer(String clusterName, String pulsarImageName) {
         super(clusterName,
                 NAME,
                 NAME + "-cluster",
-                "bin/pulsar",
+                "/bin/sh",
                 BROKER_PORT,
+                BROKER_PORT_TLS,
                 BROKER_HTTP_PORT,
+                BROKER_HTTPS_PORT,
                 "",
                 pulsarImageName);
     }
@@ -53,7 +46,8 @@ public class StandaloneContainer extends PulsarContainer<StandaloneContainer> {
     @Override
     protected void configure() {
         super.configure();
-        setCommand("standalone");
+        setCommand("-c", "bin/apply-config-from-env.py conf/standalone.conf "
+                + "&& bin/apply-config-from-env.py conf/pulsar_env.sh && bin/pulsar standalone");
         addEnv("PULSAR_MEM", "-Xms128M -Xmx1g -XX:MaxDirectMemorySize=1g");
     }
 
