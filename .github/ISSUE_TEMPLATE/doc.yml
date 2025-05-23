@@ -18,7 +18,7 @@
 name: Document
 description: Suggest document changes
 title: "[Doc] "
-labels: ["doc-required"]
+labels: ["doc"]
 body:
   - type: markdown
     attributes:
