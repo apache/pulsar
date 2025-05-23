@@ -32,12 +32,16 @@ import org.apache.pulsar.common.schema.SchemaType;
 
 public class SchemaUtil {
 
+    public static boolean DEFAULT_JSR310_CONVERSION_ENABLED = false;
+
     public static boolean getJsr310ConversionEnabledFromSchemaInfo(SchemaInfo schemaInfo) {
-        if (schemaInfo != null) {
-            return Boolean.parseBoolean(schemaInfo.getProperties()
-                    .getOrDefault(SchemaDefinitionBuilderImpl.JSR310_CONVERSION_ENABLED, "false"));
+        if (schemaInfo != null
+            && schemaInfo.getProperties()
+            .containsKey(SchemaDefinitionBuilderImpl.JSR310_CONVERSION_ENABLED)) {
+            return Boolean.parseBoolean(
+                schemaInfo.getProperties().get(SchemaDefinitionBuilderImpl.JSR310_CONVERSION_ENABLED));
         }
-        return false;
+        return DEFAULT_JSR310_CONVERSION_ENABLED;
     }
 
     public static Schema parseAvroSchema(String schemaJson) {
