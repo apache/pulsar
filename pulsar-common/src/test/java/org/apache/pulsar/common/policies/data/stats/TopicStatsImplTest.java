@@ -26,56 +26,56 @@ public class TopicStatsImplTest {
     @Test
     public void testReset() {
         TopicStatsImpl stats = new TopicStatsImpl();
-        stats.earliestMsgPublishTimeInBacklogs = 1L;
+        stats.setEarliestMsgPublishTimeInBacklogs(1L);
         stats.reset();
-        assertEquals(stats.earliestMsgPublishTimeInBacklogs, 0L);
+        assertEquals(stats.getEarliestMsgPublishTimeInBacklogs(), 0L);
     }
 
     @Test
     public void testAdd_EarliestMsgPublishTimeInBacklogs_Earliest() {
         TopicStatsImpl stats1 = new TopicStatsImpl();
-        stats1.earliestMsgPublishTimeInBacklogs = 10L;
+        stats1.setEarliestMsgPublishTimeInBacklogs(10L);
 
         TopicStatsImpl stats2 = new TopicStatsImpl();
-        stats2.earliestMsgPublishTimeInBacklogs = 20L;
+        stats2.setEarliestMsgPublishTimeInBacklogs(20L);
 
         TopicStatsImpl aggregate = stats1.add(stats2);
-        assertEquals(aggregate.earliestMsgPublishTimeInBacklogs, 10L);
+        assertEquals(aggregate.getEarliestMsgPublishTimeInBacklogs(), 10L);
     }
 
     @Test
     public void testAdd_EarliestMsgPublishTimeInBacklogs_First0() {
         TopicStatsImpl stats1 = new TopicStatsImpl();
-        stats1.earliestMsgPublishTimeInBacklogs = 0L;
+        stats1.setEarliestMsgPublishTimeInBacklogs(0L);
 
         TopicStatsImpl stats2 = new TopicStatsImpl();
-        stats2.earliestMsgPublishTimeInBacklogs = 20L;
+        stats2.setEarliestMsgPublishTimeInBacklogs(20L);
 
         TopicStatsImpl aggregate = stats1.add(stats2);
-        assertEquals(aggregate.earliestMsgPublishTimeInBacklogs, 20L);
+        assertEquals(aggregate.getEarliestMsgPublishTimeInBacklogs(), 20L);
     }
 
     @Test
     public void testAdd_EarliestMsgPublishTimeInBacklogs_Second0() {
         TopicStatsImpl stats1 = new TopicStatsImpl();
-        stats1.earliestMsgPublishTimeInBacklogs = 10L;
+        stats1.setEarliestMsgPublishTimeInBacklogs(10L);
 
         TopicStatsImpl stats2 = new TopicStatsImpl();
-        stats2.earliestMsgPublishTimeInBacklogs = 0L;
+        stats2.setEarliestMsgPublishTimeInBacklogs(0L);
 
         TopicStatsImpl aggregate = stats1.add(stats2);
-        assertEquals(aggregate.earliestMsgPublishTimeInBacklogs, 10L);
+        assertEquals(aggregate.getEarliestMsgPublishTimeInBacklogs(), 10L);
     }
 
     @Test
     public void testAdd_EarliestMsgPublishTimeInBacklogs_Zero() {
         TopicStatsImpl stats1 = new TopicStatsImpl();
-        stats1.earliestMsgPublishTimeInBacklogs = 0L;
+        stats1.setEarliestMsgPublishTimeInBacklogs(0L);
 
         TopicStatsImpl stats2 = new TopicStatsImpl();
-        stats2.earliestMsgPublishTimeInBacklogs = 0L;
+        stats2.setEarliestMsgPublishTimeInBacklogs(0L);
 
         TopicStatsImpl aggregate = stats1.add(stats2);
-        assertEquals(aggregate.earliestMsgPublishTimeInBacklogs, 0L);
+        assertEquals(aggregate.getEarliestMsgPublishTimeInBacklogs(), 0L);
     }
 }

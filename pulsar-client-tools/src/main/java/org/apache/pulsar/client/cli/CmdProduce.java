@@ -545,8 +545,8 @@ public class CmdProduce extends AbstractCmd {
 
         private static String getTestJsonPayload(int index, byte[] content) throws JsonProcessingException {
             ProducerMessage msg = new ProducerMessage();
-            msg.payload = Base64.getEncoder().encodeToString(content);
-            msg.key = Integer.toString(index);
+            msg.setPayload(Base64.getEncoder().encodeToString(content));
+            msg.setKey(Integer.toString(index));
             return ObjectMapperFactory.getMapper().writer().writeValueAsString(msg);
         }
 

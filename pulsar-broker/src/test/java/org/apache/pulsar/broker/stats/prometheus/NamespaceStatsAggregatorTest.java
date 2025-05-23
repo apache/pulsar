@@ -108,10 +108,10 @@ public class NamespaceStatsAggregatorTest {
         PrometheusMetricStreams metricStreams = Mockito.spy(new PrometheusMetricStreams());
 
         // Populate subscriptions stats
-        subStats.blockedSubscriptionOnUnackedMsgs = true;
-        consumerStats.blockedConsumerOnUnackedMsgs = false; // should not affect blockedSubscriptionOnUnackedMsgs
-        consumerStats.unackedMessages = 1;
-        consumerStats.msgRateRedeliver = 0.7;
+        subStats.setBlockedSubscriptionOnUnackedMsgs(true);
+        consumerStats.setBlockedConsumerOnUnackedMsgs(false); // should not affect blockedSubscriptionOnUnackedMsgs
+        consumerStats.setUnackedMessages(1);
+        consumerStats.setMsgRateRedeliver(0.7);
         subStats.consumers.add(0, consumerStats);
 
         // when

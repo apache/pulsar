@@ -366,8 +366,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
                 .getTopic(topicName, false).get().get();
         org.apache.pulsar.broker.service.Producer producerInServer = persistentTopic.getProducers().get("my-pub");
-        producerInServer.getStats().msgRateIn = 10;
-        producerInServer.getStats().msgThroughputIn = 100;
+        producerInServer.getStats().setMsgRateIn(10);
+        producerInServer.getStats().setMsgThroughputIn(100);
         @Cleanup
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsTestUtil.generate(pulsar, true, false, true, statsOut);
