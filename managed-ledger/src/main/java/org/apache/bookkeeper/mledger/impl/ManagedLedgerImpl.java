@@ -4577,6 +4577,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 }
                             }
                         }
+                        if (li.getPropertiesCount() > 0) {
+                            Map<String, String> properties = new HashMap<>(li.getPropertiesCount());
+                            for (MLDataFormats.KeyValue kv : li.getPropertiesList()) {
+                                properties.put(kv.getKey(), kv.getValue());
+                            }
+                            info.properties = properties;
+                        }
                         stats.ledgers.add(info);
                     });
                     statFuture.complete(stats);
