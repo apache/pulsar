@@ -36,12 +36,16 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+
+import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -69,6 +73,82 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
     protected void cleanup() throws Exception {
         super.internalCleanup();
         executor.shutdownNow();
+    }
+
+    /**
+     * This test verifies that producer can send messages even if one of the partition is failed.
+     * We send 5000 messages to a partitioned topic with 4 partitions. One of the partition is mocked to not send ack
+     * back to the producer. We verify that producer can send messages to other partitions even if one partition is failed.
+     *
+     */
+    @Test
+    public void testProducerWithOneFailedPartition() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
+
+        int numPartitions = 4;
+        TopicName topicName = TopicName.get("persistent://my-property/my-ns/test-producer-with-one-failed");
+
+        admin.topics().createPartitionedTopic(topicName.toString(), numPartitions);
+
+        PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>)
+                pulsarClient.newProducer().topic(topicName.toString())
+                        .enableBatching(false)
+                        .maxPendingMessages(100)
+                        .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
+        List<ProducerImpl<byte[]>> producers = producer.getProducers();
+        assertEquals(producers.size(), numPartitions);
+        for (int i = 0; i < numPartitions; i++) {
+            assertEquals(producers.get(i).getTopic(), topicName.getPartition(i).toString());
+            if (i == 0) {
+                // replace with a mocked producer, whose ackReceived method is not called
+                ProducerImpl<byte[]> originalProducer = producers.get(0);
+
+                // Create a spy of the original producer
+                ProducerImpl<byte[]> spyProducer = Mockito.spy(originalProducer);
+
+                // Use reflection to make the protected method accessible
+                try {
+                    // Configure the spy to do nothing when ackReceived is called
+                    Mockito.doAnswer(invocation -> {
+                        log.info("[{}] [{}] Skipping ack processing for msg",
+                                spyProducer.getTopic(), spyProducer.getProducerName());
+                        return null;
+                    }).when(spyProducer).ackReceived(
+                            Mockito.any(ClientCnx.class),
+                            Mockito.anyLong(),
+                            Mockito.anyLong(),
+                            Mockito.anyLong(),
+                            Mockito.anyLong());
+                } catch (Exception e) {
+                    log.error("Failed to override ackReceived method", e);
+                }
+
+                // Replace the original producer with our spy
+                producers.set(0, spyProducer);
+
+                long producerId = producers.get(0).getProducerId();
+                // replace producer in ClientCnx
+                ClientCnx clientCnx = producers.get(0).getClientCnx();
+                clientCnx.getProducers().put(producerId, spyProducer);
+            }
+        }
+
+        AtomicInteger successfulSend = new AtomicInteger();
+        for (int i = 0; i < 5000; i++) {
+            String message = "my-message-" + i;
+            producer.sendAsync(message.getBytes()).thenAccept(msgId -> {
+                successfulSend.getAndIncrement();
+            });
+        }
+        // we send 5000 messages, expect at least 1000 to be sent successfully
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> successfulSend.get() >= 1000);
+
+        producer.close();
+        pulsarClient.close();
+        admin.topics().deletePartitionedTopic(topicName.toString());
+
+        log.info("-- Exiting {} test --", methodName);
     }
 
     @Test(timeOut = 30000)
