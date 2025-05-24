@@ -63,7 +63,7 @@ public class DebeziumOracleDbSourceTester extends SourceTester<DebeziumOracleDbC
         sourceConfig.put("snapshot.mode", "schema_only");
 
         sourceConfig.put("schema.include.list", "inv");
-        sourceConfig.put("database.history.pulsar.service.url", pulsarServiceUrl);
+        sourceConfig.put("schema.history.internal.pulsar.service.url", pulsarServiceUrl);
         sourceConfig.put("topic.namespace", "debezium/oracle");
     }
 

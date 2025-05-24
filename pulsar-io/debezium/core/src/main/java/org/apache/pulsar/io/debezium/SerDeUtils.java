@@ -37,7 +37,7 @@ public class SerDeUtils {
            return ois.readObject();
         } catch (Exception e) {
             throw new RuntimeException(
-                    "Failed to initialize the pulsar client to store debezium database history", e);
+                    "Failed to initialize the pulsar client to store debezium schema history", e);
         }
     }
 
