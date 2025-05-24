@@ -35,5 +35,5 @@ configs:
   schema.allow.list: "inventory"
   topic.prefix: "dbserver1"
 
-
   schema.history.internal.pulsar.service.url: "pulsar://127.0.0.1:6650"
+  connector.class: "io.debezium.connector.postgresql.PostgresConnector"

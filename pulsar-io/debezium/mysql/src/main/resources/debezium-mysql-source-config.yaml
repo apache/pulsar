@@ -35,9 +35,9 @@ configs:
   database.whitelist: "inventory"
   topic.prefix: "dbserver1"
 
-
   schema.history.internal.pulsar.topic: "mysql-history-topic"
   schema.history.internal.pulsar.service.url: "pulsar://127.0.0.1:6650"
   offset.storage.topic: "mysql-offset-topic"
+  connector.class: "io.debezium.connector.mysql.MySqlConnector"
 
 

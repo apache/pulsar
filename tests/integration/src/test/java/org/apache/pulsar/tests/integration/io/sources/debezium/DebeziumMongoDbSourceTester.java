@@ -51,6 +51,7 @@ public class DebeziumMongoDbSourceTester extends SourceTester<DebeziumMongoDbCon
         sourceConfig.put("schema.history.internal.pulsar.service.url", pulsarServiceUrl);
         sourceConfig.put("topic.namespace", "debezium/mongodb");
         sourceConfig.put("capture.mode", "oplog");
+        sourceConfig.put("connector.class", "io.debezium.connector.mongodb.MongoDbConnector");
     }
 
     @Override
