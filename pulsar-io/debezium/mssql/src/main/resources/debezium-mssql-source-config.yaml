@@ -31,6 +31,6 @@ configs:
   database.user: "sa"
   database.password: "MyP@ssword1"
   database.dbname: "MyDB"
-  database.server.name: "mssql"
+  topic.prefix: "mssql"
 
-  database.history.pulsar.service.url: "pulsar://127.0.0.1:6650"
+  schema.history.internal.pulsar.service.url: "pulsar://127.0.0.1:6650"

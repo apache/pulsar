@@ -61,7 +61,7 @@ public class DebeziumMsSqlSourceTester extends SourceTester<DebeziumMsSqlContain
         sourceConfig.put("database.server.name", "mssql");
         sourceConfig.put("database.dbname", "TestDB");
         sourceConfig.put("snapshot.mode", "schema_only");
-        sourceConfig.put("database.history.pulsar.service.url", pulsarServiceUrl);
+        sourceConfig.put("schema.history.internal.pulsar.service.url", pulsarServiceUrl);
         sourceConfig.put("topic.namespace", "debezium/mssql");
     }
 
