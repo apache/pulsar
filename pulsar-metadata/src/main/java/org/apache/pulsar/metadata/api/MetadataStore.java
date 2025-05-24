@@ -156,12 +156,28 @@ public interface MetadataStore extends AutoCloseable {
     CompletableFuture<Void> deleteRecursive(String path);
 
     /**
-     * Register a listener that will be called on changes in the underlying store.
+     * Register a listener that will be called on changes in the underlying metadata store.
      *
-     * @param listener
-     *            a consumer of notifications
+     * @param listener A Consumer that handles notifications. The consumer will receive a {@link Notification}
+     *                 object containing details about what changed in the metadata store.
+     * @return A Runnable that can be used to stop receiving notifications and unregister the listener.
+     * Executing this Runnable will cancel the subscription.
      */
-    void registerListener(Consumer<Notification> listener);
+    Runnable registerCancellableListener(Consumer<Notification> listener);
+
+    /**
+     * Register a listener that will be called on changes in the underlying metadata store.
+     * This method is deprecated in favor of {@link #registerCancellableListener(Consumer)} which provides better
+     * lifecycle management through its return value.
+     *
+     * @param listener A Consumer that handles notifications about metadata store changes
+     * @deprecated Use {@link #registerCancellableListener(Consumer)} instead as it provides a way
+     * to properly unregister the listener when no longer needed
+     */
+    @Deprecated
+    default void registerListener(Consumer<Notification> listener) {
+        registerCancellableListener(listener);
+    }
 
     /**
      * Create a metadata cache specialized for a specific class.
