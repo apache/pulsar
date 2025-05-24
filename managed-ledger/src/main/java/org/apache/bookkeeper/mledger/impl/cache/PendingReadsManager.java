@@ -382,6 +382,11 @@ public class PendingReadsManager {
                         .whenComplete((finalResult, e) -> {
                             if (e != null) {
                                 callback.readEntriesFailed(createManagedLedgerException(e), ctx);
+                                // todo: confirm that this is the right thing to do
+                                Stream.of(readFromLeftFuture, readFromMidFuture, readFromRightFuture)
+                                        .filter(future -> future.isDone() && !future.isCompletedExceptionally())
+                                        .forEach(future ->
+                                                future.thenAccept(entries -> entries.forEach(Entry::release)));
                             } else {
                                 callback.readEntriesComplete(finalResult, ctx);
                             }
