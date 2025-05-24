@@ -258,4 +258,9 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
     protected void disableReplicatorRead() {
         // No-op
     }
+
+    @Override
+    protected void beforeTerminate() {
+        // No-op
+    }
 }
