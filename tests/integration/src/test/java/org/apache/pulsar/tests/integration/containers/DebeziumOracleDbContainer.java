@@ -32,8 +32,8 @@ public class DebeziumOracleDbContainer extends ChaosContainer<DebeziumOracleDbCo
     // https://github.com/MaksymBilenko/docker-oracle-12c
     // Apache 2.0 license.
     // Newer versions don't have LigMiner in XE (Standard) Edition and require Enterprise.
-    // Debezium 1.5 didn't work with 11g out of the box
-    // and it is not tested with 11.g according to https://debezium.io/releases/1.5/
+    // Debezium 2.6 works with 12c out of the box
+    // For compatibility information, see https://debezium.io/releases/2.6/
     private static final String IMAGE_NAME = "quay.io/maksymbilenko/oracle-12c:master";
 
     public DebeziumOracleDbContainer(String clusterName) {

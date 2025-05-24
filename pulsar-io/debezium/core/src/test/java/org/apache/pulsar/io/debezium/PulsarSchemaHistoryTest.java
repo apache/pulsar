@@ -27,8 +27,8 @@ import io.debezium.config.Configuration;
 import io.debezium.connector.mysql.antlr.MySqlAntlrDdlParser;
 import io.debezium.relational.Tables;
 import io.debezium.relational.ddl.DdlParser;
-import io.debezium.relational.history.DatabaseHistory;
-import io.debezium.relational.history.DatabaseHistoryListener;
+import io.debezium.relational.history.SchemaHistory;
+import io.debezium.relational.history.SchemaHistoryListener;
 import io.debezium.text.ParsingException;
 import io.debezium.util.Collect;
 
@@ -49,11 +49,11 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
- * Test the implementation of {@link PulsarDatabaseHistory}.
+ * Test the implementation of {@link PulsarSchemaHistory}.
  */
-public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
+public class PulsarSchemaHistoryTest extends ProducerConsumerBase {
 
-    private PulsarDatabaseHistory history;
+    private PulsarSchemaHistory history;
     private Map<String, Object> position;
     private Map<String, String> source;
     private String topicName;
@@ -68,7 +68,7 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
         source = Collect.hashMapOf("server", "my-server");
         setLogPosition(0);
         this.topicName = "persistent://my-property/my-ns/schema-changes-topic";
-        this.history = new PulsarDatabaseHistory();
+        this.history = new PulsarSchemaHistory();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -80,9 +80,9 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
 
     private void testHistoryTopicContent(boolean skipUnparseableDDL, boolean testWithClientBuilder, boolean testWithReaderConfig) throws Exception {
         Configuration.Builder configBuidler = Configuration.create()
-                .with(PulsarDatabaseHistory.TOPIC, topicName)
-                .with(DatabaseHistory.NAME, "my-db-history")
-                .with(DatabaseHistory.SKIP_UNPARSEABLE_DDL_STATEMENTS, skipUnparseableDDL);
+                .with(PulsarSchemaHistory.TOPIC, topicName)
+                .with(SchemaHistory.NAME, "my-db-history")
+                .with(SchemaHistory.SKIP_UNPARSEABLE_DDL_STATEMENTS, skipUnparseableDDL);
 
         if (testWithClientBuilder) {
             ClientBuilder builder = PulsarClient.builder().serviceUrl(brokerUrl.toString());
@@ -91,18 +91,18 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
                 oos.writeObject(builder);
                 oos.flush();
                 byte[] data = bao.toByteArray();
-                configBuidler.with(PulsarDatabaseHistory.CLIENT_BUILDER, Base64.getEncoder().encodeToString(data));
+                configBuidler.with(PulsarSchemaHistory.CLIENT_BUILDER, Base64.getEncoder().encodeToString(data));
             }
         } else {
-            configBuidler.with(PulsarDatabaseHistory.SERVICE_URL, brokerUrl.toString());
+            configBuidler.with(PulsarSchemaHistory.SERVICE_URL, brokerUrl.toString());
         }
 
         if (testWithReaderConfig) {
-            configBuidler.with(PulsarDatabaseHistory.READER_CONFIG, "{\"subscriptionName\":\"my-subscription\"}");
+            configBuidler.with(PulsarSchemaHistory.READER_CONFIG, "{\"subscriptionName\":\"my-subscription\"}");
         }
 
         // Start up the history ...
-        history.configure(configBuidler.build(), null, DatabaseHistoryListener.NOOP, true);
+        history.configure(configBuidler.build(), null, SchemaHistoryListener.NOOP, true);
         history.start();
 
         // Should be able to call start more than once ...
@@ -160,8 +160,8 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
 
         // Stop the history (which should stop the producer) ...
         history.stop();
-        history = new PulsarDatabaseHistory();
-        history.configure(configBuidler.build(), null, DatabaseHistoryListener.NOOP, true);
+        history = new PulsarSchemaHistory();
+        history.configure(configBuidler.build(), null, SchemaHistoryListener.NOOP, true);
         // no need to start
 
         // Recover from the very beginning to just past the first change ...
@@ -239,13 +239,13 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
 
         // Set history to use dummy topic
         Configuration config = Configuration.create()
-            .with(PulsarDatabaseHistory.SERVICE_URL, brokerUrl.toString())
-            .with(PulsarDatabaseHistory.TOPIC, "persistent://my-property/my-ns/dummytopic")
-            .with(DatabaseHistory.NAME, "my-db-history")
-            .with(DatabaseHistory.SKIP_UNPARSEABLE_DDL_STATEMENTS, true)
+            .with(PulsarSchemaHistory.SERVICE_URL, brokerUrl.toString())
+            .with(PulsarSchemaHistory.TOPIC, "persistent://my-property/my-ns/dummytopic")
+            .with(SchemaHistory.NAME, "my-db-history")
+            .with(SchemaHistory.SKIP_UNPARSEABLE_DDL_STATEMENTS, true)
             .build();
 
-        history.configure(config, null, DatabaseHistoryListener.NOOP, true);
+        history.configure(config, null, SchemaHistoryListener.NOOP, true);
         history.start();
 
         // dummytopic should not exist yet

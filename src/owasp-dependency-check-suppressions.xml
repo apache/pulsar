@@ -367,9 +367,9 @@
     <!-- debezium-related misdetections -->
     <suppress>
         <notes><![CDATA[
-       file name: debezium-connector-mysql-1.9.7.Final.jar
+       file name: debezium-connector-mysql-2.6.0.Final.jar
        ]]></notes>
-        <sha1>74c623b4a9b231e2f0e8f6053b38abd3bc487ce2</sha1>
+        <sha1><!-- Update with actual SHA1 for 2.6.0.Final when available --></sha1>
         <cve>CVE-2017-15945</cve>
     </suppress>
     <suppress>
@@ -381,9 +381,9 @@
     </suppress>
     <suppress>
         <notes><![CDATA[
-       file name: debezium-connector-postgres-1.9.7.Final.jar
+       file name: debezium-connector-postgres-2.6.0.Final.jar
        ]]></notes>
-        <sha1>300ff0bbf795643e914b7c8a6d6ba812a8354d62</sha1>
+        <sha1><!-- Update with actual SHA1 for 2.6.0.Final when available --></sha1>
         <cve>CVE-2015-0241</cve>
         <cve>CVE-2015-0242</cve>
         <cve>CVE-2015-0243</cve>
