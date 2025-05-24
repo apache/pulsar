@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.mledger.impl.cache;
 
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
-import com.beust.jcommander.internal.Lists;
 import io.prometheus.client.Counter;
 import java.util.ArrayList;
 import java.util.Collections;
