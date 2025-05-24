@@ -26,7 +26,7 @@ public class DebeziumMySQLContainer extends ChaosContainer<DebeziumMySQLContaine
     public static final String NAME = "debezium-mysql-example";
     static final Integer[] PORTS = { 3306 };
 
-    private static final String IMAGE_NAME = "debezium/example-mysql:0.8";
+    private static final String IMAGE_NAME = "debezium/example-mysql:2.6.1.Final";
 
     public DebeziumMySQLContainer(String clusterName) {
         super(clusterName, IMAGE_NAME);
