@@ -368,7 +368,6 @@ public class PendingReadsManager {
                         .whenComplete((finalResult, e) -> {
                             if (e != null) {
                                 callback.readEntriesFailed(createManagedLedgerException(e), ctx);
-                                // todo: confirm that this is the right thing to do
                                 releaseEntriesSafely(readFromLeftFuture);
                                 releaseEntriesSafely(readFromMidFuture);
                                 releaseEntriesSafely(readFromRightFuture);
