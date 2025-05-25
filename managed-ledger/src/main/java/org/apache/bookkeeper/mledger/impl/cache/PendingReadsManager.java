@@ -28,8 +28,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -421,7 +419,7 @@ public class PendingReadsManager {
 
     static class ReadEntriesCallback implements AsyncCallbacks.ReadEntriesCallback {
 
-        private CompletableFuture<List<Entry>> completableFuture;
+        private final CompletableFuture<List<Entry>> completableFuture;
 
         public ReadEntriesCallback(CompletableFuture<List<Entry>> completableFuture) {
             this.completableFuture = completableFuture;
