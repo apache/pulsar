@@ -352,9 +352,9 @@ public class PendingReadsManager {
                 }
 
                 CompletableFuture<List<Entry>> readFromLeftFuture =
-                        readMissingEntriesAsync(lh, shouldCacheEntry, missingOnLeft);
+                        recursiveReadMissingEntriesAsync(lh, shouldCacheEntry, missingOnLeft);
                 CompletableFuture<List<Entry>> readFromRightFuture =
-                        readMissingEntriesAsync(lh, shouldCacheEntry, missingOnRight);
+                        recursiveReadMissingEntriesAsync(lh, shouldCacheEntry, missingOnRight);
                 readFromLeftFuture
                         .thenCombine(readFromMidFuture, (left, mid) -> {
                             List<Entry> result = new ArrayList<>(left);
@@ -387,8 +387,8 @@ public class PendingReadsManager {
         }
     }
 
-    private CompletableFuture<List<Entry>> readMissingEntriesAsync(ReadHandle lh, boolean shouldCacheEntry,
-                                                                   PendingReadKey missingOnLeft) {
+    private CompletableFuture<List<Entry>> recursiveReadMissingEntriesAsync(ReadHandle lh, boolean shouldCacheEntry,
+                                                                            PendingReadKey missingOnLeft) {
         CompletableFuture<List<Entry>> readFromLeftFuture;
         if (missingOnLeft != null) {
             readFromLeftFuture = new CompletableFuture<>();
