@@ -385,16 +385,16 @@ public class PendingReadsManager {
 
     private CompletableFuture<List<Entry>> recursiveReadMissingEntriesAsync(ReadHandle lh, boolean shouldCacheEntry,
                                                                             PendingReadKey missingKey) {
-        CompletableFuture<List<Entry>> readFromLeftFuture;
+        CompletableFuture<List<Entry>> future;
         if (missingKey != null) {
-            readFromLeftFuture = new CompletableFuture<>();
-            ReadEntriesCallback readFromLeftCallback = new ReadEntriesCallback(readFromLeftFuture);
+            future = new CompletableFuture<>();
+            ReadEntriesCallback readFromLeftCallback = new ReadEntriesCallback(future);
             rangeEntryCache.asyncReadEntry0(lh, missingKey.startEntry, missingKey.endEntry,
                     shouldCacheEntry, readFromLeftCallback, null, false);
         } else {
-            readFromLeftFuture = CompletableFuture.completedFuture(Collections.emptyList());
+            future = CompletableFuture.completedFuture(Collections.emptyList());
         }
-        return readFromLeftFuture;
+        return future;
     }
 
     private void releaseEntriesSafely(CompletableFuture<List<Entry>> future) {
