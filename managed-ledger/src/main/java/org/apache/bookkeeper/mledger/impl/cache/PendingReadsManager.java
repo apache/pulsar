@@ -341,20 +341,16 @@ public class PendingReadsManager {
             PendingRead pendingRead = findBestCandidateOutcome.pendingRead;
 
             if (findBestCandidateOutcome.needsAdditionalReads()) {
-                PendingReadKey missingOnLeft = findBestCandidateOutcome.missingOnLeft;
-                PendingReadKey missingOnRight = findBestCandidateOutcome.missingOnRight;
-
                 CompletableFuture<List<Entry>> readFromMidFuture = new CompletableFuture<>();
                 ReadEntriesCallback presentReadCallback = new ReadEntriesCallback(readFromMidFuture);
                 listenerAdded = pendingRead.addListener(presentReadCallback, ctx, key.startEntry, key.endEntry);
                 if (!listenerAdded) {
                     continue;
                 }
-
                 CompletableFuture<List<Entry>> readFromLeftFuture =
-                        recursiveReadMissingEntriesAsync(lh, shouldCacheEntry, missingOnLeft);
+                        recursiveReadMissingEntriesAsync(lh, shouldCacheEntry, findBestCandidateOutcome.missingOnLeft);
                 CompletableFuture<List<Entry>> readFromRightFuture =
-                        recursiveReadMissingEntriesAsync(lh, shouldCacheEntry, missingOnRight);
+                        recursiveReadMissingEntriesAsync(lh, shouldCacheEntry, findBestCandidateOutcome.missingOnRight);
                 readFromLeftFuture
                         .thenCombine(readFromMidFuture, (left, mid) -> {
                             List<Entry> result = new ArrayList<>(left);
