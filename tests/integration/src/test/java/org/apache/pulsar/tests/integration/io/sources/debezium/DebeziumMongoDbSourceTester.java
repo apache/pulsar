@@ -70,10 +70,10 @@ public class DebeziumMongoDbSourceTester extends SourceTester<DebeziumMongoDbCon
     @Override
     public void prepareInsertEvent() throws Exception {
         this.debeziumMongoDbContainer.execCmd("/bin/bash", "-c",
-                "mongo -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
+                "mongosh -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
                         "--eval 'db.products.find()'");
         this.debeziumMongoDbContainer.execCmd("/bin/bash", "-c",
-                "mongo -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
+                "mongosh -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
                         "--eval 'db.products.insert({ " +
                         "_id : NumberLong(\"110\")," +
                         "name : \"test-debezium\"," +
@@ -85,20 +85,20 @@ public class DebeziumMongoDbSourceTester extends SourceTester<DebeziumMongoDbCon
     @Override
     public void prepareDeleteEvent() throws Exception {
         this.debeziumMongoDbContainer.execCmd("/bin/bash", "-c",
-                "mongo -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
+                "mongosh -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
                         "--eval 'db.products.find()'");
         this.debeziumMongoDbContainer.execCmd("/bin/bash", "-c",
-                "mongo -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
+                "mongosh -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
                         "--eval 'db.products.deleteOne({name : \"test-debezium-update\"})'");
     }
 
     @Override
     public void prepareUpdateEvent() throws Exception {
         this.debeziumMongoDbContainer.execCmd("/bin/bash", "-c",
-                "mongo -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
+                "mongosh -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
                         "--eval 'db.products.find()'");
         this.debeziumMongoDbContainer.execCmd("/bin/bash", "-c",
-                "mongo -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
+                "mongosh -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
                         "--eval 'db.products.update({" +
                         "_id : 110}," +
                         "{$set:{name:\"test-debezium-update\", description: \"this is update description\"}})'");
