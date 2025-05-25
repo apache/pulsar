@@ -388,9 +388,9 @@ public class PendingReadsManager {
         CompletableFuture<List<Entry>> future;
         if (missingKey != null) {
             future = new CompletableFuture<>();
-            ReadEntriesCallback readFromLeftCallback = new ReadEntriesCallback(future);
+            ReadEntriesCallback callback = new ReadEntriesCallback(future);
             rangeEntryCache.asyncReadEntry0(lh, missingKey.startEntry, missingKey.endEntry,
-                    shouldCacheEntry, readFromLeftCallback, null, false);
+                    shouldCacheEntry, callback, null, false);
         } else {
             future = CompletableFuture.completedFuture(Collections.emptyList());
         }
