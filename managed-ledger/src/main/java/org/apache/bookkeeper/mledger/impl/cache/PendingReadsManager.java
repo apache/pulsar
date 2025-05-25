@@ -353,44 +353,31 @@ public class PendingReadsManager {
                     continue;
                 }
 
-                CompletableFuture<List<Entry>> readFromLeftFuture;
-                if (missingOnLeft != null) {
-                    readFromLeftFuture = new CompletableFuture<>();
-                    ReadEntriesCallback readFromLeftCallback = new ReadEntriesCallback(readFromLeftFuture);
-                    rangeEntryCache.asyncReadEntry0(lh, missingOnLeft.startEntry, missingOnLeft.endEntry,
-                            shouldCacheEntry, readFromLeftCallback, null, false);
-                } else {
-                    readFromLeftFuture = CompletableFuture.completedFuture(Collections.emptyList());
-                }
-
-                CompletableFuture<List<Entry>> readFromRightFuture;
-                if (missingOnRight != null) {
-                    readFromRightFuture = new CompletableFuture<>();
-                    ReadEntriesCallback readFromRightCallback = new ReadEntriesCallback(readFromRightFuture);
-                    rangeEntryCache.asyncReadEntry0(lh, missingOnRight.startEntry, missingOnRight.endEntry,
-                            shouldCacheEntry, readFromRightCallback, null, false);
-                } else {
-                    readFromRightFuture = CompletableFuture.completedFuture(Collections.emptyList());
-                }
-
-                CompletableFuture.allOf(readFromLeftFuture, readFromMidFuture, readFromRightFuture).thenApply(
-                                __ -> Stream.of(readFromLeftFuture, readFromMidFuture, readFromRightFuture)
-                                        .map(CompletableFuture::join)
-                                        .flatMap(List::stream)
-                                        .collect(Collectors.toList()))
+                CompletableFuture<List<Entry>> readFromLeftFuture =
+                        readMissingEntriesAsync(lh, shouldCacheEntry, missingOnLeft);
+                CompletableFuture<List<Entry>> readFromRightFuture =
+                        readMissingEntriesAsync(lh, shouldCacheEntry, missingOnRight);
+                readFromLeftFuture
+                        .thenCombine(readFromMidFuture, (left, mid) -> {
+                            List<Entry> result = new ArrayList<>(left);
+                            result.addAll(mid);
+                            return result;
+                        })
+                        .thenCombine(readFromRightFuture, (combined, right) -> {
+                            combined.addAll(right);
+                            return combined;
+                        })
                         .whenComplete((finalResult, e) -> {
                             if (e != null) {
                                 callback.readEntriesFailed(createManagedLedgerException(e), ctx);
                                 // todo: confirm that this is the right thing to do
-                                Stream.of(readFromLeftFuture, readFromMidFuture, readFromRightFuture)
-                                        .filter(future -> future.isDone() && !future.isCompletedExceptionally())
-                                        .forEach(future ->
-                                                future.thenAccept(entries -> entries.forEach(Entry::release)));
+                                releaseEntriesSafely(readFromLeftFuture);
+                                releaseEntriesSafely(readFromMidFuture);
+                                releaseEntriesSafely(readFromRightFuture);
                             } else {
                                 callback.readEntriesComplete(finalResult, ctx);
                             }
                         });
-
             } else {
                 listenerAdded = pendingRead.addListener(callback, ctx, key.startEntry, key.endEntry);
             }
@@ -400,6 +387,26 @@ public class PendingReadsManager {
                         lastEntry, shouldCacheEntry);
                 pendingRead.attach(readResult);
             }
+        }
+    }
+
+    private CompletableFuture<List<Entry>> readMissingEntriesAsync(ReadHandle lh, boolean shouldCacheEntry,
+                                                                   PendingReadKey missingOnLeft) {
+        CompletableFuture<List<Entry>> readFromLeftFuture;
+        if (missingOnLeft != null) {
+            readFromLeftFuture = new CompletableFuture<>();
+            ReadEntriesCallback readFromLeftCallback = new ReadEntriesCallback(readFromLeftFuture);
+            rangeEntryCache.asyncReadEntry0(lh, missingOnLeft.startEntry, missingOnLeft.endEntry,
+                    shouldCacheEntry, readFromLeftCallback, null, false);
+        } else {
+            readFromLeftFuture = CompletableFuture.completedFuture(Collections.emptyList());
+        }
+        return readFromLeftFuture;
+    }
+
+    private void releaseEntriesSafely(CompletableFuture<List<Entry>> future) {
+        if (!future.isCompletedExceptionally()) {
+            future.thenAccept(entries -> entries.forEach(Entry::release));
         }
     }
 
