@@ -200,8 +200,8 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                 return;
             }
             if (readHandle.getLength() <= 0) {
-                log.warn("Ledger [{}] has a zero length, but it contains {} entries. since it contains entries,"
-                    + " attempts to offload", readHandle.getLastAddConfirmed() + 1, readHandle.getId());
+                log.warn("Ledger [{}] has zero length, but it contains {} entries. "
+                    + " Attemping to offload ledger since it contains entries.", readHandle.getId(), readHandle.getLastAddConfirmed() + 1);
             }
             long ledgerId = readHandle.getId();
             final String managedLedgerName = extraMetadata.get(MANAGED_LEDGER_NAME);
