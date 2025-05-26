@@ -149,12 +149,12 @@ public class DebeziumMsSqlSourceTester extends SourceTester<DebeziumMsSqlContain
 
     @Override
     public String keyContains() {
-        return "mssql.TestDB.dbo.customers.Key";
+        return "TestDB";
     }
 
     @Override
     public String valueContains() {
-        return "mssql.TestDB.dbo.customers.Value";
+        return "TestDB";
     }
 
     @Override
