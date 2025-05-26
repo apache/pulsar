@@ -19,20 +19,21 @@
 package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import io.netty.util.HashedWheelTimer;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import io.netty.util.HashedWheelTimer;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerFencedException;
+import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicName;
@@ -316,6 +317,7 @@ public class ExclusiveProducerTest extends BrokerTestBase {
     public void topicDeleted(String ignored, boolean partitioned) throws Exception {
         String topic = newTopic("persistent", partitioned);
 
+        @Cleanup
         Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
                 .accessMode(ProducerAccessMode.Exclusive)
@@ -329,8 +331,14 @@ public class ExclusiveProducerTest extends BrokerTestBase {
             admin.topics().delete(topic, true);
         }
 
-        // The producer should be able to publish again on the topic
-        p1.send("msg-2");
+        if (!partitioned) {
+            // The producer should be able to publish again on the topic
+            p1.send("msg-2");
+        } else {
+            // The partitioned topic is deleted, the producer should not be able to publish again on the topic.
+            // Partitioned metadata is required to publish messages to the topic.
+            assertThrows(TimeoutException.class, () -> p1.send("msg-2"));
+        }
     }
 
     @Test(dataProvider = "topics")

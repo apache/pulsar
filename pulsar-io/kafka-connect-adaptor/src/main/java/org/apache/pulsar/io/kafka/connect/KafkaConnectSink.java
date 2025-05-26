@@ -44,6 +44,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.connect.connector.Task;
@@ -160,7 +161,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         kafkaSinkConfig = PulsarKafkaConnectSinkConfig.load(config);
         Objects.requireNonNull(kafkaSinkConfig.getTopic(), "Kafka topic is not set");
         Preconditions.checkArgument(ctx.getSubscriptionType() == SubscriptionType.Failover
-                || ctx.getSubscriptionType() == SubscriptionType.Exclusive,
+                        || ctx.getSubscriptionType() == SubscriptionType.Exclusive,
                 "Source must run with Exclusive or Failover subscription type");
         topicName = kafkaSinkConfig.getTopic();
         unwrapKeyValueIfAvailable = kafkaSinkConfig.isUnwrapKeyValueIfAvailable();
@@ -220,7 +221,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         scheduledExecutor.scheduleWithFixedDelay(() ->
                 this.flushIfNeeded(true), lingerMs, lingerMs, TimeUnit.MILLISECONDS);
 
-        log.info("Kafka sink started : {}.", props);
+        log.info("Kafka sink started : {}.", props.getOrDefault(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, ""));
     }
 
     private void flushIfNeeded(boolean force) {
@@ -282,15 +283,15 @@ public class KafkaConnectSink implements Sink<GenericObject> {
 
     @VisibleForTesting
     protected void ackUntil(Record<GenericObject> lastNotFlushed,
-                          Map<TopicPartition, OffsetAndMetadata> committedOffsets,
-                          java.util.function.Consumer<Record<GenericObject>> cb) {
+                            Map<TopicPartition, OffsetAndMetadata> committedOffsets,
+                            java.util.function.Consumer<Record<GenericObject>> cb) {
         // lastNotFlushed is needed in case of default preCommit() implementation
         // which calls flush() and returns currentOffsets passed to it.
         // We don't want to ack messages added to pendingFlushQueue after the preCommit/flush call
 
         // to avoid creation of new TopicPartition for each record in pendingFlushQueue
         Map<String, Map<Integer, Long>> topicOffsets = new HashMap<>();
-        for (Map.Entry<TopicPartition, OffsetAndMetadata> e: committedOffsets.entrySet()) {
+        for (Map.Entry<TopicPartition, OffsetAndMetadata> e : committedOffsets.entrySet()) {
             TopicPartition tp = e.getKey();
             if (!topicOffsets.containsKey(tp.topic())) {
                 topicOffsets.put(tp.topic(), new HashMap<>());

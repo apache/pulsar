@@ -589,9 +589,11 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         restartBroker();
 
         // The available permits should be 10 and num messages in the queue should be 90
-        Awaitility.await().untilAsserted(() ->
-                Assert.assertEquals(consumerImpl.getAvailablePermits(), numConsumersThreads));
-        Assert.assertEquals(consumerImpl.numMessagesInQueue(), recvQueueSize - numConsumersThreads);
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(consumerImpl.getAvailablePermits(), numConsumersThreads);
+            Assert.assertEquals(consumerImpl.numMessagesInQueue(), recvQueueSize - numConsumersThreads);
+        });
+
         consumer.close();
     }
 

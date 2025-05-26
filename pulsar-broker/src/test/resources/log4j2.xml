@@ -40,12 +40,27 @@
     <Logger name="org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers" level="DEBUG" additivity="false">
       <AppenderRef ref="CONSOLE"/>
     </Logger>
+    <Logger name="org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers" level="DEBUG" additivity="false">
+      <AppenderRef ref="CONSOLE"/>
+    </Logger>
+    <Logger name="org.apache.pulsar.broker.service.Consumer" level="DEBUG" additivity="false">
+      <AppenderRef ref="CONSOLE"/>
+    </Logger>
     <Logger name="org.apache.pulsar.broker.service.DrainingHashesTracker" level="DEBUG" additivity="false">
       <AppenderRef ref="CONSOLE"/>
     </Logger>
     <Logger name="org.apache.pulsar.broker.service.persistent.RescheduleReadHandler" level="DEBUG" additivity="false">
       <AppenderRef ref="CONSOLE"/>
     </Logger>
-    -->
+     -->
+
+    <!-- Uncomment the following loggers for debugging broker cache related classes
+    <Logger name="org.apache.bookkeeper.mledger.impl.cache" level="DEBUG" additivity="false">
+      <AppenderRef ref="CONSOLE"/>
+    </Logger>
+    <Logger name="org.apache.bookkeeper.mledger.util.RangeCache" level="DEBUG" additivity="false">
+      <AppenderRef ref="CONSOLE"/>
+    </Logger>
+     -->
   </Loggers>
 </Configuration>

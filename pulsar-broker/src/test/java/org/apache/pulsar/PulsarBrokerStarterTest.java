@@ -283,6 +283,7 @@ public class PulsarBrokerStarterTest {
      */
     @Test
     public void testMainWithNoArgument() throws Exception {
+        @Cleanup("shutdown")
         BrokerStarter brokerStarter = new BrokerStarter();
         @Cleanup
         StringWriter err = new StringWriter();
@@ -301,6 +302,7 @@ public class PulsarBrokerStarterTest {
     public void testMainRunBookieAndAutoRecoveryNoConfig() throws Exception {
         File testConfigFile = createValidBrokerConfigFile();
         String[] args = {"-c", testConfigFile.getAbsolutePath(), "-rb", "-ra", "-bc", ""};
+        @Cleanup("shutdown")
         BrokerStarter starter = new BrokerStarter();
         @Cleanup
         StringWriter err = new StringWriter();
@@ -319,6 +321,7 @@ public class PulsarBrokerStarterTest {
     public void testMainRunBookieRecoveryNoConfig() throws Exception {
         File testConfigFile = createValidBrokerConfigFile();
         String[] args = {"-c", testConfigFile.getAbsolutePath(), "-ra", "-bc", ""};
+        @Cleanup("shutdown")
         BrokerStarter starter = new BrokerStarter();
         @Cleanup
         StringWriter err = new StringWriter();
@@ -336,6 +339,7 @@ public class PulsarBrokerStarterTest {
     public void testMainRunBookieNoConfig() throws Exception {
         File testConfigFile = createValidBrokerConfigFile();
         String[] args = {"-c", testConfigFile.getAbsolutePath(), "-rb", "-bc", ""};
+        @Cleanup("shutdown")
         BrokerStarter starter = new BrokerStarter();
         @Cleanup
         StringWriter err = new StringWriter();
@@ -353,6 +357,7 @@ public class PulsarBrokerStarterTest {
     public void testMainEnableRunBookieThroughBrokerConfig() throws Exception {
         File testConfigFile = createValidBrokerConfigFile();
         String[] args = {"-c", testConfigFile.getAbsolutePath()};
+        @Cleanup("shutdown")
         BrokerStarter starter = new BrokerStarter();
         @Cleanup
         StringWriter err = new StringWriter();

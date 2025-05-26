@@ -523,7 +523,7 @@ public class LoadSimulationController extends CmdBase{
             // This controller will now stream rate changes from the given ZK.
             // Users wishing to stop this should Ctrl + C and use another
             // Controller to send new commands.
-            while (true) {}
+            Thread.currentThread().join();
         }
     }
 
@@ -677,7 +677,7 @@ public class LoadSimulationController extends CmdBase{
      */
     public void start() throws Exception {
         BufferedReader inReader = new BufferedReader(new InputStreamReader(System.in));
-        while (true) {
+        while (!Thread.currentThread().isInterrupted()) {
             // Print the very simple prompt.
             System.out.println();
             System.out.print("> ");

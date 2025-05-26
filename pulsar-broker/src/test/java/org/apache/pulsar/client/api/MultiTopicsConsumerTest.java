@@ -413,8 +413,9 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
                     .isAckReceiptEnabled(true)
                     .subscribe();
             assertTrue(singleTopicConsumer instanceof ConsumerImpl);
+        } catch (PulsarClientException.SubscriptionNotFoundException ignore) {
         } catch (Throwable t) {
-            assertTrue(t.getCause().getCause() instanceof PulsarClientException.SubscriptionNotFoundException);
+            fail("Should throw PulsarClientException.SubscriptionNotFoundException instead");
         }
 
         try {
@@ -424,8 +425,9 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
                     .isAckReceiptEnabled(true)
                     .subscribe();
             assertTrue(multiTopicsConsumer instanceof MultiTopicsConsumerImpl);
+        } catch (PulsarClientException.SubscriptionNotFoundException ignore) {
         } catch (Throwable t) {
-            assertTrue(t.getCause().getCause() instanceof PulsarClientException.SubscriptionNotFoundException);
+            fail("Should throw PulsarClientException.SubscriptionNotFoundException instead");
         }
 
         pulsar.getConfiguration().setAllowAutoSubscriptionCreation(true);

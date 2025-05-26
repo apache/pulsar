@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.time.Duration;
 import lombok.Cleanup;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.pulsar.broker.service.Topic;
@@ -69,6 +70,46 @@ public class ProducerCloseTest extends ProducerConsumerBase {
                 {false, true},
                 {false, false}
         };
+    }
+
+    /**
+     * Param1: Producer enableBatch or not
+     * Param2: Send in async way or not
+     */
+    @DataProvider(name = "brokenPipeline")
+    public Object[][] brokenPipeline() {
+        return new Object[][]{
+            {true},
+            {false}
+        };
+    }
+
+    @Test(dataProvider = "brokenPipeline")
+    public void testProducerCloseCallback2(boolean brokenPipeline) throws Exception {
+        initClient();
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                .topic("testProducerClose")
+                .sendTimeout(5, TimeUnit.SECONDS)
+                .maxPendingMessages(0)
+                .enableBatching(false)
+                .create();
+        final TypedMessageBuilder<byte[]> messageBuilder = producer.newMessage();
+        final TypedMessageBuilder<byte[]> value = messageBuilder.value("test-msg".getBytes(StandardCharsets.UTF_8));
+        producer.getClientCnx().channel().config().setAutoRead(false);
+        final CompletableFuture<MessageId> completableFuture = value.sendAsync();
+        producer.closeAsync();
+        Thread.sleep(3000);
+        if (brokenPipeline) {
+            //producer.getClientCnx().channel().config().setAutoRead(true);
+            producer.getClientCnx().channel().close();
+        } else {
+            producer.getClientCnx().channel().config().setAutoRead(true);
+        }
+        Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+            System.out.println(1);
+            Assert.assertTrue(completableFuture.isDone());
+        });
     }
 
     @Test(timeOut = 10_000)

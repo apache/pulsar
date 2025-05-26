@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import lombok.Cleanup;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
@@ -43,7 +44,7 @@ public class TopicPolicyTestUtils {
 
     public static TopicPolicies getTopicPolicies(TopicPoliciesService topicPoliciesService, TopicName topicName)
             throws ExecutionException, InterruptedException {
-        return topicPoliciesService.getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.DEFAULT).get()
+        return topicPoliciesService.getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.LOCAL_ONLY).get()
                 .orElse(null);
     }
 
@@ -67,7 +68,9 @@ public class TopicPolicyTestUtils {
                 .newReader();
         PulsarEvent event = null;
         while (reader.hasMoreEvents()) {
-            event = reader.readNext().getValue();
+            @Cleanup("release")
+            Message<PulsarEvent> message = reader.readNext();
+            event = message.getValue();
         }
         return Optional.ofNullable(event).map(e -> e.getTopicPoliciesEvent().getPolicies());
     }

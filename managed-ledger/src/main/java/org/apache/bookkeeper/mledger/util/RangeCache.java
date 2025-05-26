@@ -106,7 +106,39 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
             return localKey;
         }
 
+        /**
+         * Get the value associated with the key. Returns null if the key does not match the key.
+         *
+         * @param key the key to match
+         * @return the value associated with the key, or null if the value has already been recycled or the key does not
+         * match
+         */
         V getValue(K key) {
+            return getValueInternal(key, false);
+        }
+
+        /**
+         * Get the value associated with the Map.Entry's key and value. Exact instance of the key is required to match.
+         * @param entry the entry which contains the key and {@link EntryWrapper} value to get the value from
+         * @return the value associated with the key, or null if the value has already been recycled or the key does not
+         * exactly match the same instance
+         */
+        static <K, V> V getValueMatchingMapEntry(Map.Entry<K, EntryWrapper<K, V>> entry) {
+            return entry.getValue().getValueInternal(entry.getKey(), true);
+        }
+
+        /**
+         * Get the value associated with the key. Returns null if the key does not match the key associated with the
+         * value.
+         *
+         * @param key                    the key to match
+         * @param requireSameKeyInstance when true, the matching will be restricted to exactly the same instance of the
+         *                               key as the one stored in the wrapper. This is used to avoid any races
+         *                               when retrieving or removing the entries from the cache when the key and value
+         *                               instances are available.
+         * @return the value associated with the key, or null if the key does not match
+         */
+        private V getValueInternal(K key, boolean requireSameKeyInstance) {
             long stamp = lock.tryOptimisticRead();
             K localKey = this.key;
             V localValue = this.value;
@@ -116,7 +148,11 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
                 localValue = this.value;
                 lock.unlockRead(stamp);
             }
-            if (localKey != key) {
+            // check that the given key matches the key associated with the value in the entry
+            // this is used to detect if the entry has already been recycled and contains another key
+            // when requireSameKeyInstance is true, the key must be exactly the same instance as the one stored in the
+            // entry to match
+            if (localKey != key && (requireSameKeyInstance || localKey == null || !localKey.equals(key))) {
                 return null;
             }
             return localValue;
@@ -236,34 +272,51 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
      * The caller is responsible for releasing the reference.
      */
     public Value get(Key key) {
-        return getValue(key, entries.get(key));
+        return getValueFromWrapper(key, entries.get(key));
     }
 
-    private  Value getValue(Key key, EntryWrapper<Key, Value> valueWrapper) {
+    private Value getValueFromWrapper(Key key, EntryWrapper<Key, Value> valueWrapper) {
         if (valueWrapper == null) {
             return null;
         } else {
             Value value = valueWrapper.getValue(key);
-            if (value == null) {
-                // the wrapper has been recycled and contains another key
-                return null;
-            }
-            try {
-                value.retain();
-            } catch (IllegalReferenceCountException e) {
-                // Value was already deallocated
-                return null;
-            }
-            // check that the value matches the key and that there's at least 2 references to it since
-            // the cache should be holding one reference and a new reference was just added in this method
-            if (value.refCnt() > 1 && value.matchesKey(key)) {
-                return value;
-            } else {
-                // Value or IdentityWrapper was recycled and already contains another value
-                // release the reference added in this method
-                value.release();
-                return null;
-            }
+            return getRetainedValueMatchingKey(key, value);
+        }
+    }
+
+    /**
+     * @apiNote the returned value must be released if it's not null
+     */
+    private Value getValueMatchingEntry(Map.Entry<Key, EntryWrapper<Key, Value>> entry) {
+        Value valueMatchingEntry = EntryWrapper.getValueMatchingMapEntry(entry);
+        return getRetainedValueMatchingKey(entry.getKey(), valueMatchingEntry);
+    }
+
+    // validates that the value matches the key and that the value has not been recycled
+    // which are possible due to the lack of exclusive locks in the cache and the use of reference counted objects
+    /**
+     * @apiNote the returned value must be released if it's not null
+     */
+    private Value getRetainedValueMatchingKey(Key key, Value value) {
+        if (value == null) {
+            // the wrapper has been recycled and contains another key
+            return null;
+        }
+        try {
+            value.retain();
+        } catch (IllegalReferenceCountException e) {
+            // Value was already deallocated
+            return null;
+        }
+        // check that the value matches the key and that there's at least 2 references to it since
+        // the cache should be holding one reference and a new reference was just added in this method
+        if (value.refCnt() > 1 && value.matchesKey(key)) {
+            return value;
+        } else {
+            // Value or IdentityWrapper was recycled and already contains another value
+            // release the reference added in this method
+            value.release();
+            return null;
         }
     }
 
@@ -280,7 +333,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
 
         // Return the values of the entries found in cache
         for (Map.Entry<Key, EntryWrapper<Key, Value>> entry : entries.subMap(first, true, last, true).entrySet()) {
-            Value value = getValue(entry.getKey(), entry.getValue());
+            Value value = getValueMatchingEntry(entry);
             if (value != null) {
                 values.add(value);
             }
@@ -297,10 +350,13 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
      * @return an pair of ints, containing the number of removed entries and the total size
      */
     public Pair<Integer, Long> removeRange(Key first, Key last, boolean lastInclusive) {
+        if (log.isDebugEnabled()) {
+            log.debug("Removing entries in range [{}, {}], lastInclusive: {}", first, last, lastInclusive);
+        }
         RemovalCounters counters = RemovalCounters.create();
         Map<Key, EntryWrapper<Key, Value>> subMap = entries.subMap(first, true, last, lastInclusive);
         for (Map.Entry<Key, EntryWrapper<Key, Value>> entry : subMap.entrySet()) {
-            removeEntry(entry, counters, true);
+            removeEntry(entry, counters);
         }
         return handleRemovalResult(counters);
     }
@@ -311,84 +367,48 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
         BREAK_LOOP;
     }
 
-    private RemoveEntryResult removeEntry(Map.Entry<Key, EntryWrapper<Key, Value>> entry, RemovalCounters counters,
-                                          boolean skipInvalid) {
-        return removeEntry(entry, counters, skipInvalid, x -> true);
+    private RemoveEntryResult removeEntry(Map.Entry<Key, EntryWrapper<Key, Value>> entry, RemovalCounters counters) {
+        return removeEntry(entry, counters, x -> true);
     }
 
     private RemoveEntryResult removeEntry(Map.Entry<Key, EntryWrapper<Key, Value>> entry, RemovalCounters counters,
-                                          boolean skipInvalid, Predicate<Value> removeCondition) {
+                                          Predicate<Value> removeCondition) {
         Key key = entry.getKey();
         EntryWrapper<Key, Value> entryWrapper = entry.getValue();
-        Value value = entryWrapper.getValue(key);
+        Value value = getValueMatchingEntry(entry);
         if (value == null) {
-            // the wrapper has already been recycled and contains another key
-            if (!skipInvalid) {
-                EntryWrapper<Key, Value> removed = entries.remove(key);
-                if (removed != null) {
-                    // log and remove the entry without releasing the value
-                    log.info("Key {} does not match the entry's value wrapper's key {}, removed entry by key without "
-                            + "releasing the value", key, entryWrapper.getKey());
-                    counters.entryRemoved(removed.getSize());
-                    return RemoveEntryResult.ENTRY_REMOVED;
-                }
-            }
+            // the wrapper has already been recycled or contains another key
+            entries.remove(key, entryWrapper);
             return RemoveEntryResult.CONTINUE_LOOP;
-        }
-        try {
-            // add extra retain to avoid value being released while we are removing it
-            value.retain();
-        } catch (IllegalReferenceCountException e) {
-            // Value was already released
-            if (!skipInvalid) {
-                // remove the specific entry without releasing the value
-                if (entries.remove(key, entryWrapper)) {
-                    log.info("Value was already released for key {}, removed entry without releasing the value", key);
-                    counters.entryRemoved(entryWrapper.getSize());
-                    return RemoveEntryResult.ENTRY_REMOVED;
-                }
-            }
-            return RemoveEntryResult.CONTINUE_LOOP;
-        }
-        if (!value.matchesKey(key)) {
-            // this is unexpected since the IdentityWrapper.getValue(key) already checked that the value matches the key
-            log.warn("Unexpected race condition. Value {} does not match the key {}. Removing entry.", value, key);
         }
         try {
             if (!removeCondition.test(value)) {
                 return RemoveEntryResult.BREAK_LOOP;
             }
-            if (!skipInvalid) {
-                // remove the specific entry
-                boolean entryRemoved = entries.remove(key, entryWrapper);
-                if (entryRemoved) {
-                    counters.entryRemoved(entryWrapper.getSize());
-                    // check that the value hasn't been recycled in between
-                    // there should be at least 2 references since this method adds one and the cache should have
-                    // one reference. it is valid that the value contains references even after the key has been
-                    // removed from the cache
-                    if (value.refCnt() > 1) {
-                        entryWrapper.recycle();
-                        // remove the cache reference
-                        value.release();
-                    } else {
-                        log.info("Unexpected refCnt {} for key {}, removed entry without releasing the value",
-                                value.refCnt(), key);
-                    }
-                }
-            } else if (skipInvalid && value.refCnt() > 1 && entries.remove(key, entryWrapper)) {
-                // when skipInvalid is true, we don't remove the entry if it doesn't match matches the key
-                // or the refCnt is invalid
+            // remove the specific entry
+            boolean entryRemoved = entries.remove(key, entryWrapper);
+            if (entryRemoved) {
                 counters.entryRemoved(entryWrapper.getSize());
-                entryWrapper.recycle();
-                // remove the cache reference
-                value.release();
+                // check that the value hasn't been recycled in between
+                // there should be at least 2 references since this method adds one and the cache should have
+                // one reference. it is valid that the value contains references even after the key has been
+                // removed from the cache
+                if (value.refCnt() > 1) {
+                    entryWrapper.recycle();
+                    // remove the cache reference
+                    value.release();
+                } else {
+                    log.info("Unexpected refCnt {} for key {}, removed entry without releasing the value",
+                            value.refCnt(), key);
+                }
+                return RemoveEntryResult.ENTRY_REMOVED;
+            } else {
+                return RemoveEntryResult.CONTINUE_LOOP;
             }
         } finally {
             // remove the extra retain
             value.release();
         }
-        return RemoveEntryResult.ENTRY_REMOVED;
     }
 
     private Pair<Integer, Long> handleRemovalResult(RemovalCounters counters) {
@@ -404,6 +424,9 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
      * @return a pair containing the number of entries evicted and their total size
      */
     public Pair<Integer, Long> evictLeastAccessedEntries(long minSize) {
+        if (log.isDebugEnabled()) {
+            log.debug("Evicting entries to reach a minimum size of {}", minSize);
+        }
         checkArgument(minSize > 0);
         RemovalCounters counters = RemovalCounters.create();
         while (counters.removedSize < minSize && !Thread.currentThread().isInterrupted()) {
@@ -411,7 +434,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
             if (entry == null) {
                 break;
             }
-            removeEntry(entry, counters, false);
+            removeEntry(entry, counters);
         }
         return handleRemovalResult(counters);
     }
@@ -422,13 +445,16 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
     * @return the tota
     */
    public Pair<Integer, Long> evictLEntriesBeforeTimestamp(long maxTimestamp) {
+       if (log.isDebugEnabled()) {
+              log.debug("Evicting entries with timestamp <= {}", maxTimestamp);
+       }
        RemovalCounters counters = RemovalCounters.create();
        while (!Thread.currentThread().isInterrupted()) {
            Map.Entry<Key, EntryWrapper<Key, Value>> entry = entries.firstEntry();
            if (entry == null) {
                break;
            }
-           if (removeEntry(entry, counters, false, value -> timestampExtractor.getTimestamp(value) <= maxTimestamp)
+           if (removeEntry(entry, counters, value -> timestampExtractor.getTimestamp(value) <= maxTimestamp)
                    == RemoveEntryResult.BREAK_LOOP) {
                break;
            }
@@ -453,13 +479,16 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ValueWithKeyV
      * @return size of removed entries
      */
     public Pair<Integer, Long> clear() {
+        if (log.isDebugEnabled()) {
+            log.debug("Clearing the cache with {} entries and size {}", entries.size(), size.get());
+        }
         RemovalCounters counters = RemovalCounters.create();
         while (!Thread.currentThread().isInterrupted()) {
             Map.Entry<Key, EntryWrapper<Key, Value>> entry = entries.firstEntry();
             if (entry == null) {
                 break;
             }
-            removeEntry(entry, counters, false);
+            removeEntry(entry, counters);
         }
         return handleRemovalResult(counters);
     }

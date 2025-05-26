@@ -25,8 +25,10 @@ import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.pool.TypePool;
 import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.MessagePayloadProcessor;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.functions.CryptoConfig;
+import org.apache.pulsar.common.functions.MessagePayloadProcessorConfig;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.SerDe;
 
@@ -95,6 +97,41 @@ public class ValidatorUtils {
 
         if (isProducer && (conf.getEncryptionKeys() == null || conf.getEncryptionKeys().length == 0)) {
             throw new IllegalArgumentException("Missing encryption key name for producer crypto key reader");
+        }
+    }
+
+    public static void validateMessagePayloadProcessor(MessagePayloadProcessorConfig conf, TypePool typePool) {
+        if (isEmpty(conf.getClassName())) {
+            return;
+        }
+
+        String payloadProcessorClassName = conf.getClassName();
+        TypeDescription payloadProcessorClass = null;
+        try {
+            payloadProcessorClass = typePool.describe(payloadProcessorClassName).resolve();
+        } catch (TypePool.Resolution.NoSuchTypeException e) {
+            throw new IllegalArgumentException(
+                    String.format("The message payload processor class %s does not exist", payloadProcessorClassName));
+        }
+        if (!payloadProcessorClass.asErasure().isAssignableTo(MessagePayloadProcessor.class)) {
+            throw new IllegalArgumentException(String.format("%s does not implement %s", payloadProcessorClassName,
+                    MessagePayloadProcessor.class.getName()));
+        }
+
+        boolean hasConstructor;
+        if (conf.getConfig() == null || conf.getConfig().isEmpty()) {
+            hasConstructor = payloadProcessorClass.getDeclaredMethods().stream()
+                    .anyMatch(method -> method.isConstructor() && method.getParameters().size() == 0);
+        } else {
+            hasConstructor = payloadProcessorClass.getDeclaredMethods().stream()
+                    .anyMatch(method -> method.isConstructor() && method.getParameters().size() == 1
+                            && method.getParameters().get(0).getType().asErasure().represents(Map.class));
+        }
+
+        if (!hasConstructor) {
+            throw new IllegalArgumentException(
+                    String.format("The message payload processor class %s does not implement the desired constructor.",
+                            conf.getClassName()));
         }
     }
 

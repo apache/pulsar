@@ -200,12 +200,13 @@ public final class SchemaUtils {
      * @param schemaInfo the schema info
      * @return the jsonified schema info
      */
-    public static String jsonifySchemaInfo(SchemaInfo schemaInfo) {
+    public static String jsonifySchemaInfo(SchemaInfo schemaInfo, boolean prettyPrinting) {
         GsonBuilder gsonBuilder = new GsonBuilder()
-            .setPrettyPrinting()
             .registerTypeHierarchyAdapter(byte[].class, new ByteArrayToStringAdapter(schemaInfo))
             .registerTypeHierarchyAdapter(Map.class, SCHEMA_PROPERTIES_SERIALIZER);
-
+        if (prettyPrinting) {
+            gsonBuilder.setPrettyPrinting();
+        }
         return gsonBuilder.create().toJson(schemaInfo);
     }
 
@@ -285,8 +286,8 @@ public final class SchemaUtils {
                     KeyValue<SchemaInfo, SchemaInfo> schemaInfoKeyValue =
                         DefaultImplementation.getDefaultImplementation().decodeKeyValueSchemaInfo(schemaInfo);
                     JsonObject obj = new JsonObject();
-                    String keyJson = jsonifySchemaInfo(schemaInfoKeyValue.getKey());
-                    String valueJson = jsonifySchemaInfo(schemaInfoKeyValue.getValue());
+                    String keyJson = jsonifySchemaInfo(schemaInfoKeyValue.getKey(), true);
+                    String valueJson = jsonifySchemaInfo(schemaInfoKeyValue.getValue(), true);
                     obj.add("key", toJsonElement(keyJson));
                     obj.add("value", toJsonElement(valueJson));
                     return obj;
@@ -312,7 +313,7 @@ public final class SchemaUtils {
                                      Type type,
                                      JsonSerializationContext jsonSerializationContext) {
             // schema will not a json, so use toJsonElement
-            return toJsonElement(jsonifySchemaInfo(schemaInfo));
+            return toJsonElement(jsonifySchemaInfo(schemaInfo, true));
         }
     }
 
@@ -369,6 +370,7 @@ public final class SchemaUtils {
         ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.heapBuffer(dataLength);
         byteBuf.writeInt(keyBytes.length).writeBytes(keyBytes).writeInt(valueBytes.length).writeBytes(valueBytes);
         byteBuf.readBytes(schema);
+        byteBuf.release();
         return schema;
     }
 

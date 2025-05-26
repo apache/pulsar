@@ -66,7 +66,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.net.ServiceURI;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -134,7 +134,7 @@ public class ProxyWithExtensibleLoadManagerTest extends MultiBrokerBaseTest {
         }
     }
 
-    @NotNull
+    @NonNull
     private InetSocketAddress getSourceBrokerInetAddress(TopicName topicName) throws PulsarAdminException {
         var srcBrokerUrl = admin.lookups().lookupTopic(topicName.toString());
         var serviceUri = ServiceURI.create(srcBrokerUrl);

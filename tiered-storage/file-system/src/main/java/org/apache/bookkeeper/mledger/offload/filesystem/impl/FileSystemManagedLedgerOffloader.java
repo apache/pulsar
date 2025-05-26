@@ -107,7 +107,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
 
         this.configuration.setClassLoader(FileSystemLedgerOffloaderFactory.class.getClassLoader());
         this.driverName = conf.getManagedLedgerOffloadDriver();
-        this.storageBasePath = configuration.get("hadoop.tmp.dir");
+        this.storageBasePath = configuration.get("fs.defaultFS");
         this.scheduler = scheduler;
         this.fileSystem = FileSystem.get(configuration);
         this.assignmentScheduler = OrderedScheduler.newSchedulerBuilder()

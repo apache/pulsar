@@ -74,6 +74,7 @@ public class HttpClient implements Closeable {
         this.serviceNameResolver.updateServiceUrl(conf.getServiceUrl());
 
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
+        confBuilder.setCookieStore(null);
         confBuilder.setUseProxyProperties(true);
         confBuilder.setFollowRedirect(true);
         confBuilder.setMaxRedirects(conf.getMaxLookupRedirects());
@@ -96,7 +97,8 @@ public class HttpClient implements Closeable {
                 this.executorService = Executors
                         .newSingleThreadScheduledExecutor(new ExecutorProvider
                                 .ExtendedThreadFactory("httpclient-ssl-refresh"));
-                PulsarSslConfiguration sslConfiguration = buildSslConfiguration(conf);
+                PulsarSslConfiguration sslConfiguration =
+                        buildSslConfiguration(conf, serviceNameResolver.resolveHostUri().getHost());
                 this.sslFactory = (PulsarSslFactory) Class.forName(conf.getSslFactoryPlugin())
                         .getConstructor().newInstance();
                 this.sslFactory.initialize(sslConfiguration);
@@ -232,7 +234,7 @@ public class HttpClient implements Closeable {
         return future;
     }
 
-    protected PulsarSslConfiguration buildSslConfiguration(ClientConfigurationData config)
+    protected PulsarSslConfiguration buildSslConfiguration(ClientConfigurationData config, String host)
             throws PulsarClientException {
         return PulsarSslConfiguration.builder()
                 .tlsProvider(config.getSslProvider())
@@ -251,7 +253,7 @@ public class HttpClient implements Closeable {
                 .requireTrustedClientCertOnConnect(false)
                 .tlsEnabledWithKeystore(config.isUseKeyStoreTls())
                 .tlsCustomParams(config.getSslFactoryPluginParams())
-                .authData(config.getAuthentication().getAuthData())
+                .authData(config.getAuthentication().getAuthData(host))
                 .serverMode(false)
                 .isHttps(true)
                 .build();

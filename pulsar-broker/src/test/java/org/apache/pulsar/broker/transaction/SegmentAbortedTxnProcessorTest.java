@@ -348,6 +348,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
                         .createReader(TopicName.get(topic)).get();
         int segmentCount = 0;
         while (reader.hasMoreEvents()) {
+            @Cleanup("release")
             Message<TransactionBufferSnapshotSegment> message = reader.readNextAsync()
                     .get(5, TimeUnit.SECONDS);
             if (topic.equals(message.getValue().getTopicName())) {
@@ -364,6 +365,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
                         .createReader(TopicName.get(topic)).get();
         int indexCount = 0;
         while (reader.hasMoreEvents()) {
+            @Cleanup("release")
             Message<TransactionBufferSnapshotIndexes> message = reader.readNextAsync()
                     .get(5, TimeUnit.SECONDS);
             if (topic.equals(message.getValue().getTopicName())) {

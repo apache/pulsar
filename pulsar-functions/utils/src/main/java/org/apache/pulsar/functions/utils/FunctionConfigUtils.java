@@ -159,6 +159,10 @@ public class FunctionConfigUtils {
                 if (consumerConf.getCryptoConfig() != null) {
                     bldr.setCryptoSpec(CryptoUtils.convert(consumerConf.getCryptoConfig()));
                 }
+                if (consumerConf.getMessagePayloadProcessorConfig() != null) {
+                    bldr.setMessagePayloadProcessorSpec(
+                            MessagePayloadProcessorUtils.convert(consumerConf.getMessagePayloadProcessorConfig()));
+                }
                 bldr.putAllConsumerProperties(consumerConf.getConsumerProperties());
                 bldr.setPoolMessages(consumerConf.isPoolMessages());
                 sourceSpecBuilder.putInputSpecs(topicName, bldr.build());
@@ -409,6 +413,10 @@ public class FunctionConfigUtils {
             if (input.getValue().hasCryptoSpec()) {
                 consumerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(input.getValue().getCryptoSpec()));
             }
+            if (input.getValue().hasMessagePayloadProcessorSpec()) {
+                consumerConfig.setMessagePayloadProcessorConfig(MessagePayloadProcessorUtils.convertFromSpec(
+                        input.getValue().getMessagePayloadProcessorSpec()));
+            }
             consumerConfig.setRegexPattern(input.getValue().getIsRegexPattern());
             consumerConfig.setSchemaProperties(input.getValue().getSchemaPropertiesMap());
             consumerConfig.setPoolMessages(input.getValue().getPoolMessages());
@@ -524,6 +532,9 @@ public class FunctionConfigUtils {
         if (producerConf.getBatchBuilder() != null) {
             builder.setBatchBuilder(producerConf.getBatchBuilder());
         }
+        if (producerConf.getBatchingConfig() != null) {
+            builder.setBatchingSpec(BatchingUtils.convert(producerConf.getBatchingConfig()));
+        }
         if (producerConf.getCompressionType() != null) {
             builder.setCompressionType(convertFromCompressionType(producerConf.getCompressionType()));
         } else {
@@ -545,6 +556,9 @@ public class FunctionConfigUtils {
         }
         if (spec.getBatchBuilder() != null) {
             producerConfig.setBatchBuilder(spec.getBatchBuilder());
+        }
+        if (spec.hasBatchingSpec()) {
+            producerConfig.setBatchingConfig(BatchingUtils.convertFromSpec(spec.getBatchingSpec()));
         }
         producerConfig.setUseThreadLocalProducers(spec.getUseThreadLocalProducers());
         producerConfig.setCompressionType(convertFromFunctionDetailsCompressionType(spec.getCompressionType()));
@@ -677,6 +691,10 @@ public class FunctionConfigUtils {
                 if (conf.getCryptoConfig() != null) {
                     ValidatorUtils.validateCryptoKeyReader(conf.getCryptoConfig(),
                             validatableFunctionPackage.getTypePool(), false);
+                }
+                if (conf.getMessagePayloadProcessorConfig() != null) {
+                    ValidatorUtils.validateMessagePayloadProcessor(conf.getMessagePayloadProcessorConfig(),
+                            validatableFunctionPackage.getTypePool());
                 }
             });
         }
@@ -893,6 +911,11 @@ public class FunctionConfigUtils {
                 if (conf.getCryptoConfig() != null && isBlank(conf.getCryptoConfig().getCryptoKeyReaderClassName())) {
                     throw new IllegalArgumentException(
                             "CryptoKeyReader class name required");
+                }
+                if (conf.getMessagePayloadProcessorConfig() != null && isBlank(
+                        conf.getMessagePayloadProcessorConfig().getClassName())) {
+                    throw new IllegalArgumentException(
+                            "MessagePayloadProcessor class name required");
                 }
             });
         }
