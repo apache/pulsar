@@ -2331,6 +2331,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (entries.isEmpty()) {
                 return Collections.emptyList();
             }
+            entries.sort(Comparator.comparingLong(Entry::getEntryId));
             List<Entry> entries = new ArrayList<>();
             for (long entryId : entryIds) {
                 if (this.entries.isEmpty()) {
