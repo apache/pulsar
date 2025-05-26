@@ -211,7 +211,7 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String outputTopicName = "debe-output-topic-name-" + testId.getAndIncrement();
-        final String consumeTopicName = "debezium/mssql/mssql.dbo.customers";
+        final String consumeTopicName = "debezium/mssql/mssql";
         final String sourceName = "test-source-debezium-mssql-" + functionRuntimeType + "-" + randomName(8);
 
         final int numMessages = 1;
