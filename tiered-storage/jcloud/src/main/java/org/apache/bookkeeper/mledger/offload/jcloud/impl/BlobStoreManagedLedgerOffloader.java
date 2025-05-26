@@ -210,9 +210,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                 return;
             }
             if (readHandle.getLength() <= 0) {
-                log.warn("[{}] has a ledger [{}] with a zero length, but it contains {} entries. since it contains"
-                    + " entries, attempts to offload", topicName, readHandle.getLastAddConfirmed() + 1,
-                    readHandle.getId());
+                log.warn("[{}] Ledger [{}] has zero length, but it contains {} entries."
+                    + " Attemping to offload ledger since it contains entries.", topicName, readHandle.getId(), readHandle.getLastAddConfirmed() + 1);
             }
             OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create()
                 .withLedgerMetadata(readHandle.getLedgerMetadata())
