@@ -2334,21 +2334,26 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "List of replication clusters", required = true) List<String> clusterIds) {
         validateTopicName(tenant, namespace, encodedTopic);
         validateTopicPolicyOperationAsync(topicName, PolicyName.REPLICATION, PolicyOperation.WRITE)
-                .thenCompose(__ -> preValidation(authoritative, metadata -> {
-                    // There are only two cases that will remove local clusters.
-                    // 1. Using global metadata store, created a namespace which will be shared cross multi clusters,
-                    //    but users want the namespace only exists in one cluster.
-                    // 2. Using global metadata store, created a partitioned topic which will be shared cross multi
-                    //    clusters, but users want the namespace only exists in one cluster.
-                    // Since non-partitioned topic does not need this feature, we deny it to decrease complexity.
+                .thenCompose(__ -> preValidation(authoritative)).thenCompose(__ -> {
+                    // Set a topic-level replicated clusters that do not contain local cluster is not meaningful, except
+                    // the following scenario: User has two clusters, which enabled Geo-Replication through a global
+                    // metadata store, the resources named partitioned topic metadata and the resource namespace-level
+                    // "replicated clusters" are shared between multi clusters. Pulsar can hardly delete a specify
+                    // partitioned topic. To support this use case, the following steps can implement it:
+                    // 1. set a global topic-level replicated clusters that do not contain local cluster.
+                    // 2. the local cluster will remove the subtopics automatically, and remove the schemas and local
+                    //    topic policies. Just leave the global topic policies there, which prevents the namespace level
+                    //    replicated clusters policy taking affect.
+                    // TODO But the API "pulsar-admin topics set-replication-clusters" does not support global policy,
+                    //   to support this scenario, a PIP is needed.
                     boolean clustersDoesNotContainsLocal = CollectionUtils.isEmpty(clusterIds)
                             || !clusterIds.contains(pulsar().getConfig().getClusterName());
-                    if (metadata.partitions < 1 && clustersDoesNotContainsLocal) {
+                    if (clustersDoesNotContainsLocal) {
                         return FutureUtil.failedFuture(new RestException(Response.Status.PRECONDITION_FAILED,
-                                "Non-partitioned topic can not remove local cluster from the replication clusters"));
+                            "Can not remove local cluster from the topic-level replication clusters policy"));
                     }
                     return CompletableFuture.completedFuture(null);
-                }))
+                })
                 .thenCompose(__ -> internalSetReplicationClusters(clusterIds))
                 .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
