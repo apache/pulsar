@@ -93,7 +93,7 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
                 + "-" + functionRuntimeType + "-" + randomName(8);
 
         // This is the binlog count that contained in mysql container.
-        final int numMessages = 47;
+        final int numMessages = 52;
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
