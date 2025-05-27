@@ -32,6 +32,7 @@ import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -3850,5 +3851,17 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .dispatchThrottlingRateInByte(10)
                 .ratePeriodInSecond(10)
                 .build());
+    }
+
+    @Test
+    public void testRemoveLocalCluster() throws Exception {
+        String topic = "persistent://" + myNamespace + "/testSetSubRateWithSub";
+        admin.topics().createNonPartitionedTopic(topic);
+        try {
+            admin.topics().setReplicationClusters(topic, Arrays.asList("not-local-cluster"));
+            fail("Non-partitioned topic can not remove local cluster");
+        } catch (PulsarAdminException.PreconditionFailedException e) {
+            assertTrue(e.getMessage().contains("Non-partitioned topic can not remove local cluster"));
+        }
     }
 }

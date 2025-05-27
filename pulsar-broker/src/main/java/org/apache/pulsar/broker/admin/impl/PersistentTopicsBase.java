@@ -47,6 +47,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.ws.rs.WebApplicationException;
@@ -3706,7 +3707,8 @@ public class PersistentTopicsBase extends AdminResource {
             });
     }
 
-    protected CompletableFuture<Void> preValidation(boolean authoritative) {
+    protected CompletableFuture<Void> preValidation(boolean authoritative,
+                                        Function<PartitionedTopicMetadata, CompletableFuture<Void>> additionalCheck) {
         if (!config().isTopicLevelPoliciesEnabled()) {
             return FutureUtil.failedFuture(new RestException(Status.METHOD_NOT_ALLOWED,
                     "Topic level policies is disabled, to enable the topic level policy and retry."));
@@ -3730,6 +3732,11 @@ public class PersistentTopicsBase extends AdminResource {
                     } else {
                         return getPartitionedTopicMetadataAsync(topicName, false, false)
                             .thenCompose(metadata -> {
+                                if (additionalCheck == null) {
+                                    return CompletableFuture.completedFuture(metadata);
+                                }
+                                return additionalCheck.apply(metadata).thenApply(__ -> metadata);
+                            }).thenCompose(metadata -> {
                                 if (metadata.partitions > 0) {
                                     return validateTopicOwnershipAsync(TopicName.get(topicName.toString()
                                     + PARTITIONED_TOPIC_SUFFIX + 0), authoritative);
@@ -3739,6 +3746,10 @@ public class PersistentTopicsBase extends AdminResource {
                         });
                     }
         });
+    }
+
+    protected CompletableFuture<Void> preValidation(boolean authoritative) {
+        return preValidation(authoritative, null);
     }
 
     protected CompletableFuture<Void> internalRemoveMaxProducers(boolean isGlobal) {
