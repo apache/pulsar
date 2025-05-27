@@ -108,6 +108,16 @@ public class KinesisSinkConfig extends BaseKinesisConfig implements Serializable
         return mapper.readValue(new File(yamlFile), KinesisSinkConfig.class);
     }
 
+    @FieldDoc(
+            required = false,
+            defaultValue = "",
+            help = "Path to the native Amazon Kinesis Producer Library (KPL) binary.\n"
+                    + "Only use this setting if you want to use a custom build of the native code.\n"
+                    + "This setting can also be set with the environment variable `PULSAR_IO_KINESIS_KPL_PATH`.\n"
+                    + "If not set, the Kinesis sink will use the built-in native executable."
+    )
+    private String nativeExecutable = System.getenv("PULSAR_IO_KINESIS_KPL_PATH");
+
     public enum MessageFormat {
         /**
          * Kinesis sink directly publishes pulsar-payload as a message into the kinesis-stream.
@@ -151,4 +161,18 @@ public class KinesisSinkConfig extends BaseKinesisConfig implements Serializable
             help = "Enable aggregation. With aggregation, multiple user records could be packed into a single\n"
                     + " KinesisRecord. If disabled, each user record is sent in its own KinesisRecord.")
     private boolean aggregationEnabled = true;
+
+    @FieldDoc(
+            required = false,
+            defaultValue = "",
+            help = "Custom AWS STS endpoint"
+    )
+    private String awsStsEndpoint = "";
+
+    @FieldDoc(
+            required = false,
+            defaultValue = "",
+            help = "Custom AWS STS port to connect to"
+    )
+    private Integer awsStsPort;
 }
