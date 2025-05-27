@@ -69,7 +69,6 @@ public class DebeziumPostgreSqlSourceTester extends SourceTester<DebeziumPostgre
         sourceConfig.put("database.port", "5432");
         sourceConfig.put("database.user", "postgres");
         sourceConfig.put("database.password", "postgres");
-        sourceConfig.put("database.server.id", "184055");
         sourceConfig.put("topic.prefix", "dbserver1");
         sourceConfig.put("database.dbname", "postgres");
         sourceConfig.put("schema.include.list", "inventory");
