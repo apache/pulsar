@@ -58,7 +58,7 @@ public class DebeziumOracleDbSourceTester extends SourceTester<DebeziumOracleDbC
         sourceConfig.put("database.port", "1521");
         sourceConfig.put("database.user", "dbzuser");
         sourceConfig.put("database.password", "dbz");
-        sourceConfig.put("database.server.name", "XE");
+        sourceConfig.put("topic.prefix", "XE");
         sourceConfig.put("database.dbname", "XE");
         sourceConfig.put("snapshot.mode", "schema_only");
 
