@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarService;
@@ -46,6 +47,11 @@ public interface TopicPoliciesService extends AutoCloseable {
      * @param topicName topic name
      */
     CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName);
+
+    default CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName,
+                                                             boolean keepGlobalPoliciesAfterDeleting) {
+        return deleteTopicPoliciesAsync(topicName);
+    }
 
     /**
      * Update policies for a topic asynchronously.
