@@ -91,6 +91,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
+import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -1421,5 +1422,88 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         admin2.topics().deleteSubscription(topicName, subscriptionName);
         admin2.namespaces().setSchemaCompatibilityStrategy(sourceClusterAlwaysSchemaCompatibleNamespace,
                 SchemaCompatibilityStrategy.FORWARD);
+    }
+
+    /***
+     * Manually modifying topic policies by Rest API.
+     *   - Global topic level policies:
+     *     - Add: replicate
+     *     - Update: replicate
+     *     - Delete a single policy(it is equivalent to specify updating): delete both local and remote policies.
+     *   - Local topic level policies:
+     *     - Add: never replicate
+     *     - Update: never replicate
+     *     - Delete a single policy(it is equivalent to specify updating): delete local policies only.
+     * Delete Topic triggers that both local and global policies will be deleted in local cluster, but will not delete
+     * the remote cluster's global policies.
+     */
+    @Test
+    public void testTopicPoliciesReplicationRule() throws Exception {
+        // Init Pulsar resources.
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
+        final TopicName topicNameObj = TopicName.get(topicName);
+        final String subscriptionName = "s1";
+        admin1.topics().createNonPartitionedTopic(topicName);
+        Producer<byte[]> producer1 = client1.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topicName).create();
+        waitReplicatorStarted(topicName);
+        producer1.close();
+        assertTrue(pulsar2.getPulsarResources().getTopicResources().persistentTopicExists(topicNameObj).join());
+        admin1.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+        admin1.topics().createSubscription(subscriptionName, topicName, MessageId.earliest);
+        admin2.topics().createSubscription(subscriptionName, topicName, MessageId.earliest);
+
+        // Case 1: Global topic level policies -> Add: replicate.
+        PublishRate publishRateAddGlobal = new PublishRate(100, 10000);
+        admin1.topicPolicies(true).setPublishRate(topicName, publishRateAddGlobal);
+        // Case 4: Local topic level policies -> Add: never replicate.
+        PublishRate publishRateAddLocal = new PublishRate(200, 20000);
+        admin1.topicPolicies(false).setPublishRate(topicName, publishRateAddLocal);
+        waitChangeEventsReplicated(replicatedNamespace);
+        Thread.sleep(2000);
+        Awaitility.await().untilAsserted(() -> {
+            PublishRate valueGlobal = admin2.topicPolicies(true).getPublishRate(topicName);
+            assertEquals(valueGlobal, publishRateAddGlobal);
+            PublishRate valueLocal = admin2.topicPolicies(false).getPublishRate(topicName);
+            assertNull(valueLocal);
+        });
+
+        // Case 2: Global topic level policies -> Update: replicate.
+        PublishRate publishRateUpdateGlobal = new PublishRate(300, 30000);
+        admin1.topicPolicies(true).setPublishRate(topicName, publishRateUpdateGlobal);
+        // Case 5: Local topic level policies -> Update: never replicate.
+        PublishRate publishRateUpdateLocal = new PublishRate(400, 40000);
+        admin1.topicPolicies(false).setPublishRate(topicName, publishRateUpdateLocal);
+        waitChangeEventsReplicated(replicatedNamespace);
+        Thread.sleep(2000);
+        Awaitility.await().untilAsserted(() -> {
+            PublishRate valueGlobal = admin2.topicPolicies(true).getPublishRate(topicName);
+            assertEquals(valueGlobal, publishRateUpdateGlobal);
+            PublishRate valueLocal = admin2.topicPolicies(false).getPublishRate(topicName);
+            assertNull(valueLocal);
+        });
+
+        // Case 3: Global topic level policies -> Delete: delete both local and remote policies.
+        admin1.topicPolicies(true).removePublishRate(topicName);
+        waitChangeEventsReplicated(replicatedNamespace);
+        Thread.sleep(2000);
+        Awaitility.await().untilAsserted(() -> {
+            PublishRate valueGlobal = admin2.topicPolicies(true).getPublishRate(topicName);
+            assertNull(valueGlobal);
+        });
+
+        // Case 6: Local topic level policies -> Delete: never replicate.
+        PublishRate publishRateAddLocal2 = new PublishRate(500, 50000);
+        admin2.topicPolicies(false).setPublishRate(topicName, publishRateAddLocal2);
+        Awaitility.await().untilAsserted(() -> {
+            PublishRate valueLocal = admin2.topicPolicies(false).getPublishRate(topicName);
+            assertEquals(valueLocal, publishRateAddLocal2);
+        });
+        admin1.topicPolicies(false).removePublishRate(topicName);
+        waitChangeEventsReplicated(replicatedNamespace);
+        Thread.sleep(2000);
+        Awaitility.await().untilAsserted(() -> {
+            PublishRate valueLocal = admin2.topicPolicies(false).getPublishRate(topicName);
+            assertEquals(valueLocal, publishRateAddLocal2);
+        });
     }
 }
