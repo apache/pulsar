@@ -45,7 +45,6 @@ import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -175,16 +174,8 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
         super.testReplicationCountMetrics();
     }
 
-    @DataProvider
-    public Object[][] removeClusterLevels() {
-        return new Object[][] {
-            //{"namespace"},
-            {"topic"}
-        };
-    }
-
-    @Test(timeOut = 60_000, dataProvider = "removeClusterLevels")
-    public void testRemoveCluster(String removeClusterLevel) throws Exception {
+    @Test(timeOut = 60_000)
+    public void testRemoveCluster() throws Exception {
         // Initialize.
         final String ns1 = defaultTenant + "/" + "ns_73b1a31afce34671a5ddc48fe5ad7fc8";
         final String topic = "persistent://" + ns1 + "/___tp-5dd50794-7af8-4a34-8a0b-06188052c66a";
@@ -238,49 +229,23 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
 
         // The topics under the namespace of the cluster-1 will be deleted.
         // Verify the result.
-        if ("namespace".equals(removeClusterLevel)) {
-            admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster2)));
-        } else {
-            admin1.topicPolicies(true).setReplicationClusters(topic, Arrays.asList(cluster2));
-            admin2.topicPolicies(true).setReplicationClusters(topic, Arrays.asList(cluster2));
-        }
+        admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster2)));
         Awaitility.await().atMost(Duration.ofSeconds(60)).ignoreExceptions().untilAsserted(() -> {
             Map<String, CompletableFuture<Optional<Topic>>> tps = pulsar1.getBrokerService().getTopics();
-            System.out.println("===> verify topics p0");
             assertFalse(tps.containsKey(topicP0));
-            System.out.println("===> verify topics p1");
             assertFalse(tps.containsKey(topicP1));
-            if ("namespace".equals(removeClusterLevel)) {
-                assertFalse(tps.containsKey(topicChangeEvents));
-                assertFalse(pulsar1.getNamespaceService()
-                        .checkTopicExistsAsync(TopicName.get(topicChangeEvents))
-                        .get(5, TimeUnit.SECONDS).isExists());
-            } else {
-                assertTrue(tps.containsKey(topicChangeEvents));
-                assertTrue(pulsar1.getNamespaceService()
-                        .checkTopicExistsAsync(TopicName.get(topicChangeEvents))
-                        .get(5, TimeUnit.SECONDS).isExists());
-            }
+            assertFalse(tps.containsKey(topicChangeEvents));
+            assertFalse(pulsar1.getNamespaceService()
+                    .checkTopicExistsAsync(TopicName.get(topicChangeEvents))
+                    .get(5, TimeUnit.SECONDS).isExists());
             // Verify: schema will be removed in local cluster, and remote cluster will not.
-            System.out.println("===> verify schemas");
             List<CompletableFuture<StoredSchema>> schemaList13
                     = pulsar1.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
             assertEquals(schemaList13.size(), 0);
             List<CompletableFuture<StoredSchema>> schemaList23
                     = pulsar2.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
             assertEquals(schemaList23.size(), 1);
-            System.out.println("===> verify policies");
             // Verify: the topic policies will be removed in local cluster, but remote cluster will not.
-            if ("topic".equals(removeClusterLevel)) {
-                Optional<TopicPolicies> localPolicies1 = pulsar1.getTopicPoliciesService()
-                        .getTopicPoliciesAsync(TopicName.get(topic), LOCAL_ONLY).join();
-                assertTrue(localPolicies1.isEmpty(), "Local cluster should have deleted local policies.");
-                Optional<TopicPolicies> globalPolicies1 = pulsar1.getTopicPoliciesService()
-                        .getTopicPoliciesAsync(TopicName.get(topic), GLOBAL_ONLY).join();
-                assertTrue(globalPolicies1.isPresent(), "Local cluster should have global policies.");
-                assertEquals(globalPolicies1.get().getPublishRate(), publishRateAddGlobal,
-                        "Remote cluster should have global policies: publish rate.");
-            }
             Optional<TopicPolicies> globalPolicies2 = pulsar2.getTopicPoliciesService()
                     .getTopicPoliciesAsync(TopicName.get(topic), GLOBAL_ONLY).join();
             assertTrue(globalPolicies2.isPresent(), "Remote cluster should have global policies.");

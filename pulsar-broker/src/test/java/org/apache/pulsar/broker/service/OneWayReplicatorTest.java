@@ -1435,7 +1435,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
      *     - Update: never replicate
      *     - Delete a single policy(it is equivalent to specify updating): delete local policies only.
      * Delete Topic triggers that both local and global policies will be deleted in local cluster, but will not delete
-     * the remote cluster's global policies.
+     * the remote cluster's global policies. This test case will be covered by
+     * "OneWayReplicatorUsingGlobalPartitionedTest.testRemoveCluster".
      */
     @Test
     public void testTopicPoliciesReplicationRule() throws Exception {
