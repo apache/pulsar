@@ -1935,4 +1935,8 @@ public interface TopicPolicies {
      * Set the replication clusters for the topic.
      */
     CompletableFuture<Void> setReplicationClusters(String topic, List<String> clusterIds);
+
+    Set<String> getReplicationClusters(String topic, boolean applied) throws PulsarAdminException;
+
+    void removeReplicationClusters(String topic) throws PulsarAdminException;
 }

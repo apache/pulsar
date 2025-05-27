@@ -3357,7 +3357,7 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
-    protected CompletableFuture<Void> internalSetReplicationClusters(List<String> clusterIds) {
+    protected CompletableFuture<Void> internalSetReplicationClusters(List<String> clusterIds, boolean isGlobal) {
         if (CollectionUtils.isEmpty(clusterIds)) {
             return CompletableFuture.failedFuture(new RestException(Status.PRECONDITION_FAILED,
                     "ClusterIds should not be null or empty"));
@@ -3405,6 +3405,7 @@ public class PersistentTopicsBase extends AdminResource {
                     getTopicPoliciesAsyncWithRetry(topicName).thenCompose(op -> {
                             TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
                             topicPolicies.setReplicationClusters(clusterIds);
+                            topicPolicies.setIsGlobal(isGlobal);
                             return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
                                     .thenRun(() -> {
                                         log.info("[{}] Successfully set replication clusters for namespace={}, "

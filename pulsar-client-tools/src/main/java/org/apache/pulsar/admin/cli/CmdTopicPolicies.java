@@ -21,6 +21,7 @@ package org.apache.pulsar.admin.cli;
 import static org.apache.pulsar.admin.cli.utils.CmdUtils.maxValueCheck;
 import static org.apache.pulsar.admin.cli.utils.CmdUtils.positiveCheck;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -168,6 +169,8 @@ public class CmdTopicPolicies extends CmdBase {
                 new GetDispatcherPauseOnAckStatePersistent());
         addCommand("remove-dispatcher-pause-on-ack-state-persistent",
                 new RemoveDispatcherPauseOnAckStatePersistent());
+        addCommand("set-replication-clusters",
+                new SetReplicationClusters());
     }
 
     @Command(description = "Get entry filters for a topic")
@@ -1990,6 +1993,63 @@ public class CmdTopicPolicies extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
             getTopicPolicies(isGlobal).removeDispatcherPauseOnAckStatePersistent(persistentTopic);
+        }
+    }
+
+    @Command(description = "Set the replication clusters for a topic")
+    private class SetReplicationClusters extends CliCommand {
+        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
+
+        @Option(names = { "--clusters",
+                "-c" }, description = "Replication Cluster Ids list (comma separated values)", required = true)
+        private String clusterIds;
+
+        @Option(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
+                + "If set to true, the policy will be replicate to other clusters asynchronously")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(topicName);
+            List<String> clusters = Lists.newArrayList(clusterIds.split(","));
+            getTopicPolicies(isGlobal).setReplicationClusters(persistentTopic, clusters);
+        }
+    }
+
+    @Command(description = "Get the replication clusters for a topic")
+    private class GetReplicationClusters extends CliCommand {
+        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
+
+        @Option(names = { "-ap", "--applied" }, description = "Get the applied policy of the topic")
+        private boolean applied = false;
+
+        @Option(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
+                + "If set to true, the policy will be replicate to other clusters asynchronously")
+        private boolean isGlobal = false;
+
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(topicName);
+            print(getTopicPolicies(isGlobal).getReplicationClusters(persistentTopic, applied));
+        }
+    }
+
+    @Command(description = "Remove the replication clusters for a topic")
+    private class RemoveReplicationClusters extends CliCommand {
+        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
+
+        @Option(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
+                + "If set to true, the policy will be replicate to other clusters asynchronously")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(topicName);
+            getTopicPolicies(isGlobal).removeReplicationClusters(persistentTopic);
         }
     }
 

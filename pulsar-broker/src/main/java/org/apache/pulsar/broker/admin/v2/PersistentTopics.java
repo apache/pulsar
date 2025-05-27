@@ -2329,6 +2329,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "List of replication clusters", required = true) List<String> clusterIds) {
@@ -2345,11 +2346,17 @@ public class PersistentTopics extends PersistentTopicsBase {
                             || !clusterIds.contains(pulsar().getConfig().getClusterName());
                     if (metadata.partitions < 1 && clustersDoesNotContainsLocal) {
                         return FutureUtil.failedFuture(new RestException(Response.Status.PRECONDITION_FAILED,
-                                "Non-partitioned topic can not remove local cluster from the replication clusters"));
+                            "Non-partitioned topic can not remove local cluster from the topic-level replication"
+                            + " clusters policies"));
+                    }
+                    if (clustersDoesNotContainsLocal && !isGlobal) {
+                        return FutureUtil.failedFuture(new RestException(Response.Status.PRECONDITION_FAILED,
+                            "Topics can not remove local cluster from a local(non-global) topic-level replication"
+                            + " clusters, please call the api with isGlobal=true"));
                     }
                     return CompletableFuture.completedFuture(null);
                 }))
-                .thenCompose(__ -> internalSetReplicationClusters(clusterIds))
+                .thenCompose(__ -> internalSetReplicationClusters(clusterIds, isGlobal))
                 .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     handleTopicPolicyException("setReplicationClusters", ex, asyncResponse);
