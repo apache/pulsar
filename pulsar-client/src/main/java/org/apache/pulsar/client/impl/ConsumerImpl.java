@@ -1964,8 +1964,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
-    private DecryptResult decryptPayloadIfNeeded(MessageIdData messageId, int redeliveryCount, MessageMetadata msgMetadata,
-                                           ByteBuf payload, ClientCnx currentCnx) {
+    private DecryptResult decryptPayloadIfNeeded(MessageIdData messageId, int redeliveryCount,
+                                                 MessageMetadata msgMetadata,
+                                                 ByteBuf payload, ClientCnx currentCnx) {
 
         if (msgMetadata.getEncryptionKeysCount() == 0) {
             return DecryptResult.success(payload.retain());
