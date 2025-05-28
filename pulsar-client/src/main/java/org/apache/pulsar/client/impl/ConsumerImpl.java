@@ -1426,15 +1426,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return;
         }
 
-        ByteBuf decryptedPayload = decryptPayloadIfNeeded(messageId, redeliveryCount, msgMetadata, headersAndPayload,
+        DecryptResult decryptResult = decryptPayloadIfNeeded(messageId, redeliveryCount, msgMetadata, headersAndPayload,
                 cnx);
 
-        boolean isMessageUndecryptable = isMessageUndecryptable(msgMetadata);
-
-        if (decryptedPayload == null) {
+        if (decryptResult.shouldDiscard()) {
             // Message was discarded or CryptoKeyReader isn't implemented
             return;
         }
+
+        boolean isMessageUndecryptable = !decryptResult.success;
+
+        ByteBuf decryptedPayload = decryptResult.decryptedPayload;
 
         // uncompress decryptedPayload and release decryptedPayload-ByteBuf
         ByteBuf uncompressedPayload = (isMessageUndecryptable || isChunkedMessage) ? decryptedPayload.retain()
@@ -1921,11 +1923,37 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return connectionHandler.lastConnectionClosedTimestamp;
     }
 
-    private ByteBuf decryptPayloadIfNeeded(MessageIdData messageId, int redeliveryCount, MessageMetadata msgMetadata,
+    private static class DecryptResult {
+        private final boolean success;
+        private final ByteBuf decryptedPayload;
+
+        private DecryptResult(boolean success, ByteBuf decryptedPayload) {
+            this.success = success;
+            this.decryptedPayload = decryptedPayload;
+        }
+
+        public boolean shouldDiscard() {
+            return this.decryptedPayload == null;
+        }
+
+        public static DecryptResult success(ByteBuf decryptedPayload) {
+            return new DecryptResult(true, decryptedPayload);
+        }
+
+        public static DecryptResult failure(ByteBuf decryptedPayload) {
+            return new DecryptResult(false, decryptedPayload);
+        }
+
+        public static DecryptResult discard() {
+            return new DecryptResult(false, null);
+        }
+    }
+
+    private DecryptResult decryptPayloadIfNeeded(MessageIdData messageId, int redeliveryCount, MessageMetadata msgMetadata,
                                            ByteBuf payload, ClientCnx currentCnx) {
 
         if (msgMetadata.getEncryptionKeysCount() == 0) {
-            return payload.retain();
+            return DecryptResult.success(payload.retain());
         }
         int batchSize = msgMetadata.getNumMessagesInBatch();
         // If KeyReader is not configured throw exception based on config param
@@ -1939,7 +1967,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         ByteBuffer nioDecryptedData = decryptedData.nioBuffer(0, maxDecryptedSize);
         if (msgCrypto.decrypt(() -> msgMetadata, payload.nioBuffer(), nioDecryptedData, conf.getCryptoKeyReader())) {
             decryptedData.writerIndex(nioDecryptedData.limit());
-            return decryptedData;
+            return DecryptResult.success(decryptedData);
         }
 
         decryptedData.release();
@@ -1947,7 +1975,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return handleCryptoFailure(payload, messageId, currentCnx, redeliveryCount, batchSize, false);
     }
 
-    private ByteBuf handleCryptoFailure(ByteBuf payload, MessageIdData messageId, ClientCnx currentCnx,
+    private DecryptResult handleCryptoFailure(ByteBuf payload, MessageIdData messageId, ClientCnx currentCnx,
             int redeliveryCount, int batchSize, boolean cryptoReaderNotExist) {
 
         switch (conf.getCryptoFailureAction()) {
@@ -1960,7 +1988,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 log.warn("[{}][{}][{}][{}] Decryption failed. Consuming encrypted message since config is set to"
                         + " consume.", topic, subscription, consumerName, messageId);
             }
-            return payload.retain();
+            return DecryptResult.failure(payload.retain());
         case DISCARD:
             if (cryptoReaderNotExist) {
                 log.warn(
@@ -1975,7 +2003,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         messageId.getBatchIndex());
             }
             discardMessage(messageId, currentCnx, ValidationError.DecryptionError, batchSize);
-            return null;
+            return DecryptResult.discard();
         case FAIL:
             if (cryptoReaderNotExist) {
                 log.error(
@@ -1990,11 +2018,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
             MessageId m = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), partitionIndex);
             unAckedMessageTracker.add(m, redeliveryCount);
-            return null;
+            return DecryptResult.discard();
         default:
             log.warn("[{}][{}][{}] Invalid crypto failure state found, continue message consumption.", topic,
                     subscription, consumerName);
-            return payload.retain();
+            return DecryptResult.failure(payload.retain());
         }
     }
 
