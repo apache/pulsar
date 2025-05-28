@@ -339,7 +339,6 @@ public class RangeEntryCacheImpl implements EntryCache {
                             + "managedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis and "
                             + "managedLedgerMaxReadsInFlightSizeInMB)", lh.getId(), getName(),
                     estimatedReadSize, numberOfEntries);
-            log.warn(message);
             originalCallback.readEntriesFailed(new ManagedLedgerException.TooManyRequestsException(message), ctx);
             return;
         }
