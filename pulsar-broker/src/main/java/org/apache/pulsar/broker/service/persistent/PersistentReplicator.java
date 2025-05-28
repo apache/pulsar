@@ -104,7 +104,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
     @Getter
     protected final ReplicatorStatsImpl stats = new ReplicatorStatsImpl();
 
-    protected volatile boolean waitForCursorRewinding = false;
+    protected volatile int waitForCursorRewindingRefCnf = 0;
 
     protected enum ReasonOfWaitForCursorRewinding {
         Failed_Publishing,
@@ -756,7 +756,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
         Position readPos;
         int readingEntries;
         volatile List<Entry> readoutEntries;
-        int completedEntries;
+        volatile int completedEntries;
         volatile boolean skipReadResultDueToCursorRewound;
         final String replicatorId;
 
@@ -832,7 +832,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 log.info("[{}] Skip the reading because there is a pending read task", replicatorId);
                 return null;
             }
-            if (waitForCursorRewinding) {
+            if (waitForCursorRewindingRefCnf > 0) {
                 log.info("[{}] Skip the reading due to new detected schema", replicatorId);
                 return null;
             }
@@ -901,7 +901,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
         synchronized (inFlightTasks) {
             boolean hasCanceledPendingRead = cursor.cancelPendingReadRequest();
             reasonOfWaitForCursorRewinding = reason;
-            waitForCursorRewinding = true;
+            waitForCursorRewindingRefCnf += 1;
             cancelFollowingReadingTasks(hasCanceledPendingRead);
         }
     }
@@ -910,7 +910,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
         // TODO 如果 “beforeTerminateOrCursorRewinding” 被多次调用，那么所有的锁都释放后，才能执行 “doRewindCursor”。
         synchronized (inFlightTasks) {
             cursor.rewind();
-            waitForCursorRewinding = false;
+            waitForCursorRewindingRefCnf -= 1;
             reasonOfWaitForCursorRewinding = null;
         }
         if (triggerReadMoreEntries) {

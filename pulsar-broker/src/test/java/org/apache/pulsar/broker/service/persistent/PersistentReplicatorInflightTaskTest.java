@@ -273,7 +273,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
         inFlightTasks.clear();
 
         // Save original state
-        boolean originalWaitForCursorRewinding = replicator.waitForCursorRewinding;
+        int originalWaitForCursorRewinding = replicator.waitForCursorRewindingRefCnf;
         AbstractReplicator.State originalState = replicator.getState();
 
         try {
@@ -301,11 +301,11 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
 
             // Test Case 3: With waitForCursorRewinding=true - should return null
             inFlightTasks.clear();
-            replicator.waitForCursorRewinding = true;
+            replicator.waitForCursorRewindingRefCnf = 1;
             InFlightTask task3 = replicator.acquirePermitsIfNotFetchingSchema();
             Assert.assertNull(task3, "Should return null when waiting for cursor rewinding");
             // Reset for next test
-            replicator.waitForCursorRewinding = false;
+            replicator.waitForCursorRewindingRefCnf = 0;
 
             // Test Case 4: With state != Started - should return null
             // We need to use reflection to modify the state since it's protected by AtomicReferenceFieldUpdater
@@ -357,7 +357,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
             log.info("Completed testAcquirePermitsIfNotFetchingSchema");
         } finally {
             // Restore original state
-            replicator.waitForCursorRewinding = originalWaitForCursorRewinding;
+            replicator.waitForCursorRewindingRefCnf = originalWaitForCursorRewinding;
             BrokerServiceInternalMethodInvoker.replicatorSetState(replicator, originalState);
             // Restore original tasks
             inFlightTasks.clear();
