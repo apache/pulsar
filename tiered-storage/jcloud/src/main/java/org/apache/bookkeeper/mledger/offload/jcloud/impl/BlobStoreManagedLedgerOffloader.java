@@ -204,10 +204,15 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             final BlobStore writeBlobStore = getBlobStore(config.getBlobStoreLocation());
             log.info("offload {} uuid {} extraMetadata {} to {} {}", readHandle.getId(), uuid, extraMetadata,
                 config.getBlobStoreLocation(), writeBlobStore);
-            if (readHandle.getLength() == 0 || !readHandle.isClosed() || readHandle.getLastAddConfirmed() < 0) {
+            if (!readHandle.isClosed() || readHandle.getLastAddConfirmed() < 0) {
                 promise.completeExceptionally(
                         new IllegalArgumentException("An empty or open ledger should never be offloaded"));
                 return;
+            }
+            if (readHandle.getLength() <= 0) {
+                log.warn("[{}] Ledger [{}] has zero length, but it contains {} entries."
+                    + " Attempting to offload ledger since it contains entries.", topicName, readHandle.getId(),
+                    readHandle.getLastAddConfirmed() + 1);
             }
             OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create()
                 .withLedgerMetadata(readHandle.getLedgerMetadata())
