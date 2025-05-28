@@ -185,6 +185,10 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Interval of time to sending the ping to keep alive. This value greater than 0 means enabled")
     private int webSocketPingDurationSeconds = -1;
 
+    @FieldContext(doc = "Interval of time to check if the access token is still valid."
+            + " This value greater than 0 means enabled")
+    private int authenticationRefreshCheckSeconds = -1;
+
     @FieldContext(doc = "When this parameter is not empty, unauthenticated users perform as anonymousUserRole")
     private String anonymousUserRole = null;
 
