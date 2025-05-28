@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.resourcegroup;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
@@ -381,7 +381,7 @@ public class ResourceGroup implements AutoCloseable{
                         ? -1 : rgConfig.getDispatchRateInMsgs();
                 break;
             case ReplicationDispatch:
-                checkNotNull(remoteCluster, "remoteCluster cannot be null when monClass is ReplicationDispatch");
+                requireNonNull(remoteCluster, "remoteCluster cannot be null when monClass is ReplicationDispatch");
                 DispatchRate dispatchRate =
                         rgConfig.getReplicatorDispatchRate().get(getReplicatorDispatchRateLimiterKey(remoteCluster));
                 if (dispatchRate != null) {
@@ -730,16 +730,16 @@ public class ResourceGroup implements AutoCloseable{
                 usageStats.usedValues.messages = newMessageCount;
                 usageStats.lastResourceUsageReadTimeMSecsSinceEpoch = System.currentTimeMillis();
                 String remoteCluster = key.getRemoteCluster() != null ? key.getRemoteCluster() : "";
-                rgRemoteUsageReportsBytesTotal.labels(this.ruConsumer.getID(),
-                                ResourceGroupMonitoringClass.Publish.name(), broker, remoteCluster)
-                        .inc(newByteCount);
-                rgRemoteUsageReportsMessagesTotal.labels(this.ruConsumer.getID(),
-                                ResourceGroupMonitoringClass.Publish.name(), broker, remoteCluster)
-                        .inc(newMessageCount);
                 rgRemoteUsageReportsBytes.labels(this.ruConsumer.getID(),
                                 ResourceGroupMonitoringClass.Publish.name(), broker, remoteCluster)
-                        .set(newByteCount);
+                        .inc(newByteCount);
                 rgRemoteUsageReportsMessages.labels(this.ruConsumer.getID(),
+                                ResourceGroupMonitoringClass.Publish.name(), broker, remoteCluster)
+                        .inc(newMessageCount);
+                rgRemoteUsageReportsBytesGauge.labels(this.ruConsumer.getID(),
+                                ResourceGroupMonitoringClass.Publish.name(), broker, remoteCluster)
+                        .set(newByteCount);
+                rgRemoteUsageReportsMessagesGauge.labels(this.ruConsumer.getID(),
                                 ResourceGroupMonitoringClass.Publish.name(), broker, remoteCluster)
                         .set(newMessageCount);
             } finally {
@@ -778,7 +778,7 @@ public class ResourceGroup implements AutoCloseable{
                             ? -1 : rgConfig.getDispatchRateInMsgs();
                     break;
                 case ReplicationDispatch:
-                    checkNotNull(key.getRemoteCluster(),
+                    requireNonNull(key.getRemoteCluster(),
                             "remoteCluster cannot be null when monClass is ReplicationDispatch");
                     DispatchRate dispatchRate = rgConfig.getReplicatorDispatchRate()
                             .get(getReplicatorDispatchRateLimiterKey(key.getRemoteCluster()));

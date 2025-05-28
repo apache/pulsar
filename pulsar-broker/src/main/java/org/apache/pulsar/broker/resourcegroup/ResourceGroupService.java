@@ -25,9 +25,11 @@ import com.google.common.annotations.VisibleForTesting;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Summary;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -637,7 +639,7 @@ public class ResourceGroupService implements AutoCloseable{
     @VisibleForTesting
     protected static double getRgQuotaByteCount(String rgName, String monClassName, String localCluster,
                                                 String remoteCluster) {
-        return rgCalculatedQuotaBytesTotal.labels(rgName, monClassName, localCluster,
+        return rgCalculatedQuotaBytes.labels(rgName, monClassName, localCluster,
                 remoteCluster != null ? remoteCluster : "").get();
     }
 
@@ -645,7 +647,7 @@ public class ResourceGroupService implements AutoCloseable{
     @VisibleForTesting
     protected static double getRgQuotaByte(String rgName, String monClassName, String localCluster,
                                            String remoteCluster) {
-        return rgCalculatedQuotaBytes.labels(rgName, monClassName, localCluster,
+        return rgCalculatedQuotaBytesGauge.labels(rgName, monClassName, localCluster,
                 remoteCluster != null ? remoteCluster : "").get();
     }
 
@@ -653,7 +655,7 @@ public class ResourceGroupService implements AutoCloseable{
     @VisibleForTesting
     protected static double getRgQuotaMessageCount(String rgName, String monClassName, String localCluster,
                                                    String remoteCluster) {
-        return rgCalculatedQuotaMessagesTotal.labels(rgName, monClassName, localCluster,
+        return rgCalculatedQuotaMessages.labels(rgName, monClassName, localCluster,
                 remoteCluster != null ? remoteCluster : "").get();
     }
 
@@ -661,7 +663,7 @@ public class ResourceGroupService implements AutoCloseable{
     @VisibleForTesting
     protected static double getRgQuotaMessage(String rgName, String monClassName, String localCluster,
                                               String remoteCluster) {
-        return rgCalculatedQuotaMessages.labels(rgName, monClassName, localCluster,
+        return rgCalculatedQuotaMessagesGauge.labels(rgName, monClassName, localCluster,
                 remoteCluster != null ? remoteCluster : "").get();
     }
 
@@ -911,17 +913,17 @@ public class ResourceGroupService implements AutoCloseable{
                                      String localCluster, String remoteCluster) {
         // Guard against unconfigured quota settings, for which computeLocalQuota will return negative.
         if (updatedQuota.messages >= 0) {
-            rgCalculatedQuotaMessagesTotal.labels(rgName, monClass.name(), localCluster,
+            rgCalculatedQuotaMessages.labels(rgName, monClass.name(), localCluster,
                             remoteCluster != null ? remoteCluster : "")
                     .inc(updatedQuota.messages * resourceUsagePublishPeriodInSeconds);
-            rgCalculatedQuotaMessages.labels(rgName, monClass.name(), localCluster,
+            rgCalculatedQuotaMessagesGauge.labels(rgName, monClass.name(), localCluster,
                     remoteCluster != null ? remoteCluster : "").set(updatedQuota.messages);
         }
         if (updatedQuota.bytes >= 0) {
-            rgCalculatedQuotaBytesTotal.labels(rgName, monClass.name(), localCluster,
+            rgCalculatedQuotaBytes.labels(rgName, monClass.name(), localCluster,
                             remoteCluster != null ? remoteCluster : "")
                     .inc(updatedQuota.bytes * resourceUsagePublishPeriodInSeconds);
-            rgCalculatedQuotaBytes.labels(rgName, monClass.name(), localCluster,
+            rgCalculatedQuotaBytesGauge.labels(rgName, monClass.name(), localCluster,
                     remoteCluster != null ? remoteCluster : "").set(updatedQuota.bytes);
         }
     }
