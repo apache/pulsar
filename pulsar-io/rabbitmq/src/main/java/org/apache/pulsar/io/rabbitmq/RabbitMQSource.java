@@ -98,10 +98,9 @@ public class RabbitMQSource extends PushSource<byte[]> {
                 throws IOException {
             long deliveryTag = envelope.getDeliveryTag();
             source.consume(new RabbitMQRecord(Optional.ofNullable(envelope.getRoutingKey()), body, () -> {
-                // positively acknowledge all deliveries up to this delivery tag to reduce network traffic
-                // since manual message acknowledgments are turned on by default
+                // acknowledge this delivery tag to RabbitMQ
                 try {
-                    this.getChannel().basicAck(deliveryTag, true);
+                    this.getChannel().basicAck(deliveryTag, false);
                 } catch (IOException e) {
                     logger.error("Error while acknowledging envelope {}.", envelope, e);
                 }
