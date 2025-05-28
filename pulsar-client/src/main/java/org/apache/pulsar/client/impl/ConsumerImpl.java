@@ -1923,6 +1923,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return connectionHandler.lastConnectionClosedTimestamp;
     }
 
+    /**
+     * Represents the outcome of a message decryption attempt for the consumer.
+     */
     private static class DecryptResult {
         private final boolean success;
         private final ByteBuf decryptedPayload;
@@ -1932,18 +1935,30 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             this.decryptedPayload = decryptedPayload;
         }
 
+        /**
+         * Returns true if the message should be discarded and not delivered to the consumer user.
+         */
         public boolean shouldDiscard() {
             return this.decryptedPayload == null;
         }
 
+        /**
+         * Creates a result indicating decryption succeeded and the payload is ready for use.
+         */
         public static DecryptResult success(ByteBuf decryptedPayload) {
             return new DecryptResult(true, decryptedPayload);
         }
 
+        /**
+         * Creates a result indicating decryption failed, but the message should still be delivered.
+         */
         public static DecryptResult failure(ByteBuf decryptedPayload) {
             return new DecryptResult(false, decryptedPayload);
         }
 
+        /**
+         * Creates a result indicating the message should be discarded.
+         */
         public static DecryptResult discard() {
             return new DecryptResult(false, null);
         }
