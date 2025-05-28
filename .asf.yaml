@@ -34,6 +34,8 @@ github:
     issues: true
     # Enable projects for project management boards
     projects: true
+    # Enable discussions
+    discussions: true
   enabled_merge_buttons:
     squash:  true
     merge:   false

@@ -156,6 +156,10 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         p1.close();
 
         admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(admin2.topics().getList(ns1).contains(topic1));
+        });
+        admin2.topics().createSubscription(topic1, subscription1, MessageId.earliest);
         org.apache.pulsar.client.api.Consumer<String> c1 = client2.newConsumer(Schema.STRING).topic(topic1)
                 .subscriptionName(subscription1).subscribe();
         Message<String> msg2 = c1.receive(2, TimeUnit.SECONDS);
@@ -207,10 +211,10 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
             Map<String, CompletableFuture<Optional<Topic>>> tps = pulsar1.getBrokerService().getTopics();
             assertFalse(tps.containsKey(topic));
             assertFalse(tps.containsKey(topicChangeEvents));
-            assertFalse(pulsar1.getNamespaceService().checkTopicExists(TopicName.get(topic))
+            assertFalse(pulsar1.getNamespaceService().checkTopicExistsAsync(TopicName.get(topic))
                     .get(5, TimeUnit.SECONDS).isExists());
             assertFalse(pulsar1.getNamespaceService()
-                    .checkTopicExists(TopicName.get(topicChangeEvents))
+                    .checkTopicExistsAsync(TopicName.get(topicChangeEvents))
                     .get(5, TimeUnit.SECONDS).isExists());
         });
 
@@ -218,5 +222,11 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         p.close();
         admin2.topics().delete(topic);
         admin2.namespaces().deleteNamespace(ns1);
+    }
+
+    @Override
+    @Test(dataProvider = "enableDeduplication", enabled = false)
+    public void testIncompatibleMultiVersionSchema(boolean enableDeduplication) throws Exception {
+        super.testIncompatibleMultiVersionSchema(enableDeduplication);
     }
 }

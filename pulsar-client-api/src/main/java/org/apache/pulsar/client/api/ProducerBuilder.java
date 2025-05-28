@@ -294,6 +294,19 @@ public interface ProducerBuilder<T> extends Cloneable {
     ProducerBuilder<T> compressionType(CompressionType compressionType);
 
     /**
+     * Sets the minimum uncompressed message body size required to enable compression.
+     * <p>
+     * When a message's body size exceeds this threshold (in bytes), compression will be applied
+     * using the configured {@link #compressionType(CompressionType)}. Messages smaller than this
+     * threshold will not be compressed.
+     * <p>
+     * Default: 4 KB
+     *
+     * @param compressionMinMsgBodySize the minimum uncompressed message body size required to enable compression
+     */
+    ProducerBuilder<T> compressionMinMsgBodySize(int compressionMinMsgBodySize);
+
+    /**
      * Set a custom message routing policy by passing an implementation of MessageRouter.
      *
      * @param messageRouter
@@ -328,12 +341,11 @@ public interface ProducerBuilder<T> extends Cloneable {
      * of the pulsar producer and consumer is recommended to use this feature:
      *
      * <pre>
-     * 1. This feature is currently only supported for non-shared subscriptions and persistent topics.
-     * 2. Disable batching to use chunking feature.
-     * 3. Pulsar-client stores published messages in buffer cache until it receives acknowledgement from the broker.
+     * 1. Disable batching to use chunking feature.
+     * 2. Pulsar-client stores published messages in buffer cache until it receives acknowledgement from the broker.
      * Therefore, it's best practice to reduce the "maxPendingMessages" size to avoid the producer occupying large
      * amounts of memory with buffered messages.
-     * 4. Set message-ttl on the namespace to clean up incomplete chunked messages.
+     * 3. Set message-ttl on the namespace to clean up incomplete chunked messages.
      * (If a producer fails to publish an entire large message, the consumer will be unable to consume and acknowledge
      * those messages. These messages can only be discarded by message TTL or by configuring
      * {@link ConsumerBuilder#expireTimeOfIncompleteChunkedMessage}.

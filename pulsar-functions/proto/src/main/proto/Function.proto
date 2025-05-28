@@ -112,6 +112,7 @@ message ConsumerSpec {
     map<string, string> consumerProperties = 6;
     CryptoSpec cryptoSpec = 7;
     bool poolMessages = 8;
+    MessagePayloadProcessorSpec messagePayloadProcessorSpec = 9;
 }
 
 message ProducerSpec {
@@ -121,6 +122,7 @@ message ProducerSpec {
     CryptoSpec cryptoSpec = 4;
     string batchBuilder = 5;
     CompressionType compressionType = 6;
+    BatchingSpec batchingSpec = 7;
 }
 
 message CryptoSpec {
@@ -145,6 +147,20 @@ message CryptoSpec {
     // define the action if consumer fail to decrypt data
     // one of FAIL, DISCARD, CONSUME
     FailureAction consumerCryptoFailureAction = 5;
+}
+
+message MessagePayloadProcessorSpec {
+    string className = 1;
+    string configs = 2;
+}
+
+message BatchingSpec {
+    bool enabled = 1;
+    int32 batchingMaxPublishDelayMs = 2;
+    int32 roundRobinRouterBatchingPartitionSwitchFrequency = 3;
+    int32 batchingMaxMessages = 4;
+    int32 batchingMaxBytes = 5;
+    string batchBuilder = 6;
 }
 
 message SourceSpec {

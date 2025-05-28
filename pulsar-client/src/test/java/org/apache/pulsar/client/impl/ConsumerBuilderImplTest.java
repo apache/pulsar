@@ -566,7 +566,7 @@ public class ConsumerBuilderImplTest {
         assertEquals(configurationData.getAutoUpdatePartitionsIntervalSeconds(), 60);
         assertNull(configurationData.getReplicateSubscriptionState());
         assertFalse(configurationData.isResetIncludeHead());
-        assertFalse(configurationData.isBatchIndexAckEnabled());
+        assertTrue(configurationData.isBatchIndexAckEnabled());
         assertFalse(configurationData.isAckReceiptEnabled());
         assertFalse(configurationData.isPoolMessages());
         assertFalse(configurationData.isStartPaused());

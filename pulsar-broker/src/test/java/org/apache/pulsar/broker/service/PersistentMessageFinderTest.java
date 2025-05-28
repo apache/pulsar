@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -60,6 +61,8 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageFinder;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -98,7 +101,8 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         headers.writeInt(msgMetadataSize);
         messageMetadata.writeTo(headers);
         ByteBuf headersAndPayload = ByteBufPair.coalesce(ByteBufPair.get(headers, data));
-        byte[] byteMessage = headersAndPayload.nioBuffer().array();
+        byte[] byteMessage = new byte[headersAndPayload.readableBytes()];
+        headersAndPayload.readBytes(byteMessage);
         headersAndPayload.release();
         return byteMessage;
     }
@@ -123,7 +127,8 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     public static byte[] appendBrokerTimestamp(ByteBuf headerAndPayloads) throws Exception {
         ByteBuf msgWithEntryMeta =
                 Commands.addBrokerEntryMetadata(headerAndPayloads, getBrokerEntryMetadataInterceptors(), 1);
-        byte[] byteMessage = msgWithEntryMeta.nioBuffer().array();
+        byte[] byteMessage = new byte[msgWithEntryMeta.readableBytes()];
+        msgWithEntryMeta.readBytes(byteMessage);
         msgWithEntryMeta.release();
         return byteMessage;
     }
@@ -234,9 +239,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
                 });
         assertTrue(ex.get());
 
-        PersistentTopic mock = mock(PersistentTopic.class);
-        when(mock.getName()).thenReturn("topicname");
-        when(mock.getLastPosition()).thenReturn(PositionFactory.EARLIEST);
+        PersistentTopic mock = mockPersistentTopic("topicname");
 
         PersistentMessageExpiryMonitor monitor = new PersistentMessageExpiryMonitor(mock, c1.getName(), c1, null);
         monitor.findEntryFailed(new ManagedLedgerException.ConcurrentFindCursorPositionException("failed"),
@@ -419,9 +422,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         bkc.deleteLedger(ledgers.get(1).getLedgerId());
         bkc.deleteLedger(ledgers.get(2).getLedgerId());
 
-        PersistentTopic mock = mock(PersistentTopic.class);
-        when(mock.getName()).thenReturn("topicname");
-        when(mock.getLastPosition()).thenReturn(PositionFactory.EARLIEST);
+        PersistentTopic mock = mockPersistentTopic("topicname");
 
         PersistentMessageExpiryMonitor monitor = new PersistentMessageExpiryMonitor(mock, c1.getName(), c1, null);
         assertTrue(monitor.expireMessages(ttlSeconds));
@@ -457,13 +458,24 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         // The number of ledgers should be (entriesNum / MaxEntriesPerLedger) + 1
         // Please refer to: https://github.com/apache/pulsar/pull/22034
         assertEquals(ledger.getLedgersInfoAsList().size(), entriesNum + 1);
-        PersistentTopic mock = mock(PersistentTopic.class);
-        when(mock.getName()).thenReturn("topicname");
-        when(mock.getLastPosition()).thenReturn(PositionFactory.EARLIEST);
+        PersistentTopic mock = mockPersistentTopic("topicname");
         PersistentMessageExpiryMonitor monitor = new PersistentMessageExpiryMonitor(mock, c1.getName(), c1, null);
         Thread.sleep(TimeUnit.SECONDS.toMillis(maxTTLSeconds));
         monitor.expireMessages(maxTTLSeconds);
         assertEquals(c1.getNumberOfEntriesInBacklog(true), 0);
+    }
+
+    private PersistentTopic mockPersistentTopic(String topicName) throws Exception {
+        PersistentTopic mock = mock(PersistentTopic.class);
+        when(mock.getName()).thenReturn("topicname");
+        when(mock.getLastPosition()).thenReturn(PositionFactory.EARLIEST);
+        BrokerService brokerService = mock(BrokerService.class);
+        doReturn(brokerService).when(mock).getBrokerService();
+        PulsarService pulsarService = mock(PulsarService.class);
+        doReturn(pulsarService).when(brokerService).pulsar();
+        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
+        doReturn(serviceConfiguration).when(pulsarService).getConfig();
+        return mock;
     }
 
     @Test
@@ -480,9 +492,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
             ledger.addEntry(createMessageWrittenToLedger("msg" + i, incorrectPublishTimestamp));
         }
         assertEquals(ledger.getLedgersInfoAsList().size(), 2);
-        PersistentTopic mock = mock(PersistentTopic.class);
-        when(mock.getName()).thenReturn("topicname");
-        when(mock.getLastPosition()).thenReturn(PositionFactory.EARLIEST);
+        PersistentTopic mock = mockPersistentTopic("topicname");
         PersistentMessageExpiryMonitor monitor = new PersistentMessageExpiryMonitor(mock, c1.getName(), c1, null);
         AsyncCallbacks.MarkDeleteCallback markDeleteCallback =
                 (AsyncCallbacks.MarkDeleteCallback) spy(
@@ -521,9 +531,8 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(ledgerAndCursorName);
 
         PersistentSubscription subscription = mock(PersistentSubscription.class);
-        PersistentTopic topic = mock(PersistentTopic.class);
+        PersistentTopic topic = mockPersistentTopic("topicname");
         when(subscription.getTopic()).thenReturn(topic);
-        when(topic.getName()).thenReturn("topicname");
 
         for (int i = 0; i < totalEntries; i++) {
             positions.add(ledger.addEntry(createMessageWrittenToLedger("msg" + i)));
@@ -569,6 +578,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         clearInvocations(monitor);
 
         ManagedCursorImpl mockCursor = mock(ManagedCursorImpl.class);
+        doReturn("cursor").when(mockCursor).getName();
         PersistentMessageExpiryMonitor mockMonitor = spy(new PersistentMessageExpiryMonitor(topic,
                 cursor.getName(), mockCursor, subscription));
         // Not calling findEntryComplete to clear expirationCheckInProgress condition, so following call to
@@ -618,7 +628,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertNotNull(range);
         assertNotNull(range.getLeft());
         assertNull(range.getRight());
-        assertEquals(range.getLeft(), PositionFactory.create(2, 0));
+        assertEquals(range.getLeft(), PositionFactory.create(2, 9));
     }
 
     @Test
@@ -636,7 +646,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertNotNull(range);
         assertNotNull(range.getLeft());
         assertNull(range.getRight());
-        assertEquals(range.getLeft(), PositionFactory.create(2, 0));
+        assertEquals(range.getLeft(), PositionFactory.create(2, 9));
     }
 
     @Test
@@ -654,7 +664,8 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertNotNull(range);
         assertNotNull(range.getLeft());
         assertNull(range.getRight());
-        assertEquals(range.getLeft(), PositionFactory.create(2, 0));
+        assertEquals(range.getLeft(), PositionFactory.create(2, 9));
+        assertEquals(range.getLeft(), PositionFactory.create(2, 9));
     }
 
     @Test
@@ -689,7 +700,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertNotNull(range);
         assertNotNull(range.getLeft());
         assertNotNull(range.getRight());
-        assertEquals(range.getLeft(), PositionFactory.create(2, 0));
+        assertEquals(range.getLeft(), PositionFactory.create(2, 9));
         assertEquals(range.getRight(), PositionFactory.create(3, 9));
     }
 
@@ -709,7 +720,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertNotNull(range);
         assertNotNull(range.getLeft());
         assertNotNull(range.getRight());
-        assertEquals(range.getLeft(), PositionFactory.create(3, 0));
+        assertEquals(range.getLeft(), PositionFactory.create(3, 9));
         // there might be entries in the next ledger with the same timestamp as the target timestamp, even though
         // the close timestamp of ledger 3 is equals to the target timestamp
         assertEquals(range.getRight(), PositionFactory.create(4, 9));
@@ -732,7 +743,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertNotNull(range);
         assertNotNull(range.getLeft());
         assertNotNull(range.getRight());
-        assertEquals(range.getLeft(), PositionFactory.create(1, 0));
+        assertEquals(range.getLeft(), PositionFactory.create(1, 9));
         assertEquals(range.getRight(), PositionFactory.create(4, 9));
     }
 
@@ -753,7 +764,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertNotNull(range);
         assertNotNull(range.getLeft());
         assertNotNull(range.getRight());
-        assertEquals(range.getLeft(), PositionFactory.create(2, 0));
+        assertEquals(range.getLeft(), PositionFactory.create(2, 9));
         assertEquals(range.getRight(), PositionFactory.create(4, 9));
     }
 
@@ -774,7 +785,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertNotNull(range);
         assertNotNull(range.getLeft());
         assertNotNull(range.getRight());
-        assertEquals(range.getLeft(), PositionFactory.create(2, 0));
+        assertEquals(range.getLeft(), PositionFactory.create(2, 9));
         assertEquals(range.getRight(), PositionFactory.create(4, 9));
     }
 
@@ -825,6 +836,6 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertNotNull(range);
         assertNotNull(range.getLeft());
         assertNull(range.getRight());
-        assertEquals(range.getLeft(), PositionFactory.create(1, 0));
+        assertEquals(range.getLeft(), PositionFactory.create(1, 9));
     }
 }

@@ -49,6 +49,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicType;
@@ -65,6 +66,7 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
     protected final String defaultTenant = "public";
     protected final String replicatedNamespace = defaultTenant + "/default";
     protected final String nonReplicatedNamespace = defaultTenant + "/ns1";
+    protected final String sourceClusterAlwaysSchemaCompatibleNamespace = defaultTenant + "/always-compatible";
 
     protected final String cluster1 = "r1";
 
@@ -157,6 +159,10 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         admin1.tenants().createTenant(defaultTenant, new TenantInfoImpl(Collections.emptySet(),
                 Sets.newHashSet(cluster1, cluster2)));
         admin1.namespaces().createNamespace(replicatedNamespace, Sets.newHashSet(cluster1, cluster2));
+        admin1.namespaces().createNamespace(
+                sourceClusterAlwaysSchemaCompatibleNamespace, Sets.newHashSet(cluster1, cluster2));
+        admin1.namespaces().setSchemaCompatibilityStrategy(sourceClusterAlwaysSchemaCompatibleNamespace,
+                SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
         admin1.namespaces().createNamespace(nonReplicatedNamespace);
 
         if (!usingGlobalZK) {
@@ -177,6 +183,9 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
             admin2.tenants().createTenant(defaultTenant, new TenantInfoImpl(Collections.emptySet(),
                     Sets.newHashSet(cluster1, cluster2)));
             admin2.namespaces().createNamespace(replicatedNamespace);
+            admin2.namespaces().createNamespace(sourceClusterAlwaysSchemaCompatibleNamespace);
+            admin2.namespaces().setSchemaCompatibilityStrategy(sourceClusterAlwaysSchemaCompatibleNamespace,
+                    SchemaCompatibilityStrategy.FORWARD);
             admin2.namespaces().createNamespace(nonReplicatedNamespace);
         }
 
@@ -479,5 +488,22 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
             admin1.topics().delete(topicName.toString());
             admin2.topics().delete(topicName.toString());
         }
+    }
+
+    protected void waitReplicatorStopped(PulsarService sourceCluster, PulsarService targetCluster, String topicName) {
+        Awaitility.await().atMost(Duration.ofSeconds(60)).untilAsserted(() -> {
+            Optional<Topic> topicOptional2 = targetCluster.getBrokerService().getTopic(topicName, false).get();
+            assertTrue(topicOptional2.isPresent());
+            PersistentTopic persistentTopic2 = (PersistentTopic) topicOptional2.get();
+            for (org.apache.pulsar.broker.service.Producer producer : persistentTopic2.getProducers().values()) {
+                assertFalse(producer.getProducerName()
+                        .startsWith(targetCluster.getConfiguration().getReplicatorPrefix()));
+            }
+            Optional<Topic> topicOptional1 = sourceCluster.getBrokerService().getTopic(topicName, false).get();
+            assertTrue(topicOptional1.isPresent());
+            PersistentTopic persistentTopic1 = (PersistentTopic) topicOptional1.get();
+            assertTrue(persistentTopic1.getReplicators().isEmpty()
+                    || !persistentTopic1.getReplicators().get(targetCluster.getConfig().getClusterName()).isConnected());
+        });
     }
 }

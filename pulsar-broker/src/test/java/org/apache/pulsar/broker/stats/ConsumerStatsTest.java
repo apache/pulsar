@@ -445,8 +445,13 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
                 .batchingMaxPublishDelay(5, TimeUnit.SECONDS)
                 .batchingMaxBytes(Integer.MAX_VALUE)
                 .create();
-
-        producer.send("first-message");
+        // The first messages deliver: 20 msgs.
+        // Average of "messages per batch" is "1".
+        for (int i = 0; i < 20; i++) {
+            producer.send("first-message");
+        }
+        // The second messages deliver: 20 msgs.
+        // Average of "messages per batch" is "Math.round(1 * 0.9 + 20 * 0.1) = 2.9 ～ 3".
         List<CompletableFuture<MessageId>> futures = new ArrayList<>();
         for (int i = 0; i < 20; i++) {
             futures.add(producer.sendAsync("message"));
@@ -480,6 +485,7 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         metadataConsumer.put("matchValueReschedule", "producer2");
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic).properties(metadataConsumer)
+                .receiverQueueSize(20)
                 .subscriptionName(subName).subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe();
 
         int counter = 0;
@@ -494,14 +500,17 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
             }
         }
 
-        assertEquals(21, counter);
+        assertEquals(40, counter);
 
         ConsumerStats consumerStats =
                 admin.topics().getStats(topic).getSubscriptions().get(subName).getConsumers().get(0);
 
-        assertEquals(21, consumerStats.getMsgOutCounter());
+        assertEquals(40, consumerStats.getMsgOutCounter());
 
-        // Math.round(1 * 0.9 + 0.1 * (20 / 1))
+        // The first messages deliver: 20 msgs.
+        // Average of "messages per batch" is "1".
+        // The second messages deliver: 20 msgs.
+        // Average of "messages per batch" is "Math.round(1 * 0.9 + 20 * 0.1) = 2.9 ～ 3".
         int avgMessagesPerEntry = consumerStats.getAvgMessagesPerEntry();
         assertEquals(3, avgMessagesPerEntry);
     }

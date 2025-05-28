@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.tests;
 
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.ITestClass;
 
 /**
  * Cleanup Thread Local state attach to Netty's FastThreadLocal.
@@ -48,7 +50,7 @@ public class FastThreadLocalCleanupListener extends BetweenTestClassesListenerAd
     });
 
     @Override
-    protected void onBetweenTestClasses(Class<?> endedTestClass, Class<?> startedTestClass) {
+    protected void onBetweenTestClasses(List<ITestClass> testClasses) {
         if (FAST_THREAD_LOCAL_CLEANUP_ENABLED && FastThreadLocalStateCleaner.isEnabled()) {
             LOG.info("Cleaning up FastThreadLocal thread local state.");
             CLEANER.cleanupAllFastThreadLocals((thread, value) -> {

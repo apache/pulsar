@@ -26,6 +26,7 @@ public class FinalRateAsyncTokenBucketBuilder
         extends AsyncTokenBucketBuilder<FinalRateAsyncTokenBucketBuilder> {
     protected Long capacity;
     protected Long initialTokens;
+    protected Long targetAmountOfTokensAfterThrottling;
     protected Long rate;
     protected long ratePeriodNanos = AsyncTokenBucket.ONE_SECOND_NANOS;
 
@@ -52,11 +53,17 @@ public class FinalRateAsyncTokenBucketBuilder
         return this;
     }
 
+    public FinalRateAsyncTokenBucketBuilder targetAmountOfTokensAfterThrottling(
+            long targetAmountOfTokensAfterThrottling) {
+        this.targetAmountOfTokensAfterThrottling = targetAmountOfTokensAfterThrottling;
+        return this;
+    }
+
     public AsyncTokenBucket build() {
         return new FinalRateAsyncTokenBucket(this.capacity != null ? this.capacity : this.rate, this.rate,
-                this.clock,
-                this.ratePeriodNanos, this.resolutionNanos, this.consistentConsumedTokens, this.consistentAddedTokens,
-                this.initialTokens != null ? this.initialTokens : this.rate
+                this.clock, this.addTokensResolutionNanos,
+                this.ratePeriodNanos, this.initialTokens != null ? this.initialTokens : this.rate,
+                this.targetAmountOfTokensAfterThrottling != null ? this.targetAmountOfTokensAfterThrottling : -1
         );
     }
 }

@@ -117,12 +117,10 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
         }
     }
 
-    @SuppressFBWarnings(value = "MF_CLASS_MASKS_FIELD", justification = "expected to override")
     public Map<String, NonPersistentSubscriptionStats> getSubscriptions() {
         return (Map<String, NonPersistentSubscriptionStats>) nonPersistentSubscriptions;
     }
 
-    @SuppressFBWarnings(value = "MF_CLASS_MASKS_FIELD", justification = "expected to override")
     public Map<String, NonPersistentReplicatorStats> getReplication() {
         return (Map<String, NonPersistentReplicatorStats>) nonPersistentReplicators;
     }

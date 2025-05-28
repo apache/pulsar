@@ -59,7 +59,7 @@ public class RangeEntryCacheImpl implements EntryCache {
      * Overhead per-entry to take into account the envelope.
      */
     public static final long BOOKKEEPER_READ_OVERHEAD_PER_ENTRY = 64;
-    private static final int DEFAULT_ESTIMATED_ENTRY_SIZE = 10 * 1024;
+    public static final int DEFAULT_ESTIMATED_ENTRY_SIZE = 10 * 1024;
     private static final boolean DEFAULT_CACHE_INDIVIDUAL_READ_ENTRY = false;
 
     private final RangeEntryCacheManagerImpl manager;
@@ -303,7 +303,7 @@ public class RangeEntryCacheImpl implements EntryCache {
             doAsyncReadEntriesByPosition(lh, firstPosition, lastPosition, numberOfEntries, shouldCacheEntry,
                     originalCallback, ctx);
         } else {
-            long estimatedEntrySize = getEstimatedEntrySize();
+            long estimatedEntrySize = getEstimatedEntrySize(lh);
             long estimatedReadSize = numberOfEntries * estimatedEntrySize;
             if (log.isDebugEnabled()) {
                 log.debug("Estimated read size: {} bytes for {} entries with {} estimated entry size",
@@ -419,12 +419,12 @@ public class RangeEntryCacheImpl implements EntryCache {
     }
 
     @VisibleForTesting
-    public long getEstimatedEntrySize() {
-        long estimatedEntrySize = getAvgEntrySize();
-        if (estimatedEntrySize == 0) {
-            estimatedEntrySize = DEFAULT_ESTIMATED_ENTRY_SIZE;
+    public long getEstimatedEntrySize(ReadHandle lh) {
+        if (lh.getLength() == 0 || lh.getLastAddConfirmed() < 0) {
+            // No entries stored.
+            return Math.max(getAvgEntrySize(), DEFAULT_ESTIMATED_ENTRY_SIZE) + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
         }
-        return estimatedEntrySize + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
+        return Math.max(1, lh.getLength() / (lh.getLastAddConfirmed() + 1)) + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
     }
 
     private long getAvgEntrySize() {
