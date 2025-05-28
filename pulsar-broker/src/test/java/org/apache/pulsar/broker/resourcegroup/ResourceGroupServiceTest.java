@@ -21,7 +21,9 @@ package org.apache.pulsar.broker.resourcegroup;
 import static org.mockito.Mockito.mock;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Policy.Expiration;
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -36,7 +38,6 @@ import org.apache.pulsar.broker.resourcegroup.ResourceGroup.PerBrokerUsageStats;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.PerMonitoringClassFields;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.ResourceGroupMonitoringClass;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
-import org.apache.pulsar.broker.service.resource.usage.ReplicatorUsage;
 import org.apache.pulsar.broker.service.resource.usage.ResourceUsage;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -574,7 +575,7 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testQuotaCalculation() throws PulsarAdminException {
+    public void testPublishAndDispatchQuotaCalculation() throws PulsarAdminException {
         // Mocks and setup
         ResourceUsageTransportManager resourceUsageTransportManager = mock(ResourceUsageTransportManager.class);
         ResourceGroupService resourceGroupService = new ResourceGroupService(
@@ -590,13 +591,6 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         rg1Config.setPublishRateInMsgs(200);
         rg1Config.setDispatchRateInBytes(40000L);
         rg1Config.setDispatchRateInMsgs(500);
-        rg1Config.setReplicationDispatchRateInBytes(2000L);
-        rg1Config.setReplicationDispatchRateInMsgs(400L);
-        Map<String, DispatchRate> replicatorDispatchRateMap = new ConcurrentHashMap<>();
-        DispatchRate r1 = DispatchRate.builder().dispatchThrottlingRateInMsg(300).dispatchThrottlingRateInByte(150)
-                .ratePeriodInSecond(1).build();
-        replicatorDispatchRateMap.put(getReplicatorDispatchRateLimiterKey("r1"), r1);
-        rg1Config.setReplicatorDispatchRate(replicatorDispatchRateMap);
 
         resourceGroupService.resourceGroupCreate(rg1Name, rg1Config);
         ResourceGroup rg1Ref = resourceGroupService.resourceGroupGet(rg1Name);
@@ -606,19 +600,10 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(publishLimiter.getResourceGroupPublishValues().bytes, 100L);
         Assert.assertEquals(publishLimiter.getResourceGroupPublishValues().messages, 200);
 
-        // Setup replicator dispatch limiters
-        AtomicReference<ResourceGroupDispatchLimiter> r1Limiter = new AtomicReference<>();
-        AtomicReference<ResourceGroupDispatchLimiter> r2Limiter = new AtomicReference<>();
-        rg1Ref.registerReplicatorDispatchRateLimiter("r1", r1Limiter::set);
-        rg1Ref.registerReplicatorDispatchRateLimiter("r2", r2Limiter::set);
-
-        // r1 uses the specific rate limiter
-        // r2 uses the default rate limiter
-        Assert.assertNotEquals(r1Limiter.get(), r2Limiter.get());
-        Assert.assertEquals(r1Limiter.get().getDispatchRateOnMsg(), 300L);
-        Assert.assertEquals(r1Limiter.get().getDispatchRateOnByte(), 150L);
-        Assert.assertEquals(r2Limiter.get().getDispatchRateOnMsg(), 400L);
-        Assert.assertEquals(r2Limiter.get().getDispatchRateOnByte(), 2000L);
+        // Verify initial dispatch limiter values
+        ResourceGroupDispatchLimiter dispatchLimiter = rg1Ref.getResourceGroupDispatchLimiter();
+        Assert.assertEquals(dispatchLimiter.getDispatchRateOnByte(), 40000L);
+        Assert.assertEquals(dispatchLimiter.getDispatchRateOnMsg(), 500);
 
         // Simulate local usage
         ResourceUsage localUsage = new ResourceUsage();
@@ -626,14 +611,6 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         localUsage.setDispatch().setBytesPerPeriod(100).setMessagesPerPeriod(200);
         // Local publish usage
         localUsage.setPublish().setBytesPerPeriod(50).setMessagesPerPeriod(150);
-        // Local replication usage for r1
-        ReplicatorUsage localR1 = localUsage.addReplicator();
-        localR1.setRemoteCluster("r1");
-        localR1.setNetworkUsage().setBytesPerPeriod(75).setMessagesPerPeriod(100);
-        // Local replication usage for r2
-        ReplicatorUsage localR2 = localUsage.addReplicator();
-        localR2.setRemoteCluster("r2");
-        localR2.setNetworkUsage().setBytesPerPeriod(1400).setMessagesPerPeriod(90);
 
         // Simulate remote usage
         ResourceUsage remoteUsage = new ResourceUsage();
@@ -641,58 +618,134 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         remoteUsage.setDispatch().setBytesPerPeriod(500).setMessagesPerPeriod(800);
         // Remote publish usage
         remoteUsage.setPublish().setBytesPerPeriod(250).setMessagesPerPeriod(600);
-        // Remote replication usage for r1
-        ReplicatorUsage remoteR1 = remoteUsage.addReplicator();
-        remoteR1.setRemoteCluster("r1");
-        remoteR1.setNetworkUsage().setBytesPerPeriod(50).setMessagesPerPeriod(20);
-        // Remote replication usage for r2
-        ReplicatorUsage remoteR2 = remoteUsage.addReplicator();
-        remoteR2.setRemoteCluster("r2");
-        remoteR2.setNetworkUsage().setBytesPerPeriod(400).setMessagesPerPeriod(280);
 
         // Report usages
         rg1Ref.getUsageFromMonitoredEntity(remoteUsage, "pulsar://broker-2:6650");
         rg1Ref.getUsageFromMonitoredEntity(localUsage, pulsar.getBrokerServiceUrl());
 
-        // Update the local quota
-        resourceGroupService.calculateQuotaByMonClass(rg1Name, rg1Ref, ResourceGroupMonitoringClass.Publish);
-        resourceGroupService.calculateQuotaByMonClass(rg1Name, rg1Ref,
-                ResourceGroupMonitoringClass.ReplicationDispatch);
-
-        // b100, m200
-        // publish:
+        // Calculate publish quota
         // Global limits: messages = 200, bytes = 100
         // Usage:
         //  - Local: messages = 150, bytes = 50
         // - Remote: messages = 600, bytes = 250
         // Quota:
         // - Messages: 150 / (150 + 600) * 200 ≈ 40
-        // - Bytes:    50 / (50 + 250) * 100 ≈ 16
+        // - Bytes: 50 / (50 + 250) * 100 ≈ 16
+        resourceGroupService.calculateQuotaByMonClass(rg1Name, rg1Ref, ResourceGroupMonitoringClass.Publish);
         publishLimiter = rg1Ref.getResourceGroupPublishLimiter();
         Assert.assertEquals(publishLimiter.getResourceGroupPublishValues().bytes, 16);
         Assert.assertEquals(publishLimiter.getResourceGroupPublishValues().messages, 40);
 
-        // r1:
-        // Global limits: messages = 300, bytes = 150
+        // Calculate dispatch quota
+        // Global limits: messages = 500, bytes = 40000
         // Usage:
-        //   - Local: messages = 100, bytes = 75
-        //   - Remote: messages = 20, bytes = 50
+        // - Local: messages = 200, bytes = 100
+        // - Remote: messages = 800, bytes = 500
         // Quota:
-        //   - Messages: 100 / (100 + 20) * 300 ≈ 250
-        //   - Bytes:    75 / (75 + 50) * 150 ≈ 90
-        Assert.assertEquals(r1Limiter.get().getDispatchRateOnByte(), 90);
-        Assert.assertEquals(r1Limiter.get().getDispatchRateOnMsg(), 250);
+        // - Messages: 200 / (200 + 800) * 500 = 100
+        // - Bytes: 100 / (100 + 500) * 40000 ≈ 6666
+        resourceGroupService.calculateQuotaByMonClass(rg1Name, rg1Ref, ResourceGroupMonitoringClass.Dispatch);
+        dispatchLimiter = rg1Ref.getResourceGroupDispatchLimiter();
+        Assert.assertEquals(dispatchLimiter.getDispatchRateOnByte(), 6666);
+        Assert.assertEquals(dispatchLimiter.getDispatchRateOnMsg(), 100);
+    }
 
-        // r2:
-        // Global limits: messages = 400, bytes = 2000
-        // Usage:
-        //   - Local: messages = 90, bytes = 1400
-        //   - Remote: messages = 280, bytes = 400
-        // Quota:
-        //   - Messages: 90 / (90 + 280) * 400 ≈ 97
-        //   - Bytes:    1400 / (1400 + 400) * 2000 ≈ 1555
-        Assert.assertEquals(r2Limiter.get().getDispatchRateOnByte(), 1555);
-        Assert.assertEquals(r2Limiter.get().getDispatchRateOnMsg(), 97);
+    @Test
+    public void testReplicationDispatchQuotaCalculation() throws PulsarAdminException {
+        ResourceUsageTransportManager transportManager = mock(ResourceUsageTransportManager.class);
+        ResourceGroupService resourceGroupService = new ResourceGroupService(
+                pulsar, TimeUnit.HOURS, transportManager, new ResourceQuotaCalculatorImpl(pulsar));
+
+        String rgName = UUID.randomUUID().toString();
+        org.apache.pulsar.common.policies.data.ResourceGroup rgConfig = new org.apache.pulsar.common.policies.data.ResourceGroup();
+        rgConfig.setReplicationDispatchRateInBytes(2000L);
+        rgConfig.setReplicationDispatchRateInMsgs(400L);
+
+        Map<String, DispatchRate> replicatorDispatchRateMap = new HashMap<>();
+        replicatorDispatchRateMap.put(getReplicatorDispatchRateLimiterKey("r1"), DispatchRate.builder().dispatchThrottlingRateInByte(1000).dispatchThrottlingRateInMsg(300).build());
+        replicatorDispatchRateMap.put(getReplicatorDispatchRateLimiterKey("r3"), DispatchRate.builder().dispatchThrottlingRateInByte(500).dispatchThrottlingRateInMsg(100).build());
+        rgConfig.setReplicatorDispatchRate(replicatorDispatchRateMap);
+
+        resourceGroupService.resourceGroupCreate(rgName, rgConfig);
+        ResourceGroup rg = resourceGroupService.resourceGroupGet(rgName);
+
+        Map<String, AtomicReference<ResourceGroupDispatchLimiter>> limiters = new HashMap<>();
+        for (String cluster : Lists.newArrayList("r1", "r2", "r3", "r4")) {
+            AtomicReference<ResourceGroupDispatchLimiter> ref = new AtomicReference<>();
+            rg.registerReplicatorDispatchRateLimiter(cluster, ref::set);
+            limiters.put(cluster, ref);
+        }
+
+        // Local usage
+        ResourceUsage local = new ResourceUsage();
+        local.addReplicator().setRemoteCluster("r1").setNetworkUsage().setBytesPerPeriod(100).setMessagesPerPeriod(100);
+        local.addReplicator().setRemoteCluster("r2").setNetworkUsage().setBytesPerPeriod(1400).setMessagesPerPeriod(90);
+        local.addReplicator().setRemoteCluster("r3").setNetworkUsage().setBytesPerPeriod(300).setMessagesPerPeriod(50);
+        local.addReplicator().setRemoteCluster("r4").setNetworkUsage().setBytesPerPeriod(100).setMessagesPerPeriod(10);
+        local.addReplicator().setRemoteCluster("r5").setNetworkUsage().setBytesPerPeriod(1900).setMessagesPerPeriod(100);
+
+        // Remote usage
+        ResourceUsage remote = new ResourceUsage();
+        remote.addReplicator().setRemoteCluster("r1").setNetworkUsage().setBytesPerPeriod(50).setMessagesPerPeriod(20);
+        remote.addReplicator().setRemoteCluster("r2").setNetworkUsage().setBytesPerPeriod(400).setMessagesPerPeriod(280);
+        remote.addReplicator().setRemoteCluster("r3").setNetworkUsage().setBytesPerPeriod(100).setMessagesPerPeriod(50);
+        remote.addReplicator().setRemoteCluster("r4").setNetworkUsage().setBytesPerPeriod(200).setMessagesPerPeriod(80);
+        remote.addReplicator().setRemoteCluster("r5").setNetworkUsage().setBytesPerPeriod(100).setMessagesPerPeriod(40);
+
+        rg.getUsageFromMonitoredEntity(remote, "pulsar://broker-remote");
+        rg.getUsageFromMonitoredEntity(local, pulsar.getBrokerServiceUrl());
+
+        resourceGroupService.calculateQuotaByMonClass(rgName, rg, ResourceGroupMonitoringClass.ReplicationDispatch);
+
+        // r1 (specific)
+        // Global limits: 1000 bytes, 300 messages
+        // Local usage: 100 B / 100 M
+        // Remote usage: 50 B / 20 M
+        // Quota calculation:
+        // 100 / (100 + 50) * 1000 = 666.67 (≈ 666) B
+        // 100 / (100 + 20) * 300 = 250 (M)
+        Assert.assertEquals(limiters.get("r1").get().getDispatchRateOnByte(), 666);
+        Assert.assertEquals(limiters.get("r1").get().getDispatchRateOnMsg(), 250);
+
+        // r3 (specific)
+        // Global limits: 500 bytes, 100 messages
+        // Local usage: 300 B / 50 M
+        // Remote usage: 100 B / 50 M
+        // Quota calculation:
+        // 300 / (300 + 100) * 500 = 375 (B)
+        // 50 / (50 + 50) * 100 = 50 (M)
+        Assert.assertEquals(limiters.get("r3").get().getDispatchRateOnByte(), 375);
+        Assert.assertEquals(limiters.get("r3").get().getDispatchRateOnMsg(), 50);
+
+        // r2, r4 (global)
+        // Local usage:
+        // r2: 1400 B / 90 M
+        // r4: 100 B / 10 M
+        // r5: 1900 B / 100 M
+        // Remote usage:
+        // r2: 400 B / 280 M
+        // r4: 200 B / 80 M
+        // r5: 100 B / 40 M
+        // Total usage:
+        // r2: 1400 + 400 = 1800 B / 90 + 280 = 370 M
+        // r4: 100 + 200 = 300 B / 10 + 80 = 90 M
+        // r5: 1900 + 100 = 2000 B / 100 + 40 = 140 M
+
+        // long totalBytesLocal = 1400 + 100 + 1900; // 3400
+        // long totalMsgsLocal = 90 + 10 + 100; // 200
+        // long totalBytes= 1800 + 300 + 2000; // 4100
+        // long totalMsgs = 370 + 90 + 140;  // 600
+
+        // Global limit: 2000 bytes, 400 messages
+        // Quota calculation:
+        // 3400 / 4100 * 2000 = 1658.54 (≈ 1658) B
+        // 200 / 600 * 400 = 133.33 (≈ 133) M
+        for (String cluster : Lists.newArrayList("r2", "r4")) {
+            ResourceGroupDispatchLimiter limiter = limiters.get(cluster).get();
+            Assert.assertNotNull(limiter);
+            Assert.assertEquals(limiter.getDispatchRateOnByte(), 1658);
+            Assert.assertEquals(limiter.getDispatchRateOnMsg(), 133);
+        }
     }
 
     private ResourceGroupService rgs;

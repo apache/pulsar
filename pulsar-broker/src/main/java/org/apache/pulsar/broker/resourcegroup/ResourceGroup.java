@@ -522,12 +522,24 @@ public class ResourceGroup implements AutoCloseable{
                     switch (monClass) {
                         case ReplicationDispatch:
                             String replicatorDispatchRateLimiterKey =
-                                    getReplicatorDispatchRateLimiterKey(remoteCluster);
-                            ResourceGroupDispatchLimiter limiter =
-                                    this.replicatorDispatchRateLimiterMap.get(replicatorDispatchRateLimiterKey);
+                                    getReplicatorDispatchRateLimiterKey(key.getRemoteCluster());
+                            ResourceGroupDispatchLimiter limiter = null;
+                            if (remoteCluster == null) {
+                                // global replication dispatch rate limiter.
+                                limiter = resourceGroupReplicationDispatchLimiter;
+                            } else {
+                                if (Objects.equals(remoteCluster, key.getRemoteCluster())) {
+                                    limiter =
+                                            this.replicatorDispatchRateLimiterMap.get(replicatorDispatchRateLimiterKey);
+                                    if (limiter == null) {
+                                        // Limiter was not found, which will lazily load.
+                                        return;
+                                    }
+                                }
+                            }
+
                             if (limiter != null) {
                                 ResourceGroupRateLimiterManager.updateReplicationDispatchRateLimiter(limiter, newQuota);
-                                notifyReplicatorDispatchRateLimiterConsumer(replicatorDispatchRateLimiterKey, limiter);
                             }
                             break;
                         case Publish:
@@ -910,6 +922,7 @@ public class ResourceGroup implements AutoCloseable{
             .labelNames(resourceGroupMontoringclassLabels)
             .register();
 
+    @Getter
     private org.apache.pulsar.common.policies.data.ResourceGroup rgConfig;
 
     private final Object replicatorDispatchRateLock = new Object();
@@ -919,7 +932,7 @@ public class ResourceGroup implements AutoCloseable{
     protected ResourceGroupPublishLimiter resourceGroupPublishLimiter;
 
     @Getter
-    private ResourceGroupDispatchLimiter resourceGroupReplicationDispatchLimiter;
+    private final ResourceGroupDispatchLimiter resourceGroupReplicationDispatchLimiter;
 
     private Map<String, ResourceGroupDispatchLimiter> replicatorDispatchRateLimiterMap =
             new ConcurrentHashMap<>();

@@ -25,6 +25,8 @@ import com.google.common.annotations.VisibleForTesting;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Summary;
+import io.prometheus.client.Summary.Child.Value;
+import io.prometheus.client.Summary.Timer;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -48,6 +50,7 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.slf4j.Logger;
@@ -709,24 +712,24 @@ public class ResourceGroupService implements AutoCloseable{
     }
 
     // Visibility for testing.
-    protected static Summary.Child.Value getRgUsageAggregationLatency() {
+    protected static Value getRgUsageAggregationLatency() {
         return rgUsageAggregationLatency.get();
     }
 
     // Visibility for testing.
-    protected static Summary.Child.Value getRgQuotaCalculationTime() {
+    protected static Value getRgQuotaCalculationTime() {
         return rgQuotaCalculationLatency.get();
     }
 
     // Periodically aggregate the usage from all topics known to the BrokerService.
     // Visibility for unit testing.
     protected void aggregateResourceGroupLocalUsages() {
-        final Summary.Timer aggrUsageTimer = rgUsageAggregationLatency.startTimer();
+        final Timer aggrUsageTimer = rgUsageAggregationLatency.startTimer();
         BrokerService bs = this.pulsar.getBrokerService();
         Map<String, TopicStatsImpl> topicStatsMap = bs.getTopicStats();
 
         aggregateLock.lock();
-        for (Map.Entry<String, TopicStatsImpl> entry : topicStatsMap.entrySet()) {
+        for (Entry<String, TopicStatsImpl> entry : topicStatsMap.entrySet()) {
             final String topicName = entry.getKey();
             final TopicStats topicStats = entry.getValue();
             final TopicName topic = TopicName.get(topicName);
@@ -794,7 +797,7 @@ public class ResourceGroupService implements AutoCloseable{
     // [Visibility for unit testing.]
     protected void calculateQuotaForAllResourceGroups() {
         // Calculate the quota for the next window for this RG, based on the observed usage.
-        final Summary.Timer quotaCalcTimer = rgQuotaCalculationLatency.startTimer();
+        final Timer quotaCalcTimer = rgQuotaCalculationLatency.startTimer();
         this.resourceGroupsMap.forEach((rgName, resourceGroup) -> {
             for (ResourceGroupMonitoringClass monClass : ResourceGroupMonitoringClass.values()) {
                 try {
@@ -842,32 +845,84 @@ public class ResourceGroupService implements AutoCloseable{
                 resourceGroup.getGlobalUsageStats(monClass);
         Map<String /* remoteCluster */, BytesAndMessagesCount> localUsageStats =
                 resourceGroup.getLocalUsageStatsFromBrokerReports(monClass);
-        Map<String /* remoteCluster */, BytesAndMessagesCount> confCounts =
+        Map<String /* remoteCluster */, BytesAndMessagesCount> confLimits =
                 resourceGroup.getConfLimits(monClass);
 
-        for (Entry<String, BytesAndMessagesCount> entry : globalUsageStats.entrySet()) {
+        org.apache.pulsar.common.policies.data.ResourceGroup rgConfig = resourceGroup.getRgConfig();
+        Set<String> specificClusters;
+        if (monClass.equals(ResourceGroupMonitoringClass.ReplicationDispatch)) {
+            Map<String, DispatchRate> replicatorDispatchRateMap = rgConfig.getReplicatorDispatchRate();
+            specificClusters =
+                    !replicatorDispatchRateMap.isEmpty() ? replicatorDispatchRateMap.keySet() : Collections.emptySet();
+        } else {
+            specificClusters = Collections.emptySet();
+        }
+
+        // Accumulate local and global usage for clusters that do NOT have specific per-cluster limits.
+        long totalGlobalBytesLocal = 0;
+        long totalGlobalMsgsLocal = 0;
+        long totalGlobalBytes = 0;
+        long totalGlobalMsgs = 0;
+        Long globalByteLimit = null;
+        Long globalMsgLimit = null;
+        for (Entry<String, BytesAndMessagesCount> entry : localUsageStats.entrySet()) {
             String remoteCluster = entry.getKey();
-            BytesAndMessagesCount globalUsage = entry.getValue();
-            long[] globUsageBytesArray = new long[]{globalUsage.bytes};
+            if (!specificClusters.contains(resourceGroup.getReplicatorDispatchRateLimiterKey(remoteCluster))) {
+                BytesAndMessagesCount local = entry.getValue();
+                totalGlobalBytesLocal += local.bytes;
+                totalGlobalMsgsLocal += local.messages;
+                BytesAndMessagesCount global = globalUsageStats.get(remoteCluster);
+                if (global != null) {
+                    totalGlobalBytes += global.bytes;
+                    totalGlobalMsgs += global.messages;
+                }
+                // Get configured limits
+                if (globalByteLimit == null && globalMsgLimit == null) {
+                    BytesAndMessagesCount conf = confLimits.get(remoteCluster);
+                    if (conf != null) {
+                        globalByteLimit = conf.bytes;
+                        globalMsgLimit = conf.messages;
+                    }
+                }
+            }
+        }
 
-            BytesAndMessagesCount confCount = confCounts.get(remoteCluster);
-            confCounts.get(remoteCluster);
-            BytesAndMessagesCount localUsageStat = localUsageStats.get(remoteCluster);
-            confCounts.get(remoteCluster);
-
-            BytesAndMessagesCount updatedQuota = new BytesAndMessagesCount();
-            updatedQuota.bytes = this.quotaCalculator.computeLocalQuota(
-                    confCount != null ? confCount.bytes : 0,
-                    localUsageStat != null ? localUsageStat.bytes : 0,
-                    globUsageBytesArray);
-            long[] globUsageMessagesArray = new long[]{globalUsage.messages};
-            updatedQuota.messages = this.quotaCalculator.computeLocalQuota(
-                    confCount != null ? confCount.messages : 0,
-                    localUsageStat != null ? localUsageStat.messages : 0,
-                    globUsageMessagesArray);
-            resourceGroup.updateLocalQuota(monClass, updatedQuota, remoteCluster);
-            incRgCalculatedQuota(rgName, monClass, updatedQuota, resourceUsagePublishPeriodInSeconds,
-                    pulsar.getConfiguration().getClusterName(), remoteCluster);
+        // Compute global quota
+        BytesAndMessagesCount globalQuota = new BytesAndMessagesCount();
+        globalQuota.bytes = this.quotaCalculator.computeLocalQuota(globalByteLimit == null ? 0 : globalByteLimit,
+                totalGlobalBytesLocal,
+                new long[]{totalGlobalBytes});
+        globalQuota.messages = this.quotaCalculator.computeLocalQuota(globalMsgLimit == null ? 0 : globalMsgLimit,
+                totalGlobalMsgsLocal,
+                new long[]{totalGlobalMsgs});
+        for (Entry<String, BytesAndMessagesCount> localUsageEntry : localUsageStats.entrySet()) {
+            String remoteCluster = localUsageEntry.getKey();
+            BytesAndMessagesCount quota = null;
+            if (monClass.equals(ResourceGroupMonitoringClass.ReplicationDispatch)) {
+                if (!rgConfig.getReplicatorDispatchRate().isEmpty()) {
+                    BytesAndMessagesCount localUsage = localUsageEntry.getValue();
+                    BytesAndMessagesCount globalUsage =
+                            globalUsageStats.getOrDefault(remoteCluster, new BytesAndMessagesCount());
+                    if (specificClusters.contains(resourceGroup.getReplicatorDispatchRateLimiterKey(remoteCluster))) {
+                        // Use specific config
+                        BytesAndMessagesCount conf =
+                                confLimits.getOrDefault(remoteCluster, new BytesAndMessagesCount());
+                        quota = new BytesAndMessagesCount();
+                        quota.bytes = this.quotaCalculator.computeLocalQuota(conf.bytes, localUsage.bytes,
+                                new long[]{globalUsage.bytes});
+                        quota.messages = this.quotaCalculator.computeLocalQuota(conf.messages, localUsage.messages,
+                                new long[]{globalUsage.messages});
+                        resourceGroup.updateLocalQuota(monClass, quota, remoteCluster);
+                    }
+                }
+            }
+            if (quota == null) {
+                resourceGroup.updateLocalQuota(monClass, globalQuota, null); // null means default/global
+            }
+            String localCluster = pulsar.getConfiguration().getClusterName();
+            incRgCalculatedQuota(rgName, monClass, quota == null ? globalQuota : quota,
+                    resourceUsagePublishPeriodInSeconds, localCluster,
+                    remoteCluster);
         }
     }
 
