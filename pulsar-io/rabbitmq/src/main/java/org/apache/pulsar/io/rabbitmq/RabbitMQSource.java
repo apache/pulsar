@@ -96,11 +96,22 @@ public class RabbitMQSource extends PushSource<byte[]> {
         @Override
         public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body)
                 throws IOException {
-            source.consume(new RabbitMQRecord(Optional.ofNullable(envelope.getRoutingKey()), body));
             long deliveryTag = envelope.getDeliveryTag();
-            // positively acknowledge all deliveries up to this delivery tag to reduce network traffic
-            // since manual message acknowledgments are turned on by default
-            this.getChannel().basicAck(deliveryTag, true);
+            source.consume(new RabbitMQRecord(Optional.ofNullable(envelope.getRoutingKey()), body, () -> {
+                // acknowledge this delivery tag to RabbitMQ
+                try {
+                    this.getChannel().basicAck(deliveryTag, false);
+                } catch (IOException e) {
+                    logger.error("Error while acknowledging envelope {}.", envelope, e);
+                }
+            }, () -> {
+                // negatively acknowledge this delivery tag to RabbitMQ
+                try {
+                    this.getChannel().basicNack(deliveryTag, false, true);
+                } catch (IOException e) {
+                    logger.error("Error while negatively acknowledging envelope {}.", envelope, e);
+                }
+            }));
         }
     }
 
@@ -108,5 +119,17 @@ public class RabbitMQSource extends PushSource<byte[]> {
     private static class RabbitMQRecord implements Record<byte[]> {
         private final Optional<String> key;
         private final byte[] value;
+        private final Runnable ackFunction;
+        private final Runnable nackFunction;
+
+        @Override
+        public void ack() {
+            ackFunction.run();
+        }
+
+        @Override
+        public void fail() {
+            nackFunction.run();
+        }
     }
 }
