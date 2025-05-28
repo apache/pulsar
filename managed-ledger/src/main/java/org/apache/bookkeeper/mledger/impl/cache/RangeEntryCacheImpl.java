@@ -332,14 +332,12 @@ public class RangeEntryCacheImpl implements EntryCache {
                                                final ReadEntriesCallback originalCallback, Object ctx,
                                                InflightReadsLimiter.Handle handle, long estimatedReadSize) {
         if (!handle.success()) {
-            String message = String.format(
-                    "Couldn't acquire enough permits on the max reads in flight limiter to read from ledger "
-                            + "%d, %s, estimated read size %d bytes for %d entries (check "
-                            + "managedLedgerMaxReadsInFlightSizeInMB, "
-                            + "managedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis and "
-                            + "managedLedgerMaxReadsInFlightPermitsAcquireQueueSize)", lh.getId(), getName(),
-                    estimatedReadSize, numberOfEntries);
-            log.error(message);
+            String message = String.format("Couldn't acquire enough permits on the max reads in flight limiter to read"
+                + " from ledger %d, %s, estimated read size %d bytes for %d entries. because the pending read requests"
+                + " queue is full, please increase the broker config"
+                + " managedLedgerMaxReadsInFlightPermitsAcquireQueueSize.",
+                lh.getId(), getName(), estimatedReadSize, numberOfEntries);
+            log.warn(message);
             originalCallback.readEntriesFailed(new ManagedLedgerException.TooManyRequestsException(message), ctx);
             return;
         }
