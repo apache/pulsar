@@ -29,7 +29,6 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
@@ -50,7 +49,6 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -149,6 +147,9 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     protected boolean enableBrokerInterceptor = false;
 
     private final List<AutoCloseable> closeables = new ArrayList<>();
+
+    // Set to true in test's constructor to use a real Zookeeper (TestZKServer)
+    protected boolean useTestZookeeper;
 
     public MockedPulsarServiceBaseTest() {
         resetConfig();
@@ -363,7 +364,14 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
      * @throws Exception if an error occurs
      */
     protected void restartBroker() throws Exception {
+        restartBroker(null);
+    }
+
+    protected void restartBroker(Consumer<ServiceConfiguration> configurationChanger) throws Exception {
         stopBroker();
+        if (configurationChanger != null) {
+            configurationChanger.accept(conf);
+        }
         startBroker();
         if (pulsarClient == null) {
             pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
@@ -461,7 +469,6 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         PulsarTestContext.Builder builder = PulsarTestContext.builder()
                 .spyByDefault()
                 .config(conf)
-                .withMockZookeeper(true)
                 .pulsarServiceCustomizer(pulsarService -> {
                     try {
                         beforePulsarStart(pulsarService);
@@ -470,7 +477,23 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
                     }
                 })
                 .brokerServiceCustomizer(this::customizeNewBrokerService);
+        configureMetadataStores(builder);
         return builder;
+    }
+
+    /**
+     * Configures the metadata stores for the PulsarTestContext.Builder instance.
+     * Set useTestZookeeper to true in the test's constructor to use TestZKServer which is a real ZooKeeper
+     * implementation.
+     *
+     * @param builder the PulsarTestContext.Builder instance to configure
+     */
+    protected void configureMetadataStores(PulsarTestContext.Builder builder) {
+        if (useTestZookeeper) {
+            builder.withTestZookeeper();
+        } else {
+            builder.withMockZookeeper(true);
+        }
     }
 
     protected PulsarTestContext createAdditionalPulsarTestContext(ServiceConfiguration conf) throws Exception {
@@ -668,35 +691,18 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     /**
-     * see {@link BrokerTestBase#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
+     * see {@link #deleteNamespaceWithRetry(String, boolean, PulsarAdmin)}
      */
     protected void deleteNamespaceWithRetry(String ns, boolean force)
             throws Exception {
-        BrokerTestBase.deleteNamespaceWithRetry(ns, force, admin, pulsar);
-    }
-
-    /**
-     * see {@link BrokerTestBase#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
-     */
-    protected void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin)
-            throws Exception {
-        BrokerTestBase.deleteNamespaceWithRetry(ns, force, admin, pulsar);
-    }
-
-    /**
-     * see {@link MockedPulsarServiceBaseTest#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
-     */
-    public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin, PulsarService...pulsars)
-            throws Exception {
-        deleteNamespaceWithRetry(ns, force, admin, Arrays.asList(pulsars));
+        deleteNamespaceWithRetry(ns, force, admin);
     }
 
     /**
      * 1. Pause system "__change_event" topic creates.
      * 2. Do delete namespace with retry because maybe fail by race-condition with create topics.
      */
-    public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin,
-                                                Collection<PulsarService> pulsars) throws Exception {
+    public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin) throws Exception {
         Awaitility.await()
                 .pollDelay(500, TimeUnit.MILLISECONDS)
                 .until(() -> {

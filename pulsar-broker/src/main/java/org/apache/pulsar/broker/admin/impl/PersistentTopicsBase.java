@@ -49,7 +49,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import javax.annotation.Nonnull;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
@@ -151,6 +150,7 @@ import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -341,7 +341,7 @@ public class PersistentTopicsBase extends AdminResource {
            .thenCompose(__ -> pulsar().getBrokerService().getTopicIfExists(topicName.toString()))
            .thenCompose(existedTopic -> {
                if (existedTopic.isPresent()) {
-                   log.error("[{}] Topic {} already exists", clientAppId(), topicName);
+                   log.warn("[{}] Topic {} already exists", clientAppId(), topicName);
                    throw new RestException(Status.CONFLICT, "This topic already exists");
                }
                return pulsar().getBrokerService().getTopic(topicName.toString(), true, properties);
@@ -357,7 +357,7 @@ public class PersistentTopicsBase extends AdminResource {
      * @exception RestException Unprocessable entity, status code: 422. throw it when some pre-check failed.
      * @exception RestException Internal Server Error, status code: 500. throw it when get unknown Exception
      */
-    protected @Nonnull CompletableFuture<Void> internalUpdatePartitionedTopicAsync(int expectPartitions,
+    protected @NonNull CompletableFuture<Void> internalUpdatePartitionedTopicAsync(int expectPartitions,
                                                                                    boolean updateLocal,
                                                                                    boolean force) {
         PulsarService pulsarService = pulsar();
@@ -514,10 +514,11 @@ public class PersistentTopicsBase extends AdminResource {
             if (optionalPolicies.isEmpty()) {
                 return CompletableFuture.completedFuture(null);
             }
-            // Query the topic-level policies only if the namespace-level policies exist
+            // Query the topic-level policies only if the namespace-level policies exist.
+            // Global policies does not affet Replication.
             final var namespacePolicies = optionalPolicies.get();
             return pulsar().getTopicPoliciesService().getTopicPoliciesAsync(topicName,
-                    TopicPoliciesService.GetType.DEFAULT
+                    TopicPoliciesService.GetType.LOCAL_ONLY
             ).thenApply(optionalTopicPolicies -> optionalTopicPolicies.map(TopicPolicies::getReplicationClustersSet)
                     .orElse(namespacePolicies.replication_clusters));
         });
@@ -740,7 +741,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalCheckTopicExists(TopicName topicName) {
-        return pulsar().getNamespaceService().checkTopicExists(topicName)
+        return pulsar().getNamespaceService().checkTopicExistsAsync(topicName)
                 .thenAccept(info -> {
                     boolean exists = info.isExists();
                     info.recycle();
@@ -1491,8 +1492,8 @@ public class PersistentTopicsBase extends AdminResource {
                         .thenCompose(owned -> {
                             if (owned) {
                                 return getTopicReferenceAsync(partition)
-                                    .thenApply(ref ->
-                                        ref.getStats(getStatsOptions));
+                                        .thenCompose(ref -> ref.asyncGetStats(getStatsOptions))
+                                        .thenApply(s -> (TopicStats) s);
                             } else {
                                 try {
                                     return pulsar().getAdminClient().topics().getStatsAsync(
@@ -3304,6 +3305,16 @@ public class PersistentTopicsBase extends AdminResource {
                                                               BacklogQuotaImpl backlogQuota, boolean isGlobal) {
         BacklogQuota.BacklogQuotaType finalBacklogQuotaType = backlogQuotaType == null
                 ? BacklogQuota.BacklogQuotaType.destination_storage : backlogQuotaType;
+        try {
+            // Null value means delete backlog quota.
+            if (backlogQuota != null) {
+                backlogQuota.validate();
+            }
+        } catch (IllegalArgumentException e) {
+            RestException restException = new RestException(Status.BAD_REQUEST, String.format("Set namespace[%s]"
+                + " backlog quota failed because the data validation failed. %s", namespaceName, e.getMessage()));
+            return CompletableFuture.failedFuture(restException);
+        }
 
         return validatePoliciesReadOnlyAccessAsync()
                 .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName, isGlobal))
@@ -3489,6 +3500,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetRetention(RetentionPolicies retention, boolean isGlobal) {
+        validateRetentionPolicies(retention);
         if (retention == null) {
             return CompletableFuture.completedFuture(null);
         }
@@ -3709,8 +3721,9 @@ public class PersistentTopicsBase extends AdminResource {
         }
         return ret
                 .thenCompose(__ -> checkTopicExistsAsync(topicName))
-                .thenCompose(exist -> {
-                    if (!exist) {
+                .thenCompose(topicExistsInfo -> {
+                    if (!topicExistsInfo.isExists()) {
+                        topicExistsInfo.recycle();
                         throw new RestException(Status.NOT_FOUND, getTopicNotFoundErrorMessage(topicName.toString()));
                     } else {
                         return getPartitionedTopicMetadataAsync(topicName, false, false)
@@ -4975,7 +4988,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void handleTopicPolicyException(String methodName, Throwable thr, AsyncResponse asyncResponse) {
         Throwable cause = thr.getCause();
-        if (isNot307And404Exception(cause)) {
+        if (isNot307And404And400Exception(cause)) {
             log.error("[{}] Failed to perform {} on topic {}",
                     clientAppId(), methodName, topicName, cause);
         }
@@ -5401,7 +5414,7 @@ public class PersistentTopicsBase extends AdminResource {
                     return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
                             "Only persistent topic can be set as shadow topic"));
                 }
-                futures.add(pulsar().getNamespaceService().checkTopicExists(shadowTopicName)
+                futures.add(pulsar().getNamespaceService().checkTopicExistsAsync(shadowTopicName)
                         .thenAccept(info -> {
                             boolean exists = info.isExists();
                             info.recycle();

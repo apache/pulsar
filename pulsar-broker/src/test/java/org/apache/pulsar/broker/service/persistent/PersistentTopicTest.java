@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -75,6 +74,7 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -102,6 +102,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+
 
 @Slf4j
 @Test(groups = "broker")
@@ -217,6 +218,13 @@ public class PersistentTopicTest extends BrokerTestBase {
         assertNotNull(msg);
         msg = consumer2.receive(5, TimeUnit.SECONDS);
         assertNotNull(msg);
+
+        org.apache.pulsar.broker.service.Consumer sharedConsumer = sharedDispatcher.getConsumers().get(0);
+        Field blockField = org.apache.pulsar.broker.service.Consumer.class.getDeclaredField("blockedConsumerOnUnackedMsgs");
+        blockField.setAccessible(true);
+        blockField.set(sharedConsumer, true);
+        producer.newMessage().value("test").eventTime(5).send();
+        assertFalse(sharedSub.checkAndUnblockIfStuck());
     }
 
     @Test
@@ -571,37 +579,6 @@ public class PersistentTopicTest extends BrokerTestBase {
     }
 
     @Test
-    public void testCompatibilityWithPartitionKeyword() throws PulsarAdminException, PulsarClientException {
-        final String topicName = "persistent://prop/ns-abc/testCompatibilityWithPartitionKeyword";
-        TopicName topicNameEntity = TopicName.get(topicName);
-        String partition2 = topicNameEntity.getPartition(2).toString();
-        // Create a non-partitioned topic with -partition- keyword
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(partition2)
-                .create();
-        List<String> topics = admin.topics().getList("prop/ns-abc");
-        // Close previous producer to simulate reconnect
-        producer.close();
-        // Disable auto topic creation
-        conf.setAllowAutoTopicCreation(false);
-        // Check the topic exist in the list.
-        Assert.assertTrue(topics.contains(partition2));
-        // Check this topic has no partition metadata.
-        Assert.assertThrows(PulsarAdminException.NotFoundException.class,
-                () -> admin.topics().getPartitionedTopicMetadata(topicName));
-        // Reconnect to the broker and expect successful because the topic has existed in the broker.
-        producer = pulsarClient.newProducer()
-                .topic(partition2)
-                .create();
-        producer.close();
-        // Check the topic exist in the list again.
-        Assert.assertTrue(topics.contains(partition2));
-        // Check this topic has no partition metadata again.
-        Assert.assertThrows(PulsarAdminException.NotFoundException.class,
-                () -> admin.topics().getPartitionedTopicMetadata(topicName));
-    }
-
-    @Test
     public void testDeleteTopicFail() throws Exception {
         final String fullyTopicName = "persistent://prop/ns-abc/" + "tp_"
                 + UUID.randomUUID().toString().replaceAll("-", "");
@@ -729,7 +706,7 @@ public class PersistentTopicTest extends BrokerTestBase {
         TopicPolicies policies = new TopicPolicies();
         policies.setRetentionPolicies(retentionPolicies);
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(policiesService)
-                .getTopicPoliciesAsync(TopicName.get(topic), TopicPoliciesService.GetType.DEFAULT);
+                .getTopicPoliciesAsync(TopicName.get(topic), TopicPoliciesService.GetType.LOCAL_ONLY);
         persistentTopic.onUpdate(policies);
         verify(persistentTopic, times(1)).checkPersistencePolicies();
         Awaitility.await().untilAsserted(() -> {

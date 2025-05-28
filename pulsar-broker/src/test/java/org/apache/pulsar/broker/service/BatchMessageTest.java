@@ -1012,6 +1012,10 @@ public class BatchMessageTest extends BrokerTestBase {
         }
         FutureUtil.waitForAll(sendFutureList).get();
 
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertTrue(consumer1.numMessagesInQueue() > 0);
+            assertTrue(consumer2.numMessagesInQueue() > 0);
+        });
         assertEquals(consumer1.numMessagesInQueue(), batchMessages, batchMessages);
         assertEquals(consumer2.numMessagesInQueue(), batchMessages, batchMessages);
 
@@ -1033,7 +1037,6 @@ public class BatchMessageTest extends BrokerTestBase {
                 .isAckReceiptEnabled(true)
                 .subscriptionName(subscriptionName)
                 .subscriptionType(subType)
-                .enableBatchIndexAcknowledgment(true)
                 .subscribe();
 
         @Cleanup

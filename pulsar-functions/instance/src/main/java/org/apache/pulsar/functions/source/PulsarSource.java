@@ -37,6 +37,7 @@ import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.utils.CryptoUtils;
+import org.apache.pulsar.functions.utils.MessagePayloadProcessorUtils;
 import org.apache.pulsar.io.core.Source;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
@@ -81,6 +82,9 @@ public abstract class PulsarSource<T> implements Source<T> {
         }
         if (conf.getCryptoKeyReader() != null) {
             cb = cb.cryptoKeyReader(conf.getCryptoKeyReader());
+        }
+        if (conf.getMessagePayloadProcessor() != null) {
+            cb = cb.messagePayloadProcessor(conf.getMessagePayloadProcessor());
         }
         if (conf.getConsumerCryptoFailureAction() != null) {
             cb = cb.cryptoFailureAction(conf.getConsumerCryptoFailureAction());
@@ -189,6 +193,11 @@ public abstract class PulsarSource<T> implements Source<T> {
             consumerConfBuilder.cryptoKeyReader(CryptoUtils.getCryptoKeyReaderInstance(
                     conf.getCryptoConfig().getCryptoKeyReaderClassName(),
                     conf.getCryptoConfig().getCryptoKeyReaderConfig(), functionClassLoader));
+        }
+        if (conf.getMessagePayloadProcessorConfig() != null) {
+            consumerConfBuilder.messagePayloadProcessor(MessagePayloadProcessorUtils.getMessagePayloadProcessorInstance(
+                    conf.getMessagePayloadProcessorConfig().getClassName(),
+                    conf.getMessagePayloadProcessorConfig().getConfig(), functionClassLoader));
         }
         consumerConfBuilder.poolMessages(conf.isPoolMessages());
         return consumerConfBuilder.build();

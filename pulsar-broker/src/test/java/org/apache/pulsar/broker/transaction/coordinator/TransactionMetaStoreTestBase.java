@@ -74,7 +74,6 @@ public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
             config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
             config.setDefaultNumberOfNamespaceBundles(1);
             config.setLoadBalancerEnabled(false);
-            config.setAcknowledgmentAtBatchIndexLevelEnabled(true);
             config.setTransactionCoordinatorEnabled(true);
             configurations[i] = config;
 

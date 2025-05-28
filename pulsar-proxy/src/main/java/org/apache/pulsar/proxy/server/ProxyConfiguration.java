@@ -266,6 +266,15 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private String advertisedAddress;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Specifies the interval (in seconds) for sending ping messages to the client. Set to 0 to disable "
+                    + "ping messages. This setting applies to client connections used for topic lookups and "
+                    + "partition metadata requests. When a client establishes a broker connection via the proxy, "
+                    + "the client and broker will communicate directly without the proxy intercepting the messages. "
+                    + "In that case, the broker's keepAliveIntervalSeconds configuration becomes relevant.")
+    private int keepAliveIntervalSeconds = 30;
+
     @FieldContext(category = CATEGORY_SERVER,
             doc = "Enable or disable the proxy protocol.")
     private boolean haProxyProtocolEnabled;
@@ -817,6 +826,13 @@ public class ProxyConfiguration implements PulsarConfiguration {
             doc = "List of proxy additional servlet to load, which is a list of proxy additional servlet names"
     )
     private Set<String> proxyAdditionalServlets = new TreeSet<>();
+
+    @FieldContext(
+            category = CATEGORY_PLUGIN,
+            doc = "Default http header map to add into http-proxy for the any security requirements "
+                    + "eg: { \"header1\": \"val1\", \"header2\": \"val2\" }"
+    )
+    private String proxyHttpResponseHeadersJson;
 
     @FieldContext(
             category = CATEGORY_PLUGIN,

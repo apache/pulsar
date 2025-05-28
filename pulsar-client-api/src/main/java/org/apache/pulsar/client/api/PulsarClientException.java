@@ -961,7 +961,11 @@ public class PulsarClientException extends IOException {
     public static Throwable wrap(Throwable t, String msg) {
         msg += "\n" + t.getMessage();
         // wrap an exception with new message info
-        if (t instanceof TimeoutException) {
+        if (t instanceof NotFoundException) {
+            return new NotFoundException(msg);
+        } else if (t instanceof TopicDoesNotExistException) {
+            return new TopicDoesNotExistException(msg);
+        } else if (t instanceof TimeoutException) {
             return new TimeoutException(msg);
         } else if (t instanceof InvalidConfigurationException) {
             return new InvalidConfigurationException(msg);

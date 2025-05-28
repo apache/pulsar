@@ -256,9 +256,16 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         long firstReceivedAt = System.currentTimeMillis();
         long expectedTotalRedeliveryDelay = 0;
         for (int i = 0; i < redeliverCount; i++) {
+            Message<String> msg = null;
             for (int j = 0; j < N; j++) {
-                Message<String> msg = consumer.receive();
+                msg = consumer.receive();
                 log.info("Received message {}", msg.getValue());
+                if (!batching) {
+                    consumer.negativeAcknowledge(msg);
+                }
+            }
+            if (batching) {
+                // for batching, we only need to nack one message in the batch to trigger redelivery
                 consumer.negativeAcknowledge(msg);
             }
             expectedTotalRedeliveryDelay += backoff.next(i);
@@ -373,7 +380,6 @@ public class NegativeAcksTest extends ProducerConsumerBase {
     @Test
     public void testNegativeAcksWithBatchAckEnabled() throws Exception {
         cleanup();
-        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
         setup();
         String topic = BrokerTestUtil.newUniqueName("testNegativeAcksWithBatchAckEnabled");
 
@@ -383,7 +389,6 @@ public class NegativeAcksTest extends ProducerConsumerBase {
                 .subscriptionName("sub1")
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
                 .subscriptionType(SubscriptionType.Shared)
-                .enableBatchIndexAcknowledgment(true)
                 .negativeAckRedeliveryDelay(1, TimeUnit.SECONDS)
                 .subscribe();
 
@@ -430,7 +435,6 @@ public class NegativeAcksTest extends ProducerConsumerBase {
                 .topic(topic)
                 .subscriptionName("sub")
                 .subscriptionType(SubscriptionType.Failover)
-                .enableBatchIndexAcknowledgment(true)
                 .acknowledgmentGroupTime(100, TimeUnit.MILLISECONDS)
                 .receiverQueueSize(10)
                 .subscribe();

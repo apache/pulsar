@@ -98,7 +98,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     private static final int waitTimeForCannotReceiveMsgInSec = 5;
     @BeforeClass(alwaysRun = true)
     protected void setup() throws Exception {
-        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
         setUpBase(1, NUM_PARTITIONS, TOPIC_OUTPUT, TOPIC_PARTITION);
         admin.topics().createPartitionedTopic(TOPIC_MESSAGE_ACK_TEST, 1);
     }
@@ -138,7 +137,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .isAckReceiptEnabled(true)
                 .subscriptionName("test")
                 .subscriptionType(SubscriptionType.Shared)
-                .enableBatchIndexAcknowledgment(true)
                 .subscribe();
 
         for (int i = 0; i < count; i++) {
@@ -205,7 +203,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .isAckReceiptEnabled(true)
                 .subscriptionName("test")
                 .subscriptionType(SubscriptionType.Shared)
-                .enableBatchIndexAcknowledgment(true)
                 .subscribe();
 
         for (int i = 0; i < count; i++) {
@@ -237,7 +234,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .isAckReceiptEnabled(true)
                 .subscriptionName("test")
                 .subscriptionType(SubscriptionType.Shared)
-                .enableBatchIndexAcknowledgment(true)
                 .subscribe();
 
         Message<Integer> message = consumer.receive(waitTimeForCannotReceiveMsgInSec, TimeUnit.SECONDS);
@@ -320,7 +316,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .newConsumer()
                 .topic(TOPIC_OUTPUT)
                 .subscriptionName("test")
-                .enableBatchIndexAcknowledgment(true)
                 .subscribe();
         Awaitility.await().until(consumer::isConnected);
 
@@ -393,7 +388,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .topic(TOPIC_OUTPUT)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscriptionName(subName)
-                .enableBatchIndexAcknowledgment(true)
                 .subscribe();
         Awaitility.await().until(consumer::isConnected);
 
@@ -545,7 +539,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(normalTopic)
                 .subscriptionName("test")
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(subscriptionType)
                 .subscribe();
         Awaitility.await().until(consumer::isConnected);
@@ -648,7 +641,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .newConsumer()
                 .topic(topic)
                 .subscriptionName(subName)
-                .enableBatchIndexAcknowledgment(true)
                 .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
                 .subscribe();
         Awaitility.await().until(consumer::isConnected);
@@ -773,7 +765,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(normalTopic)
                 .subscriptionName("test")
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(subscriptionType)
                 .ackTimeout(1, TimeUnit.MINUTES)
                 .subscribe();
@@ -1156,7 +1147,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .newConsumer()
                 .topic(topic)
                 .subscriptionName(subName)
-                .enableBatchIndexAcknowledgment(true)
                 .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
                 .subscribe();
         Awaitility.await().until(consumer::isConnected);
@@ -1500,8 +1490,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         @Cleanup
         Consumer<byte[]> deadLetterConsumer = pulsarClient.newConsumer()
-                .topic(String.format("%s-%s" + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX,
-                        topic, subName))
+                .topic(RetryMessageUtil.getDLQTopic(topic, subName))
                 .subscriptionType(SubscriptionType.Shared)
                 .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(1).build())
                 .subscriptionName("test")
@@ -1536,8 +1525,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         consumer.close();
         deadLetterConsumer.close();
         producer.close();
-        admin.topics().delete(String.format("%s-%s" + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX,
-                topic, subName), true);
+        admin.topics().delete(RetryMessageUtil.getDLQTopic(topic, subName), true);
         admin.topics().delete(topic, true);
     }
 
@@ -1564,8 +1552,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         @Cleanup
         Consumer<byte[]> deadLetterConsumer = pulsarClient.newConsumer()
-                .topic(String.format("%s-%s" + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX,
-                        topic, subName))
+                .topic(RetryMessageUtil.getDLQTopic(topic, subName))
                 .subscriptionType(SubscriptionType.Shared)
                 .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(1).build())
                 .subscriptionName("test")
@@ -1611,8 +1598,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         consumer.close();
         deadLetterConsumer.close();
         producer.close();
-        admin.topics().delete(String.format("%s-%s" + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX,
-                topic, subName), true);
+        admin.topics().delete(RetryMessageUtil.getDLQTopic(topic, subName), true);
         admin.topics().delete(topic, true);
     }
 

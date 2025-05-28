@@ -85,9 +85,11 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
+import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer.State;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -106,6 +108,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -1178,7 +1181,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         // try to create topic which should fail as bundle is disable
         CompletableFuture<Optional<Topic>> futureResult = pulsar.getBrokerService()
-                .loadOrCreatePersistentTopic(topicName, true, null, null);
+                .loadOrCreatePersistentTopic(topicName, true, null);
 
         try {
             futureResult.get();
@@ -1222,7 +1225,7 @@ public class BrokerServiceTest extends BrokerTestBase {
             for (int i = 0; i < 10; i++) {
                 // try to create topic which should fail as bundle is disable
                 CompletableFuture<Optional<Topic>> futureResult = pulsar.getBrokerService()
-                        .loadOrCreatePersistentTopic(topicName + "_" + i, false, null, null);
+                        .loadOrCreatePersistentTopic(topicName + "_" + i, false, null);
                 loadFutures.add(futureResult);
             }
 
@@ -1549,6 +1552,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         CloseableHttpClient httpClient = HttpClientBuilder.create().build();
         final String metricsEndPoint = getPulsar().getWebServiceAddress() + "/metrics";
         HttpResponse response = httpClient.execute(new HttpGet(metricsEndPoint));
+        assertEquals(response.getEntity().getContentType().getValue(),
+                PrometheusMetricsServlet.PROMETHEUS_CONTENT_TYPE_004);
         InputStream inputStream = response.getEntity().getContent();
         InputStreamReader isReader = new InputStreamReader(inputStream);
         BufferedReader reader = new BufferedReader(isReader);
@@ -1791,6 +1796,47 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @Test
+    public void testBlockedConsumerOnUnackedMsgs() throws Exception {
+        final String ns = "prop/ns-test";
+        admin.namespaces().createNamespace(ns, 2);
+        admin.namespaces().setMaxUnackedMessagesPerConsumer(ns, 1);
+
+        final String topicName = "persistent://prop/ns-test/testBlockedConsumerOnUnackedMsgs";
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .create();
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("sub-test")
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscriptionType(SubscriptionType.Shared)
+                .isAckReceiptEnabled(true)
+                .receiverQueueSize(0)
+                .subscribe();
+
+        producer.send("1".getBytes(StandardCharsets.UTF_8));
+        producer.send("2".getBytes(StandardCharsets.UTF_8));
+
+        // 1. receive message
+        Message<byte[]> message = consumer.receive();
+        Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
+
+        SubscriptionStats subscriptionStats = admin.topics().getStats(topicName).getSubscriptions().get("sub-test");
+        assertEquals(subscriptionStats.getUnackedMessages(), 1);
+        assertTrue(subscriptionStats.getConsumers().get(0).isBlockedConsumerOnUnackedMsgs());
+
+        // 2、ack this message
+        consumer.acknowledge(message);
+        Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
+
+        subscriptionStats = admin.topics().getStats(topicName).getSubscriptions().get("sub-test");
+        assertEquals(subscriptionStats.getUnackedMessages(), 0);
+        assertFalse(subscriptionStats.getConsumers().get(0).isBlockedConsumerOnUnackedMsgs());
+    }
+
+    @Test
     public void testUnsubscribeNonDurableSub() throws Exception {
         final String ns = "prop/ns-test";
         final String topic = ns + "/testUnsubscribeNonDurableSub";
@@ -1961,5 +2007,23 @@ public class BrokerServiceTest extends BrokerTestBase {
         }
     }
 
+    @Test
+    public void testPulsarMetadataEventSyncProducerCreation() throws Exception {
+        final String topicName = "persistent://prop/usw/my-ns/syncTopic";
+        pulsar.getConfiguration().setMetadataSyncEventTopic(topicName);
+        PulsarMetadataEventSynchronizer sync = new PulsarMetadataEventSynchronizer(pulsar, topicName);
+        // set invalid client for retry
+        @Cleanup
+        PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder().serviceUrl("http://invalidhost:8080")
+                .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
+        sync.client = client;
+        sync.STATE_UPDATER.set(sync, State.Starting_Producer);
+        sync.startProducer();
+        assertNull(sync.getProducer());
+        // update valid client which will set the producer
+        sync.client = (PulsarClientImpl) pulsarClient;
+        retryStrategically((test) -> sync.getProducer() != null, 1000, 10);
+        assertNotNull(sync.getProducer());
+    }
 }
 

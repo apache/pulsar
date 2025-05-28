@@ -19,13 +19,19 @@
 package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import java.util.Collection;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.testng.annotations.AfterClass;
@@ -125,4 +131,80 @@ public class LookupServiceTest extends ProducerConsumerBase {
         admin.topics().delete(nonPartitionedTopic, false);
     }
 
+    @Test(dataProvider = "isUsingHttpLookup")
+    public void testGetPartitionedTopicMetadataByPulsarClient(boolean isUsingHttpLookup) throws PulsarAdminException {
+        LookupService lookupService = getLookupService(isUsingHttpLookup);
+
+        // metadataAutoCreationEnabled is true.
+        assertThat(lookupService.getPartitionedTopicMetadata(
+                TopicName.get(BrokerTestUtil.newUniqueName("persistent://public/default/tp")), true))
+                .succeedsWithin(3, TimeUnit.SECONDS)
+                .matches(n -> n.partitions == 0);
+
+        // metadataAutoCreationEnabled is true.
+        // Allow the get the metadata of single partition topic, because the auto-creation is enabled.
+        // But the producer/consumer is unavailable because the topic doesn't have the metadata.
+        assertThat(lookupService.getPartitionedTopicMetadata(
+                TopicName.get(BrokerTestUtil.newUniqueName("persistent://public/default/tp") + "-partition-10"),
+                true))
+                .succeedsWithin(3, TimeUnit.SECONDS)
+                .matches(n -> n.partitions == 0);
+
+        Class<? extends Throwable> expectedExceptionClass =
+                isUsingHttpLookup ? PulsarClientException.NotFoundException.class :
+                        PulsarClientException.TopicDoesNotExistException.class;
+        // metadataAutoCreationEnabled is false.
+        assertThat(lookupService.getPartitionedTopicMetadata(
+                TopicName.get(BrokerTestUtil.newUniqueName("persistent://public/default/tp")), false))
+                .failsWithin(3, TimeUnit.SECONDS)
+                .withThrowableThat()
+                .withCauseInstanceOf(expectedExceptionClass);
+
+        // metadataAutoCreationEnabled is false.
+        assertThat(lookupService.getPartitionedTopicMetadata(
+                TopicName.get(BrokerTestUtil.newUniqueName("persistent://public/default/tp") + "-partition-10"),
+                false))
+                .failsWithin(3, TimeUnit.SECONDS)
+                .withThrowableThat()
+                .withCauseInstanceOf(expectedExceptionClass);
+
+        // Verify the topic exists, and the metadataAutoCreationEnabled is false.
+        String nonPartitionedTopic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        admin.topics().createNonPartitionedTopic(nonPartitionedTopic);
+        assertThat(lookupService.getPartitionedTopicMetadata(TopicName.get(nonPartitionedTopic), false))
+                .succeedsWithin(3, TimeUnit.SECONDS)
+                .matches(n -> n.partitions == 0);
+
+        String partitionedTopic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        String partitionedTopicWithPartitionIndex = partitionedTopic + "-partition-10";
+        admin.topics().createPartitionedTopic(partitionedTopic, 20);
+        assertThat(lookupService.getPartitionedTopicMetadata(TopicName.get(partitionedTopic), false))
+                .succeedsWithin(3, TimeUnit.SECONDS)
+                .matches(n -> n.partitions == 20);
+        assertThat(lookupService.getPartitionedTopicMetadata(TopicName.get(partitionedTopicWithPartitionIndex), false))
+                .succeedsWithin(3, TimeUnit.SECONDS)
+                .matches(n -> n.partitions == 0);
+    }
+
+    @Test
+    public void testGetPartitionedTopicMedataByAdmin() throws PulsarAdminException {
+        String nonPartitionedTopic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        String partitionedTopic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        String partitionedTopicWithPartitionIndex = partitionedTopic + "-partition-10";
+        // No topic, so throw the NotFound.
+        // BTW: The admin api doesn't allow to creat the metadata of topic default.
+        assertThrows(PulsarAdminException.NotFoundException.class, () -> admin.topics()
+                .getPartitionedTopicMetadata(nonPartitionedTopic));
+        assertThrows(PulsarAdminException.NotFoundException.class, () -> admin.topics()
+                .getPartitionedTopicMetadata(partitionedTopic));
+        assertThrows(PulsarAdminException.NotFoundException.class,
+                () -> admin.topics().getPartitionedTopicMetadata(partitionedTopicWithPartitionIndex));
+
+        admin.topics().createNonPartitionedTopic(nonPartitionedTopic);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(nonPartitionedTopic).partitions, 0);
+
+        admin.topics().createPartitionedTopic(partitionedTopic, 20);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopic).partitions, 20);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicWithPartitionIndex).partitions, 0);
+    }
 }

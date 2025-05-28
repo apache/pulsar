@@ -30,30 +30,28 @@ import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
-import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
+/**
+ * On MacOS, the performance of System.nanoTime() is not great. Running benchmarks on Linux is recommended due
+ * to the bottleneck of System.nanoTime() implementation on MacOS.
+ */
 @Fork(3)
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.SECONDS)
 @State(Scope.Thread)
 public class AsyncTokenBucketBenchmark {
     private AsyncTokenBucket asyncTokenBucket;
-    private DefaultMonotonicSnapshotClock monotonicSnapshotClock =
-            new DefaultMonotonicSnapshotClock(TimeUnit.MILLISECONDS.toNanos(8), System::nanoTime);
+    private DefaultMonotonicClock monotonicSnapshotClock =
+            new DefaultMonotonicClock();
 
     @Setup(Level.Iteration)
     public void setup() {
         long ratePerSecond = 100_000_000;
         asyncTokenBucket = AsyncTokenBucket.builder().rate(ratePerSecond).clock(monotonicSnapshotClock)
                 .initialTokens(2 * ratePerSecond).capacity(2 * ratePerSecond).build();
-    }
-
-    @TearDown(Level.Iteration)
-    public void teardown() {
-        monotonicSnapshotClock.close();
     }
 
     @Threads(1)

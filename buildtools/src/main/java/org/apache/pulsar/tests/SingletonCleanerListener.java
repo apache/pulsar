@@ -21,9 +21,11 @@ package org.apache.pulsar.tests;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.List;
 import org.apache.commons.lang3.ClassUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.ITestClass;
 
 /**
  * This TestNG listener contains cleanup for some singletons or caches.
@@ -76,7 +78,7 @@ public class SingletonCleanerListener extends BetweenTestClassesListenerAdapter 
     }
 
     @Override
-    protected void onBetweenTestClasses(Class<?> endedTestClass, Class<?> startedTestClass) {
+    protected void onBetweenTestClasses(List<ITestClass> testClasses) {
         objectMapperFactoryClearCaches();
         jsonSchemaClearCaches();
     }

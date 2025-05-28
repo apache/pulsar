@@ -720,6 +720,21 @@ public class PulsarCluster {
                 enabled ? "--enable" : "--disable");
     }
 
+    public String getFunctionLogs(String name) {
+        StringBuilder logs = new StringBuilder();
+        for (WorkerContainer container : getAlWorkers()) {
+            try {
+                String logFile = "/pulsar/logs/functions/public/default/" + name + "/" + name + "-0.log";
+                logs.append(container.<String>copyFileFromContainer(logFile, (inputStream) -> {
+                    return IOUtils.toString(inputStream, "utf-8");
+                }));
+            } catch (Exception e) {
+                log.error("Failed to get function logs from container {}", container.getContainerName(), e);
+            }
+        }
+        return logs.toString();
+    }
+
     public void dumpFunctionLogs(String name) {
         for (WorkerContainer container : getAlWorkers()) {
             log.info("Trying to get function {} logs from container {}", name, container.getContainerName());

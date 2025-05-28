@@ -40,13 +40,15 @@ public class MockZooKeeperSession extends ZooKeeper {
 
     private MockZooKeeper mockZooKeeper;
 
-    private long sessionId = 0L;
+    private long sessionId = 1L;
 
     private static final Objenesis objenesis = new ObjenesisStd();
 
     private static final AtomicInteger sessionIdGenerator = new AtomicInteger(1000);
 
     private boolean closeMockZooKeeperOnClose;
+
+    private int sessionTimeout = -1;
 
     public static MockZooKeeperSession newInstance(MockZooKeeper mockZooKeeper) {
         return newInstance(mockZooKeeper, true);
@@ -59,6 +61,9 @@ public class MockZooKeeperSession extends ZooKeeper {
         mockZooKeeperSession.mockZooKeeper = mockZooKeeper;
         mockZooKeeperSession.sessionId = sessionIdGenerator.getAndIncrement();
         mockZooKeeperSession.closeMockZooKeeperOnClose = closeMockZooKeeperOnClose;
+        if (closeMockZooKeeperOnClose) {
+            mockZooKeeper.increaseRefCount();
+        }
         return mockZooKeeperSession;
     }
 
@@ -71,7 +76,15 @@ public class MockZooKeeperSession extends ZooKeeper {
 
     @Override
     public int getSessionTimeout() {
-        return mockZooKeeper.getSessionTimeout();
+        if (sessionTimeout > 0) {
+            return sessionTimeout;
+        } else {
+            return mockZooKeeper.getSessionTimeout();
+        }
+    }
+
+    public void setSessionTimeout(int sessionTimeout) {
+        this.sessionTimeout = sessionTimeout;
     }
 
     @Override
@@ -81,17 +94,22 @@ public class MockZooKeeperSession extends ZooKeeper {
 
     @Override
     public void register(Watcher watcher) {
-        mockZooKeeper.register(watcher);
+        try {
+            mockZooKeeper.overrideSessionId(getSessionId());
+            mockZooKeeper.register(watcher);
+        } finally {
+            mockZooKeeper.removeSessionIdOverride();
+        }
     }
 
     @Override
     public String create(String path, byte[] data, List<ACL> acl, CreateMode createMode)
             throws KeeperException, InterruptedException {
         try {
-            mockZooKeeper.overrideEpheralOwner(getSessionId());
+            mockZooKeeper.overrideSessionId(getSessionId());
             return mockZooKeeper.create(path, data, acl, createMode);
         } finally {
-            mockZooKeeper.removeEpheralOwnerOverride();
+            mockZooKeeper.removeSessionIdOverride();
         }
     }
 
@@ -99,134 +117,257 @@ public class MockZooKeeperSession extends ZooKeeper {
     public void create(final String path, final byte[] data, final List<ACL> acl, CreateMode createMode,
                        final AsyncCallback.StringCallback cb, final Object ctx) {
         try {
-            mockZooKeeper.overrideEpheralOwner(getSessionId());
+            mockZooKeeper.overrideSessionId(getSessionId());
             mockZooKeeper.create(path, data, acl, createMode, cb, ctx);
         } finally {
-            mockZooKeeper.removeEpheralOwnerOverride();
+            mockZooKeeper.removeSessionIdOverride();
         }
     }
 
     @Override
-    public byte[] getData(String path, Watcher watcher, Stat stat) throws KeeperException {
-        return mockZooKeeper.getData(path, watcher, stat);
+    public byte[] getData(String path, Watcher watcher, Stat stat) throws KeeperException, InterruptedException {
+        try {
+            mockZooKeeper.overrideSessionId(getSessionId());
+            return mockZooKeeper.getData(path, watcher, stat);
+        } finally {
+            mockZooKeeper.removeSessionIdOverride();
+        }
     }
 
     @Override
     public void getData(final String path, boolean watch, final DataCallback cb, final Object ctx) {
-        mockZooKeeper.getData(path, watch, cb, ctx);
+        try {
+            mockZooKeeper.overrideSessionId(getSessionId());
+            mockZooKeeper.getData(path, watch, cb, ctx);
+        } finally {
+            mockZooKeeper.removeSessionIdOverride();
+        }
     }
 
     @Override
     public void getData(final String path, final Watcher watcher, final DataCallback cb, final Object ctx) {
-        mockZooKeeper.getData(path, watcher, cb, ctx);
+        try {
+            mockZooKeeper.overrideSessionId(getSessionId());
+            mockZooKeeper.getData(path, watcher, cb, ctx);
+        } finally {
+            mockZooKeeper.removeSessionIdOverride();
+        }
     }
 
     @Override
     public void getChildren(final String path, final Watcher watcher, final ChildrenCallback cb, final Object ctx) {
-        mockZooKeeper.getChildren(path, watcher, cb, ctx);
+        try {
+            mockZooKeeper.overrideSessionId(getSessionId());
+            mockZooKeeper.getChildren(path, watcher, cb, ctx);
+        } finally {
+            mockZooKeeper.removeSessionIdOverride();
+        }
     }
 
     @Override
-    public List<String> getChildren(String path, Watcher watcher) throws KeeperException {
-        return mockZooKeeper.getChildren(path, watcher);
+    public List<String> getChildren(String path, Watcher watcher) throws KeeperException, InterruptedException {
+        try {
+            mockZooKeeper.overrideSessionId(getSessionId());
+            return mockZooKeeper.getChildren(path, watcher);
+        } finally {
+            mockZooKeeper.removeSessionIdOverride();
+        }
     }
 
     @Override
     public List<String> getChildren(String path, boolean watch) throws KeeperException, InterruptedException {
-        return mockZooKeeper.getChildren(path, watch);
+        try {
+            mockZooKeeper.overrideSessionId(getSessionId());
+            return mockZooKeeper.getChildren(path, watch);
+        } finally {
+            mockZooKeeper.removeSessionIdOverride();
+        }
     }
 
     @Override
     public void getChildren(final String path, boolean watcher, final Children2Callback cb, final Object ctx) {
-        mockZooKeeper.getChildren(path, watcher, cb, ctx);
+        try {
+            mockZooKeeper.overrideSessionId(getSessionId());
+            mockZooKeeper.getChildren(path, watcher, cb, ctx);
+        } finally {
+            mockZooKeeper.removeSessionIdOverride();
+        }
     }
 
     @Override
     public Stat exists(String path, boolean watch) throws KeeperException, InterruptedException {
-        return mockZooKeeper.exists(path, watch);
+        try {
+            mockZooKeeper.overrideSessionId(getSessionId());
+            return mockZooKeeper.exists(path, watch);
+        } finally {
+            mockZooKeeper.removeSessionIdOverride();
+        }
     }
 
     @Override
     public Stat exists(String path, Watcher watcher) throws KeeperException, InterruptedException {
-        return mockZooKeeper.exists(path, watcher);
+        try {
+            mockZooKeeper.overrideSessionId(getSessionId());
+            return mockZooKeeper.exists(path, watcher);
+        } finally {
+            mockZooKeeper.removeSessionIdOverride();
+        }
     }
 
     @Override
     public void exists(String path, boolean watch, StatCallback cb, Object ctx) {
-        mockZooKeeper.exists(path, watch, cb, ctx);
+        try {
+            mockZooKeeper.overrideSessionId(getSessionId());
+            mockZooKeeper.exists(path, watch, cb, ctx);
+        } finally {
+            mockZooKeeper.removeSessionIdOverride();
+        }
     }
 
     @Override
     public void exists(String path, Watcher watcher, StatCallback cb, Object ctx) {
-        mockZooKeeper.exists(path, watcher, cb, ctx);
+        try {
+            mockZooKeeper.overrideSessionId(getSessionId());
+            mockZooKeeper.exists(path, watcher, cb, ctx);
+        } finally {
+            mockZooKeeper.removeSessionIdOverride();
+        }
     }
 
     @Override
     public void sync(String path, VoidCallback cb, Object ctx) {
-        mockZooKeeper.sync(path, cb, ctx);
+        try {
+            mockZooKeeper.overrideSessionId(getSessionId());
+            mockZooKeeper.sync(path, cb, ctx);
+        } finally {
+            mockZooKeeper.removeSessionIdOverride();
+        }
     }
 
     @Override
     public Stat setData(final String path, byte[] data, int version) throws KeeperException, InterruptedException {
-        return mockZooKeeper.setData(path, data, version);
+        try {
+            mockZooKeeper.overrideSessionId(getSessionId());
+            return mockZooKeeper.setData(path, data, version);
+        } finally {
+            mockZooKeeper.removeSessionIdOverride();
+        }
     }
 
     @Override
     public void setData(final String path, final byte[] data, int version, final StatCallback cb, final Object ctx) {
-        mockZooKeeper.setData(path, data, version, cb, ctx);
+        try {
+            mockZooKeeper.overrideSessionId(getSessionId());
+            mockZooKeeper.setData(path, data, version, cb, ctx);
+        } finally {
+            mockZooKeeper.removeSessionIdOverride();
+        }
     }
 
     @Override
     public void delete(final String path, int version) throws InterruptedException, KeeperException {
-        mockZooKeeper.delete(path, version);
+        try {
+            mockZooKeeper.overrideSessionId(getSessionId());
+            mockZooKeeper.delete(path, version);
+        } finally {
+            mockZooKeeper.removeSessionIdOverride();
+        }
     }
 
     @Override
     public void delete(final String path, int version, final VoidCallback cb, final Object ctx) {
-        mockZooKeeper.delete(path, version, cb, ctx);
+        try {
+            mockZooKeeper.overrideSessionId(getSessionId());
+            mockZooKeeper.delete(path, version, cb, ctx);
+        } finally {
+            mockZooKeeper.removeSessionIdOverride();
+        }
     }
 
     @Override
     public void multi(Iterable<org.apache.zookeeper.Op> ops, AsyncCallback.MultiCallback cb, Object ctx) {
-        mockZooKeeper.multi(ops, cb, ctx);
+        try {
+            mockZooKeeper.overrideSessionId(getSessionId());
+            mockZooKeeper.multi(ops, cb, ctx);
+        } finally {
+            mockZooKeeper.removeSessionIdOverride();
+        }
     }
 
     @Override
     public List<OpResult> multi(Iterable<org.apache.zookeeper.Op> ops) throws InterruptedException, KeeperException {
-        return mockZooKeeper.multi(ops);
+        try {
+            mockZooKeeper.overrideSessionId(getSessionId());
+            return mockZooKeeper.multi(ops);
+        } finally {
+            mockZooKeeper.removeSessionIdOverride();
+        }
     }
 
     @Override
     public void addWatch(String basePath, Watcher watcher, AddWatchMode mode, VoidCallback cb, Object ctx) {
-        mockZooKeeper.addWatch(basePath, watcher, mode, cb, ctx);
+        try {
+            mockZooKeeper.overrideSessionId(getSessionId());
+            mockZooKeeper.addWatch(basePath, watcher, mode, cb, ctx);
+        } finally {
+            mockZooKeeper.removeSessionIdOverride();
+        }
     }
 
     @Override
     public void addWatch(String basePath, Watcher watcher, AddWatchMode mode)
             throws KeeperException, InterruptedException {
-        mockZooKeeper.addWatch(basePath, watcher, mode);
+        try {
+            mockZooKeeper.overrideSessionId(getSessionId());
+            mockZooKeeper.addWatch(basePath, watcher, mode);
+        } finally {
+            mockZooKeeper.removeSessionIdOverride();
+        }
     }
 
     @Override
     public void addWatch(String basePath, AddWatchMode mode) throws KeeperException, InterruptedException {
-        mockZooKeeper.addWatch(basePath, mode);
+        try {
+            mockZooKeeper.overrideSessionId(getSessionId());
+            mockZooKeeper.addWatch(basePath, mode);
+        } finally {
+            mockZooKeeper.removeSessionIdOverride();
+        }
     }
 
     @Override
     public void addWatch(String basePath, AddWatchMode mode, VoidCallback cb, Object ctx) {
-        mockZooKeeper.addWatch(basePath, mode, cb, ctx);
+        try {
+            mockZooKeeper.overrideSessionId(getSessionId());
+            mockZooKeeper.addWatch(basePath, mode, cb, ctx);
+        } finally {
+            mockZooKeeper.removeSessionIdOverride();
+        }
     }
 
     @Override
     public void close() throws InterruptedException {
-        if (closeMockZooKeeperOnClose) {
-            mockZooKeeper.close();
-        }
+        internalClose(false);
     }
 
     public void shutdown() throws InterruptedException {
-        if (closeMockZooKeeperOnClose) {
-            mockZooKeeper.shutdown();
+        internalClose(true);
+    }
+
+    private void internalClose(boolean shutdown) throws InterruptedException {
+        try {
+            mockZooKeeper.overrideSessionId(getSessionId());
+            mockZooKeeper.deleteEphemeralNodes(getSessionId());
+            mockZooKeeper.deleteWatchers(getSessionId());
+            if (closeMockZooKeeperOnClose) {
+                if (shutdown) {
+                    mockZooKeeper.shutdown();
+                } else {
+                    mockZooKeeper.close();
+                }
+            }
+        } finally {
+            mockZooKeeper.removeSessionIdOverride();
         }
     }
 
