@@ -514,10 +514,11 @@ public class PersistentTopicsBase extends AdminResource {
             if (optionalPolicies.isEmpty()) {
                 return CompletableFuture.completedFuture(null);
             }
-            // Query the topic-level policies only if the namespace-level policies exist
+            // Query the topic-level policies only if the namespace-level policies exist.
+            // Global policies does not affet Replication.
             final var namespacePolicies = optionalPolicies.get();
             return pulsar().getTopicPoliciesService().getTopicPoliciesAsync(topicName,
-                    TopicPoliciesService.GetType.DEFAULT
+                    TopicPoliciesService.GetType.LOCAL_ONLY
             ).thenApply(optionalTopicPolicies -> optionalTopicPolicies.map(TopicPolicies::getReplicationClustersSet)
                     .orElse(namespacePolicies.replication_clusters));
         });
@@ -740,7 +741,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalCheckTopicExists(TopicName topicName) {
-        return pulsar().getNamespaceService().checkTopicExists(topicName)
+        return pulsar().getNamespaceService().checkTopicExistsAsync(topicName)
                 .thenAccept(info -> {
                     boolean exists = info.isExists();
                     info.recycle();
@@ -3720,8 +3721,9 @@ public class PersistentTopicsBase extends AdminResource {
         }
         return ret
                 .thenCompose(__ -> checkTopicExistsAsync(topicName))
-                .thenCompose(exist -> {
-                    if (!exist) {
+                .thenCompose(topicExistsInfo -> {
+                    if (!topicExistsInfo.isExists()) {
+                        topicExistsInfo.recycle();
                         throw new RestException(Status.NOT_FOUND, getTopicNotFoundErrorMessage(topicName.toString()));
                     } else {
                         return getPartitionedTopicMetadataAsync(topicName, false, false)
@@ -5412,7 +5414,7 @@ public class PersistentTopicsBase extends AdminResource {
                     return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
                             "Only persistent topic can be set as shadow topic"));
                 }
-                futures.add(pulsar().getNamespaceService().checkTopicExists(shadowTopicName)
+                futures.add(pulsar().getNamespaceService().checkTopicExistsAsync(shadowTopicName)
                         .thenAccept(info -> {
                             boolean exists = info.isExists();
                             info.recycle();

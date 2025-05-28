@@ -2536,6 +2536,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 // Populate subscription specific stats here
                 topicStatsStream.writePair("msgBacklog",
                         subscription.getNumberOfEntriesInBacklog(true));
+                subscription.getExpiryMonitor().updateRates();
                 topicStatsStream.writePair("msgRateExpired", subscription.getExpiredMessageRate());
                 topicStatsStream.writePair("msgRateOut", subMsgRateOut);
                 topicStatsStream.writePair("messageAckRate", subMsgAckRate);
@@ -4421,9 +4422,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 return CompletableFuture.completedFuture(null);
             }
             return topicPoliciesService.getTopicPoliciesAsync(partitionedTopicName,
-                    TopicPoliciesService.GetType.DEFAULT
-            ).thenAcceptAsync(optionalPolicies -> optionalPolicies.ifPresent(this::onUpdate),
-                    brokerService.getTopicOrderedExecutor());
+                    TopicPoliciesService.GetType.GLOBAL_ONLY)
+            .thenAcceptAsync(optionalPolicies -> optionalPolicies.ifPresent(this::onUpdate),
+                    brokerService.getTopicOrderedExecutor())
+            .thenCompose(__ -> topicPoliciesService.getTopicPoliciesAsync(partitionedTopicName,
+                    TopicPoliciesService.GetType.LOCAL_ONLY))
+            .thenAcceptAsync(optionalPolicies -> optionalPolicies.ifPresent(this::onUpdate),
+                            brokerService.getTopicOrderedExecutor());
         }
         return CompletableFuture.completedFuture(null);
     }
