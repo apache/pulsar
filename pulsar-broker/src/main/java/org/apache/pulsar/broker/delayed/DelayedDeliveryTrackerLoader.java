@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.delayed;
 
-import java.io.IOException;
 import lombok.experimental.UtilityClass;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.util.Reflections;
@@ -27,7 +27,7 @@ import org.apache.pulsar.common.util.Reflections;
 @UtilityClass
 public class DelayedDeliveryTrackerLoader {
     public static DelayedDeliveryTrackerFactory loadDelayedDeliveryTrackerFactory(PulsarService pulsarService)
-            throws IOException {
+            throws PulsarServerException  {
         try {
             ServiceConfiguration conf = pulsarService.getConfiguration();
             DelayedDeliveryTrackerFactory factory =
@@ -36,7 +36,7 @@ public class DelayedDeliveryTrackerLoader {
             factory.initialize(pulsarService);
             return factory;
         } catch (Exception e) {
-            throw new IOException(e);
+            throw PulsarServerException.from(e);
         }
     }
 }
