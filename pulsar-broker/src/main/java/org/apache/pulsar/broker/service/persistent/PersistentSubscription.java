@@ -210,7 +210,8 @@ public class PersistentSubscription extends AbstractSubscription {
             this.replicatedSubscriptionSnapshotCache = null;
         } else if (this.replicatedSubscriptionSnapshotCache == null) {
             this.replicatedSubscriptionSnapshotCache = new ReplicatedSubscriptionSnapshotCache(subName,
-                    config.getReplicatedSubscriptionsSnapshotMaxCachedPerSubscription());
+                    config.getReplicatedSubscriptionsSnapshotMaxCachedPerSubscription(),
+                    config.getReplicatedSubscriptionsSnapshotFrequencyMillis());
         }
 
         if (this.cursor != null) {
@@ -1523,10 +1524,10 @@ public class PersistentSubscription extends AbstractSubscription {
     }
 
     @Override
-    public void processReplicatedSubscriptionSnapshot(ReplicatedSubscriptionsSnapshot snapshot) {
+    public void processReplicatedSubscriptionSnapshot(ReplicatedSubscriptionsSnapshot snapshot, long publishTime) {
         ReplicatedSubscriptionSnapshotCache snapshotCache = this.replicatedSubscriptionSnapshotCache;
         if (snapshotCache != null) {
-            snapshotCache.addNewSnapshot(new ReplicatedSubscriptionsSnapshot().copyFrom(snapshot));
+            snapshotCache.addNewSnapshot(new ReplicatedSubscriptionsSnapshot().copyFrom(snapshot), publishTime);
         }
     }
 
