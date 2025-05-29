@@ -1351,7 +1351,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
         }
         // Unsubscribe compaction cursor and delete compacted ledger.
-        currentCompaction.thenCompose(__ -> {
+        if (!currentCompaction.isDone()) {
+            currentCompaction.completeExceptionally(new Exception("Topic is being deleted"));
+        }
+        currentCompaction.handle((__, ex) -> {
             asyncDeleteCursor(subscriptionName, unsubscribeFuture);
             return unsubscribeFuture;
         }).thenAccept(__ -> {
