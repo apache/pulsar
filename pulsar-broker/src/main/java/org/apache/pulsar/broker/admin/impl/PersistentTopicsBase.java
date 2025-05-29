@@ -5490,10 +5490,14 @@ public class PersistentTopicsBase extends AdminResource {
                         }));
     }
 
-    protected CompletableFuture<MessageId> internalGetMessageIDByIndexAsync(Long offset, boolean authoritative) {
-        if (pulsar().getBrokerService().isBrokerEntryMetadataEnabled()) {
+    protected CompletableFuture<MessageId> internalGetMessageIDByIndexAsync(Long index, boolean authoritative) {
+        if (!pulsar().getBrokerService().isBrokerEntryMetadataEnabled()) {
             return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
                     "GetMessageIDByIndex is not allowed when broker entry metadata is disabled"));
+        }
+        if (index == null || index < 0) {
+            return FutureUtil.failedFuture(new RestException(Status.NOT_FOUND,
+                    "Invalid message index: " + index));
         }
         int partitionIndex = topicName.getPartitionIndex();
         CompletableFuture<Void> future = validateTopicOperationAsync(topicName, TopicOperation.PEEK_MESSAGES);
@@ -5520,34 +5524,76 @@ public class PersistentTopicsBase extends AdminResource {
                 }).thenCompose(ignore -> validateTopicOwnershipAsync(topicName, authoritative))
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))
                 .thenCompose(topic -> {
-            if (!(topic instanceof PersistentTopic persistentTopic)) {
-                log.error("[{}] Get message id by offset on a non-persistent topic {} is not allowed",
-                        clientAppId(), topicName);
-                return FutureUtil.failedFuture(new RestException(Status.METHOD_NOT_ALLOWED,
-                        "Get message id by offset on a non-persistent topic is not allowed"));
-            }
-            ManagedLedger managedLedger = persistentTopic.getManagedLedger();
-            return managedLedger.asyncFindPosition(entry -> {
-                try {
-                    BrokerEntryMetadata brokerEntryMetadata =
-                            Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
-                    return brokerEntryMetadata.getIndex() < offset;
-                } catch (Exception e) {
-                    log.error("Error deserialize message for message position find", e);
-                } finally {
-                    entry.release();
-                }
-                return false;
-            });
-        }).thenCompose(position -> {
-            if (position == null) {
-                return FutureUtil.failedFuture(new RestException(Status.NOT_FOUND,
-                        "Message not found for offset " + offset));
-            } else {
-                return CompletableFuture
-                        .completedFuture(new MessageIdImpl(position.getLedgerId(), position.getEntryId(),
-                                partitionIndex));
-            }
-        });
+                    if (!(topic instanceof PersistentTopic persistentTopic)) {
+                        log.error("[{}] Get message id by offset on a non-persistent topic {} is not allowed",
+                                clientAppId(), topicName);
+                        return FutureUtil.failedFuture(new RestException(Status.METHOD_NOT_ALLOWED,
+                                "Get message id by offset on a non-persistent topic is not allowed"));
+                    }
+                    ManagedLedger managedLedger = persistentTopic.getManagedLedger();
+                    return findMessageIndexByPosition(
+                            PositionFactory.create(managedLedger.getFirstPosition().getLedgerId(), 0),
+                            managedLedger)
+                            .thenCompose(firstIndex -> {
+                                if (index < firstIndex) {
+                                    return CompletableFuture.completedFuture(PositionFactory.EARLIEST);
+                                } else {
+                                    return managedLedger.asyncFindPosition(entry -> {
+                                        try {
+                                            BrokerEntryMetadata brokerEntryMetadata =
+                                                    Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
+                                            assert brokerEntryMetadata != null;
+                                            return brokerEntryMetadata.getIndex() < index;
+                                        } catch (Exception e) {
+                                            log.error("Error deserialize message for message position find", e);
+                                        } finally {
+                                            entry.release();
+                                        }
+                                        return false;
+                                    });
+                                }
+                            }).thenCompose(position -> {
+                                Position lastPosition = managedLedger.getLastConfirmedEntry();
+                                if (position == null || position.compareTo(lastPosition) > 0) {
+                                    return FutureUtil.failedFuture(new RestException(Status.NOT_FOUND,
+                                            "Message not found for offset " + index));
+                                } else {
+                                    return CompletableFuture.completedFuture(position);
+                                }
+                            });
+                }).thenCompose(position -> CompletableFuture.completedFuture(
+                        new MessageIdImpl(position.getLedgerId(), position.getEntryId(), partitionIndex)));
     }
+
+    protected CompletableFuture<Long> findMessageIndexByPosition(Position position, ManagedLedger managedLedger) {
+        CompletableFuture<Long> indexFuture = new CompletableFuture<>();
+        managedLedger.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                BrokerEntryMetadata brokerEntryMetadata =
+                        Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
+                if (brokerEntryMetadata == null) {
+                    indexFuture.completeExceptionally(new RestException(Status.PRECONDITION_FAILED,
+                            "Broker entry metadata is not present in the message"));
+                } else {
+                    long index = brokerEntryMetadata.getIndex();
+                    if (index < 0) {
+                        indexFuture.completeExceptionally(new RestException(Status.PRECONDITION_FAILED,
+                                "Invalid message index: " + index));
+                    } else {
+                        indexFuture.complete(index);
+                    }
+                }
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                log.error("[{}] Failed to read position {} on topic {}",
+                        clientAppId(), position, topicName, exception);
+                indexFuture.completeExceptionally(exception);
+            }
+        }, null);
+        return indexFuture;
+    }
+
 }
