@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.NULL_OFFLOAD_PROMISE;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicates;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Maps;
@@ -118,6 +119,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private final ManagedLedgerFactoryConfig config;
     @Getter
     protected final OrderedScheduler scheduledExecutor;
+    @Getter
     private final ScheduledExecutorService cacheEvictionExecutor;
 
     @Getter
@@ -147,6 +149,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
      */
     @Getter
     private boolean metadataServiceAvailable;
+    private final ManagedLedgerConfig defaultManagedLedgerConfig;
 
     private static class PendingInitializeManagedLedger {
 
@@ -170,7 +173,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                     ManagedLedgerFactoryConfig config)
             throws Exception {
         this(metadataStore, new DefaultBkFactory(bkClientConfiguration),
-                true /* isBookkeeperManaged */, config, NullStatsLogger.INSTANCE, OpenTelemetry.noop());
+                true /* isBookkeeperManaged */, config, NullStatsLogger.INSTANCE, OpenTelemetry.noop(),
+                new ManagedLedgerConfig());
     }
 
     public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore, BookKeeper bookKeeper)
@@ -181,7 +185,15 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore, BookKeeper bookKeeper,
                                     ManagedLedgerFactoryConfig config)
             throws Exception {
-        this(metadataStore, (policyConfig) -> CompletableFuture.completedFuture(bookKeeper), config);
+        this(metadataStore, bookKeeper, config, new ManagedLedgerConfig());
+    }
+
+    public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore, BookKeeper bookKeeper,
+                                    ManagedLedgerFactoryConfig config, ManagedLedgerConfig defaultManagedLedgerConfig)
+            throws Exception {
+        this(metadataStore, (policyConfig) -> CompletableFuture.completedFuture(bookKeeper),
+                false /* isBookkeeperManaged */, config, NullStatsLogger.INSTANCE, OpenTelemetry.noop(),
+                defaultManagedLedgerConfig);
     }
 
     public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore,
@@ -189,7 +201,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                     ManagedLedgerFactoryConfig config)
             throws Exception {
         this(metadataStore, bookKeeperGroupFactory, false /* isBookkeeperManaged */,
-                config, NullStatsLogger.INSTANCE, OpenTelemetry.noop());
+                config, NullStatsLogger.INSTANCE, OpenTelemetry.noop(), new ManagedLedgerConfig());
     }
 
     public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore,
@@ -198,7 +210,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                     OpenTelemetry openTelemetry)
             throws Exception {
         this(metadataStore, bookKeeperGroupFactory, false /* isBookkeeperManaged */,
-                config, statsLogger, openTelemetry);
+                config, statsLogger, openTelemetry, new ManagedLedgerConfig());
     }
 
     private ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore,
@@ -206,7 +218,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                      boolean isBookkeeperManaged,
                                      ManagedLedgerFactoryConfig config,
                                      StatsLogger statsLogger,
-                                     OpenTelemetry openTelemetry) throws Exception {
+                                     OpenTelemetry openTelemetry,
+                                     ManagedLedgerConfig defaultManagedLedgerConfig) throws Exception {
+        this.defaultManagedLedgerConfig = defaultManagedLedgerConfig;
         MetadataCompressionConfig compressionConfigForManagedLedgerInfo =
                 config.getCompressionConfigForManagedLedgerInfo();
         MetadataCompressionConfig compressionConfigForManagedCursorInfo =
@@ -303,17 +317,23 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         lastStatTimestamp = now;
     }
 
-    private synchronized void doCacheEviction() {
+    @VisibleForTesting
+    public synchronized void doCacheEviction() {
         long maxTimestamp = System.nanoTime() - cacheEvictionTimeThresholdNanos;
+        entryCacheManager.doCacheEviction(maxTimestamp);
+    }
 
-        ledgers.values().forEach(mlfuture -> {
-            if (mlfuture.isDone() && !mlfuture.isCompletedExceptionally()) {
-                ManagedLedgerImpl ml = mlfuture.getNow(null);
-                if (ml != null) {
-                    ml.doCacheEviction(maxTimestamp);
-                }
-            }
-        });
+    @VisibleForTesting
+    public void waitForPendingCacheEvictions() {
+        try {
+            cacheEvictionExecutor.submit(() -> {
+                // no-op
+            }).get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
@@ -329,7 +349,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     @Override
     public ManagedLedger open(String name) throws InterruptedException, ManagedLedgerException {
-        return open(name, new ManagedLedgerConfig());
+        return open(name, defaultManagedLedgerConfig);
     }
 
     @Override
@@ -365,7 +385,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     @Override
     public void asyncOpen(String name, OpenLedgerCallback callback, Object ctx) {
-        asyncOpen(name, new ManagedLedgerConfig(), callback, null, ctx);
+        asyncOpen(name, defaultManagedLedgerConfig, callback, null, ctx);
     }
 
     @Override

@@ -21,15 +21,14 @@ package org.apache.bookkeeper.mledger.impl.cache;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
+import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.EntryImpl;
-import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * Cache of entries used by a single ManagedLedger. An EntryCache is compared to other EntryCache instances using their
  * size (the memory that is occupied by each of them).
  */
-public interface EntryCache extends Comparable<EntryCache> {
+public interface EntryCache {
 
     /**
      * @return the name of the cache
@@ -42,11 +41,10 @@ public interface EntryCache extends Comparable<EntryCache> {
      * <p/>If the overall limit have been reached, this will trigger the eviction of other entries, possibly from
      * other EntryCache instances
      *
-     * @param entry
-     *            the entry to be cached
+     * @param entry the entry to be cached
      * @return whether the entry was inserted in cache
      */
-    boolean insert(EntryImpl entry);
+    boolean insert(Entry entry);
 
     /**
      * Remove from cache all the entries related to a ledger up to lastPosition excluded.
@@ -55,8 +53,6 @@ public interface EntryCache extends Comparable<EntryCache> {
      *            the position of the last entry to be invalidated (non-inclusive)
      */
     void invalidateEntries(Position lastPosition);
-
-    void invalidateEntriesBeforeTimestamp(long timestamp);
 
     /**
      * Remove from the cache all the entries belonging to a specific ledger.
@@ -70,15 +66,6 @@ public interface EntryCache extends Comparable<EntryCache> {
      * Remove all the entries from the cache.
      */
     void clear();
-
-    /**
-     * Force the cache to drop entries to free space.
-     *
-     * @param sizeToFree
-     *            the total memory size to free
-     * @return a pair containing the number of entries evicted and their total size
-     */
-    Pair<Integer, Long> evictEntries(long sizeToFree);
 
     /**
      * Read entries from the cache or from bookkeeper.

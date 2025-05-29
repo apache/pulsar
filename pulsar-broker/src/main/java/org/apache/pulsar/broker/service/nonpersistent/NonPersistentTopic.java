@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.service.nonpersistent;
 
-import static org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl.create;
+import static org.apache.bookkeeper.mledger.impl.EntryImpl.create;
 import static org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.carrotsearch.hppc.ObjectObjectHashMap;

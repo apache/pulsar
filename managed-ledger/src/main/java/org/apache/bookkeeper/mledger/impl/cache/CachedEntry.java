@@ -18,20 +18,13 @@
  */
 package org.apache.bookkeeper.mledger.impl.cache;
 
-import java.util.List;
+import io.netty.util.ReferenceCounted;
+import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.Position;
 
 /**
- * Cache eviction policy abstraction interface.
- *
+ * Interface for cached entries in the {@link RangeCache}.
  */
-public interface EntryCacheEvictionPolicy {
-    /**
-     * Perform the cache eviction of at least sizeToFree bytes on the supplied list of caches.
-     *
-     * @param caches
-     *            the list of caches to consider
-     * @param sizeToFree
-     *            the minimum size in bytes to be freed
-     */
-    void doEviction(List<EntryCache> caches, long sizeToFree);
+public interface CachedEntry extends Entry, ReferenceCounted {
+    boolean matchesKey(Position key);
 }
