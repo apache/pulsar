@@ -5525,10 +5525,10 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))
                 .thenCompose(topic -> {
                     if (!(topic instanceof PersistentTopic persistentTopic)) {
-                        log.error("[{}] Get message id by offset on a non-persistent topic {} is not allowed",
+                        log.error("[{}] Get message id by index on a non-persistent topic {} is not allowed",
                                 clientAppId(), topicName);
                         return FutureUtil.failedFuture(new RestException(Status.METHOD_NOT_ALLOWED,
-                                "Get message id by offset on a non-persistent topic is not allowed"));
+                                "Get message id by index on a non-persistent topic is not allowed"));
                     }
                     ManagedLedger managedLedger = persistentTopic.getManagedLedger();
                     return findMessageIndexByPosition(
@@ -5556,7 +5556,7 @@ public class PersistentTopicsBase extends AdminResource {
                                 Position lastPosition = managedLedger.getLastConfirmedEntry();
                                 if (position == null || position.compareTo(lastPosition) > 0) {
                                     return FutureUtil.failedFuture(new RestException(Status.NOT_FOUND,
-                                            "Message not found for offset " + index));
+                                            "Message not found for index " + index));
                                 } else {
                                     return CompletableFuture.completedFuture(position);
                                 }
