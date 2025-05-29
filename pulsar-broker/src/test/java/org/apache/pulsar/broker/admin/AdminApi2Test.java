@@ -1868,6 +1868,29 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
     }
 
+
+    @Test
+    public void testPartitionedTopicStatsIncludeConsumerName() throws PulsarClientException, PulsarAdminException {
+        final String topic = "persistent://" + defaultNamespace + "/" + UUID.randomUUID();
+        admin.topics().createPartitionedTopic(topic, 2);
+        final String subName = "sub-name";
+        final String consumerName = "consumer-name";
+
+        @Cleanup
+        final PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
+
+        @Cleanup
+        final Consumer<byte[]> consumer = client.newConsumer()
+                .topic(topic)
+                .subscriptionName(subName)
+                .consumerName(consumerName)
+                .subscribe();
+
+        final TopicStats topicStats = admin.topics().getPartitionedStats(topic, false);
+
+        assertEquals(topicStats.getSubscriptions().get(subName).getConsumers().get(0).getConsumerName(), consumerName);
+    }
+
     @Test
     public void testPreciseBacklogForPartitionedTopic() throws PulsarClientException, PulsarAdminException {
         final String topic = "persistent://" + defaultNamespace + "/precise-back-log-for-partitioned-topic";
@@ -3310,6 +3333,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.getPublishers().size(), 2);
         topicStats.getPublishers().forEach(p -> assertTrue(p.isSupportsPartialProducer()));
     }
+
+
 
     @Test(dataProvider = "topicType")
     public void testPartitionedStatsAggregationByProducerNamePerPartition(String topicType) throws Exception {
