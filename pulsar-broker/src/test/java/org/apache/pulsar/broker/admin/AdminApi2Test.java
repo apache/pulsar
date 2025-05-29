@@ -3334,8 +3334,6 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         topicStats.getPublishers().forEach(p -> assertTrue(p.isSupportsPartialProducer()));
     }
 
-
-
     @Test(dataProvider = "topicType")
     public void testPartitionedStatsAggregationByProducerNamePerPartition(String topicType) throws Exception {
         restartClusterIfReused();
