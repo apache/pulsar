@@ -92,6 +92,7 @@ import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.assertj.core.api.Assertions;
 import org.awaitility.Awaitility;
@@ -3413,13 +3414,13 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         if ("Clean_Cache".equals(reloadPolicyType)) {
             clearTopicPoliciesCache();
             topicPoliciesOptional1 = pulsar.getTopicPoliciesService().getTopicPoliciesAsync(TopicName.get(tpName),
-                            LOCAL_ONLY).join();
+                            false).join();
             topicPoliciesOptionalGlobal1 = pulsar.getTopicPoliciesService().getTopicPoliciesAsync(TopicName.get(tpName),
-                    GLOBAL_ONLY).join();
+                    true).join();
         } else {
             SystemTopicBasedTopicPoliciesService newService = new SystemTopicBasedTopicPoliciesService(pulsar);
-            topicPoliciesOptional1 = newService.getTopicPoliciesAsync(TopicName.get(tpName), LOCAL_ONLY).join();
-            topicPoliciesOptionalGlobal1 = newService.getTopicPoliciesAsync(TopicName.get(tpName), GLOBAL_ONLY).join();
+            topicPoliciesOptional1 = newService.getTopicPoliciesAsync(TopicName.get(tpName), false).join();
+            topicPoliciesOptionalGlobal1 = newService.getTopicPoliciesAsync(TopicName.get(tpName), true).join();
             newService.close();
         }
         assertTrue(topicPoliciesOptional1.isPresent());
@@ -3438,13 +3439,13 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         if ("Clean_Cache".equals(reloadPolicyType)) {
             clearTopicPoliciesCache();
             topicPoliciesOptional2 = pulsar.getTopicPoliciesService().getTopicPoliciesAsync(TopicName.get(tpName),
-                    LOCAL_ONLY).join();
+                    false).join();
             topicPoliciesOptionalGlobal2 = pulsar.getTopicPoliciesService().getTopicPoliciesAsync(TopicName.get(tpName),
-                    GLOBAL_ONLY).join();
+                    true).join();
         } else {
             SystemTopicBasedTopicPoliciesService newService = new SystemTopicBasedTopicPoliciesService(pulsar);
-            topicPoliciesOptional2 = newService.getTopicPoliciesAsync(TopicName.get(tpName), LOCAL_ONLY).join();
-            topicPoliciesOptionalGlobal2 = newService.getTopicPoliciesAsync(TopicName.get(tpName), GLOBAL_ONLY).join();
+            topicPoliciesOptional2 = newService.getTopicPoliciesAsync(TopicName.get(tpName), false).join();
+            topicPoliciesOptionalGlobal2 = newService.getTopicPoliciesAsync(TopicName.get(tpName), true).join();
             newService.close();
         }
         assertTrue(topicPoliciesOptional2.isEmpty() || topicPoliciesOptional2.get().getDispatchRate() == null);
@@ -3465,13 +3466,13 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             if ("Clean_Cache".equals(reloadPolicyType)) {
                 clearTopicPoliciesCache();
                 topicPoliciesOptional3 = pulsar.getTopicPoliciesService().getTopicPoliciesAsync(TopicName.get(tpName),
-                        LOCAL_ONLY).join();
+                        false).join();
                 topicPoliciesOptionalGlobal3 = pulsar.getTopicPoliciesService()
-                        .getTopicPoliciesAsync(TopicName.get(tpName), GLOBAL_ONLY).join();
+                        .getTopicPoliciesAsync(TopicName.get(tpName), true).join();
             } else {
                 SystemTopicBasedTopicPoliciesService newService = new SystemTopicBasedTopicPoliciesService(pulsar);
-                topicPoliciesOptional3 = newService.getTopicPoliciesAsync(TopicName.get(tpName), LOCAL_ONLY).join();
-                topicPoliciesOptionalGlobal3 = newService.getTopicPoliciesAsync(TopicName.get(tpName), GLOBAL_ONLY)
+                topicPoliciesOptional3 = newService.getTopicPoliciesAsync(TopicName.get(tpName), false).join();
+                topicPoliciesOptionalGlobal3 = newService.getTopicPoliciesAsync(TopicName.get(tpName), true)
                         .join();
                 newService.close();
             }
@@ -3508,9 +3509,9 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         Awaitility.await().untilAsserted(() -> {
             Optional<TopicPolicies> topicPoliciesOptional = pulsar.getTopicPoliciesService()
-                    .getTopicPoliciesAsync(TopicName.get(tpName), LOCAL_ONLY).join();
+                    .getTopicPoliciesAsync(TopicName.get(tpName), false).join();
             Optional<TopicPolicies> topicPoliciesOptionalGlobal = pulsar.getTopicPoliciesService()
-                    .getTopicPoliciesAsync(TopicName.get(tpName), GLOBAL_ONLY).join();
+                    .getTopicPoliciesAsync(TopicName.get(tpName), true).join();
             assertTrue(topicPoliciesOptional.isEmpty()
                     || topicPoliciesOptional.get().getDispatchRate() == null);
             assertTrue(topicPoliciesOptionalGlobal.isEmpty()
