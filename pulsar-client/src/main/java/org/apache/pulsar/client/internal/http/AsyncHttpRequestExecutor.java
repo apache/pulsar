@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.admin.internal.http;
+package org.apache.pulsar.client.internal.http;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
