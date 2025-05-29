@@ -33,25 +33,25 @@ public class PublisherStatsImpl implements PublisherStats {
     @JsonIgnore
     private int count;
 
-    public ProducerAccessMode accessMode;
+    private ProducerAccessMode accessMode;
 
     /** Total rate of messages published by this publisher (msg/s). */
-    public double msgRateIn;
+    private double msgRateIn;
 
     /** Total throughput of messages published by this publisher (byte/s). */
-    public double msgThroughputIn;
+    private double msgThroughputIn;
 
     /** Average message size published by this publisher. */
-    public double averageMsgSize;
+    private double averageMsgSize;
 
     /** The total rate of chunked messages published by this publisher. **/
-    public double chunkedMessageRate;
+    private double chunkedMessageRate;
 
     /** Id of this publisher. */
-    public long producerId;
+    private long producerId;
 
     /** Whether partial producer is supported at client. */
-    public boolean supportsPartialProducer;
+    private boolean supportsPartialProducer;
 
     /** Producer name. */
     private String producerName;
@@ -63,7 +63,7 @@ public class PublisherStatsImpl implements PublisherStats {
     private String clientVersion;
 
     /** Metadata (key/value strings) associated with this publisher. */
-    public Map<String, String> metadata;
+    private Map<String, String> metadata;
 
     @JsonIgnore
     private final Rate msgIn = new Rate();

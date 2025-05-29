@@ -32,15 +32,15 @@ public class DrainingHashImpl implements DrainingHash {
      * Get the sticky key hash value of the draining hash.
      * @return the sticky hash value
      */
-    public int hash;
+    private int hash;
     /**
      * Get number of unacknowledged messages for the draining hash.
      * @return number of unacknowledged messages
      */
-    public int unackMsgs;
+    private int unackMsgs;
     /**
      * Get the number of times the hash has blocked an attempted delivery of a message.
      * @return number of times the hash has blocked an attempted delivery of a message
      */
-    public int blockedAttempts;
+    private int blockedAttempts;
 }

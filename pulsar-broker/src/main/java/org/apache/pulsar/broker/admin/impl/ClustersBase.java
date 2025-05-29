@@ -1085,7 +1085,7 @@ public class ClustersBase extends AdminResource {
     private CompletableFuture<Void> validateBrokerExistsInOtherDomain(final String cluster,
                                                                       final String inputDomainName,
                                                                       final FailureDomainImpl inputDomain) {
-        if (inputDomain == null || inputDomain.brokers == null) {
+        if (inputDomain == null || inputDomain.getBrokers() == null) {
             return CompletableFuture.completedFuture(null);
         }
         return clusterResources().getFailureDomainResources()
@@ -1100,7 +1100,7 @@ public class ClustersBase extends AdminResource {
                                                 && CollectionUtils.isNotEmpty(failureDomainOpt.get().getBrokers())) {
                                             List<String> duplicateBrokers = failureDomainOpt.get()
                                                     .getBrokers().stream().parallel()
-                                                    .filter(inputDomain.brokers::contains)
+                                                    .filter(inputDomain.getBrokers()::contains)
                                                     .collect(Collectors.toList());
                                             if (CollectionUtils.isNotEmpty(duplicateBrokers)) {
                                                 throw new RestException(Status.CONFLICT,

@@ -78,47 +78,47 @@ public class ResourceUnitRanking implements Comparable<ResourceUnitRanking> {
      * Estimate the load percentage which is the max percentage of all resource usages.
      */
     private void estimateLoadPercentage() {
-        double cpuUsed = this.systemResourceUsage.cpu.usage;
+        double cpuUsed = this.systemResourceUsage.getCpu().usage;
         double cpuAllocated = cpuUsageByMsgRate
                 * (this.allocatedQuota.getMsgRateIn() + this.allocatedQuota.getMsgRateOut());
         double cpuPreAllocated = cpuUsageByMsgRate
                 * (this.preAllocatedQuota.getMsgRateIn() + this.preAllocatedQuota.getMsgRateOut());
-        this.allocatedLoadPercentageCPU = (this.systemResourceUsage.cpu.limit <= 0) ? 0
-                : Math.min(100, 100 * cpuAllocated / this.systemResourceUsage.cpu.limit);
-        this.estimatedLoadPercentageCPU = (this.systemResourceUsage.cpu.limit <= 0) ? 0
-                : Math.min(100,
-                        100 * (Math.max(cpuUsed, cpuAllocated) + cpuPreAllocated) / this.systemResourceUsage.cpu.limit);
-
-        double memUsed = this.systemResourceUsage.memory.usage;
+        this.allocatedLoadPercentageCPU = (this.systemResourceUsage.getCpu().limit <= 0) ? 0
+                : Math.min(100, 100 * cpuAllocated / this.systemResourceUsage.getCpu().limit);
+        this.estimatedLoadPercentageCPU = (this.systemResourceUsage.getCpu().limit <= 0) ? 0
+                : Math.min(100, 100 * (Math.max(cpuUsed, cpuAllocated) + cpuPreAllocated)
+                / this.systemResourceUsage.getCpu().limit
+        );
+        double memUsed = this.systemResourceUsage.getMemory().usage;
         double memAllocated = this.allocatedQuota.getMemory();
         double memPreAllocated = this.preAllocatedQuota.getMemory();
-        this.allocatedLoadPercentageMemory = (this.systemResourceUsage.memory.limit <= 0) ? 0
-                : Math.min(100, 100 * memAllocated / this.systemResourceUsage.memory.limit);
-        this.estimatedLoadPercentageMemory = (this.systemResourceUsage.memory.limit <= 0) ? 0
+        this.allocatedLoadPercentageMemory = (this.systemResourceUsage.getMemory().limit <= 0) ? 0
+                : Math.min(100, 100 * memAllocated / this.systemResourceUsage.getMemory().limit);
+        this.estimatedLoadPercentageMemory = (this.systemResourceUsage.getMemory().limit <= 0) ? 0
                 : Math.min(100, 100 * (Math.max(memUsed, memAllocated) + memPreAllocated)
-                        / this.systemResourceUsage.memory.limit);
+                        / this.systemResourceUsage.getMemory().limit);
 
-        double bandwidthInUsed = this.systemResourceUsage.bandwidthIn.usage;
+        double bandwidthInUsed = this.systemResourceUsage.getBandwidthIn().usage;
         double bandwidthInAllocated = this.allocatedQuota.getBandwidthIn() / KBITS_TO_BYTES;
         double bandwidthInPreAllocated = this.preAllocatedQuota.getBandwidthIn() / KBITS_TO_BYTES;
-        this.allocatedLoadPercentageBandwidthIn = (this.systemResourceUsage.bandwidthIn.limit <= 0) ? 0
-                : Math.min(100, 100 * bandwidthInAllocated / this.systemResourceUsage.bandwidthIn.limit);
-        this.estimatedLoadPercentageBandwidthIn = (this.systemResourceUsage.bandwidthIn.limit <= 0) ? 0
+        this.allocatedLoadPercentageBandwidthIn = (this.systemResourceUsage.getBandwidthIn().limit <= 0) ? 0
+                : Math.min(100, 100 * bandwidthInAllocated / this.systemResourceUsage.getBandwidthIn().limit);
+        this.estimatedLoadPercentageBandwidthIn = (this.systemResourceUsage.getBandwidthIn().limit <= 0) ? 0
                 : Math.min(100, 100 * (Math.max(bandwidthInUsed, bandwidthInAllocated) + bandwidthInPreAllocated)
-                        / this.systemResourceUsage.bandwidthIn.limit);
+                        / this.systemResourceUsage.getBandwidthIn().limit);
 
-        double bandwidthOutUsed = this.systemResourceUsage.bandwidthOut.usage;
+        double bandwidthOutUsed = this.systemResourceUsage.getBandwidthOut().usage;
         double bandwidthOutAllocated = this.allocatedQuota.getBandwidthOut() / KBITS_TO_BYTES;
         double bandwidthOutPreAllocated = this.preAllocatedQuota.getBandwidthOut() / KBITS_TO_BYTES;
-        this.allocatedLoadPercentageBandwidthOut = (this.systemResourceUsage.bandwidthOut.limit <= 0) ? 0
-                : Math.min(100, 100 * bandwidthOutAllocated / this.systemResourceUsage.bandwidthOut.limit);
-        this.estimatedLoadPercentageBandwidthOut = (this.systemResourceUsage.bandwidthOut.limit <= 0) ? 0
+        this.allocatedLoadPercentageBandwidthOut = (this.systemResourceUsage.getBandwidthOut().limit <= 0) ? 0
+                : Math.min(100, 100 * bandwidthOutAllocated / this.systemResourceUsage.getBandwidthOut().limit);
+        this.estimatedLoadPercentageBandwidthOut = (this.systemResourceUsage.getBandwidthOut().limit <= 0) ? 0
                 : Math.min(100, 100 * (Math.max(bandwidthOutUsed, bandwidthOutAllocated) + bandwidthOutPreAllocated)
-                        / this.systemResourceUsage.bandwidthOut.limit);
+                        / this.systemResourceUsage.getBandwidthOut().limit);
 
-        double directMemoryUsed = this.systemResourceUsage.directMemory.usage;
-        this.estimatedLoadPercentageDirectMemory = (this.systemResourceUsage.directMemory.limit <= 0) ? 0
-                : Math.min(100, 100 * directMemoryUsed / this.systemResourceUsage.directMemory.limit);
+        double directMemoryUsed = this.systemResourceUsage.getDirectMemory().usage;
+        this.estimatedLoadPercentageDirectMemory = (this.systemResourceUsage.getDirectMemory().limit <= 0) ? 0
+                : Math.min(100, 100 * directMemoryUsed / this.systemResourceUsage.getDirectMemory().limit);
 
         this.estimatedLoadPercentage = Math.max(this.estimatedLoadPercentageCPU,
                 Math.max(this.estimatedLoadPercentageMemory, Math.max(this.estimatedLoadPercentageDirectMemory,
@@ -279,11 +279,11 @@ public class ResourceUnitRanking implements Comparable<ResourceUnitRanking> {
      * Estimate the maximum number namespace bundles a ResourceUnit is able to handle with all resource.
      */
     public static long calculateBrokerMaxCapacity(SystemResourceUsage systemResourceUsage, ResourceQuota defaultQuota) {
-        double bandwidthOutLimit = systemResourceUsage.bandwidthOut.limit * KBITS_TO_BYTES;
-        double bandwidthInLimit = systemResourceUsage.bandwidthIn.limit * KBITS_TO_BYTES;
+        double bandwidthOutLimit = systemResourceUsage.getBandwidthOut().limit * KBITS_TO_BYTES;
+        double bandwidthInLimit = systemResourceUsage.getBandwidthIn().limit * KBITS_TO_BYTES;
 
-        long capacity = calculateBrokerCapacity(defaultQuota, systemResourceUsage.cpu.limit,
-                systemResourceUsage.memory.limit, bandwidthOutLimit, bandwidthInLimit);
+        long capacity = calculateBrokerCapacity(defaultQuota, systemResourceUsage.getCpu().limit,
+                systemResourceUsage.getMemory().limit, bandwidthOutLimit, bandwidthInLimit);
         return capacity;
     }
 
