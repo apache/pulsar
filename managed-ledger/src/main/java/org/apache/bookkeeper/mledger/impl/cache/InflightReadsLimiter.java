@@ -182,7 +182,8 @@ public class InflightReadsLimiter implements AutoCloseable {
                     + " config managedLedgerMaxReadsInFlightPermitsAcquireQueueSize and confirm the configuration of"
                     + " managedLedgerMaxReadsInFlightSizeInMB and"
                     + " managedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis are suitable.",
-                    permits, handle.creationTime, remainingBytes, maxReadsInFlightAcquireQueueSize, queuedHandles.size());
+                    permits, handle.creationTime, remainingBytes, maxReadsInFlightAcquireQueueSize,
+                    queuedHandles.size());
                 return Optional.of(new Handle(0, handle.creationTime, false));
             } else {
                 queuedHandles.offer(new QueuedHandle(handle, callback));
