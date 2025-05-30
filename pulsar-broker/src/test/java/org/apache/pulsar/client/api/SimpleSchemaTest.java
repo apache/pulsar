@@ -42,7 +42,6 @@ import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema.Parser;
 import org.apache.avro.reflect.ReflectData;
-import org.apache.pulsar.TestNGInstanceOrder;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -56,7 +55,6 @@ import org.apache.pulsar.client.impl.HttpLookupService;
 import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.client.impl.schema.reader.AvroReader;
@@ -366,13 +364,13 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         CompletableFuture<Void> responseSignal = new CompletableFuture<>();
         ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(lookupUrl.toString());
         PulsarClient client = InjectedClientCnxClientBuilder.create(clientBuilder, (conf, eventLoopGroup) ->
-            new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
-                protected void handleGetOrCreateSchemaResponse(
-                        CommandGetOrCreateSchemaResponse commandGetOrCreateSchemaResponse) {
-                    responseSignal.join();
-                    super.handleGetOrCreateSchemaResponse(commandGetOrCreateSchemaResponse);
-                }
-            });
+                new ClientCnx(conf, eventLoopGroup) {
+                    protected void handleGetOrCreateSchemaResponse(
+                            CommandGetOrCreateSchemaResponse commandGetOrCreateSchemaResponse) {
+                        responseSignal.join();
+                        super.handleGetOrCreateSchemaResponse(commandGetOrCreateSchemaResponse);
+                    }
+                });
         Producer producer = client.newProducer(Schema.AUTO_PRODUCE_BYTES()).enableBatching(false).topic(topic).create();
         producer.newMessage(Schema.STRING).value("msg").sendAsync();
 
@@ -391,6 +389,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         admin.topics().delete(topic);
     }
 
+
     @Test
     public void testNoMemoryLeakIfSchemaIncompatible() throws Exception {
         final String topic = BrokerTestUtil.newUniqueName(NAMESPACE_NEVER_COMPATIBLE + "/tp");
@@ -402,13 +401,13 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         CompletableFuture<Void> responseSignal = new CompletableFuture<>();
         ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(lookupUrl.toString());
         PulsarClient client = InjectedClientCnxClientBuilder.create(clientBuilder, (conf, eventLoopGroup) ->
-            new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
-                protected void handleGetOrCreateSchemaResponse(
-                        CommandGetOrCreateSchemaResponse commandGetOrCreateSchemaResponse) {
-                    responseSignal.join();
-                    super.handleGetOrCreateSchemaResponse(commandGetOrCreateSchemaResponse);
-                }
-            });
+                new ClientCnx(conf, eventLoopGroup) {
+                    protected void handleGetOrCreateSchemaResponse(
+                            CommandGetOrCreateSchemaResponse commandGetOrCreateSchemaResponse) {
+                        responseSignal.join();
+                        super.handleGetOrCreateSchemaResponse(commandGetOrCreateSchemaResponse);
+                    }
+                });
         Producer producer = client.newProducer(Schema.AUTO_PRODUCE_BYTES()).enableBatching(false).topic(topic).create();
         producer.newMessage(Schema.STRING).value("msg").sendAsync();
 
