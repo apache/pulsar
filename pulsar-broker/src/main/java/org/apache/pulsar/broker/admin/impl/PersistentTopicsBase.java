@@ -781,8 +781,10 @@ public class PersistentTopicsBase extends AdminResource {
                         })
                 // Only tries to delete the znode for partitioned topic when all its partitions are successfully deleted
                 ).thenCompose(ignore ->
-                        pulsar().getBrokerService().deleteSchema(topicName).exceptionally(ex -> null))
-                .thenCompose(__ -> getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                        pulsar().getBrokerService().deleteSchema(topicName).exceptionally(ex -> null)
+                ).thenCompose(ignore ->
+                        pulsar().getTopicPoliciesService().deleteTopicPoliciesAsync(topicName).exceptionally(ex -> null)
+                ).thenCompose(__ -> getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
                         .runWithMarkDeleteAsync(topicName, () -> namespaceResources()
                                 .getPartitionedTopicResources().deletePartitionedTopicAsync(topicName)))
                 .thenAccept(__ -> {
