@@ -96,6 +96,7 @@ import org.apache.pulsar.common.policies.path.PolicyPath;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.coordination.LockManager;
+import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -118,6 +119,10 @@ public abstract class PulsarWebResource {
                             return serviceNameResolver;
                         }
                     });
+
+    static {
+        CacheMetricsCollector.CAFFEINE.addCache("web-resource-service-name-resolver", SERVICE_NAME_RESOLVER_CACHE);
+    }
 
     static final String ORIGINAL_PRINCIPAL_HEADER = "X-Original-Principal";
 

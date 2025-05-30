@@ -45,6 +45,7 @@ import org.apache.pulsar.broker.storage.BookkeeperManagedLedgerStorageClass;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorageClass;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
+import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,6 +59,10 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
     private final AsyncCache<EnsemblePlacementPolicyConfig, BookKeeper>
             bkEnsemblePolicyToBkClientMap = Caffeine.newBuilder().buildAsync();
     private StatsProvider statsProvider = new NullStatsProvider();
+
+    public ManagedLedgerClientFactory() {
+        CacheMetricsCollector.CAFFEINE.addCache("managed-ledger-bk-ensemble-client-cache", bkEnsemblePolicyToBkClientMap);
+    }
 
     @Override
     public void initialize(ServiceConfiguration conf, MetadataStoreExtended metadataStore,
