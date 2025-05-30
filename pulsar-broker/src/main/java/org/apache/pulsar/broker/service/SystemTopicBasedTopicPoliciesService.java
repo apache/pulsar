@@ -60,6 +60,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -131,6 +132,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                             .createTopicPoliciesSystemTopicClient(namespaceName);
                     return systemTopicClient.newWriterAsync();
                 });
+
+        CacheMetricsCollector.CAFFEINE.addCache("system-topic-policies-writer-cache", writerCaches);
     }
 
     @Override

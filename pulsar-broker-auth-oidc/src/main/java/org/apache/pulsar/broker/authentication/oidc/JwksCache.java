@@ -50,6 +50,7 @@ import java.util.concurrent.TimeUnit;
 import javax.naming.AuthenticationException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
+import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.asynchttpclient.AsyncHttpClient;
 
 public class JwksCache {
@@ -91,6 +92,7 @@ public class JwksCache {
                 .refreshAfterWrite(refreshAfterWriteSeconds, TimeUnit.SECONDS)
                 .expireAfterWrite(expireAfterSeconds, TimeUnit.SECONDS)
                 .buildAsync(loader);
+        CacheMetricsCollector.CAFFEINE.addCache("oidc-jwks-cache", cache);
     }
 
     CompletableFuture<Jwk> getJwk(String jwksUri, String keyId) {
