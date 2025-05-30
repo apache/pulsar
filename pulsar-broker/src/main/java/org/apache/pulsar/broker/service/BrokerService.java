@@ -1270,6 +1270,9 @@ public class BrokerService implements Closeable {
         deleteTopicAuthenticationFuture
         .thenCompose(__ -> deleteSchema(tn))
         .thenCompose(__ -> {
+            if (tn.isPartitioned()) {
+                return CompletableFuture.completedFuture(null);
+            }
             if (!SystemTopicNames.isTopicPoliciesSystemTopic(topic)
                     && getPulsar().getConfiguration().isSystemTopicEnabled()) {
                 return deleteTopicPolicies(tn);
