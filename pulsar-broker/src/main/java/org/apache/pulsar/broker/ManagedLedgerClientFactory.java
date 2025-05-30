@@ -61,7 +61,8 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
     private StatsProvider statsProvider = new NullStatsProvider();
 
     public ManagedLedgerClientFactory() {
-        CacheMetricsCollector.CAFFEINE.addCache("managed-ledger-bk-ensemble-client-cache", bkEnsemblePolicyToBkClientMap);
+        CacheMetricsCollector.CAFFEINE.addCache("managed-ledger-bk-ensemble-client-cache",
+                bkEnsemblePolicyToBkClientMap);
     }
 
     @Override
