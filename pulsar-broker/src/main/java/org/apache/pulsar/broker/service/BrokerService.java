@@ -1261,7 +1261,13 @@ public class BrokerService implements Closeable {
         deleteTopicAuthenticationWithRetry(topic, deleteTopicAuthenticationFuture, 5);
         deleteTopicAuthenticationFuture
         .thenCompose(__ -> deleteSchema(tn))
-        .thenCompose(__ -> pulsar.getTopicPoliciesService().deleteTopicPoliciesAsync(tn)).whenComplete((v, ex) -> {
+        .thenCompose(__ -> {
+            if (tn.isPartitioned()) {
+                return CompletableFuture.completedFuture(null);
+            }
+            return pulsar.getTopicPoliciesService().deleteTopicPoliciesAsync(tn);
+        })
+        .whenComplete((v, ex) -> {
             if (ex != null) {
                 future.completeExceptionally(ex);
                 return;
