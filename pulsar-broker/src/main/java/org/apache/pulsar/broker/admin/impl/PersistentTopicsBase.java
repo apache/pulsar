@@ -5542,7 +5542,10 @@ public class PersistentTopicsBase extends AdminResource {
                                         try {
                                             BrokerEntryMetadata brokerEntryMetadata =
                                                     Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
-                                            assert brokerEntryMetadata != null;
+                                            // Skip messages without index
+                                            if (brokerEntryMetadata == null) {
+                                                return true;
+                                            }
                                             return brokerEntryMetadata.getIndex() < index;
                                         } catch (Exception e) {
                                             log.error("Error deserialize message for message position find", e);

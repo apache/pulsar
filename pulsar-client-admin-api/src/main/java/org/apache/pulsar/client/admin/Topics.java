@@ -4562,6 +4562,8 @@ public interface Topics {
     /**
      * Get the message id by index. If the index points to a system message, return the first user message following it;
      * if the specified message has expired and been deleted, return MessageId.Earliest.
+     * The messages without entry metadata will be skipped, and the next matched message whose index >= the specified
+     * index will be returned.
      * @param topicName either the specific partition name of a partitioned topic (e.g. my-topic-partition-0)
      *                 or the original topic name for non-partitioned topics.
      * @param index the index of a message
@@ -4587,6 +4589,8 @@ public interface Topics {
     /**
      * Get the message id by index asynchronously. If the index points to a system message, return the first user
      * message following it; if the specified message has expired and been deleted, return MessageId.Earliest.
+     * The messages without entry metadata will be skipped, and the next matched message whose index >= the specified
+     * index will be returned.
      * @param topicName either the specific partition name of a partitioned topic (e.g. my-topic-partition-0) or
      *                 the original topic name for non-partitioned topics.
      * @param index the index of a message
