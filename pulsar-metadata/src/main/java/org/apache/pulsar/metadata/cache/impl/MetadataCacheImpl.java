@@ -67,8 +67,8 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
     private final AsyncLoadingCache<String, Optional<CacheGetResult<T>>> objCache;
 
-    public MetadataCacheImpl(String cacheName, MetadataStore store, TypeReference<T> typeRef, MetadataCacheConfig<T> cacheConfig,
-                             ScheduledExecutorService executor) {
+    public MetadataCacheImpl(String cacheName, MetadataStore store, TypeReference<T> typeRef,
+                             MetadataCacheConfig<T> cacheConfig, ScheduledExecutorService executor) {
         this(cacheName, store, new JSONMetadataSerdeTypeRef<>(typeRef), cacheConfig, executor);
     }
 
@@ -77,8 +77,8 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
         this(cacheName, store, new JSONMetadataSerdeSimpleType<>(type), cacheConfig, executor);
     }
 
-    public MetadataCacheImpl(String cacheName, MetadataStore store, MetadataSerde<T> serde, MetadataCacheConfig<T> cacheConfig,
-                             ScheduledExecutorService executor) {
+    public MetadataCacheImpl(String cacheName, MetadataStore store, MetadataSerde<T> serde,
+                             MetadataCacheConfig<T> cacheConfig, ScheduledExecutorService executor) {
         this.store = store;
         if (store instanceof MetadataStoreExtended) {
             this.storeExtended = (MetadataStoreExtended) store;
