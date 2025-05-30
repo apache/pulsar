@@ -179,7 +179,9 @@ public class InflightReadsLimiter implements AutoCloseable {
             if (queuedHandles.size() >= maxReadsInFlightAcquireQueueSize) {
                 log.warn("Failed to queue handle for acquiring permits: {}, creationTime: {}, remainingBytes:{},"
                     + " maxReadsInFlightAcquireQueueSize:{}, pending-queue-size: {}, please increase broker"
-                    + " config managedLedgerMaxReadsInFlightPermitsAcquireQueueSize",
+                    + " config managedLedgerMaxReadsInFlightPermitsAcquireQueueSize and confirm the configuration of"
+                    + " managedLedgerMaxReadsInFlightSizeInMB and"
+                    + " managedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis are suitable.",
                     permits, handle.creationTime, remainingBytes, maxReadsInFlightAcquireQueueSize, queuedHandles.size());
                 return Optional.of(new Handle(0, handle.creationTime, false));
             } else {
