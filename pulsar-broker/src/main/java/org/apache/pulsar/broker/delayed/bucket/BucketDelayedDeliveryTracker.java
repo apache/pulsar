@@ -56,6 +56,7 @@ import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.delayed.AbstractDelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.proto.DelayedIndex;
+import org.apache.pulsar.broker.delayed.proto.DelayedOperationType;
 import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
@@ -213,7 +214,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                     long ledgerId = index.getLedgerId();
                     long entryId = index.getEntryId();
                     if (index.hasDelayedOperationType()
-                            && index.getDelayedOperationType() == DelayedIndex.DelayedOperationType.CANCEL) {
+                            && index.getDelayedOperationType() == DelayedOperationType.CANCEL) {
                         this.canceledMessages.add(ledgerId, entryId);
                     } else if (!canceledMessages.contains(ledgerId, entryId)) {
                         this.sharedBucketPriorityQueue.add(index.getTimestamp(), ledgerId, entryId);

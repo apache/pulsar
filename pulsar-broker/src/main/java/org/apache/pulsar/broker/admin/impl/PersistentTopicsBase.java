@@ -80,6 +80,7 @@ import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
+import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.service.MessageExpirer;
 import org.apache.pulsar.broker.service.Subscription;
@@ -5478,4 +5479,162 @@ public class PersistentTopicsBase extends AdminResource {
                             return null;
                         }));
     }
+
+    protected void internalCancelDelayedMessage(AsyncResponse asyncResponse,
+                                                long ledgerId, long entryId, long deliverAt,
+                                                List<String> subscriptionNames, boolean authoritative) {
+        CompletableFuture<Void> validationFuture = validateTopicOperationAsync(topicName,
+                TopicOperation.CANCEL_DELAYED_MESSAGE);
+        validationFuture = validationFuture.thenCompose(__ -> {
+            if (topicName.isGlobal()) {
+                return validateGlobalNamespaceOwnershipAsync(namespaceName);
+            } else {
+                return CompletableFuture.completedFuture(null);
+            }
+        });
+        validationFuture.thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, authoritative, false))
+                .thenAccept(partitionMetadata -> {
+                    if (topicName.isPartitioned()) {
+                        internalCancelDelayedMessageForNonPartitionedTopic(asyncResponse, ledgerId, entryId, deliverAt,
+                                subscriptionNames, authoritative);
+                    } else {
+                        if (partitionMetadata.partitions > 0) {
+                            internalCancelDelayedMessageForPartitionedTopic(asyncResponse, partitionMetadata,
+                                    ledgerId, entryId, deliverAt, subscriptionNames);
+                        } else {
+                            internalCancelDelayedMessageForNonPartitionedTopic(asyncResponse, ledgerId, entryId,
+                                    deliverAt, subscriptionNames, authoritative);
+                        }
+                    }
+                }).exceptionally(ex -> {
+                    if (isNot307And404Exception(ex)) {
+                        log.error("[{}] Failed to cancel delayed message {}-{} (deliverAt: {}) on topic {}: {}",
+                                clientAppId(), ledgerId, entryId, deliverAt, topicName, ex.getMessage(), ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    private void internalCancelDelayedMessageForPartitionedTopic(AsyncResponse asyncResponse,
+                                                                 PartitionedTopicMetadata partitionMetadata,
+                                                                 long ledgerId, long entryId,
+                                                                 long deliverAt, List<String> subscriptionNames) {
+        final List<CompletableFuture<Void>> futures = new ArrayList<>(partitionMetadata.partitions);
+        PulsarAdmin admin;
+        try {
+            admin = pulsar().getAdminClient();
+        } catch (PulsarServerException e) {
+            asyncResponse.resume(new RestException(e));
+            return;
+        }
+        for (int i = 0; i < partitionMetadata.partitions; i++) {
+            TopicName topicNamePartition = topicName.getPartition(i);
+            futures.add(admin
+                    .topics()
+                    .cancelDelayedMessageAsync(topicNamePartition.toString(),
+                            ledgerId, entryId, deliverAt, subscriptionNames));
+        }
+        FutureUtil.waitForAll(futures).handle((result, exception) -> {
+            if (exception != null) {
+                Throwable t = FutureUtil.unwrapCompletionException(exception);
+                log.warn("[{}] Failed to cancel delayed message {}-{} (deliverAt: {}) on some partitions of {}: {}",
+                        clientAppId(), ledgerId, entryId, deliverAt, topicName, t.getMessage());
+                resumeAsyncResponseExceptionally(asyncResponse, t);
+            } else {
+                log.info("[{}] Successfully requested cancellation for delayed message {}-{} (deliverAt: {}) on"
+                                + " all partitions of topic {}",
+                        clientAppId(), ledgerId, entryId, deliverAt, topicName);
+                asyncResponse.resume(Response.noContent().build());
+            }
+            return null;
+        });
+    }
+
+    private void internalCancelDelayedMessageForNonPartitionedTopic(AsyncResponse asyncResponse,
+                                                                    long ledgerId, long entryId,
+                                                                    long deliverAt,
+                                                                    List<String> subscriptionNames,
+                                                                    boolean authoritative) {
+        validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> getTopicReferenceAsync(topicName))
+                .thenCompose(optTopic -> {
+                    if (!(optTopic instanceof PersistentTopic)) {
+                        throw new RestException(Status.METHOD_NOT_ALLOWED, "Cancel delayed message on a non-persistent"
+                                + " topic is not allowed");
+                    }
+                    PersistentTopic persistentTopic = (PersistentTopic) optTopic;
+                    List<String> subsToProcess;
+                    if (subscriptionNames == null || subscriptionNames.isEmpty()) {
+                        subsToProcess = persistentTopic.getSubscriptions().keySet().stream()
+                                .filter(subName -> !subName.equals(Compactor.COMPACTION_SUBSCRIPTION)
+                                        && !SystemTopicNames.isSystemTopic(TopicName.
+                                        get(persistentTopic.getName() + "/" + subName)))
+                                .collect(Collectors.toList());
+                        if (subsToProcess.isEmpty()) {
+                            log.info("[{}] No user subscriptions found to process for cancelling delayed message on"
+                                    + " topic {}.", clientAppId(), topicName);
+                            return CompletableFuture.completedFuture(null);
+                        }
+                         log.info("[{}] Cancelling delayed message {}-{} (deliverAt: {}) for all non-system"
+                                         + " subscriptions on topic {}",
+                                 clientAppId(), ledgerId, entryId, deliverAt, topicName);
+                    } else {
+                        subsToProcess = new ArrayList<>(subscriptionNames);
+                         log.info("[{}] Cancelling delayed message {}-{} (deliverAt: {}) for subscriptions {} on"
+                                 + " topic {}", clientAppId(), ledgerId, entryId, deliverAt, subsToProcess, topicName);
+                    }
+                    List<CompletableFuture<Void>> cancelFutures = subsToProcess.stream()
+                            .map(subName -> internalCancelDelayedMessageForSubscriptionAsync(
+                                    persistentTopic, subName, ledgerId, entryId, deliverAt))
+                            .collect(Collectors.toList());
+                    return FutureUtil.waitForAll(cancelFutures);
+                })
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    Throwable t = FutureUtil.unwrapCompletionException(ex);
+                    if (isNot307And404Exception(t)) {
+                        log.error("[{}] Error in internalCancelDelayedMessageForNonPartitionedTopic for {}: {}",
+                                clientAppId(), topicName, t.getMessage(), t);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, t);
+                    return null;
+                });
+    }
+
+    private CompletableFuture<Void> internalCancelDelayedMessageForSubscriptionAsync(
+            PersistentTopic topic, String subName, long ledgerId, long entryId, long deliverAt) {
+        Subscription sub = topic.getSubscription(subName);
+        if (sub == null) {
+            return FutureUtil.failedFuture(new RestException(Status.NOT_FOUND,
+                    getSubNotFoundErrorMessage(topic.getName(), subName)));
+        }
+        Dispatcher dispatcher = sub.getDispatcher();
+        if (dispatcher == null) {
+            String errorMsg = String.format(
+                    "No active dispatcher for subscription %s on topic %s. Cannot cancel delayed message %d-%d."
+                            + " Active consumers might be required to ensure the tracker is live.",
+                    subName, topic.getName(), ledgerId, entryId);
+            log.warn("[{}] {}", clientAppId(), errorMsg);
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED, errorMsg));
+        }
+        return dispatcher.cancelDelayedMessage(ledgerId, entryId, deliverAt)
+            .thenCompose(cancelled -> {
+                if (cancelled) {
+                    log.info("[{}] Successfully requested cancellation for delayed message {}-{} (deliverAt: {})"
+                                    + " on subscription {} of topic {}",
+                            clientAppId(), ledgerId, entryId, deliverAt, subName, topic.getName());
+                    return CompletableFuture.completedFuture(null);
+                } else {
+                    String errorMsg = String.format(
+                            "Failed to cancel delayed message %d-%d with original deliverAt %d on subscription %s of"
+                                    + " topic %s. Message may not exist in tracker, already delivered/cancelled, or "
+                                    + "tracker not available/initialized.",
+                            ledgerId, entryId, deliverAt, subName, topic.getName());
+                    log.warn("[{}] {}", clientAppId(), errorMsg);
+                    return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED, errorMsg));
+                }
+            });
+    }
+
 }

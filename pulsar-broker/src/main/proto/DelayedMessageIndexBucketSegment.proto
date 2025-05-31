@@ -24,10 +24,6 @@ option optimize_for = SPEED;
 option java_multiple_files = true;
 
 message DelayedIndex {
-    enum DelayedOperationType {
-        DELAY = 0;
-        CANCEL = 1;
-    }
     required uint64 timestamp = 1;
     required uint64 ledger_id = 2;
     required uint64 entry_id = 3;
@@ -36,4 +32,9 @@ message DelayedIndex {
 
 message SnapshotSegment {
     repeated DelayedIndex indexes = 1;
+}
+
+enum DelayedOperationType {
+    DELAY = 0;
+    CANCEL = 1;
 }

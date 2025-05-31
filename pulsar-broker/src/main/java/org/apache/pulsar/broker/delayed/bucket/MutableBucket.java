@@ -31,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.delayed.proto.DelayedIndex;
+import org.apache.pulsar.broker.delayed.proto.DelayedOperationType;
 import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
 import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 import org.apache.pulsar.broker.delayed.proto.SnapshotSegmentMetadata;
@@ -101,9 +102,9 @@ class MutableBucket extends Bucket implements AutoCloseable {
             final long entryId = delayedIndex.getEntryId();
 
             if (canceledOperations.contains(delayedIndex.getLedgerId(), delayedIndex.getEntryId())) {
-                delayedIndex.setDelayedOperationType(DelayedIndex.DelayedOperationType.CANCEL);
+                delayedIndex.setDelayedOperationType(DelayedOperationType.CANCEL);
             } else {
-                delayedIndex.setDelayedOperationType(DelayedIndex.DelayedOperationType.DELAY);
+                delayedIndex.setDelayedOperationType(DelayedOperationType.DELAY);
             }
 
             removeIndexBit(ledgerId, entryId);

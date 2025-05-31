@@ -35,7 +35,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
-import org.apache.pulsar.broker.delayed.bucket.DelayedOperationType;
+import org.apache.pulsar.broker.delayed.proto.DelayedOperationType;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.roaringbitmap.longlong.Roaring64Bitmap;
 

@@ -22,7 +22,7 @@ import com.google.common.annotations.Beta;
 import java.util.NavigableSet;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.pulsar.broker.delayed.bucket.DelayedOperationType;
+import org.apache.pulsar.broker.delayed.proto.DelayedOperationType;
 
 /**
  * Represent the tracker for the delayed delivery of messages for a particular subscription.

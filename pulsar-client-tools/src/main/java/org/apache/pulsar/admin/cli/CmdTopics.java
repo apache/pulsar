@@ -275,6 +275,7 @@ public class CmdTopics extends CmdBase {
         addCommand("set-schema-validation-enforce", new SetSchemaValidationEnforced());
 
         addCommand("trim-topic", new TrimTopic());
+        addCommand("cancel-delayed-message", new CancelDelayedMessage());
     }
 
     @Command(description = "Get the list of topics under a namespace.")
@@ -3052,4 +3053,37 @@ public class CmdTopics extends CmdBase {
             getAdmin().topics().trimTopic(topic);
         }
     }
+
+    @Command(description = "Cancel a delayed message")
+    private class CancelDelayedMessage extends CliCommand {
+        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
+
+        @Option(names = {"-l", "--ledgerId"}, description = "Ledger ID of the message to cancel", required = true)
+        private long ledgerId = -1L;
+
+        @Option(names = {"-e", "--entryId"}, description = "Entry ID of the message to cancel", required = true)
+        private long entryId = -1L;
+
+        @Option(names = {"-t", "--deliverAt"}, description = "Original scheduled delivery time"
+                + " (timestamp in ms from epoch) of the message to cancel", required = true)
+        private long deliverAt = -1L;
+
+        @Option(names = {"-s", "--subscriptionNames"}, description = "Comma-separated list of subscription names to"
+                + " target. If not specified, applies to all subscriptions.", split = ",")
+        private List<String> subscriptionNames = new ArrayList<>();
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(topicName);
+            if (ledgerId < 0 || entryId < 0 || deliverAt <= 0) {
+                throw new PulsarAdminException("ledgerId, entryId must be non-negative,"
+                        + " and deliverAt must be positive.");
+            }
+            getAdmin().topics().cancelDelayedMessage(topic, ledgerId, entryId, deliverAt, subscriptionNames);
+            print("Successfully requested cancellation for delayed message " + ledgerId + ":" + entryId
+                    + " with deliverAt " + deliverAt + " on topic " + topic);
+        }
+    }
+
 }

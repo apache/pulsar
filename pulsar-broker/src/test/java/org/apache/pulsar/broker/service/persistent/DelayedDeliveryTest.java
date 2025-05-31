@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static org.apache.pulsar.common.naming.Constants.DELAY_CANCELED_MESSAGE_POSITION;
-import static org.apache.pulsar.common.naming.Constants.IS_MARK_DELETE_DELAY_MESSAGE;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -34,8 +32,6 @@ import java.util.Random;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.BKException;
@@ -47,7 +43,6 @@ import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -692,64 +687,4 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
-    public void testDelayedMessageCancel() throws Exception {
-        String topic = BrokerTestUtil.newUniqueName("testDelayedMessageCancel");
-        CountDownLatch latch = new CountDownLatch(9);
-        Set<String> receivedMessages = ConcurrentHashMap.newKeySet();
-
-        @Cleanup
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topic)
-                .subscriptionName("shared-sub")
-                .subscriptionType(SubscriptionType.Shared)
-                .messageListener((Consumer<String> c, Message<String> msg) -> {
-                    receivedMessages.add(msg.getValue());
-                    c.acknowledgeAsync(msg);
-                    latch.countDown();
-                })
-                .subscribe();
-
-        final long tickTime = 1000L;
-
-        admin.topicPolicies().setDelayedDeliveryPolicy(topic,
-                DelayedDeliveryPolicies.builder()
-                        .active(true)
-                        .tickTime(tickTime)
-                        .maxDeliveryDelayInMillis(10000)
-                        .build());
-
-        @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(topic)
-                .create();
-
-        for (int i = 0; i < 10; i++) {
-            final int n = i;
-            final long currentTime = System.currentTimeMillis();
-            final long deliverAtTime = currentTime + 5000L;
-            producer.newMessage()
-                    .key(String.valueOf(i))
-                    .value("msg-" + i)
-                    .deliverAt(deliverAtTime)
-                    .sendAsync().whenComplete((id, ex) -> {
-                        if (n == 0) {
-                            MessageIdAdv messageIdAdv = (MessageIdAdv) id;
-                            String deleteDelayedMessageId = messageIdAdv.getLedgerId() + ":" + messageIdAdv.getEntryId();
-                            producer.newMessage()
-                                    .key(String.valueOf(n))
-                                    .value("msg-0-mark")
-                                    .deliverAt(deliverAtTime - 2 * tickTime)
-                                    .property(IS_MARK_DELETE_DELAY_MESSAGE, "true")
-                                    .property(DELAY_CANCELED_MESSAGE_POSITION, deleteDelayedMessageId)
-                                    .sendAsync();
-                        }
-                    });
-        }
-        producer.flush();
-
-        assertTrue(latch.await(15, TimeUnit.SECONDS), "Not all messages were received in time");
-        assertFalse(receivedMessages.contains("msg-0") || receivedMessages.contains("msg-0-mark"),
-                "msg-0 and msg-0-mark should have been cancelled but was received");
-    }
 }
