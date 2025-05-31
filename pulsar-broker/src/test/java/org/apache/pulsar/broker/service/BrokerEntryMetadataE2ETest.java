@@ -19,19 +19,24 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
+import static org.testng.AssertJUnit.fail;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import javax.ws.rs.NotAllowedException;
+import javax.ws.rs.NotFoundException;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -419,5 +424,73 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         Assert.assertEquals(ledgerInfoList.get(0).getSize(), managedLedger.getTotalSize());
 
         cursor.close();
+    }
+
+    @Test
+    public void testGetMessageIdByIndex() throws Exception {
+        // 1. test no partitioned topic
+        final String topicName = newTopicName();
+        admin.topics().createNonPartitionedTopic(topicName);
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+        MessageIdImpl messageId = (MessageIdImpl) producer.send("test");
+        Message<byte[]>
+                message = admin.topics().getMessagesById(topicName, messageId.getLedgerId(), messageId.getEntryId()).get(0);
+        long index = message.getIndex().get();
+        MessageIdImpl messageIdByIndex = (MessageIdImpl) admin.topics().getMessageIdByIndex(topicName, index);
+        Assert.assertEquals(messageIdByIndex, messageId);
+
+        // 2. test partitioned topic
+        final String topicName2 = newTopicName();
+        final String partitionedTopicName = topicName2 + "-partition-" + 0;
+        admin.topics().createPartitionedTopic(topicName2, 10);
+        @Cleanup
+        Producer<String> producer2 = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName2)
+                .enableBatching(false)
+                .create();
+
+        MessageIdImpl messageId2 = null;
+        for (int i = 0; i < 200; i++) {
+            messageId2 = (MessageIdImpl) producer2.send("test" + i);
+            if (messageId2.getPartitionIndex() == 0) {
+                break;
+            }
+        }
+        Message<byte[]>
+                message2 = admin.topics().getMessagesById(partitionedTopicName,
+                messageId2.getLedgerId(), messageId2.getEntryId()).get(0);
+        long index2 = message2.getIndex().get();
+        // 2.1 test partitioned topic name with partition index
+        MessageIdImpl messageIdByIndex2 = (MessageIdImpl) admin.topics().getMessageIdByIndex(partitionedTopicName, index2);
+        Assert.assertEquals(messageIdByIndex2, messageId2);
+        // 2.2 test partitioned topic name without partition index
+        try {
+            messageIdByIndex2 = (MessageIdImpl) admin.topics().getMessageIdByIndex(topicName2, index2);
+            fail("Should not be able to get messageId by index for partitioned topic without partition index");
+        } catch (PulsarAdminException e) {
+            // Expected exception, as the topic name does not include partition index
+            Assert.assertTrue(e.getCause().getCause() instanceof NotAllowedException);
+        }
+
+        // 3. test invalid index
+        try {
+            admin.topics().getMessageIdByIndex(topicName, -1);
+            fail("Should not be able to get messageId by index for invalid index");
+        } catch (PulsarAdminException e) {
+            // Expected exception, as the index is invalid
+            Assert.assertTrue(e.getCause().getCause() instanceof NotFoundException);
+        }
+        try {
+            admin.topics().getMessageIdByIndex(topicName, 100000);
+            fail("Should not be able to get messageId by index for invalid index");
+        } catch (PulsarAdminException e) {
+            // Expected exception, as the index is invalid
+            Assert.assertTrue(e.getCause().getCause() instanceof NotFoundException);
+        }
+
     }
 }
