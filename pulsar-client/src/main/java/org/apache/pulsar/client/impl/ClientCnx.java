@@ -122,10 +122,12 @@ public class ClientCnx extends PulsarHandler {
     protected final Authentication authentication;
     protected State state;
 
-    private AtomicLong duplicatedResponseCounter = new AtomicLong(0);
+    @VisibleForTesting
+    protected AtomicLong duplicatedResponseCounter = new AtomicLong(0);
 
+    @VisibleForTesting
     @Getter
-    private final ConcurrentLongHashMap<TimedCompletableFuture<? extends Object>> pendingRequests =
+    protected final ConcurrentLongHashMap<TimedCompletableFuture<? extends Object>> pendingRequests =
             ConcurrentLongHashMap.<TimedCompletableFuture<? extends Object>>newBuilder()
                     .expectedItems(16)
                     .concurrencyLevel(1)
@@ -193,6 +195,8 @@ public class ClientCnx extends PulsarHandler {
     private boolean supportsTopicWatchers;
     @Getter
     private boolean supportsGetPartitionedMetadataWithoutAutoCreation;
+    @Getter
+    private boolean brokerSupportsReplDedupByLidAndEid;
 
     /** Idle stat. **/
     @Getter
@@ -201,7 +205,7 @@ public class ClientCnx extends PulsarHandler {
     @Getter
     private long lastDisconnectedTimestamp;
 
-    private final String clientVersion;
+    protected final String clientVersion;
 
     protected enum State {
         None, SentConnectFrame, Ready, Failed, Connecting
@@ -405,6 +409,8 @@ public class ClientCnx extends PulsarHandler {
         supportsGetPartitionedMetadataWithoutAutoCreation =
             connected.hasFeatureFlags()
                     && connected.getFeatureFlags().isSupportsGetPartitionedMetadataWithoutAutoCreation();
+        brokerSupportsReplDedupByLidAndEid =
+            connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsReplDedupByLidAndEid();
 
         // set remote protocol version to the correct version before we complete the connection future
         setRemoteEndpointProtocolVersion(connected.getProtocolVersion());
@@ -474,18 +480,19 @@ public class ClientCnx extends PulsarHandler {
             ledgerId = sendReceipt.getMessageId().getLedgerId();
             entryId = sendReceipt.getMessageId().getEntryId();
         }
-
-        if (ledgerId == -1 && entryId == -1) {
-            log.warn("{} Message with sequence-id {} published by producer {} has been dropped", ctx.channel(),
-                    sequenceId, producerId);
-        }
-
-        if (log.isDebugEnabled()) {
-            log.debug("{} Got receipt for producer: {} -- msg: {} -- id: {}:{}", ctx.channel(), producerId, sequenceId,
-                    ledgerId, entryId);
-        }
-
         ProducerImpl<?> producer = producers.get(producerId);
+        if (ledgerId == -1 && entryId == -1) {
+            log.warn("{} Message with sequence-id {}-{} published by producer [id:{}, name:{}] has been dropped",
+                    ctx.channel(), sequenceId, highestSequenceId, producerId,
+                    producer != null ? producer.getProducerName() : "null");
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("{} Got receipt for producer: [id:{}, name:{}] -- sequence-id: {}-{} -- entry-id: {}:{}",
+                        ctx.channel(), producerId, producer.getProducerName(), sequenceId, highestSequenceId,
+                        ledgerId, entryId);
+            }
+        }
+
         if (producer != null) {
             producer.ackReceived(this, sequenceId, highestSequenceId, ledgerId, entryId);
         } else {
@@ -925,6 +932,7 @@ public class ClientCnx extends PulsarHandler {
             if (maxLookupRequestSemaphore.tryAcquire()) {
                 waitingLookupRequests.add(Pair.of(requestId, Pair.of(request, future)));
             } else {
+                request.release();
                 if (log.isDebugEnabled()) {
                     log.debug("{} Failed to add lookup-request into waiting queue", requestId);
                 }
@@ -1372,6 +1380,47 @@ public class ClientCnx extends PulsarHandler {
         default:
             return new PulsarClientException(errorMsg);
         }
+    }
+
+    public static ServerError revertClientExToErrorCode(PulsarClientException ex) {
+        if (ex instanceof PulsarClientException.AuthenticationException) {
+            return ServerError.AuthenticationError;
+        } else if (ex instanceof PulsarClientException.AuthorizationException) {
+            return ServerError.AuthorizationError;
+        } else if (ex instanceof PulsarClientException.ProducerBusyException) {
+            return ServerError.ProducerBusy;
+        } else if (ex instanceof PulsarClientException.ConsumerBusyException) {
+            return ServerError.ConsumerBusy;
+        } else if (ex instanceof PulsarClientException.BrokerMetadataException) {
+            return ServerError.MetadataError;
+        } else if (ex instanceof PulsarClientException.BrokerPersistenceException) {
+            return ServerError.PersistenceError;
+        } else if (ex instanceof PulsarClientException.TooManyRequestsException) {
+            return ServerError.TooManyRequests;
+        } else if (ex instanceof PulsarClientException.LookupException) {
+            return ServerError.ServiceNotReady;
+        } else if (ex instanceof PulsarClientException.ProducerBlockedQuotaExceededError) {
+            return ServerError.ProducerBlockedQuotaExceededError;
+        } else if (ex instanceof PulsarClientException.ProducerBlockedQuotaExceededException) {
+            return ServerError.ProducerBlockedQuotaExceededException;
+        } else if (ex instanceof PulsarClientException.TopicTerminatedException) {
+            return ServerError.TopicTerminatedError;
+        } else if (ex instanceof PulsarClientException.IncompatibleSchemaException) {
+            return ServerError.IncompatibleSchema;
+        } else if (ex instanceof PulsarClientException.TopicDoesNotExistException) {
+            return ServerError.TopicNotFound;
+        } else if (ex instanceof PulsarClientException.SubscriptionNotFoundException) {
+            return ServerError.SubscriptionNotFound;
+        } else if (ex instanceof PulsarClientException.ConsumerAssignException) {
+            return ServerError.ConsumerAssignError;
+        } else if (ex instanceof PulsarClientException.NotAllowedException) {
+            return ServerError.NotAllowedError;
+        } else if (ex instanceof PulsarClientException.TransactionConflictException) {
+            return ServerError.TransactionConflict;
+        } else if (ex instanceof PulsarClientException.ProducerFencedException) {
+            return ServerError.ProducerFenced;
+        }
+        return ServerError.UnknownError;
     }
 
     public void close() {

@@ -161,7 +161,8 @@ public class FaultInjectionMetadataStore implements MetadataStoreExtended {
     }
 
     @Override
-    public <T> MetadataCache<T> getMetadataCache(MetadataSerde<T> serde, MetadataCacheConfig cacheConfig) {
+    public <T> MetadataCache<T> getMetadataCache(String cacheName, MetadataSerde<T> serde,
+                                                 MetadataCacheConfig cacheConfig) {
         return injectMetadataStoreInMetadataCache(store.getMetadataCache(serde, cacheConfig));
     }
 

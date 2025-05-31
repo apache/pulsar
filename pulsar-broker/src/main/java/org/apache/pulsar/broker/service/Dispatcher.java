@@ -178,6 +178,54 @@ public interface Dispatcher {
     }
 
     /**
+     * Gets the total number of times message dispatching was throttled on a subscription due to broker rate limits.
+     * @return the count of throttled message events by subscription limit, default is 0.
+     */
+    default long getDispatchThrottledMsgEventsBySubscriptionLimit() {
+        return 0;
+    }
+
+    /**
+     * Gets the total number of times bytes dispatching was throttled on a subscription due to broker rate limits.
+     * @return the count of throttled bytes by subscription limit, default is 0.
+     */
+    default long getDispatchThrottledBytesBySubscriptionLimit() {
+        return 0;
+    }
+
+    /**
+     * Gets the total number of times message dispatching was throttled on a subscription due to topic rate limits.
+     * @return the count of throttled message events by topic limit, default is 0.
+     */
+    default long getDispatchThrottledMsgEventsByTopicLimit() {
+        return 0;
+    }
+
+    /**
+     * Gets the total number of times bytes dispatching was throttled on a subscription due to topic rate limits.
+     * @return the count of throttled bytes events by topic limit, default is 0.
+     */
+    default long getDispatchThrottledBytesEventsByTopicLimit() {
+        return 0;
+    }
+
+    /**
+     * Gets the total number of times message dispatching was throttled on a subscription due to broker rate limits.
+     * @return the count of throttled message events by broker limit, default is 0.
+     */
+    default long getDispatchThrottledMsgEventsByBrokerLimit() {
+        return 0;
+    }
+
+    /**
+     * Gets the total number of times bytes dispatching was throttled on a subscription due to broker rate limits.
+     * @return the count of throttled bytes count by broker limit, default is 0.
+     */
+    default long getDispatchThrottledBytesEventsByBrokerLimit() {
+        return 0;
+    }
+
+    /**
      * Cancels a specific delayed message for this dispatcher's subscriptions.
      *
      * @param ledgerId The ledger ID of the message to cancel.

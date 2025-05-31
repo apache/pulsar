@@ -228,7 +228,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 compressionConfigForManagedCursorInfo);
         this.config = config;
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
-        this.entryCacheManager = new RangeEntryCacheManagerImpl(this, openTelemetry);
+        this.entryCacheManager = new RangeEntryCacheManagerImpl(this, scheduledExecutor, openTelemetry);
         this.statsTask = scheduledExecutor.scheduleWithFixedDelay(catchingAndLoggingThrowables(this::refreshStats),
                 0, config.getStatsPeriodSeconds(), TimeUnit.SECONDS);
         this.flushCursorsTask = scheduledExecutor.scheduleAtFixedRate(catchingAndLoggingThrowables(this::flushCursors),
@@ -250,7 +250,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         openTelemetryManagedCursorStats = new OpenTelemetryManagedCursorStats(openTelemetry, this);
     }
 
-    static class DefaultBkFactory implements BookkeeperFactoryForCustomEnsemblePlacementPolicy {
+    static class DefaultBkFactory implements BookkeeperFactoryForCustomEnsemblePlacementPolicy, AutoCloseable {
 
         private final BookKeeper bkClient;
 
@@ -262,6 +262,11 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         @Override
         public CompletableFuture<BookKeeper> get(EnsemblePlacementPolicyConfig policy) {
             return CompletableFuture.completedFuture(bkClient);
+        }
+
+        @Override
+        public void close() throws Exception {
+            bkClient.close();
         }
     }
 
@@ -410,11 +415,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                             new EnsemblePlacementPolicyConfig(config.getBookKeeperEnsemblePlacementPolicyClassName(),
                                     config.getBookKeeperEnsemblePlacementPolicyProperties()))
                     .thenAccept(bk -> {
-                        final ManagedLedgerImpl newledger = config.getShadowSource() == null
-                                ? new ManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name,
-                                mlOwnershipChecker)
-                                : new ShadowManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name,
-                                mlOwnershipChecker);
+                        final ManagedLedgerImpl newledger =
+                                createManagedLedger(bk, store, name, config, mlOwnershipChecker);
                         PendingInitializeManagedLedger pendingLedger = new PendingInitializeManagedLedger(newledger);
                         pendingInitializeLedgers.put(name, pendingLedger);
                         newledger.initialize(new ManagedLedgerInitializeLedgerCallback() {
@@ -470,6 +472,14 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     .getManagedLedgerException(FutureUtil.unwrapCompletionException(exception)), ctx);
             return null;
         });
+    }
+
+    protected ManagedLedgerImpl createManagedLedger(BookKeeper bk, MetaStore store, String name,
+                                                    ManagedLedgerConfig config,
+                                                    Supplier<CompletableFuture<Boolean>> mlOwnershipChecker) {
+        return config.getShadowSource() == null
+                ? new ManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name, mlOwnershipChecker) :
+                new ShadowManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name, mlOwnershipChecker);
     }
 
     @Override
@@ -641,13 +651,20 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                             }
                         }
                     }));
-                }).thenAcceptAsync(__ -> {
+                }).whenCompleteAsync((__, ___) -> {
                     //wait for tasks in scheduledExecutor executed.
                     openTelemetryManagedCursorStats.close();
                     openTelemetryManagedLedgerStats.close();
                     openTelemetryCacheStats.close();
                     scheduledExecutor.shutdownNow();
                     entryCacheManager.clear();
+                    if (bookkeeperFactory instanceof DefaultBkFactory defaultBkFactory) {
+                        try {
+                            defaultBkFactory.close();
+                        } catch (Exception e) {
+                            log.warn("Failed to close bookkeeper client", e);
+                        }
+                    }
                 });
     }
 

@@ -16,12 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.stats;
+package org.apache.pulsar.common.functions;
 
-import lombok.experimental.UtilityClass;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 
-@UtilityClass
-public class CacheMetricsCollector {
-    public static final io.prometheus.client.cache.caffeine.CacheMetricsCollector CAFFEINE =
-        new io.prometheus.client.cache.caffeine.CacheMetricsCollector().register();
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@EqualsAndHashCode
+public class BatchingConfig {
+    @Builder.Default
+    private boolean enabled = true;
+    @Builder.Default
+    private Integer batchingMaxPublishDelayMs = 10;
+    private Integer roundRobinRouterBatchingPartitionSwitchFrequency;
+    private Integer batchingMaxMessages;
+    private Integer batchingMaxBytes;
+    private String batchBuilder;
 }

@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import com.google.common.annotations.VisibleForTesting;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -38,17 +39,17 @@ import org.slf4j.LoggerFactory;
  * given a timestamp find the first message (position) (published) at or before the timestamp.
  */
 public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback {
-    private final ManagedCursor cursor;
-    private final String subName;
-    private final int ledgerCloseTimestampMaxClockSkewMillis;
-    private final String topicName;
-    private long timestamp = 0;
+    protected final ManagedCursor cursor;
+    protected final String subName;
+    protected final int ledgerCloseTimestampMaxClockSkewMillis;
+    protected final String topicName;
+    protected long timestamp = 0;
 
-    private static final int FALSE = 0;
-    private static final int TRUE = 1;
+    protected static final int FALSE = 0;
+    protected static final int TRUE = 1;
     @SuppressWarnings("unused")
-    private volatile int messageFindInProgress = FALSE;
-    private static final AtomicIntegerFieldUpdater<PersistentMessageFinder> messageFindInProgressUpdater =
+    protected volatile int messageFindInProgress = FALSE;
+    protected static final AtomicIntegerFieldUpdater<PersistentMessageFinder> MESSAGE_FIND_IN_PROGRESS =
             AtomicIntegerFieldUpdater
                     .newUpdater(PersistentMessageFinder.class, "messageFindInProgress");
 
@@ -60,7 +61,7 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
     }
 
     public void findMessages(final long timestamp, AsyncCallbacks.FindEntryCallback callback) {
-        if (messageFindInProgressUpdater.compareAndSet(this, FALSE, TRUE)) {
+        if (MESSAGE_FIND_IN_PROGRESS.compareAndSet(this, FALSE, TRUE)) {
             this.timestamp = timestamp;
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Starting message position find at timestamp {}", subName, timestamp);
@@ -71,6 +72,7 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
                             ledgerCloseTimestampMaxClockSkewMillis);
             cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, entry -> {
                 try {
+                    // Find the latest entry that is earlier than the target timestamp.
                     long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
                     return MessageImpl.isEntryPublishedEarlierThan(entryTimestamp, timestamp);
                 } catch (Exception e) {
@@ -91,6 +93,13 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
         }
     }
 
+    /**
+     * The range may be across multi ledgers:
+     *   - start: the latest ledger that closed before {@param targetTimestamp}.
+     *     - only the latest entry is useful.
+     *   - end: the earliest ledger that is larger than the target timestamp.
+     */
+    @VisibleForTesting
     public static Pair<Position, Position> getFindPositionRange(Iterable<LedgerInfo> ledgerInfos,
                                                                 Position lastConfirmedEntry, long targetTimestamp,
                                                                 int ledgerCloseTimestampMaxClockSkewMillis) {
@@ -105,15 +114,15 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
         Position start = null;
         Position end = null;
 
-        LedgerInfo secondToLastLedgerInfo = null;
-        LedgerInfo lastLedgerInfo = null;
+        // We do not use binary search here:
+        // Since "managedLedger.ledgers" os a map, we can hardly use a binary search except to copy items to an array,
+        // which causes frequently young GC. And "collection.toArray()" also loops the collection once, which does not
+        // benefit performance anymore.
         for (LedgerInfo info : ledgerInfos) {
             if (!info.hasTimestamp()) {
                 // unexpected case, don't set start and end
                 return Pair.of(null, null);
             }
-            secondToLastLedgerInfo = lastLedgerInfo;
-            lastLedgerInfo = info;
             long closeTimestamp = info.getTimestamp();
             // For an open ledger, closeTimestamp is 0
             if (closeTimestamp == 0) {
@@ -121,24 +130,13 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
                 break;
             }
             if (closeTimestamp <= targetTimestampMin) {
-                start = PositionFactory.create(info.getLedgerId(), 0);
+                // Since we have "broker.conf -> managedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis", which
+                // already expanded the scope for searching, the entries before the latest one is not useful.
+                start = PositionFactory.create(info.getLedgerId(), info.getEntries() - 1);
             } else if (closeTimestamp > targetTimestampMax) {
                 // If the close timestamp is greater than the timestamp
                 end = PositionFactory.create(info.getLedgerId(), info.getEntries() - 1);
                 break;
-            }
-        }
-        // If the second-to-last ledger's close timestamp is less than the target timestamp, then start from the
-        // first entry of the last ledger when there are confirmed entries in the ledger
-        if (lastLedgerInfo != null && secondToLastLedgerInfo != null
-                && secondToLastLedgerInfo.getTimestamp() > 0
-                && secondToLastLedgerInfo.getTimestamp() < targetTimestampMin) {
-            Position firstPositionInLedger = PositionFactory.create(lastLedgerInfo.getLedgerId(), 0);
-            if (lastConfirmedEntry != null
-                    && lastConfirmedEntry.compareTo(firstPositionInLedger) >= 0) {
-                start = firstPositionInLedger;
-            } else {
-                start = lastConfirmedEntry;
             }
         }
         return Pair.of(start, end);

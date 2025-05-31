@@ -22,8 +22,12 @@ import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.ObservableLongCounter;
 import io.prometheus.client.Gauge;
-import lombok.AllArgsConstructor;
-import lombok.ToString;
+import java.util.ArrayDeque;
+import java.util.Optional;
+import java.util.Queue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.opentelemetry.Constants;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.InflightReadLimiterUtilization;
@@ -47,6 +51,7 @@ public class InflightReadsLimiter implements AutoCloseable {
     public static final String INFLIGHT_READS_LIMITER_USAGE_METRIC_NAME =
             "pulsar.broker.managed_ledger.inflight.read.usage";
     private final ObservableLongCounter inflightReadsUsageCounter;
+    private final int maxReadsInFlightAcquireQueueSize;
 
     @PulsarDeprecatedMetric(newMetricName = INFLIGHT_READS_LIMITER_USAGE_METRIC_NAME)
     @Deprecated
@@ -58,16 +63,37 @@ public class InflightReadsLimiter implements AutoCloseable {
 
     private final long maxReadsInFlightSize;
     private long remainingBytes;
+    private final long acquireTimeoutMillis;
+    private final ScheduledExecutorService timeOutExecutor;
+    private final boolean enabled;
 
-    public InflightReadsLimiter(long maxReadsInFlightSize, OpenTelemetry openTelemetry) {
-        if (maxReadsInFlightSize <= 0) {
+    record Handle(long permits, long creationTime, boolean success) {
+    }
+
+    record QueuedHandle(Handle handle, Consumer<Handle> callback) {
+    }
+
+    private final Queue<QueuedHandle> queuedHandles;
+    private boolean timeoutCheckRunning = false;
+
+    public InflightReadsLimiter(long maxReadsInFlightSize, int maxReadsInFlightAcquireQueueSize,
+                                long acquireTimeoutMillis, ScheduledExecutorService timeOutExecutor,
+                                OpenTelemetry openTelemetry) {
+        this.maxReadsInFlightSize = maxReadsInFlightSize;
+        this.remainingBytes = maxReadsInFlightSize;
+        this.acquireTimeoutMillis = acquireTimeoutMillis;
+        this.timeOutExecutor = timeOutExecutor;
+        this.maxReadsInFlightAcquireQueueSize = maxReadsInFlightAcquireQueueSize;
+        if (maxReadsInFlightSize > 0) {
+            enabled = true;
+            this.queuedHandles = new ArrayDeque<>();
+        } else {
+            enabled = false;
+            this.queuedHandles = null;
             // set it to -1 in order to show in the metrics that the metric is not available
             PULSAR_ML_READS_BUFFER_SIZE.set(-1);
             PULSAR_ML_READS_AVAILABLE_BUFFER_SIZE.set(-1);
         }
-        this.maxReadsInFlightSize = maxReadsInFlightSize;
-        this.remainingBytes = maxReadsInFlightSize;
-
         var meter = openTelemetry.getMeter(Constants.BROKER_INSTRUMENTATION_SCOPE_NAME);
         inflightReadsLimitCounter = meter.counterBuilder(INFLIGHT_READS_LIMITER_LIMIT_METRIC_NAME)
                 .setDescription("Maximum number of bytes that can be retained by managed ledger data read from storage "
@@ -102,70 +128,186 @@ public class InflightReadsLimiter implements AutoCloseable {
         inflightReadsUsageCounter.close();
     }
 
-    @AllArgsConstructor
-    @ToString
-    static class Handle {
-        final long acquiredPermits;
-        final boolean success;
-        final int trials;
+    private static final Handle DISABLED = new Handle(0, 0, true);
+    private static final Optional<Handle> DISABLED_OPTIONAL = Optional.of(DISABLED);
 
-        final long creationTime;
+    /**
+     * Acquires permits from the limiter. If the limiter is disabled, it will immediately return a successful handle.
+     * If permits are available, it will return a handle with the acquired permits. If no permits are available,
+     * it will return an empty optional and the callback will be called when permits become available or when the
+     * acquire timeout is reached. The success field in the handle passed to the callback will be false if the acquire
+     * operation times out. The callback should be non-blocking and run on a desired executor handled within the
+     * callback itself.
+     *
+     * A successful handle will have the success field set to true, and the caller must call release with the handle
+     * when the permits are no longer needed.
+     *
+     * If an unsuccessful handle is returned immediately, it means that the queue limit has been reached and the
+     * callback will not be called. The caller should fail the read operation in this case to apply backpressure.
+     *
+     * @param permits  the number of permits to acquire
+     * @param callback the callback to be called when the permits are acquired or timed out
+     * @return an optional handle that contains the permits if acquired, otherwise an empty optional
+     */
+    public Optional<Handle> acquire(long permits, Consumer<Handle> callback) {
+        if (isDisabled()) {
+            return DISABLED_OPTIONAL;
+        }
+        return internalAcquire(permits, callback);
     }
 
-    private static final Handle DISABLED = new Handle(0, true, 0, -1);
-
-    Handle acquire(long permits, Handle current) {
-        if (maxReadsInFlightSize <= 0) {
-            // feature is disabled
-            return DISABLED;
-        }
-        synchronized (this) {
-            try {
-                if (current == null) {
-                    if (remainingBytes == 0) {
-                        return new Handle(0, false, 1, System.currentTimeMillis());
-                    }
-                    if (remainingBytes >= permits) {
-                        remainingBytes -= permits;
-                        return new Handle(permits, true, 1, System.currentTimeMillis());
-                    } else {
-                        long possible = remainingBytes;
-                        remainingBytes = 0;
-                        return new Handle(possible, false, 1, System.currentTimeMillis());
-                    }
-                } else {
-                    if (current.trials >= 4 && current.acquiredPermits > 0) {
-                        remainingBytes += current.acquiredPermits;
-                        return new Handle(0, false, 1, current.creationTime);
-                    }
-                    if (remainingBytes == 0) {
-                        return new Handle(current.acquiredPermits, false, current.trials + 1,
-                                current.creationTime);
-                    }
-                    long needed = permits - current.acquiredPermits;
-                    if (remainingBytes >= needed) {
-                        remainingBytes -= needed;
-                        return new Handle(permits, true, current.trials + 1, current.creationTime);
-                    } else {
-                        long possible = remainingBytes;
-                        remainingBytes = 0;
-                        return new Handle(current.acquiredPermits + possible, false,
-                                current.trials + 1, current.creationTime);
-                    }
-                }
-            } finally {
-                updateMetrics();
+    private synchronized Optional<Handle> internalAcquire(long permits, Consumer<Handle> callback) {
+        Handle handle = new Handle(permits, System.currentTimeMillis(), true);
+        if (remainingBytes >= permits) {
+            remainingBytes -= permits;
+            if (log.isDebugEnabled()) {
+                log.debug("acquired permits: {}, creationTime: {}, remainingBytes:{}", permits, handle.creationTime,
+                        remainingBytes);
+            }
+            updateMetrics();
+            return Optional.of(handle);
+        } else if (permits > maxReadsInFlightSize && remainingBytes == maxReadsInFlightSize) {
+            remainingBytes = 0;
+            if (log.isInfoEnabled()) {
+                log.info("Requested permits {} exceeded maxReadsInFlightSize {}, creationTime: {}, remainingBytes:{}. "
+                                + "Allowing request with permits set to maxReadsInFlightSize.",
+                        permits, maxReadsInFlightSize, handle.creationTime, remainingBytes);
+            }
+            updateMetrics();
+            return Optional.of(new Handle(maxReadsInFlightSize, handle.creationTime, true));
+        } else {
+            if (queuedHandles.size() >= maxReadsInFlightAcquireQueueSize) {
+                log.warn("Failed to queue handle for acquiring permits: {}, creationTime: {}, remainingBytes:{},"
+                    + " maxReadsInFlightAcquireQueueSize:{}, pending-queue-size: {}, please increase broker"
+                    + " config managedLedgerMaxReadsInFlightPermitsAcquireQueueSize and confirm the configuration of"
+                    + " managedLedgerMaxReadsInFlightSizeInMB and"
+                    + " managedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis are suitable.",
+                    permits, handle.creationTime, remainingBytes, maxReadsInFlightAcquireQueueSize,
+                    queuedHandles.size());
+                return Optional.of(new Handle(0, handle.creationTime, false));
+            } else {
+                queuedHandles.offer(new QueuedHandle(handle, callback));
+                scheduleTimeOutCheck(acquireTimeoutMillis);
+                return Optional.empty();
             }
         }
     }
 
-    void release(Handle handle) {
+    private synchronized void scheduleTimeOutCheck(long delayMillis) {
+        if (acquireTimeoutMillis <= 0) {
+            return;
+        }
+        if (!timeoutCheckRunning) {
+            timeoutCheckRunning = true;
+            timeOutExecutor.schedule(this::timeoutCheck, delayMillis, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    private synchronized void timeoutCheck() {
+        timeoutCheckRunning = false;
+        long delay = 0;
+        while (true) {
+            QueuedHandle queuedHandle = queuedHandles.peek();
+            if (queuedHandle != null) {
+                long age = System.currentTimeMillis() - queuedHandle.handle.creationTime;
+                if (age >= acquireTimeoutMillis) {
+                    // remove the peeked handle from the queue
+                    queuedHandles.poll();
+                    handleTimeout(queuedHandle);
+                } else {
+                    delay = acquireTimeoutMillis - age;
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+        if (delay > 0) {
+            scheduleTimeOutCheck(delay);
+        }
+    }
+
+    private void handleTimeout(QueuedHandle queuedHandle) {
+        log.warn("timed out queued permits: {}, creationTime: {}, remainingBytes:{}, acquireTimeoutMillis: {}. Please"
+                + " review whether the BK read requests is fast enough or broker config"
+                + " managedLedgerMaxReadsInFlightSizeInMB and managedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis"
+                + " are suitable",
+                queuedHandle.handle.permits, queuedHandle.handle.creationTime, remainingBytes, acquireTimeoutMillis);
+        try {
+            queuedHandle.callback.accept(new Handle(0, queuedHandle.handle.creationTime, false));
+        } catch (Exception e) {
+            log.error("Error in callback of timed out queued permits: {}, creationTime: {}, remainingBytes:{},"
+                + " acquireTimeoutMillis: {}",
+                queuedHandle.handle.permits, queuedHandle.handle.creationTime, remainingBytes, acquireTimeoutMillis, e);
+        }
+    }
+
+    /**
+     * Releases permits back to the limiter. If the handle is disabled, this method will be a no-op.
+     *
+     * @param handle the handle containing the permits to release
+     */
+    public void release(Handle handle) {
         if (handle == DISABLED) {
             return;
         }
-        synchronized (this) {
-            remainingBytes += handle.acquiredPermits;
-            updateMetrics();
+        internalRelease(handle);
+    }
+
+    private synchronized void internalRelease(Handle handle) {
+        if (log.isDebugEnabled()) {
+            log.debug("release permits: {}, creationTime: {}, remainingBytes:{}", handle.permits,
+                    handle.creationTime, getRemainingBytes());
+        }
+        remainingBytes += handle.permits;
+        while (true) {
+            QueuedHandle queuedHandle = queuedHandles.peek();
+            if (queuedHandle != null) {
+                boolean timedOut = acquireTimeoutMillis > 0
+                        && System.currentTimeMillis() - queuedHandle.handle.creationTime > acquireTimeoutMillis;
+                if (timedOut) {
+                    // remove the peeked handle from the queue
+                    queuedHandles.poll();
+                    handleTimeout(queuedHandle);
+                } else if (remainingBytes >= queuedHandle.handle.permits
+                        || queuedHandle.handle.permits > maxReadsInFlightSize
+                        && remainingBytes == maxReadsInFlightSize) {
+                    // remove the peeked handle from the queue
+                    queuedHandles.poll();
+                    handleQueuedHandle(queuedHandle);
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+        updateMetrics();
+    }
+
+    private void handleQueuedHandle(QueuedHandle queuedHandle) {
+        long permits = queuedHandle.handle.permits;
+        Handle handleForCallback = queuedHandle.handle;
+        if (permits > maxReadsInFlightSize && remainingBytes == maxReadsInFlightSize) {
+            remainingBytes = 0;
+            if (log.isInfoEnabled()) {
+                log.info("Requested permits {} exceeded maxReadsInFlightSize {}, creationTime: {}, remainingBytes:{}. "
+                                + "Allowing request with permits set to maxReadsInFlightSize.",
+                        permits, maxReadsInFlightSize, queuedHandle.handle.creationTime, remainingBytes);
+            }
+            handleForCallback = new Handle(maxReadsInFlightSize, queuedHandle.handle.creationTime, true);
+        } else {
+            remainingBytes -= permits;
+            if (log.isDebugEnabled()) {
+                log.debug("acquired queued permits: {}, creationTime: {}, remainingBytes:{}",
+                        permits, queuedHandle.handle.creationTime, remainingBytes);
+            }
+        }
+        try {
+            queuedHandle.callback.accept(handleForCallback);
+        } catch (Exception e) {
+            log.error("Error in callback of acquired queued permits: {}, creationTime: {}, remainingBytes:{}",
+                    handleForCallback.permits, handleForCallback.creationTime, remainingBytes, e);
         }
     }
 
@@ -175,8 +317,6 @@ public class InflightReadsLimiter implements AutoCloseable {
     }
 
     public boolean isDisabled() {
-        return maxReadsInFlightSize <= 0;
+        return !enabled;
     }
-
-
 }

@@ -579,6 +579,68 @@ ci_create_inttest_coverage_report() {
   echo "::endgroup::"
 }
 
+ci_report_netty_leaks() {
+  if [ -z "$NETTY_LEAK_DUMP_DIR" ]; then
+    echo "NETTY_LEAK_DUMP_DIR isn't set"
+    return 0
+  fi
+  local temp_file=$(mktemp -t netty_leak.XXXX)
+
+  # concat all netty_leak_*.txt files in the dump directory to a temp file
+  if [ -d "$NETTY_LEAK_DUMP_DIR" ]; then
+    find "$NETTY_LEAK_DUMP_DIR" -maxdepth 1 -type f -name "netty_leak_*.txt" -exec cat {} \; >> $temp_file
+  fi
+
+  # check if there are any netty_leak_*.txt files in the container logs
+  local container_logs_dir="tests/integration/target/container-logs"
+  if [ -d "$container_logs_dir" ]; then
+    local container_netty_leak_dump_dir="$NETTY_LEAK_DUMP_DIR/container-logs"
+    mkdir -p "$container_netty_leak_dump_dir"
+    while read -r file; do
+      # example file name "tests/integration/target/container-logs/ltnizrzm-standalone/var-log-pulsar.tar.gz"
+      # take ltnizrzm-standalone part
+      container_name=$(basename "$(dirname "$file")")
+      target_dir="$container_netty_leak_dump_dir/$container_name"
+      mkdir -p "$target_dir"
+      tar -C "$target_dir" -zxf "$file" --strip-components=1 --wildcards --wildcards-match-slash '*/netty_leak_*.txt' >/dev/null 2>&1 || true
+    done < <(find "$container_logs_dir" -type f -name "*.tar.gz")
+    # remove all empty directories
+    find "$container_netty_leak_dump_dir" -type d -empty -delete
+    # print all netty_leak_*.txt files in the container logs dump directory to the temp file
+    if [ -d "$container_netty_leak_dump_dir" ]; then
+      find "$container_netty_leak_dump_dir" -type f -name "netty_leak_*.txt" -exec cat {} \; >> $temp_file
+    fi
+  fi
+
+  if [ -s $temp_file ]; then
+    local leak_found_log_message
+    if [[ "$NETTY_LEAK_DETECTION" == "fail_on_leak" ]]; then
+      leak_found_log_message="::error::Netty leaks found. Failing the build since Netty leak detection is set to 'fail_on_leak'."
+    else
+      leak_found_log_message="::warning::Netty leaks found."
+    fi
+    {
+      echo "${leak_found_log_message}"
+      local test_file_locations=$(grep -h -i test $temp_file | grep org.apache | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;s/^Hint: //' | sort -u || true)
+      if [[ -n "$test_file_locations" ]]; then
+        echo "Test file locations in stack traces:"
+        echo
+        echo "$test_file_locations"
+      fi
+      echo "Details:"
+      cat $temp_file
+    } | tee $NETTY_LEAK_DUMP_DIR/leak_report.txt
+    touch target/netty_leaks_found
+    if [[ "$NETTY_LEAK_DETECTION" == "fail_on_leak" ]]; then
+      exit 1
+    fi
+  else
+    echo "No netty leaks found."
+    touch target/netty_leaks_not_found
+  fi
+  rm $temp_file
+}
+
 if [ -z "$1" ]; then
   echo "usage: $0 [ci_tool_function_name]"
   echo "Available ci tool functions:"

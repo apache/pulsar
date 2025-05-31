@@ -93,11 +93,12 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.path.PolicyPath;
+import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.coordination.LockManager;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -118,6 +119,10 @@ public abstract class PulsarWebResource {
                             return serviceNameResolver;
                         }
                     });
+
+    static {
+        CacheMetricsCollector.CAFFEINE.addCache("web-resource-service-name-resolver", SERVICE_NAME_RESOLVER_CACHE);
+    }
 
     static final String ORIGINAL_PRINCIPAL_HEADER = "X-Original-Principal";
 
@@ -1012,7 +1017,7 @@ public abstract class PulsarWebResource {
         if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
             return true;
         }
-        return  pulsar.getLeaderElectionService().isLeader();
+        return pulsar.getLeaderElectionService() != null && pulsar.getLeaderElectionService().isLeader();
     }
 
     public void validateTenantOperation(String tenant, TenantOperation operation) {

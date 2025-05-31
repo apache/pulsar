@@ -177,6 +177,8 @@
                   <include>org.yaml:snakeyaml</include>
                   <include>org.apache.pulsar:pulsar-client-dependencies-minimized</include>
                   <include>org.roaringbitmap:RoaringBitmap</include>
+                  <include>io.prometheus:*</include>
+                  <include>com.github.ben-manes.caffeine:*</include>
                 </includes>
                 <excludes>
                   <exclude>com.fasterxml.jackson.core:jackson-annotations</exclude>
@@ -339,6 +341,13 @@
                 <relocation>
                   <pattern>org.apache.pulsar.policies</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.apache.pulsar.policies</shadedPattern>
+                  <!-- exclude references to unshaded classes and interfaces in https://github.com/apache/pulsar/tree/master/pulsar-client-admin-api/src/main/java/org/apache/pulsar/policies/data/loadbalancer -->
+                  <excludes>
+                    <exclude>org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport</exclude>
+                    <exclude>org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats</exclude>
+                    <exclude>org.apache.pulsar.policies.data.loadbalancer.ResourceUsage</exclude>
+                    <exclude>org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData</exclude>
+                  </excludes>
                 </relocation>
                 <relocation>
                   <pattern>org.asynchttpclient</pattern>
@@ -376,6 +385,14 @@
                 <relocation>
                   <pattern>org.yaml</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.yaml</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.github.benmanes</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.github.benmanes</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>io.prometheus.client</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.io.prometheus.client</shadedPattern>
                 </relocation>
               </relocations>
               <transformers>

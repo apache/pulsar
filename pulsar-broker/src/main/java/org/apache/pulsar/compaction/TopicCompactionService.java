@@ -20,11 +20,11 @@ package org.apache.pulsar.compaction;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import javax.annotation.Nonnull;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
+import org.jspecify.annotations.NonNull;
 
 @InterfaceAudience.Public
 @InterfaceStability.Evolving
@@ -45,7 +45,7 @@ public interface TopicCompactionService extends AutoCloseable {
      * @param numberOfEntriesToRead the maximum number of entries to read.
      * @return a future that will be completed with the list of entries, this list can be null.
      */
-    CompletableFuture<List<Entry>> readCompactedEntries(@Nonnull Position startPosition, int numberOfEntriesToRead);
+    CompletableFuture<List<Entry>> readCompactedEntries(@NonNull Position startPosition, int numberOfEntriesToRead);
 
     /**
      * Read the last compacted entry from the TopicCompactionService.

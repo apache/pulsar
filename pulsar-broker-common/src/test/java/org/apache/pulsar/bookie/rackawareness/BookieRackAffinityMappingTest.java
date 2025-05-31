@@ -247,6 +247,7 @@ public class BookieRackAffinityMappingTest {
         ClientConfiguration bkClientConf = new ClientConfiguration();
         bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
 
+        @Cleanup
         PulsarRegistrationClient pulsarRegistrationClient = new PulsarRegistrationClient(store, "/ledgers");
         DefaultBookieAddressResolver defaultBookieAddressResolver = new DefaultBookieAddressResolver(pulsarRegistrationClient);
 
@@ -257,6 +258,7 @@ public class BookieRackAffinityMappingTest {
                 .stream().filter(Objects::nonNull).toList();
         assertEquals(racks.size(), 0);
 
+        @Cleanup("stop")
         HashedWheelTimer timer = new HashedWheelTimer(
                 new ThreadFactoryBuilder().setNameFormat("TestTimer-%d").build(),
                 bkClientConf.getTimeoutTimerTickDurationMs(), TimeUnit.MILLISECONDS,
@@ -348,8 +350,6 @@ public class BookieRackAffinityMappingTest {
         assertEquals(knownBookies.get(BOOKIE1.toBookieId()).getNetworkLocation(), "/rack0");
         assertEquals(knownBookies.get(BOOKIE2.toBookieId()).getNetworkLocation(), "/default-rack");
         assertEquals(knownBookies.get(BOOKIE3.toBookieId()).getNetworkLocation(), "/default-rack");
-
-        timer.stop();
     }
 
     @Test

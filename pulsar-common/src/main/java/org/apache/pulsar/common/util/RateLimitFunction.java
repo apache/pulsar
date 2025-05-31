@@ -16,4 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.stats;
+package org.apache.pulsar.common.util;
+
+/**
+ * Function use when rate limiter renew permit.
+ * */
+public interface RateLimitFunction {
+    void apply();
+}

@@ -20,7 +20,7 @@
 ARG PULSAR_ALL_IMAGE
 
 # build go lang examples first in a separate layer
-FROM golang:1.21-alpine as pulsar-function-go
+FROM golang:1.23-alpine as pulsar-function-go
 
 COPY target/pulsar-function-go/ /go/src/github.com/apache/pulsar/pulsar-function-go
 RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go && go install ./...
@@ -63,6 +63,9 @@ RUN chmod g+rx /pulsar/examples/python-examples/
 
 # copy java test examples
 COPY target/java-test-functions.jar /pulsar/examples/
+
+# copy buildtools.jar to /pulsar/lib so that org.apache.pulsar.tests.ExtendedNettyLeakDetector can be used
+COPY target/buildtools.jar /pulsar/lib/
 
 # copy go test examples
 COPY --from=pulsar-function-go /go/bin /pulsar/examples/go-examples

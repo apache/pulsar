@@ -57,7 +57,6 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
     private static final int NUM_PARTITIONS = 16;
     @BeforeMethod
     protected void setup() throws Exception {
-        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
         setUpBase(1, NUM_PARTITIONS, NAMESPACE1 +"/test", 0);
     }
 
@@ -76,7 +75,6 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                 .topic(normalTopic)
                 .isAckReceiptEnabled(true)
                 .subscriptionName(subscriptionName)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(2, TimeUnit.SECONDS)
                 .acknowledgmentGroupTime(0, TimeUnit.MICROSECONDS)
@@ -155,7 +153,6 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(normalTopic)
                 .subscriptionName(subscriptionName)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
 
@@ -273,7 +270,6 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(normalTopic)
                 .subscriptionName(subscriptionName)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
 

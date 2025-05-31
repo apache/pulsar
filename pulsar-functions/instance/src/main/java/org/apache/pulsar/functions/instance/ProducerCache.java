@@ -33,6 +33,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.apache.pulsar.common.util.FutureUtil;
 
 @Slf4j
@@ -107,6 +108,7 @@ public class ProducerCache implements Closeable {
             builder.expireAfterAccess(Duration.ofSeconds(PRODUCER_CACHE_TIMEOUT_SECONDS));
         }
         cache = builder.build();
+        CacheMetricsCollector.CAFFEINE.addCache("function-producer-cache", cache);
     }
 
     public <T> Producer<T> getOrCreateProducer(CacheArea cacheArea, String topicName, Object additionalCacheKey,

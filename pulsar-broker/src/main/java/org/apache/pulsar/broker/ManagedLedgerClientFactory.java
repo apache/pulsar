@@ -45,6 +45,7 @@ import org.apache.pulsar.broker.storage.BookkeeperManagedLedgerStorageClass;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorageClass;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
+import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,6 +60,11 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
             bkEnsemblePolicyToBkClientMap = Caffeine.newBuilder().buildAsync();
     private StatsProvider statsProvider = new NullStatsProvider();
 
+    public ManagedLedgerClientFactory() {
+        CacheMetricsCollector.CAFFEINE.addCache("managed-ledger-bk-ensemble-client-cache",
+                bkEnsemblePolicyToBkClientMap);
+    }
+
     @Override
     public void initialize(ServiceConfiguration conf, MetadataStoreExtended metadataStore,
                            BookKeeperClientFactory bookkeeperProvider,
@@ -72,8 +78,21 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
         managedLedgerFactoryConfig.setCacheEvictionTimeThresholdMillis(
                 conf.getManagedLedgerCacheEvictionTimeThresholdMillis());
         managedLedgerFactoryConfig.setCopyEntriesInCache(conf.isManagedLedgerCacheCopyEntries());
-        managedLedgerFactoryConfig.setManagedLedgerMaxReadsInFlightSize(
-                conf.getManagedLedgerMaxReadsInFlightSizeInMB() * 1024L * 1024L);
+        long managedLedgerMaxReadsInFlightSizeBytes = conf.getManagedLedgerMaxReadsInFlightSizeInMB() * 1024L * 1024L;
+        if (managedLedgerMaxReadsInFlightSizeBytes > 0 && conf.getDispatcherMaxReadSizeBytes() > 0
+                && managedLedgerMaxReadsInFlightSizeBytes < conf.getDispatcherMaxReadSizeBytes()) {
+            log.warn("Invalid configuration for managedLedgerMaxReadsInFlightSizeInMB: {}, "
+                            + "dispatcherMaxReadSizeBytes: {}. managedLedgerMaxReadsInFlightSizeInMB in bytes should "
+                            + "be greater than dispatcherMaxReadSizeBytes. You should set "
+                            + "managedLedgerMaxReadsInFlightSizeInMB to at least {}",
+                    conf.getManagedLedgerMaxReadsInFlightSizeInMB(), conf.getDispatcherMaxReadSizeBytes(),
+                    (conf.getDispatcherMaxReadSizeBytes() / (1024L * 1024L)) + 1);
+        }
+        managedLedgerFactoryConfig.setManagedLedgerMaxReadsInFlightSize(managedLedgerMaxReadsInFlightSizeBytes);
+        managedLedgerFactoryConfig.setManagedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis(
+                conf.getManagedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis());
+        managedLedgerFactoryConfig.setManagedLedgerMaxReadsInFlightPermitsAcquireQueueSize(
+                conf.getManagedLedgerMaxReadsInFlightPermitsAcquireQueueSize());
         managedLedgerFactoryConfig.setPrometheusStatsLatencyRolloverSeconds(
                 conf.getManagedLedgerPrometheusStatsLatencyRolloverSeconds());
         managedLedgerFactoryConfig.setTraceTaskExecution(conf.isManagedLedgerTraceTaskExecution());
@@ -116,8 +135,8 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
 
         try {
             this.managedLedgerFactory =
-                    new ManagedLedgerFactoryImpl(metadataStore, bkFactory, managedLedgerFactoryConfig, statsLogger,
-                            openTelemetry);
+                    createManagedLedgerFactory(metadataStore, openTelemetry, bkFactory, managedLedgerFactoryConfig,
+                            statsLogger);
         } catch (Exception e) {
             statsProvider.stop();
             defaultBkClient.close();
@@ -145,6 +164,16 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
                 return defaultBkClient;
             }
         };
+    }
+
+    protected ManagedLedgerFactoryImpl createManagedLedgerFactory(MetadataStoreExtended metadataStore,
+                                                                  OpenTelemetry openTelemetry,
+                                                                  BookkeeperFactoryForCustomEnsemblePlacementPolicy
+                                                                          bkFactory,
+                                                                  ManagedLedgerFactoryConfig managedLedgerFactoryConfig,
+                                                                  StatsLogger statsLogger) throws Exception {
+        return new ManagedLedgerFactoryImpl(metadataStore, bkFactory, managedLedgerFactoryConfig, statsLogger,
+                openTelemetry);
     }
 
     @Override

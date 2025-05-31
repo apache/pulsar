@@ -227,8 +227,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
         for (String tenant : admin.tenants().getTenants()) {
             for (String namespace : admin.namespaces().getNamespaces(tenant)) {
-                deleteNamespaceWithRetry(namespace, true, admin, pulsar,
-                        mockPulsarSetup.getPulsar());
+                deleteNamespaceWithRetry(namespace, true, admin);
             }
             try {
                 admin.tenants().deleteTenant(tenant, true);
@@ -3409,6 +3408,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.namespaces().setRetention(ns, new RetentionPolicies(1800, 10000));
         // set backlog quota.
         admin.namespaces().setBacklogQuota(ns, BacklogQuota.builder()
+                .retentionPolicy(BacklogQuota.RetentionPolicy.producer_request_hold)
                 .limitSize(backlogQuotaLimitSize).limitTime(backlogQuotaLimitTime).build());
         // Verify result.
         Map<BacklogQuota.BacklogQuotaType, BacklogQuota> map = admin.namespaces().getBacklogQuotaMap(ns);
@@ -3417,6 +3417,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         BacklogQuota backlogQuota = map.get(BacklogQuota.BacklogQuotaType.destination_storage);
         assertEquals(backlogQuota.getLimitSize(), backlogQuotaLimitSize);
         assertEquals(backlogQuota.getLimitTime(), backlogQuotaLimitTime);
+        assertEquals(backlogQuota.getPolicy(), BacklogQuota.RetentionPolicy.producer_request_hold);
         // cleanup.
         admin.namespaces().deleteNamespace(ns);
     }
@@ -3743,5 +3744,19 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         Assert.assertTrue(permissions11.isEmpty());
         Assert.assertTrue(permissions22.isEmpty());
+    }
+
+    @Test
+    public void testDeletePatchyPartitionedTopic() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName(defaultNamespace + "/tp");
+        admin.topics().createPartitionedTopic(topic, 2);
+        Producer producer = pulsarClient.newProducer().topic(TopicName.get(topic).getPartition(0).toString())
+                .create();
+        // Mock a scenario that "-partition-1" has been removed due to topic GC.
+        pulsar.getBrokerService().getTopic(TopicName.get(topic).getPartition(1).toString(), false)
+                .get().get().delete().join();
+        // Verify: delete partitioned topic.
+        producer.close();
+        admin.topics().deletePartitionedTopicAsync(topic, false).get();
     }
 }

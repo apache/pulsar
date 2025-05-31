@@ -423,7 +423,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long delayedDeliveryMaxDelayInMillis = 0;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the acknowledge of batch local index")
-    private boolean acknowledgmentAtBatchIndexLevelEnabled = false;
+    private boolean acknowledgmentAtBatchIndexLevelEnabled = true;
 
     @FieldContext(
         category = CATEGORY_WEBSOCKET,
@@ -640,7 +640,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @Deprecated
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "@deprecated - Use backlogQuotaDefaultLimitByte instead."
+        doc = "@deprecated - Use backlogQuotaDefaultLimitBytes instead."
     )
     private double backlogQuotaDefaultLimitGB = -1;
 
@@ -694,9 +694,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_POLICIES,
             dynamic = true,
             doc = "Metadata of inactive partitioned topic will not be automatically cleaned up by default.\n"
-            + "Note: If `allowAutoTopicCreation` and this option are enabled at the same time,\n"
+            + "Note 1: If `allowAutoTopicCreation` and this option are enabled at the same time,\n"
             + "it may appear that a partitioned topic has just been deleted but is automatically created as a "
-                    + "non-partitioned topic."
+            + "non-partitioned topic.\n"
+            + "Note 2: Activating bidirectional geo-replication under global ZooKeeper configuration may lead to schema"
+            + " remnants and abnormal topic-level policies.\n"
+            + "Note 3: Activating bidirectional geo-replication under global configuration ZooKeeper may lead"
+            + " to a consumption issue."
     )
     private boolean brokerDeleteInactivePartitionedTopicMetadataEnabled = false;
     @FieldContext(
@@ -929,14 +933,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean isAllowAutoUpdateSchemaEnabled = true;
 
     @FieldContext(
-            category = CATEGORY_SERVER,
-            doc = "Whether to enable the automatic shrink of pendingAcks map, "
-                    + "the default is false, which means it is not enabled. "
-                    + "When there are a large number of share or key share consumers in the cluster, "
-                    + "it can be enabled to reduce the memory consumption caused by pendingAcks.")
-    private boolean autoShrinkForConsumerPendingAcksMap = false;
-
-    @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "Enable check for minimum allowed client library version"
@@ -1037,11 +1033,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "it uses more CPU to perform frequent check. (Disable publish throttling with value 0)"
         )
     private int topicPublisherThrottlingTickTimeMillis = 10;
-    @FieldContext(
-            category = CATEGORY_SERVER,
-            doc = "Enable precise rate limit for topic publish"
-    )
-    private boolean preciseTopicPublishRateLimiterEnable = false;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
@@ -1064,6 +1056,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "when broker publish rate limiting enabled. (Disable byte rate limit with value 0)"
     )
     private long brokerPublisherThrottlingMaxByteRate = 0;
+
+    @FieldContext(category = CATEGORY_SERVER, doc =
+            "The class name of the factory that creates DispatchRateLimiter implementations. Current options are "
+                    + "org.apache.pulsar.broker.service.persistent.DispatchRateLimiterFactoryAsyncTokenBucket "
+                    + "(default, PIP-322 implementation) "
+                    + "org.apache.pulsar.broker.service.persistent.DispatchRateLimiterFactoryClassic (legacy "
+                    + "implementation)")
+    private String dispatchRateLimiterFactoryClassName =
+            "org.apache.pulsar.broker.service.persistent.DispatchRateLimiterFactoryAsyncTokenBucket";
+
     @FieldContext(
             category = CATEGORY_SERVER,
             dynamic = true,
@@ -1463,13 +1465,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " Use -1 to disable the memory limitation. Default is 1/2 of direct memory.\n\n")
     private int maxMessagePublishBufferSizeInMB = Math.max(64,
         (int) (DirectMemoryUtils.jvmMaxDirectMemory() / 2 / (1024 * 1024)));
-
-    @FieldContext(
-        category = CATEGORY_SERVER,
-        doc = "Interval between checks to see if message publish buffer size is exceed the max message publish "
-                + "buffer size"
-    )
-    private int messagePublishBufferCheckIntervalInMillis = 100;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to recover cursors lazily when trying to recover a "
             + "managed ledger backing a persistent topic. It can improve write availability of topics.\n"
@@ -2114,6 +2109,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " Consumer Netty channel. Use O to disable")
     private long managedLedgerMaxReadsInFlightSizeInMB = 0;
 
+    @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum time to wait for acquiring permits for max reads in "
+            + "flight when managedLedgerMaxReadsInFlightSizeInMB is set (>0) and the limit is reached.")
+    private long managedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis = 60000;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum number of reads that can be queued for acquiring "
+            + "permits for max reads in flight when managedLedgerMaxReadsInFlightSizeInMB is set (>0) and the limit "
+            + "is reached.")
+    private int managedLedgerMaxReadsInFlightPermitsAcquireQueueSize = 50000;
+
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         dynamic = true,
@@ -2269,7 +2273,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_STORAGE_ML,
             doc = "Whether persist cursor ack stats as long arrays, which will compress the data and reduce GC rate")
-    private boolean managedLedgerPersistIndividualAckAsLongArray = false;
+    private boolean managedLedgerPersistIndividualAckAsLongArray = true;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "If enabled, the maximum \"acknowledgment holes\" will not be limited and \"acknowledgment holes\" "
@@ -3003,6 +3007,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private ServiceUnitTableViewSyncerType loadBalancerServiceUnitTableViewSyncer = ServiceUnitTableViewSyncerType.None;
 
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Specify the maximum number of concurrent orphan bundle ownership overrides. "
+                    + "The leader broker triggers these overrides upon detecting orphaned bundles. "
+                    + "It identifies orphan bundle ownerships by periodically scanning ownership data "
+                    + "and monitoring for broker shutdowns or inactive states."
+    )
+    private int loadBalancerServiceUnitStateMaxConcurrentOverrides = 64;
+
     /**** --- Replication. --- ****/
     @FieldContext(
         category = CATEGORY_REPLICATION,
@@ -3374,6 +3388,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Maximum number of thread pool threads for ledger offloading"
     )
     private int managedLedgerOffloadMaxThreads = 2;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_OFFLOADING,
+            doc = "Maximum number of thread pool threads for offloaded ledger reading"
+    )
+    private int managedLedgerOffloadReadThreads = 2;
 
     @FieldContext(
         category = CATEGORY_STORAGE_OFFLOADING,
