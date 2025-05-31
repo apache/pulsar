@@ -122,6 +122,11 @@ class ProcessRuntime implements Runtime {
             case GO:
                 break;
         }
+        String logLevel = instanceConfig.getFunctionDetails().getLogLevel();
+        if (StringUtils.isBlank(logLevel)) {
+            logLevel = "info";
+        }
+
         this.extraDependenciesDir = extraDependenciesDir;
         this.narExtractionDirectory = narExtractionDirectory;
         this.processArgs = RuntimeUtils.composeCmd(
@@ -142,6 +147,7 @@ class ProcessRuntime implements Runtime {
             instanceConfig.getPort(),
             expectedHealthCheckInterval,
             logConfigFile,
+            logLevel,
             secretsProviderClassName,
             secretsProviderConfig,
             false,
