@@ -21,17 +21,19 @@ package org.apache.pulsar.broker.service.persistent;
 import static org.apache.bookkeeper.mledger.ManagedCursor.CURSOR_INTERNAL_PROPERTY_PREFIX;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.*;
 import com.google.common.collect.Multimap;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.BKException;
@@ -44,7 +46,9 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -462,6 +466,58 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         admin.topics().deletePartitionedTopic(topic);
     }
 
+    @Test
+    public void testDelayedMessageCancel() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("testDelayedMessageCancel");
+        final String subName = "shared-sub";
+        CountDownLatch latch = new CountDownLatch(9);
+        Set<String> receivedMessages = ConcurrentHashMap.newKeySet();
+
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .messageListener((Consumer<String> c, Message<String> msg) -> {
+                    receivedMessages.add(msg.getValue());
+                    c.acknowledgeAsync(msg);
+                    latch.countDown();
+                })
+                .subscribe();
+
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        Map<Integer, MessageId> messageIds = new HashMap<>();
+        Map<Integer, Long> delayedTimes = new HashMap<>();
+
+        for (int i = 0; i < 10; i++) {
+            final long deliverAtTime = System.currentTimeMillis() + 5000L;
+            MessageId messageId = producer.newMessage()
+                    .key(String.valueOf(i))
+                    .value("msg-" + i)
+                    .deliverAt(deliverAtTime)
+                    .send();
+            messageIds.put(i, messageId);
+            delayedTimes.put(i, deliverAtTime);
+        }
+
+        final int cancelMessage = 5;
+
+        admin.topics().cancelDelayedMessage(
+                topic,
+                ((MessageIdAdv) messageIds.get(cancelMessage)).getLedgerId(),
+                ((MessageIdAdv) messageIds.get(cancelMessage)).getEntryId(),
+                delayedTimes.get(cancelMessage),
+                Collections.singletonList(subName)
+        );
+
+        assertTrue(latch.await(20, TimeUnit.SECONDS), "Not all messages were received in time");
+        assertFalse(receivedMessages.contains("msg-" + cancelMessage)
+                        || receivedMessages.contains("msg-" + cancelMessage + "-mark"),
+                "msg-0" + cancelMessage + " and msg-" + cancelMessage + "-mark should have been cancelled but was received");
+        consumer.close();
+    }
 
     private ManagedCursor findCursor(String topic, String subscriptionName) {
         PersistentTopic persistentTopic =
