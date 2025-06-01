@@ -472,16 +472,30 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
     public void testDelayedMessageCancel() throws Exception {
         String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testDelayedMessageCancel");
         final String subName = "shared-sub";
-        CountDownLatch latch = new CountDownLatch(9);
-        Set<String> receivedMessages = ConcurrentHashMap.newKeySet();
+        CountDownLatch latch = new CountDownLatch(99);
+        admin.topics().createPartitionedTopic(topic,2);
+        Set<String> receivedMessages1 = ConcurrentHashMap.newKeySet();
+        Set<String> receivedMessages2 = ConcurrentHashMap.newKeySet();
 
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topic)
+                .topic(topic + "-partition-0")
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Shared)
                 .messageListener((Consumer<String> c, Message<String> msg) -> {
-                    receivedMessages.add(msg.getValue());
+                    receivedMessages1.add(msg.getValue());
+                    c.acknowledgeAsync(msg);
+                    latch.countDown();
+                })
+                .subscribe();
+
+        @Cleanup
+        Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic + "-partition-1")
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .messageListener((Consumer<String> c, Message<String> msg) -> {
+                    receivedMessages2.add(msg.getValue());
                     c.acknowledgeAsync(msg);
                     latch.countDown();
                 })
@@ -527,8 +541,10 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
                 Collections.emptyList()
         );
 
-        assertTrue(latch.await(20, TimeUnit.SECONDS), "Not all messages were received in time");
-        assertFalse(receivedMessages.contains("msg-" + cancelMessage),
+        assertTrue(latch.await(15, TimeUnit.SECONDS), "Not all messages were received in time");
+        assertFalse((receivedMessages1.contains("msg-" + cancelMessage)
+                        || receivedMessages2.contains("msg-" + cancelMessage))
+                        && (receivedMessages1.size() + receivedMessages2.size() == 99),
                 "msg-" + cancelMessage + " should have been cancelled but was received");
     }
 

@@ -467,38 +467,31 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
     @Test(dataProvider = "delayedTracker")
     public void testCancelExistingDelayedMessage(BucketDelayedDeliveryTracker tracker) {
-        // tickTimeMillis is 1 for the "test" case in the dataProvider, which this test method will use.
         long tickTimeMillis = 1;
         long targetLedgerId = 1L;
         long targetEntryId = 1L;
-        long now = clockTime.get(); // Initial time, likely 0 if clockTime is fresh for this test run.
-        long originalDeliverAt = now + 200; // Target message delivers in 200ms relative to current clock
-        // 1. Add the target message
+        long now = clockTime.get();
+        long originalDeliverAt = now + 200;
+
         assertTrue(tracker.addMessage(targetLedgerId, targetEntryId, originalDeliverAt), "Failed to add target message.");
         assertEquals(tracker.getNumberOfDelayedMessages(), 1, "Should have 1 message after adding target.");
         assertTrue(tracker.containsMessage(targetLedgerId, targetEntryId), "Tracker should contain the target message before cancel.");
-        // 2. Cancel the existing target message.
-        // The 'deliverAt' parameter for CANCEL operation is the original delivery time of the target message.
-        // The tracker will internally calculate when the cancel command itself should be processed.
+
         boolean cancelResult = tracker.applyDelayOperation(targetLedgerId, targetEntryId, originalDeliverAt, DelayedOperationType.CANCEL);
         assertTrue(cancelResult, "applyDelayOperation for CANCEL should return true for an existing message.");
-        // Since the message existed (in mutable or immutable bucket), it should be directly removed by doCancelOperation.
-        // This means its bit in the corresponding RoaringBitmap is removed, and numberOfDelayedMessages is decremented.
+
         assertEquals(tracker.getNumberOfDelayedMessages(), 0, "Should have 0 messages after cancellation of an existing message.");
         assertFalse("Tracker should not contain the target message after cancellation.", tracker.containsMessage(targetLedgerId, targetEntryId));
-        // 3. Advance time and verify it's not delivered.
-        // Advance time to just before the original delivery time.
-        // Calling getScheduledMessages() can trigger internal processing, including moving messages
-        // from mutable to shared queue, and loading from immutable buckets if necessary.
-        clockTime.set(originalDeliverAt - (2 * tickTimeMillis)); // A time well before original delivery, but after any cancel command would typically be scheduled.
+
+        clockTime.set(originalDeliverAt - (2 * tickTimeMillis));
         Set<Position> messagesJustBefore = tracker.getScheduledMessages(10);
         assertTrue(messagesJustBefore.isEmpty(), "No messages should be scheduled just before original delivery time if cancelled.");
         assertEquals(tracker.getNumberOfDelayedMessages(), 0, "Number of messages should still be 0 if cancellation was effective.");
-        // Advance time past the original delivery time
+
         clockTime.set(originalDeliverAt + tickTimeMillis);
         Set<Position> messagesAfter = tracker.getScheduledMessages(10);
         assertTrue(messagesAfter.isEmpty(), "Target message should not be delivered after its original_deliver_at time if cancelled.");
-        // Final state check
+
         assertEquals(tracker.getNumberOfDelayedMessages(), 0, "Number of messages should remain 0 well after cancellation and original delivery time.");
         assertFalse("Tracker should definitely not contain the cancelled message later.", tracker.containsMessage(targetLedgerId, targetEntryId));
         tracker.close();
