@@ -111,6 +111,7 @@ public class ConsumerStatsImpl implements ConsumerStats {
         this.unackedMessages += stats.unackedMessages;
         this.blockedConsumerOnUnackedMsgs = stats.blockedConsumerOnUnackedMsgs;
         this.readPositionWhenJoining = stats.readPositionWhenJoining;
+        this.consumerName = stats.consumerName;
         return this;
     }
 
