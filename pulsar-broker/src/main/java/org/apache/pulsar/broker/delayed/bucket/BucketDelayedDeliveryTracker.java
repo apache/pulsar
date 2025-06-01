@@ -623,7 +623,9 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             long entryId = sharedBucketPriorityQueue.peekN3();
             if (canceledMessages.contains(ledgerId, entryId)) {
                 sharedBucketPriorityQueue.pop();
-                removeIndexBit(ledgerId, entryId);
+                if (removeIndexBit(ledgerId, entryId)) {
+                    --numberDelayedMessages;
+                }
                 continue;
             }
 
@@ -744,6 +746,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     private synchronized boolean doCancelOperation(long ledgerId, long entryId, long deliverAt) {
         if (containsMessage(ledgerId, entryId)) {
             removeIndexBit(ledgerId, entryId);
+            canceledMessages.add(ledgerId, entryId);
             --numberDelayedMessages;
             return true;
         }
@@ -766,6 +769,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         lastMutableBucket.clear();
         snapshotSegmentLastIndexTable.clear();
         numberDelayedMessages = 0;
+        canceledMessages.clear();
         return future;
     }
 

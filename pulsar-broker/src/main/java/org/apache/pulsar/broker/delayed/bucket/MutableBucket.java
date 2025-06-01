@@ -112,8 +112,10 @@ class MutableBucket extends Bucket implements AutoCloseable {
             checkArgument(ledgerId >= startLedgerId && ledgerId <= endLedgerId);
 
             // Move first segment of bucket snapshot to sharedBucketPriorityQueue
-            if (segmentMetadataList.size() == 0) {
-                sharedQueue.add(timestamp, ledgerId, entryId);
+            if (segmentMetadataList.isEmpty()) {
+                if (!canceledOperations.contains(ledgerId, entryId)) {
+                    sharedQueue.add(timestamp, ledgerId, entryId);
+                }
             }
 
             bitMap.computeIfAbsent(ledgerId, k -> new RoaringBitmap()).add(entryId, entryId + 1);
@@ -216,6 +218,7 @@ class MutableBucket extends Bucket implements AutoCloseable {
         this.resetLastMutableBucketRange();
         this.delayedIndexBitMap.clear();
         this.priorityQueue.clear();
+        this.canceledOperations.clear();
     }
 
     public void close() {
@@ -252,7 +255,6 @@ class MutableBucket extends Bucket implements AutoCloseable {
             case CANCEL -> {
                 priorityQueue.add(deliverAt, ledgerId, entryId);
                 canceledOperations.add(ledgerId, entryId);
-                putIndexBit(ledgerId, entryId);
             }
             case DELAY -> addMessage(ledgerId, entryId, deliverAt);
             default -> throw new IllegalArgumentException("Unknown operation type: " + operationType);
