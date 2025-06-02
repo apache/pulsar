@@ -26,7 +26,7 @@ public class DebeziumPostgreSqlContainer extends ChaosContainer<DebeziumPostgreS
     public static final String NAME = "debezium-postgresql-example";
     static final Integer[] PORTS = { 5432 };
 
-    private static final String IMAGE_NAME = "debezium/example-postgres:2.7.3.Final";
+    private static final String IMAGE_NAME = "debezium/example-postgres:2.5.4.Final";
 
     public DebeziumPostgreSqlContainer(String clusterName) {
         super(clusterName, IMAGE_NAME);

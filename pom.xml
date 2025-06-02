@@ -222,7 +222,7 @@ flexible messaging model and an intuitive client API.</description>
     <hbc-core.version>2.2.0</hbc-core.version>
     <cassandra.version>3.11.2</cassandra.version>
     <aerospike-client.version>4.5.0</aerospike-client.version>
-    <kafka-client.version>3.9.1</kafka-client.version>
+    <kafka-client.version>3.8.1</kafka-client.version>
     <rabbitmq-client.version>5.18.0</rabbitmq-client.version>
     <aws-sdk.version>1.12.638</aws-sdk.version>
     <avro.version>1.11.4</avro.version>
@@ -230,17 +230,17 @@ flexible messaging model and an intuitive client API.</description>
     <jclouds.version>2.6.0</jclouds.version>
     <guice.version>5.1.0</guice.version>
     <sqlite-jdbc.version>3.42.0.0</sqlite-jdbc.version>
-    <mysql-jdbc.version>8.3.0</mysql-jdbc.version>
-    <postgresql-jdbc.version>42.6.1</postgresql-jdbc.version>
+    <mysql-jdbc.version>8.0.33</mysql-jdbc.version>
+    <postgresql-jdbc.version>42.6.0</postgresql-jdbc.version>
     <clickhouse-jdbc.version>0.4.6</clickhouse-jdbc.version>
     <mariadb-jdbc.version>2.7.5</mariadb-jdbc.version>
     <openmldb-jdbc.version>0.4.4-hotfix1</openmldb-jdbc.version>
     <json-smart.version>2.5.2</json-smart.version>
     <opensearch.version>2.16.0</opensearch.version>
     <elasticsearch-java.version>8.12.1</elasticsearch-java.version>
-    <debezium.version>2.7.4.Final</debezium.version>
-    <debezium.postgresql.version>42.6.1</debezium.postgresql.version>
-    <debezium.mysql.version>8.3.0</debezium.mysql.version>
+    <debezium.version>2.5.4.Final</debezium.version>
+    <debezium.postgresql.version>42.6.0</debezium.postgresql.version>
+    <debezium.mysql.version>8.0.33</debezium.mysql.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.28.0</opencensus.version>
     <hadoop3.version>3.4.0</hadoop3.version>
