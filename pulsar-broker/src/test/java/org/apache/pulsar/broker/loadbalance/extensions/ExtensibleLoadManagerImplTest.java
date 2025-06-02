@@ -1295,9 +1295,13 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                     assertTrue(pulsar2.getConfiguration().isLoadBalancerServiceUnitTableViewSyncerEnabled());
                 });
 
+        // We invoke monitor method ensure SystemTopicToMetadataStoreSyncer to start or close because syncer will not
+        // be started or close after pulsar.getAdminClient().brokers().updateDynamicConfiguration();
         primaryLoadManager.monitor();
         secondaryLoadManager.monitor();
 
+        // We invoke monitor method in makePrimaryAsLeader and makeSecondaryAsLeader because monitor can immediately
+        // trigger serviceUnitStateTableViewSyncer to start or close without wait.
         makeSecondaryAsLeader();
         makePrimaryAsLeader();
         assertTrue(primaryLoadManager.getServiceUnitStateTableViewSyncer().isActive());
