@@ -29,6 +29,7 @@ import io.netty.channel.EventLoopGroup;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException;
@@ -53,19 +54,19 @@ import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
 public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
 
     @Override
-    public BookKeeper create(ServiceConfiguration conf, MetadataStoreExtended store,
-                             EventLoopGroup eventLoopGroup,
-                             Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
-                             Map<String, Object> properties) throws IOException {
-        return create(conf, store, eventLoopGroup, ensemblePlacementPolicyClass, properties,
+    public CompletableFuture<BookKeeper> create(ServiceConfiguration conf, MetadataStoreExtended store,
+                                                EventLoopGroup eventLoopGroup,
+                                                Optional<Class<? extends EnsemblePlacementPolicy>> policyClass,
+                                                Map<String, Object> properties) {
+        return create(conf, store, eventLoopGroup, policyClass, properties,
                 NullStatsLogger.INSTANCE);
     }
 
     @Override
-    public BookKeeper create(ServiceConfiguration conf, MetadataStoreExtended store,
+    public CompletableFuture<BookKeeper> create(ServiceConfiguration conf, MetadataStoreExtended store,
                              EventLoopGroup eventLoopGroup,
                              Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
-                             Map<String, Object> properties, StatsLogger statsLogger) throws IOException {
+                             Map<String, Object> properties, StatsLogger statsLogger) {
         PulsarMetadataClientDriver.init();
 
         ClientConfiguration bkConf = createBkClientConfiguration(store, conf);
@@ -77,11 +78,14 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         } else {
             setDefaultEnsemblePlacementPolicy(bkConf, conf, store);
         }
-        try {
-            return getBookKeeperBuilder(conf, eventLoopGroup, statsLogger, bkConf).build();
-        } catch (InterruptedException | BKException e) {
-            throw new IOException(e);
-        }
+
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return getBookKeeperBuilder(conf, eventLoopGroup, statsLogger, bkConf).build();
+            } catch (InterruptedException | BKException | IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
     @VisibleForTesting

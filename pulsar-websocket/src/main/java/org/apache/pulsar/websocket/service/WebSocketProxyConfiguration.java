@@ -176,6 +176,9 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Number of connections per broker in Pulsar client used in WebSocket proxy")
     private int webSocketConnectionsPerBroker = Runtime.getRuntime().availableProcessors();
 
+    @FieldContext(doc = "Memory limit in MBs for direct memory in Pulsar Client used in WebSocket proxy")
+    private int webSocketPulsarClientMemoryLimitInMB = 0;
+
     @FieldContext(doc = "Timeout of idling WebSocket session (in milliseconds)")
     private int webSocketSessionIdleTimeoutMillis = 300000;
 

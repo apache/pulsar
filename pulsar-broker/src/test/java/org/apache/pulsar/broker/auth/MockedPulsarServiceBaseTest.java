@@ -19,15 +19,16 @@
 package org.apache.pulsar.broker.auth;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithoutRecordingInvocations;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Sets;
+import io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
@@ -43,11 +44,11 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.TimeoutHandler;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -82,7 +83,7 @@ import org.testng.annotations.DataProvider;
 public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     // All certificate-authority files are copied from the tests/certificate-authority directory and all share the same
     // root CA.
-    protected static String getTlsFileForClient(String name) {
+    public static String getTlsFileForClient(String name) {
         return ResourceUtils.getAbsolutePath(String.format("certificate-authority/client-keys/%s.pem", name));
     }
     public final static String CA_CERT_FILE_PATH =
@@ -147,6 +148,9 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     private final List<AutoCloseable> closeables = new ArrayList<>();
 
+    // Set to true in test's constructor to use a real Zookeeper (TestZKServer)
+    protected boolean useTestZookeeper;
+
     public MockedPulsarServiceBaseTest() {
         resetConfig();
     }
@@ -167,18 +171,24 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected final void internalSetup() throws Exception {
         init();
-        lookupUrl = new URI(brokerUrl.toString());
-        if (isTcpLookup) {
-            lookupUrl = new URI(pulsar.getBrokerServiceUrl());
-
+        lookupUrl = resolveLookupUrl();
+        if (isTcpLookup && enableBrokerGateway) {
             // setup port forwarding from the advertised port to the listen port
-            if (enableBrokerGateway) {
-                InetSocketAddress gatewayAddress = new InetSocketAddress(lookupUrl.getHost(), lookupUrl.getPort());
-                InetSocketAddress brokerAddress = new InetSocketAddress("127.0.0.1", pulsar.getBrokerListenPort().get());
-                brokerGateway = new PortForwarder(gatewayAddress, brokerAddress);
-            }
+            InetSocketAddress gatewayAddress = new InetSocketAddress(lookupUrl.getHost(), lookupUrl.getPort());
+            InetSocketAddress brokerAddress = new InetSocketAddress("127.0.0.1", pulsar.getBrokerListenPort().get());
+            brokerGateway = new PortForwarder(gatewayAddress, brokerAddress);
         }
         pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+    }
+
+    private URI resolveLookupUrl() {
+        if (isTcpLookup) {
+            return URI.create(pulsar.getBrokerServiceUrl());
+        } else {
+            return URI.create(brokerUrl != null
+                    ? brokerUrl.toString()
+                    : brokerUrlTls.toString());
+        }
     }
 
     protected final void internalSetup(ServiceConfiguration serviceConfiguration) throws Exception {
@@ -225,11 +235,10 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected final void internalSetupForStatsTest() throws Exception {
         init();
-        String lookupUrl = brokerUrl.toString();
-        if (isTcpLookup) {
-            lookupUrl = new URI(pulsar.getBrokerServiceUrl()).toString();
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
         }
-        pulsarClient = newPulsarClient(lookupUrl, 1);
+        pulsarClient = newPulsarClient(resolveLookupUrl().toString(), 1);
     }
 
     protected void doInitConf() throws Exception {
@@ -240,6 +249,9 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         this.conf.setWebServicePort(Optional.of(0));
         this.conf.setNumExecutorThreadPoolSize(5);
         this.conf.setExposeBundlesMetricsInPrometheus(true);
+        // Disable the dispatcher retry backoff in tests by default
+        this.conf.setDispatcherRetryBackoffInitialTimeInMs(0);
+        this.conf.setDispatcherRetryBackoffMaxTimeInMs(0);
     }
 
     protected final void init() throws Exception {
@@ -275,15 +287,22 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         }
         if (brokerGateway != null) {
             brokerGateway.close();
+            brokerGateway = null;
         }
         if (pulsarTestContext != null) {
             pulsarTestContext.close();
             pulsarTestContext = null;
         }
+
         resetConfig();
         callCloseables(closeables);
         closeables.clear();
         onCleanup();
+
+        // clear fields to avoid test runtime memory leak, pulsarTestContext already handles closing of these instances
+        pulsar = null;
+        mockZooKeeper = null;
+        mockZooKeeperGlobal = null;
     }
 
     protected void closeAdmin() {
@@ -345,8 +364,18 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
      * @throws Exception if an error occurs
      */
     protected void restartBroker() throws Exception {
+        restartBroker(null);
+    }
+
+    protected void restartBroker(Consumer<ServiceConfiguration> configurationChanger) throws Exception {
         stopBroker();
+        if (configurationChanger != null) {
+            configurationChanger.accept(conf);
+        }
         startBroker();
+        if (pulsarClient == null) {
+            pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+        }
     }
 
     protected void stopBroker() throws Exception {
@@ -371,12 +400,16 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         brokerUrl = pulsar.getWebServiceAddress() != null ? new URL(pulsar.getWebServiceAddress()) : null;
         brokerUrlTls = pulsar.getWebServiceAddressTls() != null ? new URL(pulsar.getWebServiceAddressTls()) : null;
 
-        if (admin != null) {
-            admin.close();
-            if (MockUtil.isMock(admin)) {
-                Mockito.reset(admin);
+        URI newLookupUrl = resolveLookupUrl();
+        if (lookupUrl == null || !newLookupUrl.equals(lookupUrl)) {
+            lookupUrl = newLookupUrl;
+            if (pulsarClient != null) {
+                pulsarClient.shutdown();
+                pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
             }
         }
+
+        closeAdmin();
         PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(brokerUrl != null
                 ? brokerUrl.toString()
                 : brokerUrlTls.toString());
@@ -436,7 +469,6 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         PulsarTestContext.Builder builder = PulsarTestContext.builder()
                 .spyByDefault()
                 .config(conf)
-                .withMockZookeeper(true)
                 .pulsarServiceCustomizer(pulsarService -> {
                     try {
                         beforePulsarStart(pulsarService);
@@ -445,7 +477,23 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
                     }
                 })
                 .brokerServiceCustomizer(this::customizeNewBrokerService);
+        configureMetadataStores(builder);
         return builder;
+    }
+
+    /**
+     * Configures the metadata stores for the PulsarTestContext.Builder instance.
+     * Set useTestZookeeper to true in the test's constructor to use TestZKServer which is a real ZooKeeper
+     * implementation.
+     *
+     * @param builder the PulsarTestContext.Builder instance to configure
+     */
+    protected void configureMetadataStores(PulsarTestContext.Builder builder) {
+        if (useTestZookeeper) {
+            builder.withTestZookeeper();
+        } else {
+            builder.withMockZookeeper(true);
+        }
     }
 
     protected PulsarTestContext createAdditionalPulsarTestContext(ServiceConfiguration conf) throws Exception {
@@ -643,35 +691,18 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     /**
-     * see {@link BrokerTestBase#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
+     * see {@link #deleteNamespaceWithRetry(String, boolean, PulsarAdmin)}
      */
     protected void deleteNamespaceWithRetry(String ns, boolean force)
             throws Exception {
-        BrokerTestBase.deleteNamespaceWithRetry(ns, force, admin, pulsar);
-    }
-
-    /**
-     * see {@link BrokerTestBase#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
-     */
-    protected void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin)
-            throws Exception {
-        BrokerTestBase.deleteNamespaceWithRetry(ns, force, admin, pulsar);
-    }
-
-    /**
-     * see {@link MockedPulsarServiceBaseTest#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
-     */
-    public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin, PulsarService...pulsars)
-            throws Exception {
-        deleteNamespaceWithRetry(ns, force, admin, Arrays.asList(pulsars));
+        deleteNamespaceWithRetry(ns, force, admin);
     }
 
     /**
      * 1. Pause system "__change_event" topic creates.
      * 2. Do delete namespace with retry because maybe fail by race-condition with create topics.
      */
-    public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin,
-                                                Collection<PulsarService> pulsars) throws Exception {
+    public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin) throws Exception {
         Awaitility.await()
                 .pollDelay(500, TimeUnit.MILLISECONDS)
                 .until(() -> {
@@ -737,6 +768,18 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected void reconnectAllConnections() throws Exception {
         reconnectAllConnections((PulsarClientImpl) pulsarClient);
+    }
+
+    protected void assertOtelMetricLongSumValue(String metricName, int value) {
+        assertThat(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics())
+                .anySatisfy(metric -> OpenTelemetryAssertions.assertThat(metric)
+                        .hasName(metricName)
+                        .hasLongSumSatisfying(
+                                sum -> sum.hasPointsSatisfying(point -> point.hasValue(value))));
+    }
+
+    protected void logTopicStats(String topic) {
+        BrokerTestUtil.logTopicStats(log, admin, topic);
     }
 
     private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);

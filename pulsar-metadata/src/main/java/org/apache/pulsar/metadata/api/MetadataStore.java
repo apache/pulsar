@@ -23,9 +23,12 @@ import com.google.common.annotations.Beta;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Metadata store client interface.
@@ -35,6 +38,8 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
  */
 @Beta
 public interface MetadataStore extends AutoCloseable {
+
+    Logger LOGGER = LoggerFactory.getLogger(MetadataStore.class);
 
     /**
      * Read the value of one key, identified by the path
@@ -121,6 +126,23 @@ public interface MetadataStore extends AutoCloseable {
      */
     CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion);
 
+    default CompletableFuture<Void> deleteIfExists(String path, Optional<Long> expectedVersion) {
+        return delete(path, expectedVersion)
+                .exceptionally(e -> {
+                    if (e.getCause() instanceof NotFoundException) {
+                        LOGGER.info("Path {} not found while deleting (this is not a problem)", path);
+                        return null;
+                    } else {
+                        if (expectedVersion.isEmpty()) {
+                            LOGGER.info("Failed to delete path {}", path, e);
+                        } else {
+                            LOGGER.info("Failed to delete path {} with expected version {}", path, expectedVersion, e);
+                        }
+                        throw new CompletionException(e);
+                    }
+                });
+    }
+
     /**
      * Delete a key-value pair and all the children nodes.
      *
@@ -197,9 +219,13 @@ public interface MetadataStore extends AutoCloseable {
      *            the custom serialization/deserialization object
      * @param cacheConfig
      *          the cache configuration to be used
+     * @deprecated use {@link #getMetadataCache(String, MetadataSerde, MetadataCacheConfig)}
      * @return the metadata cache object
      */
-    <T> MetadataCache<T> getMetadataCache(MetadataSerde<T> serde, MetadataCacheConfig cacheConfig);
+    @Deprecated
+    default <T> MetadataCache<T> getMetadataCache(MetadataSerde<T> serde, MetadataCacheConfig cacheConfig) {
+        return getMetadataCache("serde", serde, cacheConfig);
+    }
 
     /**
      * Create a metadata cache that uses a particular serde object.
@@ -211,6 +237,19 @@ public interface MetadataStore extends AutoCloseable {
      */
     default <T> MetadataCache<T> getMetadataCache(MetadataSerde<T> serde) {
         return getMetadataCache(serde, getDefaultMetadataCacheConfig());
+    }
+
+    /**
+     * Create a metadata cache that uses a particular serde object.
+     *
+     * @param <T>
+     * @param serde
+     *            the custom serialization/deserialization object
+     * @return the metadata cache object
+     */
+    default <T> MetadataCache<T> getMetadataCache(String cacheName, MetadataSerde<T> serde,
+                                                  MetadataCacheConfig cacheConfig) {
+        return getMetadataCache(serde, cacheConfig);
     }
 
     /**

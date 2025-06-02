@@ -41,7 +41,8 @@ public record BrokerLookupData (String webServiceUrl,
                                 boolean nonPersistentTopicsEnabled,
                                 String loadManagerClassName,
                                 long startTimestamp,
-                                String brokerVersion) implements ServiceLookupData {
+                                String brokerVersion,
+                                Map<String, String> properties) implements ServiceLookupData {
     @Override
     public String getWebServiceUrl() {
         return this.webServiceUrl();

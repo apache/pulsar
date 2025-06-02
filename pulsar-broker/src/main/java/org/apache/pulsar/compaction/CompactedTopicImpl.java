@@ -32,8 +32,9 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
-import javax.annotation.Nullable;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
@@ -43,15 +44,15 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer.ReadEntriesCtx;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.impl.RawMessageImpl;
 import org.apache.pulsar.common.api.proto.MessageIdData;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,7 +67,7 @@ public class CompactedTopicImpl implements CompactedTopic {
 
     private final BookKeeper bk;
 
-    private volatile PositionImpl compactionHorizon = null;
+    private volatile Position compactionHorizon = null;
     private volatile CompletableFuture<CompactedTopicContext> compactedTopicContext = null;
 
     public CompactedTopicImpl(BookKeeper bk) {
@@ -79,11 +80,25 @@ public class CompactedTopicImpl implements CompactedTopic {
             CompletableFuture<CompactedTopicContext> previousContext = compactedTopicContext;
             compactedTopicContext = openCompactedLedger(bk, compactedLedgerId);
 
-            compactionHorizon = (PositionImpl) p;
+            compactionHorizon = p;
 
             // delete the ledger from the old context once the new one is open
-            return compactedTopicContext.thenCompose(
-                    __ -> previousContext != null ? previousContext : CompletableFuture.completedFuture(null));
+            return compactedTopicContext.thenCompose(ctx -> {
+                if (previousContext != null) {
+                    previousContext.thenAccept(previousCtx -> {
+                        // Print an error log here, which is not expected.
+                        if (previousCtx != null && previousCtx.getLedger() != null
+                                && previousCtx.getLedger().getId() == compactedLedgerId) {
+                            log.error("[__compaction] Using the same compacted ledger to override the old one, which is"
+                                + " not expected and it may cause a ledger lost error. {} -> {}", compactedLedgerId,
+                                ctx.getLedger().getId());
+                        }
+                    });
+                    return previousContext;
+                } else {
+                    return CompletableFuture.completedFuture(null);
+                }
+            });
         }
     }
 
@@ -97,31 +112,30 @@ public class CompactedTopicImpl implements CompactedTopic {
     public void asyncReadEntriesOrWait(ManagedCursor cursor,
                                        int maxEntries,
                                        long bytesToRead,
-                                       PositionImpl maxReadPosition,
+                                       Position maxReadPosition,
                                        boolean isFirstRead,
                                        ReadEntriesCallback callback, Consumer consumer) {
-            PositionImpl cursorPosition;
+            Position cursorPosition;
             boolean readFromEarliest = isFirstRead && MessageId.earliest.equals(consumer.getStartMessageId())
                 && (!cursor.isDurable() || cursor.getName().equals(Compactor.COMPACTION_SUBSCRIPTION)
                 || cursor.getMarkDeletedPosition() == null
                 || cursor.getMarkDeletedPosition().getEntryId() == -1L);
             if (readFromEarliest){
-                cursorPosition = PositionImpl.EARLIEST;
+                cursorPosition = PositionFactory.EARLIEST;
             } else {
-                cursorPosition = (PositionImpl) cursor.getReadPosition();
+                cursorPosition = cursor.getReadPosition();
             }
 
             // TODO: redeliver epoch link https://github.com/apache/pulsar/issues/13690
             ReadEntriesCtx readEntriesCtx = ReadEntriesCtx.create(consumer, DEFAULT_CONSUMER_EPOCH);
 
-            final PositionImpl currentCompactionHorizon = compactionHorizon;
+            final Position currentCompactionHorizon = compactionHorizon;
 
             if (currentCompactionHorizon == null
                 || currentCompactionHorizon.compareTo(cursorPosition) < 0) {
                 cursor.asyncReadEntriesOrWait(maxEntries, bytesToRead, callback, readEntriesCtx, maxReadPosition);
             } else {
-                ManagedCursorImpl managedCursor = (ManagedCursorImpl) cursor;
-                int numberOfEntriesToRead = managedCursor.applyMaxSizeCap(maxEntries, bytesToRead);
+                int numberOfEntriesToRead = cursor.applyMaxSizeCap(maxEntries, bytesToRead);
 
                 compactedTopicContext.thenCompose(
                     (context) -> findStartPoint(cursorPosition, context.ledger.getLastAddConfirmed(), context.cache)
@@ -141,7 +155,7 @@ public class CompactedTopicImpl implements CompactedTopic {
                                         for (Entry entry : entries) {
                                             entriesSize += entry.getLength();
                                         }
-                                        managedCursor.updateReadStats(entries.size(), entriesSize);
+                                        cursor.updateReadStats(entries.size(), entriesSize);
 
                                         Entry lastEntry = entries.get(entries.size() - 1);
                                         // The compaction task depends on the last snapshot and the incremental
@@ -166,7 +180,7 @@ public class CompactedTopicImpl implements CompactedTopic {
             }
     }
 
-    static CompletableFuture<Long> findStartPoint(PositionImpl p,
+    static CompletableFuture<Long> findStartPoint(Position p,
                                                   long lastEntryId,
                                                   AsyncLoadingCache<Long, MessageIdData> cache) {
         CompletableFuture<Long> promise = new CompletableFuture<>();
@@ -180,7 +194,7 @@ public class CompactedTopicImpl implements CompactedTopic {
     }
 
     @VisibleForTesting
-    static void findStartPointLoop(PositionImpl p, long start, long end,
+    static void findStartPointLoop(Position p, long start, long end,
                                            CompletableFuture<Long> promise,
                                            AsyncLoadingCache<Long, MessageIdData> cache) {
         long midpoint = start + ((end - start) / 2);
@@ -304,8 +318,10 @@ public class CompactedTopicImpl implements CompactedTopic {
      * Getter for CompactedTopicContext.
      * @return CompactedTopicContext
      */
-    public Optional<CompactedTopicContext> getCompactedTopicContext() throws ExecutionException, InterruptedException {
-        return compactedTopicContext == null ? Optional.empty() : Optional.of(compactedTopicContext.get());
+    public Optional<CompactedTopicContext> getCompactedTopicContext() throws ExecutionException, InterruptedException,
+            TimeoutException {
+        return compactedTopicContext == null ? Optional.empty() :
+                Optional.of(compactedTopicContext.get(30, TimeUnit.SECONDS));
     }
 
     @Override
@@ -374,7 +390,7 @@ public class CompactedTopicImpl implements CompactedTopic {
         });
     }
 
-    private static int comparePositionAndMessageId(PositionImpl p, MessageIdData m) {
+    private static int comparePositionAndMessageId(Position p, MessageIdData m) {
         return ComparisonChain.start()
             .compare(p.getLedgerId(), m.getLedgerId())
             .compare(p.getEntryId(), m.getEntryId()).result();

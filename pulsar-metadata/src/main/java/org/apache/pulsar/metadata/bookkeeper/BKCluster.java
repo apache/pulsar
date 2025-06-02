@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.Getter;
@@ -49,8 +50,8 @@ import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.replication.AutoRecoveryMain;
 import org.apache.bookkeeper.server.conf.BookieConfiguration;
 import org.apache.bookkeeper.util.IOUtils;
-import org.apache.bookkeeper.util.PortManager;
 import org.apache.commons.io.FileUtils;
+import org.apache.pulsar.common.util.PortManager;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
@@ -73,6 +74,9 @@ public class BKCluster implements AutoCloseable {
 
     protected final ServerConfiguration baseConf;
     protected final ClientConfiguration baseClientConf;
+
+    private final List<Integer> lockedPorts = new ArrayList<>();
+    private final AtomicBoolean closed = new AtomicBoolean(false);
 
     public static class BKClusterConf {
 
@@ -148,20 +152,24 @@ public class BKCluster implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-        // stop bookkeeper service
-        try {
-            stopBKCluster();
-        } catch (Exception e) {
-            log.error("Got Exception while trying to stop BKCluster", e);
-        }
-        // cleanup temp dirs
-        try {
-            cleanupTempDirs();
-        } catch (Exception e) {
-            log.error("Got Exception while trying to cleanupTempDirs", e);
-        }
+        if (closed.compareAndSet(false, true)) {
+            // stop bookkeeper service
+            try {
+                stopBKCluster();
+            } catch (Exception e) {
+                log.error("Got Exception while trying to stop BKCluster", e);
+            }
+            lockedPorts.forEach(PortManager::releaseLockedPort);
+            lockedPorts.clear();
+            // cleanup temp dirs
+            try {
+                cleanupTempDirs();
+            } catch (Exception e) {
+                log.error("Got Exception while trying to cleanupTempDirs", e);
+            }
 
-        this.store.close();
+            this.store.close();
+        }
     }
 
     private File createTempDir(String prefix, String suffix) throws IOException {
@@ -224,12 +232,14 @@ public class BKCluster implements AutoCloseable {
         }
 
         if (clusterConf.clearOldData && dataDir.exists()) {
+            log.info("Wiping Bookie data directory at {}", dataDir.getAbsolutePath());
             cleanDirectory(dataDir);
         }
 
         int port;
         if (baseConf.isEnableLocalTransport() || !baseConf.getAllowEphemeralPorts() || clusterConf.bkPort == 0) {
-            port = PortManager.nextFreePort();
+            port = PortManager.nextLockedFreePort();
+            lockedPorts.add(port);
         } else {
             // bk 4.15 cookie validation finds the same ip:port in case of port 0
             // and 2nd bookie's cookie validation fails
@@ -398,5 +408,9 @@ public class BKCluster implements AutoCloseable {
         serverConf.setListeningInterface(getLoopbackInterfaceName());
         serverConf.setAllowLoopback(true);
         return serverConf;
+    }
+
+    public boolean isClosed() {
+        return closed.get();
     }
 }

@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 
+import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SOURCE_POSITION;
 import io.netty.buffer.ByteBuf;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -67,12 +68,24 @@ public class ShadowReplicator extends PersistentReplicator {
                 ByteBuf headersAndPayload = entry.getDataBuffer();
                 MessageImpl msg;
                 try {
-                    msg = MessageImpl.deserializeSkipBrokerEntryMetaData(headersAndPayload);
+                    msg = MessageImpl.deserializeMetadataWithEmptyPayload(headersAndPayload);
                 } catch (Throwable t) {
                     log.error("[{}] Failed to deserialize message at {} (buffer size: {}): {}", replicatorId,
                             entry.getPosition(), length, t.getMessage(), t);
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
                     entry.release();
+                    continue;
+                }
+
+                if (msg.isExpired(messageTTLInSeconds)) {
+                    msgExpired.recordEvent(0 /* no value stat */);
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Discarding expired message at position {}, replicateTo {}",
+                                replicatorId, entry.getPosition(), msg.getReplicateTo());
+                    }
+                    cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
+                    entry.release();
+                    msg.recycle();
                     continue;
                 }
 
@@ -91,11 +104,16 @@ public class ShadowReplicator extends PersistentReplicator {
 
                 dispatchRateLimiter.ifPresent(rateLimiter -> rateLimiter.consumeDispatchQuota(1, entry.getLength()));
 
-                msgOut.recordEvent(headersAndPayload.readableBytes());
+                msgOut.recordEvent(msg.getDataBuffer().readableBytes());
+                stats.incrementMsgOutCounter();
+                stats.incrementBytesOutCounter(msg.getDataBuffer().readableBytes());
 
                 msg.setReplicatedFrom(localCluster);
 
                 msg.setMessageId(new MessageIdImpl(entry.getLedgerId(), entry.getEntryId(), -1));
+                // Add props for sequence checking.
+                msg.getMessageBuilder().addProperty().setKey(MSG_PROP_REPL_SOURCE_POSITION)
+                        .setValue(String.format("%s:%s", entry.getLedgerId(), entry.getEntryId()));
 
                 headersAndPayload.retain();
 

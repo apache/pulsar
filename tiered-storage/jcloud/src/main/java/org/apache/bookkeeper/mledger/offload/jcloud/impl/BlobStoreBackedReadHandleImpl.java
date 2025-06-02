@@ -19,8 +19,6 @@
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 import io.netty.buffer.ByteBuf;
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -42,6 +40,7 @@ import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.OffloadedLedgerHandle;
 import org.apache.bookkeeper.mledger.offload.jcloud.BackedInputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
@@ -54,21 +53,15 @@ import org.jclouds.blobstore.domain.Blob;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class BlobStoreBackedReadHandleImpl implements ReadHandle {
+public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedgerHandle {
     private static final Logger log = LoggerFactory.getLogger(BlobStoreBackedReadHandleImpl.class);
-    private static final int CACHE_TTL_SECONDS =
-            Integer.getInteger("pulsar.jclouds.readhandleimpl.offsetsscache.ttl.seconds", 30 * 60);
 
     private final long ledgerId;
     private final OffloadIndexBlock index;
     private final BackedInputStream inputStream;
     private final DataInputStream dataStream;
     private final ExecutorService executor;
-    // this Cache is accessed only by one thread
-    private final Cache<Long, Long> entryOffsets = CacheBuilder
-            .newBuilder()
-            .expireAfterAccess(CACHE_TTL_SECONDS, TimeUnit.SECONDS)
-            .build();
+    private final OffsetsCache entryOffsetsCache;
     private final AtomicReference<CompletableFuture<Void>> closeFuture = new AtomicReference<>();
 
     enum State {
@@ -78,13 +71,17 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
 
     private volatile State state = null;
 
+    private volatile long lastAccessTimestamp = System.currentTimeMillis();
+
     private BlobStoreBackedReadHandleImpl(long ledgerId, OffloadIndexBlock index,
-                                          BackedInputStream inputStream, ExecutorService executor) {
+                                          BackedInputStream inputStream, ExecutorService executor,
+                                          OffsetsCache entryOffsetsCache) {
         this.ledgerId = ledgerId;
         this.index = index;
         this.inputStream = inputStream;
         this.dataStream = new DataInputStream(inputStream);
         this.executor = executor;
+        this.entryOffsetsCache = entryOffsetsCache;
         state = State.Opened;
     }
 
@@ -109,7 +106,6 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
             try {
                 index.close();
                 inputStream.close();
-                entryOffsets.invalidateAll();
                 state = State.Closed;
                 promise.complete(null);
             } catch (IOException t) {
@@ -126,7 +122,9 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                     getId(), firstEntry, lastEntry, (1 + lastEntry - firstEntry));
         }
         CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
+        touch();
         executor.execute(() -> {
+            touch();
             if (state == State.Closed) {
                 log.warn("Reading a closed read handler. Ledger ID: {}, Read range: {}-{}",
                         ledgerId, firstEntry, lastEntry);
@@ -164,7 +162,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                     long entryId = dataStream.readLong();
 
                     if (entryId == nextExpectedId) {
-                        entryOffsets.put(entryId, currentPosition);
+                        entryOffsetsCache.put(ledgerId, entryId, currentPosition);
                         ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(length, length);
                         entries.add(LedgerEntryImpl.create(ledgerId, entryId, length, buf));
                         int toWrite = length;
@@ -215,7 +213,8 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
     }
 
     private void seekToEntry(long nextExpectedId) throws IOException {
-        Long knownOffset = entryOffsets.getIfPresent(nextExpectedId);
+        touch();
+        Long knownOffset = entryOffsetsCache.getIfPresent(ledgerId, nextExpectedId);
         if (knownOffset != null) {
             inputStream.seek(knownOffset);
         } else {
@@ -269,7 +268,8 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                                   BlobStore blobStore, String bucket, String key, String indexKey,
                                   VersionCheck versionCheck,
                                   long ledgerId, int readBufferSize,
-                                  LedgerOffloaderStats offloaderStats, String managedLedgerName)
+                                  LedgerOffloaderStats offloaderStats, String managedLedgerName,
+                                  OffsetsCache entryOffsetsCache)
             throws IOException, BKException.BKNoSuchLedgerExistsException {
         int retryCount = 3;
         OffloadIndexBlock index = null;
@@ -310,12 +310,21 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
         BackedInputStream inputStream = new BlobStoreBackedInputStreamImpl(blobStore, bucket, key,
                 versionCheck, index.getDataObjectLength(), readBufferSize, offloaderStats, managedLedgerName);
 
-        return new BlobStoreBackedReadHandleImpl(ledgerId, index, inputStream, executor);
+        return new BlobStoreBackedReadHandleImpl(ledgerId, index, inputStream, executor, entryOffsetsCache);
     }
 
     // for testing
     @VisibleForTesting
     State getState() {
         return this.state;
+    }
+
+    @Override
+    public long lastAccessTimestamp() {
+        return lastAccessTimestamp;
+    }
+
+    private void touch() {
+        lastAccessTimestamp = System.currentTimeMillis();
     }
 }

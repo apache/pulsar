@@ -101,8 +101,10 @@ import org.apache.pulsar.functions.source.PulsarSourceConfig;
 import org.apache.pulsar.functions.source.SingleConsumerPulsarSource;
 import org.apache.pulsar.functions.source.SingleConsumerPulsarSourceConfig;
 import org.apache.pulsar.functions.source.batch.BatchSourceExecutor;
+import org.apache.pulsar.functions.utils.BatchingUtils;
 import org.apache.pulsar.functions.utils.CryptoUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.functions.utils.MessagePayloadProcessorUtils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
@@ -167,6 +169,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private Class<?> sinkTypeArg;
     private final AtomicReference<Schema<?>> sinkSchema = new AtomicReference<>();
     private SinkSchemaInfoProvider sinkSchemaInfoProvider = null;
+
+    private final ProducerCache producerCache = new ProducerCache();
 
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
                                 ClientBuilder clientBuilder,
@@ -283,13 +287,19 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         Logger instanceLog = LoggerFactory.getILoggerFactory().getLogger(
                 "function-" + instanceConfig.getFunctionDetails().getName());
         Thread currentThread = Thread.currentThread();
+        ClassLoader clsLoader = currentThread.getContextClassLoader();
         Consumer<Throwable> fatalHandler = throwable -> {
             this.deathException = throwable;
             currentThread.interrupt();
         };
-        return new ContextImpl(instanceConfig, instanceLog, client, secretsProvider,
+        try {
+            Thread.currentThread().setContextClassLoader(functionClassLoader);
+            return new ContextImpl(instanceConfig, instanceLog, client, secretsProvider,
                 collectorRegistry, metricsLabels, this.componentType, this.stats, stateManager,
-                pulsarAdmin, clientBuilder, fatalHandler);
+                pulsarAdmin, clientBuilder, fatalHandler, producerCache);
+        } finally {
+            Thread.currentThread().setContextClassLoader(clsLoader);
+        }
     }
 
     public interface AsyncResultConsumer {
@@ -326,8 +336,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 // set last invocation time
                 stats.setLastInvocation(System.currentTimeMillis());
 
-                // start time for process latency stat
-                stats.processTimeStart();
 
                 // process the message
                 Thread.currentThread().setContextClassLoader(functionClassLoader);
@@ -337,9 +345,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                         asyncResultConsumer,
                         asyncErrorHandler);
                 Thread.currentThread().setContextClassLoader(instanceClassLoader);
-
-                // register end time
-                stats.processTimeEnd();
 
                 if (result != null) {
                     // process the synchronous results
@@ -415,7 +420,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     @VisibleForTesting
     void handleResult(Record srcRecord, JavaExecutionResult result) throws Exception {
         if (result.getUserException() != null) {
-            Exception t = result.getUserException();
+            Throwable t = result.getUserException();
             log.warn("Encountered exception when processing message {}",
                     srcRecord, t);
             stats.incrUserExceptions(t);
@@ -440,6 +445,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             // increment total successfully processed
             stats.incrTotalProcessedSuccessfully();
         }
+        // handle endTime here
+        stats.processTimeEnd(result.getStartTime());
     }
 
     private void sendOutputMessage(Record srcRecord, Object output) throws Exception {
@@ -601,6 +608,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
         instanceCache = null;
 
+        producerCache.close();
+
         if (logAppender != null) {
             removeLogTopicAppender(LoggerContext.getContext());
             removeLogTopicAppender(LoggerContext.getContext(false));
@@ -619,6 +628,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             }
         }
         return "";
+    }
+
+    @VisibleForTesting
+    void setStats(ComponentStatsManager stats) {
+        this.stats = stats;
     }
 
     public InstanceCommunication.MetricsData getAndResetMetrics() {
@@ -779,6 +793,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 }
                 if (conf.hasCryptoSpec()) {
                     consumerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(conf.getCryptoSpec()));
+                }
+                if (conf.hasMessagePayloadProcessorSpec()) {
+                    consumerConfig.setMessagePayloadProcessorConfig(
+                            MessagePayloadProcessorUtils.convertFromSpec(conf.getMessagePayloadProcessorSpec()));
                 }
                 consumerConfig.setPoolMessages(conf.getPoolMessages());
 
@@ -1038,13 +1056,14 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                             .batchBuilder(conf.getBatchBuilder())
                             .useThreadLocalProducers(conf.getUseThreadLocalProducers())
                             .cryptoConfig(CryptoUtils.convertFromSpec(conf.getCryptoSpec()))
+                            .batchingConfig(BatchingUtils.convertFromSpec(conf.getBatchingSpec()))
                             .compressionType(FunctionCommon.convertFromFunctionDetailsCompressionType(
                                     conf.getCompressionType()));
                     pulsarSinkConfig.setProducerConfig(builder.build());
                 }
 
                 object = new PulsarSink(this.client, pulsarSinkConfig, this.properties, this.stats,
-                        this.functionClassLoader);
+                        this.functionClassLoader, this.producerCache);
             }
         } else {
             object = Reflections.createInstance(

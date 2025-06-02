@@ -24,8 +24,9 @@ body:
       value: |
         Thank you very much for your enhancement!
   - type: checkboxes
+    id: confirmSearch
     attributes:
-      label: Search before asking
+      label: Search before reporting
       description: >
         Please search [issues](https://github.com/apache/pulsar/issues) to check if your issue has already been reported.
       options:
@@ -33,23 +34,28 @@ body:
             I searched in the [issues](https://github.com/apache/pulsar/issues) and found nothing similar.
           required: true
   - type: textarea
+    id: motivation
     attributes:
       label: Motivation
       description: Describe the motivations for this enhancement.
     validations:
       required: true
   - type: textarea
+    id: solution
     attributes:
       label: Solution
       description: Describe the proposed solution and add related materials like links if any.
   - type: textarea
+    id: alternatives
     attributes:
       label: Alternatives
       description: Describe other alternative solutions or features you considered, but rejected.
   - type: textarea
+    id: anythingElse
     attributes:
       label: Anything else?
   - type: checkboxes
+    id: willSubmitPR
     attributes:
       label: Are you willing to submit a PR?
       description: >

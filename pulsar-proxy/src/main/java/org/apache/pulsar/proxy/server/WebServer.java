@@ -19,6 +19,8 @@
 package org.apache.pulsar.proxy.server;
 
 import static org.apache.pulsar.proxy.server.AdminProxyHandler.INIT_PARAM_REQUEST_BUFFER_SIZE;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import io.opentelemetry.api.OpenTelemetry;
 import io.prometheus.client.jetty.JettyStatisticsCollector;
 import java.io.IOException;
 import java.net.URI;
@@ -26,9 +28,22 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import javax.servlet.DispatcherType;
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletResponse;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
@@ -36,7 +51,12 @@ import org.apache.pulsar.broker.web.JettyRequestLogFactory;
 import org.apache.pulsar.broker.web.JsonMapperProvider;
 import org.apache.pulsar.broker.web.RateLimitingFilter;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
+import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.PulsarSslConfiguration;
+import org.apache.pulsar.common.util.PulsarSslFactory;
 import org.apache.pulsar.jetty.tls.JettySslContextFactory;
+import org.apache.pulsar.proxy.stats.PulsarProxyOpenTelemetry;
 import org.eclipse.jetty.server.ConnectionFactory;
 import org.eclipse.jetty.server.ConnectionLimit;
 import org.eclipse.jetty.server.Connector;
@@ -83,6 +103,9 @@ public class WebServer {
     private ServerConnector connector;
     private ServerConnector connectorTls;
 
+    private ScheduledExecutorService sslRefreshScheduledExecutor;
+    private PulsarSslFactory sslFactory;
+
     private final FilterInitializer filterInitializer;
 
     public WebServer(ProxyConfiguration config, AuthenticationService authenticationService) {
@@ -119,34 +142,22 @@ public class WebServer {
         }
         if (config.getWebServicePortTls().isPresent()) {
             try {
-                SslContextFactory sslCtxFactory;
-                if (config.isTlsEnabledWithKeyStore()) {
-                    sslCtxFactory = JettySslContextFactory.createServerSslContextWithKeystore(
-                            config.getWebServiceTlsProvider(),
-                            config.getTlsKeyStoreType(),
-                            config.getTlsKeyStore(),
-                            config.getTlsKeyStorePassword(),
-                            config.isTlsAllowInsecureConnection(),
-                            config.getTlsTrustStoreType(),
-                            config.getTlsTrustStore(),
-                            config.getTlsTrustStorePassword(),
-                            config.isTlsRequireTrustedClientCertOnConnect(),
-                            config.getWebServiceTlsCiphers(),
-                            config.getWebServiceTlsProtocols(),
-                            config.getTlsCertRefreshCheckDurationSec()
-                    );
-                } else {
-                    sslCtxFactory = JettySslContextFactory.createServerSslContext(
-                            config.getWebServiceTlsProvider(),
-                            config.isTlsAllowInsecureConnection(),
-                            config.getTlsTrustCertsFilePath(),
-                            config.getTlsCertificateFilePath(),
-                            config.getTlsKeyFilePath(),
-                            config.isTlsRequireTrustedClientCertOnConnect(),
-                            config.getWebServiceTlsCiphers(),
-                            config.getWebServiceTlsProtocols(),
-                            config.getTlsCertRefreshCheckDurationSec());
+                this.sslRefreshScheduledExecutor = Executors.newSingleThreadScheduledExecutor(
+                        new ExecutorProvider.ExtendedThreadFactory("pulsar-proxy-web-server-tls-refresh"));
+                PulsarSslConfiguration sslConfiguration = buildSslConfiguration(config);
+                this.sslFactory = (PulsarSslFactory) Class.forName(config.getSslFactoryPlugin())
+                        .getConstructor().newInstance();
+                this.sslFactory.initialize(sslConfiguration);
+                this.sslFactory.createInternalSslContext();
+                if (config.getTlsCertRefreshCheckDurationSec() > 0) {
+                    sslRefreshScheduledExecutor.scheduleWithFixedDelay(this::refreshSslContext,
+                            config.getTlsCertRefreshCheckDurationSec(),
+                            config.getTlsCertRefreshCheckDurationSec(), TimeUnit.SECONDS);
                 }
+                SslContextFactory sslCtxFactory =
+                        JettySslContextFactory.createSslContextFactory(config.getTlsProvider(),
+                                sslFactory, config.isTlsRequireTrustedClientCertOnConnect(),
+                                config.getWebServiceTlsCiphers(), config.getWebServiceTlsProtocols());
                 List<ConnectionFactory> connectionFactories = new ArrayList<>();
                 if (config.isWebServiceHaProxyProtocolEnabled()) {
                     connectionFactories.add(new ProxyConnectionFactory());
@@ -191,7 +202,8 @@ public class WebServer {
 
             if (config.isHttpRequestsLimitEnabled()) {
                 filterHolders.add(new FilterHolder(
-                        new RateLimitingFilter(config.getHttpRequestsMaxPerSecond())));
+                        new RateLimitingFilter(config.getHttpRequestsMaxPerSecond(),
+                                OpenTelemetry.noop().getMeter(PulsarProxyOpenTelemetry.INSTRUMENTATION_SCOPE_NAME))));
             }
 
             if (config.isAuthenticationEnabled()) {
@@ -242,6 +254,7 @@ public class WebServer {
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath(basePath);
         context.addServlet(servletHolder, MATCH_ALL);
+        context.addFilter(new FilterHolder(new CustomHeaderFilter(config)), "/*", null);
         for (Pair<String, Object> attribute : attributes) {
             context.setAttribute(attribute.getLeft(), attribute.getRight());
         }
@@ -360,6 +373,9 @@ public class WebServer {
     }
 
     public void stop() throws Exception {
+        if (this.sslRefreshScheduledExecutor != null) {
+            this.sslRefreshScheduledExecutor.shutdownNow();
+        }
         server.stop();
         webServiceExecutor.stop();
         log.info("Server stopped successfully");
@@ -382,6 +398,76 @@ public class WebServer {
             return Optional.of(connectorTls.getLocalPort());
         } else {
             return Optional.empty();
+        }
+    }
+
+    protected PulsarSslConfiguration buildSslConfiguration(ProxyConfiguration config) {
+        return PulsarSslConfiguration.builder()
+                .tlsProvider(config.getTlsProvider())
+                .tlsKeyStoreType(config.getTlsKeyStoreType())
+                .tlsKeyStorePath(config.getTlsKeyStore())
+                .tlsKeyStorePassword(config.getTlsKeyStorePassword())
+                .tlsTrustStoreType(config.getTlsTrustStoreType())
+                .tlsTrustStorePath(config.getTlsTrustStore())
+                .tlsTrustStorePassword(config.getTlsTrustStorePassword())
+                .tlsCiphers(config.getTlsCiphers())
+                .tlsProtocols(config.getTlsProtocols())
+                .tlsTrustCertsFilePath(config.getTlsTrustCertsFilePath())
+                .tlsCertificateFilePath(config.getTlsCertificateFilePath())
+                .tlsKeyFilePath(config.getTlsKeyFilePath())
+                .allowInsecureConnection(config.isTlsAllowInsecureConnection())
+                .requireTrustedClientCertOnConnect(config.isTlsRequireTrustedClientCertOnConnect())
+                .tlsEnabledWithKeystore(config.isTlsEnabledWithKeyStore())
+                .tlsCustomParams(config.getSslFactoryPluginParams())
+                .authData(null)
+                .serverMode(true)
+                .isHttps(true)
+                .build();
+    }
+
+    protected void refreshSslContext() {
+        try {
+            this.sslFactory.update();
+        } catch (Exception e) {
+            log.error("Failed to refresh SSL context", e);
+        }
+    }
+
+    static class CustomHeaderFilter implements Filter {
+
+        Map<String, String> defaultHeaders = new HashMap<>();
+
+        public CustomHeaderFilter(ProxyConfiguration config) {
+            String headerJson = config.getProxyHttpResponseHeadersJson();
+            if (StringUtils.isNotBlank(headerJson)) {
+                try {
+                    defaultHeaders = ObjectMapperFactory.getMapper().getObjectMapper().readerFor(Map.class)
+                            .readValue(headerJson);
+                } catch (JsonProcessingException e) {
+                    log.warn("Failed to deserialize json headers {}", headerJson, e);
+                }
+            }
+        }
+
+        @Override
+        public void init(FilterConfig filterConfig) throws ServletException {
+        }
+
+        @Override
+        public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+                throws IOException, ServletException {
+            if (defaultHeaders != null && response instanceof HttpServletResponse) {
+                HttpServletResponse httpResponse = (HttpServletResponse) response;
+                defaultHeaders.forEach((header, value) -> {
+                    httpResponse.setHeader(header, value);
+                });
+
+            }
+            chain.doFilter(request, response);
+        }
+
+        @Override
+        public void destroy() {
         }
     }
 

@@ -159,6 +159,10 @@ public class FunctionConfigUtils {
                 if (consumerConf.getCryptoConfig() != null) {
                     bldr.setCryptoSpec(CryptoUtils.convert(consumerConf.getCryptoConfig()));
                 }
+                if (consumerConf.getMessagePayloadProcessorConfig() != null) {
+                    bldr.setMessagePayloadProcessorSpec(
+                            MessagePayloadProcessorUtils.convert(consumerConf.getMessagePayloadProcessorConfig()));
+                }
                 bldr.putAllConsumerProperties(consumerConf.getConsumerProperties());
                 bldr.setPoolMessages(consumerConf.isPoolMessages());
                 sourceSpecBuilder.putInputSpecs(topicName, bldr.build());
@@ -250,29 +254,7 @@ public class FunctionConfigUtils {
             sinkSpecBuilder.setTypeClassName(functionConfig.getOutputTypeClassName());
         }
         if (functionConfig.getProducerConfig() != null) {
-            ProducerConfig producerConf = functionConfig.getProducerConfig();
-            Function.ProducerSpec.Builder pbldr = Function.ProducerSpec.newBuilder();
-            if (producerConf.getMaxPendingMessages() != null) {
-                pbldr.setMaxPendingMessages(producerConf.getMaxPendingMessages());
-            }
-            if (producerConf.getMaxPendingMessagesAcrossPartitions() != null) {
-                pbldr.setMaxPendingMessagesAcrossPartitions(producerConf.getMaxPendingMessagesAcrossPartitions());
-            }
-            if (producerConf.getUseThreadLocalProducers() != null) {
-                pbldr.setUseThreadLocalProducers(producerConf.getUseThreadLocalProducers());
-            }
-            if (producerConf.getCryptoConfig() != null) {
-                pbldr.setCryptoSpec(CryptoUtils.convert(producerConf.getCryptoConfig()));
-            }
-            if (producerConf.getBatchBuilder() != null) {
-                pbldr.setBatchBuilder(producerConf.getBatchBuilder());
-            }
-            if (producerConf.getCompressionType() != null) {
-                pbldr.setCompressionType(convertFromCompressionType(producerConf.getCompressionType()));
-            } else {
-                pbldr.setCompressionType(Function.CompressionType.LZ4);
-            }
-            sinkSpecBuilder.setProducerSpec(pbldr.build());
+            sinkSpecBuilder.setProducerSpec(convertProducerConfigToProducerSpec(functionConfig.getProducerConfig()));
         }
         if (functionConfig.getBatchBuilder() != null) {
             Function.ProducerSpec.Builder builder = sinkSpecBuilder.getProducerSpec() != null
@@ -431,6 +413,10 @@ public class FunctionConfigUtils {
             if (input.getValue().hasCryptoSpec()) {
                 consumerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(input.getValue().getCryptoSpec()));
             }
+            if (input.getValue().hasMessagePayloadProcessorSpec()) {
+                consumerConfig.setMessagePayloadProcessorConfig(MessagePayloadProcessorUtils.convertFromSpec(
+                        input.getValue().getMessagePayloadProcessorSpec()));
+            }
             consumerConfig.setRegexPattern(input.getValue().getIsRegexPattern());
             consumerConfig.setSchemaProperties(input.getValue().getSchemaPropertiesMap());
             consumerConfig.setPoolMessages(input.getValue().getPoolMessages());
@@ -463,23 +449,8 @@ public class FunctionConfigUtils {
             functionConfig.setOutputSchemaType(functionDetails.getSink().getSchemaType());
         }
         if (functionDetails.getSink().getProducerSpec() != null) {
-            Function.ProducerSpec spec = functionDetails.getSink().getProducerSpec();
-            ProducerConfig producerConfig = new ProducerConfig();
-            if (spec.getMaxPendingMessages() != 0) {
-                producerConfig.setMaxPendingMessages(spec.getMaxPendingMessages());
-            }
-            if (spec.getMaxPendingMessagesAcrossPartitions() != 0) {
-                producerConfig.setMaxPendingMessagesAcrossPartitions(spec.getMaxPendingMessagesAcrossPartitions());
-            }
-            if (spec.hasCryptoSpec()) {
-                producerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(spec.getCryptoSpec()));
-            }
-            if (spec.getBatchBuilder() != null) {
-                producerConfig.setBatchBuilder(spec.getBatchBuilder());
-            }
-            producerConfig.setUseThreadLocalProducers(spec.getUseThreadLocalProducers());
-            producerConfig.setCompressionType(convertFromFunctionDetailsCompressionType(spec.getCompressionType()));
-            functionConfig.setProducerConfig(producerConfig);
+            functionConfig.setProducerConfig(
+                    convertProducerSpecToProducerConfig(functionDetails.getSink().getProducerSpec()));
         }
         if (!isEmpty(functionDetails.getLogTopic())) {
             functionConfig.setLogTopic(functionDetails.getLogTopic());
@@ -542,6 +513,56 @@ public class FunctionConfigUtils {
         }
 
         return functionConfig;
+    }
+
+    public static Function.ProducerSpec convertProducerConfigToProducerSpec(ProducerConfig producerConf) {
+        Function.ProducerSpec.Builder builder = Function.ProducerSpec.newBuilder();
+        if (producerConf.getMaxPendingMessages() != null) {
+            builder.setMaxPendingMessages(producerConf.getMaxPendingMessages());
+        }
+        if (producerConf.getMaxPendingMessagesAcrossPartitions() != null) {
+            builder.setMaxPendingMessagesAcrossPartitions(producerConf.getMaxPendingMessagesAcrossPartitions());
+        }
+        if (producerConf.getUseThreadLocalProducers() != null) {
+            builder.setUseThreadLocalProducers(producerConf.getUseThreadLocalProducers());
+        }
+        if (producerConf.getCryptoConfig() != null) {
+            builder.setCryptoSpec(CryptoUtils.convert(producerConf.getCryptoConfig()));
+        }
+        if (producerConf.getBatchBuilder() != null) {
+            builder.setBatchBuilder(producerConf.getBatchBuilder());
+        }
+        if (producerConf.getBatchingConfig() != null) {
+            builder.setBatchingSpec(BatchingUtils.convert(producerConf.getBatchingConfig()));
+        }
+        if (producerConf.getCompressionType() != null) {
+            builder.setCompressionType(convertFromCompressionType(producerConf.getCompressionType()));
+        } else {
+            builder.setCompressionType(Function.CompressionType.LZ4);
+        }
+        return builder.build();
+    }
+
+    public static ProducerConfig convertProducerSpecToProducerConfig(Function.ProducerSpec spec) {
+        ProducerConfig producerConfig = new ProducerConfig();
+        if (spec.getMaxPendingMessages() != 0) {
+            producerConfig.setMaxPendingMessages(spec.getMaxPendingMessages());
+        }
+        if (spec.getMaxPendingMessagesAcrossPartitions() != 0) {
+            producerConfig.setMaxPendingMessagesAcrossPartitions(spec.getMaxPendingMessagesAcrossPartitions());
+        }
+        if (spec.hasCryptoSpec()) {
+            producerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(spec.getCryptoSpec()));
+        }
+        if (spec.getBatchBuilder() != null) {
+            producerConfig.setBatchBuilder(spec.getBatchBuilder());
+        }
+        if (spec.hasBatchingSpec()) {
+            producerConfig.setBatchingConfig(BatchingUtils.convertFromSpec(spec.getBatchingSpec()));
+        }
+        producerConfig.setUseThreadLocalProducers(spec.getUseThreadLocalProducers());
+        producerConfig.setCompressionType(convertFromFunctionDetailsCompressionType(spec.getCompressionType()));
+        return producerConfig;
     }
 
     public static void inferMissingArguments(FunctionConfig functionConfig,
@@ -670,6 +691,10 @@ public class FunctionConfigUtils {
                 if (conf.getCryptoConfig() != null) {
                     ValidatorUtils.validateCryptoKeyReader(conf.getCryptoConfig(),
                             validatableFunctionPackage.getTypePool(), false);
+                }
+                if (conf.getMessagePayloadProcessorConfig() != null) {
+                    ValidatorUtils.validateMessagePayloadProcessor(conf.getMessagePayloadProcessorConfig(),
+                            validatableFunctionPackage.getTypePool());
                 }
             });
         }
@@ -853,14 +878,24 @@ public class FunctionConfigUtils {
         if (!isEmpty(functionConfig.getPy()) && !org.apache.pulsar.common.functions.Utils
                 .isFunctionPackageUrlSupported(functionConfig.getPy())
                 && functionConfig.getPy().startsWith(BUILTIN)) {
-            if (!new File(functionConfig.getPy()).exists()) {
+            String filename = functionConfig.getPy();
+            if (filename.contains("..")) {
+                throw new IllegalArgumentException("Invalid filename: " + filename);
+            }
+
+            if (!new File(filename).exists()) {
                 throw new IllegalArgumentException("The supplied python file does not exist");
             }
         }
         if (!isEmpty(functionConfig.getGo()) && !org.apache.pulsar.common.functions.Utils
                 .isFunctionPackageUrlSupported(functionConfig.getGo())
                 && functionConfig.getGo().startsWith(BUILTIN)) {
-            if (!new File(functionConfig.getGo()).exists()) {
+            String filename = functionConfig.getGo();
+            if (filename.contains("..")) {
+                throw new IllegalArgumentException("Invalid filename: " + filename);
+            }
+
+            if (!new File(filename).exists()) {
                 throw new IllegalArgumentException("The supplied go file does not exist");
             }
         }
@@ -876,6 +911,11 @@ public class FunctionConfigUtils {
                 if (conf.getCryptoConfig() != null && isBlank(conf.getCryptoConfig().getCryptoKeyReaderClassName())) {
                     throw new IllegalArgumentException(
                             "CryptoKeyReader class name required");
+                }
+                if (conf.getMessagePayloadProcessorConfig() != null && isBlank(
+                        conf.getMessagePayloadProcessorConfig().getClassName())) {
+                    throw new IllegalArgumentException(
+                            "MessagePayloadProcessor class name required");
                 }
             });
         }

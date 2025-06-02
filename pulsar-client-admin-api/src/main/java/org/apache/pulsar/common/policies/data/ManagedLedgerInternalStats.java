@@ -20,10 +20,14 @@ package org.apache.pulsar.common.policies.data;
 
 import java.util.List;
 import java.util.Map;
+import lombok.AccessLevel;
+import lombok.Getter;
+
 
 /**
  * ManagedLedger internal statistics.
  */
+@Getter(AccessLevel.PUBLIC)
 public class ManagedLedgerInternalStats {
 
     /** Messages published since this broker loaded this managedLedger. */
@@ -77,11 +81,13 @@ public class ManagedLedgerInternalStats {
         public boolean offloaded;
         public String metadata;
         public boolean underReplicated;
+        public Map<String, String> properties;
     }
 
     /**
      * Pulsar cursor statistics.
      */
+    @Getter(AccessLevel.PUBLIC)
     public static class CursorStats {
         public String markDeletePosition;
         public String readPosition;

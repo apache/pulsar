@@ -72,6 +72,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import javax.naming.AuthenticationException;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -83,20 +84,24 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.auth.MockAlwaysExpiredAuthenticationProvider;
-import org.apache.pulsar.broker.auth.MockAuthorizationProvider;
-import org.apache.pulsar.broker.auth.MockMutableAuthenticationProvider;
-import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
-import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
+import org.apache.pulsar.broker.auth.MockAlwaysExpiredAuthenticationProvider;
 import org.apache.pulsar.broker.auth.MockAuthenticationProvider;
+import org.apache.pulsar.broker.auth.MockAuthorizationProvider;
 import org.apache.pulsar.broker.auth.MockMultiStageAuthenticationProvider;
+import org.apache.pulsar.broker.auth.MockMutableAuthenticationProvider;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -104,9 +109,9 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotRea
 import org.apache.pulsar.broker.service.ServerCnx.State;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.AuthMethod;
 import org.apache.pulsar.common.api.proto.BaseCommand;
@@ -115,7 +120,6 @@ import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
-import org.apache.pulsar.common.api.proto.CommandAuthResponse;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.CommandConnected;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
@@ -201,6 +205,7 @@ public class ServerCnxTest {
     private ManagedLedger ledgerMock;
     private ManagedCursor cursorMock;
     private ConcurrentHashSet<EmbeddedChannel> channelsStoppedAnswerHealthCheck = new ConcurrentHashSet<>();
+    private ManagedLedgerFactory managedLedgerFactory;
 
 
     @BeforeMethod(alwaysRun = true)
@@ -217,7 +222,7 @@ public class ServerCnxTest {
                 .spyByDefault()
                 .build();
         pulsar = pulsarTestContext.getPulsarService();
-
+        managedLedgerFactory = pulsarTestContext.getDefaultManagedLedgerFactory();
         brokerService = pulsarTestContext.getBrokerService();
 
         namespaceService = pulsar.getNamespaceService();
@@ -227,6 +232,8 @@ public class ServerCnxTest {
         doReturn(CompletableFuture.completedFuture(true)).when(namespaceService).isServiceUnitActiveAsync(any());
         doReturn(CompletableFuture.completedFuture(true)).when(namespaceService).checkTopicOwnership(any());
         doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfTopics(
+                NamespaceName.get("use", "ns-abc"), CommandGetTopicsOfNamespace.Mode.ALL);
+        doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfUserTopics(
                 NamespaceName.get("use", "ns-abc"), CommandGetTopicsOfNamespace.Mode.ALL);
         doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfPersistentTopics(
                 NamespaceName.get("use", "ns-abc"));
@@ -322,12 +329,12 @@ public class ServerCnxTest {
         assertEquals(serverCnx.getState(), State.Start);
 
         ByteBuf clientCommand = Commands.newConnect("none", null, 1, null, null, null, null, null,
-                "my-pulsar-proxy");
+                "my-pulsar-proxy", null);
         channel.writeInbound(clientCommand);
 
         assertEquals(serverCnx.getState(), State.Connected);
         assertEquals(serverCnx.getProxyVersion(), "my-pulsar-proxy");
-        channel.finish();
+        channel.finishAndReleaseAll();
     }
 
     @DataProvider(name = "clientVersions")
@@ -596,7 +603,7 @@ public class ServerCnxTest {
         assertEquals(serverCnx.getState(), State.Start);
 
         ByteBuf clientCommand = Commands.newConnect(authMethodName, AuthData.of("pass.pass".getBytes()),
-                1, null, null, null, null, null, "my-pulsar-proxy");
+                1, null, null, null, null, null, "my-pulsar-proxy", null);
         channel.writeInbound(clientCommand);
         Object response = getResponse();
         assertTrue(response instanceof CommandError);
@@ -1079,8 +1086,8 @@ public class ServerCnxTest {
         final long consumerId = 1;
         final MutableInt requestId = new MutableInt(1);
         final String sName = successSubName;
-        final String cName1 = ConsumerName.generateRandomName();
-        final String cName2 = ConsumerName.generateRandomName();
+        final String cName1 = RandomStringUtils.randomAlphanumeric(5);
+        final String cName2 = RandomStringUtils.randomAlphanumeric(5);
         resetChannel();
         setChannelConnected();
 
@@ -1121,8 +1128,8 @@ public class ServerCnxTest {
         final long consumerId = 1;
         final MutableInt requestId = new MutableInt(1);
         final String sName = successSubName;
-        final String cName1 = ConsumerName.generateRandomName();
-        final String cName2 = ConsumerName.generateRandomName();
+        final String cName1 = RandomStringUtils.randomAlphanumeric(5);
+        final String cName2 = RandomStringUtils.randomAlphanumeric(5);
         // Disabled connection check.
         pulsar.getConfig().setConnectionLivenessCheckTimeoutMillis(-1);
         resetChannel();
@@ -2040,7 +2047,7 @@ public class ServerCnxTest {
                     () -> ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock,
                             null));
             return null;
-        }).when(pulsarTestContext.getManagedLedgerFactory())
+        }).when(managedLedgerFactory)
                 .asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
@@ -2095,7 +2102,7 @@ public class ServerCnxTest {
                     () -> ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock,
                             null));
             return null;
-        }).when(pulsarTestContext.getManagedLedgerFactory())
+        }).when(managedLedgerFactory)
                 .asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
@@ -2162,7 +2169,7 @@ public class ServerCnxTest {
 
             ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
             return null;
-        }).when(pulsarTestContext.getManagedLedgerFactory())
+        }).when(managedLedgerFactory)
                 .asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
@@ -2241,7 +2248,7 @@ public class ServerCnxTest {
                     () -> ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock,
                             null));
             return null;
-        }).when(pulsarTestContext.getManagedLedgerFactory())
+        }).when(managedLedgerFactory)
                 .asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
@@ -2313,7 +2320,7 @@ public class ServerCnxTest {
                             null));
 
             return null;
-        }).when(pulsarTestContext.getManagedLedgerFactory())
+        }).when(managedLedgerFactory)
                 .asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
@@ -2388,7 +2395,7 @@ public class ServerCnxTest {
                     () -> ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock,
                             null));
             return null;
-        }).when(pulsarTestContext.getManagedLedgerFactory())
+        }).when(managedLedgerFactory)
                 .asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
@@ -2397,7 +2404,7 @@ public class ServerCnxTest {
             openTopicFail.complete(() -> ((OpenLedgerCallback) invocationOnMock.getArguments()[2])
                     .openLedgerFailed(new ManagedLedgerException("Managed ledger failure"), null));
             return null;
-        }).when(pulsarTestContext.getManagedLedgerFactory())
+        }).when(managedLedgerFactory)
                 .asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
@@ -2589,7 +2596,7 @@ public class ServerCnxTest {
         channel.writeInbound(clientCommand);
         assertTrue(getResponse() instanceof CommandSuccess);
 
-        PositionImpl pos = new PositionImpl(0, 0);
+        Position pos = PositionFactory.create(0, 0);
 
         clientCommand =
                 Commands.newAck(1 /* consumer id */, pos.getLedgerId(), pos.getEntryId(), null, AckType.Individual,
@@ -2916,13 +2923,14 @@ public class ServerCnxTest {
         ledgerMock = mock(ManagedLedger.class);
         cursorMock = mock(ManagedCursor.class);
         doReturn(new ArrayList<>()).when(ledgerMock).getCursors();
+        doReturn(new ManagedLedgerConfig()).when(ledgerMock).getConfig();
 
         // call openLedgerComplete with ledgerMock on ML factory asyncOpen
         doAnswer((Answer<Object>) invocationOnMock -> {
             Thread.sleep(300);
             ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
             return null;
-        }).when(pulsarTestContext.getManagedLedgerFactory())
+        }).when(managedLedgerFactory)
                 .asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
@@ -2933,18 +2941,18 @@ public class ServerCnxTest {
                     .openLedgerFailed(new ManagedLedgerException("Managed ledger failure"), null)).start();
 
             return null;
-        }).when(pulsarTestContext.getManagedLedgerFactory())
+        }).when(managedLedgerFactory)
                 .asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
         // call addComplete on ledger asyncAddEntry
         doAnswer((Answer<Object>) invocationOnMock -> {
-            ((AddEntryCallback) invocationOnMock.getArguments()[1]).addComplete(
-                    new PositionImpl(-1, -1),
+            ((AddEntryCallback) invocationOnMock.getArguments()[2]).addComplete(
+                    PositionFactory.create(-1, -1),
                     null,
-                    invocationOnMock.getArguments()[2]);
+                    invocationOnMock.getArguments()[3]);
             return null;
-        }).when(ledgerMock).asyncAddEntry(any(ByteBuf.class), any(AddEntryCallback.class), any());
+        }).when(ledgerMock).asyncAddEntry(any(ByteBuf.class), anyInt(), any(AddEntryCallback.class), any());
 
         doAnswer((Answer<Object>) invocationOnMock -> true).when(cursorMock).isDurable();
 
@@ -3088,7 +3096,7 @@ public class ServerCnxTest {
         Object response = getResponse();
         assertTrue(response instanceof CommandSuccess);
 
-        channel.finish();
+        channel.finishAndReleaseAll();
     }
 
     @Test(timeOut = 30000)
@@ -3393,21 +3401,42 @@ public class ServerCnxTest {
     }
 
     @Test
-    public void testHandleAuthResponseWithoutClientVersion() {
-        ServerCnx cnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
-        CommandAuthResponse authResponse = mock(CommandAuthResponse.class);
-        org.apache.pulsar.common.api.proto.AuthData authData = mock(org.apache.pulsar.common.api.proto.AuthData.class);
-        when(authResponse.getResponse()).thenReturn(authData);
-        when(authResponse.hasResponse()).thenReturn(true);
-        when(authResponse.getResponse().hasAuthMethodName()).thenReturn(true);
-        when(authResponse.getResponse().hasAuthData()).thenReturn(true);
-        when(authResponse.hasClientVersion()).thenReturn(false);
-        try {
-            cnx.handleAuthResponse(authResponse);
-        } catch (Exception ignore) {
-        }
-        verify(authResponse, times(1)).hasClientVersion();
-        verify(authResponse, times(0)).getClientVersion();
+    public void testHandleAuthResponseWithoutClientVersion() throws Exception {
+        resetChannel();
+        // use a dummy authentication provider
+        AuthenticationProvider authenticationProvider = new AuthenticationProvider() {
+            @Override
+            public void initialize(ServiceConfiguration config) throws IOException {
+
+            }
+
+            @Override
+            public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
+                return "role";
+            }
+
+            @Override
+            public String getAuthMethodName() {
+                return "dummy";
+            }
+
+            @Override
+            public void close() throws IOException {
+
+            }
+        };
+        AuthData clientData = AuthData.of(new byte[0]);
+        AuthenticationState authenticationState =
+                authenticationProvider.newAuthState(clientData, null, null);
+        // inject the AuthenticationState instance so that auth response can be processed
+        serverCnx.setAuthState(authenticationState);
+        // send the auth response with no client version
+        String clientVersion = null;
+        ByteBuf authResponse =
+                Commands.newAuthResponse("token", clientData, Commands.getCurrentProtocolVersion(), clientVersion);
+        channel.writeInbound(authResponse);
+        CommandConnected response = (CommandConnected) getResponse();
+        assertNotNull(response);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -3571,7 +3600,7 @@ public class ServerCnxTest {
         doReturn(false).when(pulsar).isRunning();
         assertTrue(channel.isActive());
 
-        ByteBuf clientCommand = Commands.newPartitionMetadataRequest(successTopicName, 1);
+        ByteBuf clientCommand = Commands.newPartitionMetadataRequest(successTopicName, 1, true);
         channel.writeInbound(clientCommand);
         Object response = getResponse();
         assertTrue(response instanceof CommandPartitionedTopicMetadataResponse);

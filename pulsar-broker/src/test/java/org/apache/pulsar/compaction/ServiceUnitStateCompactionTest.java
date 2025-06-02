@@ -24,9 +24,10 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigning;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Releasing;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Splitting;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.StorageType.SystemTopic;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.isValidTransition;
-import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.MSG_COMPRESSION_TYPE;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData.state;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl.MSG_COMPRESSION_TYPE;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
@@ -61,7 +62,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
-import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateCompactionStrategy;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateDataConflictResolver;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -92,7 +93,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
     private ScheduledExecutorService compactionScheduler;
     private BookKeeper bk;
     private Schema<ServiceUnitStateData> schema;
-    private ServiceUnitStateCompactionStrategy strategy;
+    private ServiceUnitStateDataConflictResolver strategy;
 
     private ServiceUnitState testState = Init;
 
@@ -118,7 +119,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
     private ServiceUnitState nextValidState(ServiceUnitState from) {
         List<ServiceUnitState> candidates = Arrays.stream(ServiceUnitState.values())
-                .filter(to -> isValidTransition(from, to))
+                .filter(to -> isValidTransition(from, to, SystemTopic))
                 .collect(Collectors.toList());
         var state=  candidates.get(RANDOM.nextInt(candidates.size()));
         return state;
@@ -127,7 +128,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
     private ServiceUnitState nextValidStateNonSplit(ServiceUnitState from) {
         List<ServiceUnitState> candidates = Arrays.stream(ServiceUnitState.values())
                 .filter(to -> to != Init && to != Splitting && to != Deleted
-                        && isValidTransition(from, to))
+                        && isValidTransition(from, to, SystemTopic))
                 .collect(Collectors.toList());
         var state=  candidates.get(RANDOM.nextInt(candidates.size()));
         return state;
@@ -135,7 +136,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
     private ServiceUnitState nextInvalidState(ServiceUnitState from) {
         List<ServiceUnitState> candidates = Arrays.stream(ServiceUnitState.values())
-                .filter(to -> !isValidTransition(from, to))
+                .filter(to -> !isValidTransition(from, to, SystemTopic))
                 .collect(Collectors.toList());
         if (candidates.size() == 0) {
             return Init;
@@ -155,9 +156,9 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
         compactionScheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
-        bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, null, Optional.empty(), null);
+        bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, null, Optional.empty(), null).get();
         schema = Schema.JSON(ServiceUnitStateData.class);
-        strategy = new ServiceUnitStateCompactionStrategy();
+        strategy = new ServiceUnitStateDataConflictResolver();
         strategy.checkBrokers(false);
 
         testState = Init;
@@ -329,10 +330,10 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                 .topic("persistent://my-property/use/my-ns/my-topic1")
                 .loadConf(Map.of(
                         "topicCompactionStrategyClassName",
-                        ServiceUnitStateCompactionStrategy.class.getName()))
+                        ServiceUnitStateDataConflictResolver.class.getName()))
                 .create();
 
-        ((ServiceUnitStateCompactionStrategy)
+        ((ServiceUnitStateDataConflictResolver)
                 FieldUtils.readDeclaredField(tv, "compactionStrategy", true))
                 .checkBrokers(false);
         TestData testData = generateTestData();
@@ -364,7 +365,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                 .topic(topic)
                 .loadConf(Map.of(
                         "topicCompactionStrategyClassName",
-                        ServiceUnitStateCompactionStrategy.class.getName()))
+                        ServiceUnitStateDataConflictResolver.class.getName()))
                 .create();
 
         for(var etr : tableview.entrySet()){
@@ -531,7 +532,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                 .subscriptionName("fastTV")
                 .loadConf(Map.of(
                         strategyClassName,
-                        ServiceUnitStateCompactionStrategy.class.getName()))
+                        ServiceUnitStateDataConflictResolver.class.getName()))
                 .create();
 
         var defaultConf = getDefaultConf();
@@ -544,7 +545,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                 .subscriptionName("slowTV")
                 .loadConf(Map.of(
                         strategyClassName,
-                        ServiceUnitStateCompactionStrategy.class.getName()))
+                        ServiceUnitStateDataConflictResolver.class.getName()))
                 .create();
 
         var semaphore = new Semaphore(0);
@@ -616,7 +617,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                     .topic(topic)
                     .loadConf(Map.of(
                             strategyClassName,
-                            ServiceUnitStateCompactionStrategy.class.getName()))
+                            ServiceUnitStateDataConflictResolver.class.getName()))
                     .create();
             Awaitility.await()
                     .pollInterval(200, TimeUnit.MILLISECONDS)
@@ -651,7 +652,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                 .subscriptionName("slowTV")
                 .loadConf(Map.of(
                         strategyClassName,
-                        ServiceUnitStateCompactionStrategy.class.getName()))
+                        ServiceUnitStateDataConflictResolver.class.getName()))
                 .create();
 
         // Configure retention to ensue data is retained for reader

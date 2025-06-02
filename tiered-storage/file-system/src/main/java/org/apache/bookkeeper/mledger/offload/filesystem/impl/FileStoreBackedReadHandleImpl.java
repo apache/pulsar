@@ -164,7 +164,7 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
                                 nextExpectedId, entryId, lastEntry);
                         throw new BKException.BKUnexpectedConditionException();
                     }
-            }
+                }
                 promise.complete(LedgerEntriesImpl.create(entries));
             } catch (Throwable t) {
                 this.offloaderStats.recordReadOffloadError(topicName);

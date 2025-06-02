@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -37,6 +38,7 @@ import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -44,9 +46,8 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.util.TimedCompletableFuture;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
-import org.apache.pulsar.common.util.collections.ConcurrentBitSetRecyclable;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
+import org.apache.pulsar.common.util.collections.ConcurrentBitSetRecyclable;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -57,24 +58,24 @@ public class AcknowledgementsGroupingTrackerTest {
     private ClientCnx cnx;
     private ConsumerImpl<?> consumer;
     private EventLoopGroup eventLoopGroup;
+    private AtomicBoolean returnCnx = new AtomicBoolean(true);
 
     @BeforeClass
     public void setup() throws NoSuchFieldException, IllegalAccessException {
         eventLoopGroup = new NioEventLoopGroup(1);
         consumer = mock(ConsumerImpl.class);
-        consumer.unAckedChunkedMessageIdSequenceMap =
-                ConcurrentOpenHashMap.<MessageIdAdv, MessageIdImpl[]>newBuilder().build();
+        consumer.unAckedChunkedMessageIdSequenceMap = new ConcurrentHashMap<>();
         cnx = spy(new ClientCnxTest(new ClientConfigurationData(), eventLoopGroup));
         PulsarClientImpl client = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         when(client.getCnxPool()).thenReturn(connectionPool);
         doReturn(client).when(consumer).getClient();
-        doReturn(cnx).when(consumer).getClientCnx();
         doReturn(new ConsumerStatsRecorderImpl()).when(consumer).getStats();
         doReturn(UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED)
                 .when(consumer).getUnAckedMessageTracker();
-        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
-        when(cnx.ctx()).thenReturn(ctx);
+        ChannelHandlerContext ctx = ClientTestFixtures.mockChannelHandlerContext();
+        doAnswer(invocation -> returnCnx.get() ? cnx : null).when(consumer).getClientCnx();
+        doReturn(ctx).when(cnx).ctx();
     }
 
     @DataProvider(name = "isNeedReceipt")
@@ -131,8 +132,6 @@ public class AcknowledgementsGroupingTrackerTest {
 
         tracker.addAcknowledgment(msg6, AckType.Individual, Collections.emptyMap());
         assertTrue(tracker.isDuplicate(msg6));
-
-        when(consumer.getClientCnx()).thenReturn(cnx);
 
         tracker.flush();
 
@@ -192,8 +191,6 @@ public class AcknowledgementsGroupingTrackerTest {
         tracker.addListAcknowledgment(Collections.singletonList(msg6), AckType.Individual, Collections.emptyMap());
         assertTrue(tracker.isDuplicate(msg6));
 
-        when(consumer.getClientCnx()).thenReturn(cnx);
-
         tracker.flush();
 
         assertTrue(tracker.isDuplicate(msg1));
@@ -220,12 +217,13 @@ public class AcknowledgementsGroupingTrackerTest {
 
         assertFalse(tracker.isDuplicate(msg1));
 
-        when(consumer.getClientCnx()).thenReturn(null);
-
-        tracker.addAcknowledgment(msg1, AckType.Individual, Collections.emptyMap());
-        assertFalse(tracker.isDuplicate(msg1));
-
-        when(consumer.getClientCnx()).thenReturn(cnx);
+        returnCnx.set(false);
+        try {
+            tracker.addAcknowledgment(msg1, AckType.Individual, Collections.emptyMap());
+            assertFalse(tracker.isDuplicate(msg1));
+        } finally {
+            returnCnx.set(true);
+        }
 
         tracker.flush();
         assertFalse(tracker.isDuplicate(msg1));
@@ -249,12 +247,13 @@ public class AcknowledgementsGroupingTrackerTest {
 
         assertFalse(tracker.isDuplicate(msg1));
 
-        when(consumer.getClientCnx()).thenReturn(null);
-
-        tracker.addListAcknowledgment(Collections.singletonList(msg1), AckType.Individual, Collections.emptyMap());
-        assertTrue(tracker.isDuplicate(msg1));
-
-        when(consumer.getClientCnx()).thenReturn(cnx);
+        returnCnx.set(false);
+        try {
+            tracker.addListAcknowledgment(Collections.singletonList(msg1), AckType.Individual, Collections.emptyMap());
+            assertTrue(tracker.isDuplicate(msg1));
+        } finally {
+            returnCnx.set(true);
+        }
 
         tracker.flush();
         assertFalse(tracker.isDuplicate(msg1));
@@ -313,8 +312,6 @@ public class AcknowledgementsGroupingTrackerTest {
 
         tracker.addAcknowledgment(msg6, AckType.Individual, Collections.emptyMap());
         assertTrue(tracker.isDuplicate(msg6));
-
-        when(consumer.getClientCnx()).thenReturn(cnx);
 
         tracker.flush();
 
@@ -375,8 +372,6 @@ public class AcknowledgementsGroupingTrackerTest {
 
         tracker.addListAcknowledgment(Collections.singletonList(msg6), AckType.Individual, Collections.emptyMap());
         assertTrue(tracker.isDuplicate(msg6));
-
-        when(consumer.getClientCnx()).thenReturn(cnx);
 
         tracker.flush();
 

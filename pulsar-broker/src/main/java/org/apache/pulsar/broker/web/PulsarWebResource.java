@@ -93,11 +93,12 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.path.PolicyPath;
+import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.coordination.LockManager;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -118,6 +119,10 @@ public abstract class PulsarWebResource {
                             return serviceNameResolver;
                         }
                     });
+
+    static {
+        CacheMetricsCollector.CAFFEINE.addCache("web-resource-service-name-resolver", SERVICE_NAME_RESOLVER_CACHE);
+    }
 
     static final String ORIGINAL_PRINCIPAL_HEADER = "X-Original-Principal";
 
@@ -901,14 +906,16 @@ public abstract class PulsarWebResource {
                     log.warn(msg);
                     validationFuture.completeExceptionally(new RestException(Status.NOT_FOUND,
                             "Namespace is deleted"));
-                } else if (policies.replication_clusters.isEmpty()) {
+                } else if (policies.replication_clusters.isEmpty() && policies.allowed_clusters.isEmpty()) {
                     String msg = String.format(
                             "Namespace does not have any clusters configured : local_cluster=%s ns=%s",
                             localCluster, namespace.toString());
                     log.warn(msg);
                     validationFuture.completeExceptionally(new RestException(Status.PRECONDITION_FAILED, msg));
-                } else if (!policies.replication_clusters.contains(localCluster)) {
-                    getOwnerFromPeerClusterListAsync(pulsarService, policies.replication_clusters)
+                } else if (!policies.replication_clusters.contains(localCluster) && !policies.allowed_clusters
+                        .contains(localCluster)) {
+                    getOwnerFromPeerClusterListAsync(pulsarService, policies.replication_clusters,
+                            policies.allowed_clusters)
                             .thenAccept(ownerPeerCluster -> {
                                 if (ownerPeerCluster != null) {
                                     // found a peer that own this namespace
@@ -948,9 +955,9 @@ public abstract class PulsarWebResource {
     }
 
     private static CompletableFuture<ClusterDataImpl> getOwnerFromPeerClusterListAsync(PulsarService pulsar,
-            Set<String> replicationClusters) {
+            Set<String> replicationClusters, Set<String> allowedClusters) {
         String currentCluster = pulsar.getConfiguration().getClusterName();
-        if (replicationClusters == null || replicationClusters.isEmpty() || isBlank(currentCluster)) {
+        if (replicationClusters.isEmpty() && allowedClusters.isEmpty() || isBlank(currentCluster)) {
             return CompletableFuture.completedFuture(null);
         }
 
@@ -960,7 +967,8 @@ public abstract class PulsarWebResource {
                         return CompletableFuture.completedFuture(null);
                     }
                     for (String peerCluster : cluster.get().getPeerClusterNames()) {
-                        if (replicationClusters.contains(peerCluster)) {
+                        if (replicationClusters.contains(peerCluster)
+                                || allowedClusters.contains(peerCluster)) {
                             return pulsar.getPulsarResources().getClusterResources().getClusterAsync(peerCluster)
                                     .thenApply(ret -> {
                                         if (!ret.isPresent()) {
@@ -1009,7 +1017,7 @@ public abstract class PulsarWebResource {
         if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
             return true;
         }
-        return  pulsar.getLeaderElectionService().isLeader();
+        return pulsar.getLeaderElectionService() != null && pulsar.getLeaderElectionService().isLeader();
     }
 
     public void validateTenantOperation(String tenant, TenantOperation operation) {

@@ -22,8 +22,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.distributedlog.LogRecord;
@@ -38,6 +36,16 @@ class DLOutputStream {
 
     private final DistributedLogManager distributedLogManager;
     private final AsyncLogWriter writer;
+    /*
+     * The LogRecord structure is:
+     * -------------------
+     * Bytes 0 - 7                      : Metadata (Long)
+     * Bytes 8 - 15                     : TxId (Long)
+     * Bytes 16 - 19                    : Payload length (Integer)
+     * Bytes 20 - 20+payload.length-1   : Payload (Byte[])
+     * So the max buffer size should be LogRecord.MAX_LOGRECORD_SIZE - 2 * (Long.SIZE / 8) - Integer.SIZE / 8
+     */
+    private final byte[] readBuffer = new byte[LogRecord.MAX_LOGRECORD_SIZE - 2 * (Long.SIZE / 8) - Integer.SIZE / 8];
     private long offset = 0L;
 
     private DLOutputStream(DistributedLogManager distributedLogManager, AsyncLogWriter writer) {
@@ -50,42 +58,38 @@ class DLOutputStream {
         return distributedLogManager.openAsyncLogWriter().thenApply(w -> new DLOutputStream(distributedLogManager, w));
     }
 
-    private CompletableFuture<List<LogRecord>> getRecords(InputStream inputStream) {
-        CompletableFuture<List<LogRecord>> future = new CompletableFuture<>();
-        CompletableFuture.runAsync(() -> {
-            byte[] readBuffer = new byte[8192];
-            List<LogRecord> records = new ArrayList<>();
-            try {
-                int read = 0;
-                while ((read = inputStream.read(readBuffer)) != -1) {
-                    log.info("write something into the ledgers offset: {}, length: {}", offset, read);
-                    ByteBuf writeBuf = Unpooled.copiedBuffer(readBuffer, 0, read);
-                    offset += writeBuf.readableBytes();
-                    LogRecord record = new LogRecord(offset, writeBuf);
-                    records.add(record);
-                }
-                future.complete(records);
-            } catch (IOException e) {
-                log.error("Failed to get all records from the input stream", e);
-                future.completeExceptionally(e);
+    private void writeAsyncHelper(InputStream is, CompletableFuture<DLOutputStream> result) {
+        try {
+            int read = is.readNBytes(readBuffer, 0, readBuffer.length);
+            if (read > 0) {
+                log.debug("write something into the ledgers offset: {}, length: {}", offset, read);
+                final ByteBuf writeBuf = Unpooled.wrappedBuffer(readBuffer, 0, read);
+                offset += writeBuf.readableBytes();
+                final LogRecord record = new LogRecord(offset, writeBuf);
+                writer.write(record).thenAccept(v -> writeAsyncHelper(is, result))
+                        .exceptionally(e -> {
+                            result.completeExceptionally(e);
+                            return null;
+                        });
+            } else {
+                result.complete(this);
             }
-        });
-        return future;
+        } catch (IOException e) {
+            log.error("Failed to get all records from the input stream", e);
+            result.completeExceptionally(e);
+        }
     }
 
     /**
      * Write all input stream data to the distribute log.
      *
      * @param inputStream the data we need to write
-     * @return
+     * @return CompletableFuture<DLOutputStream>
      */
     CompletableFuture<DLOutputStream> writeAsync(InputStream inputStream) {
-        return getRecords(inputStream)
-            .thenCompose(this::writeAsync);
-    }
-
-    private CompletableFuture<DLOutputStream> writeAsync(List<LogRecord> records) {
-        return writer.writeBulk(records).thenApply(ignore -> this);
+        CompletableFuture<DLOutputStream> result = new CompletableFuture<>();
+        writeAsyncHelper(inputStream, result);
+        return result;
     }
 
     /**

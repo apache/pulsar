@@ -177,6 +177,13 @@ public class TopicNameTest {
             // Ok
         }
 
+        try {
+            TopicName.get(" ");
+            fail("Should have raised exception");
+        } catch (IllegalArgumentException e) {
+            // Ok
+        }
+
         TopicName nameWithSlash = TopicName.get("persistent://tenant/cluster/namespace/ns-abc/table/1");
         assertEquals(nameWithSlash.getEncodedLocalName(), Codec.encode("ns-abc/table/1"));
 
@@ -267,6 +274,12 @@ public class TopicNameTest {
         } catch (IllegalArgumentException e) {
             // Exception is expected.
         }
+
+        // case5: local name with special characters e.g. a:b:c
+        String topicName = "persistent://tenant/namespace/a:b:c";
+        String persistentNamingEncoding = "tenant/namespace/persistent/a%3Ab%3Ac";
+        assertEquals(TopicName.get(topicName).getPersistenceNamingEncoding(), persistentNamingEncoding);
+        assertEquals(TopicName.fromPersistenceNamingEncoding(persistentNamingEncoding), topicName);
     }
 
 

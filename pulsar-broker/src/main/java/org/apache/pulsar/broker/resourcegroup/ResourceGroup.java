@@ -83,7 +83,7 @@ public class ResourceGroup {
         this.setResourceGroupConfigParameters(rgConfig);
         this.setDefaultResourceUsageTransportHandlers();
         this.resourceGroupPublishLimiter = new ResourceGroupPublishLimiter(rgConfig, rgs.getPulsar()
-                .getMonotonicSnapshotClock());
+                .getMonotonicClock());
         log.info("attaching publish rate limiter {} to {} get {}", this.resourceGroupPublishLimiter, name,
           this.getResourceGroupPublishLimiter());
     }
@@ -99,7 +99,7 @@ public class ResourceGroup {
         this.setResourceGroupMonitoringClassFields();
         this.setResourceGroupConfigParameters(rgConfig);
         this.resourceGroupPublishLimiter = new ResourceGroupPublishLimiter(rgConfig, rgs.getPulsar()
-                .getMonotonicSnapshotClock());
+                .getMonotonicClock());
         this.ruPublisher = rgPublisher;
         this.ruConsumer = rgConsumer;
     }
@@ -458,14 +458,13 @@ public class ResourceGroup {
 
             bytesUsed = monEntity.usedLocallySinceLastReport.bytes;
             messagesUsed = monEntity.usedLocallySinceLastReport.messages;
-
+            monEntity.usedLocallySinceLastReport.bytes = monEntity.usedLocallySinceLastReport.messages = 0;
             if (sendReport) {
                 p.setBytesPerPeriod(bytesUsed);
                 p.setMessagesPerPeriod(messagesUsed);
                 monEntity.lastReportedValues.bytes = bytesUsed;
                 monEntity.lastReportedValues.messages = messagesUsed;
                 monEntity.numSuppressedUsageReports = 0;
-                monEntity.usedLocallySinceLastReport.bytes = monEntity.usedLocallySinceLastReport.messages = 0;
                 monEntity.totalUsedLocally.bytes += bytesUsed;
                 monEntity.totalUsedLocally.messages += messagesUsed;
                 monEntity.lastResourceUsageFillTimeMSecsSinceEpoch = System.currentTimeMillis();

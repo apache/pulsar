@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.re2j.Pattern;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
+import lombok.Cleanup;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.impl.PatternMultiTopicsConsumerImpl.TopicsChangedListener;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -29,6 +31,7 @@ import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.naming.NamespaceName;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -41,7 +44,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
-import java.util.regex.Pattern;
 
 public class TopicListWatcherTest {
 
@@ -61,6 +63,7 @@ public class TopicListWatcherTest {
         when(client.getConfiguration()).thenReturn(new ClientConfigurationData());
         clientCnxFuture = new CompletableFuture<>();
         when(client.getConnectionToServiceUrl()).thenReturn(clientCnxFuture);
+        @Cleanup("stop")
         Timer timer = new HashedWheelTimer();
         when(client.timer()).thenReturn(timer);
         String topic = "persistent://tenant/ns/topic\\d+";
@@ -68,8 +71,17 @@ public class TopicListWatcherTest {
                 thenReturn(clientCnxFuture.thenApply(clientCnx -> Pair.of(clientCnx, false)));
         when(client.getConnection(any(), any(), anyInt())).thenReturn(clientCnxFuture);
         when(connectionPool.getConnection(any(), any(), anyInt())).thenReturn(clientCnxFuture);
+
+        CompletableFuture<Void> completedFuture = CompletableFuture.completedFuture(null);
+        PatternMultiTopicsConsumerImpl patternConsumer = mock(PatternMultiTopicsConsumerImpl.class);
+        when(patternConsumer.getSubscribeFuture()).thenReturn(completedFuture);
+        when(patternConsumer.recheckTopicsChange()).thenReturn(completedFuture);
+        when(listener.onTopicsAdded(anyCollection())).thenReturn(completedFuture);
+        when(listener.onTopicsRemoved(anyCollection())).thenReturn(completedFuture);
+        PatternConsumerUpdateQueue queue = new PatternConsumerUpdateQueue(patternConsumer, listener);
+
         watcherFuture = new CompletableFuture<>();
-        watcher = new TopicListWatcher(listener, client,
+        watcher = new TopicListWatcher(queue, client,
                 Pattern.compile(topic), 7,
                 NamespaceName.get("tenant/ns"), null, watcherFuture, () -> {});
     }

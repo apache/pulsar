@@ -21,10 +21,10 @@ package org.apache.pulsar.broker.namespace;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import javax.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
+import org.jspecify.annotations.NonNull;
 
 @Data
 @NoArgsConstructor
@@ -55,7 +55,7 @@ public class NamespaceEphemeralData {
         }
     }
 
-    @NotNull
+    @NonNull
     public Map<String, AdvertisedListener> getAdvertisedListeners() {
         if (this.advertisedListeners == null) {
             return Collections.emptyMap();

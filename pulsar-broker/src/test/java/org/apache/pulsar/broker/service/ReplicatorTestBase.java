@@ -20,12 +20,11 @@ package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
-
-import com.google.common.io.Resources;
+import static org.testng.Assert.assertNull;
 import com.google.common.collect.Sets;
-
+import com.google.common.io.Resources;
 import io.netty.util.concurrent.DefaultThreadFactory;
-
+import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import java.net.URL;
 import java.util.Optional;
 import java.util.Set;
@@ -34,12 +33,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TopicType;
-import org.apache.pulsar.tests.TestRetrySupport;
+import org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -50,7 +46,11 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.functions.worker.WorkerConfig;
+import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.slf4j.Logger;
@@ -62,6 +62,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
     ServiceConfiguration config1 = new ServiceConfiguration();
     PulsarService pulsar1;
     BrokerService ns1;
+    protected InMemoryMetricReader metricReader1;
 
     PulsarAdmin admin1;
     LocalBookkeeperEnsemble bkEnsemble1;
@@ -73,6 +74,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
     BrokerService ns2;
     PulsarAdmin admin2;
     LocalBookkeeperEnsemble bkEnsemble2;
+    protected InMemoryMetricReader metricReader2;
 
     URL url3;
     URL urlTls3;
@@ -81,6 +83,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
     BrokerService ns3;
     PulsarAdmin admin3;
     LocalBookkeeperEnsemble bkEnsemble3;
+    protected InMemoryMetricReader metricReader3;
 
     URL url4;
     URL urlTls4;
@@ -88,6 +91,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
     PulsarService pulsar4;
     PulsarAdmin admin4;
     LocalBookkeeperEnsemble bkEnsemble4;
+    protected InMemoryMetricReader metricReader4;
 
     ZookeeperServerTest globalZkS;
 
@@ -153,7 +157,8 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         // completely
         // independent config objects instead of referring to the same properties object
         setConfig1DefaultValue();
-        pulsar1 = new PulsarService(config1);
+        metricReader1 = InMemoryMetricReader.create();
+        pulsar1 = buildPulsarService(config1, metricReader1);
         pulsar1.start();
         ns1 = pulsar1.getBrokerService();
 
@@ -168,7 +173,8 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         bkEnsemble2.start();
 
         setConfig2DefaultValue();
-        pulsar2 = new PulsarService(config2);
+        metricReader2 = InMemoryMetricReader.create();
+        pulsar2 = buildPulsarService(config2, metricReader2);
         pulsar2.start();
         ns2 = pulsar2.getBrokerService();
 
@@ -183,7 +189,8 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         bkEnsemble3.start();
 
         setConfig3DefaultValue();
-        pulsar3 = new PulsarService(config3);
+        metricReader3 = InMemoryMetricReader.create();
+        pulsar3 = buildPulsarService(config3, metricReader3);
         pulsar3.start();
         ns3 = pulsar3.getBrokerService();
 
@@ -198,7 +205,8 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         bkEnsemble4.start();
 
         setConfig4DefaultValue();
-        pulsar4 = new PulsarService(config4);
+        metricReader4 = InMemoryMetricReader.create();
+        pulsar4 = buildPulsarService(config4, metricReader4);
         pulsar4.start();
 
         url4 = new URL(pulsar4.getWebServiceAddress());
@@ -259,9 +267,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
                 .brokerClientTlsTrustStoreType(keyStoreType)
                 .build());
         admin4.clusters().createCluster(cluster4, ClusterData.builder()
-                .serviceUrl(url4.toString())
                 .serviceUrlTls(urlTls4.toString())
-                .brokerServiceUrl(pulsar4.getBrokerServiceUrl())
                 .brokerServiceUrlTls(pulsar4.getBrokerServiceUrlTls())
                 .brokerClientTlsEnabled(true)
                 .brokerClientCertificateFilePath(clientCertFilePath)
@@ -285,9 +291,20 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         assertEquals(admin2.clusters().getCluster(cluster1).getServiceUrl(), url1.toString());
         assertEquals(admin2.clusters().getCluster(cluster2).getServiceUrl(), url2.toString());
         assertEquals(admin2.clusters().getCluster(cluster3).getServiceUrl(), url3.toString());
+        assertNull(admin2.clusters().getCluster(cluster4).getServiceUrl());
         assertEquals(admin2.clusters().getCluster(cluster1).getBrokerServiceUrl(), pulsar1.getBrokerServiceUrl());
         assertEquals(admin2.clusters().getCluster(cluster2).getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl());
         assertEquals(admin2.clusters().getCluster(cluster3).getBrokerServiceUrl(), pulsar3.getBrokerServiceUrl());
+        assertNull(admin2.clusters().getCluster(cluster4).getBrokerServiceUrl());
+
+        assertEquals(admin2.clusters().getCluster(cluster1).getServiceUrlTls(), urlTls1.toString());
+        assertEquals(admin2.clusters().getCluster(cluster2).getServiceUrlTls(), urlTls2.toString());
+        assertEquals(admin2.clusters().getCluster(cluster3).getServiceUrlTls(), urlTls3.toString());
+        assertEquals(admin2.clusters().getCluster(cluster4).getServiceUrlTls(), urlTls4.toString());
+        assertEquals(admin2.clusters().getCluster(cluster1).getBrokerServiceUrlTls(), pulsar1.getBrokerServiceUrlTls());
+        assertEquals(admin2.clusters().getCluster(cluster2).getBrokerServiceUrlTls(), pulsar2.getBrokerServiceUrlTls());
+        assertEquals(admin2.clusters().getCluster(cluster3).getBrokerServiceUrlTls(), pulsar3.getBrokerServiceUrlTls());
+        assertEquals(admin2.clusters().getCluster(cluster4).getBrokerServiceUrlTls(), pulsar4.getBrokerServiceUrlTls());
 
         // Also create V1 namespace for compatibility check
         admin1.clusters().createCluster("global", ClusterData.builder()
@@ -300,6 +317,14 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         Thread.sleep(100);
         log.info("--- ReplicatorTestBase::setup completed ---");
 
+    }
+
+    private PulsarService buildPulsarService(ServiceConfiguration config, InMemoryMetricReader metricReader) {
+        return new PulsarService(config,
+                new WorkerConfig(),
+                Optional.empty(),
+                exitCode -> log.info("Pulsar service finished with exit code {}", exitCode),
+                BrokerOpenTelemetryTestUtil.getOpenTelemetrySdkBuilderConsumer(metricReader));
     }
 
     public void setConfig3DefaultValue() {
@@ -397,6 +422,23 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         if (admin4 != null) {
             admin4.close();
             admin4 = null;
+        }
+
+        if (metricReader4 != null) {
+            metricReader4.close();
+            metricReader4 = null;
+        }
+        if (metricReader3 != null) {
+            metricReader3.close();
+            metricReader3 = null;
+        }
+        if (metricReader2 != null) {
+            metricReader2.close();
+            metricReader2 = null;
+        }
+        if (metricReader1 != null) {
+            metricReader1.close();
+            metricReader1 = null;
         }
 
         if (pulsar4 != null) {

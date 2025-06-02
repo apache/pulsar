@@ -78,7 +78,7 @@ public class FunctionUtils {
     public static TreeMap<String, FunctionArchive> searchForFunctions(String functionsDirectory,
                                                                       String narExtractionDirectory,
                                                                       boolean enableClassloading) throws IOException {
-        Path path = Paths.get(functionsDirectory).toAbsolutePath();
+        Path path = Paths.get(functionsDirectory).toAbsolutePath().normalize();
         log.info("Searching for functions in {}", path);
 
         TreeMap<String, FunctionArchive> functions = new TreeMap<>();

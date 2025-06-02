@@ -19,7 +19,6 @@
 package org.apache.pulsar.tests.integration.containers;
 
 import static java.time.temporal.ChronoUnit.SECONDS;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -29,6 +28,7 @@ import java.util.UUID;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
+import org.apache.pulsar.tests.ExtendedNettyLeakDetector;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.utils.DockerUtils;
 import org.testcontainers.containers.BindMode;
@@ -51,8 +51,13 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     public static final int BROKER_HTTP_PORT = 8080;
     public static final int BROKER_HTTPS_PORT = 8081;
 
+    public static final String ALPINE_IMAGE_NAME = "alpine:3.20";
     public static final String DEFAULT_IMAGE_NAME = System.getenv().getOrDefault("PULSAR_TEST_IMAGE_NAME",
             "apachepulsar/pulsar-test-latest-version:latest");
+    public static final String UPGRADE_TEST_IMAGE_NAME = System.getenv().getOrDefault("PULSAR_UPGRADE_TEST_IMAGE_NAME",
+            DEFAULT_IMAGE_NAME);
+    public static final String LAST_RELEASE_IMAGE_NAME = System.getenv().getOrDefault("PULSAR_LAST_RELEASE_IMAGE_NAME",
+            "apachepulsar/pulsar:3.0.7");
     public static final String DEFAULT_HTTP_PATH = "/metrics";
     public static final String PULSAR_2_5_IMAGE_NAME = "apachepulsar/pulsar:2.5.0";
     public static final String PULSAR_2_4_IMAGE_NAME = "apachepulsar/pulsar:2.4.0";
@@ -247,10 +252,40 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
             configureCodeCoverage();
         }
 
+        if (isPassNettyLeakDetectionSystemProperties()) {
+            passNettyLeakDetectionSystemProperties();
+        }
+
         beforeStart();
         super.start();
         afterStart();
         log.info("[{}] Start pulsar service {} at container {}", getContainerName(), serviceName, getContainerId());
+    }
+
+    protected boolean isPassNettyLeakDetectionSystemProperties() {
+        return true;
+    }
+
+    protected void passNettyLeakDetectionSystemProperties() {
+        if (isPassNettyLeakDetectionSystemProperties()) {
+            String envKey = "PULSAR_EXTRA_OPTS";
+            // pass similar defaults as there is in conf/pulsar_env.sh
+            appendToEnv("PULSAR_EXTRA_OPTS",
+                    "-Dpulsar.allocator.exit_on_oom=true -Dio.netty.recycler.maxCapacityPerThread=4096");
+            passSystemPropertyInEnv(envKey, ExtendedNettyLeakDetector.NETTY_CUSTOM_LEAK_DETECTOR_SYSTEM_PROPERTY_NAME);
+            if (ExtendedNettyLeakDetector.isExtendedNettyLeakDetectorEnabled()) {
+                // enable shutdown hook for extended leak detector in containers
+                passSystemPropertyInEnv(envKey, ExtendedNettyLeakDetector.USE_SHUTDOWN_HOOK_SYSTEM_PROPERTY_NAME,
+                        "true");
+            }
+            passSystemPropertyInEnv(envKey, ExtendedNettyLeakDetector.EXIT_JVM_ON_LEAK_SYSTEM_PROPERTY_NAME);
+            passSystemPropertyInEnv(envKey, ExtendedNettyLeakDetector.EXIT_JVM_DELAY_MILLIS_SYSTEM_PROPERTY_NAME);
+            passSystemPropertyInEnv(envKey, "io.netty.leakDetection.level");
+            passSystemPropertyInEnv(envKey, "io.netty.leakDetection.targetRecords");
+            passSystemPropertyInEnv(envKey, "io.netty.leakDetection.samplingInterval");
+            passSystemPropertyInEnv(envKey, "io.netty.leakDetection.acquireAndReleaseOnly");
+            addEnv("NETTY_LEAK_DUMP_DIR", "/var/log/pulsar");
+        }
     }
 
     protected boolean isCodeCoverageEnabled() {
@@ -281,7 +316,7 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
-            withEnv("OPTS", "-javaagent:/jacocoDir/" + jacocoAgentJar.getName()
+            appendToEnv("OPTS", "-javaagent:/jacocoDir/" + jacocoAgentJar.getName()
                     + "=destfile=/jacocoDir/jacoco_" + getContainerName() + "_" + System.currentTimeMillis() + ".exec"
                     + ",includes=org.apache.pulsar.*:org.apache.bookkeeper.mledger.*"
                     + ",excludes=*.proto.*:*.shade.*:*.shaded.*");

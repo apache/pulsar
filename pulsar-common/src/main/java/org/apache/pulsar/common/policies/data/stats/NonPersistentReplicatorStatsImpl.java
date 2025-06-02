@@ -18,27 +18,43 @@
  */
 package org.apache.pulsar.common.policies.data.stats;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
-import lombok.Getter;
+import java.util.concurrent.atomic.LongAdder;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
 
 /**
  * Statistics for a non-persistent replicator.
  */
-@SuppressFBWarnings("EQ_DOESNT_OVERRIDE_EQUALS")
+@Data
+@EqualsAndHashCode(callSuper = true)
 public class NonPersistentReplicatorStatsImpl extends ReplicatorStatsImpl implements NonPersistentReplicatorStats {
 
     /**
      * for non-persistent topic: broker drops msg for replicator if replicator connection is not writable.
      **/
-    @Getter
     public double msgDropRate;
+
+    @JsonIgnore
+    private final LongAdder msgDropCount = new LongAdder();
 
     public NonPersistentReplicatorStatsImpl add(NonPersistentReplicatorStatsImpl stats) {
         Objects.requireNonNull(stats);
         super.add(stats);
         this.msgDropRate += stats.msgDropRate;
         return this;
+    }
+
+    @Override
+    @JsonProperty
+    public long getMsgDropCount() {
+        return msgDropCount.sum();
+    }
+
+    public void incrementMsgDropCount() {
+        msgDropCount.increment();
     }
 }

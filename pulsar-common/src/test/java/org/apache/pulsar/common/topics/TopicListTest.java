@@ -19,17 +19,18 @@
 package org.apache.pulsar.common.topics;
 
 import com.google.common.collect.Lists;
+import com.google.re2j.Pattern;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
-import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 public class TopicListTest {
 
@@ -107,5 +108,60 @@ public class TopicListTest {
 
     }
 
+    @Test
+    public void testRemoveTopicDomainScheme() {
+        // persistent.
+        final String tpName1 = "persistent://public/default/tp";
+        String res1 = TopicList.removeTopicDomainScheme(tpName1);
+        assertEquals(res1, "public/default/tp");
 
+        // non-persistent
+        final String tpName2 = "non-persistent://public/default/tp";
+        String res2 = TopicList.removeTopicDomainScheme(tpName2);
+        assertEquals(res2, "public/default/tp");
+
+        // without topic domain.
+        final String tpName3 = "public/default/tp";
+        String res3 = TopicList.removeTopicDomainScheme(tpName3);
+        assertEquals(res3, "public/default/tp");
+
+        // persistent & "java.util.regex.Pattern.quote".
+        final String tpName4 = java.util.regex.Pattern.quote(tpName1);
+        String res4 = TopicList.removeTopicDomainScheme(tpName4);
+        assertEquals(res4, java.util.regex.Pattern.quote("public/default/tp"));
+
+        // persistent & "java.util.regex.Pattern.quote" & "^$".
+        final String tpName5 = "^" + java.util.regex.Pattern.quote(tpName1) + "$";
+        String res5 = TopicList.removeTopicDomainScheme(tpName5);
+        assertEquals(res5, "^" + java.util.regex.Pattern.quote("public/default/tp") + "$");
+
+        // persistent & "com.google.re2j.Pattern.quote".
+        final String tpName6 = Pattern.quote(tpName1);
+        String res6 = TopicList.removeTopicDomainScheme(tpName6);
+        assertEquals(res6, Pattern.quote("public/default/tp"));
+
+        // non-persistent & "java.util.regex.Pattern.quote".
+        final String tpName7 = java.util.regex.Pattern.quote(tpName2);
+        String res7 = TopicList.removeTopicDomainScheme(tpName7);
+        assertEquals(res7, java.util.regex.Pattern.quote("public/default/tp"));
+
+        // non-persistent & "com.google.re2j.Pattern.quote".
+        final String tpName8 = Pattern.quote(tpName2);
+        String res8 = TopicList.removeTopicDomainScheme(tpName8);
+        assertEquals(res8, Pattern.quote("public/default/tp"));
+
+        // non-persistent & "com.google.re2j.Pattern.quote" & "^$".
+        final String tpName9 = "^" + Pattern.quote(tpName2) + "$";
+        String res9 = TopicList.removeTopicDomainScheme(tpName9);
+        assertEquals(res9, "^" + Pattern.quote("public/default/tp") + "$");
+
+        // wrong topic domain.
+        final String tpName10 = "xx://public/default/tp";
+        try {
+            TopicList.removeTopicDomainScheme(tpName10);
+            fail("Does not support the topic domain xx");
+        } catch (Exception ex) {
+            // expected error.
+        }
+    }
 }

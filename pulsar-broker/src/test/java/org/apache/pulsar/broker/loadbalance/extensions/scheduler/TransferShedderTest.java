@@ -46,6 +46,7 @@ import com.google.common.collect.Range;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -697,7 +698,7 @@ public class TransferShedderTest {
                 webServiceUrl, webServiceUrlTls, pulsarServiceUrl,
                 pulsarServiceUrlTls, advertisedListeners, protocols,
                 true, true,
-                conf.getLoadManagerClassName(), System.currentTimeMillis(), "3.0.0");
+                conf.getLoadManagerClassName(), System.currentTimeMillis(), "3.0.0", Collections.emptyMap());
     }
 
     private void setIsolationPolicies(SimpleResourceAllocationPolicies policies,
@@ -914,6 +915,26 @@ public class TransferShedderTest {
                 Optional.of("broker1:8080")),
                 Success, Overloaded));
         assertEquals(res, expected);
+        assertEquals(counter.getLoadAvg(), setupLoadAvg);
+        assertEquals(counter.getLoadStd(), setupLoadStd);
+    }
+
+    @Test
+    public void testZeroBundleThroughput() {
+        UnloadCounter counter = new UnloadCounter();
+        TransferShedder transferShedder = new TransferShedder(counter);
+        var ctx = setupContext();
+        var topBundlesLoadDataStore = ctx.topBundleLoadDataStore();
+        for (var e : topBundlesLoadDataStore.entrySet()) {
+            for (var stat : e.getValue().getTopBundlesLoadData()) {
+                stat.stats().msgThroughputOut = 0;
+                stat.stats().msgThroughputIn = 0;
+
+            }
+        }
+        var res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
+        assertTrue(res.isEmpty());
+        assertEquals(counter.getBreakdownCounters().get(Skip).get(NoBundles).get(), 1);
         assertEquals(counter.getLoadAvg(), setupLoadAvg);
         assertEquals(counter.getLoadStd(), setupLoadStd);
     }

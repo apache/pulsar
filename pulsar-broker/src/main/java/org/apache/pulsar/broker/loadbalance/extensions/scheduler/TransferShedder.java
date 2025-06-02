@@ -463,8 +463,10 @@ public class TransferShedder implements NamespaceUnloadStrategy {
 
                 Optional<TopBundlesLoadData> bundlesLoadData = context.topBundleLoadDataStore().get(maxBroker);
                 if (bundlesLoadData.isEmpty() || bundlesLoadData.get().getTopBundlesLoadData().isEmpty()) {
-                    log.error(String.format(CANNOT_UNLOAD_BROKER_MSG
-                            + " TopBundlesLoadData is empty.", maxBroker));
+                    if (debugMode) {
+                        log.info(String.format(CANNOT_UNLOAD_BROKER_MSG
+                                + " TopBundlesLoadData is empty.", maxBroker));
+                    }
                     numOfBrokersWithEmptyLoadData++;
                     continue;
                 }
@@ -528,6 +530,13 @@ public class TransferShedder implements NamespaceUnloadStrategy {
 
                     var bundleData = e.stats();
                     double maxBrokerBundleThroughput = bundleData.msgThroughputIn + bundleData.msgThroughputOut;
+                    if (maxBrokerBundleThroughput == 0) {
+                        if (debugMode) {
+                            log.info(String.format(CANNOT_UNLOAD_BUNDLE_MSG
+                                    + " It has zero throughput.", bundle));
+                        }
+                        continue;
+                    }
                     boolean swap = false;
                     List<Unload> minToMaxUnloads = new ArrayList<>();
                     double minBrokerBundleSwapThroughput = 0.0;
@@ -549,6 +558,9 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                                 var minBrokerBundleThroughput =
                                         minBrokerBundleData.stats().msgThroughputIn
                                                 + minBrokerBundleData.stats().msgThroughputOut;
+                                if (minBrokerBundleThroughput == 0) {
+                                    continue;
+                                }
                                 var maxBrokerNewThroughputTmp = maxBrokerNewThroughput + minBrokerBundleThroughput;
                                 var minBrokerNewThroughputTmp = minBrokerNewThroughput - minBrokerBundleThroughput;
                                 if (maxBrokerNewThroughputTmp < maxBrokerThroughput

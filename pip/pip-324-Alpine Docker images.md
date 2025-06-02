@@ -6,8 +6,8 @@
 Pulsar Docker images are currently based on Ubuntu base images. While these images has served us well in the past years,
 there are few shortcomings.
 
-Alpine Linux is a Linux distribution designed explicitely to work well in container environments and has strong
-focus on security and a minimalistic set of included depedendencies.
+Alpine Linux is a Linux distribution designed explicitly to work well in container environments and has strong
+focus on security and a minimalistic set of included dependencies.
 
 ### Size of the image
 

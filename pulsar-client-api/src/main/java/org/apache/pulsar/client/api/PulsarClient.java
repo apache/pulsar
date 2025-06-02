@@ -308,14 +308,33 @@ public interface PulsarClient extends Closeable {
      *
      * <p>This can be used to discover the partitions and create {@link Reader}, {@link Consumer} or {@link Producer}
      * instances directly on a particular partition.
-     *
+     * @Deprecated it is not suggested to use now; please use {@link #getPartitionsForTopic(String, boolean)}.
      * @param topic
      *            the topic name
      * @return a future that will yield a list of the topic partitions or {@link PulsarClientException} if there was any
      *         error in the operation.
+     *
      * @since 2.3.0
      */
-    CompletableFuture<List<String>> getPartitionsForTopic(String topic);
+    @Deprecated
+    default CompletableFuture<List<String>> getPartitionsForTopic(String topic) {
+        return getPartitionsForTopic(topic, true);
+    }
+
+    /**
+     * 1. Get the partitions if the topic exists. Return "[{partition-0}, {partition-1}....{partition-n}}]" if a
+     *   partitioned topic exists; return "[{topic}]" if a non-partitioned topic exists.
+     * 2. When {@param metadataAutoCreationEnabled} is "false", neither the partitioned topic nor non-partitioned
+     *   topic does not exist. You will get an {@link PulsarClientException.NotFoundException} or a
+     *   {@link PulsarClientException.TopicDoesNotExistException}.
+     *  2-1. You will get a {@link PulsarClientException.NotSupportedException} with metadataAutoCreationEnabled=false
+     *    on an old broker version which does not support getting partitions without partitioned metadata auto-creation.
+     * 3. When {@param metadataAutoCreationEnabled} is "true," it will trigger an auto-creation for this topic(using
+     *   the default topic auto-creation strategy you set for the broker), and the corresponding result is returned.
+     *   For the result, see case 1.
+     * @version 3.3.0.
+     */
+    CompletableFuture<List<String>> getPartitionsForTopic(String topic, boolean metadataAutoCreationEnabled);
 
     /**
      * Close the PulsarClient and release all the resources.

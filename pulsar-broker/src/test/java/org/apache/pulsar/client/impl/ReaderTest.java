@@ -36,6 +36,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -48,6 +50,7 @@ import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.Reader;
@@ -900,6 +903,71 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
             } // else: lastMessageIdInBroker is earliest
             reader.seek(timestampBeforeSend);
             assertTrue(reader.hasMessageAvailable());
+        }
+    }
+
+    @Test
+    public void testHasMessageAvailableAfterSeekTimestampWithMessageIdInclusive() throws Exception {
+        final String topic = "persistent://my-property/my-ns/" +
+                "testHasMessageAvailableAfterSeekTimestampWithMessageInclusive";
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        final long timestampBeforeSend = System.currentTimeMillis();
+        final MessageId sentMsgId = producer.send("msg");
+
+        final List<MessageId> messageIds = new ArrayList<>();
+        messageIds.add(MessageId.earliest);
+        messageIds.add(sentMsgId);
+        messageIds.add(MessageId.latest);
+
+        for (MessageId messageId : messageIds) {
+            @Cleanup
+            Reader<String> reader = pulsarClient.newReader(Schema.STRING).topic(topic).receiverQueueSize(1)
+                    .startMessageIdInclusive()
+                    .startMessageId(messageId).create();
+            assertTrue(reader.hasMessageAvailable());
+
+            reader.seek(System.currentTimeMillis());
+            assertFalse(reader.hasMessageAvailable());
+            Message<String> message = reader.readNext(10, TimeUnit.SECONDS);
+            assertNull(message);
+        }
+
+        for (MessageId messageId : messageIds) {
+            @Cleanup
+            Reader<String> reader = pulsarClient.newReader(Schema.STRING).topic(topic).receiverQueueSize(1)
+                    .startMessageIdInclusive()
+                    .startMessageId(messageId).create();
+            assertTrue(reader.hasMessageAvailable());
+
+            reader.seek(timestampBeforeSend);
+            assertTrue(reader.hasMessageAvailable());
+        }
+    }
+
+    @Test
+    public void testReaderBuilderStateOnRetryFailure() throws Exception {
+        String ns = "my-property/my-ns";
+        String topic = "persistent://" + ns + "/testRetryReader";
+        RetentionPolicies retention = new RetentionPolicies(-1, -1);
+        admin.namespaces().setRetention(ns, retention);
+        String badUrl = "pulsar://bad-host:8080";
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(badUrl).build();
+
+        ReaderBuilder<byte[]> readerBuilder = client.newReader().topic(topic).startMessageFromRollbackDuration(100,
+                TimeUnit.SECONDS);
+
+        for (int i = 0; i < 3; i++) {
+            try {
+                readerBuilder.createAsync().get(1, TimeUnit.SECONDS);
+            } catch (TimeoutException e) {
+                log.info("It should time out due to invalid url");
+            } catch (IllegalArgumentException e) {
+                fail("It should not fail with corrupt reader state");
+            }
         }
     }
 }

@@ -210,7 +210,7 @@ class ContextImpl(pulsar.Context):
       topic_consumer = self.consumers[topic]
     else:
       # if this topic is a partitioned topic
-      m = re.search('(.+)-partition-(\d+)', topic)
+      m = re.search(r'(.+)-partition-(\d+)', topic)
       if not m:
         raise ValueError('Invalid topicname %s' % topic)
       elif m.group(1) in self.consumers:
