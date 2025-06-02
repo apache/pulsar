@@ -523,17 +523,24 @@ public class PersistentSubscription extends AbstractSubscription {
         }
     };
 
+    /**
+     * This method is called after acknowledgements (such as individual acks) have been processed and the mark-delete
+     * position has possibly been updated and advanced after "ack holes" have been filled up by the latest individual
+     * acknowledgements.
+     * @param oldPosition previous mark-delete position before the update
+     */
     private void notifyTheMarkDeletePositionMoveForwardIfNeeded(Position oldPosition) {
         Position oldMD = oldPosition;
         Position newMD = cursor.getMarkDeletedPosition();
 
-        if (!newMD.equals(oldMD)) {
-            this.updateLastMarkDeleteAdvancedTimestamp();
+        // check if the mark delete position has advanced since the last call
+        if (newMD.compareTo(oldMD) > 0) {
+            updateLastMarkDeleteAdvancedTimestamp();
             handleReplicatedSubscriptionsUpdate(newMD);
-        }
 
-        if (dispatcher != null && newMD.compareTo(oldMD) > 0) {
-            dispatcher.markDeletePositionMoveForward();
+            if (dispatcher != null) {
+                dispatcher.markDeletePositionMoveForward();
+            }
         }
     }
 
