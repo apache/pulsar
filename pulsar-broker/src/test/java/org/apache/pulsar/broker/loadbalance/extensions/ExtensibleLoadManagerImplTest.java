@@ -40,6 +40,7 @@ import static org.apache.pulsar.broker.namespace.NamespaceService.getHeartbeatNa
 import static org.apache.pulsar.broker.namespace.NamespaceService.getHeartbeatNamespaceV2;
 import static org.apache.pulsar.broker.namespace.NamespaceService.getSLAMonitorNamespace;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -259,7 +260,8 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         assertFalse(secondaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
 
         // 2. Assign the bundle to a broker.
-        Optional<BrokerLookupData> lookupData = primaryLoadManager.assign(Optional.empty(), bundle, LookupOptions.builder().build()).get();
+        Optional<BrokerLookupData> lookupData =
+                primaryLoadManager.assign(Optional.empty(), bundle, LookupOptions.builder().build()).get();
         assertTrue(lookupData.isPresent());
         if (lookupData.get().getPulsarServiceUrl().equals(pulsar1.getBrokerServiceUrl())) {
             assertTrue(primaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
@@ -292,14 +294,16 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
 
         })).when(primaryLoadManager).getBrokerFilterPipeline();
 
-        Optional<BrokerLookupData> brokerLookupData = primaryLoadManager.assign(Optional.empty(), bundle, LookupOptions.builder().build()).get();
+        Optional<BrokerLookupData> brokerLookupData =
+                primaryLoadManager.assign(Optional.empty(), bundle, LookupOptions.builder().build()).get();
         assertTrue(brokerLookupData.isPresent());
         assertEquals(brokerLookupData.get().getWebServiceUrl(), pulsar2.getWebServiceAddress());
     }
 
     @Test
     public void testFilterHasException() throws Exception {
-        Pair<TopicName, NamespaceBundle> topicAndBundle = getBundleIsNotOwnByChangeEventTopic("test-filter-has-exception");
+        Pair<TopicName, NamespaceBundle> topicAndBundle =
+                getBundleIsNotOwnByChangeEventTopic("test-filter-has-exception");
         NamespaceBundle bundle = topicAndBundle.getRight();
 
         doReturn(List.of(new MockBrokerFilter() {
@@ -312,7 +316,8 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
             }
         })).when(primaryLoadManager).getBrokerFilterPipeline();
 
-        Optional<BrokerLookupData> brokerLookupData = primaryLoadManager.assign(Optional.empty(), bundle, LookupOptions.builder().build()).get();
+        Optional<BrokerLookupData> brokerLookupData =
+                primaryLoadManager.assign(Optional.empty(), bundle, LookupOptions.builder().build()).get();
         assertTrue(brokerLookupData.isPresent());
     }
 
@@ -638,7 +643,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 verify(lookupService.getRight(), never()).getBroker(topicName);
             }
         } finally {
-            for (var consumer: consumers) {
+            for (var consumer : consumers) {
                 consumer.close();
             }
 
@@ -837,7 +842,8 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         }
     }
 
-    protected static Pair<LookupService, LookupService> spyLookupService(PulsarClient client) throws IllegalAccessException {
+    protected static Pair<LookupService, LookupService> spyLookupService(PulsarClient client)
+            throws IllegalAccessException {
         LookupService svc = (LookupService) FieldUtils.readDeclaredField(client, "lookup", true);
         var lookup = spy(svc);
         FieldUtils.writeDeclaredField(client, "lookup", lookup, true);
@@ -978,6 +984,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         assertTrue(bundlesData.getBoundaries().contains(midBundle));
         assertTrue(bundlesData.getBoundaries().contains(highBundle));
     }
+
     @Test(timeOut = 30 * 1000)
     public void testDeleteNamespaceBundle() throws Exception {
         final String namespace = "public/testDeleteNamespaceBundle";
@@ -1057,7 +1064,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 brokers.remove(brokerId1);
                 return CompletableFuture.completedFuture(brokers);
             }
-        },new MockBrokerFilter() {
+        }, new MockBrokerFilter() {
             @Override
             public CompletableFuture<Map<String, BrokerLookupData>> filterAsync(Map<String, BrokerLookupData> brokers,
                                                                                 ServiceUnitId serviceUnit,
@@ -1065,7 +1072,8 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 return FutureUtil.failedFuture(new BrokerFilterException("Test"));
             }
         })).when(primaryLoadManager).getBrokerFilterPipeline();
-        Optional<BrokerLookupData> brokerLookupData = primaryLoadManager.assign(Optional.empty(), bundle, LookupOptions.builder().build()).get();
+        Optional<BrokerLookupData> brokerLookupData =
+                primaryLoadManager.assign(Optional.empty(), bundle, LookupOptions.builder().build()).get();
         Awaitility.waitAtMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
             assertTrue(brokerLookupData.isPresent());
             assertEquals(brokerLookupData.get().getWebServiceUrl(), pulsar2.getWebServiceAddress());
@@ -1213,7 +1221,8 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 log.info("{} Namespace is re-owned by {}", slaMonitorTopic, result);
                 assertNotEquals(result, pulsar4.getBrokerServiceUrl());
 
-                Producer<String> producer = pulsar.getClient().newProducer(Schema.STRING).topic(slaMonitorTopic).create();
+                Producer<String> producer =
+                        pulsar.getClient().newProducer(Schema.STRING).topic(slaMonitorTopic).create();
                 producer.send("t1");
 
                 // Test re-register broker and check the lookup result
@@ -1225,7 +1234,8 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 assertEquals(result, pulsar4.getBrokerServiceUrl());
 
                 producer.send("t2");
-                Producer<String> producer1 = pulsar.getClient().newProducer(Schema.STRING).topic(slaMonitorTopic).create();
+                Producer<String> producer1 =
+                        pulsar.getClient().newProducer(Schema.STRING).topic(slaMonitorTopic).create();
                 producer1.send("t3");
 
                 producer.close();
@@ -1276,12 +1286,21 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 "SystemTopicToMetadataStoreSyncer" : "MetadataStoreToSystemTopicSyncer";
         pulsar.getAdminClient().brokers()
                 .updateDynamicConfiguration("loadBalancerServiceUnitTableViewSyncer", syncerTyp);
+        Awaitility.waitAtMost(10, TimeUnit.SECONDS)
+                .pollInterval(1, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    assertTrue(pulsar1.getConfiguration().isLoadBalancerServiceUnitTableViewSyncerEnabled());
+                    assertTrue(pulsar2.getConfiguration().isLoadBalancerServiceUnitTableViewSyncerEnabled());
+                });
+
+        primaryLoadManager.monitor();
+        secondaryLoadManager.monitor();
+
         makeSecondaryAsLeader();
         makePrimaryAsLeader();
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS)
-                .untilAsserted(() -> assertTrue(primaryLoadManager.getServiceUnitStateTableViewSyncer().isActive()));
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS)
-                .untilAsserted(() -> assertFalse(secondaryLoadManager.getServiceUnitStateTableViewSyncer().isActive()));
+        assertTrue(primaryLoadManager.getServiceUnitStateTableViewSyncer().isActive());
+        assertFalse(secondaryLoadManager.getServiceUnitStateTableViewSyncer().isActive());
+
         ServiceConfiguration defaultConf = getDefaultConf();
         defaultConf.setAllowAutoTopicCreation(true);
         defaultConf.setForceDeleteNamespaceAllowed(true);
@@ -1415,29 +1434,41 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 var wrapper = (ExtensibleLoadManagerWrapper) pulsar4.getLoadManager().get();
                 var loadManager4 = spy((ExtensibleLoadManagerImpl)
                         FieldUtils.readField(wrapper, "loadManager", true));
+
+                var brokerRegistry = spy(loadManager4.getBrokerRegistry());
+                doReturn(CompletableFuture.completedFuture(null)).when(brokerRegistry).registerAsync();
                 loadManager4.getBrokerRegistry().unregister();
 
                 NamespaceName slaMonitorNamespace =
                         getSLAMonitorNamespace(pulsar4.getBrokerId(), pulsar.getConfiguration());
                 String slaMonitorTopic = slaMonitorNamespace.getPersistentTopicName("test");
-                String result = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
-                assertNotNull(result);
-                log.info("{} Namespace is re-owned by {}", slaMonitorTopic, result);
-                assertNotEquals(result, pulsar4.getBrokerServiceUrl());
 
-                Producer<String> producer = pulsar.getClient().newProducer(Schema.STRING).topic(slaMonitorTopic).create();
+                Awaitility.await()
+                        .atMost(10, TimeUnit.SECONDS)
+                        .pollInterval(1, TimeUnit.SECONDS)
+                        .untilAsserted(() -> {
+                            String currentResult = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
+                            assertNotNull(currentResult);
+                            log.info("{} Namespace is re-owned by {}", slaMonitorTopic, currentResult);
+                            assertNotEquals(currentResult, pulsar4.getBrokerServiceUrl());
+                        });
+
+                Producer<String> producer =
+                        pulsar.getClient().newProducer(Schema.STRING).topic(slaMonitorTopic).create();
                 producer.send("t1");
 
                 // Test re-register broker and check the lookup result
+                doCallRealMethod().when(brokerRegistry).registerAsync();
                 loadManager4.getBrokerRegistry().registerAsync().get();
 
-                result = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
+                String result = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
                 assertNotNull(result);
                 log.info("{} Namespace is re-owned by {}", slaMonitorTopic, result);
                 assertEquals(result, pulsar4.getBrokerServiceUrl());
 
                 producer.send("t2");
-                Producer<String> producer1 = pulsar.getClient().newProducer(Schema.STRING).topic(slaMonitorTopic).create();
+                Producer<String> producer1 =
+                        pulsar.getClient().newProducer(Schema.STRING).topic(slaMonitorTopic).create();
                 producer1.send("t3");
 
                 producer.close();
@@ -1508,6 +1539,8 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
             assertFalse(channel2.isChannelOwner());
         });
+        primaryLoadManager.monitor();
+        secondaryLoadManager.monitor();
     }
 
     private void makeSecondaryAsLeader() throws Exception {
@@ -1526,6 +1559,9 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
             assertFalse(channel1.isChannelOwner());
         });
+
+        primaryLoadManager.monitor();
+        secondaryLoadManager.monitor();
     }
 
     @Test(timeOut = 30 * 1000, priority = 2100)
@@ -1593,27 +1629,27 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         }
 
 
-            primaryLoadManager.playFollower();
-            secondaryLoadManager.playFollower();
-            assertEquals(ExtensibleLoadManagerImpl.Role.Leader,
-                    primaryLoadManager.getRole());
-            assertEquals(ExtensibleLoadManagerImpl.Role.Follower,
-                    secondaryLoadManager.getRole());
+        primaryLoadManager.playFollower();
+        secondaryLoadManager.playFollower();
+        assertEquals(ExtensibleLoadManagerImpl.Role.Leader,
+                primaryLoadManager.getRole());
+        assertEquals(ExtensibleLoadManagerImpl.Role.Follower,
+                secondaryLoadManager.getRole());
 
 
-            primaryLoadManager.playLeader();
-            secondaryLoadManager.playLeader();
-            assertEquals(ExtensibleLoadManagerImpl.Role.Leader,
-                    primaryLoadManager.getRole());
-            assertEquals(ExtensibleLoadManagerImpl.Role.Follower,
-                    secondaryLoadManager.getRole());
+        primaryLoadManager.playLeader();
+        secondaryLoadManager.playLeader();
+        assertEquals(ExtensibleLoadManagerImpl.Role.Leader,
+                primaryLoadManager.getRole());
+        assertEquals(ExtensibleLoadManagerImpl.Role.Follower,
+                secondaryLoadManager.getRole());
 
 
     }
 
     @DataProvider(name = "noChannelOwnerMonitorHandler")
     public Object[][] noChannelOwnerMonitorHandler() {
-        return new Object[][] { { true }, { false } };
+        return new Object[][]{{true}, {false}};
     }
 
     @Test(dataProvider = "noChannelOwnerMonitorHandler", timeOut = 30 * 1000, priority = 2101)
@@ -1702,7 +1738,8 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         String bundle = "public/default/0x00000000_0xffffffff";
         TopBundlesLoadData topBundlesExpected = new TopBundlesLoadData();
         topBundlesExpected.getTopBundlesLoadData().clear();
-        topBundlesExpected.getTopBundlesLoadData().add(new TopBundlesLoadData.BundleLoadData(bundle, new NamespaceBundleStats()));
+        topBundlesExpected.getTopBundlesLoadData()
+                .add(new TopBundlesLoadData.BundleLoadData(bundle, new NamespaceBundleStats()));
 
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
 
@@ -1978,7 +2015,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
             var pulsar3 = additionalPulsarTestContext.getPulsarService();
             ExtensibleLoadManagerImpl ternaryLoadManager = spy((ExtensibleLoadManagerImpl)
                     FieldUtils.readField(pulsar3.getLoadManager().get(), "loadManager", true));
-            String topic = "persistent://" + defaultTestNamespace +"/test";
+            String topic = "persistent://" + defaultTestNamespace + "/test";
 
             String lookupResult1 = pulsar3.getAdminClient().lookups().lookupTopic(topic);
             TopicName topicName = TopicName.get(topic);
@@ -2109,7 +2146,8 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         String topic = "persistent://" + defaultTestNamespace + "/test-get-owned-service-units";
         admin.topics().createPartitionedTopic(topic, 1);
         NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get(topic)).join();
-        CompletableFuture<Optional<BrokerLookupData>> owner = primaryLoadManager.assign(Optional.empty(), bundle, LookupOptions.builder().build());
+        CompletableFuture<Optional<BrokerLookupData>> owner =
+                primaryLoadManager.assign(Optional.empty(), bundle, LookupOptions.builder().build());
         assertFalse(owner.join().isEmpty());
 
         BrokerLookupData brokerLookupData = owner.join().get();
