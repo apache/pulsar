@@ -90,6 +90,8 @@ public interface Subscription extends MessageExpirer {
 
     void redeliverUnacknowledgedMessages(Consumer consumer, List<Position> positions);
 
+    void redeliverUnacknowledgedMessages(Consumer consumer, List<Position> positions, long delayAtTime);
+
     void markTopicWithBatchMessagePublished();
 
     double getExpiredMessageRate();

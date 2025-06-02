@@ -22,7 +22,9 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -30,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -53,6 +56,13 @@ public class NegativeAcksTest extends ProducerConsumerBase {
     @Override
     @BeforeClass
     public void setup() throws Exception {
+        conf.setDelayedDeliveryTrackerFactoryClassName(BucketDelayedDeliveryTrackerFactory.class.getName());
+        conf.setDelayedDeliveryMaxNumBuckets(10);
+        conf.setDelayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds(1);
+        conf.setDelayedDeliveryMaxIndexesPerBucketSnapshotSegment(10);
+        conf.setDelayedDeliveryMinIndexCountPerBucket(50);
+        conf.setDispatcherReadFailureBackoffInitialTimeInMs(1000);
+        conf.setDelayedDeliveryDeliverAtTimeStrict(true);
         super.internalSetup();
         super.producerBaseSetup();
     }
@@ -102,6 +112,23 @@ public class NegativeAcksTest extends ProducerConsumerBase {
                 { true, false, SubscriptionType.Failover, 0, 1000 },
                 { true, true, SubscriptionType.Shared, 0, 1000 },
                 { true, true, SubscriptionType.Failover, 0, 1000 },
+        };
+    }
+
+    @DataProvider(name = "customDelayVariations")
+    public static Object[][] customDelayVariations() {
+        return new Object[][] {
+                // usePartitions, subscriptionType, customDelayMs, expectsCustomDelay (true if customDelayMs is used, false if consumer's default nack delay is used)
+                { false, SubscriptionType.Shared,    3000, true  }, // Non-partitioned, Shared, 3s delay, expects 3s
+                { false, SubscriptionType.Shared,    2000, true  }, // Non-partitioned, Shared, 2s delay, expects 2s
+                { true,  SubscriptionType.Shared,    4000, true  }, // Partitioned, Shared, 4s delay, expects 4s
+                { true,  SubscriptionType.Shared,    2500, true  }, // Partitioned, Shared, 2.5s delay, expects 2.5s
+                // For Failover/Exclusive, client-side logic falls back to consumer's configured redelivery delay
+                { false, SubscriptionType.Failover,  3000, false }, // Non-partitioned, Failover, 3s custom (but expect consumer default)
+                { false, SubscriptionType.Exclusive, 3000, false }, // Non-partitioned, Exclusive, 3s custom (but expect consumer default)
+                // Test with 0 delay
+                { false, SubscriptionType.Shared,    0,    true  }, // 0ms delay for Shared should be (almost) immediate by custom API path
+                { false, SubscriptionType.Failover,  0,    false }  // 0ms delay for Failover should use consumer default by fallback path
         };
     }
 
@@ -595,5 +622,112 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         Message<String> msg1 = consumer.receive();
         assertTrue(System.currentTimeMillis() >= expectedTime - timeDeviation);
         assertNotNull(msg1);
+    }
+
+    @Test(dataProvider = "customDelayVariations", timeOut = 30000)
+    public void testNegativeAcknowledgeWithCustomDelay(boolean usePartitions,
+                                                       SubscriptionType subscriptionType, int customDelayMs,
+                                                       boolean expectsCustomDelay)
+            throws Exception {
+        log.info("Test Nack with custom delay: usePartitions={}, subType={}, customDelayMs={}, expectsCustomDelay={}",
+                usePartitions, subscriptionType, customDelayMs, expectsCustomDelay);
+        String topicName = BrokerTestUtil.newUniqueName("testNackCustomDelay");
+        if (usePartitions) {
+            admin.topics().createPartitionedTopic(topicName, 2);
+        } else {
+            admin.topics().createNonPartitionedTopic(topicName);
+        }
+        // Configure a default nack delay different from customDelayMs to ensure distinction
+        int consumerConfiguredNackDelayMs = 500;
+        if (customDelayMs == consumerConfiguredNackDelayMs) {
+            consumerConfiguredNackDelayMs = customDelayMs + 1000;
+        }
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("my-sub-custom-delay")
+                .subscriptionType(subscriptionType)
+                .negativeAckRedeliveryDelay(consumerConfiguredNackDelayMs, TimeUnit.MILLISECONDS) // Consumer's default
+                .receiverQueueSize(10)
+                .ackTimeout(30, TimeUnit.SECONDS)
+                .subscribe();
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+        final int numMessages = 3;
+        Set<String> sentMessages = new HashSet<>();
+        List<MessageId> sentMessageIds = new ArrayList<>();
+        for (int i = 0; i < numMessages; i++) {
+            String msgVal = "msg-custom-delay-" + i;
+            MessageId mid = producer.send(msgVal);
+            sentMessages.add(msgVal);
+            sentMessageIds.add(mid);
+        }
+        // producer.flush(); // Not strictly necessary for non-batched messages sent synchronously
+        log.info("Sent {} messages. IDs: {}", numMessages, sentMessageIds);
+        List<Message<String>> receivedForNack = new ArrayList<>();
+        for (int i = 0; i < numMessages; i++) {
+            Message<String> msg = consumer.receive(10, TimeUnit.SECONDS);
+            assertNotNull(msg, "Should have received message " + i + " for nacking");
+            log.info("Received message for nack: {}", msg.getMessageId());
+            receivedForNack.add(msg);
+        }
+        assertEquals(receivedForNack.size(), numMessages);
+        long nackStartTime = System.currentTimeMillis();
+        for (Message<String> msg : receivedForNack) {
+            log.info("Nacking message {} with custom delay {} ms", msg.getMessageId(), customDelayMs);
+            consumer.negativeAcknowledge(msg.getMessageId(), customDelayMs, TimeUnit.MILLISECONDS);
+        }
+        Set<String> redeliveredMessages = new HashSet<>();
+        for (int i = 0; i < numMessages; i++) {
+            Message<String> msg = consumer.receive(15, TimeUnit.SECONDS); // Timeout allows for delay + processing
+            assertNotNull(msg, "Should have redelivered message " + i + " after custom nack. Total redelivered so far: " + redeliveredMessages.size());
+            log.info("Redelivered message: {}", msg.getMessageId());
+            redeliveredMessages.add(msg.getValue());
+            consumer.acknowledge(msg);
+        }
+        long redeliveryEndTime = System.currentTimeMillis();
+        assertEquals(redeliveredMessages, sentMessages, "All messages should be redelivered");
+        long actualDelay = redeliveryEndTime - nackStartTime;
+        log.info("Actual redelivery time for a batch of nacks: {} ms", actualDelay);
+        long expectedDelayMs;
+        if (expectsCustomDelay) {
+            expectedDelayMs = customDelayMs;
+        } else {
+            expectedDelayMs = consumerConfiguredNackDelayMs;
+        }
+        // For 0ms delay, redelivery should be very fast.
+        // For non-zero delays, allow a tolerance.
+        // The `actualDelay` measures the time from nacking the first message to receiving the last redelivered message.
+        // This is a rough check, especially with multiple messages.
+        // A more precise check would be per message, but that's harder with concurrent redeliveries.
+        final long timingToleranceLower = 500; // Can be slightly faster due to processing overlap or bucket timing
+        final long timingToleranceUpper = 2000; // CI can be slow, network jitter
+        if (expectedDelayMs == 0) {
+            // If expected delay is 0 (e.g. Shared sub with 0ms custom delay), it should be quick
+            // but not necessarily 0 due to processing. It should be less than a typical small nack delay.
+            assertTrue(actualDelay < consumerConfiguredNackDelayMs + timingToleranceUpper, // Must be faster than the default consumer delay
+                    "Actual delay " + actualDelay + " for expected 0ms delay should be very small.");
+        } else {
+            assertTrue(actualDelay >= expectedDelayMs - timingToleranceLower,
+                    "Actual delay " + actualDelay + "ms should be >= expected delay " + expectedDelayMs + "ms (minus tolerance).");
+            assertTrue(actualDelay < expectedDelayMs + timingToleranceUpper,
+                    "Actual delay " + actualDelay + "ms should be < expected delay " + expectedDelayMs + "ms (plus tolerance).");
+        }
+
+        assertTrue(((ConsumerBase<String>) consumer).getUnAckedMessageTracker().isEmpty(), "Unacked tracker should be empty");
+
+        Message<String> extraMsg = consumer.receive(1, TimeUnit.SECONDS);
+        assertNull(extraMsg, "Should be no more messages after successful redelivery and ack. Got: " + (extraMsg != null ? extraMsg.getMessageId() : "null"));
+
+        consumer.close();
+        producer.close();
+        if (usePartitions) {
+            admin.topics().deletePartitionedTopic(topicName);
+        } else {
+            admin.topics().delete(topicName);
+        }
     }
 }

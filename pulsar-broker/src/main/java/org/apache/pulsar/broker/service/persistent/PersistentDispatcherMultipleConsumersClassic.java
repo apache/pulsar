@@ -1011,6 +1011,36 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
     }
 
     @Override
+    public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, List<Position> positions,
+                                                             long delayAtTime) {
+        if (!topic.isDelayedDeliveryEnabled()) {
+            // If broker has the feature disabled, always deliver messages immediately
+            return;
+        }
+
+        synchronized (this) {
+            if (delayedDeliveryTracker.isEmpty()) {
+                if (delayAtTime <= 0) {
+                    // No need to initialize the tracker here
+                    return;
+                }
+
+                // Initialize the tracker the first time we need to use it
+                delayedDeliveryTracker = Optional.of(
+                        topic.getBrokerService().getDelayedDeliveryTrackerFactory().newTracker(this));
+            }
+
+            delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
+
+            for (Position position : positions) {
+                long ledgerId = position.getLedgerId();
+                long entryId = position.getEntryId();
+                delayedDeliveryTracker.get().addMessage(ledgerId, entryId, delayAtTime);
+            }
+        }
+    }
+
+    @Override
     public void addUnAckedMessages(int numberOfMessages) {
         int maxUnackedMessages = topic.getMaxUnackedMessagesOnSubscription();
         // don't block dispatching if maxUnackedMessages = 0

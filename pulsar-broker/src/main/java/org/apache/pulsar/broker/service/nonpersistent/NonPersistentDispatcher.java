@@ -45,6 +45,11 @@ public interface NonPersistentDispatcher extends Dispatcher {
     }
 
     @Override
+    default void redeliverUnacknowledgedMessages(Consumer consumer, List<Position> positions, long delayAtTime) {
+        // No-op
+    }
+
+    @Override
     default void addUnAckedMessages(int unAckMessages) {
         // No-op
     }
