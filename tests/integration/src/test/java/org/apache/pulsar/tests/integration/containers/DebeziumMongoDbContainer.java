@@ -25,7 +25,7 @@ public class DebeziumMongoDbContainer extends ChaosContainer<DebeziumMongoDbCont
     public static final String NAME = "debezium-mongodb-example";
 
     public static final Integer[] PORTS = { 27017 };
-    private static final String IMAGE_NAME = "debezium/example-mongodb:2.7.3.Final";
+    private static final String IMAGE_NAME = "debezium/example-mongodb:2.5.4.Final";
 
     public DebeziumMongoDbContainer(String clusterName) {
         super(clusterName, IMAGE_NAME);
