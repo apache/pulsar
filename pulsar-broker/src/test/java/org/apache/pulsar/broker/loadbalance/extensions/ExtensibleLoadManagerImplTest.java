@@ -39,6 +39,8 @@ import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecis
 import static org.apache.pulsar.broker.namespace.NamespaceService.getHeartbeatNamespace;
 import static org.apache.pulsar.broker.namespace.NamespaceService.getHeartbeatNamespaceV2;
 import static org.apache.pulsar.broker.namespace.NamespaceService.getSLAMonitorNamespace;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doReturn;
@@ -137,6 +139,7 @@ import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
@@ -1281,7 +1284,6 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         assertTrue(webServiceUrlBefore2.isPresent());
         assertEquals(webServiceUrlBefore2.get().toString(), webServiceUrlBefore1.get().toString());
 
-
         String syncerTyp = serviceUnitStateTableViewClassName.equals(ServiceUnitStateTableViewImpl.class.getName()) ?
                 "SystemTopicToMetadataStoreSyncer" : "MetadataStoreToSystemTopicSyncer";
         pulsar.getAdminClient().brokers()
@@ -1432,12 +1434,17 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 }
                 // Check if the broker is available
                 var wrapper = (ExtensibleLoadManagerWrapper) pulsar4.getLoadManager().get();
-                var loadManager4 = spy((ExtensibleLoadManagerImpl)
-                        FieldUtils.readField(wrapper, "loadManager", true));
+                var loadManager4 = (ExtensibleLoadManagerImpl) FieldUtils.readField(wrapper, "loadManager", true);
 
-                var brokerRegistry = spy(loadManager4.getBrokerRegistry());
-                doReturn(CompletableFuture.completedFuture(null)).when(brokerRegistry).registerAsync();
-                loadManager4.getBrokerRegistry().unregister();
+                // simulate pulsar4 store error which will unregister the broker
+                var brokerRegistry = loadManager4.getBrokerRegistry();
+                var brokerLookupDataMetadataCache = (MetadataCache<BrokerLookupData>) spy(
+                        FieldUtils.readField(brokerRegistry, "brokerLookupDataMetadataCache", true));
+                doReturn(CompletableFuture.failedFuture(new MetadataStoreException("store error"))).when(
+                        brokerLookupDataMetadataCache).put(anyString(), any(), any());
+                FieldUtils.writeDeclaredField(brokerRegistry, "brokerLookupDataMetadataCache",
+                        brokerLookupDataMetadataCache, true);
+                brokerRegistry.unregister();
 
                 NamespaceName slaMonitorNamespace =
                         getSLAMonitorNamespace(pulsar4.getBrokerId(), pulsar.getConfiguration());
@@ -1458,7 +1465,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 producer.send("t1");
 
                 // Test re-register broker and check the lookup result
-                doCallRealMethod().when(brokerRegistry).registerAsync();
+                doCallRealMethod().when(brokerLookupDataMetadataCache).put(anyString(), any(), any());
                 loadManager4.getBrokerRegistry().registerAsync().get();
 
                 String result = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
