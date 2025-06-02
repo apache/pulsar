@@ -529,7 +529,7 @@ public class PersistentSubscription extends AbstractSubscription {
 
         if (!newMD.equals(oldMD)) {
             this.updateLastMarkDeleteAdvancedTimestamp();
-            handlePossibleReplicatedSubscriptionsUpdate(newMD);
+            handleReplicatedSubscriptionsUpdate(newMD);
         }
 
         if (dispatcher != null && newMD.compareTo(oldMD) > 0) {
@@ -537,8 +537,15 @@ public class PersistentSubscription extends AbstractSubscription {
         }
     }
 
-    private void handlePossibleReplicatedSubscriptionsUpdate(Position markDeletePosition) {
-        // Mark delete position advance
+    /**
+     * Checks the snapshot cache for a snapshot that corresponds to the given mark-delete position.
+     * If a snapshot is found, it will notify the replicated subscription controller that the local subscription
+     * has been updated.
+     * This method is called when the mark-delete position is advanced or when a new snapshot is added to the cache.
+     * When the new snapshot is added, it might be suitable for the current mark-delete position.
+     * @param markDeletePosition the mark delete position to check for a snapshot
+     */
+    private void handleReplicatedSubscriptionsUpdate(Position markDeletePosition) {
         ReplicatedSubscriptionSnapshotCache snapshotCache = this.replicatedSubscriptionSnapshotCache;
         if (snapshotCache != null) {
             ReplicatedSubscriptionsSnapshot snapshot = snapshotCache.advancedMarkDeletePosition(markDeletePosition);
@@ -1530,7 +1537,8 @@ public class PersistentSubscription extends AbstractSubscription {
         ReplicatedSubscriptionSnapshotCache snapshotCache = this.replicatedSubscriptionSnapshotCache;
         if (snapshotCache != null) {
             snapshotCache.addNewSnapshot(new ReplicatedSubscriptionsSnapshot().copyFrom(snapshot));
-            handlePossibleReplicatedSubscriptionsUpdate(cursor.getMarkDeletedPosition());
+            // check if the newly added snapshot can be used with the current mark delete position
+            handleReplicatedSubscriptionsUpdate(cursor.getMarkDeletedPosition());
         }
     }
 
