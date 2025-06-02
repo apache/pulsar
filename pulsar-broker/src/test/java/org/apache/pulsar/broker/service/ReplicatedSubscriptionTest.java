@@ -30,7 +30,6 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Sets;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions;
@@ -74,7 +73,6 @@ import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -189,15 +187,10 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
     }
 
     private void printStats(String topicName) throws JsonProcessingException, PulsarAdminException {
-        ObjectWriter objectWriter = ObjectMapperFactory.getThreadLocal().writerWithDefaultPrettyPrinter();
-        System.out.println("admin1 internal stats:");
-        System.out.println(objectWriter.writeValueAsString(admin1.topics().getInternalStats(topicName)));
-        System.out.println("admin1 stats:");
-        System.out.println(objectWriter.writeValueAsString(admin1.topics().getStats(topicName)));
-        System.out.println("admin2 internal stats:");
-        System.out.println(objectWriter.writeValueAsString(admin2.topics().getInternalStats(topicName)));
-        System.out.println("admin2 stats:");
-        System.out.println(objectWriter.writeValueAsString(admin2.topics().getStats(topicName)));
+        log.info("admin1 stats for topic {}", topicName);
+        BrokerTestUtil.logTopicStats(log, admin1, topicName);
+        log.info("admin2 stats for topic {}", topicName);
+        BrokerTestUtil.logTopicStats(log, admin2, topicName);
     }
 
     /**
@@ -1022,13 +1015,13 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         int defaultSubscriptionsSnapshotTimeout = config1.getReplicatedSubscriptionsSnapshotTimeoutSeconds();
         config1.setReplicatedSubscriptionsSnapshotTimeoutSeconds(2);
         config1.setReplicatedSubscriptionsSnapshotFrequencyMillis(100);
-        
+
         // cluster4 disabled ReplicatedSubscriptions
         admin1.tenants().createTenant("pulsar-r4",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid4"), Sets.newHashSet(cluster1, cluster4)));
         admin1.namespaces().createNamespace(namespace);
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster4));
-        
+
         String subscriptionName = "cluster-subscription";
         boolean replicateSubscriptionState = true;
 
@@ -1069,7 +1062,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         ReplicatedSubscriptionsController r1Controller =
                 topic1.getReplicatedSubscriptionController().get();
         assertEquals(r1Controller.pendingSnapshots().size(), 1);
-        
+
         // Assert cluster4 just receive 1 snapshot request msg
         int numSnapshotRequest = 0;
         List<Message<byte[]>> r4Messages = admin4.topics()
