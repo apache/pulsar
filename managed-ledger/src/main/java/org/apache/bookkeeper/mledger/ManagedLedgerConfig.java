@@ -79,6 +79,7 @@ public class ManagedLedgerConfig {
     private ManagedLedgerInterceptor managedLedgerInterceptor;
     private Map<String, String> properties;
     private int inactiveLedgerRollOverTimeMs = 0;
+    private long inactiveOffloadedLedgerEvictionTimeMs = 0;
     @Getter
     @Setter
     private boolean cacheEvictionByMarkDeletedPosition = false;
@@ -698,6 +699,14 @@ public class ManagedLedgerConfig {
      */
     public void setInactiveLedgerRollOverTime(int inactiveLedgerRollOverTimeMs, TimeUnit unit) {
         this.inactiveLedgerRollOverTimeMs = (int) unit.toMillis(inactiveLedgerRollOverTimeMs);
+    }
+
+    public long getInactiveOffloadedLedgerEvictionTimeMs() {
+        return inactiveOffloadedLedgerEvictionTimeMs;
+    }
+
+    public void setInactiveOffloadedLedgerEvictionTime(long inactiveOffloadedLedgerEvictionTime, TimeUnit unit) {
+        this.inactiveOffloadedLedgerEvictionTimeMs = unit.toMillis(inactiveOffloadedLedgerEvictionTime);
     }
 
     /**
