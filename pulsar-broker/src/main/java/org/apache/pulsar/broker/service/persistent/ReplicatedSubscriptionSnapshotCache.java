@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 import lombok.extern.slf4j.Slf4j;
@@ -65,9 +66,15 @@ public class ReplicatedSubscriptionSnapshotCache {
     public synchronized ReplicatedSubscriptionsSnapshot advancedMarkDeletePosition(Position pos) {
         ReplicatedSubscriptionsSnapshot snapshot = null;
         while (!snapshots.isEmpty()) {
-            Position first = snapshots.firstKey();
+            Map.Entry<Position, ReplicatedSubscriptionsSnapshot> firstEntry =
+                    snapshots.firstEntry();
+            Position first = firstEntry.getKey();
             if (first.compareTo(pos) > 0) {
                 // Snapshot is associated which an higher position, so it cannot be used now
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Snapshot {} is associated with an higher position {} so it cannot be used for mark "
+                            + "delete position {}", subscription, firstEntry.getValue(), first, pos);
+                }
                 break;
             } else {
                 // This snapshot is potentially good. Continue the search for to see if there is a higher snapshot we
