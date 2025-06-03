@@ -132,7 +132,8 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
 
         Set<String> sentMessages = new LinkedHashSet<>();
 
-        // send messages in r1
+        log.info("Send messages in r1");
+
         {
             @Cleanup
             Producer<byte[]> producer = client1.newProducer().topic(topicName)
@@ -153,16 +154,21 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
 
         Set<String> receivedMessages = new LinkedHashSet<>();
 
+        log.info("Consuming 3 messages in r1");
+
         // consume 3 messages in r1
         try (Consumer<byte[]> consumer1 = client1.newConsumer()
                 .topic(topicName)
+                .receiverQueueSize(2)
                 .subscriptionName(subscriptionName)
                 .replicateSubscriptionState(replicateSubscriptionState)
                 .subscribe()) {
             readMessages(consumer1, receivedMessages, 3, allowDuplicates);
+            log.info("Waiting after reading 3 messages in r1.");
+            Thread.sleep(config1.getReplicatedSubscriptionsSnapshotFrequencyMillis());
         }
 
-        // consume remaining messages in r2
+        log.info("Consume remaining messages in r2");
         try (Consumer<byte[]> consumer2 = client2.newConsumer()
                 .topic(topicName)
                 .subscriptionName(subscriptionName)
