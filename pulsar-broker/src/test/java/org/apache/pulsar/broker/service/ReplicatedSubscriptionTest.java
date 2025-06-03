@@ -144,6 +144,10 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
                 String body = "message" + i;
                 producer.send(body.getBytes(StandardCharsets.UTF_8));
                 sentMessages.add(body);
+                if (i == 2) {
+                    // wait for subscription snapshot to be created
+                    Thread.sleep(2 * config1.getReplicatedSubscriptionsSnapshotFrequencyMillis());
+                }
             }
         }
 
@@ -157,9 +161,6 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
                 .subscribe()) {
             readMessages(consumer1, receivedMessages, 3, allowDuplicates);
         }
-
-        // wait for subscription to be replicated
-        Thread.sleep(2 * config1.getReplicatedSubscriptionsSnapshotFrequencyMillis());
 
         // consume remaining messages in r2
         try (Consumer<byte[]> consumer2 = client2.newConsumer()
@@ -189,10 +190,8 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
     }
 
     private void printStats(String topicName) throws PulsarAdminException {
-        log.info("admin1 stats for topic {}", topicName);
-        BrokerTestUtil.logTopicStats(log, admin1, topicName);
-        log.info("admin2 stats for topic {}", topicName);
-        BrokerTestUtil.logTopicStats(log, admin2, topicName);
+        BrokerTestUtil.logTopicStats(log, admin1, topicName, "admin1");
+        BrokerTestUtil.logTopicStats(log, admin2, topicName, "admin2");
     }
 
     /**
