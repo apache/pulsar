@@ -5540,19 +5540,18 @@ public class PersistentTopicsBase extends AdminResource {
                                 } else {
                                     return managedLedger.asyncFindPosition(entry -> {
                                         try {
-                                            BrokerEntryMetadata brokerEntryMetadata =
-                                                    Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
-                                            // Skip messages without index
-                                            if (brokerEntryMetadata == null) {
-                                                return true;
+                                            Long messageIndex = getIndexAndRelease(entry);
+                                            if (messageIndex == null) {
+                                                return false; // Skip messages without index
+                                            } else {
+                                                // If the message index is less than the requested index,
+                                                // we continue searching
+                                                return messageIndex < index;
                                             }
-                                            return brokerEntryMetadata.getIndex() < index;
-                                        } catch (Exception e) {
+                                        } catch (IOException e) {
                                             log.error("Error deserialize message for message position find", e);
-                                        } finally {
-                                            entry.release();
+                                            return false;
                                         }
-                                        return false;
                                     });
                                 }
                             }).thenCompose(position -> {
@@ -5573,19 +5572,20 @@ public class PersistentTopicsBase extends AdminResource {
         managedLedger.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
-                BrokerEntryMetadata brokerEntryMetadata =
-                        Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
-                if (brokerEntryMetadata == null) {
-                    indexFuture.completeExceptionally(new RestException(Status.PRECONDITION_FAILED,
-                            "Broker entry metadata is not present in the message"));
-                } else {
-                    long index = brokerEntryMetadata.getIndex();
-                    if (index < 0) {
+                try {
+                    Long index = getIndexAndRelease(entry);
+                    if (index == null) {
+                        indexFuture.completeExceptionally(new RestException(Status.PRECONDITION_FAILED,
+                                "Broker entry metadata is not present in the message"));
+                    } else if (index < 0) {
                         indexFuture.completeExceptionally(new RestException(Status.PRECONDITION_FAILED,
                                 "Invalid message index: " + index));
                     } else {
                         indexFuture.complete(index);
                     }
+                } catch (IOException e) {
+                    indexFuture.completeExceptionally(new RestException(Status.INTERNAL_SERVER_ERROR,
+                            "Failed to get index from entry: " + e.getMessage()));
                 }
             }
 
@@ -5599,4 +5599,19 @@ public class PersistentTopicsBase extends AdminResource {
         return indexFuture;
     }
 
+
+    private static Long getIndexAndRelease(Entry entry) throws IOException {
+        try {
+            final var brokerEntryMetadata = Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
+            if (brokerEntryMetadata != null && brokerEntryMetadata.hasIndex()) {
+                return brokerEntryMetadata.getIndex();
+            } else {
+                return null;
+            }
+        } catch (Throwable throwable) {
+            throw new IOException(throwable);
+        } finally {
+            entry.release();
+        }
+    }
 }

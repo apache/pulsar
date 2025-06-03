@@ -36,7 +36,6 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -438,7 +437,8 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
                 .create();
         MessageIdImpl messageId = (MessageIdImpl) producer.send("test");
         Message<byte[]>
-                message = admin.topics().getMessagesById(topicName, messageId.getLedgerId(), messageId.getEntryId()).get(0);
+                message =
+                admin.topics().getMessagesById(topicName, messageId.getLedgerId(), messageId.getEntryId()).get(0);
         long index = message.getIndex().get();
         MessageIdImpl messageIdByIndex = (MessageIdImpl) admin.topics().getMessageIdByIndex(topicName, index);
         Assert.assertEquals(messageIdByIndex, messageId);
@@ -465,7 +465,8 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
                 messageId2.getLedgerId(), messageId2.getEntryId()).get(0);
         long index2 = message2.getIndex().get();
         // 2.1 test partitioned topic name with partition index
-        MessageIdImpl messageIdByIndex2 = (MessageIdImpl) admin.topics().getMessageIdByIndex(partitionedTopicName, index2);
+        MessageIdImpl messageIdByIndex2 =
+                (MessageIdImpl) admin.topics().getMessageIdByIndex(partitionedTopicName, index2);
         Assert.assertEquals(messageIdByIndex2, messageId2);
         // 2.2 test partitioned topic name without partition index
         try {

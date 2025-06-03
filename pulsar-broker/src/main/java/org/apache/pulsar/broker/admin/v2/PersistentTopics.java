@@ -5028,12 +5028,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 406, message = "The topic is not a persistent topic"),
             @ApiResponse(code = 412, message = "The broker is not enable broker entry metadata"),
     })
-    public void getMessageIDByIndexAndPartitionID(@Suspended final AsyncResponse asyncResponse,
-                                                   @PathParam("tenant") String tenant,
-                                                   @PathParam("namespace") String namespace,
-                                                   @PathParam("topic") @Encoded String encodedTopic,
-                                                   @QueryParam("index") long index,
-                                                   @QueryParam("authoritative") @DefaultValue("false")
+    public void getMessageIDByIndex(@Suspended final AsyncResponse asyncResponse,
+                                    @PathParam("tenant") String tenant,
+                                    @PathParam("namespace") String namespace,
+                                    @PathParam("topic") @Encoded String encodedTopic,
+                                    @QueryParam("index") long index,
+                                    @QueryParam("authoritative") @DefaultValue("false")
                                                    boolean authoritative){
         validateTopicName(tenant, namespace, encodedTopic);
         internalGetMessageIDByIndexAsync(index, authoritative)
