@@ -2285,6 +2285,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         @Override
         public synchronized void readEntriesComplete(List<Entry> entries0, Object ctx) {
             if (completed) {
+                for (Entry entry : entries0) {
+                    entry.release();
+                }
                 return;
             }
             entries.addAll(entries0);
@@ -2332,19 +2335,24 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 return Collections.emptyList();
             }
             entries.sort(Comparator.comparingLong(Entry::getEntryId));
-            List<Entry> entries = new ArrayList<>();
+            List<Entry> entries0 = new ArrayList<>();
             for (long entryId : entryIds) {
                 if (this.entries.isEmpty()) {
                     break;
                 }
                 Entry entry = this.entries.remove(0);
                 if (entry.getEntryId() == entryId) {
-                    entries.add(entry);
+                    entries0.add(entry);
                 } else {
+                    entry.release();
                     break;
                 }
             }
-            return entries;
+            // Release the entries that are not in the result.
+            for (Entry entry : entries) {
+                entry.release();
+            }
+            return entries0;
         }
     }
 
