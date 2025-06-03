@@ -143,7 +143,8 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
             int numMessages = 6;
             for (int i = 0; i < numMessages; i++) {
                 String body = "message" + i;
-                producer.send(body.getBytes(StandardCharsets.UTF_8));
+                MessageId messageId = producer.send(body.getBytes(StandardCharsets.UTF_8));
+                log.info("Sent message: {} with msgId: {}", body, messageId);
                 sentMessages.add(body);
                 if (i == 2) {
                     // wait for subscription snapshot to be created
