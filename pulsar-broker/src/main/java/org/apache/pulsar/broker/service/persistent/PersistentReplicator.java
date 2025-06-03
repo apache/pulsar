@@ -153,7 +153,6 @@ public abstract class PersistentReplicator extends AbstractReplicator
          *    producer when the state is {@link Started}.
          */
         Pair<Boolean, State> changeStateRes;
-        doRewindCursor(false);
         changeStateRes = compareSetAndGetState(Starting, Started);
         if (changeStateRes.getLeft()) {
             if (!(producer instanceof ProducerImpl)) {
@@ -907,7 +906,6 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     protected void doRewindCursor(boolean triggerReadMoreEntries) {
-        // TODO 如果 “beforeTerminateOrCursorRewinding” 被多次调用，那么所有的锁都释放后，才能执行 “doRewindCursor”。
         synchronized (inFlightTasks) {
             cursor.rewind();
             waitForCursorRewindingRefCnf -= 1;
