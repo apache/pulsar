@@ -448,8 +448,8 @@ public class Consumer {
     }
 
     private void incrementUnackedMessages(int unackedMessages) {
-        if (Subscription.isIndividualAckMode(subType)
-                && addAndGetUnAckedMsgs(this, unackedMessages) >= getMaxUnackedMessages()
+        if (addAndGetUnAckedMsgs(this, unackedMessages) >= getMaxUnackedMessages()
+                && Subscription.isIndividualAckMode(subType)
                 && getMaxUnackedMessages() > 0) {
             blockedConsumerOnUnackedMsgs = true;
         }
@@ -593,10 +593,9 @@ public class Consumer {
             } else {
                 position = PositionFactory.create(msgId.getLedgerId(), msgId.getEntryId());
                 ackedCount = getAckedCountForMsgIdNoAckSets(batchSize, position, ackOwnerConsumer);
-                if (checkCanRemovePendingAcksAndHandle(ackOwnerConsumer, position, msgId)) {
-                    addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
-                    updateBlockedConsumerOnUnackedMsgs(ackOwnerConsumer);
-                }
+                checkCanRemovePendingAcksAndHandle(ackOwnerConsumer, position, msgId);
+                addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
+                updateBlockedConsumerOnUnackedMsgs(ackOwnerConsumer);
             }
 
             positionsAcked.add(Pair.of(ackOwnerConsumer, position));
@@ -1185,7 +1184,7 @@ public class Consumer {
 
     private int addAndGetUnAckedMsgs(Consumer consumer, int ackedMessages) {
         int unackedMsgs = 0;
-        if (isPersistentTopic && Subscription.isIndividualAckMode(subType)) {
+        if (isPersistentTopic) {
             subscription.addUnAckedMessages(ackedMessages);
             unackedMsgs = UNACKED_MESSAGES_UPDATER.addAndGet(consumer, ackedMessages);
         }

@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import com.google.common.collect.ImmutableList;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -27,10 +30,13 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -124,4 +130,35 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
         // Verify: the topic can be deleted successfully.
         admin.topics().delete(topicName, false);
     }
+
+    @Test
+    public void testUnackedMessages() throws Exception {
+        String topicNamePrefix = "testUnackedMessages-";
+        String subscriptionNamePrefix = "testUnackedMessages-sub-";
+
+        for(SubscriptionType subscription : ImmutableList.of(SubscriptionType.Exclusive, SubscriptionType.Failover)) {
+            String topicName = topicNamePrefix + subscription.name();
+            String subscriptionName = subscriptionNamePrefix + subscription.name();
+            @Cleanup
+            org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                    .topic(topicName).subscriptionName(subscriptionName)
+                    .subscriptionType(subscription)
+                    .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                    .subscribe();
+
+            @Cleanup
+            Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+            producer.send("1".getBytes());
+
+            TopicStats stats = admin.topics().getStats(topicName);
+            assertThat(stats.getSubscriptions().get(subscriptionName).getUnackedMessages()).isEqualTo(1);
+
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
+            consumer.acknowledge(msg);
+
+            TopicStats topicStats = admin.topics().getStats(topicName);
+            assertThat(topicStats.getSubscriptions().get(subscriptionName).getUnackedMessages()).isEqualTo(0);
+        }
+    }
+
 }
