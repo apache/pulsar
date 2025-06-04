@@ -1436,7 +1436,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         boolean isMessageUndecryptable = !decryptResult.success;
 
-        ByteBuf decryptedPayload = decryptResult.decryptedPayload;
+        ByteBuf decryptedPayload = decryptResult.payload;
 
         // uncompress decryptedPayload and release decryptedPayload-ByteBuf
         ByteBuf uncompressedPayload = (isMessageUndecryptable || isChunkedMessage) ? decryptedPayload.retain()
@@ -1928,18 +1928,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
      */
     private static class DecryptResult {
         private final boolean success;
-        private final ByteBuf decryptedPayload;
+        private final ByteBuf payload;
 
         private DecryptResult(boolean success, ByteBuf decryptedPayload) {
             this.success = success;
-            this.decryptedPayload = decryptedPayload;
+            this.payload = decryptedPayload;
         }
 
         /**
          * Returns true if the message should be discarded and not delivered to the consumer user.
          */
         public boolean shouldDiscard() {
-            return this.decryptedPayload == null;
+            return this.payload == null;
         }
 
         /**
