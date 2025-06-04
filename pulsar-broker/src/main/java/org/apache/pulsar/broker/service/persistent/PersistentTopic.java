@@ -84,6 +84,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer.CursorInfo;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.util.ManagedLedgerImplUtils;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.collections4.CollectionUtils;
@@ -2731,6 +2732,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             info.entries = li.getEntries();
                             info.size = li.getSize();
                             info.offloaded = li.hasOffloadContext() && li.getOffloadContext().getComplete();
+                            if (li.getPropertiesCount() > 0) {
+                                Map<String, String> properties = new HashMap<>(li.getPropertiesCount());
+                                for (MLDataFormats.KeyValue kv : li.getPropertiesList()) {
+                                    properties.put(kv.getKey(), kv.getValue());
+                                }
+                                info.properties = properties;
+                            }
                             stats.ledgers.add(info);
                             if (includeLedgerMetadata) {
                                 futures.add(ml.getLedgerMetadata(li.getLedgerId()).handle((lMetadata, ex) -> {

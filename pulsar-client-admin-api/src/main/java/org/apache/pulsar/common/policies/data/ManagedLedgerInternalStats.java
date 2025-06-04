@@ -77,6 +77,7 @@ public class ManagedLedgerInternalStats {
         public boolean offloaded;
         public String metadata;
         public boolean underReplicated;
+        public Map<String, String> properties;
     }
 
     /**
