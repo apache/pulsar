@@ -5555,7 +5555,7 @@ public class PersistentTopicsBase extends AdminResource {
                                                 // we continue searching
                                                 return messageIndex < index;
                                             }
-                                        } catch (IOException e) {
+                                        } catch (Throwable e) {
                                             log.error("Error deserialize message for message position find", e);
                                             return false;
                                         } finally {
@@ -5591,7 +5591,7 @@ public class PersistentTopicsBase extends AdminResource {
                     } else {
                         indexFuture.complete(index);
                     }
-                } catch (IOException e) {
+                } catch (Throwable e) {
                     indexFuture.completeExceptionally(new RestException(Status.INTERNAL_SERVER_ERROR,
                             "Failed to get index from entry: " + e.getMessage()));
                 } finally {
@@ -5610,16 +5610,12 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
 
-    private static Long getIndexFromEntry(Entry entry) throws IOException {
-        try {
-            final var brokerEntryMetadata = Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
-            if (brokerEntryMetadata != null && brokerEntryMetadata.hasIndex()) {
-                return brokerEntryMetadata.getIndex();
-            } else {
-                return null;
-            }
-        } catch (Throwable throwable) {
-            throw new IOException(throwable);
+    private static Long getIndexFromEntry(Entry entry) {
+        final var brokerEntryMetadata = Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
+        if (brokerEntryMetadata != null && brokerEntryMetadata.hasIndex()) {
+            return brokerEntryMetadata.getIndex();
+        } else {
+            return null;
         }
     }
 }
