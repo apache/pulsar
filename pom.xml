@@ -2411,6 +2411,17 @@ flexible messaging model and an intuitive client API.</description>
 
   <profiles>
     <profile>
+      <id>git-commit-id-no-git</id>
+      <activation>
+        <file>
+          <missing>${basedir}/../../.git</missing>
+        </file>
+      </activation>
+      <properties>
+        <docker.tag>${project.version}-no-git</docker.tag>
+      </properties>
+    </profile>
+    <profile>
       <!-- used for running integration tests on Java 8 -->
       <id>integration-test-java8</id>
       <activation>
