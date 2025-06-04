@@ -28,6 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.api.Schema;
@@ -135,6 +136,13 @@ public class RawReaderImpl implements RawReader {
             );
             incomingRawMessages = new GrowableArrayBlockingQueue<>();
             pendingRawReceives = new ConcurrentLinkedQueue<>();
+        }
+
+        protected boolean isUnrecoverableError(Throwable t) {
+            if (t instanceof PulsarClientException.ServiceNotReadyException) {
+                return false;
+            }
+            return super.isUnrecoverableError(t);
         }
 
         void tryCompletePending() {

@@ -2345,9 +2345,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         Answer answer = new Answer() {
             @Override
             public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                log.info("===> Compaction reading is stuck");
                 delayReadSignal.await();
-                log.info("===> Compaction reading finished");
                 return invocationOnMock.callRealMethod();
             }
         };

@@ -1511,28 +1511,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
 
             fenceTopicToCloseOrDelete(); // Avoid clients reconnections while deleting
-            // Wait compaction to avoid a deadlock below:
-            // 1. thread-compaction : create a raw reader.
-            // 2. thread-topic-deleting : mark topic as deleting, and disconnect clients that includes compaction
-            //      reader.
-            // 3. thread-compaction: the raw reader attempts to reconnect due to the disconnection in step "2-1".
-            // 4. thread-topic-deleting: unsubscribe all subscriptions, which contains "__compaction".
-            // 5. thread-topic-deleting: deleting "__compaction" cursor will wait for the in-progress compaction task.
-            // 6. thread-compaction: the raw read can not connect successfully anymore because the topic was marked as
-            //    "fenced && isDeleting".
-            // 7. deadlock: "thread-topic-deleting" waiting for compaction task being finished, thread-compaction
-            //    continuously reconnects.
-            // To solve the issue, let "thread-topic-deleting" release the fencing&deleting state, wait for the
-            // compaction task being finished. Since "thread-topic-deleting" never release "lock.writeLock", the broker
-            // will not trigger a new compaction task.
-            if (currentCompaction != null && !currentCompaction.isDone()) {
-                unfenceTopicToResume();
-                return currentCompaction
-                    .thenCompose(__ -> delete(failIfHasSubscriptions, failIfHasBacklogs, closeIfClientsConnected))
-                    .whenComplete((__, ex) -> {
-                        lock.writeLock().unlock();
-                    });
-            }
             // Mark the progress of close to prevent close calling concurrently.
             this.closeFutures =
                     new CloseFutures(new CompletableFuture(), new CompletableFuture(), new CompletableFuture());
