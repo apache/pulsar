@@ -593,9 +593,12 @@ public class Consumer {
             } else {
                 position = PositionFactory.create(msgId.getLedgerId(), msgId.getEntryId());
                 ackedCount = getAckedCountForMsgIdNoAckSets(batchSize, position, ackOwnerConsumer);
-                checkCanRemovePendingAcksAndHandle(ackOwnerConsumer, position, msgId);
-                addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
-                updateBlockedConsumerOnUnackedMsgs(ackOwnerConsumer);
+                if (checkCanRemovePendingAcksAndHandle(ackOwnerConsumer, position, msgId)) {
+                    addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
+                    updateBlockedConsumerOnUnackedMsgs(ackOwnerConsumer);
+                } else if (Subscription.isCumulativeAckMode(subType)) {
+                    addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
+                }
             }
 
             positionsAcked.add(Pair.of(ackOwnerConsumer, position));
