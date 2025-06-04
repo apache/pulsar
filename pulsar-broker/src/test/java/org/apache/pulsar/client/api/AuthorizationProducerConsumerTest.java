@@ -233,6 +233,10 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
                     "Unauthorized to validateTopicOperation for operation"));
         }
 
+        // grant namespace create topic authorization to the subscriptionRole
+        tenantAdmin.namespaces().grantPermissionOnNamespace(namespace, subscriptionRole,
+                Collections.singleton(AuthAction.create_topic));
+
         // grant topic consume authorization to the subscriptionRole
         tenantAdmin.topics().createNonPartitionedTopic(topicName);
         tenantAdmin.topics().grantPermission(topicName, subscriptionRole,

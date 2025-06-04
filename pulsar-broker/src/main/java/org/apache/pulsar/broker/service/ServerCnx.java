@@ -1264,13 +1264,18 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 TopicOperation.CONSUME
         );
 
+        CompletableFuture<Boolean> isAuthorizedToCreateTopicFuture = isNamespaceOperationAllowed(
+                topicName.getNamespaceObject(),
+                NamespaceOperation.CREATE_TOPIC
+        );
+
         // Make sure the consumer future is put into the consumers map first to avoid the same consumer
         // epoch using different consumer futures, and only remove the consumer future from the map
         // if subscribe failed .
         CompletableFuture<Consumer> consumerFuture = new CompletableFuture<>();
         CompletableFuture<Consumer> existingConsumerFuture =
                 consumers.putIfAbsent(consumerId, consumerFuture);
-        isAuthorizedFuture.thenApply(isAuthorized -> {
+        isAuthorizedFuture.thenCombine(isAuthorizedToCreateTopicFuture, (isAuthorized, isAuthorizedToCreateTopic) -> {
             if (isAuthorized) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Client is authorized to subscribe with role {}",
@@ -1328,14 +1333,25 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
 
                 service.isAllowAutoTopicCreationAsync(topicName.toString())
-                        .thenApply(isAllowed -> forceTopicCreation && isAllowed)
+                        .thenApply(isAllowed -> (isAuthorizedToCreateTopic && isAllowed) || forceTopicCreation)
                         .thenCompose(createTopicIfDoesNotExist ->
                                 service.getTopic(topicName.toString(), createTopicIfDoesNotExist))
                         .thenCompose(optTopic -> {
                             if (!optTopic.isPresent()) {
-                                return FutureUtil
-                                        .failedFuture(new TopicNotFoundException(
-                                                "Topic " + topicName + " does not exist"));
+                                if (isAuthorizedToCreateTopic) {
+                                    return FutureUtil
+                                            .failedFuture(new TopicNotFoundException(
+                                                    "Topic " + topicName + " does not exist"));
+                                } else {
+                                    String msg = "Topic to subscribe does not exists and the Client is not"
+                                            + " authorized to create topic";
+                                    log.warn("[{}] {} with role {}", remoteAddress, msg, getPrincipal());
+                                    consumers.remove(consumerId, consumerFuture);
+                                    ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError,
+                                            msg));
+                                    return FutureUtil
+                                            .failedFuture(new BrokerServiceException.UnauthorizedException(msg));
+                                }
                             }
                             final Topic topic = optTopic.get();
                             // Check max consumer limitation to avoid unnecessary ops wasting resources. For example:
@@ -1468,7 +1484,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             consumers.remove(consumerId, consumerFuture);
 
                             return null;
-
                         });
             } else {
                 String msg = "Client is not authorized to subscribe";
@@ -1531,6 +1546,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 topicName, TopicOperation.PRODUCE, authenticationData, originalAuthData
         );
 
+        CompletableFuture<Boolean> isAuthorizedToCreateTopicFuture = isNamespaceOperationAllowed(
+                topicName.getNamespaceObject(),
+                NamespaceOperation.CREATE_TOPIC
+        );
+
         if (!Strings.isNullOrEmpty(initialSubscriptionName)) {
             isAuthorizedFuture =
                     isAuthorizedFuture.thenCombine(
@@ -1538,7 +1558,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             (canProduce, canSubscribe) -> canProduce && canSubscribe);
         }
 
-        isAuthorizedFuture.thenApply(isAuthorized -> {
+        isAuthorizedFuture.thenCombine(isAuthorizedToCreateTopicFuture, (isAuthorized, isAuthorizedToCreateTopic) -> {
             if (!isAuthorized) {
                 String msg = "Client is not authorized to Produce";
                 log.warn("[{}] {} with role {}", remoteAddress, msg, getPrincipal());
@@ -1585,7 +1605,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         topicName, producerId, producerName, schema == null ? "absent" : "present");
             }
 
-            service.getOrCreateTopic(topicName.toString()).thenCompose((Topic topic) -> {
+            service.getOrCreateTopic(topicName.toString(), isAuthorizedToCreateTopic).thenCompose((Topic topic) -> {
                 // Check max producer limitation to avoid unnecessary ops wasting resources. For example: the new
                 // producer reached max producer limitation, but pulsar did schema check first, it would waste CPU
                 if (((AbstractTopic) topic).isProducersExceeded(producerName)) {

@@ -22,6 +22,9 @@ package org.apache.pulsar.common.policies.data;
  * Authorization action for Pulsar policies.
  */
 public enum AuthAction {
+    /** Permission to create_topic. */
+    create_topic,
+
     /** Permission to produce/publish messages. */
     produce,
 

@@ -2544,6 +2544,9 @@ public class ServerCnxTest {
         doReturn(CompletableFuture.completedFuture(true)).when(authorizationService)
                 .allowTopicOperationAsync(Mockito.any(),
                         Mockito.any(), Mockito.any(), Mockito.any());
+        doReturn(CompletableFuture.completedFuture(true)).when(authorizationService)
+                .allowNamespaceOperationAsync(Mockito.any(),
+                        Mockito.any(), Mockito.any(), Mockito.any());
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         svcConfig.setAuthenticationEnabled(true);
         svcConfig.setAuthorizationEnabled(true);
@@ -2566,6 +2569,9 @@ public class ServerCnxTest {
         AuthorizationService authorizationService = mock(AuthorizationService.class);
         doReturn(CompletableFuture.completedFuture(false)).when(authorizationService)
                 .allowTopicOperationAsync(Mockito.any(),
+                        Mockito.any(), Mockito.any(), Mockito.any());
+        doReturn(CompletableFuture.completedFuture(false)).when(authorizationService)
+                .allowNamespaceOperationAsync(Mockito.any(),
                         Mockito.any(), Mockito.any(), Mockito.any());
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         svcConfig.setAuthenticationEnabled(true);

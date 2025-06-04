@@ -189,9 +189,9 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
         String proxyAuthParams = "authParam:proxy";
 
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "proxy",
-                Sets.newHashSet(AuthAction.consume, AuthAction.produce));
+                Sets.newHashSet(AuthAction.consume, AuthAction.produce, AuthAction.create_topic));
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "client",
-                Sets.newHashSet(AuthAction.consume, AuthAction.produce));
+                Sets.newHashSet(AuthAction.consume, AuthAction.produce, AuthAction.create_topic));
 
         boolean exceptionOccurred = false;
         // Step 2: Try to use proxy Client as a normal Client - expect exception
