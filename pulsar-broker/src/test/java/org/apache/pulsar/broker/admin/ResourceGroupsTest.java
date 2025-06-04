@@ -34,6 +34,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -166,8 +167,9 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest {
         }
         // remove resourcegroup from namespace
         admin.namespaces().removeNamespaceResourceGroup(testNameSpace);
-        resourcegroups.deleteResourceGroup("test-resourcegroup-three");
-
+        Awaitility.await().untilAsserted(() -> {
+            resourcegroups.deleteResourceGroup("test-resourcegroup-three");
+        });
     }
 
     private void prepareData() throws PulsarAdminException {
