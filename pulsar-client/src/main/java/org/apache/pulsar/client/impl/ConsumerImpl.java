@@ -1002,7 +1002,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     protected boolean isUnrecoverableError(Throwable t) {
-        return !(t instanceof TopicDoesNotExistException) && !(t instanceof IllegalStateException);
+        // TopicDoesNotExistException: topic has been deleted.
+        // NotFoundException: topic has been deleted.
+        // IllegalStateException: consumer has been closed.
+        return (t instanceof TopicDoesNotExistException) || (t instanceof IllegalStateException)
+                || (t instanceof PulsarClientException.NotFoundException);
     }
 
     protected void closeWhenReceivedUnrecoverableError(Throwable t, ClientCnx cnx) {

@@ -2047,10 +2047,17 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     protected boolean isUnrecoverableError(Throwable t) {
-        return !(t instanceof PulsarClientException.TopicDoesNotExistException);
+        // TopicDoesNotExistException: topic has been deleted.
+        // NotFoundException: topic has been deleted.
+        // IllegalStateException: producer has been closed.
+        return (t instanceof PulsarClientException.TopicDoesNotExistException) || (t instanceof IllegalStateException)
+                || (t instanceof PulsarClientException.NotFoundException);
     }
 
     protected void closeWhenReceivedUnrecoverableError(Throwable t, ClientCnx cnx) {
+        final String cnxStr = cnx == null ? "null" : String.valueOf(cnx.channel().remoteAddress());
+        log.warn("[{}][{}] {} Closed producer because get an error that does not support to retry: {} {}",
+                topic, producerName, cnxStr, t.getClass().getName(), t.getMessage());
         closeAsync().whenComplete((v, ex) -> {
             if (ex != null) {
                 log.error("Failed to close producer on TopicDoesNotExistException.", ex);
