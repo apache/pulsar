@@ -974,6 +974,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
                 if (e.getCause() instanceof PulsarClientException
                         && PulsarClientException.isRetriableError(e.getCause())
+                        && !isUnrecoverableError(e.getCause())
                         && System.currentTimeMillis() < SUBSCRIBE_DEADLINE_UPDATER.get(ConsumerImpl.this)) {
                     future.completeExceptionally(e.getCause());
                 } else if (!subscribeFuture.isDone()) {
@@ -1001,6 +1002,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return future;
     }
 
+    /***
+     * Different consumer implementation can define its additional unrecoverable error.
+     */
     protected boolean isUnrecoverableError(Throwable t) {
         // TopicDoesNotExistException: topic has been deleted.
         // NotFoundException: topic has been deleted.
