@@ -5540,7 +5540,7 @@ public class PersistentTopicsBase extends AdminResource {
                                 } else {
                                     return managedLedger.asyncFindPosition(entry -> {
                                         try {
-                                            Long messageIndex = getIndexAndRelease(entry);
+                                            Long messageIndex = getIndexFromEntry(entry);
                                             if (messageIndex == null) {
                                                 return false; // Skip messages without index
                                             } else {
@@ -5551,6 +5551,8 @@ public class PersistentTopicsBase extends AdminResource {
                                         } catch (IOException e) {
                                             log.error("Error deserialize message for message position find", e);
                                             return false;
+                                        } finally {
+                                            entry.release();
                                         }
                                     });
                                 }
@@ -5573,7 +5575,7 @@ public class PersistentTopicsBase extends AdminResource {
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
                 try {
-                    Long index = getIndexAndRelease(entry);
+                    Long index = getIndexFromEntry(entry);
                     if (index == null) {
                         indexFuture.completeExceptionally(new RestException(Status.PRECONDITION_FAILED,
                                 "Broker entry metadata is not present in the message"));
@@ -5586,6 +5588,8 @@ public class PersistentTopicsBase extends AdminResource {
                 } catch (IOException e) {
                     indexFuture.completeExceptionally(new RestException(Status.INTERNAL_SERVER_ERROR,
                             "Failed to get index from entry: " + e.getMessage()));
+                } finally {
+                    entry.release();
                 }
             }
 
@@ -5600,7 +5604,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
 
-    private static Long getIndexAndRelease(Entry entry) throws IOException {
+    private static Long getIndexFromEntry(Entry entry) throws IOException {
         try {
             final var brokerEntryMetadata = Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
             if (brokerEntryMetadata != null && brokerEntryMetadata.hasIndex()) {
@@ -5610,8 +5614,6 @@ public class PersistentTopicsBase extends AdminResource {
             }
         } catch (Throwable throwable) {
             throw new IOException(throwable);
-        } finally {
-            entry.release();
         }
     }
 }
