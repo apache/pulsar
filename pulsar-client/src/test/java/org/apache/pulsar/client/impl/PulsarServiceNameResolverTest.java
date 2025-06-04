@@ -33,7 +33,8 @@ import java.util.HashSet;
 import java.util.Set;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidServiceURL;
 import org.apache.pulsar.common.net.ServiceURI;
-import org.testng.annotations.AfterMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -45,10 +46,14 @@ public class PulsarServiceNameResolverTest {
     private PulsarServiceNameResolver resolver;
     private ServerSocket serverSocket;
     @BeforeMethod
-    public void setup() throws IOException {
+    public void setup() {
         this.resolver = new PulsarServiceNameResolver();
         assertNull(resolver.getServiceUrl());
         assertNull(resolver.getServiceUri());
+    }
+
+    @BeforeClass
+    public void init() throws IOException {
         InetAddress inetAddress = InetAddress.getByName("0.0.0.0");
         serverSocket = new ServerSocket(6666, 10, inetAddress);
         new Thread(() -> {
@@ -180,7 +185,7 @@ public class PulsarServiceNameResolverTest {
         }
     }
 
-    @AfterMethod
+    @AfterClass
     public void close() throws IOException {
         serverSocket.close();
         resolver.close();

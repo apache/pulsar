@@ -43,7 +43,7 @@ import org.apache.pulsar.common.net.ServiceURI;
  */
 @Slf4j
 public class PulsarServiceNameResolver implements ServiceNameResolver {
-    private static final int HEALTH_CHECK_TIMEOUT_MS = 10000;
+    private static final int HEALTH_CHECK_TIMEOUT_MS = 5000;
     private volatile ServiceURI serviceUri;
     private volatile String serviceUrl;
     private static final AtomicIntegerFieldUpdater<PulsarServiceNameResolver> CURRENT_INDEX_UPDATER =
@@ -158,13 +158,7 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
         if (list != null && !list.isEmpty()) {
             List<InetSocketAddress> healthy = new ArrayList<>(list.size());
             for (InetSocketAddress address : list) {
-                boolean healthyAddress = false;
                 if (checkAddress(address)) {
-                    healthyAddress = true;
-                    break;
-                }
-
-                if (healthyAddress) {
                     healthy.add(address);
                     if (!lastHethalAddresses.contains(address)) {
                         log.info("Health check passed for address {}, add it back!", address);
