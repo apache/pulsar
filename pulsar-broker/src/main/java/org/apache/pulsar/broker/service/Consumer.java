@@ -448,7 +448,8 @@ public class Consumer {
     }
 
     private void incrementUnackedMessages(int unackedMessages) {
-        if (addAndGetUnAckedMsgs(this, unackedMessages) >= getMaxUnackedMessages()
+        int updatedUnackedMessages = addAndGetUnAckedMsgs(this, unackedMessages);
+        if (updatedUnackedMessages >= getMaxUnackedMessages()
                 && Subscription.isIndividualAckMode(subType)
                 && getMaxUnackedMessages() > 0) {
             blockedConsumerOnUnackedMsgs = true;
