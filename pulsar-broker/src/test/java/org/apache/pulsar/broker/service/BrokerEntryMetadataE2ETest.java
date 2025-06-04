@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
-import static org.testng.AssertJUnit.fail;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -46,7 +46,6 @@ import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.assertj.core.util.Sets;
 import org.awaitility.Awaitility;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.function.Executable;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -472,10 +471,8 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
                 (MessageIdImpl) admin.topics().getMessageIdByIndex(partitionedTopicName, index2);
         Assert.assertEquals(messageIdByIndex2, messageId2);
         // 2.2 test partitioned topic name without partition index
-        PulsarAdminException e = Assertions.assertThrows(PulsarAdminException.class, () ->
-                admin.topics().getMessageIdByIndex(topicName2, index2)
-        );
-        assertExceptionChainContains(e, NotAllowedException.class);
+        assertThrowsWithCause(() -> admin.topics().getMessageIdByIndex(topicName2, index2),
+                PulsarAdminException.class, NotAllowedException.class);
 
         // 3. test invalid index
         assertThrowsWithCause(() -> admin.topics().getMessageIdByIndex(topicName, -1),
@@ -510,26 +507,12 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
                 PulsarAdminException.class, NotFoundException.class);
     }
 
-    private void assertExceptionChainContains(Throwable thrown, Class<? extends Throwable> expectedCauseType) {
-        Throwable cause = thrown;
-        boolean found = false;
-
-        while (cause != null) {
-            if (expectedCauseType.isInstance(cause)) {
-                found = true;
-                break;
-            }
-            cause = cause.getCause();
-        }
-
-        Assert.assertTrue(found);
-    }
-
     private void assertThrowsWithCause(Executable executable,
                                        Class<? extends Throwable> expectedException,
                                        Class<? extends Throwable> expectedCause) {
-        Throwable thrown = Assertions.assertThrows(expectedException, executable);
-        assertExceptionChainContains(thrown, expectedCause);
+        assertThatThrownBy(executable::execute)
+                .isInstanceOf(expectedException)
+                .hasRootCauseInstanceOf(expectedCause);
     }
 
 }
