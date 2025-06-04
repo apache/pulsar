@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkState;
-import com.google.common.util.concurrent.Uninterruptibles;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.URI;
@@ -44,7 +43,7 @@ import org.apache.pulsar.common.net.ServiceURI;
  */
 @Slf4j
 public class PulsarServiceNameResolver implements ServiceNameResolver {
-
+    private static final int HEALTH_CHECK_TIMEOUT_MS = 10000;
     private volatile ServiceURI serviceUri;
     private volatile String serviceUrl;
     private static final AtomicIntegerFieldUpdater<PulsarServiceNameResolver> CURRENT_INDEX_UPDATER =
@@ -56,7 +55,6 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
     private volatile int currentIndex;
     private volatile List<InetSocketAddress> addressList;
     private volatile List<InetSocketAddress> healthyAddress;
-    private volatile Set<InetSocketAddress> removedAddresses;
 
     @Override
     public InetSocketAddress resolveHost() {
@@ -121,7 +119,6 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
         }
         this.addressList = addresses;
         this.healthyAddress = addresses;
-        this.removedAddresses = new HashSet<>();
         this.serviceUrl = serviceUrl;
         this.serviceUri = uri;
         this.currentIndex = randomIndex(addresses.size());
@@ -157,28 +154,23 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
      */
     private void doHealthCheck() {
         List<InetSocketAddress> list = addressList;
+        Set<InetSocketAddress> lastHethalAddresses = new HashSet<>(healthyAddress);
         if (list != null && !list.isEmpty()) {
             List<InetSocketAddress> healthy = new ArrayList<>(list.size());
             for (InetSocketAddress address : list) {
                 boolean healthyAddress = false;
-                for (int i = 0; i < 3; i++) {
-                    if (checkAddress(address)) {
-                        healthyAddress = true;
-                        break;
-                    } else {
-                        Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
-                    }
+                if (checkAddress(address)) {
+                    healthyAddress = true;
+                    break;
                 }
 
                 if (healthyAddress) {
-                    if (removedAddresses.contains(address)) {
-                        removedAddresses.remove(address);
-                        log.info("Health check success for address {}, recover it!", address);
-                    }
                     healthy.add(address);
+                    if (!lastHethalAddresses.contains(address)) {
+                        log.info("Health check passed for address {}, add it back!", address);
+                    }
                 } else {
-                    if (!removedAddresses.contains(address)) {
-                        removedAddresses.add(address);
+                    if (lastHethalAddresses.contains(address)) {
                         log.error("Health check failed for address {}, remove it!", address);
                     }
                 }
@@ -195,7 +187,7 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
 
     private static boolean checkAddress(InetSocketAddress address) {
         try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress(address.getHostName(), address.getPort()), 5000);
+            socket.connect(new InetSocketAddress(address.getHostName(), address.getPort()), HEALTH_CHECK_TIMEOUT_MS);
             return true;
         } catch (Exception e) {
             log.error("Health check error, failed to connect to {}, error:{}", address, e.getMessage());
