@@ -2414,7 +2414,7 @@ flexible messaging model and an intuitive client API.</description>
       <id>git-commit-id-no-git</id>
       <activation>
         <file>
-          <missing>${basedir}/../../.git</missing>
+          <missing>${basedir}/.git</missing>
         </file>
       </activation>
       <properties>
