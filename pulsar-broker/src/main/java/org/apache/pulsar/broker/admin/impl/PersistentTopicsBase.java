@@ -5531,8 +5531,15 @@ public class PersistentTopicsBase extends AdminResource {
                                 "Get message id by index on a non-persistent topic is not allowed"));
                     }
                     ManagedLedger managedLedger = persistentTopic.getManagedLedger();
+                    Position lastPosition = managedLedger.getLastConfirmedEntry();
+                    Position firstPosition = managedLedger.getFirstPosition();
+                    if (firstPosition == null || lastPosition == null ||
+                            firstPosition.equals(lastPosition)) {
+                        return FutureUtil.failedFuture(new RestException(Status.NOT_FOUND,
+                                "No messages found in topic " + topicName));
+                    }
                     return findMessageIndexByPosition(
-                            PositionFactory.create(managedLedger.getFirstPosition().getLedgerId(), 0),
+                            PositionFactory.create(firstPosition.getLedgerId(), 0),
                             managedLedger)
                             .thenCompose(firstIndex -> {
                                 if (index < firstIndex) {
@@ -5557,8 +5564,7 @@ public class PersistentTopicsBase extends AdminResource {
                                     });
                                 }
                             }).thenCompose(position -> {
-                                Position lastPosition = managedLedger.getLastConfirmedEntry();
-                                if (position == null || position.compareTo(lastPosition) > 0) {
+                                if (position.compareTo(lastPosition) > 0) {
                                     return FutureUtil.failedFuture(new RestException(Status.NOT_FOUND,
                                             "Message not found for index " + index));
                                 } else {

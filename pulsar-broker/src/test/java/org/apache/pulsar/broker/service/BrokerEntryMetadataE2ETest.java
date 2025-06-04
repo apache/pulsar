@@ -37,6 +37,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -45,6 +46,8 @@ import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.assertj.core.util.Sets;
 import org.awaitility.Awaitility;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.function.Executable;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -469,29 +472,64 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
                 (MessageIdImpl) admin.topics().getMessageIdByIndex(partitionedTopicName, index2);
         Assert.assertEquals(messageIdByIndex2, messageId2);
         // 2.2 test partitioned topic name without partition index
-        try {
-            messageIdByIndex2 = (MessageIdImpl) admin.topics().getMessageIdByIndex(topicName2, index2);
-            fail("Should not be able to get messageId by index for partitioned topic without partition index");
-        } catch (PulsarAdminException e) {
-            // Expected exception, as the topic name does not include partition index
-            Assert.assertTrue(e.getCause().getCause() instanceof NotAllowedException);
-        }
+        PulsarAdminException e = Assertions.assertThrows(PulsarAdminException.class, () ->
+                admin.topics().getMessageIdByIndex(topicName2, index2)
+        );
+        assertExceptionChainContains(e, NotAllowedException.class);
 
         // 3. test invalid index
-        try {
-            admin.topics().getMessageIdByIndex(topicName, -1);
-            fail("Should not be able to get messageId by index for invalid index");
-        } catch (PulsarAdminException e) {
-            // Expected exception, as the index is invalid
-            Assert.assertTrue(e.getCause().getCause() instanceof NotFoundException);
-        }
-        try {
-            admin.topics().getMessageIdByIndex(topicName, 100000);
-            fail("Should not be able to get messageId by index for invalid index");
-        } catch (PulsarAdminException e) {
-            // Expected exception, as the index is invalid
-            Assert.assertTrue(e.getCause().getCause() instanceof NotFoundException);
+        assertThrowsWithCause(() -> admin.topics().getMessageIdByIndex(topicName, -1),
+                PulsarAdminException.class, NotFoundException.class);
+
+        assertThrowsWithCause(() -> admin.topics().getMessageIdByIndex(topicName, 100000),
+                PulsarAdminException.class, NotFoundException.class);
+    }
+
+    @Test
+    public void testGetMessageIdByIndexForEmptyTopic() throws PulsarAdminException {
+        final String topicName = newTopicName();
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        assertThrowsWithCause(() -> admin.topics().getMessageIdByIndex(topicName, 0),
+                PulsarAdminException.class, NotFoundException.class);
+    }
+
+    @Test
+    public void testGetMessageIdByIndexOutOfIndex() throws PulsarAdminException, PulsarClientException {
+        final String topicName = newTopicName();
+        admin.topics().createNonPartitionedTopic(topicName);
+        @Cleanup
+        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .create();
+        for (int i = 0; i < 100; i++) {
+            producer.send("msg-" + i);
         }
 
+        assertThrowsWithCause(() -> admin.topics().getMessageIdByIndex(topicName, 1000),
+                PulsarAdminException.class, NotFoundException.class);
     }
+
+    private void assertExceptionChainContains(Throwable thrown, Class<? extends Throwable> expectedCauseType) {
+        Throwable cause = thrown;
+        boolean found = false;
+
+        while (cause != null) {
+            if (expectedCauseType.isInstance(cause)) {
+                found = true;
+                break;
+            }
+            cause = cause.getCause();
+        }
+
+        Assert.assertTrue(found);
+    }
+
+    private void assertThrowsWithCause(Executable executable,
+                                       Class<? extends Throwable> expectedException,
+                                       Class<? extends Throwable> expectedCause) {
+        Throwable thrown = Assertions.assertThrows(expectedException, executable);
+        assertExceptionChainContains(thrown, expectedCause);
+    }
+
 }
