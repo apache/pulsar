@@ -150,13 +150,25 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
             Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
             producer.send("1".getBytes());
 
-            TopicStats stats = admin.topics().getStats(topicName);
-            assertThat(stats.getSubscriptions().get(subscriptionName).getUnackedMessages()).isEqualTo(1);
+            TopicStats topicStats = admin.topics().getStats(topicName);
+            assertThat(topicStats.getSubscriptions().get(subscriptionName).getUnackedMessages()).isEqualTo(1);
 
             Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledge(msg);
 
-            TopicStats topicStats = admin.topics().getStats(topicName);
+            topicStats = admin.topics().getStats(topicName);
+            assertThat(topicStats.getSubscriptions().get(subscriptionName).getUnackedMessages()).isEqualTo(0);
+
+            producer.send("1".getBytes());
+            msg = consumer.receive(5, TimeUnit.SECONDS);
+
+            consumer.negativeAcknowledge(msg);
+
+            topicStats = admin.topics().getStats(topicName);
+            assertThat(topicStats.getSubscriptions().get(subscriptionName).getUnackedMessages()).isEqualTo(1);
+
+            consumer.acknowledge(msg);
+            topicStats = admin.topics().getStats(topicName);
             assertThat(topicStats.getSubscriptions().get(subscriptionName).getUnackedMessages()).isEqualTo(0);
         }
     }
