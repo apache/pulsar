@@ -136,6 +136,7 @@ public class TransactionMetaStoreHandler extends HandlerState
                             + "timeout", transactionCoordinatorId, exception);
                 }
                 setState(State.Failed);
+                return false;
             }
         } else {
             previousExceptionCount.getAndIncrement();

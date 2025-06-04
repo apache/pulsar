@@ -98,6 +98,7 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
                 log.info("[{}] Watcher creation failed for {} with non-retriable error {}",
                         topic, name, exception.getMessage());
                 deregisterFromClientCnx();
+                return false;
             }
         } else {
             previousExceptionCount.incrementAndGet();

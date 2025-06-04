@@ -64,6 +64,13 @@ public class ConnectionHandler {
          * @apiNote If the returned future is completed exceptionally, reconnectLater will be called.
          */
         CompletableFuture<Void> connectionOpened(ClientCnx cnx);
+
+        /**
+         *
+         * @param e What error happened when tries to get a connection
+         * @return If "true", the connection handler will retry to get a connection, otherwise, it stops to get a new
+         * connection. If it returns "false", you should release resources that consumers/producers occupied.
+         */
         default boolean connectionFailed(PulsarClientException e) {
             return true;
         }
