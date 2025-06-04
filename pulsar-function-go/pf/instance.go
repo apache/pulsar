@@ -21,6 +21,7 @@ package pf
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"strconv"
@@ -204,8 +205,9 @@ CLOSE:
 }
 
 const (
-	authPluginToken = "org.apache.pulsar.client.impl.auth.AuthenticationToken"
-	authPluginNone  = ""
+	authPluginToken  = "org.apache.pulsar.client.impl.auth.AuthenticationToken"
+	authPluginOAuth2 = "org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2"
+	authPluginNone   = ""
 )
 
 func (gi *goInstance) setupClient() error {
@@ -230,6 +232,15 @@ func (gi *goInstance) setupClient() error {
 		default:
 			return fmt.Errorf(`unknown token format - expecting "file://" or "token:" prefix`)
 		}
+	case authPluginOAuth2:
+		if ic.authParams == "" {
+			return fmt.Errorf("auth plugin %s given, but authParams is empty", authPluginOAuth2)
+		}
+		var authMap map[string]string
+		if err := json.Unmarshal([]byte(ic.authParams), &authMap); err != nil {
+			return fmt.Errorf(`unknown auth params format for OAuth2 - expecting a json string of map`)
+		}
+		clientOpts.Authentication = pulsar.NewAuthenticationOAuth2(authMap)
 	case authPluginNone:
 		clientOpts.Authentication, _ = pulsar.NewAuthentication("", "") // ret: auth.NewAuthDisabled()
 	default:
