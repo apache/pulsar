@@ -75,6 +75,7 @@ public class LedgerOffloaderMetricsTest extends BrokerTestBase {
             offloaderStats.recordReadOffloadBytes(topicName, 100000);
             offloaderStats.recordWriteToStorageError(topicName);
             offloaderStats.recordWriteToStorageError(topicName);
+            offloaderStats.recordOffloadDataLatency(topicName, 2000L, TimeUnit.NANOSECONDS);
         }
 
         for (String topicName : topics) {
@@ -85,6 +86,7 @@ public class LedgerOffloaderMetricsTest extends BrokerTestBase {
             assertEquals((long) offloaderStats.getReadOffloadIndexLatency(topicName).sum, 1000);
             assertEquals(offloaderStats.getReadOffloadBytes(topicName), 100000);
             assertEquals(offloaderStats.getWriteStorageError(topicName), 2);
+            assertEquals((long) offloaderStats.getOffloadDataLatency(topicName).sum, 2);
         }
     }
 
@@ -118,6 +120,7 @@ public class LedgerOffloaderMetricsTest extends BrokerTestBase {
                 offloaderStats.recordReadOffloadIndexLatency(topicName, 1000000L, TimeUnit.NANOSECONDS);
                 offloaderStats.recordReadOffloadBytes(topicName, 100000);
                 offloaderStats.recordWriteToStorageError(topicName);
+                offloaderStats.recordOffloadDataLatency(topicName, 2000L, TimeUnit.NANOSECONDS);
             }
         }
 
@@ -132,6 +135,7 @@ public class LedgerOffloaderMetricsTest extends BrokerTestBase {
             assertEquals((long) offloaderStats.getReadOffloadIndexLatency(topicName).sum, 6000);
             assertEquals(offloaderStats.getReadOffloadBytes(topicName), 600000);
             assertEquals(offloaderStats.getWriteStorageError(topicName), 6);
+            assertEquals((long) offloaderStats.getOffloadDataLatency(topicName).sum, 12);
         }
     }
 
