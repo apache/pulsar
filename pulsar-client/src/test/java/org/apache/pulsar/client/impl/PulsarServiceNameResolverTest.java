@@ -45,6 +45,7 @@ public class PulsarServiceNameResolverTest {
 
     private PulsarServiceNameResolver resolver;
     private ServerSocket serverSocket;
+    private boolean closed = false;
     @BeforeMethod
     public void setup() {
         this.resolver = new PulsarServiceNameResolver();
@@ -57,7 +58,7 @@ public class PulsarServiceNameResolverTest {
         InetAddress inetAddress = InetAddress.getByName("0.0.0.0");
         serverSocket = new ServerSocket(6666, 10, inetAddress);
         new Thread(() -> {
-            while (true) {
+            while (!closed) {
                 try {
                     serverSocket.accept();
                 } catch (IOException e) {
@@ -187,7 +188,8 @@ public class PulsarServiceNameResolverTest {
 
     @AfterClass
     public void close() throws IOException {
-        serverSocket.close();
         resolver.close();
+        serverSocket.close();
+        closed = true;
     }
 }
