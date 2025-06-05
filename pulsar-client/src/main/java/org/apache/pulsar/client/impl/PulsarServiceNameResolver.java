@@ -128,7 +128,7 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
                 if (!healthCheckScheduled.get()) {
                     ScheduledFuture<?> future =
                             ((ScheduledExecutorService) executorProvider.getExecutor()).scheduleWithFixedDelay(
-                                    this::doHealthCheck, 0, 5, TimeUnit.SECONDS);
+                                    this::doHealthCheck, 5, 5, TimeUnit.SECONDS);
                     healthCheckScheduled.set(true);
                     healthCheckFuture.set(future);
                 }
