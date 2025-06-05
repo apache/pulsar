@@ -1965,13 +1965,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
 
             // Close the producer since topic does not exist.
-            if (cause instanceof PulsarClientException.TopicDoesNotExistException) {
-                closeAsync().whenComplete((v, ex) -> {
-                    if (ex != null) {
-                        log.error("Failed to close producer on TopicDoesNotExistException.", ex);
-                    }
-                    producerCreatedFuture.completeExceptionally(cause);
-                });
+            if (isUnrecoverableError(cause)) {
+                closeWhenReceivedUnrecoverableError(cause, cnx);
                 future.complete(null);
                 return null;
             }
@@ -2043,8 +2038,28 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return future;
     }
 
+    protected boolean isUnrecoverableError(Throwable t) {
+        // TopicDoesNotExistException: topic has been deleted.
+        // NotFoundException: topic has been deleted.
+        // IllegalStateException: producer has been closed.
+        return (t instanceof PulsarClientException.TopicDoesNotExistException) || (t instanceof IllegalStateException)
+                || (t instanceof PulsarClientException.NotFoundException);
+    }
+
+    protected void closeWhenReceivedUnrecoverableError(Throwable t, ClientCnx cnx) {
+        final String cnxStr = cnx == null ? "null" : String.valueOf(cnx.channel().remoteAddress());
+        log.warn("[{}][{}] {} Closed producer because get an error that does not support to retry: {} {}",
+                topic, producerName, cnxStr, t.getClass().getName(), t.getMessage());
+        closeAsync().whenComplete((v, ex) -> {
+            if (ex != null) {
+                log.error("Failed to close producer on TopicDoesNotExistException.", ex);
+            }
+            producerCreatedFuture.completeExceptionally(t);
+        });
+    }
+
     @Override
-    public void connectionFailed(PulsarClientException exception) {
+    public boolean connectionFailed(PulsarClientException exception) {
         boolean nonRetriableError = !PulsarClientException.isRetriableError(exception);
         boolean timeout = System.currentTimeMillis() > lookupDeadline;
         if (nonRetriableError || timeout) {
@@ -2059,10 +2074,18 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 closeProducerTasks();
                 setState(State.Failed);
                 client.cleanupProducer(this);
+                return false;
+            } else {
+                Throwable actError = FutureUtil.unwrapCompletionException(exception);
+                if (isUnrecoverableError(actError)) {
+                    closeWhenReceivedUnrecoverableError(actError, null);
+                    return false;
+                }
             }
         } else {
             previousExceptionCount.incrementAndGet();
         }
+        return true;
     }
 
     private void closeProducerTasks() {
