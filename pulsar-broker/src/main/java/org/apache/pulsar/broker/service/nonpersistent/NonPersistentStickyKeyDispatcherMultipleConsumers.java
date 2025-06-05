@@ -135,7 +135,7 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
             };
 
     @Override
-    public void sendMessages(List<Entry> entries) {
+    public synchronized void sendMessages(List<Entry> entries) {
         if (entries.isEmpty()) {
             return;
         }

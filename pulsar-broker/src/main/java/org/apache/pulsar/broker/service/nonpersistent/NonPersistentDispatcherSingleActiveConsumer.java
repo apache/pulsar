@@ -56,7 +56,7 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
     }
 
     @Override
-    public void sendMessages(List<Entry> entries) {
+    public synchronized void sendMessages(List<Entry> entries) {
         Consumer currentConsumer = getActiveConsumer();
         if (currentConsumer != null && currentConsumer.getAvailablePermits() > 0 && currentConsumer.isWritable()) {
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
