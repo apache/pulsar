@@ -19,9 +19,9 @@
 package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertEquals;
-
 import java.util.UUID;
-
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.tests.ThreadDumpUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,8 +42,17 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
         super.internalSetup();
         super.producerBaseSetup();
         // Create a Pulsar client with some unavailable nodes
-        String serviceUrl = pulsar.getBrokerServiceUrl() + ",127.0.0.1:5678,127.0.0.1:6789";
-        pulsarClientWithUnavailableNodes = newPulsarClient(serviceUrl, 0);
+        StringBuilder serviceUrlBuilder = new StringBuilder(pulsar.getBrokerServiceUrl());
+        for(int i = 0; i<100;i++) {
+            serviceUrlBuilder.append(",127.0.0.1:").append(ThreadLocalRandom.current().nextInt(100, 1000));
+        }
+        pulsarClientWithUnavailableNodes = newPulsarClient(serviceUrlBuilder.toString(), 0);
+    }
+
+    @Override
+    protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
+        clientBuilder.operationTimeout(5, TimeUnit.SECONDS)
+                .lookupTimeout(5, TimeUnit.SECONDS);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -76,28 +85,28 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
 
     @DataProvider
     public static Object[][] variationsForExpectedPos() {
-        return new Object[][] {
+        return new Object[][]{
                 // batching / start-inclusive / num-of-messages
-                {true, true, 10 },
-                {true, false, 10 },
-                {false, true, 10 },
-                {false, false, 10 },
+                {true, true, 10},
+                {true, false, 10},
+                {false, true, 10},
+                {false, false, 10},
 
-                {true, true, 100 },
-                {true, false, 100 },
-                {false, true, 100 },
-                {false, false, 100 },
+                {true, true, 100},
+                {true, false, 100},
+                {false, true, 100},
+                {false, false, 100},
         };
     }
 
     @DataProvider(name = "ackReceiptEnabled")
     public Object[][] ackReceiptEnabled() {
-        return new Object[][] { { true }, { false } };
+        return new Object[][]{{true}, {false}};
     }
 
     @DataProvider(name = "ackReceiptEnabledAndSubscriptionTypes")
     public Object[][] ackReceiptEnabledAndSubscriptionTypes() {
-        return new Object[][] {
+        return new Object[][]{
                 {true, SubscriptionType.Shared},
                 {true, SubscriptionType.Key_Shared},
                 {false, SubscriptionType.Shared},
@@ -115,45 +124,30 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testCreateConsumerWithUnavailableBrokerNodes() throws Exception {
+    public void testCreateConsumerProducerWithUnavailableBrokerNodes() throws Exception {
         String topic = "persistent://my-property/my-ns/topic" + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topic);
-        int createCount = 10;
+        int createCount = 100;
         int successCount = 0;
         for (int i = 0; i < createCount; i++) {
             String subName = "my-sub" + UUID.randomUUID();
             try {
                 Consumer<byte[]> consumer = pulsarClientWithUnavailableNodes.newConsumer()
-                    .subscriptionMode(SubscriptionMode.Durable)
-                    .topic(topic).receiverQueueSize(1).subscriptionName(subName).subscribe();
+                        .subscriptionMode(SubscriptionMode.Durable)
+                        .topic(topic).receiverQueueSize(1).subscriptionName(subName)
+                        .subscribe();
                 consumer.close();
+                Producer<byte[]> producer = pulsarClientWithUnavailableNodes.newProducer()
+                        .topic(topic)
+                        .create();
+                producer.close();
                 successCount++;
-            } catch(PulsarClientException e) {
+            } catch (Exception e) {
                 log.warn("Failed to create subscription {} for topic {}: {}", subName, topic, e.getMessage());
             }
         }
-        assertEquals(createCount, successCount,
+        assertEquals(successCount, createCount,
                 "Expected all subscription creations to succeed, but only " + successCount + " succeeded.");
     }
 
-    @Test
-    public void testCreateProducerWithUnavailableBrokerNodes() throws Exception {
-        String topic = "persistent://my-property/my-ns/topic" + UUID.randomUUID();
-        admin.topics().createNonPartitionedTopic(topic);
-        int createCount = 10;
-        int successCount = 0;
-        for (int i = 0; i < createCount; i++) {
-            try {
-                Producer<byte[]> producer = pulsarClientWithUnavailableNodes.newProducer()
-                .topic(topic)
-                .create();
-                producer.close();
-                successCount++;
-            } catch(PulsarClientException e) {
-                log.warn("Failed to create producer for topic {}: {}", topic, e.getMessage());
-            }
-        }
-        assertEquals(createCount, successCount,
-                "Expected all producer creations to succeed, but only " + successCount + " succeeded.");
-    }
 }
