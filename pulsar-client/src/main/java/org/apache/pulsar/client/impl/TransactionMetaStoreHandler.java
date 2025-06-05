@@ -122,7 +122,7 @@ public class TransactionMetaStoreHandler extends HandlerState
     }
 
     @Override
-    public void connectionFailed(PulsarClientException exception) {
+    public boolean connectionFailed(PulsarClientException exception) {
         boolean nonRetriableError = !PulsarClientException.isRetriableError(exception);
         boolean timeout = System.currentTimeMillis() > lookupDeadline;
         if (nonRetriableError || timeout) {
@@ -136,10 +136,12 @@ public class TransactionMetaStoreHandler extends HandlerState
                             + "timeout", transactionCoordinatorId, exception);
                 }
                 setState(State.Failed);
+                return false;
             }
         } else {
             previousExceptionCount.getAndIncrement();
         }
+        return true;
     }
 
     @Override
