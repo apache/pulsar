@@ -1119,7 +1119,7 @@ public class Consumer {
             log.debug("[{}-{}] consumer {} received redelivery", topicName, subscription, consumerId);
         }
 
-        if (pendingAcks != null) {
+        if (Subscription.isIndividualAckMode(subType)) {
             List<Position> pendingPositions = new ArrayList<>((int) pendingAcks.size());
             MutableInt totalRedeliveryMessages = new MutableInt(0);
             pendingAcks.forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
@@ -1139,6 +1139,7 @@ public class Consumer {
 
             subscription.redeliverUnacknowledgedMessages(this, pendingPositions);
         } else {
+            pendingAcks.clear();
             subscription.redeliverUnacknowledgedMessages(this, consumerEpoch);
         }
 

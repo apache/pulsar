@@ -41,6 +41,7 @@ import java.util.function.Supplier;
  * running.
  */
 public class PendingAcksMap {
+
     /**
      * Callback interface for handling the addition of pending acknowledgments.
      */
@@ -221,6 +222,15 @@ public class PendingAcksMap {
             } else {
                 processPendingAcks(processor);
             }
+            pendingAcks.clear();
+        } finally {
+            writeLock.unlock();
+        }
+    }
+
+    public void clear() {
+        try {
+            writeLock.lock();
             pendingAcks.clear();
         } finally {
             writeLock.unlock();

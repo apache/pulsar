@@ -32,7 +32,6 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
@@ -136,7 +135,7 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
 
     @Test
     public void testUnackedMessages() throws Exception {
-        String topicNamePrefix = "testUnackedMessages-";
+        String topicNamePrefix = "testUnackedMessages-" + System.currentTimeMillis();
         String subscriptionNamePrefix = "testUnackedMessages-sub-";
         int totalProducedMessage = 100;
         // we will check unacked messages every 20 messages
@@ -163,62 +162,62 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
                 producer.send(Integer.toString(i));
             }
 
-            assertUnackedMessage(topicName, subscriptionName, totalProducedMessage);
+            // 1) check unacked message at begin
+            checkUnackedMessage(topicName, subscriptionName, totalProducedMessage);
 
+            // 2) check unacked message every checkStep
             for (int i = 0; i < totalProducedMessage; ++i) {
                 Message<String> msg = consumer.receive(1, TimeUnit.SECONDS);
                 if(Objects.isNull(msg)) {
-                    break;
+                    Assert.fail("Expected message not received");
                 }
                 consumer.acknowledge(msg.getMessageId());
                 if((i + 1) % checkStep == 0) {
-                    assertUnackedMessage(topicName, subscriptionName, totalProducedMessage - i - 1);
+                    checkUnackedMessage(topicName, subscriptionName, totalProducedMessage - i - 1);
                 }
             }
 
-            assertUnackedMessage(topicName, subscriptionName, 0);
+            // 3) check unacked message at end
+            checkUnackedMessage(topicName, subscriptionName, 0);
 
-            TopicStats topicStats = admin.topics().getStats(topicName);
-            assertThat(topicStats.getSubscriptions().get(subscriptionName).getUnackedMessages()).isEqualTo(0);
-
-            producer.send("1");
-            Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
-
+            // 4) test negative ack
+            for (int i = 0; i < totalProducedMessage; ++i) {
+                producer.send(Integer.toString(i));
+            }
+            Message<String> msg = null;
+            checkUnackedMessage(topicName, subscriptionName, totalProducedMessage);
+            for (int i = 0; i < totalProducedMessage; ++i) {
+                msg = consumer.receive(1, TimeUnit.SECONDS);
+                if(Objects.isNull(msg)) {
+                    Assert.fail("Expected message not received");
+                }
+            }
             consumer.negativeAcknowledge(msg);
-
             // sleep for a while to wait for the negative ack to be processed
             Thread.sleep(1000);
-            topicStats = admin.topics().getStats(topicName);
-            assertThat(topicStats.getSubscriptions().get(subscriptionName).getUnackedMessages()).isEqualTo(1);
+            TopicStats topicStats = admin.topics().getStats(topicName);
+            assertThat(topicStats.getSubscriptions().get(subscriptionName).getUnackedMessages()).isEqualTo(totalProducedMessage);
 
-            consumer.acknowledge(msg);
-            assertUnackedMessage(topicName, subscriptionName, 0);
-            topicStats = admin.topics().getStats(topicName);
-            assertThat(topicStats.getSubscriptions().get(subscriptionName).getUnackedMessages()).isEqualTo(0);
+            // 5) test cumulative ack or negative ack mode
+            consumer.acknowledgeCumulative(msg);
+            checkUnackedMessage(topicName, subscriptionName, 0);
 
-            // test cumulative ack or negative ack mode
-            producer.send(Integer.toString(1).getBytes());
+            // 6) after cumulation ack, consumer can receive message again
+            for (int i = 0; i < totalProducedMessage; ++i) {
+                producer.send(Integer.toString(i));
+            }
 
-            topicStats = admin.topics().getStats(topicName);
-            assertThat(topicStats.getSubscriptions().get(subscriptionName).getUnackedMessages()).isEqualTo(1);
-
-            msg = consumer.receive();
-            MessageId lastMsgId = null;
-            while (msg != null) {
-                lastMsgId = msg.getMessageId();
+            for (int i = 0; i < totalProducedMessage; ++i) {
                 msg = consumer.receive(5, TimeUnit.SECONDS);
+                if(Objects.isNull(msg)) {
+                    Assert.fail("Expected message not received");
+                }
             }
-
-            if (lastMsgId != null) {
-                consumer.acknowledgeCumulative(lastMsgId);
-            }
-
-            TopicStats stats = admin.topics().getStats(topicName);
-            assertThat(stats.getSubscriptions().get(subscriptionName).getUnackedMessages()).isEqualTo(0);
+            checkUnackedMessage(topicName, subscriptionName, totalProducedMessage);
         }
     }
 
-    private void assertUnackedMessage(String topicName, String subscriptionName, int expectedUnackedMessage) {
+    private void checkUnackedMessage(String topicName, String subscriptionName, int expectedUnackedMessage) {
         Awaitility.await().atMost(5, TimeUnit.SECONDS).pollInterval(500, TimeUnit.MILLISECONDS).untilAsserted(() -> {
             TopicStats topicStats = admin.topics().getStats(topicName);
             assertThat(topicStats.getSubscriptions().get(subscriptionName).getUnackedMessages()).isEqualTo(expectedUnackedMessage);
