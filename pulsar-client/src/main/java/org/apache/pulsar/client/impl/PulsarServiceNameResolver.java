@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkState;
 import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -50,11 +49,23 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
             AtomicIntegerFieldUpdater.newUpdater(PulsarServiceNameResolver.class, "currentIndex");
     private static final ScheduledExecutorProvider executorProvider =
             new ScheduledExecutorProvider(1, "pulsar-service-resolver-health-check-");
+    private final EndpointChecker endpointChecker;
+    private final long healthCheckIntervalMs;
     private final AtomicBoolean healthCheckScheduled = new AtomicBoolean(false);
     private final AtomicReference<ScheduledFuture<?>> healthCheckFuture = new AtomicReference<>();
     private volatile int currentIndex;
     private volatile List<InetSocketAddress> addressList;
     private volatile List<InetSocketAddress> healthyAddress;
+
+    public PulsarServiceNameResolver() {
+        this.endpointChecker = null;
+        this.healthCheckIntervalMs = 0;
+    }
+
+    public PulsarServiceNameResolver(EndpointChecker endpointChecker, long healthCheckIntervalMs) {
+        this.endpointChecker = endpointChecker;
+        this.healthCheckIntervalMs = healthCheckIntervalMs;
+    }
 
     @Override
     public InetSocketAddress resolveHost() {
@@ -123,12 +134,12 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
         this.serviceUri = uri;
         this.currentIndex = randomIndex(addresses.size());
 
-        if (!healthCheckScheduled.get()) {
+        if (endpointChecker != null && healthCheckIntervalMs > 0 && !healthCheckScheduled.get()) {
             synchronized (this) {
                 if (!healthCheckScheduled.get()) {
                     ScheduledFuture<?> future =
                             ((ScheduledExecutorService) executorProvider.getExecutor()).scheduleWithFixedDelay(
-                                    this::doHealthCheck, 5, 5, TimeUnit.SECONDS);
+                                    this::doHealthCheck, healthCheckIntervalMs, healthCheckIntervalMs, TimeUnit.MILLISECONDS);
                     healthCheckScheduled.set(true);
                     healthCheckFuture.set(future);
                 }
@@ -153,12 +164,15 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
      * so it is safe to update the healthy address list.
      */
     private void doHealthCheck() {
+        if (endpointChecker == null) {
+            return;
+        }
         List<InetSocketAddress> list = addressList;
         Set<InetSocketAddress> lastHealthyAddresses = new HashSet<>(healthyAddress);
         if (list != null && !list.isEmpty()) {
             List<InetSocketAddress> healthy = new ArrayList<>(list.size());
             for (InetSocketAddress address : list) {
-                if (checkAddress(address)) {
+                if (endpointChecker.isHealthy(address)) {
                     healthy.add(address);
                     if (!lastHealthyAddresses.contains(address)) {
                         log.info("Health check passed for address {}, add it back!", address);
@@ -178,15 +192,4 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
                 ?
                 0 : io.netty.util.internal.PlatformDependent.threadLocalRandom().nextInt(numAddresses);
     }
-
-    private static boolean checkAddress(InetSocketAddress address) {
-        try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress(address.getHostName(), address.getPort()), HEALTH_CHECK_TIMEOUT_MS);
-            return true;
-        } catch (Exception e) {
-            log.error("Health check error, failed to connect to {}, error:{}", address, e.getMessage());
-            return false;
-        }
-    }
-
 }

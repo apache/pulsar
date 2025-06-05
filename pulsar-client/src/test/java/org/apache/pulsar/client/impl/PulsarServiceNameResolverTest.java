@@ -23,18 +23,12 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
-import com.google.common.util.concurrent.Uninterruptibles;
-import java.io.IOException;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.ServerSocket;
 import java.net.URI;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidServiceURL;
 import org.apache.pulsar.common.net.ServiceURI;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -44,28 +38,12 @@ import org.testng.annotations.Test;
 public class PulsarServiceNameResolverTest {
 
     private PulsarServiceNameResolver resolver;
-    private ServerSocket serverSocket;
-    private boolean closed = false;
+
     @BeforeMethod
     public void setup() {
         this.resolver = new PulsarServiceNameResolver();
         assertNull(resolver.getServiceUrl());
         assertNull(resolver.getServiceUri());
-    }
-
-    @BeforeClass
-    public void init() throws IOException {
-        InetAddress inetAddress = InetAddress.getByName("0.0.0.0");
-        serverSocket = new ServerSocket(6666, 10, inetAddress);
-        new Thread(() -> {
-            while (!closed) {
-                try {
-                    serverSocket.accept();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }).start();
     }
 
     @Test(expectedExceptions = IllegalStateException.class)
@@ -150,46 +128,5 @@ public class PulsarServiceNameResolverTest {
             assertTrue(expectedAddresses.contains(resolver.resolveHost()));
             assertTrue(expectedHostUrls.contains(resolver.resolveHostUri()));
         }
-    }
-
-    @Test
-    public void testServiceUrlHealthCheck() throws Exception {
-        String serviceUrl = "pulsar+ssl://host1:6651,host2:6651,127.0.0.1:6666";
-        resolver.updateServiceUrl(serviceUrl);
-        assertEquals(serviceUrl, resolver.getServiceUrl());
-        assertEquals(ServiceURI.create(serviceUrl), resolver.getServiceUri());
-
-        Set<InetSocketAddress> expectedAddresses = new HashSet<>();
-        Set<URI> expectedHostUrls = new HashSet<>();
-        expectedAddresses.add(InetSocketAddress.createUnresolved("host1", 6651));
-        expectedAddresses.add(InetSocketAddress.createUnresolved("host2", 6651));
-        expectedAddresses.add(InetSocketAddress.createUnresolved("127.0.0.1", 6666));
-        expectedHostUrls.add(URI.create("pulsar+ssl://host1:6651"));
-        expectedHostUrls.add(URI.create("pulsar+ssl://host2:6651"));
-        expectedHostUrls.add(URI.create("pulsar+ssl://127.0.0.1:6666"));
-
-        for (int i = 0; i < 10; i++) {
-            assertTrue(expectedAddresses.contains(resolver.resolveHost()));
-            assertTrue(expectedHostUrls.contains(resolver.resolveHostUri()));
-        }
-        // wait for health check to complete
-        Uninterruptibles.sleepUninterruptibly(30, java.util.concurrent.TimeUnit.SECONDS);
-        // check if the unhealthy address is removed
-        Set<InetSocketAddress> expectedHealthyAddresses = new HashSet<>();
-        Set<URI> expectedHealthyHostUrls = new HashSet<>();
-        expectedHealthyAddresses.add(InetSocketAddress.createUnresolved("127.0.0.1", 6666));
-        expectedHealthyHostUrls.add(URI.create("pulsar+ssl://127.0.0.1:6666"));
-
-        for (int i = 0; i < 10; i++) {
-            assertTrue(expectedHealthyAddresses.contains(resolver.resolveHost()));
-            assertTrue(expectedHealthyHostUrls.contains(resolver.resolveHostUri()));
-        }
-    }
-
-    @AfterClass
-    public void close() throws IOException {
-        resolver.close();
-        serverSocket.close();
-        closed = true;
     }
 }

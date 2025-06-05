@@ -16,12 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api;
+package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import com.google.common.util.concurrent.Uninterruptibles;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.SubscriptionMode;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.net.ServiceURI;
 import org.apache.pulsar.tests.ThreadDumpUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,18 +50,34 @@ import org.testng.annotations.Test;
 public class CreateConsumerProducerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(CreateConsumerProducerTest.class);
     private PulsarClient pulsarClientWithUnavailableNodes;
+    private PulsarServiceNameResolver resolver;
+    private PulsarServiceNameResolver httpResolver;
+    private static final int BROKER_SERVICE_PORT = 6666;
+    private static final int WEB_SERVICE_PORT = 8888;
 
     @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
+        long healthCheckTimeoutMs = 5000;
+        this.resolver =
+                new PulsarServiceNameResolver(new BinaryProtoEndpointCheckerImpl(healthCheckTimeoutMs), healthCheckTimeoutMs);
+        this.httpResolver =
+                new PulsarServiceNameResolver(new HttpEndpointCheckerImpl(healthCheckTimeoutMs), healthCheckTimeoutMs);
         // Create a Pulsar client with some unavailable nodes
         StringBuilder serviceUrlBuilder = new StringBuilder(pulsar.getBrokerServiceUrl());
-        for(int i = 0; i<100;i++) {
+        for (int i = 0; i < 100; i++) {
             serviceUrlBuilder.append(",127.0.0.1:").append(ThreadLocalRandom.current().nextInt(100, 1000));
         }
         pulsarClientWithUnavailableNodes = newPulsarClient(serviceUrlBuilder.toString(), 0);
+    }
+
+    @Override
+    protected void doInitConf() throws Exception {
+        super.doInitConf();
+        this.conf.setBrokerServicePort(Optional.of(BROKER_SERVICE_PORT));
+        this.conf.setWebServicePort(Optional.of(WEB_SERVICE_PORT));
     }
 
     @Override
@@ -150,4 +181,42 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
                 "Expected all subscription creations to succeed, but only " + successCount + " succeeded.");
     }
 
+    @Test
+    public void testServiceUrlHealthCheck() throws Exception {
+        doTestServiceUrlHealthCheck(resolver, BROKER_SERVICE_PORT);
+        doTestServiceUrlHealthCheck(httpResolver, WEB_SERVICE_PORT);
+    }
+
+    private void doTestServiceUrlHealthCheck(PulsarServiceNameResolver resolver, int healthyPort) throws Exception {
+        String serviceUrl = "pulsar+ssl://host1:6651,host2:6651,127.0.0.1:" + healthyPort;
+        resolver.updateServiceUrl(serviceUrl);
+        assertEquals(serviceUrl, resolver.getServiceUrl());
+        assertEquals(ServiceURI.create(serviceUrl), resolver.getServiceUri());
+
+        Set<InetSocketAddress> expectedAddresses = new HashSet<>();
+        Set<URI> expectedHostUrls = new HashSet<>();
+        expectedAddresses.add(InetSocketAddress.createUnresolved("host1", 6651));
+        expectedAddresses.add(InetSocketAddress.createUnresolved("host2", 6651));
+        expectedAddresses.add(InetSocketAddress.createUnresolved("127.0.0.1", healthyPort));
+        expectedHostUrls.add(URI.create("pulsar+ssl://host1:6651"));
+        expectedHostUrls.add(URI.create("pulsar+ssl://host2:6651"));
+        expectedHostUrls.add(URI.create("pulsar+ssl://127.0.0.1:" + healthyPort));
+
+        for (int i = 0; i < 10; i++) {
+            assertTrue(expectedAddresses.contains(resolver.resolveHost()));
+            assertTrue(expectedHostUrls.contains(resolver.resolveHostUri()));
+        }
+        // wait for health check to complete
+        Uninterruptibles.sleepUninterruptibly(30, java.util.concurrent.TimeUnit.SECONDS);
+        // check if the unhealthy address is removed
+        Set<InetSocketAddress> expectedHealthyAddresses = new HashSet<>();
+        Set<URI> expectedHealthyHostUrls = new HashSet<>();
+        expectedHealthyAddresses.add(InetSocketAddress.createUnresolved("127.0.0.1", healthyPort));
+        expectedHealthyHostUrls.add(URI.create("pulsar+ssl://127.0.0.1:" + healthyPort));
+
+        for (int i = 0; i < 10; i++) {
+            assertTrue(expectedHealthyAddresses.contains(resolver.resolveHost()));
+            assertTrue(expectedHealthyHostUrls.contains(resolver.resolveHostUri()));
+        }
+    }
 }

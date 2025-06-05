@@ -121,6 +121,35 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder serviceUrlProvider(ServiceUrlProvider serviceUrlProvider);
 
     /**
+     * Configure the timeout for health check pre node in service URL.
+     *
+     * <p>By default, the client will wait for 5 seconds for a response from one service node.
+     * If the response is not received within this time, the service node will be considered unhealthy.
+     *
+     * @param serviceUrlHealthCheckTimeout
+     *            the timeout for health check of service node
+     *            if the value is equal to 0, the health check will be disabled
+     * @param unit
+     *            time unit for {@code serviceUrlHealthCheckTimeout}
+     * @return the client builder instance
+     */
+    ClientBuilder serviceUrlHealthCheckTimeout(int serviceUrlHealthCheckTimeout, TimeUnit unit);
+
+    /**
+     * Configure the interval for health check of service URL.
+     *
+     * <p>By default, the client will check the health of the service URL every 5 seconds.
+     * If ones node in the service URL is not healthy, it will be removed.
+     *
+     * @param serviceUrlHealthCheckInterval
+     *            the interval for health check of service URL
+     *            if the value is equal to 0, the health check will be disabled
+     * @param unit
+     *            time unit for {@code serviceUrlHealthCheckInterval}
+     * @return the client builder instance
+     */
+    ClientBuilder serviceUrlHealthCheckInterval(int serviceUrlHealthCheckInterval, TimeUnit unit);
+    /**
      * Configure the listenerName that the broker will return the corresponding `advertisedListener`.
      *
      * @param name the listener name

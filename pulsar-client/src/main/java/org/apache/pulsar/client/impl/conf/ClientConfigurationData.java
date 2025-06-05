@@ -71,6 +71,18 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private transient ServiceUrlProvider serviceUrlProvider;
 
     @ApiModelProperty(
+            name = "serviceUrlHealthCheckTimeoutMs",
+            value = "ServiceUrl health check timeout for pre service node(in milliseconds)."
+    )
+    private long serviceUrlHealthCheckTimeoutMs = 5000;
+
+    @ApiModelProperty(
+            name = "serviceUrlHealthCheckIntervalMs",
+            value = "ServiceUrl health check interval (in milliseconds)."
+    )
+    private long serviceUrlHealthCheckIntervalMs = 5000;
+
+    @ApiModelProperty(
             name = "authentication",
             value = "Authentication settings of the client."
     )

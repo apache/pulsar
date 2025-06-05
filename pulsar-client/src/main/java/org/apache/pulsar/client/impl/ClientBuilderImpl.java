@@ -101,6 +101,22 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
+    public ClientBuilder serviceUrlHealthCheckTimeout(int serviceUrlHealthCheckTimeout, TimeUnit unit) {
+        checkArgument(serviceUrlHealthCheckTimeout >= 0,
+                "serviceUrlHealthCheckTimeout needs to be >= 0");
+        conf.setServiceUrlHealthCheckTimeoutMs(unit.toMillis(serviceUrlHealthCheckTimeout));
+        return this;
+    }
+
+    @Override
+    public ClientBuilder serviceUrlHealthCheckInterval(int serviceUrlHealthCheckInterval, TimeUnit unit) {
+        checkArgument(serviceUrlHealthCheckInterval >= 0,
+                "serviceUrlHealthCheckInterval needs to be >= 0");
+        conf.setServiceUrlHealthCheckIntervalMs(unit.toMillis(serviceUrlHealthCheckInterval));
+        return this;
+    }
+
+    @Override
     public ClientBuilder listenerName(String listenerName) {
         checkArgument(StringUtils.isNotBlank(listenerName), "Param listenerName must not be blank.");
         conf.setListenerName(StringUtils.trim(listenerName));
