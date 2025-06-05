@@ -213,7 +213,7 @@ public class BinaryProtoLookupService implements LookupService {
             return addressFuture;
         }
 
-        client.getCnxPool().getConnection(socketAddress).thenAcceptAsync(clientCnx -> {
+        client.getCnxPool().getConnectionByResolver(serviceNameResolver).thenAcceptAsync(clientCnx -> {
             long requestId = client.newRequestId();
             ByteBuf request = Commands.newLookup(topicName.toString(), listenerName, authoritative, requestId,
                     properties);
@@ -293,7 +293,7 @@ public class BinaryProtoLookupService implements LookupService {
         long startTime = System.nanoTime();
         CompletableFuture<PartitionedTopicMetadata> partitionFuture = new CompletableFuture<>();
 
-        client.getCnxPool().getConnection(socketAddress).thenAcceptAsync(clientCnx -> {
+        client.getCnxPool().getConnectionByResolver(serviceNameResolver).thenAcceptAsync(clientCnx -> {
             boolean finalAutoCreationEnabled = metadataAutoCreationEnabled;
             if (!metadataAutoCreationEnabled && !clientCnx.isSupportsGetPartitionedMetadataWithoutAutoCreation()) {
                 if (useFallbackForNonPIP344Brokers) {
@@ -357,7 +357,7 @@ public class BinaryProtoLookupService implements LookupService {
             return schemaFuture;
         }
         InetSocketAddress socketAddress = serviceNameResolver.resolveHost();
-        client.getCnxPool().getConnection(socketAddress).thenAcceptAsync(clientCnx -> {
+        client.getCnxPool().getConnectionByResolver(serviceNameResolver).thenAcceptAsync(clientCnx -> {
             long requestId = client.newRequestId();
             ByteBuf request = Commands.newGetSchema(requestId, topicName.toString(),
                 Optional.ofNullable(BytesSchemaVersion.of(version)));
@@ -418,7 +418,7 @@ public class BinaryProtoLookupService implements LookupService {
                                          String topicsHash) {
         long startTime = System.nanoTime();
 
-        client.getCnxPool().getConnection(socketAddress).thenAcceptAsync(clientCnx -> {
+        client.getCnxPool().getConnectionByResolver(serviceNameResolver).thenAcceptAsync(clientCnx -> {
             long requestId = client.newRequestId();
             ByteBuf request = Commands.newGetTopicsOfNamespaceRequest(
                 namespace.toString(), requestId, mode, topicsPattern, topicsHash);
