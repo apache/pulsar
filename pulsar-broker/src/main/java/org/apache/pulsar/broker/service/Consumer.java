@@ -440,8 +440,8 @@ public class Consumer {
     }
 
     private void incrementUnackedMessages(int unackedMessages) {
-        if (addAndGetUnAckedMsgs(this, unackedMessages) >= getMaxUnackedMessages()
-                && getMaxUnackedMessages() > 0) {
+        int unackedMsgs = addAndGetUnAckedMsgs(this, unackedMessages);
+        if (unackedMsgs >= getMaxUnackedMessages() && getMaxUnackedMessages() > 0) {
             blockedConsumerOnUnackedMsgs = true;
         }
     }
