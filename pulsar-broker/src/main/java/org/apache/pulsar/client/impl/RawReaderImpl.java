@@ -28,6 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.api.Schema;
@@ -52,7 +53,7 @@ public class RawReaderImpl implements RawReader {
 
     public RawReaderImpl(PulsarClientImpl client, String topic, String subscription,
                          CompletableFuture<Consumer<byte[]>> consumerFuture,
-                         boolean createTopicIfDoesNotExist) {
+                         boolean createTopicIfDoesNotExist, boolean retryOnRecoverableErrors) {
         consumerConfiguration = new ConsumerConfigurationData<>();
         consumerConfiguration.getTopicNames().add(topic);
         consumerConfiguration.setSubscriptionName(subscription);
@@ -62,9 +63,22 @@ public class RawReaderImpl implements RawReader {
         consumerConfiguration.setSubscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
         consumerConfiguration.setAckReceiptEnabled(true);
 
-        consumer = new RawConsumerImpl(client, consumerConfiguration, consumerFuture, createTopicIfDoesNotExist);
+        consumer = new RawConsumerImpl(client, consumerConfiguration, consumerFuture, createTopicIfDoesNotExist,
+                retryOnRecoverableErrors);
     }
 
+//<<<<<<< HEAD
+//=======
+//    public RawReaderImpl(PulsarClientImpl client, ConsumerConfigurationData<byte[]> consumerConfiguration,
+//                         CompletableFuture<Consumer<byte[]>> consumerFuture,
+//                         boolean createTopicIfDoesNotExist, boolean retryOnRecoverableErrors) {
+//        this.consumerConfiguration = consumerConfiguration;
+//        consumer = new RawConsumerImpl(client, consumerConfiguration, consumerFuture, createTopicIfDoesNotExist,
+//                retryOnRecoverableErrors);
+//    }
+//
+//
+//>>>>>>> 37e160f78f ([fix][broker]Fix deadlock when compaction and topic deletion execute concurrently (#24366))
     @Override
     public String getTopic() {
         return consumerConfiguration.getTopicNames().stream()
@@ -109,9 +123,11 @@ public class RawReaderImpl implements RawReader {
     static class RawConsumerImpl extends ConsumerImpl<byte[]> {
         final BlockingQueue<RawMessageAndCnx> incomingRawMessages;
         final Queue<CompletableFuture<RawMessage>> pendingRawReceives;
+        final boolean retryOnRecoverableErrors;
 
         RawConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<byte[]> conf,
-                CompletableFuture<Consumer<byte[]>> consumerFuture, boolean createTopicIfDoesNotExist) {
+                CompletableFuture<Consumer<byte[]>> consumerFuture, boolean createTopicIfDoesNotExist,
+                boolean retryOnRecoverableErrors) {
             super(client,
                     conf.getSingleTopic(),
                     conf,
@@ -127,6 +143,14 @@ public class RawReaderImpl implements RawReader {
             );
             incomingRawMessages = new GrowableArrayBlockingQueue<>();
             pendingRawReceives = new ConcurrentLinkedQueue<>();
+            this.retryOnRecoverableErrors = retryOnRecoverableErrors;
+        }
+
+        protected boolean isUnrecoverableError(Throwable t) {
+            if (!retryOnRecoverableErrors && (t instanceof PulsarClientException.ServiceNotReadyException)) {
+                return true;
+            }
+            return super.isUnrecoverableError(t);
         }
 
         void tryCompletePending() {
