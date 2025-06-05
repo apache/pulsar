@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import com.google.common.collect.ImmutableList;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
@@ -37,6 +38,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -135,42 +137,69 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
     public void testUnackedMessages() throws Exception {
         String topicNamePrefix = "testUnackedMessages-";
         String subscriptionNamePrefix = "testUnackedMessages-sub-";
+        int totalProducedMessage = 100;
+        // we will check unacked messages every 20 messages
+        int checkStep = 20;
 
         for(SubscriptionType subscription : ImmutableList.of(SubscriptionType.Exclusive, SubscriptionType.Failover)) {
             String topicName = topicNamePrefix + subscription.name();
             String subscriptionName = subscriptionNamePrefix + subscription.name();
             @Cleanup
-            org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer()
+            org.apache.pulsar.client.api.Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                     .topic(topicName).subscriptionName(subscriptionName)
                     .subscriptionType(subscription)
+                    .receiverQueueSize(totalProducedMessage)
+                    .ackTimeout(1000, TimeUnit.MILLISECONDS)
+                    .negativeAckRedeliveryDelay(0, TimeUnit.SECONDS)
                     .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                    .maxAcknowledgmentGroupSize(1)
                     .subscribe();
 
             @Cleanup
-            Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-            producer.send("1".getBytes());
+            Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+
+            for (int i = 0; i < totalProducedMessage; ++i) {
+                producer.send(Integer.toString(i));
+            }
+
+            assertUnackedMessage(topicName, subscriptionName, totalProducedMessage);
+
+            for (int i = 0; i < totalProducedMessage; ++i) {
+                Message<String> msg = consumer.receive(1, TimeUnit.SECONDS);
+                if(Objects.isNull(msg)) {
+                    break;
+                }
+                consumer.acknowledge(msg.getMessageId());
+                if((i + 1) % checkStep == 0) {
+                    assertUnackedMessage(topicName, subscriptionName, totalProducedMessage - i - 1);
+                }
+            }
+
+            assertUnackedMessage(topicName, subscriptionName, 0);
 
             TopicStats topicStats = admin.topics().getStats(topicName);
-            assertThat(topicStats.getSubscriptions().get(subscriptionName).getUnackedMessages()).isEqualTo(1);
-
-            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
-            consumer.acknowledge(msg);
-
-            topicStats = admin.topics().getStats(topicName);
             assertThat(topicStats.getSubscriptions().get(subscriptionName).getUnackedMessages()).isEqualTo(0);
 
-            producer.send("1".getBytes());
-            msg = consumer.receive(5, TimeUnit.SECONDS);
+            producer.send("1");
+            Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
 
             consumer.negativeAcknowledge(msg);
 
+            // sleep for a while to wait for the negative ack to be processed
+            Thread.sleep(1000);
             topicStats = admin.topics().getStats(topicName);
             assertThat(topicStats.getSubscriptions().get(subscriptionName).getUnackedMessages()).isEqualTo(1);
 
             consumer.acknowledge(msg);
-            topicStats = admin.topics().getStats(topicName);
-            assertThat(topicStats.getSubscriptions().get(subscriptionName).getUnackedMessages()).isEqualTo(0);
+            assertUnackedMessage(topicName, subscriptionName, 0);
         }
+    }
+
+    private void assertUnackedMessage(String topicName, String subscriptionName, int expectedUnackedMessage) {
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).pollInterval(500, TimeUnit.MILLISECONDS).untilAsserted(() -> {
+            TopicStats topicStats = admin.topics().getStats(topicName);
+            assertThat(topicStats.getSubscriptions().get(subscriptionName).getUnackedMessages()).isEqualTo(expectedUnackedMessage);
+        });
     }
 
 }
