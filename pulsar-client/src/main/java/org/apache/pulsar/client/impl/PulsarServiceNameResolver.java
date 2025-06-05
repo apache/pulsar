@@ -154,17 +154,17 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
      */
     private void doHealthCheck() {
         List<InetSocketAddress> list = addressList;
-        Set<InetSocketAddress> lastHethalAddresses = new HashSet<>(healthyAddress);
+        Set<InetSocketAddress> lastHealthyAddresses = new HashSet<>(healthyAddress);
         if (list != null && !list.isEmpty()) {
             List<InetSocketAddress> healthy = new ArrayList<>(list.size());
             for (InetSocketAddress address : list) {
                 if (checkAddress(address)) {
                     healthy.add(address);
-                    if (!lastHethalAddresses.contains(address)) {
+                    if (!lastHealthyAddresses.contains(address)) {
                         log.info("Health check passed for address {}, add it back!", address);
                     }
                 } else {
-                    if (lastHethalAddresses.contains(address)) {
+                    if (lastHealthyAddresses.contains(address)) {
                         log.error("Health check failed for address {}, remove it!", address);
                     }
                 }
