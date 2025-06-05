@@ -216,7 +216,7 @@ public class ConnectionPool implements AutoCloseable {
         return signSafeMod(random.nextInt(), maxConnectionsPerHosts);
     }
 
-    public CompletableFuture<ClientCnx> getConnectionByResolver(final ServiceNameResolver serviceNameResolver) {
+    public CompletableFuture<ClientCnx> getConnection(final ServiceNameResolver serviceNameResolver) {
         InetSocketAddress address = serviceNameResolver.resolveHost();
         CompletableFuture<ClientCnx> clientCnxCompletableFuture = getConnection(address);
         clientCnxCompletableFuture.whenComplete((__, throwable) -> serviceNameResolver.markHostAvailability(address, throwable == null));
@@ -519,7 +519,7 @@ public class ConnectionPool implements AutoCloseable {
         releaseIdleConnectionTaskList.forEach(Runnable::run);
     }
 
-    public Set<CompletableFuture<ClientCnx>> getConnectionByResolver() {
+    public Set<CompletableFuture<ClientCnx>> getConnections() {
         return Collections.unmodifiableSet(
                 pool.values().stream().collect(Collectors.toSet()));
     }

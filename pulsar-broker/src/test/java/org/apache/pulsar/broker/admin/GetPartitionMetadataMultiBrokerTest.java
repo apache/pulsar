@@ -268,7 +268,7 @@ public class GetPartitionMetadataMultiBrokerTest extends GetPartitionMetadataTes
         field.setAccessible(true);
         for (PulsarClientImpl client : Arrays.asList(client1, client2)) {
             ConnectionPool pool = client.getCnxPool();
-            for (CompletableFuture<ClientCnx> connectionFuture : pool.getConnectionByResolver()) {
+            for (CompletableFuture<ClientCnx> connectionFuture : pool.getConnections()) {
                 ClientCnx clientCnx = connectionFuture.join();
                 clientCnx.isSupportsGetPartitionedMetadataWithoutAutoCreation();
                 field.set(clientCnx, false);
@@ -301,7 +301,7 @@ public class GetPartitionMetadataMultiBrokerTest extends GetPartitionMetadataTes
         // reset clients.
         for (PulsarClientImpl client : Arrays.asList(client1, client2)) {
             ConnectionPool pool = client.getCnxPool();
-            for (CompletableFuture<ClientCnx> connectionFuture : pool.getConnectionByResolver()) {
+            for (CompletableFuture<ClientCnx> connectionFuture : pool.getConnections()) {
                 ClientCnx clientCnx = connectionFuture.join();
                 clientCnx.isSupportsGetPartitionedMetadataWithoutAutoCreation();
                 field.set(clientCnx, true);
