@@ -248,7 +248,7 @@ public class GetPartitionMetadataTest extends TestRetrySupport {
         field.setAccessible(true);
         for (PulsarClientImpl client : clients) {
             ConnectionPool pool = client.getCnxPool();
-            for (CompletableFuture<ClientCnx> connectionFuture : pool.getConnections()) {
+            for (CompletableFuture<ClientCnx> connectionFuture : pool.getConnectionByResolver()) {
                 ClientCnx clientCnx = connectionFuture.join();
                 clientCnx.isSupportsGetPartitionedMetadataWithoutAutoCreation();
                 field.set(clientCnx, false);
@@ -280,7 +280,7 @@ public class GetPartitionMetadataTest extends TestRetrySupport {
         // reset clients.
         for (PulsarClientImpl client : clients) {
             ConnectionPool pool = client.getCnxPool();
-            for (CompletableFuture<ClientCnx> connectionFuture : pool.getConnections()) {
+            for (CompletableFuture<ClientCnx> connectionFuture : pool.getConnectionByResolver()) {
                 ClientCnx clientCnx = connectionFuture.join();
                 clientCnx.isSupportsGetPartitionedMetadataWithoutAutoCreation();
                 field.set(clientCnx, true);

@@ -19,12 +19,17 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkState;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidServiceURL;
 import org.apache.pulsar.common.net.ServiceURI;
@@ -41,10 +46,19 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
             AtomicIntegerFieldUpdater.newUpdater(PulsarServiceNameResolver.class, "currentIndex");
     private volatile int currentIndex;
     private volatile List<InetSocketAddress> addressList;
+    private volatile List<InetSocketAddress> availableAddressList;
+    private final Map<InetSocketAddress, Boolean> hostAvailabilityMap = Maps.newHashMap();
 
     @Override
     public InetSocketAddress resolveHost() {
-        List<InetSocketAddress> list = addressList;
+        final List<InetSocketAddress> list;
+        List<InetSocketAddress> availableAddresses = availableAddressList;
+        if (availableAddresses != null && !availableAddresses.isEmpty()) {
+            list = availableAddresses;
+        } else {
+            // if no available address, use the original address list
+            list = addressList;
+        }
         checkState(
             list != null, "No service url is provided yet");
         checkState(
@@ -75,7 +89,7 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
     }
 
     @Override
-    public void updateServiceUrl(String serviceUrl) throws InvalidServiceURL {
+    public synchronized void updateServiceUrl(String serviceUrl) throws InvalidServiceURL {
         ServiceURI uri;
         try {
             uri = ServiceURI.create(serviceUrl);
@@ -97,14 +111,33 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
             }
         }
         this.addressList = addresses;
+        this.availableAddressList = new ArrayList<>(addresses);
         this.serviceUrl = serviceUrl;
         this.serviceUri = uri;
         this.currentIndex = randomIndex(addresses.size());
+        Set<InetSocketAddress> newHosts = Sets.newHashSet(addresses);
+        hostAvailabilityMap.keySet().removeIf(host -> !newHosts.contains(host));
+        addresses.forEach(address -> hostAvailabilityMap.putIfAbsent(address, true));
     }
 
     private static int randomIndex(int numAddresses) {
         return numAddresses == 1
                 ?
                 0 : io.netty.util.internal.PlatformDependent.threadLocalRandom().nextInt(numAddresses);
+    }
+
+    @Override
+    public synchronized void markHostAvailability(InetSocketAddress address, boolean isAvailable) {
+        Boolean oldAvailable = hostAvailabilityMap.get(address);
+        hostAvailabilityMap.put(address, isAvailable);
+        if (oldAvailable == null || oldAvailable != isAvailable) {
+            availableAddressList = hostAvailabilityMap.entrySet()
+                    .stream()
+                    .filter(Map.Entry::getValue)
+                    .map(Map.Entry::getKey)
+                    .collect(Collectors.toList());
+            log.info("Host {} availability changed to {}, current available hosts: {}", address, isAvailable,
+                    availableAddressList);
+        }
     }
 }
