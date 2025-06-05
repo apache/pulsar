@@ -179,7 +179,7 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
 
         PulsarClientImpl pulsarClientImpl = (PulsarClientImpl) pulsarClient;
         pulsarClient.getPartitionsForTopic(topic).get();
-        Set<CompletableFuture<ClientCnx>> connections = pulsarClientImpl.getCnxPool().getConnections();
+        Set<CompletableFuture<ClientCnx>> connections = pulsarClientImpl.getCnxPool().getConnectionByResolver();
 
         Awaitility.await().during(5, SECONDS).untilAsserted(() -> {
             pulsarClient.getPartitionsForTopic(topic).get();

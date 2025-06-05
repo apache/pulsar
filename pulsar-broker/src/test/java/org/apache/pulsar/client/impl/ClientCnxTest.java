@@ -256,7 +256,7 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
         // Verify: client will get a not support error.
         Field field = ClientCnx.class.getDeclaredField("supportsGetPartitionedMetadataWithoutAutoCreation");
         field.setAccessible(true);
-        for (CompletableFuture<ClientCnx> clientCnxFuture : clientWitBinaryLookup.getCnxPool().getConnections()) {
+        for (CompletableFuture<ClientCnx> clientCnxFuture : clientWitBinaryLookup.getCnxPool().getConnectionByResolver()) {
             field.set(clientCnxFuture.get(), false);
         }
         try {

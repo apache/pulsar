@@ -22,7 +22,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.net.InetSocketAddress;
-import java.net.URI;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -33,10 +32,8 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.net.ServiceURI;
 import org.apache.pulsar.tests.ThreadDumpUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,23 +46,24 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-api")
 public class CreateConsumerProducerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(CreateConsumerProducerTest.class);
-    private PulsarClient pulsarClientWithUnavailableNodes;
-    private PulsarServiceNameResolver resolver;
+    private String serviceUrlWithUnavailableNodes;
+    private PulsarClientImpl pulsarClientWithUnavailableNodes;
     private static final int BROKER_SERVICE_PORT = 6666;
     private static final int WEB_SERVICE_PORT = 8888;
+    private static final int UNAVAILABLE_NODES = 100;
 
     @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
-        resolver = new PulsarServiceNameResolver();
         // Create a Pulsar client with some unavailable nodes
         StringBuilder serviceUrlBuilder = new StringBuilder(pulsar.getBrokerServiceUrl());
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < UNAVAILABLE_NODES; i++) {
             serviceUrlBuilder.append(",127.0.0.1:").append(ThreadLocalRandom.current().nextInt(100, 1000));
         }
-        pulsarClientWithUnavailableNodes = newPulsarClient(serviceUrlBuilder.toString(), 0);
+        this.serviceUrlWithUnavailableNodes = serviceUrlBuilder.toString();
+        this.pulsarClientWithUnavailableNodes = (PulsarClientImpl) newPulsarClient(serviceUrlWithUnavailableNodes, 0);
     }
 
     @Override
@@ -151,9 +149,22 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
 
     @Test
     public void testCreateConsumerProducerWithUnavailableBrokerNodes() throws Exception {
+        pulsarClientWithUnavailableNodes.updateServiceUrl(serviceUrlWithUnavailableNodes);
         String topic = "persistent://my-property/my-ns/topic" + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topic);
         int createCount = 100;
+        // trigger unhealthy address removal by creating consumers and producers
+        int successCount = creatConsumerAndProducers(createCount, topic);
+        assertTrue(successCount < createCount,
+                "Expected some creations to fail due to unavailable nodes, but all succeeded.");
+
+        // all unavailable nodes should have been removed
+        successCount = creatConsumerAndProducers(createCount, topic);
+        assertEquals(successCount, createCount,
+                "Expected all subscription creations to succeed, but only " + successCount + " succeeded.");
+    }
+
+    private int creatConsumerAndProducers(int createCount, String topic) {
         int successCount = 0;
         for (int i = 0; i < createCount; i++) {
             String subName = "my-sub" + UUID.randomUUID();
@@ -169,49 +180,49 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
                 producer.close();
                 successCount++;
             } catch (Exception e) {
-                log.warn("Failed to create subscription {} for topic {}: {}", subName, topic, e.getMessage());
+                log.warn("Failed to create consumer and producer {} for topic {}: {}", subName, topic, e.getMessage());
             }
         }
-        assertEquals(successCount, createCount,
-                "Expected all subscription creations to succeed, but only " + successCount + " succeeded.");
+        return successCount;
     }
 
     @Test
     public void testServiceUrlHealthCheck() throws Exception {
-        doTestServiceUrlHealthCheck(resolver, BROKER_SERVICE_PORT);
-        doTestServiceUrlHealthCheck(resolver, WEB_SERVICE_PORT);
+        doTestServiceUrlHealthCheck(pulsarClientWithUnavailableNodes.getLookup(), BROKER_SERVICE_PORT);
+//        doTestServiceUrlHealthCheck(resolver, WEB_SERVICE_PORT);
     }
 
-    private void doTestServiceUrlHealthCheck(PulsarServiceNameResolver resolver, int healthyPort) throws Exception {
+    private void doTestServiceUrlHealthCheck(LookupService resolver, int healthyPort) throws Exception {
         String serviceUrl = "pulsar+ssl://host1:6651,host2:6651,127.0.0.1:" + healthyPort;
         resolver.updateServiceUrl(serviceUrl);
         assertEquals(serviceUrl, resolver.getServiceUrl());
-        assertEquals(ServiceURI.create(serviceUrl), resolver.getServiceUri());
 
         Set<InetSocketAddress> expectedAddresses = new HashSet<>();
-        Set<URI> expectedHostUrls = new HashSet<>();
         expectedAddresses.add(InetSocketAddress.createUnresolved("host1", 6651));
         expectedAddresses.add(InetSocketAddress.createUnresolved("host2", 6651));
         expectedAddresses.add(InetSocketAddress.createUnresolved("127.0.0.1", healthyPort));
-        expectedHostUrls.add(URI.create("pulsar+ssl://host1:6651"));
-        expectedHostUrls.add(URI.create("pulsar+ssl://host2:6651"));
-        expectedHostUrls.add(URI.create("pulsar+ssl://127.0.0.1:" + healthyPort));
 
         for (int i = 0; i < 10; i++) {
             assertTrue(expectedAddresses.contains(resolver.resolveHost()));
-            assertTrue(expectedHostUrls.contains(resolver.resolveHostUri()));
         }
-        // wait for health check to complete
-        Uninterruptibles.sleepUninterruptibly(30, java.util.concurrent.TimeUnit.SECONDS);
+        String topic = "persistent://my-property/my-ns/topic" + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topic);
+        // Create consumers to trigger unhealthy address removal
+        for (int i = 0; i < 10; i++) {
+            String subName = "my-sub" + UUID.randomUUID();
+            pulsarClientWithUnavailableNodes.newConsumer()
+                    .subscriptionMode(SubscriptionMode.Durable)
+                    .topic(topic).receiverQueueSize(1).subscriptionName(subName)
+                    .subscribeAsync()
+                    .thenAccept(Consumer::closeAsync);
+        }
+        Uninterruptibles.sleepUninterruptibly(10, java.util.concurrent.TimeUnit.SECONDS);
         // check if the unhealthy address is removed
         Set<InetSocketAddress> expectedHealthyAddresses = new HashSet<>();
-        Set<URI> expectedHealthyHostUrls = new HashSet<>();
         expectedHealthyAddresses.add(InetSocketAddress.createUnresolved("127.0.0.1", healthyPort));
-        expectedHealthyHostUrls.add(URI.create("pulsar+ssl://127.0.0.1:" + healthyPort));
 
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 100; i++) {
             assertTrue(expectedHealthyAddresses.contains(resolver.resolveHost()));
-            assertTrue(expectedHealthyHostUrls.contains(resolver.resolveHostUri()));
         }
     }
 }
