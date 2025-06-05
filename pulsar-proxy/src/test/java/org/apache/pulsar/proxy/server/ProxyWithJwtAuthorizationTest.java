@@ -450,35 +450,57 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
     @Test
     void testGetMetrics() throws Exception {
         log.info("-- Starting {} test --", methodName);
+
         startProxy();
-        PulsarResources resource = new PulsarResources(registerCloseable(new ZKMetadataStore(mockZooKeeper)),
-                registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal)));
+
+        PulsarResources resource = new PulsarResources(
+                registerCloseable(new ZKMetadataStore(mockZooKeeper)),
+                registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))
+        );
+
         AuthenticationService authService = new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(proxyConfig));
+                PulsarConfigurationLoader.convertFrom(proxyConfig)
+        );
+
         proxyConfig.setAuthenticateMetricsEndpoint(false);
-        WebServer webServer = new WebServer(proxyConfig, authService);
-        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, proxyService,
-                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)), proxyClientAuthentication);
+        webServer.stop();
+
+        webServer = new WebServer(proxyConfig, authService);
+        ProxyServiceStarter.addWebServerHandlers(
+                webServer, proxyConfig, proxyService,
+                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)),
+                proxyClientAuthentication
+        );
         webServer.start();
+
         @Cleanup
-        Client client = javax.ws.rs.client.ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
+        Client client = javax.ws.rs.client.ClientBuilder.newClient(
+                new ClientConfig().register(LoggingFeature.class)
+        );
+
         try {
             Response r = client.target(webServer.getServiceUri()).path("/metrics").request().get();
             Assert.assertEquals(r.getStatus(), Response.Status.OK.getStatusCode());
         } finally {
             webServer.stop();
         }
+
         proxyConfig.setAuthenticateMetricsEndpoint(true);
         webServer = new WebServer(proxyConfig, authService);
-        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, proxyService,
-                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)), proxyClientAuthentication);
+        ProxyServiceStarter.addWebServerHandlers(
+                webServer, proxyConfig, proxyService,
+                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)),
+                proxyClientAuthentication
+        );
         webServer.start();
+
         try {
             Response r = client.target(webServer.getServiceUri()).path("/metrics").request().get();
             Assert.assertEquals(r.getStatus(), Response.Status.UNAUTHORIZED.getStatusCode());
         } finally {
             webServer.stop();
         }
+
         log.info("-- Exiting {} test --", methodName);
     }
 
