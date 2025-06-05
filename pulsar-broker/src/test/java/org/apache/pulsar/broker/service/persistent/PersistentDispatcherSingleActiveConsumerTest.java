@@ -31,6 +31,7 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
@@ -148,6 +149,7 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
 
             @Cleanup
             Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+            // test individual ack or negative ack mode
             producer.send("1".getBytes());
 
             TopicStats topicStats = admin.topics().getStats(topicName);
@@ -170,6 +172,26 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
             consumer.acknowledge(msg);
             topicStats = admin.topics().getStats(topicName);
             assertThat(topicStats.getSubscriptions().get(subscriptionName).getUnackedMessages()).isEqualTo(0);
+
+            // test cumulative ack or negative ack mode
+            producer.send(Integer.toString(1).getBytes());
+
+            topicStats = admin.topics().getStats(topicName);
+            assertThat(topicStats.getSubscriptions().get(subscriptionName).getUnackedMessages()).isEqualTo(1);
+
+            msg = consumer.receive();
+            MessageId lastMsgId = null;
+            while (msg != null) {
+                lastMsgId = msg.getMessageId();
+                msg = consumer.receive(5, TimeUnit.SECONDS);
+            }
+
+            if (lastMsgId != null) {
+                consumer.acknowledgeCumulative(lastMsgId);
+            }
+
+            TopicStats stats = admin.topics().getStats(topicName);
+            assertThat(stats.getSubscriptions().get(subscriptionName).getUnackedMessages()).isEqualTo(0);
         }
     }
 

@@ -252,12 +252,12 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = 30000)
-    public void testMaxUnackedMessagesOnConsumer() throws Exception {
+    public void testMaxUnackedMessagesOnSharedConsumer() throws Exception {
         final String topicName = testTopic + System.currentTimeMillis();
         final String subscriberName = "test-sub" + System.currentTimeMillis();
         final int unackMsgAllowed = 100;
         final int receiverQueueSize = 10;
-        final int totalProducedMsgs = 300;
+        final int totalProducedMsgs = 400;
 
         ConsumerBuilder<String> consumerBuilder = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
                 .subscriptionName(subscriberName).receiverQueueSize(receiverQueueSize)
@@ -305,14 +305,181 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
             String message = "my-message-" + i;
             producer.send(message);
         }
+        AtomicInteger consumer1Counter = new AtomicInteger(0);
         AtomicInteger consumer2Counter = new AtomicInteger(0);
         AtomicInteger consumer3Counter = new AtomicInteger(0);
-        CountDownLatch countDownLatch = new CountDownLatch(2);
+        CountDownLatch countDownLatch = new CountDownLatch(3);
+        startConsumer(consumer1, consumer1Counter, countDownLatch);
         startConsumer(consumer2, consumer2Counter, countDownLatch);
         startConsumer(consumer3, consumer3Counter, countDownLatch);
         countDownLatch.await(10, TimeUnit.SECONDS);
+        assertEquals(consumer1Counter.get(), unackMsgAllowed);
         assertEquals(consumer2Counter.get(), unackMsgAllowed);
         assertEquals(consumer3Counter.get(), unackMsgAllowed);
+    }
+
+    @Test(timeOut = 30000)
+    public void testMaxUnackedMessagesOnExclusiveConsumer() throws Exception {
+        final String topicName = testTopic + System.currentTimeMillis();
+        final String subscriberName = "test-sub-exclusive" + System.currentTimeMillis();
+        final int unackMsgAllowed = 100;
+        final int receiverQueueSize = 10;
+        final int totalProducedMsgs = 300;
+
+        ConsumerBuilder<String> consumerBuilder = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionName(subscriberName).receiverQueueSize(receiverQueueSize)
+                .ackTimeout(1, TimeUnit.MINUTES)
+                .subscriptionType(SubscriptionType.Exclusive);
+        @Cleanup
+        Consumer<String> consumer = consumerBuilder.subscribe();
+        // 1) Produced Messages
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+        for (int i = 0; i < totalProducedMsgs; i++) {
+            String message = "my-message-" + i;
+            producer.send(message);
+        }
+        // 2) Unlimited, so all messages can be consumed
+        int count = 0;
+        List<Message<String>> list = new ArrayList<>(totalProducedMsgs);
+        for (int i = 0; i < totalProducedMsgs; i++) {
+            Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            count++;
+            list.add(message);
+        }
+        assertEquals(count, totalProducedMsgs);
+        list.forEach(message -> {
+            try {
+                consumer.acknowledge(message);
+            } catch (PulsarClientException e) {
+            }
+        });
+        // 3) Set restrictions, so only part of the data can be consumed
+        waitCacheInit(topicName);
+        admin.topics().setMaxUnackedMessagesOnConsumer(topicName, unackMsgAllowed);
+        Awaitility.await().untilAsserted(()
+                -> assertNotNull(admin.topics().getMaxUnackedMessagesOnConsumer(topicName)));
+        assertEquals(admin.topics().getMaxUnackedMessagesOnConsumer(topicName).intValue(), unackMsgAllowed);
+        // 4) consumer can only consume 100 messages
+        for (int i = 0; i < totalProducedMsgs; i++) {
+            String message = "my-message-" + i;
+            producer.send(message);
+        }
+        int consumerCounter = 0;
+        Message<String> message = null;
+        for (int i = 0; i < totalProducedMsgs; i++) {
+            try {
+                Message<String> msg = consumer.receive(500, TimeUnit.MILLISECONDS);
+                if (msg == null) {
+                    break;
+                }
+                message = msg;
+                ++consumerCounter;
+            } catch (PulsarClientException e) {
+                break;
+            }
+        }
+        assertEquals(consumerCounter, unackMsgAllowed);
+        consumer.acknowledgeCumulative(message.getMessageId());
+        consumerCounter = 0;
+        for (int i = 0; i < totalProducedMsgs - unackMsgAllowed; i++) {
+            try {
+                message = consumer.receive(500, TimeUnit.MILLISECONDS);
+                if (message == null) {
+                    break;
+                }
+                ++consumerCounter;
+            } catch (PulsarClientException e) {
+                break;
+            }
+        }
+        assertEquals(consumerCounter, unackMsgAllowed);
+    }
+
+    @Test(timeOut = 30000)
+    public void testMaxUnackedMessagesOnFailOverConsumer() throws Exception {
+        final String topicName = testTopic + System.currentTimeMillis();
+        final String subscriberName = "test-sub-failover" + System.currentTimeMillis();
+        final int unackMsgAllowed = 100;
+        final int receiverQueueSize = 10;
+        final int totalProducedMsgs = 300;
+
+        ConsumerBuilder<String> consumerBuilder = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionName(subscriberName).receiverQueueSize(receiverQueueSize)
+                .ackTimeout(1, TimeUnit.MINUTES)
+                .subscriptionType(SubscriptionType.Failover);
+        @Cleanup
+        Consumer<String> consumer = consumerBuilder.subscribe();
+        // 1) Produced Messages
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+        for (int i = 0; i < totalProducedMsgs; i++) {
+            String message = "my-message-" + i;
+            producer.send(message);
+        }
+        // 2) Unlimited, so all messages can be consumed
+        int count = 0;
+        List<Message<String>> list = new ArrayList<>(totalProducedMsgs);
+        for (int i = 0; i < totalProducedMsgs; i++) {
+            Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            count++;
+            list.add(message);
+        }
+        assertEquals(count, totalProducedMsgs);
+        list.forEach(message -> {
+            try {
+                consumer.acknowledge(message);
+            } catch (PulsarClientException e) {
+            }
+        });
+        // 3) Set restrictions, so only part of the data can be consumed
+        waitCacheInit(topicName);
+        admin.topics().setMaxUnackedMessagesOnConsumer(topicName, unackMsgAllowed);
+        Awaitility.await().untilAsserted(()
+                -> assertNotNull(admin.topics().getMaxUnackedMessagesOnConsumer(topicName)));
+        assertEquals(admin.topics().getMaxUnackedMessagesOnConsumer(topicName).intValue(), unackMsgAllowed);
+        // 4) consumer can only consume 100 messages
+        for (int i = 0; i < totalProducedMsgs; i++) {
+            String message = "my-message-" + i;
+            producer.send(message);
+        }
+        int consumerCounter = 0;
+        while (true) {
+            try {
+                Message<String> message = consumer.receive(500, TimeUnit.MILLISECONDS);
+                if (message == null) {
+                    break;
+                }
+                ++consumerCounter;
+            } catch (PulsarClientException e) {
+                break;
+            }
+        }
+        assertEquals(consumerCounter, unackMsgAllowed);
+
+        // 5) failover consumer can only consume 100 messages
+        @Cleanup
+        Consumer<String> failoverConsumer = consumerBuilder.subscribe();
+        consumer.close();
+        consumerCounter = 0;
+        while (true) {
+            try {
+                Message<String> message = failoverConsumer.receive(1, TimeUnit.SECONDS);
+                if (message == null) {
+                    break;
+                }
+                ++consumerCounter;
+            } catch (PulsarClientException e) {
+                break;
+            }
+        }
+        assertEquals(consumerCounter, unackMsgAllowed);
     }
 
     private void startConsumer(Consumer<String> consumer, AtomicInteger consumerCounter,
