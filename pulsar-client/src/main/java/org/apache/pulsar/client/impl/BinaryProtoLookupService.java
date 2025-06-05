@@ -188,8 +188,8 @@ public class BinaryProtoLookupService implements LookupService {
         final MutableObject<CompletableFuture> newFutureCreated = new MutableObject<>();
         try {
             return partitionedMetadataInProgress.computeIfAbsent(topicName, tpName -> {
-                CompletableFuture<PartitionedTopicMetadata> newFuture = getPartitionedTopicMetadata(
-                        serviceNameResolver.resolveHost(), topicName, metadataAutoCreationEnabled,
+                CompletableFuture<PartitionedTopicMetadata> newFuture = getPartitionedTopicMetadataAsync(
+                       topicName, metadataAutoCreationEnabled,
                         useFallbackForNonPIP344Brokers);
                 newFutureCreated.setValue(newFuture);
                 return newFuture;
@@ -213,7 +213,7 @@ public class BinaryProtoLookupService implements LookupService {
             return addressFuture;
         }
 
-        client.getCnxPool().getConnectionByResolver(serviceNameResolver).thenAcceptAsync(clientCnx -> {
+        client.getCnxPool().getConnection(socketAddress).thenAcceptAsync(clientCnx -> {
             long requestId = client.newRequestId();
             ByteBuf request = Commands.newLookup(topicName.toString(), listenerName, authoritative, requestId,
                     properties);
@@ -281,19 +281,20 @@ public class BinaryProtoLookupService implements LookupService {
                 client.getCnxPool().releaseConnection(clientCnx);
             });
         }, lookupPinnedExecutor).exceptionally(connectionException -> {
+            serviceNameResolver.markHostAvailability(socketAddress, false);
             addressFuture.completeExceptionally(FutureUtil.unwrapCompletionException(connectionException));
             return null;
         });
         return addressFuture;
     }
 
-    private CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(InetSocketAddress socketAddress,
+    private CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(
             TopicName topicName, boolean metadataAutoCreationEnabled, boolean useFallbackForNonPIP344Brokers) {
 
         long startTime = System.nanoTime();
         CompletableFuture<PartitionedTopicMetadata> partitionFuture = new CompletableFuture<>();
 
-        client.getCnxPool().getConnectionByResolver(serviceNameResolver).thenAcceptAsync(clientCnx -> {
+        client.getCnxPool().getConnection(serviceNameResolver).thenAcceptAsync(clientCnx -> {
             boolean finalAutoCreationEnabled = metadataAutoCreationEnabled;
             if (!metadataAutoCreationEnabled && !clientCnx.isSupportsGetPartitionedMetadataWithoutAutoCreation()) {
                 if (useFallbackForNonPIP344Brokers) {
@@ -357,7 +358,7 @@ public class BinaryProtoLookupService implements LookupService {
             return schemaFuture;
         }
         InetSocketAddress socketAddress = serviceNameResolver.resolveHost();
-        client.getCnxPool().getConnectionByResolver(serviceNameResolver).thenAcceptAsync(clientCnx -> {
+        client.getCnxPool().getConnection(serviceNameResolver).thenAcceptAsync(clientCnx -> {
             long requestId = client.newRequestId();
             ByteBuf request = Commands.newGetSchema(requestId, topicName.toString(),
                 Optional.ofNullable(BytesSchemaVersion.of(version)));
@@ -403,12 +404,12 @@ public class BinaryProtoLookupService implements LookupService {
                 .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
                 .setMax(1, TimeUnit.MINUTES)
                 .create();
-        getTopicsUnderNamespace(serviceNameResolver.resolveHost(), namespace, backoff, opTimeoutMs, topicsFuture, mode,
+        getTopicsUnderNamespace(namespace, backoff, opTimeoutMs, topicsFuture, mode,
                 topicsPattern, topicsHash);
         return topicsFuture;
     }
 
-    private void getTopicsUnderNamespace(InetSocketAddress socketAddress,
+    private void getTopicsUnderNamespace(
                                          NamespaceName namespace,
                                          Backoff backoff,
                                          AtomicLong remainingTime,
@@ -418,7 +419,7 @@ public class BinaryProtoLookupService implements LookupService {
                                          String topicsHash) {
         long startTime = System.nanoTime();
 
-        client.getCnxPool().getConnectionByResolver(serviceNameResolver).thenAcceptAsync(clientCnx -> {
+        client.getCnxPool().getConnection(serviceNameResolver).thenAcceptAsync(clientCnx -> {
             long requestId = client.newRequestId();
             ByteBuf request = Commands.newGetTopicsOfNamespaceRequest(
                 namespace.toString(), requestId, mode, topicsPattern, topicsHash);
@@ -451,7 +452,7 @@ public class BinaryProtoLookupService implements LookupService {
                 log.warn("[namespace: {}] Could not get connection while getTopicsUnderNamespace -- Will try again in"
                                 + " {} ms", namespace, nextDelay);
                 remainingTime.addAndGet(-nextDelay);
-                getTopicsUnderNamespace(socketAddress, namespace, backoff, remainingTime, getTopicsResultFuture,
+                getTopicsUnderNamespace(namespace, backoff, remainingTime, getTopicsResultFuture,
                         mode, topicsPattern, topicsHash);
             }, nextDelay, TimeUnit.MILLISECONDS);
             return null;
