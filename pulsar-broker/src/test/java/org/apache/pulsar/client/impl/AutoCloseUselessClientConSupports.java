@@ -67,7 +67,7 @@ public class AutoCloseUselessClientConSupports extends MultiBrokerBaseTest {
             throws InterruptedException, NoSuchFieldException, IllegalAccessException {
         // Wait for every request has been response.
         Awaitility.waitAtMost(Duration.ofSeconds(5)).until(() -> {
-            for (CompletableFuture<ClientCnx> clientCnxWrapFuture : pulsarClient.getCnxPool().getConnectionByResolver()){
+            for (CompletableFuture<ClientCnx> clientCnxWrapFuture : pulsarClient.getCnxPool().getConnections()){
                 if (!clientCnxWrapFuture.isDone()){
                     continue;
                 }

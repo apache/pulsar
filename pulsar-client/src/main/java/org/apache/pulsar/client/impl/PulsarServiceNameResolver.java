@@ -131,9 +131,11 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
         Boolean oldAvailable = hostAvailabilityMap.get(address);
         hostAvailabilityMap.put(address, isAvailable);
         if (oldAvailable == null || oldAvailable != isAvailable) {
+            Set<InetSocketAddress> allAddresses = Sets.newHashSet(addressList);
             availableAddressList = hostAvailabilityMap.entrySet()
                     .stream()
                     .filter(Map.Entry::getValue)
+                    .filter(entry -> allAddresses.contains(entry.getKey()))
                     .map(Map.Entry::getKey)
                     .collect(Collectors.toList());
             log.info("Host {} availability changed to {}, current available hosts: {}", address, isAvailable,

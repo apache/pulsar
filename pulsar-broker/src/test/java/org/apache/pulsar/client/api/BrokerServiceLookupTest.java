@@ -1361,7 +1361,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         Thread.sleep(500);
 
         final var future = pulsarClientImpl.getLookup().getBroker(TopicName.get(tpName));
-        final var cnx = pulsarClientImpl.getCnxPool().getConnectionByResolver().stream().findAny()
+        final var cnx = pulsarClientImpl.getCnxPool().getConnections().stream().findAny()
                 .map(CompletableFuture::join).orElse(null);
         assertNotNull(cnx);
 
