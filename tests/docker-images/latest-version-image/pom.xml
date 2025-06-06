@@ -156,7 +156,6 @@
                 <phase>package</phase>
                 <goals>
                   <goal>build</goal>
-                  <goal>tag</goal>
                 </goals>
                 <configuration>
                   <images>
@@ -165,7 +164,7 @@
                       <build>
                         <contextDir>${project.basedir}</contextDir>
                         <args>
-                          <PULSAR_ALL_IMAGE>${docker.organization}/${docker.image}-all:${project.version}-${git.commit.id.abbrev}</PULSAR_ALL_IMAGE>
+                          <PULSAR_ALL_IMAGE>${docker.organization}/${docker.image}-all:${docker.tag}</PULSAR_ALL_IMAGE>
                         </args>
                         <noCache>true</noCache>
                         <buildx>
