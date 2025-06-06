@@ -246,9 +246,7 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
         }
         Awaitility.await().atMost(Duration.ofSeconds(60)).ignoreExceptions().untilAsserted(() -> {
             Map<String, CompletableFuture<Optional<Topic>>> tps = pulsar1.getBrokerService().getTopics();
-            System.out.println("===> verify topics p0");
             assertFalse(tps.containsKey(topicP0));
-            System.out.println("===> verify topics p1");
             assertFalse(tps.containsKey(topicP1));
             if ("namespace".equals(removeClusterLevel)) {
                 assertFalse(tps.containsKey(topicChangeEvents));
@@ -262,14 +260,12 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
                         .get(5, TimeUnit.SECONDS).isExists());
             }
             // Verify: schema will be removed in local cluster, and remote cluster will not.
-            System.out.println("===> verify schemas");
             List<CompletableFuture<StoredSchema>> schemaList13
                     = pulsar1.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
             assertEquals(schemaList13.size(), 0);
             List<CompletableFuture<StoredSchema>> schemaList23
                     = pulsar2.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
             assertEquals(schemaList23.size(), 1);
-            System.out.println("===> verify policies");
             // Verify: the topic policies will be removed in local cluster, but remote cluster will not.
             if ("topic".equals(removeClusterLevel)) {
                 Optional<TopicPolicies> localPolicies1 = pulsar1.getTopicPoliciesService()
@@ -302,11 +298,5 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
     @Test(dataProvider = "enableDeduplication", enabled = false)
     public void testIncompatibleMultiVersionSchema(boolean enableDeduplication) throws Exception {
         super.testIncompatibleMultiVersionSchema(enableDeduplication);
-    }
-
-    @Override
-    @Test
-    public void testTopicPoliciesReplicationRule() throws Exception {
-        super.testTopicPoliciesReplicationRule();
     }
 }

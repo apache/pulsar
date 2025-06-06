@@ -3798,16 +3798,4 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .ratePeriodInSecond(10)
                 .build());
     }
-
-    @Test
-    public void testRemoveLocalCluster() throws Exception {
-        String topic = "persistent://" + myNamespace + "/testSetSubRateWithSub";
-        admin.topics().createNonPartitionedTopic(topic);
-        try {
-            admin.topics().setReplicationClusters(topic, Arrays.asList("not-local-cluster"));
-            fail("Non-partitioned topic can not remove local cluster");
-        } catch (PulsarAdminException.PreconditionFailedException e) {
-            assertTrue(e.getMessage().contains("Non-partitioned topic can not remove local cluster"));
-        }
-    }
 }

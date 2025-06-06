@@ -510,41 +510,4 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
                     || !persistentTopic1.getReplicators().get(targetCluster.getConfig().getClusterName()).isConnected());
         });
     }
-
-    protected void waitChangeEventsReplicated(String ns) {
-        String topicName = "persistent://" + ns + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
-        TopicName topicNameObj = TopicName.get(topicName);
-        Optional<PartitionedTopicMetadata> metadata = pulsar1.getPulsarResources().getNamespaceResources()
-                .getPartitionedTopicResources()
-                .getPartitionedTopicMetadataAsync(topicNameObj).join();
-        Function<Replicator, Boolean> ensureNoBacklog = new Function<Replicator,Boolean>() {
-
-            @Override
-            public Boolean apply(Replicator replicator) {
-                if (!replicator.getRemoteCluster().equals("c2")) {
-                    return true;
-                }
-                PersistentReplicator persistentReplicator = (PersistentReplicator) replicator;
-                Position lac = persistentReplicator.getCursor().getManagedLedger().getLastConfirmedEntry();
-                Position mdPos = persistentReplicator.getCursor().getMarkDeletedPosition();
-                return mdPos.compareTo(lac) >= 0;
-            }
-        };
-        if (metadata.isPresent()) {
-            for (int index = 0; index < metadata.get().partitions; index++) {
-                String partitionName = topicNameObj.getPartition(index).toString();
-                PersistentTopic persistentTopic =
-                        (PersistentTopic) pulsar1.getBrokerService().getTopic(partitionName, false).join().get();
-                persistentTopic.getReplicators().values().forEach(replicator -> {
-                    assertTrue(ensureNoBacklog.apply(replicator));
-                });
-            }
-        } else {
-            PersistentTopic persistentTopic =
-                    (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
-            persistentTopic.getReplicators().values().forEach(replicator -> {
-               assertTrue(ensureNoBacklog.apply(replicator));
-            });
-        }
-    }
 }

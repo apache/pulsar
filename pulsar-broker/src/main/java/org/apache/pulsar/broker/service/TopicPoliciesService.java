@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarService;
