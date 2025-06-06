@@ -101,6 +101,24 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
+    public ClientBuilder serviceUrlRecoveryInitBackoffInterval(long serviceUrlRecoveryInitBackoffInterval,
+                                                               TimeUnit unit) {
+        checkArgument(serviceUrlRecoveryInitBackoffInterval >= 0,
+                "serviceUrlRecoveryInitBackoffInterval needs to be >= 0");
+        conf.setServiceUrlRecoveryInitBackoffIntervalMs(unit.toMillis(serviceUrlRecoveryInitBackoffInterval));
+        return this;
+    }
+
+    @Override
+    public ClientBuilder serviceUrlRecoveryMaxBackoffInterval(long serviceUrlRecoveryMaxBackoffInterval,
+                                                              TimeUnit unit) {
+        checkArgument(serviceUrlRecoveryMaxBackoffInterval >= 0,
+                "serviceUrlRecoveryMaxBackoffInterval needs to be >= 0");
+        conf.setServiceUrlRecoveryMaxBackoffIntervalMs(unit.toMillis(serviceUrlRecoveryMaxBackoffInterval));
+        return this;
+    }
+
+    @Override
     public ClientBuilder listenerName(String listenerName) {
         checkArgument(StringUtils.isNotBlank(listenerName), "Param listenerName must not be blank.");
         conf.setListenerName(StringUtils.trim(listenerName));

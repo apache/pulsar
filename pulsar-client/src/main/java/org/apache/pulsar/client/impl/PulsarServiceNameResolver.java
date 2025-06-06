@@ -54,6 +54,21 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
     private volatile Set<InetSocketAddress> allAddressSet;
     private volatile List<InetSocketAddress> availableAddressList;
     private final Map<InetSocketAddress, EndpointStatus> hostAvailabilityMap = new HashMap<>();
+    private final long serviceUrlRecoveryInitBackoffIntervalMs;
+    private final long serviceUrlRecoveryMaxBackoffIntervalMs;
+    private final boolean enableServiceUrlBackoffRecovery;
+
+    public PulsarServiceNameResolver() {
+        this.serviceUrlRecoveryInitBackoffIntervalMs = 0;
+        this.serviceUrlRecoveryMaxBackoffIntervalMs = 0;
+        this.enableServiceUrlBackoffRecovery = false;
+    }
+
+    public PulsarServiceNameResolver(long initialBackoffTimeMs, long maxBackoffTimeMs) {
+        this.serviceUrlRecoveryInitBackoffIntervalMs = initialBackoffTimeMs;
+        this.serviceUrlRecoveryMaxBackoffIntervalMs = maxBackoffTimeMs;
+        this.enableServiceUrlBackoffRecovery = initialBackoffTimeMs > 0 && maxBackoffTimeMs > 0;
+    }
 
     @Override
     public InetSocketAddress resolveHost() {
@@ -118,12 +133,14 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
         }
         this.allAddressList = addresses;
         this.allAddressSet = new HashSet<>(addresses);
-        this.availableAddressList = new ArrayList<>(addresses);
         this.serviceUrl = serviceUrl;
         this.serviceUri = uri;
         this.currentIndex = randomIndex(addresses.size());
-        hostAvailabilityMap.keySet().removeIf(host -> !allAddressSet.contains(host));
-        addresses.forEach(address -> hostAvailabilityMap.putIfAbsent(address, createEndpointStatus(true, address)));
+        if (enableServiceUrlBackoffRecovery) {
+            this.availableAddressList = new ArrayList<>(addresses);
+            hostAvailabilityMap.keySet().removeIf(host -> !allAddressSet.contains(host));
+            addresses.forEach(address -> hostAvailabilityMap.putIfAbsent(address, createEndpointStatus(true, address)));
+        }
     }
 
     private static int randomIndex(int numAddresses) {
@@ -139,6 +156,10 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
      */
     @Override
     public synchronized void markHostAvailability(InetSocketAddress address, boolean isAvailable) {
+        if (!enableServiceUrlBackoffRecovery) {
+            return;
+        }
+
         if (!allAddressSet.contains(address)) {
             // If the address is not part of the original service URL, we ignore it.
             log.debug("Address {} is not part of the original service URL, ignoring availability update", address);
@@ -188,8 +209,8 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
      */
     private EndpointStatus createEndpointStatus(boolean isAvailable, InetSocketAddress inetSocketAddress) {
         Backoff recoverBackoff = new BackoffBuilder()
-                .setInitialTime(1, TimeUnit.MINUTES)
-                .setMax(1, TimeUnit.DAYS)
+                .setInitialTime(serviceUrlRecoveryInitBackoffIntervalMs, TimeUnit.MILLISECONDS)
+                .setMax(serviceUrlRecoveryMaxBackoffIntervalMs, TimeUnit.MILLISECONDS)
                 .create();
         EndpointStatus endpointStatus =
                 new EndpointStatus(inetSocketAddress, recoverBackoff, System.currentTimeMillis(), 0,
