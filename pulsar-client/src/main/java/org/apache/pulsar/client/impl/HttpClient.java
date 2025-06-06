@@ -70,7 +70,8 @@ public class HttpClient implements Closeable {
 
     protected HttpClient(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) throws PulsarClientException {
         this.authentication = conf.getAuthentication();
-        this.serviceNameResolver = new PulsarServiceNameResolver();
+        this.serviceNameResolver = new PulsarServiceNameResolver(conf.getServiceUrlRecoveryInitBackoffIntervalMs(),
+                conf.getServiceUrlRecoveryMaxBackoffIntervalMs());
         this.serviceNameResolver.updateServiceUrl(conf.getServiceUrl());
 
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
