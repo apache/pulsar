@@ -337,6 +337,7 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
                 throw new PulsarClientException("Unsupported LookupService type: " + resolver.getClass().getName());
             }
 
+            Uninterruptibles.sleepUninterruptibly(1, java.util.concurrent.TimeUnit.SECONDS);
             for (int i = 0; i < 10; i++) {
                 resolvedAddresses.add(resolver.resolveHost());
             }
