@@ -328,12 +328,15 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
         if (enableBackoff) {
             // Wait for some time to allow the unhealthy addresses to recover
             Uninterruptibles.sleepUninterruptibly(60, java.util.concurrent.TimeUnit.SECONDS);
-            String subName = "my-sub" + UUID.randomUUID();
-            pulsarClient.newConsumer()
-                    .subscriptionMode(SubscriptionMode.Durable)
-                    .topic(topic).receiverQueueSize(1).subscriptionName(subName)
-                    .subscribeAsync()
-                    .thenAccept(Consumer::closeAsync);
+            // trigger unavailable address recover
+            if (resolver instanceof BinaryProtoLookupService) {
+                pulsarClient.getCnxPool().getConnection(((BinaryProtoLookupService) resolver).getServiceNameResolver());
+            } else if (resolver instanceof HttpLookupService) {
+                ((HttpLookupService) resolver).getServiceNameResolver().markHostAvailability(healthyAddress, true);
+            } else {
+                throw new PulsarClientException("Unsupported LookupService type: " + resolver.getClass().getName());
+            }
+
             for (int i = 0; i < 10; i++) {
                 resolvedAddresses.add(resolver.resolveHost());
             }
