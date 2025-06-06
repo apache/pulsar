@@ -357,7 +357,6 @@ public class BinaryProtoLookupService implements LookupService {
             schemaFuture.completeExceptionally(new SchemaSerializationException("Empty schema version"));
             return schemaFuture;
         }
-        InetSocketAddress socketAddress = serviceNameResolver.resolveHost();
         client.getCnxPool().getConnection(serviceNameResolver).thenAcceptAsync(clientCnx -> {
             long requestId = client.newRequestId();
             ByteBuf request = Commands.newGetSchema(requestId, topicName.toString(),

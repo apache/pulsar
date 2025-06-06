@@ -22,17 +22,22 @@ import static com.google.common.base.Preconditions.checkState;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidServiceURL;
 import org.apache.pulsar.common.net.ServiceURI;
+import org.apache.pulsar.common.util.Backoff;
+import org.apache.pulsar.common.util.BackoffBuilder;
 
 /**
  * The default implementation of {@link ServiceNameResolver}.
@@ -48,7 +53,7 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
     private volatile List<InetSocketAddress> allAddressList;
     private volatile Set<InetSocketAddress> allAddressSet;
     private volatile List<InetSocketAddress> availableAddressList;
-    private final Map<InetSocketAddress, Boolean> hostAvailabilityMap = new HashMap<>();
+    private final Map<InetSocketAddress, EndpointStatus> hostAvailabilityMap = new HashMap<>();
 
     @Override
     public InetSocketAddress resolveHost() {
@@ -118,7 +123,7 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
         this.serviceUri = uri;
         this.currentIndex = randomIndex(addresses.size());
         hostAvailabilityMap.keySet().removeIf(host -> !allAddressSet.contains(host));
-        addresses.forEach(address -> hostAvailabilityMap.putIfAbsent(address, true));
+        addresses.forEach(address -> hostAvailabilityMap.putIfAbsent(address, createEndpointStatus(true, address)));
     }
 
     private static int randomIndex(int numAddresses) {
@@ -127,19 +132,104 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
                 0 : io.netty.util.internal.PlatformDependent.threadLocalRandom().nextInt(numAddresses);
     }
 
+    /**
+     * The method is executed under a synchronized lock and cannot execute code that may block, such as network io.
+     * @param address the host address to mark availability for
+     * @param isAvailable true if the host is available, false otherwise
+     */
     @Override
     public synchronized void markHostAvailability(InetSocketAddress address, boolean isAvailable) {
-        Boolean oldAvailable = hostAvailabilityMap.get(address);
-        hostAvailabilityMap.put(address, isAvailable);
-        if (oldAvailable == null || oldAvailable != isAvailable) {
+        if (!allAddressSet.contains(address)) {
+            // If the address is not part of the original service URL, we ignore it.
+            log.debug("Address {} is not part of the original service URL, ignoring availability update", address);
+            return;
+        }
+
+        AtomicBoolean availableHostsChanged = new AtomicBoolean(false);
+        hostAvailabilityMap.compute(address, (key, oldStatus) -> {
+            if (oldStatus == null) {
+                EndpointStatus endpointStatus = createEndpointStatus(isAvailable, key);
+                availableHostsChanged.set(true);
+                return endpointStatus;
+            }
+            if (oldStatus.isAvailable() != isAvailable) {
+                availableHostsChanged.set(true);
+            }
+            computeEndpointStatus(isAvailable, oldStatus);
+            return oldStatus;
+        });
+
+        hostAvailabilityMap.forEach((__, endpointStatus) -> {
+            if (!endpointStatus.isAvailable()) {
+                boolean changed = computeEndpointStatus(false, endpointStatus);
+                if (!availableHostsChanged.get()) {
+                    availableHostsChanged.set(changed);
+                }
+            }
+        });
+
+        if (availableHostsChanged.get()) {
             availableAddressList = hostAvailabilityMap.entrySet()
                     .stream()
-                    .filter(Map.Entry::getValue)
+                    .filter(entry -> entry.getValue().isAvailable())
                     .filter(entry -> allAddressSet.contains(entry.getKey()))
                     .map(Map.Entry::getKey)
                     .collect(Collectors.toList());
-            log.info("Host {} availability changed to {}, current available hosts: {}", address, isAvailable,
-                    availableAddressList);
+            log.info("service name resolver available hosts changed, current available hosts: {}", availableAddressList);
         }
+    }
+
+    /**
+     * Create an {@link EndpointStatus} for the given address.
+     * @param isAvailable the availability status of the endpoint
+     * @param inetSocketAddress the address of the endpoint
+     * @return a new {@link EndpointStatus} instance
+     */
+    private EndpointStatus createEndpointStatus(boolean isAvailable, InetSocketAddress inetSocketAddress) {
+        Backoff recoverBackoff = new BackoffBuilder()
+                .setInitialTime(1, TimeUnit.MINUTES)
+                .setMax(1, TimeUnit.DAYS)
+                .create();
+        EndpointStatus endpointStatus = new EndpointStatus(inetSocketAddress, recoverBackoff, System.currentTimeMillis(), 0,
+                isAvailable);
+        if (!isAvailable) {
+            endpointStatus.setNextDelayMsToRecover(endpointStatus.getRecoverBackoff().next());
+        }
+        return endpointStatus;
+    }
+
+    /**
+     * Compute the endpoint status based on the new availability status.
+     * @param newIsAvailable the new availability status of the endpoint
+     * @param status the current status of the endpoint
+     * @return true if the availability status has changed, false otherwise
+     */
+    private boolean computeEndpointStatus(boolean newIsAvailable, EndpointStatus status) {
+        if (!newIsAvailable) {
+            if (!status.isAvailable()) {
+                // from unavailable to unavailable, check if we need to try to recover
+                boolean needTryRecover = (System.currentTimeMillis() - status.getLastUpdateTimeStampMs())
+                        >= status.getNextDelayMsToRecover();
+                if (needTryRecover) {
+                    log.info("service name resolver try to recover host {} after {}", status.getSocketAddress(), Duration.ofMillis(System.currentTimeMillis() - status.getLastUpdateTimeStampMs()));
+                    status.setAvailable(true);
+                    status.setLastUpdateTimeStampMs(System.currentTimeMillis());
+                    status.setNextDelayMsToRecover(status.getRecoverBackoff().next());
+                }
+            } else {
+                // from available to unavailable
+                status.setAvailable(false);
+                status.setLastUpdateTimeStampMs(System.currentTimeMillis());
+                status.setNextDelayMsToRecover(status.getRecoverBackoff().next());
+            }
+        } else if (!status.isAvailable()) {
+            // from unavailable to available
+            status.setAvailable(true);
+            status.setLastUpdateTimeStampMs(System.currentTimeMillis());
+            status.setNextDelayMsToRecover(0);
+            status.getRecoverBackoff().reset();
+        }
+
+        return newIsAvailable != status.isAvailable();
     }
 }
