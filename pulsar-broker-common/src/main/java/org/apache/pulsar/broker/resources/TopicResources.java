@@ -47,7 +47,7 @@ public class TopicResources {
     public TopicResources(MetadataStore store) {
         this.store = store;
         topicListeners = new ConcurrentHashMap<>();
-        store.registerListener(this::handleNotification);
+        store.registerCancellableListener(this::handleNotification);
     }
 
     /***

@@ -71,6 +71,7 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
     protected Object localMetaDataStoreClientCnx;
     protected final AtomicBoolean connectionTerminationThreadKeepRunning = new AtomicBoolean();
     private volatile Thread connectionTerminationThread;
+    private Runnable cancelSessionListener;
 
     protected void startZKAndBK() throws Exception {
         // Start ZK.
@@ -90,7 +91,7 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
         broker = pulsar.getBrokerService();
         ZKMetadataStore zkMetadataStore = (ZKMetadataStore) pulsar.getLocalMetadataStore();
         localZkOfBroker = zkMetadataStore.getZkClient();
-        zkMetadataStore.registerSessionListener(n -> {
+        cancelSessionListener = zkMetadataStore.registerCancellableSessionListener(n -> {
             log.info("Received session event: {}", n);
             sessionEvent = n;
         });
@@ -226,6 +227,11 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
     protected void cleanup() throws Exception {
         markCurrentSetupNumberCleaned();
         log.info("--- Shutting down ---");
+
+        if (cancelSessionListener != null) {
+            cancelSessionListener.run();
+            cancelSessionListener = null;
+        }
 
         stopLocalMetadataStoreConnectionTermination();
 
