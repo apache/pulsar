@@ -178,6 +178,15 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
         if (pulsarClientWithBinaryServiceUrl != null) {
             pulsarClientWithBinaryServiceUrl.close();
         }
+        if (pulsarClientWithBinaryServiceUrlDisableBackoff != null) {
+            pulsarClientWithBinaryServiceUrlDisableBackoff.close();
+        }
+        if (pulsarClientWithHttpServiceUrl != null) {
+            pulsarClientWithHttpServiceUrl.close();
+        }
+        if (pulsarClientWithHttpServiceUrlDisableBackoff != null) {
+            pulsarClientWithHttpServiceUrlDisableBackoff.close();
+        }
     }
 
     @Test
