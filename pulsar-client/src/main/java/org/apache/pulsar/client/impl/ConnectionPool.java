@@ -219,7 +219,8 @@ public class ConnectionPool implements AutoCloseable {
     public CompletableFuture<ClientCnx> getConnection(final ServiceNameResolver serviceNameResolver) {
         InetSocketAddress address = serviceNameResolver.resolveHost();
         CompletableFuture<ClientCnx> clientCnxCompletableFuture = getConnection(address);
-        clientCnxCompletableFuture.whenComplete((__, throwable) -> serviceNameResolver.markHostAvailability(address, throwable == null));
+        clientCnxCompletableFuture.whenComplete(
+                (__, throwable) -> serviceNameResolver.markHostAvailability(address, throwable == null));
         return clientCnxCompletableFuture;
     }
 
