@@ -250,23 +250,23 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
 
     @Test
     public void testServiceUrlHealthCheck() throws Exception {
-        doTestServiceUrlHealthCheck(pulsarClientWithBinaryServiceUrl,
+        doTestServiceUrlResolve(pulsarClientWithBinaryServiceUrl,
                 "pulsar+ssl://host1:6651,host2:6651,127.0.0.1:" + BROKER_SERVICE_PORT,
                 InetSocketAddress.createUnresolved("127.0.0.1", BROKER_SERVICE_PORT), true);
-        doTestServiceUrlHealthCheck(pulsarClientWithHttpServiceUrl,
+        doTestServiceUrlResolve(pulsarClientWithHttpServiceUrl,
                 "http://host1:6651,host2:6651,127.0.0.1:" + WEB_SERVICE_PORT,
                 InetSocketAddress.createUnresolved("127.0.0.1", WEB_SERVICE_PORT), true);
 
-        doTestServiceUrlHealthCheck(pulsarClientWithBinaryServiceUrlDisableBackoff,
+        doTestServiceUrlResolve(pulsarClientWithBinaryServiceUrlDisableBackoff,
                 "pulsar+ssl://host1:6651,host2:6651,127.0.0.1:" + BROKER_SERVICE_PORT,
                 InetSocketAddress.createUnresolved("127.0.0.1", BROKER_SERVICE_PORT), false);
-        doTestServiceUrlHealthCheck(pulsarClientWithHttpServiceUrlDisableBackoff,
+        doTestServiceUrlResolve(pulsarClientWithHttpServiceUrlDisableBackoff,
                 "http://host1:6651,host2:6651,127.0.0.1:" + WEB_SERVICE_PORT,
                 InetSocketAddress.createUnresolved("127.0.0.1", WEB_SERVICE_PORT), false);
     }
 
-    private void doTestServiceUrlHealthCheck(PulsarClientImpl pulsarClient, String serviceUrl,
-                                             InetSocketAddress healthyAddress, boolean enableBackoff)
+    private void doTestServiceUrlResolve(PulsarClientImpl pulsarClient, String serviceUrl,
+                                         InetSocketAddress healthyAddress, boolean enableBackoff)
             throws Exception {
         LookupService resolver = pulsarClient.getLookup();
         resolver.updateServiceUrl(serviceUrl);
@@ -323,6 +323,21 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
         if (!enableBackoff) {
             assertEquals(resolvedAddresses, originAllAddresses,
                     "Expected all addresses to be healthy, but found: " + resolvedAddresses);
+        }
+
+        if (enableBackoff) {
+            // Wait for some time to allow the unhealthy addresses to recover
+            Uninterruptibles.sleepUninterruptibly(60, java.util.concurrent.TimeUnit.SECONDS);
+            String subName = "my-sub" + UUID.randomUUID();
+            pulsarClient.newConsumer()
+                    .subscriptionMode(SubscriptionMode.Durable)
+                    .topic(topic).receiverQueueSize(1).subscriptionName(subName)
+                    .subscribeAsync()
+                    .thenAccept(Consumer::closeAsync);
+            for (int i = 0; i < 10; i++) {
+                resolvedAddresses.add(resolver.resolveHost());
+            }
+            assertEquals(resolvedAddresses, originAllAddresses);
         }
     }
 }
