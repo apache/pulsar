@@ -22,6 +22,8 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -32,8 +34,11 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.net.ServiceURI;
 import org.apache.pulsar.tests.ThreadDumpUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,10 +54,13 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
     private String binaryServiceUrlWithUnavailableNodes;
     private String httpServiceUrlWithUnavailableNodes;
     private PulsarClientImpl pulsarClientWithBinaryServiceUrl;
+    private PulsarClientImpl pulsarClientWithBinaryServiceUrlDisableBackoff;
     private PulsarClientImpl pulsarClientWithHttpServiceUrl;
+    private PulsarClientImpl pulsarClientWithHttpServiceUrlDisableBackoff;
     private static final int BROKER_SERVICE_PORT = 6666;
     private static final int WEB_SERVICE_PORT = 8888;
-    private static final int UNAVAILABLE_NODES = 100;
+    private static final int UNAVAILABLE_NODES = 20;
+    private static final int TIMEOUT_SECONDS = 1;
 
     @BeforeClass(alwaysRun = true)
     @Override
@@ -72,6 +80,23 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
                 (PulsarClientImpl) newPulsarClient(binaryServiceUrlWithUnavailableNodes, 0);
         this.pulsarClientWithHttpServiceUrl = (PulsarClientImpl) newPulsarClient(
                 httpServiceUrlWithUnavailableNodes, 0);
+        this.pulsarClientWithBinaryServiceUrlDisableBackoff =
+                (PulsarClientImpl)
+                        PulsarClient.builder()
+                                .serviceUrl(binaryServiceUrlWithUnavailableNodes)
+                                .serviceUrlRecoveryInitBackoffInterval(0, TimeUnit.MILLISECONDS)
+                                .serviceUrlRecoveryMaxBackoffInterval(0, TimeUnit.MILLISECONDS)
+                                .operationTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                                .lookupTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                                .build();
+        this.pulsarClientWithHttpServiceUrlDisableBackoff =
+                (PulsarClientImpl) PulsarClient.builder()
+                        .serviceUrl(httpServiceUrlWithUnavailableNodes)
+                        .serviceUrlRecoveryInitBackoffInterval(0, TimeUnit.MILLISECONDS)
+                        .serviceUrlRecoveryMaxBackoffInterval(0, TimeUnit.MILLISECONDS)
+                        .operationTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                        .lookupTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                        .build();
     }
 
     @Override
@@ -83,8 +108,8 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
 
     @Override
     protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
-        clientBuilder.operationTimeout(5, TimeUnit.SECONDS)
-                .lookupTimeout(5, TimeUnit.SECONDS);
+        clientBuilder.operationTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .lookupTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -161,7 +186,7 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
         pulsarClientWithHttpServiceUrl.updateServiceUrl(httpServiceUrlWithUnavailableNodes);
         String topic = "persistent://my-property/my-ns/topic" + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topic);
-        int createCount = 100;
+        int createCount = 20;
         // 1. test binary service url
         // trigger unhealthy address removal by creating consumers and producers
         int successCount = creatConsumerAndProducers(pulsarClientWithBinaryServiceUrl, createCount, topic);
@@ -172,6 +197,15 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
         assertEquals(successCount, createCount,
                 "Expected all subscription creations to succeed, but only " + successCount + " succeeded.");
 
+        // test binary service url with disable backoff
+        successCount = creatConsumerAndProducers(pulsarClientWithBinaryServiceUrlDisableBackoff, createCount, topic);
+        assertTrue(successCount < createCount,
+                "Expected some creations to fail due to unavailable nodes, but all succeeded.");
+        // no unavailable nodes should be removed since backoff is disabled
+        successCount = creatConsumerAndProducers(pulsarClientWithBinaryServiceUrlDisableBackoff, createCount, topic);
+        assertTrue(successCount < createCount,
+                "Expected all subscription creations to succeed, but only " + successCount + " succeeded.");
+
         // 2. test http service url
         // trigger unhealthy address removal by creating consumers and producers
         successCount = creatConsumerAndProducers(pulsarClientWithHttpServiceUrl, createCount, topic);
@@ -180,7 +214,16 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
         // all unavailable nodes should have been removed
         successCount = creatConsumerAndProducers(pulsarClientWithHttpServiceUrl, createCount, topic);
         assertEquals(successCount, createCount,
-                "Expected all subscription creations to succeed, but only " + successCount + " succeeded.");
+                "Expected some creations to fail due to unavailable nodes, but all succeeded.");
+
+        // test http service url with disable backoff
+        successCount = creatConsumerAndProducers(pulsarClientWithHttpServiceUrlDisableBackoff, createCount, topic);
+        assertTrue(successCount < createCount,
+                "Expected some creations to fail due to unavailable nodes, but all succeeded.");
+        // no unavailable nodes should be removed since backoff is disabled
+        successCount = creatConsumerAndProducers(pulsarClientWithHttpServiceUrlDisableBackoff, createCount, topic);
+        assertTrue(successCount < createCount,
+                "Expected some creations to fail due to unavailable nodes, but all succeeded.");
     }
 
     private int creatConsumerAndProducers(PulsarClientImpl pulsarClient, int createCount, String topic) {
@@ -208,24 +251,49 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
     @Test
     public void testServiceUrlHealthCheck() throws Exception {
         doTestServiceUrlHealthCheck(pulsarClientWithBinaryServiceUrl,
-                "pulsar+ssl://host1:6651,host2:6651,127.0.0.1:" + BROKER_SERVICE_PORT, BROKER_SERVICE_PORT);
+                "pulsar+ssl://host1:6651,host2:6651,127.0.0.1:" + BROKER_SERVICE_PORT,
+                InetSocketAddress.createUnresolved("127.0.0.1", BROKER_SERVICE_PORT), true);
         doTestServiceUrlHealthCheck(pulsarClientWithHttpServiceUrl,
-                "http://host1:6651,host2:6651,127.0.0.1:" + WEB_SERVICE_PORT, WEB_SERVICE_PORT);
+                "http://host1:6651,host2:6651,127.0.0.1:" + WEB_SERVICE_PORT,
+                InetSocketAddress.createUnresolved("127.0.0.1", WEB_SERVICE_PORT), true);
+
+        doTestServiceUrlHealthCheck(pulsarClientWithBinaryServiceUrlDisableBackoff,
+                "pulsar+ssl://host1:6651,host2:6651,127.0.0.1:" + BROKER_SERVICE_PORT,
+                InetSocketAddress.createUnresolved("127.0.0.1", BROKER_SERVICE_PORT), false);
+        doTestServiceUrlHealthCheck(pulsarClientWithHttpServiceUrlDisableBackoff,
+                "http://host1:6651,host2:6651,127.0.0.1:" + WEB_SERVICE_PORT,
+                InetSocketAddress.createUnresolved("127.0.0.1", WEB_SERVICE_PORT), false);
     }
 
-    private void doTestServiceUrlHealthCheck(PulsarClientImpl pulsarClient, String serviceUrl, int healthyPort)
+    private void doTestServiceUrlHealthCheck(PulsarClientImpl pulsarClient, String serviceUrl,
+                                             InetSocketAddress healthyAddress, boolean enableBackoff)
             throws Exception {
         LookupService resolver = pulsarClient.getLookup();
         resolver.updateServiceUrl(serviceUrl);
         assertEquals(serviceUrl, resolver.getServiceUrl());
 
-        Set<InetSocketAddress> expectedAddresses = new HashSet<>();
-        expectedAddresses.add(InetSocketAddress.createUnresolved("host1", 6651));
-        expectedAddresses.add(InetSocketAddress.createUnresolved("host2", 6651));
-        expectedAddresses.add(InetSocketAddress.createUnresolved("127.0.0.1", healthyPort));
+        ServiceURI uri;
+        try {
+            uri = ServiceURI.create(serviceUrl);
+        } catch (IllegalArgumentException iae) {
+            log.error("Invalid service-url {} provided {}", serviceUrl, iae.getMessage(), iae);
+            throw new PulsarClientException.InvalidServiceURL(iae);
+        }
+        String[] hosts = uri.getServiceHosts();
+        Set<InetSocketAddress> originAllAddresses = new HashSet<>(hosts.length);
+        for (String host : hosts) {
+            String hostUrl = uri.getServiceScheme() + "://" + host;
+            try {
+                URI hostUri = new URI(hostUrl);
+                originAllAddresses.add(InetSocketAddress.createUnresolved(hostUri.getHost(), hostUri.getPort()));
+            } catch (URISyntaxException e) {
+                log.error("Invalid host provided {}", hostUrl, e);
+                throw new PulsarClientException.InvalidServiceURL(e);
+            }
+        }
 
         for (int i = 0; i < 10; i++) {
-            assertTrue(expectedAddresses.contains(resolver.resolveHost()));
+            assertTrue(originAllAddresses.contains(resolver.resolveHost()));
         }
         String topic = "persistent://my-property/my-ns/topic" + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topic);
@@ -241,10 +309,20 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
         Uninterruptibles.sleepUninterruptibly(10, java.util.concurrent.TimeUnit.SECONDS);
         // check if the unhealthy address is removed
         Set<InetSocketAddress> expectedHealthyAddresses = new HashSet<>();
-        expectedHealthyAddresses.add(InetSocketAddress.createUnresolved("127.0.0.1", healthyPort));
+        expectedHealthyAddresses.add(healthyAddress);
 
+        Set<InetSocketAddress> resolvedAddresses = new HashSet<>();
         for (int i = 0; i < 100; i++) {
-            assertTrue(expectedHealthyAddresses.contains(resolver.resolveHost()));
+            if (enableBackoff) {
+                assertTrue(expectedHealthyAddresses.contains(resolver.resolveHost()));
+            } else {
+                resolvedAddresses.add(resolver.resolveHost());
+            }
+        }
+
+        if (!enableBackoff) {
+            assertEquals(resolvedAddresses, originAllAddresses,
+                    "Expected all addresses to be healthy, but found: " + resolvedAddresses);
         }
     }
 }

@@ -121,6 +121,34 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder serviceUrlProvider(ServiceUrlProvider serviceUrlProvider);
 
     /**
+     * Configure the service URL recovery init backoff intervals.
+     *
+     * <p>When the client is unable to connect to the service URL, it will wait for a certain amount of time before
+     * trying to recover the service URL. The init backoff intervals can be configured using this method.
+     *
+     * <p>
+     * A value of 0 means don't need wait before retrying to connect to the failed service URL.
+     * @param serviceUrlRecoveryInitBackoffInterval the initial backoff interval for service URL recovery
+     * @param unit the time unit for the backoff interval
+     * @return the client builder instance
+     */
+    ClientBuilder serviceUrlRecoveryInitBackoffInterval(long serviceUrlRecoveryInitBackoffInterval, TimeUnit unit);
+
+    /**
+     * Configure the service URL recovery max backoff interval.
+     *
+     * <p>When the client is unable to connect to the service URL, it will wait for a certain amount of time before
+     * trying to recover the service URL. The max backoff interval can be configured using this method.
+     *
+     * <p>
+     * A value of 0 means don't need wait before retrying to connect to the failed service URL.
+     * @param serviceUrlRecoveryMaxBackoffInterval the maximum backoff interval for service URL recovery
+     * @param unit the time unit for the backoff interval
+     * @return the client builder instance
+     */
+    ClientBuilder serviceUrlRecoveryMaxBackoffInterval(long serviceUrlRecoveryMaxBackoffInterval, TimeUnit unit);
+
+    /**
      * Configure the listenerName that the broker will return the corresponding `advertisedListener`.
      *
      * @param name the listener name

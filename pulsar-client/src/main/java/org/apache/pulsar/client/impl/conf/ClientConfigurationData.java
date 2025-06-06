@@ -71,6 +71,23 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private transient ServiceUrlProvider serviceUrlProvider;
 
     @ApiModelProperty(
+            name = "serviceUrlRecoveryInitBackoffIntervalMs",
+            value = "Initial time (in milliseconds) to wait before retrying to connect to the service URL after a failure."
+                    + " This is used when the client is unable to connect to the service URL and needs to back off "
+                    + "before retrying. A value of 0 means don't need wait before retrying to connect to the failed service URL."
+    )
+    private long serviceUrlRecoveryInitBackoffIntervalMs = 60000;
+
+    @ApiModelProperty(
+            name = "serviceUrlRecoveryMaxBackoffIntervalMs",
+            value = "Maximum time (in milliseconds) to wait before retrying to connect to the service URL after a failure."
+                    + " This is used when the client is unable to connect to the service URL and needs to back off "
+                    + "before retrying. The value must be greater than or equal to serviceUrlRecoveryBackoffInitTimeMs."
+                    + "A value of 0 means don't need wait before retrying to connect to the failed service URL."
+    )
+    private long serviceUrlRecoveryMaxBackoffIntervalMs = TimeUnit.DAYS.toMillis(1);
+
+    @ApiModelProperty(
             name = "authentication",
             value = "Authentication settings of the client."
     )
