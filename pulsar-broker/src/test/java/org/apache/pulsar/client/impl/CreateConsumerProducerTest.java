@@ -298,7 +298,7 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
         String topic = "persistent://my-property/my-ns/topic" + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topic);
         // Create consumers to trigger unhealthy address removal
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < originAllAddresses.size(); i++) {
             String subName = "my-sub" + UUID.randomUUID();
             pulsarClient.newConsumer()
                     .subscriptionMode(SubscriptionMode.Durable)
