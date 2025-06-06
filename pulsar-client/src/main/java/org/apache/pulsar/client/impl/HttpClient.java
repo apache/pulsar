@@ -114,7 +114,6 @@ public class HttpClient implements Closeable {
                 confBuilder.setSslEngineFactory(sslEngineFactory);
 
 
-
                 confBuilder.setUseInsecureTrustManager(conf.isTlsAllowInsecureConnection());
                 confBuilder.setDisableHttpsEndpointIdentificationAlgorithm(!conf.isTlsHostnameVerificationEnable());
             } catch (Exception e) {
@@ -168,7 +167,8 @@ public class HttpClient implements Closeable {
             // auth complete, do real request
             authFuture.whenComplete((respHeaders, ex) -> {
                 if (ex != null) {
-                    serviceNameResolver.markHostAvailability(InetSocketAddress.createUnresolved(hostUri.getHost(), hostUri.getPort()), false);
+                    serviceNameResolver.markHostAvailability(
+                            InetSocketAddress.createUnresolved(hostUri.getHost(), hostUri.getPort()), false);
                     log.warn("[{}] Failed to perform http request at authentication stage: {}",
                         requestUrl, ex.getMessage());
                     future.completeExceptionally(new PulsarClientException(ex));
@@ -195,12 +195,14 @@ public class HttpClient implements Closeable {
 
                 builder.execute().toCompletableFuture().whenComplete((response2, t) -> {
                     if (t != null) {
-                        serviceNameResolver.markHostAvailability(InetSocketAddress.createUnresolved(hostUri.getHost(), hostUri.getPort()), false);
+                        serviceNameResolver.markHostAvailability(
+                                InetSocketAddress.createUnresolved(hostUri.getHost(), hostUri.getPort()), false);
                         log.warn("[{}] Failed to perform http request: {}", requestUrl, t.getMessage());
                         future.completeExceptionally(new PulsarClientException(t));
                         return;
                     }
-                    serviceNameResolver.markHostAvailability(InetSocketAddress.createUnresolved(hostUri.getHost(), hostUri.getPort()), true);
+                    serviceNameResolver.markHostAvailability(
+                            InetSocketAddress.createUnresolved(hostUri.getHost(), hostUri.getPort()), true);
 
                     // request not success
                     if (response2.getStatusCode() != HttpURLConnection.HTTP_OK) {
