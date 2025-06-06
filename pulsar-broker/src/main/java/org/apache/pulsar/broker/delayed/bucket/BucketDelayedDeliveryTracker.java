@@ -56,10 +56,12 @@ import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.delayed.AbstractDelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.proto.DelayedIndex;
+import org.apache.pulsar.broker.delayed.proto.DelayedOperationType;
 import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 import org.roaringbitmap.RoaringBitmap;
 
@@ -105,6 +107,9 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     private CompletableFuture<Void> pendingLoad = null;
 
+    private final ConcurrentLongPairSet canceledMessages;
+    private final TripleLongPriorityQueue canceledMessagesExpiryQueue;
+
     public BucketDelayedDeliveryTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher,
                                         Timer timer, long tickTimeMillis,
                                         boolean isDelayedDeliveryDeliverAtTimeStrict,
@@ -137,6 +142,8 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                         bucketSnapshotStorage);
         this.stats = new BucketDelayedMessageIndexStats();
 
+        this.canceledMessages = ConcurrentLongPairSet.newBuilder().autoShrink(true).build();
+        this.canceledMessagesExpiryQueue = new TripleLongPriorityQueue();
         // Close the tracker if failed to recover.
         try {
             this.numberDelayedMessages = recoverBucketSnapshot();
@@ -206,8 +213,14 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 this.snapshotSegmentLastIndexTable.put(lastDelayedIndex.getLedgerId(),
                         lastDelayedIndex.getEntryId(), immutableBucket);
                 for (DelayedIndex index : indexList) {
-                    this.sharedBucketPriorityQueue.add(index.getTimestamp(), index.getLedgerId(),
-                            index.getEntryId());
+                    long ledgerId = index.getLedgerId();
+                    long entryId = index.getEntryId();
+                    if (index.hasDelayedOperationType()
+                            && index.getDelayedOperationType() == DelayedOperationType.CANCEL) {
+                        addCanceledMessage(ledgerId, entryId, index.getTimestamp());
+                    } else if (!canceledMessages.contains(ledgerId, entryId)) {
+                        this.sharedBucketPriorityQueue.add(index.getTimestamp(), ledgerId, entryId);
+                    }
                 }
             }
         }
@@ -229,6 +242,12 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 dispatcher.getName(), immutableBucketMap.size(), numberDelayedMessages.getValue());
 
         return numberDelayedMessages.getValue();
+    }
+
+    private void addCanceledMessage(long ledgerId, long entryId, long timestamp) {
+        if (canceledMessages.add(ledgerId, entryId)) {
+            canceledMessagesExpiryQueue.add(timestamp + 2 * tickTimeMillis, ledgerId, entryId);
+        }
     }
 
     /**
@@ -285,6 +304,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 return;
             }
             lastMutableBucket.moveScheduledMessageToSharedQueue(getCutoffTime(), sharedBucketPriorityQueue);
+            canceledMessagesCleanup();
         }
         super.run(timeout);
     }
@@ -315,7 +335,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                         immutableBucket.asyncUpdateSnapshotLength();
                         log.info("[{}] Create bucket snapshot finish, bucketKey: {}", dispatcher.getName(),
                                 immutableBucket.bucketKey());
-
+                        lastMutableBucket.clearCanceledOperations();
                         stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.create,
                                 System.currentTimeMillis() - startTime);
 
@@ -610,6 +630,13 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
             long ledgerId = sharedBucketPriorityQueue.peekN2();
             long entryId = sharedBucketPriorityQueue.peekN3();
+            if (canceledMessages.contains(ledgerId, entryId)) {
+                sharedBucketPriorityQueue.pop();
+                if (removeIndexBit(ledgerId, entryId)) {
+                    --numberDelayedMessages;
+                }
+                continue;
+            }
 
             ImmutableBucket bucket = snapshotSegmentLastIndexTable.get(ledgerId, entryId);
             if (bucket != null && immutableBuckets.asMapOfRanges().containsValue(bucket)) {
@@ -710,6 +737,40 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         return false;
     }
 
+    public synchronized boolean applyDelayOperation(long ledgerId, long entryId, long deliverAt,
+                                                    DelayedOperationType opType) {
+        switch (opType) {
+            case DELAY -> {
+                return addMessage(ledgerId, entryId, deliverAt);
+            }
+            case CANCEL -> {
+                return doCancelOperation(ledgerId, entryId, deliverAt);
+            }
+            default -> {
+                return false;
+            }
+        }
+    }
+
+    private synchronized boolean doCancelOperation(long ledgerId, long entryId, long deliverAt) {
+        if (containsMessage(ledgerId, entryId)) {
+            removeIndexBit(ledgerId, entryId);
+            addCanceledMessage(ledgerId, entryId, deliverAt);
+            --numberDelayedMessages;
+            return true;
+        }
+
+        if (deliverAt < 0 || deliverAt <= getCutoffTime()) {
+            return false;
+        }
+
+        long cancelAheadTime = 2 * tickTimeMillis;
+        long cancelTime = Math.max(clock.millis(), deliverAt - cancelAheadTime);
+
+        lastMutableBucket.addMessage(ledgerId, entryId, cancelTime, DelayedOperationType.CANCEL);
+        return true;
+    }
+
     @Override
     public synchronized CompletableFuture<Void> clear() {
         CompletableFuture<Void> future = cleanImmutableBuckets();
@@ -717,6 +778,8 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         lastMutableBucket.clear();
         snapshotSegmentLastIndexTable.clear();
         numberDelayedMessages = 0;
+        canceledMessages.clear();
+        canceledMessagesExpiryQueue.clear();
         return future;
     }
 
@@ -725,6 +788,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         super.close();
         lastMutableBucket.close();
         sharedBucketPriorityQueue.close();
+        canceledMessagesExpiryQueue.close();
         try {
             List<CompletableFuture<Long>> completableFutures = immutableBuckets.asMapOfRanges().values().stream()
                     .map(bucket -> bucket.getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE)).toList();
@@ -774,4 +838,31 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         stats.recordBucketSnapshotSizeBytes(totalSnapshotLength.longValue());
         return stats.genTopicMetricMap();
     }
+
+    private void canceledMessagesCleanup() {
+        try {
+            long now = clock.millis();
+            int cleanedCount = 0;
+            while (!canceledMessagesExpiryQueue.isEmpty() && canceledMessagesExpiryQueue.peekN1() <= now) {
+                long ledgerId = canceledMessagesExpiryQueue.peekN2();
+                long entryId = canceledMessagesExpiryQueue.peekN3();
+                canceledMessagesExpiryQueue.pop();
+
+                if (canceledMessages.remove(ledgerId, entryId)) {
+                    cleanedCount++;
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Cleaned up expired CANCEL marker for {}:{}",
+                                dispatcher.getName(), ledgerId, entryId);
+                    }
+                }
+            }
+            if (cleanedCount > 0) {
+                log.info("[{}] Cleaned up {} expired CANCEL command markers during regular run.", dispatcher.getName(),
+                        cleanedCount);
+            }
+        } catch (Exception e) {
+            log.error("[{}] Error during CANCEL command marker cleanup in run method.", dispatcher.getName(), e);
+        }
+    }
+
 }

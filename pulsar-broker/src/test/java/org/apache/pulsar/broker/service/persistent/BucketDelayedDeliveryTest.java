@@ -21,17 +21,20 @@ package org.apache.pulsar.broker.service.persistent;
 import static org.apache.bookkeeper.mledger.ManagedCursor.CURSOR_INTERNAL_PROPERTY_PREFIX;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.*;
 import com.google.common.collect.Multimap;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.BKException;
@@ -44,10 +47,13 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -462,6 +468,85 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         admin.topics().deletePartitionedTopic(topic);
     }
 
+    @Test
+    public void testDelayedMessageCancel() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testDelayedMessageCancel");
+        final String subName = "shared-sub";
+        CountDownLatch latch = new CountDownLatch(99);
+        admin.topics().createPartitionedTopic(topic,2);
+        Set<String> receivedMessages1 = ConcurrentHashMap.newKeySet();
+        Set<String> receivedMessages2 = ConcurrentHashMap.newKeySet();
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic + "-partition-0")
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .messageListener((Consumer<String> c, Message<String> msg) -> {
+                    receivedMessages1.add(msg.getValue());
+                    c.acknowledgeAsync(msg);
+                    latch.countDown();
+                })
+                .subscribe();
+
+        @Cleanup
+        Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic + "-partition-1")
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .messageListener((Consumer<String> c, Message<String> msg) -> {
+                    receivedMessages2.add(msg.getValue());
+                    c.acknowledgeAsync(msg);
+                    latch.countDown();
+                })
+                .subscribe();
+
+        admin.topicPolicies().setDelayedDeliveryPolicy(topic,
+                DelayedDeliveryPolicies.builder()
+                        .active(true)
+                        .tickTime(1000L)
+                        .maxDeliveryDelayInMillis(10000)
+                        .build());
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        List<MessageId> messageIds = new ArrayList<>();
+        List<Long> delayedTimes = new ArrayList<>();
+
+        for (int i = 0; i < 100; i++) {
+            final long deliverAtTime = System.currentTimeMillis() + 5000L;
+            MessageId messageId = producer.newMessage()
+                    .key(String.valueOf(i))
+                    .value("msg-" + i)
+                    .deliverAt(deliverAtTime)
+                    .send();
+            messageIds.add(i, messageId);
+            delayedTimes.add(i, deliverAtTime);
+        }
+
+        final int cancelMessage = 50;
+        MessageIdImpl messageId = (MessageIdImpl) messageIds.get(cancelMessage);
+
+        Thread.sleep(1000L);
+
+        admin.topics().cancelDelayedMessage(
+                topic,
+                messageId.getLedgerId(),
+                messageId.getEntryId(),
+                delayedTimes.get(cancelMessage),
+                // Collections.singletonList(subName)
+                Collections.emptyList()
+        );
+
+        assertTrue(latch.await(15, TimeUnit.SECONDS), "Not all messages were received in time");
+        assertFalse((receivedMessages1.contains("msg-" + cancelMessage)
+                        || receivedMessages2.contains("msg-" + cancelMessage))
+                        && (receivedMessages1.size() + receivedMessages2.size() == 99),
+                "msg-" + cancelMessage + " should have been cancelled but was received");
+    }
 
     private ManagedCursor findCursor(String topic, String subscriptionName) {
         PersistentTopic persistentTopic =
