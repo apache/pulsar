@@ -175,7 +175,8 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
                     .filter(entry -> allAddressSet.contains(entry.getKey()))
                     .map(Map.Entry::getKey)
                     .collect(Collectors.toList());
-            log.info("service name resolver available hosts changed, current available hosts: {}", availableAddressList);
+            log.info("service name resolver available hosts changed, current available hosts: {}",
+                    availableAddressList);
         }
     }
 
@@ -190,8 +191,9 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
                 .setInitialTime(1, TimeUnit.MINUTES)
                 .setMax(1, TimeUnit.DAYS)
                 .create();
-        EndpointStatus endpointStatus = new EndpointStatus(inetSocketAddress, recoverBackoff, System.currentTimeMillis(), 0,
-                isAvailable);
+        EndpointStatus endpointStatus =
+                new EndpointStatus(inetSocketAddress, recoverBackoff, System.currentTimeMillis(), 0,
+                        isAvailable);
         if (!isAvailable) {
             endpointStatus.setNextDelayMsToRecover(endpointStatus.getRecoverBackoff().next());
         }
@@ -208,10 +210,11 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
         if (!newIsAvailable) {
             if (!status.isAvailable()) {
                 // from unavailable to unavailable, check if we need to try to recover
-                boolean needTryRecover = (System.currentTimeMillis() - status.getLastUpdateTimeStampMs())
-                        >= status.getNextDelayMsToRecover();
+                long elapsedTimeMsSinceLast = System.currentTimeMillis() - status.getLastUpdateTimeStampMs();
+                boolean needTryRecover = elapsedTimeMsSinceLast >= status.getNextDelayMsToRecover();
                 if (needTryRecover) {
-                    log.info("service name resolver try to recover host {} after {}", status.getSocketAddress(), Duration.ofMillis(System.currentTimeMillis() - status.getLastUpdateTimeStampMs()));
+                    log.info("service name resolver try to recover host {} after {}", status.getSocketAddress(),
+                            Duration.ofMillis(elapsedTimeMsSinceLast));
                     status.setAvailable(true);
                     status.setLastUpdateTimeStampMs(System.currentTimeMillis());
                     status.setNextDelayMsToRecover(status.getRecoverBackoff().next());
