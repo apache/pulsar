@@ -18,19 +18,19 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.fail;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-import org.apache.pulsar.broker.admin.v2.ResourceGroups;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -39,8 +39,8 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-public class ResourceGroupsTest extends MockedPulsarServiceBaseTest {
-    private ResourceGroups resourcegroups;
+@Slf4j
+public class ResourceGroupsTest extends MockedPulsarServiceBaseTest  {
     private List<String> expectedRgNames = new ArrayList<>();
     private final String testCluster = "test";
     private final String testTenant = "test-tenant";
@@ -51,14 +51,6 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest {
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
-        resourcegroups = spy(ResourceGroups.class);
-        resourcegroups.setServletContext(new MockServletContext());
-        resourcegroups.setPulsar(pulsar);
-        doReturn(false).when(resourcegroups).isRequestHttps();
-        doReturn("test").when(resourcegroups).clientAppId();
-        doReturn(null).when(resourcegroups).originalPrincipal();
-        doReturn(null).when(resourcegroups).clientAuthData();
-
         prepareData();
     }
 
@@ -71,16 +63,13 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testCrudResourceGroups() throws Exception {
         // create with null resourcegroup should fail.
-        try {
-            resourcegroups.createOrUpdateResourceGroup("test-resourcegroup-invalid", null);
-            fail("should have failed");
-        } catch (RestException e) {
-            //Ok.
-        }
+        assertThatThrownBy(() -> {
+            admin.resourcegroups().createResourceGroup("test-resourcegroup-invalid", null);
+        }).isInstanceOf(PulsarAdminException.class);
 
         // create resourcegroup with default values
         ResourceGroup testResourceGroupOne = new ResourceGroup();
-        resourcegroups.createOrUpdateResourceGroup("test-resourcegroup-one", testResourceGroupOne);
+        admin.resourcegroups().createResourceGroup("test-resourcegroup-one", testResourceGroupOne);
         expectedRgNames.add("test-resourcegroup-one");
 
         // create resourcegroup with non default values.
@@ -90,16 +79,13 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest {
         testResourceGroupTwo.setPublishRateInMsgs(100);
         testResourceGroupTwo.setPublishRateInBytes(10000L);
 
-        resourcegroups.createOrUpdateResourceGroup("test-resourcegroup-two", testResourceGroupTwo);
+        admin.resourcegroups().createResourceGroup("test-resourcegroup-two", testResourceGroupTwo);
         expectedRgNames.add("test-resourcegroup-two");
 
         // null resourcegroup update should fail.
-        try {
-            resourcegroups.createOrUpdateResourceGroup("test-resourcegroup-one", null);
-            fail("should have failed");
-        } catch (RestException e) {
-            //Ok.
-        }
+        assertThatThrownBy(() -> {
+            admin.resourcegroups().createResourceGroup("test-resourcegroup-one", null);
+        }).isInstanceOf(PulsarAdminException.class);
 
         // update with some real values
         ResourceGroup testResourceGroupOneUpdate = new ResourceGroup();
@@ -107,35 +93,29 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest {
         testResourceGroupOneUpdate.setDispatchRateInBytes(5000L);
         testResourceGroupOneUpdate.setPublishRateInMsgs(10);
         testResourceGroupOneUpdate.setPublishRateInBytes(1000L);
-        resourcegroups.createOrUpdateResourceGroup("test-resourcegroup-one", testResourceGroupOneUpdate);
+        admin.resourcegroups().createResourceGroup("test-resourcegroup-one", testResourceGroupOneUpdate);
 
         // get a non existent resourcegroup
-        try {
-            resourcegroups.getResourceGroup("test-resourcegroup-invalid");
-            fail("should have failed");
-        } catch (RestException e) {
-            //Ok
-        }
+        assertThatThrownBy(() -> {
+            admin.resourcegroups().getResourceGroup("test-resourcegroup-invalid");
+        }).isInstanceOf(PulsarAdminException.class);
 
         // get list of all resourcegroups
-        List<String> gotRgNames = resourcegroups.getResourceGroups();
+        List<String> gotRgNames = admin.resourcegroups().getResourceGroups();
         assertEquals(gotRgNames.size(), expectedRgNames.size());
         Collections.sort(gotRgNames);
         Collections.sort(expectedRgNames);
         assertEquals(gotRgNames, expectedRgNames);
 
         // delete a non existent resourcegroup
-        try {
-            resourcegroups.deleteResourceGroup("test-resourcegroup-invalid");
-            fail("should have failed");
-        } catch (RestException e) {
-            //Ok
-        }
+        assertThatThrownBy(() -> {
+            admin.resourcegroups().getResourceGroup("test-resourcegroup-invalid");
+        }).isInstanceOf(PulsarAdminException.class);
 
         // delete the ResourceGroups we created.
         Iterator<String> rg_Iterator = expectedRgNames.iterator();
         while (rg_Iterator.hasNext()) {
-            resourcegroups.deleteResourceGroup(rg_Iterator.next());
+            admin.resourcegroups().deleteResourceGroup(rg_Iterator.next());
         }
     }
 
@@ -148,28 +128,28 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest {
         testResourceGroupTwo.setPublishRateInMsgs(100);
         testResourceGroupTwo.setPublishRateInBytes(10000L);
 
-        resourcegroups.createOrUpdateResourceGroup("test-resourcegroup-three", testResourceGroupTwo);
+        admin.resourcegroups().createResourceGroup("test-resourcegroup-three", testResourceGroupTwo);
         admin.namespaces().createNamespace(testNameSpace);
         // set invalid ResourceGroup in namespace
-        try {
+        assertThatThrownBy(() -> {
             admin.namespaces().setNamespaceResourceGroup(testNameSpace, "test-resourcegroup-invalid");
-            fail("should have failed");
-        } catch (Exception e) {
-            //Ok.
-        }
+        }).isInstanceOf(PulsarAdminException.class);
+
         // set resourcegroup in namespace
         admin.namespaces().setNamespaceResourceGroup(testNameSpace, "test-resourcegroup-three");
+        Awaitility.await().untilAsserted(() -> assertNotNull(pulsar.getResourceGroupServiceManager()
+                .getNamespaceResourceGroup(NamespaceName.get(testNameSpace))));
         // try deleting the resourcegroup, should fail
-        try {
-            resourcegroups.deleteResourceGroup("test-resourcegroup-three");
-        } catch (RestException e) {
-            //Ok
-        }
+        assertThatThrownBy(() -> {
+            admin.resourcegroups().deleteResourceGroup("test-resourcegroup-three");
+        }).isInstanceOf(PulsarAdminException.class);
+
         // remove resourcegroup from namespace
         admin.namespaces().removeNamespaceResourceGroup(testNameSpace);
-        Awaitility.await().untilAsserted(() -> {
-            resourcegroups.deleteResourceGroup("test-resourcegroup-three");
-        });
+        Awaitility.await().untilAsserted(() -> assertNull(pulsar.getResourceGroupServiceManager()
+                .getNamespaceResourceGroup(NamespaceName.get(testNameSpace))));
+
+        admin.resourcegroups().deleteResourceGroup("test-resourcegroup-three");
     }
 
     private void prepareData() throws PulsarAdminException {
