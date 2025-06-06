@@ -2270,10 +2270,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " will only be tracked in memory and messages will be redelivered in case of"
             + " crashes.")
     private int managedLedgerMaxUnackedRangesToPersist = 10000;
-    @FieldContext(
-            category = CATEGORY_STORAGE_ML,
-            doc = "Whether persist cursor ack stats as long arrays, which will compress the data and reduce GC rate")
+
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "Maximum number of partially acknowledged batch messages per subscription that will have their batch "
+                + "deleted indexes persisted. Batch deleted index state is handled when "
+                + "acknowledgmentAtBatchIndexLevelEnabled=true.\n\n"
+                + "When this limit is exceeded, remaining batch message containing the batch deleted indexes will "
+                + "only be tracked in memory. In case of broker restarts or load balancing events, the batch "
+                + "deleted indexes will be cleared while redelivering the messages to consumers.")
+    private int managedLedgerMaxBatchDeletedIndexToPersist = 10000;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "When storing acknowledgement state, choose a more compact serialization format that stores"
+                    + " individual acknowledgements as a bitmap which is serialized to an array of long values.\n\n"
+                    + "NOTE: This setting requires managedLedgerUnackedRangesOpenCacheSetEnabled=true to be effective.")
     private boolean managedLedgerPersistIndividualAckAsLongArray = true;
+
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "If enabled, the maximum \"acknowledgment holes\" will not be limited and \"acknowledgment holes\" "
@@ -2296,8 +2308,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int managedLedgerMaxUnackedRangesToPersistInMetadataStore = 1000;
     @FieldContext(
             category = CATEGORY_STORAGE_OFFLOADING,
-            doc = "Use Open Range-Set to cache unacked messages (it is memory efficient but it can take more cpu)"
-        )
+            doc = "When set to true, a BitSet will be used to track acknowledged messages that come after the \"mark "
+                    + "delete position\" for each subscription.\n\nRoaringBitmap is used as a memory efficient BitSet "
+                    + "implementation for the acknowledged messages tracking. Unacknowledged ranges are the message "
+                    + "ranges excluding the acknowledged messages.")
     private boolean managedLedgerUnackedRangesOpenCacheSetEnabled = true;
     @FieldContext(
         dynamic = true,
