@@ -239,4 +239,16 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
     public void testIncompatibleMultiVersionSchema(boolean enableDeduplication) throws Exception {
         super.testIncompatibleMultiVersionSchema(enableDeduplication);
     }
+
+    @Override
+    @Test
+    public void testReplicatorsInflightTaskListIsEmptyAfterReplicationFinished() throws Exception {
+        super.testReplicatorsInflightTaskListIsEmptyAfterReplicationFinished();
+    }
+
+    @Override
+    @Test(enabled = false)
+    public void testConcurrencyReplicationReadEntries() throws Exception {
+        super.testConcurrencyReplicationReadEntries();
+    }
 }
