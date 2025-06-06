@@ -89,9 +89,9 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 : ""/* NonDurableCursor doesn't have name */);
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.readFailureBackoff = new Backoff(serviceConfig.getDispatcherReadFailureBackoffInitialTimeInMs(),
-            TimeUnit.MILLISECONDS, serviceConfig.getDispatcherReadFailureBackoffMaxTimeInMs(),
-            TimeUnit.MILLISECONDS, serviceConfig.getDispatcherReadFailureBackoffMandatoryStopTimeInMs(),
-            TimeUnit.MILLISECONDS);
+                TimeUnit.MILLISECONDS, serviceConfig.getDispatcherReadFailureBackoffMaxTimeInMs(),
+                TimeUnit.MILLISECONDS, serviceConfig.getDispatcherReadFailureBackoffMandatoryStopTimeInMs(),
+                TimeUnit.MILLISECONDS);
         this.redeliveryTracker = RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.initializeDispatchRateLimiterIfNeeded();
     }
@@ -231,18 +231,19 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                                              EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
                                              SendMessageInfo sendMessageInfo, long epoch) {
         currentConsumer
-            .sendMessages(entries, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
-                    sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
-                    redeliveryTracker, epoch)
-            .addListener(future -> {
-                if (future.isSuccess()) {
-                    acquirePermitsForDeliveredMessages(topic, cursor, entries.size(),
-                            sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes());
+                .sendMessages(entries, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
+                        sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
+                        redeliveryTracker, epoch)
+                .addListener(future -> {
+                    if (future.isSuccess()) {
+                        acquirePermitsForDeliveredMessages(topic, cursor, entries.size(),
+                                sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes());
 
-                    // Schedule a new read batch operation only after the previous batch has been written to the socket.
-                    executor.execute(() -> readMoreEntries(getActiveConsumer()));
-                }
-            });
+                        // Schedule a new read batch operation only after the previous batch has been written to the
+                        // socket.
+                        executor.execute(() -> readMoreEntries(getActiveConsumer()));
+                    }
+                });
     }
 
     @Override
@@ -585,6 +586,11 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         return false;
     }
 
+    public int getUnackedMessages() {
+        Consumer activeConsumer = getActiveConsumer();
+        return activeConsumer != null ? activeConsumer.getUnackedMessages() : 0;
+    }
+
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherSingleActiveConsumer.class);
 
     public static class ReadEntriesCtx {
@@ -597,13 +603,14 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         private ReadEntriesCtx(Recycler.Handle<ReadEntriesCtx> recyclerHandle) {
             this.recyclerHandle = recyclerHandle;
         }
+
         private static final Recycler<ReadEntriesCtx> RECYCLER =
                 new Recycler<ReadEntriesCtx>() {
-            @Override
-            protected ReadEntriesCtx newObject(Recycler.Handle<ReadEntriesCtx> recyclerHandle) {
-                return new ReadEntriesCtx(recyclerHandle);
-            }
-        };
+                    @Override
+                    protected ReadEntriesCtx newObject(Recycler.Handle<ReadEntriesCtx> recyclerHandle) {
+                        return new ReadEntriesCtx(recyclerHandle);
+                    }
+                };
 
         public static ReadEntriesCtx create(Consumer consumer, long epoch) {
             ReadEntriesCtx readEntriesCtx = RECYCLER.get();
