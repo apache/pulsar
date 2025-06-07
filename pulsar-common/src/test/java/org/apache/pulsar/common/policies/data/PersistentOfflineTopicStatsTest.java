@@ -40,9 +40,9 @@ public class PersistentOfflineTopicStatsTest {
         Assert.assertEquals(pot.dataLedgerDetails.get(0).ledgerId, 1);
         long resetAt = System.currentTimeMillis();
         pot.reset();
-        Assert.assertEquals(pot.storageSize, 0);
-        Assert.assertEquals(pot.totalMessages, 0);
-        Assert.assertEquals(pot.messageBacklog, 0);
+        Assert.assertEquals(pot.getStorageSize(), 0);
+        Assert.assertEquals(pot.getTotalMessages(), 0);
+        Assert.assertEquals(pot.getMessageBacklog(), 0);
         Assert.assertEquals(pot.dataLedgerDetails.size(), 0);
         Assert.assertEquals(pot.cursorDetails.size(), 0);
         Assert.assertTrue(pot.statGeneratedAt.getTime() - resetAt < 100);

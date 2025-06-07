@@ -37,19 +37,19 @@ public class TransactionMetadataStoreStats {
     private int actives;
 
     /** The committed transaction count of this transaction coordinator. */
-    public long committedCount;
+    private long committedCount;
 
     /** The aborted transaction count of this transaction coordinator. */
-    public long abortedCount;
+    private long abortedCount;
 
     /** The created transaction count of this transaction coordinator. */
-    public long createdCount;
+    private long createdCount;
 
     /** The append transaction op log count of this transaction coordinator. */
-    public long appendLogCount;
+    private long appendLogCount;
 
     /** The timeout out transaction count of this transaction coordinator. */
-    public long timeoutCount;
+    private long timeoutCount;
 
     /** The transaction execution latency. */
     public StatsBuckets executionLatencyBuckets = new StatsBuckets(TRANSACTION_EXECUTION_BUCKETS);

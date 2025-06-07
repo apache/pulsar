@@ -36,20 +36,20 @@ import org.apache.pulsar.websocket.WebSocketError;
 public class ProducerAck {
 
     // Message publishing result
-    public String result;
+    private String result;
 
     // Error message if fail to publish a message.
-    public String errorMsg;
+    private String errorMsg;
 
-    public String messageId;
+    private String messageId;
 
-    public String context;
+    private String context;
 
     // Indicating if error is retriable error.
-    public int errorCode;
+    private int errorCode;
 
     // Version of schema used to encode the message.
-    public long schemaVersion;
+    private long schemaVersion;
 
     public ProducerAck(String messageId, String context) {
         this.result = "ok";

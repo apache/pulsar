@@ -26,57 +26,57 @@ public class SubscriptionStatsImplTest {
     @Test
     public void testReset() {
         SubscriptionStatsImpl stats = new SubscriptionStatsImpl();
-        stats.earliestMsgPublishTimeInBacklog = 1L;
+        stats.setEarliestMsgPublishTimeInBacklog(1L);
         stats.reset();
-        assertEquals(stats.earliestMsgPublishTimeInBacklog, 0L);
+        assertEquals(stats.getEarliestMsgPublishTimeInBacklog(), 0L);
 
     }
 
     @Test
     public void testAdd_EarliestMsgPublishTimeInBacklogs_Earliest() {
         SubscriptionStatsImpl stats1 = new SubscriptionStatsImpl();
-        stats1.earliestMsgPublishTimeInBacklog = 10L;
+        stats1.setEarliestMsgPublishTimeInBacklog(10L);
 
         SubscriptionStatsImpl stats2 = new SubscriptionStatsImpl();
-        stats2.earliestMsgPublishTimeInBacklog = 20L;
+        stats2.setEarliestMsgPublishTimeInBacklog(20L);
 
         SubscriptionStatsImpl aggregate = stats1.add(stats2);
-        assertEquals(aggregate.earliestMsgPublishTimeInBacklog, 10L);
+        assertEquals(aggregate.getEarliestMsgPublishTimeInBacklog(), 10L);
     }
 
     @Test
     public void testAdd_EarliestMsgPublishTimeInBacklogs_First0() {
         SubscriptionStatsImpl stats1 = new SubscriptionStatsImpl();
-        stats1.earliestMsgPublishTimeInBacklog = 0L;
+        stats1.setEarliestMsgPublishTimeInBacklog(0L);
 
         SubscriptionStatsImpl stats2 = new SubscriptionStatsImpl();
-        stats2.earliestMsgPublishTimeInBacklog = 20L;
+        stats2.setEarliestMsgPublishTimeInBacklog(20L);
 
         SubscriptionStatsImpl aggregate = stats1.add(stats2);
-        assertEquals(aggregate.earliestMsgPublishTimeInBacklog, 20L);
+        assertEquals(aggregate.getEarliestMsgPublishTimeInBacklog(), 20L);
     }
 
     @Test
     public void testAdd_EarliestMsgPublishTimeInBacklogs_Second0() {
         SubscriptionStatsImpl stats1 = new SubscriptionStatsImpl();
-        stats1.earliestMsgPublishTimeInBacklog = 10L;
+        stats1.setEarliestMsgPublishTimeInBacklog(10L);
 
         SubscriptionStatsImpl stats2 = new SubscriptionStatsImpl();
-        stats2.earliestMsgPublishTimeInBacklog = 0L;
+        stats2.setEarliestMsgPublishTimeInBacklog(0L);
 
         SubscriptionStatsImpl aggregate = stats1.add(stats2);
-        assertEquals(aggregate.earliestMsgPublishTimeInBacklog, 10L);
+        assertEquals(aggregate.getEarliestMsgPublishTimeInBacklog(), 10L);
     }
 
     @Test
     public void testAdd_EarliestMsgPublishTimeInBacklogs_Zero() {
         SubscriptionStatsImpl stats1 = new SubscriptionStatsImpl();
-        stats1.earliestMsgPublishTimeInBacklog = 0L;
+        stats1.setEarliestMsgPublishTimeInBacklog(0L);
 
         SubscriptionStatsImpl stats2 = new SubscriptionStatsImpl();
-        stats2.earliestMsgPublishTimeInBacklog = 0L;
+        stats2.setEarliestMsgPublishTimeInBacklog(0L);
 
         SubscriptionStatsImpl aggregate = stats1.add(stats2);
-        assertEquals(aggregate.earliestMsgPublishTimeInBacklog, 0L);
+        assertEquals(aggregate.getEarliestMsgPublishTimeInBacklog(), 0L);
     }
 }

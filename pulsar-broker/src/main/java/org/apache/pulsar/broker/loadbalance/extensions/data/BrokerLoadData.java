@@ -118,7 +118,8 @@ public class BrokerLoadData {
                        long bundleCount,
                        long topics,
                        ServiceConfiguration conf) {
-        updateSystemResourceUsage(usage.cpu, usage.memory, usage.directMemory, usage.bandwidthIn, usage.bandwidthOut);
+        updateSystemResourceUsage(usage.getCpu(), usage.getMemory(),
+                usage.getDirectMemory(), usage.getBandwidthIn(), usage.getBandwidthOut());
         this.msgThroughputIn = msgThroughputIn;
         this.msgThroughputOut = msgThroughputOut;
         this.msgRateIn = msgRateIn;

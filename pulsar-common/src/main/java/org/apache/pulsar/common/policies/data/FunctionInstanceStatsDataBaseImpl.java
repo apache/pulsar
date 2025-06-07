@@ -33,25 +33,25 @@ public class FunctionInstanceStatsDataBaseImpl implements FunctionInstanceStatsD
     /**
      * Total number of records function received from source for instance.
      **/
-    public long receivedTotal;
+    private long receivedTotal;
 
     /**
      * Total number of records successfully processed by user function for instance.
      **/
-    public long processedSuccessfullyTotal;
+    private long processedSuccessfullyTotal;
 
     /**
      * Total number of system exceptions thrown for instance.
      **/
-    public long systemExceptionsTotal;
+    private long systemExceptionsTotal;
 
     /**
      * Total number of user exceptions thrown for instance.
      **/
-    public long userExceptionsTotal;
+    private long userExceptionsTotal;
 
     /**
      * Average process latency for function for instance.
      **/
-    public Double avgProcessLatency;
+    private Double avgProcessLatency;
 }

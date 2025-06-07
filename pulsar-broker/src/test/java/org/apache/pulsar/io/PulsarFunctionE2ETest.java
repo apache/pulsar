@@ -440,13 +440,13 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         assertEquals(functionStats.getProcessedSuccessfullyTotal(), 0);
         assertEquals(functionStats.getSystemExceptionsTotal(), 0);
         assertEquals(functionStats.getUserExceptionsTotal(), 0);
-        assertNull(functionStats.avgProcessLatency);
-        assertEquals(functionStats.oneMin.getReceivedTotal(), 0);
-        assertEquals(functionStats.oneMin.getProcessedSuccessfullyTotal(), 0);
-        assertEquals(functionStats.oneMin.getSystemExceptionsTotal(), 0);
-        assertEquals(functionStats.oneMin.getUserExceptionsTotal(), 0);
-        assertNull(functionStats.oneMin.getAvgProcessLatency());
-        assertEquals(functionStats.getAvgProcessLatency(), functionStats.oneMin.getAvgProcessLatency());
+        assertNull(functionStats.getAvgProcessLatency());
+        assertEquals(functionStats.getOneMin().getReceivedTotal(), 0);
+        assertEquals(functionStats.getOneMin().getProcessedSuccessfullyTotal(), 0);
+        assertEquals(functionStats.getOneMin().getSystemExceptionsTotal(), 0);
+        assertEquals(functionStats.getOneMin().getUserExceptionsTotal(), 0);
+        assertNull(functionStats.getOneMin().getAvgProcessLatency());
+        assertEquals(functionStats.getAvgProcessLatency(), functionStats.getOneMin().getAvgProcessLatency());
         assertNull(functionStats.getLastInvocation());
 
         assertEquals(functionStats.instances.size(), 1);
@@ -590,13 +590,13 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         assertEquals(functionStats.getProcessedSuccessfullyTotal(), totalMsgs);
         assertEquals(functionStats.getSystemExceptionsTotal(), 0);
         assertEquals(functionStats.getUserExceptionsTotal(), 0);
-        assertTrue(functionStats.avgProcessLatency > 0);
-        assertEquals(functionStats.oneMin.getReceivedTotal(), totalMsgs);
-        assertEquals(functionStats.oneMin.getProcessedSuccessfullyTotal(), totalMsgs);
-        assertEquals(functionStats.oneMin.getSystemExceptionsTotal(), 0);
-        assertEquals(functionStats.oneMin.getUserExceptionsTotal(), 0);
-        assertTrue(functionStats.oneMin.getAvgProcessLatency() > 0);
-        assertEquals(functionStats.getAvgProcessLatency(), functionStats.oneMin.getAvgProcessLatency());
+        assertTrue(functionStats.getAvgProcessLatency() > 0);
+        assertEquals(functionStats.getOneMin().getReceivedTotal(), totalMsgs);
+        assertEquals(functionStats.getOneMin().getProcessedSuccessfullyTotal(), totalMsgs);
+        assertEquals(functionStats.getOneMin().getSystemExceptionsTotal(), 0);
+        assertEquals(functionStats.getOneMin().getUserExceptionsTotal(), 0);
+        assertTrue(functionStats.getOneMin().getAvgProcessLatency() > 0);
+        assertEquals(functionStats.getAvgProcessLatency(), functionStats.getOneMin().getAvgProcessLatency());
         assertTrue(functionStats.getLastInvocation() > 0);
 
         assertEquals(functionStats.instances.size(), 1);
