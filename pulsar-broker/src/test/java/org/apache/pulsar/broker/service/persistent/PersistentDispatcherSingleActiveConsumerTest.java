@@ -156,10 +156,10 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
                     .subscribe();
 
             @Cleanup
-            Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+            Producer<String> producer = pulsarClient.newProducer(Schema.STRING).enableBatching(true).topic(topicName).create();
 
             for (int i = 0; i < totalProducedMessage; ++i) {
-                producer.send(Integer.toString(i));
+                producer.sendAsync(Integer.toString(i));
             }
 
             // 1) check unacked message at begin
@@ -182,7 +182,7 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
 
             // 4) test negative ack
             for (int i = 0; i < totalProducedMessage; ++i) {
-                producer.send(Integer.toString(i));
+                producer.sendAsync(Integer.toString(i));
             }
             Message<String> msg = null;
             checkUnackedMessage(topicName, subscriptionName, totalProducedMessage);

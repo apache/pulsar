@@ -585,10 +585,7 @@ public class Consumer {
                 ackedCount = getAckedCountForBatchIndexLevelEnabled(position, batchSize, ackSets, ackOwnerConsumer);
                 if (isTransactionEnabled()) {
                     //sync the batch position bit set point, in order to delete the position in pending acks
-                    if (Subscription.isIndividualAckMode(subType)) {
-                        ((PersistentSubscription) subscription)
-                                .syncBatchPositionBitSetForPendingAck(position);
-                    }
+                    ((PersistentSubscription) subscription).syncBatchPositionBitSetForPendingAck(position);
                 }
                 addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
             } else {
@@ -611,7 +608,7 @@ public class Consumer {
                 .collect(Collectors.toList()), AckType.Individual, properties);
         CompletableFuture<Long> completableFuture = new CompletableFuture<>();
         completableFuture.complete(totalAckCount);
-        if (isTransactionEnabled() && Subscription.isIndividualAckMode(subType)) {
+        if (isTransactionEnabled()) {
             completableFuture.whenComplete((v, e) -> positionsAcked.forEach(positionPair -> {
                 Consumer ackOwnerConsumer = positionPair.getLeft();
                 Position position = positionPair.getRight();
@@ -700,7 +697,7 @@ public class Consumer {
     }
 
     private long getAckedCountForMsgIdNoAckSets(int batchSize, Position position, Consumer consumer) {
-        if (isAcknowledgmentAtBatchIndexLevelEnabled && Subscription.isIndividualAckMode(subType)) {
+        if (isAcknowledgmentAtBatchIndexLevelEnabled) {
             long[] cursorAckSet = getCursorAckSet(position);
             if (cursorAckSet != null) {
                 return getAckedCountForBatchIndexLevelEnabled(position, batchSize, EMPTY_ACK_SET, consumer);
@@ -712,7 +709,7 @@ public class Consumer {
     private long getAckedCountForBatchIndexLevelEnabled(Position position, int batchSize, long[] ackSets,
                                                         Consumer consumer) {
         long ackedCount = 0;
-        if (isAcknowledgmentAtBatchIndexLevelEnabled && Subscription.isIndividualAckMode(subType)
+        if (isAcknowledgmentAtBatchIndexLevelEnabled
                 && consumer.getPendingAcks().contains(position.getLedgerId(), position.getEntryId())) {
             long[] cursorAckSet = getCursorAckSet(position);
             if (cursorAckSet != null) {
