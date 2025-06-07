@@ -109,9 +109,6 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
     private Integer managedLedgerOffloadMaxThreads = DEFAULT_OFFLOAD_MAX_THREADS;
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
-    private Integer managedLedgerOffloadReadThreads = DEFAULT_OFFLOAD_READ_THREADS;
-    @Configuration
-    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Integer managedLedgerOffloadPrefetchRounds = DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS;
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
@@ -500,11 +497,6 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
 
         public OffloadPoliciesImplBuilder managedLedgerOffloadMaxThreads(Integer managedLedgerOffloadMaxThreads) {
             impl.managedLedgerOffloadMaxThreads = managedLedgerOffloadMaxThreads;
-            return this;
-        }
-
-        public OffloadPoliciesImplBuilder managedLedgerOffloadReadThreads(Integer managedLedgerOffloadReadThreads) {
-            impl.managedLedgerOffloadReadThreads = managedLedgerOffloadReadThreads;
             return this;
         }
 
