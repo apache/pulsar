@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.google.common.annotations.VisibleForTesting;
 import io.netty.channel.EventLoopGroup;
 import io.opentelemetry.api.common.Attributes;
 import java.net.InetSocketAddress;
@@ -256,11 +255,6 @@ public class HttpLookupService implements LookupService {
             return null;
         });
         return future;
-    }
-
-    @VisibleForTesting
-    ServiceNameResolver getServiceNameResolver() {
-        return httpClient.getServiceNameResolver();
     }
 
     @Override

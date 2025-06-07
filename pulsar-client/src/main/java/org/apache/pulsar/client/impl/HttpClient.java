@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.google.common.annotations.VisibleForTesting;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
@@ -274,8 +273,4 @@ public class HttpClient implements Closeable {
         }
     }
 
-    @VisibleForTesting
-    ServiceNameResolver getServiceNameResolver() {
-        return serviceNameResolver;
-    }
 }
