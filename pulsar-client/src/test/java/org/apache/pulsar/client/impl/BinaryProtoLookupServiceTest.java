@@ -88,6 +88,7 @@ public class BinaryProtoLookupServiceTest {
 
         ConnectionPool cnxPool = mock(ConnectionPool.class);
         when(cnxPool.getConnection(any(InetSocketAddress.class))).thenReturn(connectionFuture);
+        when(cnxPool.getConnection(any(ServiceNameResolver.class))).thenReturn(connectionFuture);
 
         ClientConfigurationData clientConfig = mock(ClientConfigurationData.class);
         doReturn(0).when(clientConfig).getMaxLookupRedirects();
