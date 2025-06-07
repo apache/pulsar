@@ -1708,6 +1708,15 @@ public class PersistentTopics extends PersistentTopicsBase {
     ) {
         try {
             validateTopicName(tenant, namespace, topic);
+            String decodedSubName = decode(encodedSubName);
+            // If subscription is as "a/b". The url of HTTP API that defined as
+            // "{tenant}/{namespace}/{topic}/{subscription}" will be like below:
+            // "public/default/tp/a/b", then the broker will assume it is a topic that
+            // using the old rule "{tenant}/{cluster}/{namespace}/{topic}/{subscription}".
+            // So denied to create a subscription that contains "/".
+            if (decodedSubName.contains("/")) {
+                throw new RestException(Response.Status.BAD_REQUEST, "Subscription does not allow containing '/'");
+            }
             if (!topicName.isPersistent()) {
                 throw new RestException(Response.Status.BAD_REQUEST, "Create subscription on non-persistent topic "
                         + "can only be done through client");
