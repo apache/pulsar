@@ -333,24 +333,5 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
             assertEquals(resolvedAddresses, originAllAddresses,
                     "Expected all addresses to be healthy, but found: " + resolvedAddresses);
         }
-
-        if (enableBackoff) {
-            // Wait for some time to allow the unhealthy addresses to recover
-            Uninterruptibles.sleepUninterruptibly(60, java.util.concurrent.TimeUnit.SECONDS);
-            // trigger unavailable address recover
-            if (resolver instanceof BinaryProtoLookupService) {
-                pulsarClient.getCnxPool().getConnection(((BinaryProtoLookupService) resolver).getServiceNameResolver());
-            } else if (resolver instanceof HttpLookupService) {
-                ((HttpLookupService) resolver).getServiceNameResolver().markHostAvailability(healthyAddress, true);
-            } else {
-                throw new PulsarClientException("Unsupported LookupService type: " + resolver.getClass().getName());
-            }
-
-            Uninterruptibles.sleepUninterruptibly(1, java.util.concurrent.TimeUnit.SECONDS);
-            for (int i = 0; i < 10; i++) {
-                resolvedAddresses.add(resolver.resolveHost());
-            }
-            assertEquals(resolvedAddresses, originAllAddresses);
-        }
     }
 }

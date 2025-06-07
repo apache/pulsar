@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import static java.lang.String.format;
 import static org.apache.pulsar.client.api.PulsarClientException.FailedFeatureCheck.SupportsGetPartitionedMetadataWithoutAutoCreation;
-import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.opentelemetry.api.common.Attributes;
@@ -459,11 +458,6 @@ public class BinaryProtoLookupService implements LookupService {
             }, nextDelay, TimeUnit.MILLISECONDS);
             return null;
         });
-    }
-
-    @VisibleForTesting
-    ServiceNameResolver getServiceNameResolver() {
-        return serviceNameResolver;
     }
 
     @Override
