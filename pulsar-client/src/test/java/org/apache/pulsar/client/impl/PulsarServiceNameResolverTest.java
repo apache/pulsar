@@ -167,5 +167,17 @@ public class PulsarServiceNameResolverTest {
         }
         assertEquals(resolverAddresses, allOriginAddresses);
 
+        resolverAddresses.clear();
+        // Mark all hosts as unavailable
+        resolver.markHostAvailability(InetSocketAddress.createUnresolved("host1", 6651), false);
+        resolver.markHostAvailability(InetSocketAddress.createUnresolved("host2", 6651), false);
+        resolver.markHostAvailability(InetSocketAddress.createUnresolved("host3", 6651), false);
+
+        // After marking all hosts as unavailable, resolver should fall back to select from all origin host
+        for (int i = 0; i < 10; i++) {
+            InetSocketAddress address = resolver.resolveHost();
+            resolverAddresses.add(address);
+        }
+        assertEquals(resolverAddresses, allOriginAddresses);
     }
 }
