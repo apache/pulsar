@@ -923,8 +923,7 @@ public class Consumer {
 
     /**
      * Checks if consumer-blocking on unAckedMessages is allowed for below conditions:<br/>
-     * a. consumer must have Shared-subscription<br/>
-     * b. {@link this#getMaxUnackedMessages()} value > 0
+     * {@link this#getMaxUnackedMessages()} value > 0.
      *
      * @return
      */
