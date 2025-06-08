@@ -2503,7 +2503,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final NamespaceName namespaceName = NamespaceName.get(namespace);
 
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
-        if (lookupSemaphore.tryAcquire() || !ctx.channel().isWritable()) {
+        if (lookupSemaphore.tryAcquire() || ctx.channel().isWritable()) {
             isNamespaceOperationAllowed(namespaceName, NamespaceOperation.GET_TOPICS).thenApply(isAuthorized -> {
                 if (isAuthorized) {
                     getBrokerService().pulsar().getNamespaceService().getListOfUserTopics(namespaceName, mode)
