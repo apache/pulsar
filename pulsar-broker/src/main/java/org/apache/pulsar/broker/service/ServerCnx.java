@@ -2503,7 +2503,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final NamespaceName namespaceName = NamespaceName.get(namespace);
 
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
-        if (lookupSemaphore.tryAcquire()) {
+        if (lookupSemaphore.tryAcquire() || !ctx.channel().isWritable()) {
             isNamespaceOperationAllowed(namespaceName, NamespaceOperation.GET_TOPICS).thenApply(isAuthorized -> {
                 if (isAuthorized) {
                     getBrokerService().pulsar().getNamespaceService().getListOfUserTopics(namespaceName, mode)
@@ -2531,17 +2531,30 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                         "[{}] Received CommandGetTopicsOfNamespace for namespace [//{}] by {}, size:{}",
                                         remoteAddress, namespace, requestId, topics.size());
                             }
-                            commandSender.sendGetTopicsOfNamespaceResponse(filteredTopics, hash, filterTopics,
-                                    !hashUnchanged, requestId);
+                            if (ctx.channel().isWritable()) {
+                                commandSender.sendGetTopicsOfNamespaceResponse(filteredTopics, hash, filterTopics,
+                                        !hashUnchanged, requestId);
+                            } else {
+                                /*
+                                    To avoid direct OutOfMemoryError (OOM), we should refrain from appending a large
+                                    volume of topic lists to the Netty ChannelOutboundBuffer's pending queue when the
+                                    channel is in an unwritable state.
+                                 */
+                                commandSender.sendErrorResponse(requestId, ServerError.TooManyRequests,
+                                        "Failed due to too many pending requests");
+                            }
                             lookupSemaphore.release();
                         })
                         .exceptionally(ex -> {
                             log.warn("[{}] Error GetTopicsOfNamespace for namespace [//{}] by {}",
                                     remoteAddress, namespace, requestId);
-                            commandSender.sendErrorResponse(requestId,
-                                    BrokerServiceException.getClientErrorCode(new ServerMetadataException(ex)),
-                                    ex.getMessage());
-                            lookupSemaphore.release();
+                            try {
+                                commandSender.sendErrorResponse(requestId,
+                                        BrokerServiceException.getClientErrorCode(new ServerMetadataException(ex)),
+                                        ex.getMessage());
+                            } finally {
+                                lookupSemaphore.release();
+                            }
                             return null;
                         });
                 } else {
@@ -2561,11 +2574,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             });
         } else {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Failed GetTopicsOfNamespace lookup due to too many lookup-requests {}", remoteAddress,
+                log.debug("[{}] Failed GetTopicsOfNamespace due to too many pending requests {}", remoteAddress,
                         namespaceName);
             }
             commandSender.sendErrorResponse(requestId, ServerError.TooManyRequests,
-                    "Failed due to too many pending lookup requests");
+                    "Failed due to too many pending requests");
         }
     }
 
