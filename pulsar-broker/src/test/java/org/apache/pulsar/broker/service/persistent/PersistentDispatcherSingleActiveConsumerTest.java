@@ -351,6 +351,31 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
 
             trn.commit().get();
             checkUnackedMessage(outputTopicName, subscriptionName, 0);
+
+            // 5) check cumulative ack
+            for (int i = 0; i < totalProducedMessage; ++i) {
+                outputProducer.sendAsync(Integer.toString(i));
+            }
+
+            Message<String> msg = null;
+            for (int i = 0; i < totalProducedMessage; ++i) {
+                msg = outputConsumer.receive(1, TimeUnit.SECONDS);
+                if (Objects.isNull(msg)) {
+                    Assert.fail("Expected message not received");
+                }
+            }
+            trn = pulsarClient.newTransaction().withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
+            outputConsumer.acknowledgeCumulativeAsync(msg.getMessageId(), trn);
+            trn.abort().get();
+            // broker won't redelivery message after  transaction abort.
+            // refer to: https://github.com/apache/pulsar/pull/14371
+            outputConsumer.redeliverUnacknowledgedMessages();
+            checkUnackedMessage(outputTopicName, subscriptionName, totalProducedMessage);
+
+            trn = pulsarClient.newTransaction().withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
+            outputConsumer.acknowledgeCumulativeAsync(msg.getMessageId(), trn);
+            trn.commit().get();
+            checkUnackedMessage(outputTopicName, subscriptionName, 0);
         }
     }
 
