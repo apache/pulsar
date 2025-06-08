@@ -53,7 +53,6 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -473,14 +472,14 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testDelayedMessageCancel");
         final String subName = "shared-sub";
         CountDownLatch latch = new CountDownLatch(99);
-        admin.topics().createPartitionedTopic(topic,2);
+        admin.topics().createPartitionedTopic(topic, 2);
         Set<String> receivedMessages1 = ConcurrentHashMap.newKeySet();
         Set<String> receivedMessages2 = ConcurrentHashMap.newKeySet();
 
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topic + "-partition-0")
-                .subscriptionName(subName)
+                .topic(topic)
+                .subscriptionName(subName + "-1")
                 .subscriptionType(SubscriptionType.Shared)
                 .messageListener((Consumer<String> c, Message<String> msg) -> {
                     receivedMessages1.add(msg.getValue());
@@ -491,8 +490,8 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
 
         @Cleanup
         Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topic + "-partition-1")
-                .subscriptionName(subName)
+                .topic(topic)
+                .subscriptionName(subName + "-2")
                 .subscriptionType(SubscriptionType.Shared)
                 .messageListener((Consumer<String> c, Message<String> msg) -> {
                     receivedMessages2.add(msg.getValue());
@@ -501,44 +500,32 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
                 })
                 .subscribe();
 
-        admin.topicPolicies().setDelayedDeliveryPolicy(topic,
-                DelayedDeliveryPolicies.builder()
-                        .active(true)
-                        .tickTime(1000L)
-                        .maxDeliveryDelayInMillis(10000)
-                        .build());
-
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
                 .create();
 
         List<MessageId> messageIds = new ArrayList<>();
-        List<Long> delayedTimes = new ArrayList<>();
 
         for (int i = 0; i < 100; i++) {
-            final long deliverAtTime = System.currentTimeMillis() + 5000L;
+            final long deliverAtTime = System.currentTimeMillis() + 3000L;
             MessageId messageId = producer.newMessage()
                     .key(String.valueOf(i))
                     .value("msg-" + i)
                     .deliverAt(deliverAtTime)
                     .send();
             messageIds.add(i, messageId);
-            delayedTimes.add(i, deliverAtTime);
         }
 
         final int cancelMessage = 50;
         MessageIdImpl messageId = (MessageIdImpl) messageIds.get(cancelMessage);
 
-        Thread.sleep(1000L);
-
         admin.topics().cancelDelayedMessage(
                 topic,
                 messageId.getLedgerId(),
                 messageId.getEntryId(),
-                delayedTimes.get(cancelMessage),
-                // Collections.singletonList(subName)
-                Collections.emptyList()
+                Collections.singletonList(subName + "-1")
+                // Collections.emptyList()
         );
 
         assertTrue(latch.await(15, TimeUnit.SECONDS), "Not all messages were received in time");

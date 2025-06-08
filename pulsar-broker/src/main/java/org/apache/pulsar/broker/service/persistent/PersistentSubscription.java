@@ -51,6 +51,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentFindCursorPositionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositionException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.tuple.MutablePair;
@@ -1545,6 +1546,18 @@ public class PersistentSubscription extends AbstractSubscription {
         } else {
             return FutureUtil.failedFuture(new NotAllowedException("Unsupported txnAction " + txnAction));
         }
+    }
+
+    @Override
+    public CompletableFuture<Boolean> cancelDelayedMessage(long ledgerId, long entryId) {
+        if (Subscription.isCumulativeAckMode(getType())) {
+            return CompletableFuture.completedFuture(false);
+        }
+        Position position = PositionFactory.create(ledgerId, entryId);
+        List<Position> positions = Collections.singletonList(position);
+        Map<String, Long> properties = Collections.emptyMap();
+        acknowledgeMessage(positions, AckType.Individual, properties);
+        return CompletableFuture.completedFuture(true);
     }
 
     @VisibleForTesting

@@ -27,14 +27,8 @@ message DelayedIndex {
     required uint64 timestamp = 1;
     required uint64 ledger_id = 2;
     required uint64 entry_id = 3;
-    optional DelayedOperationType delayed_operation_type = 4 [default = DELAY];
 }
 
 message SnapshotSegment {
     repeated DelayedIndex indexes = 1;
-}
-
-enum DelayedOperationType {
-    DELAY = 0;
-    CANCEL = 1;
 }

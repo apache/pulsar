@@ -2820,43 +2820,22 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public void cancelDelayedMessage(String topic, long ledgerId, long entryId, long deliverAt,
+    public void cancelDelayedMessage(String topic, long ledgerId, long entryId,
                                      List<String> subscriptionNames) throws PulsarAdminException {
-        sync(() -> cancelDelayedMessageAsync(topic, ledgerId, entryId, deliverAt, subscriptionNames));
+        sync(() -> cancelDelayedMessageAsync(topic, ledgerId, entryId, subscriptionNames));
     }
 
     @Override
-    public CompletableFuture<Void> cancelDelayedMessageAsync(String topic, long ledgerId, long entryId, long deliverAt,
+    public CompletableFuture<Void> cancelDelayedMessageAsync(String topic, long ledgerId, long entryId,
                                                              List<String> subscriptionNames) {
-        TopicName tn = TopicName.get(topic);
+        TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "cancelDelayedMessage");
         path = path.queryParam("ledgerId", ledgerId)
-                .queryParam("entryId", entryId)
-                .queryParam("deliverAt", deliverAt);
+                .queryParam("entryId", entryId);
         if (subscriptionNames != null && !subscriptionNames.isEmpty()) {
             path = path.queryParam("subscriptionNames", subscriptionNames.toArray());
         }
-        final CompletableFuture<Void> future = new CompletableFuture<>();
-        try {
-            request(path).async().post(Entity.entity("", MediaType.APPLICATION_JSON),
-                    new InvocationCallback<Response>() {
-                @Override
-                public void completed(Response response) {
-                    if (response.getStatusInfo().getFamily() == Response.Status.Family.SUCCESSFUL) {
-                        future.complete(null);
-                    } else {
-                        future.completeExceptionally(getApiException(response));
-                    }
-                }
-                @Override
-                public void failed(Throwable throwable) {
-                    future.completeExceptionally(getApiException(throwable));
-                }
-            });
-        } catch (PulsarAdminException e) {
-            future.completeExceptionally(e);
-        }
-        return future;
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
     private static final Logger log = LoggerFactory.getLogger(TopicsImpl.class);

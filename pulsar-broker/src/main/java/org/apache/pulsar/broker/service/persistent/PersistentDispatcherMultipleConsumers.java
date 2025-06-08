@@ -54,7 +54,6 @@ import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.InMemoryDelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker;
-import org.apache.pulsar.broker.delayed.proto.DelayedOperationType;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -1471,30 +1470,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     @Override
     public boolean isClassic() {
         return false;
-    }
-
-    @Override
-    public CompletableFuture<Boolean> cancelDelayedMessage(long ledgerId, long entryId, long deliverAt) {
-        synchronized (this) {
-            if (delayedDeliveryTracker.isPresent()) {
-                boolean result = delayedDeliveryTracker.get()
-                        .applyDelayOperation(ledgerId, entryId, deliverAt, DelayedOperationType.CANCEL);
-                if (result) {
-                    log.info("[{}] Successfully applied CANCEL operation for message {}:{} with deliverAt {} to "
-                                    + "tracker", getName(), ledgerId, entryId, deliverAt);
-                } else {
-                    log.warn("[{}] Failed to apply CANCEL operation for message {}:{} with deliverAt {} to tracker. "
-                                    + "Message might not be in tracker or already processed.",
-                            getName(), ledgerId, entryId, deliverAt);
-                }
-                return CompletableFuture.completedFuture(result);
-            } else {
-                log.warn("[{}] No delayed delivery tracker present for dispatcher. Cannot cancel message {}:{} for"
-                                + " deliverAt {}",
-                        getName(), ledgerId, entryId, deliverAt);
-                return CompletableFuture.completedFuture(false);
-            }
-        }
     }
 
     public ManagedCursor getCursor() {

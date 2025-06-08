@@ -5041,21 +5041,18 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("ledgerId") long ledgerId,
             @ApiParam(value = "Entry ID of the target delayed message", required = true)
             @QueryParam("entryId") long entryId,
-            @ApiParam(value = "Original deliverAt time of the target delayed message (in milliseconds from epoch)",
-                    required = true)
-            @QueryParam("deliverAt") long deliverAt,
             @ApiParam(value = "List of subscription names to cancel on (empty or null for all subscriptions)")
             @QueryParam("subscriptionNames") List<String> subscriptionNames) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
-            if (ledgerId < 0 || entryId < 0 || deliverAt <= 0) {
+            if (ledgerId < 0 || entryId < 0) {
                 asyncResponse.resume(new RestException(Response.Status.PRECONDITION_FAILED,
-                        "ledgerId, entryId, and deliverAt must be positive."));
+                        "ledgerId, entryId must be positive."));
                 return;
             }
             List<String> finalSubscriptionNames = (subscriptionNames == null || subscriptionNames.isEmpty())
                     ? null : subscriptionNames;
-            internalCancelDelayedMessage(asyncResponse, ledgerId, entryId, deliverAt,
+            internalCancelDelayedMessage(asyncResponse, ledgerId, entryId,
                     finalSubscriptionNames, authoritative);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);

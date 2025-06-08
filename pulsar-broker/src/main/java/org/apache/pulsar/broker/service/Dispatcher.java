@@ -225,19 +225,4 @@ public interface Dispatcher {
         return 0;
     }
 
-    /**
-     * Cancels a specific delayed message for this dispatcher's subscriptions.
-     *
-     * @param ledgerId The ledger ID of the message to cancel.
-     * @param entryId The entry ID of the message to cancel.
-     * @param deliverAt The original scheduled delivery time of the message.
-     * @return A CompletableFuture that resolves to true if the cancellation was successfully
-     *         requested from the tracker, false otherwise (e.g., message not found in tracker, tracker not present,
-     *         or already delivered/cancelled).
-     */
-    default CompletableFuture<Boolean> cancelDelayedMessage(long ledgerId, long entryId, long deliverAt) {
-        // Default for dispatchers not supporting this
-        return CompletableFuture.completedFuture(false);
-    }
-
 }

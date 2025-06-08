@@ -686,5 +686,4 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
                     + maxDeliveryDelayInMillis + " milliseconds");
         }
     }
-
 }

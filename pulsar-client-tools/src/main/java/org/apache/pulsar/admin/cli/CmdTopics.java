@@ -3071,10 +3071,6 @@ public class CmdTopics extends CmdBase {
         @Option(names = {"-e", "--entryId"}, description = "Entry ID of the message to cancel", required = true)
         private long entryId = -1L;
 
-        @Option(names = {"-t", "--deliverAt"}, description = "Original scheduled delivery time"
-                + " (timestamp in ms from epoch) of the message to cancel", required = true)
-        private long deliverAt = -1L;
-
         @Option(names = {"-s", "--subscriptionNames"}, description = "Comma-separated list of subscription names to"
                 + " target. If not specified, applies to all subscriptions.", split = ",")
         private List<String> subscriptionNames = new ArrayList<>();
@@ -3082,13 +3078,12 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws Exception {
             String topic = validateTopicName(topicName);
-            if (ledgerId < 0 || entryId < 0 || deliverAt <= 0) {
-                throw new PulsarAdminException("ledgerId, entryId must be non-negative,"
-                        + " and deliverAt must be positive.");
+            if (ledgerId < 0 || entryId < 0) {
+                throw new PulsarAdminException("ledgerId, entryId must be non-negative.");
             }
-            getAdmin().topics().cancelDelayedMessage(topic, ledgerId, entryId, deliverAt, subscriptionNames);
+            getAdmin().topics().cancelDelayedMessage(topic, ledgerId, entryId, subscriptionNames);
             print("Successfully requested cancellation for delayed message " + ledgerId + ":" + entryId
-                    + " with deliverAt " + deliverAt + " on topic " + topic);
+                    + " on topic " + topic);
         }
     }
 

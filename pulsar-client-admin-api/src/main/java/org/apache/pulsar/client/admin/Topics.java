@@ -4565,12 +4565,11 @@ public interface Topics {
      * @param topic The topic name
      * @param ledgerId The ledger ID of the target delayed message
      * @param entryId The entry ID of the target delayed message
-     * @param deliverAt The original deliverAt time of the target delayed message (in milliseconds from epoch)
      * @param subscriptionNames List of subscription names to cancel on.
      *                          If null or empty, applies to all subscriptions.
      * @throws PulsarAdminException if the request fails
      */
-    void cancelDelayedMessage(String topic, long ledgerId, long entryId, long deliverAt,
+    void cancelDelayedMessage(String topic, long ledgerId, long entryId,
                               List<String> subscriptionNames) throws PulsarAdminException;
 
     /**
@@ -4579,11 +4578,10 @@ public interface Topics {
      * @param topic The topic name
      * @param ledgerId The ledger ID of the target delayed message
      * @param entryId The entry ID of the target delayed message
-     * @param deliverAt The original deliverAt time of the target delayed message (in milliseconds from epoch)
      * @param subscriptionNames List of subscription names to cancel on.
      *                          If null or empty, applies to all subscriptions.
      * @return a future that can be used to track the asynchronous operation
      */
-    CompletableFuture<Void> cancelDelayedMessageAsync(String topic, long ledgerId, long entryId, long deliverAt,
+    CompletableFuture<Void> cancelDelayedMessageAsync(String topic, long ledgerId, long entryId,
                                                       List<String> subscriptionNames);
 }

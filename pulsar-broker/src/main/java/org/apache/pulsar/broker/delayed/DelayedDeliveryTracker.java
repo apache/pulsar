@@ -22,7 +22,6 @@ import com.google.common.annotations.Beta;
 import java.util.NavigableSet;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.pulsar.broker.delayed.proto.DelayedOperationType;
 
 /**
  * Represent the tracker for the delayed delivery of messages for a particular subscription.
@@ -76,23 +75,6 @@ public interface DelayedDeliveryTracker extends AutoCloseable {
     void resetTickTime(long tickTime);
 
     /**
-     * Apply a delayed operation for a specific message. {@link DelayedOperationType}
-     * <p>
-     * For {@link DelayedOperationType#DELAY} type:
-     * - Adds the message to the tracker with its scheduled delivery time.
-     * <p>
-     * For {@link DelayedOperationType#CANCEL} type:
-     * - Removes the message from the tracker, preventing it from being delivered later.
-     *
-     * @param ledgerId    the ledger ID of the message
-     * @param entryId     the entry ID of the message
-     * @param deliverAt   the scheduled delivery time (in milliseconds) for DELAY type, or ignored for CANCEL
-     * @param operationType      the type of operation (DELAY/CANCEL)
-     * @return true if the operation was successfully applied, false if the message was already canceled or not found
-     */
-    boolean applyDelayOperation(long ledgerId, long entryId, long deliverAt, DelayedOperationType operationType);
-
-    /**
      * Clear all delayed messages from the tracker.
      *
      * @return CompletableFuture<Void>
@@ -138,11 +120,6 @@ public interface DelayedDeliveryTracker extends AutoCloseable {
         @Override
         public void resetTickTime(long tickTime) {
 
-        }
-
-        @Override
-        public boolean applyDelayOperation(long ledgerId, long entryId, long deliverAt, DelayedOperationType opType) {
-            return false;
         }
 
         @Override

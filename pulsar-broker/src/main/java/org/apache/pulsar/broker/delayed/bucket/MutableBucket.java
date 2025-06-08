@@ -31,12 +31,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.delayed.proto.DelayedIndex;
-import org.apache.pulsar.broker.delayed.proto.DelayedOperationType;
 import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
 import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 import org.apache.pulsar.broker.delayed.proto.SnapshotSegmentMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 import org.roaringbitmap.RoaringBitmap;
 
@@ -44,13 +42,11 @@ import org.roaringbitmap.RoaringBitmap;
 class MutableBucket extends Bucket implements AutoCloseable {
 
     private final TripleLongPriorityQueue priorityQueue;
-    private final ConcurrentLongPairSet canceledOperations;
 
     MutableBucket(String dispatcherName, ManagedCursor cursor, FutureUtil.Sequencer<Void> sequencer,
                   BucketSnapshotStorage bucketSnapshotStorage) {
         super(dispatcherName, cursor, sequencer, bucketSnapshotStorage, -1L, -1L);
         this.priorityQueue = new TripleLongPriorityQueue();
-        this.canceledOperations = ConcurrentLongPairSet.newBuilder().autoShrink(true).build();
     }
 
     Pair<ImmutableBucket, DelayedIndex> sealBucketAndAsyncPersistent(
@@ -101,21 +97,13 @@ class MutableBucket extends Bucket implements AutoCloseable {
             final long ledgerId = delayedIndex.getLedgerId();
             final long entryId = delayedIndex.getEntryId();
 
-            if (canceledOperations.contains(delayedIndex.getLedgerId(), delayedIndex.getEntryId())) {
-                delayedIndex.setDelayedOperationType(DelayedOperationType.CANCEL);
-            } else {
-                delayedIndex.setDelayedOperationType(DelayedOperationType.DELAY);
-            }
-
             removeIndexBit(ledgerId, entryId);
 
             checkArgument(ledgerId >= startLedgerId && ledgerId <= endLedgerId);
 
             // Move first segment of bucket snapshot to sharedBucketPriorityQueue
-            if (segmentMetadataList.isEmpty()) {
-                if (!canceledOperations.contains(ledgerId, entryId)) {
-                    sharedQueue.add(timestamp, ledgerId, entryId);
-                }
+            if (segmentMetadataList.size() == 0) {
+                sharedQueue.add(timestamp, ledgerId, entryId);
             }
 
             bitMap.computeIfAbsent(ledgerId, k -> new RoaringBitmap()).add(entryId, entryId + 1);
@@ -201,9 +189,7 @@ class MutableBucket extends Bucket implements AutoCloseable {
 
             long ledgerId = priorityQueue.peekN2();
             long entryId = priorityQueue.peekN3();
-            if (!canceledOperations.contains(ledgerId, entryId)) {
-                sharedBucketPriorityQueue.add(timestamp, ledgerId, entryId);
-            }
+            sharedBucketPriorityQueue.add(timestamp, ledgerId, entryId);
 
             priorityQueue.pop();
         }
@@ -218,7 +204,6 @@ class MutableBucket extends Bucket implements AutoCloseable {
         this.resetLastMutableBucketRange();
         this.delayedIndexBitMap.clear();
         this.priorityQueue.clear();
-        this.canceledOperations.clear();
     }
 
     public void close() {
@@ -248,20 +233,5 @@ class MutableBucket extends Bucket implements AutoCloseable {
         }
         this.endLedgerId = ledgerId;
         putIndexBit(ledgerId, entryId);
-    }
-
-    void addMessage(long ledgerId, long entryId, long deliverAt, DelayedOperationType operationType) {
-        switch (operationType) {
-            case CANCEL -> {
-                priorityQueue.add(deliverAt, ledgerId, entryId);
-                canceledOperations.add(ledgerId, entryId);
-            }
-            case DELAY -> addMessage(ledgerId, entryId, deliverAt);
-            default -> throw new IllegalArgumentException("Unknown operation type: " + operationType);
-        }
-    }
-
-    void clearCanceledOperations() {
-        canceledOperations.clear();
     }
 }
