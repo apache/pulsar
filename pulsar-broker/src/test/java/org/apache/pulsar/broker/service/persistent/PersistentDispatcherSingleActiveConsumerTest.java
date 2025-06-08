@@ -161,86 +161,92 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
         // we will check unacked messages every 20 messages
         int checkStep = 20;
 
-        for(SubscriptionType subscription : ImmutableList.of(SubscriptionType.Exclusive, SubscriptionType.Failover)) {
-            String topicName = topicNamePrefix + subscription.name();
-            String subscriptionName = subscriptionNamePrefix + subscription.name();
-            @Cleanup
-            org.apache.pulsar.client.api.Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                    .topic(topicName).subscriptionName(subscriptionName)
-                    .subscriptionType(subscription)
-                    .receiverQueueSize(totalProducedMessage)
-                    .ackTimeout(1000, TimeUnit.MILLISECONDS)
-                    .negativeAckRedeliveryDelay(0, TimeUnit.SECONDS)
-                    .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
-                    .maxAcknowledgmentGroupSize(1)
-                    .subscribe();
+        for(boolean enableBatching : new boolean[] {false, true}) {
+            for (SubscriptionType subscription : ImmutableList.of(SubscriptionType.Exclusive,
+                    SubscriptionType.Failover)) {
+                String topicName = topicNamePrefix + subscription.name() + "-" + enableBatching;
+                String subscriptionName = subscriptionNamePrefix + subscription.name();
+                @Cleanup
+                org.apache.pulsar.client.api.Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                        .topic(topicName).subscriptionName(subscriptionName)
+                        .subscriptionType(subscription)
+                        .receiverQueueSize(totalProducedMessage)
+                        .ackTimeout(1000, TimeUnit.MILLISECONDS)
+                        .negativeAckRedeliveryDelay(0, TimeUnit.SECONDS)
+                        .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                        .maxAcknowledgmentGroupSize(1)
+                        .subscribe();
 
-            @Cleanup
-            Producer<String> producer = pulsarClient.newProducer(Schema.STRING).enableBatching(true).topic(topicName).create();
+                @Cleanup
+                Producer<String> producer =
+                        pulsarClient.newProducer(Schema.STRING).enableBatching(enableBatching).topic(topicName).create();
 
-            for (int i = 0; i < totalProducedMessage; ++i) {
-                producer.sendAsync(Integer.toString(i));
-            }
-
-            // 1) check unacked message at begin
-            checkUnackedMessage(topicName, subscriptionName, totalProducedMessage);
-
-            // 2) check unacked message every checkStep
-            for (int i = 0; i < totalProducedMessage; ++i) {
-                Message<String> msg = consumer.receive(1, TimeUnit.SECONDS);
-                if(Objects.isNull(msg)) {
-                    Assert.fail("Expected message not received");
+                for (int i = 0; i < totalProducedMessage; ++i) {
+                    producer.sendAsync(Integer.toString(i));
                 }
-                consumer.acknowledge(msg.getMessageId());
-                if((i + 1) % checkStep == 0) {
-                    checkUnackedMessage(topicName, subscriptionName, totalProducedMessage - i - 1);
+
+                // 1) check unacked message at begin
+                checkUnackedMessage(topicName, subscriptionName, totalProducedMessage);
+
+                // 2) check unacked message every checkStep
+                for (int i = 0; i < totalProducedMessage; ++i) {
+                    Message<String> msg = consumer.receive(1, TimeUnit.SECONDS);
+                    if (Objects.isNull(msg)) {
+                        Assert.fail("Expected message not received");
+                    }
+                    consumer.acknowledge(msg.getMessageId());
+                    if ((i + 1) % checkStep == 0) {
+                        checkUnackedMessage(topicName, subscriptionName, totalProducedMessage - i - 1);
+                    }
                 }
-            }
 
-            // 3) check unacked message at end
-            checkUnackedMessage(topicName, subscriptionName, 0);
+                // 3) check unacked message at end
+                checkUnackedMessage(topicName, subscriptionName, 0);
 
-            // 4) test negative ack
-            for (int i = 0; i < totalProducedMessage; ++i) {
-                producer.sendAsync(Integer.toString(i));
-            }
-            Message<String> msg = null;
-            checkUnackedMessage(topicName, subscriptionName, totalProducedMessage);
-            for (int i = 0; i < totalProducedMessage; ++i) {
-                msg = consumer.receive(1, TimeUnit.SECONDS);
-                if(Objects.isNull(msg)) {
-                    Assert.fail("Expected message not received");
+                // 4) test negative ack
+                for (int i = 0; i < totalProducedMessage; ++i) {
+                    producer.sendAsync(Integer.toString(i));
                 }
-            }
-            consumer.negativeAcknowledge(msg);
-            // sleep for a while to wait for the negative ack to be processed
-            Thread.sleep(1000);
-            TopicStats topicStats = admin.topics().getStats(topicName);
-            assertThat(topicStats.getSubscriptions().get(subscriptionName).getUnackedMessages()).isEqualTo(totalProducedMessage);
-
-            // 5) test cumulative ack or negative ack mode
-            consumer.acknowledgeCumulative(msg);
-            checkUnackedMessage(topicName, subscriptionName, 0);
-
-            // 6) after cumulation ack, consumer can receive message again
-            for (int i = 0; i < totalProducedMessage; ++i) {
-                producer.send(Integer.toString(i));
-            }
-
-            for (int i = 0; i < totalProducedMessage; ++i) {
-                msg = consumer.receive(5, TimeUnit.SECONDS);
-                if(Objects.isNull(msg)) {
-                    Assert.fail("Expected message not received");
+                Message<String> msg = null;
+                checkUnackedMessage(topicName, subscriptionName, totalProducedMessage);
+                for (int i = 0; i < totalProducedMessage; ++i) {
+                    msg = consumer.receive(1, TimeUnit.SECONDS);
+                    if (Objects.isNull(msg)) {
+                        Assert.fail("Expected message not received");
+                    }
                 }
+                consumer.negativeAcknowledge(msg);
+                // sleep for a while to wait for the negative ack to be processed
+                Thread.sleep(1000);
+                TopicStats topicStats = admin.topics().getStats(topicName);
+                assertThat(topicStats.getSubscriptions().get(subscriptionName).getUnackedMessages()).isEqualTo(
+                        totalProducedMessage);
+
+                // 5) test cumulative ack or negative ack mode
+                consumer.acknowledgeCumulative(msg);
+                checkUnackedMessage(topicName, subscriptionName, 0);
+
+                // 6) after cumulation ack, consumer can receive message again
+                for (int i = 0; i < totalProducedMessage; ++i) {
+                    producer.sendAsync(Integer.toString(i));
+                }
+
+                for (int i = 0; i < totalProducedMessage; ++i) {
+                    msg = consumer.receive(5, TimeUnit.SECONDS);
+                    if (Objects.isNull(msg)) {
+                        Assert.fail("Expected message not received");
+                    }
+                }
+                checkUnackedMessage(topicName, subscriptionName, totalProducedMessage);
             }
-            checkUnackedMessage(topicName, subscriptionName, totalProducedMessage);
         }
     }
 
     @Test
     public void testUnackedMessagesWithTransaction() throws Exception {
-        String topicNamePrefix = "testUnackedMessagesWithTrn-" + System.currentTimeMillis();
-        String subscriptionNamePrefix = "testUnackedMessagesWithTrn-sub-";
+        long timeMillis = System.currentTimeMillis();
+        String topicNamePrefix = "testUnackedMessagesWithTrn-" + timeMillis;
+        String subscriptionNamePrefix = "testUnackedMessagesWithTrn-sub-" + timeMillis;
         int totalProducedMessage = 100;
 
         @Cleanup
@@ -251,7 +257,7 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
-        for (boolean enableBatching: ImmutableList.of(false, true)) {
+        for (boolean enableBatching: new boolean[] {false, true}) {
             for (SubscriptionType subscription : ImmutableList.of(SubscriptionType.Exclusive,
                     SubscriptionType.Failover)) {
                 String inputTopicName = topicNamePrefix + subscription.name() + "-input-" + enableBatching;
