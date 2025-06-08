@@ -597,8 +597,6 @@ public class Consumer {
                 if (checkCanRemovePendingAcksAndHandle(ackOwnerConsumer, position, msgId)) {
                     addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
                     updateBlockedConsumerOnUnackedMsgs(ackOwnerConsumer);
-                } else if (Subscription.isCumulativeAckMode(subType)) {
-                    addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
                 }
             }
 
@@ -764,8 +762,12 @@ public class Consumer {
 
     private boolean checkCanRemovePendingAcksAndHandle(Consumer ackOwnedConsumer,
                                                        Position position, MessageIdData msgId) {
-        if (Subscription.isIndividualAckMode(subType) && msgId.getAckSetsCount() == 0) {
-            return removePendingAcks(ackOwnedConsumer, position);
+        if (msgId.getAckSetsCount() == 0) {
+            if (Subscription.isIndividualAckMode(subType)) {
+                return removePendingAcks(ackOwnedConsumer, position);
+            }
+            // Exclusive or Failover model
+            return true;
         }
         return false;
     }
