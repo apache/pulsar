@@ -429,6 +429,18 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             availablePermits = 1;
         }
 
+        // fix concurrent flow issue.
+        // For example, consumer send two flow requests at the same time. Both request 5 messages.
+        // But consumer.getMaxUnackedMessages() - consumer.getUnackedMessages()) is 5 at this time,
+        // The first thread will increase the permits to 5, and the second thread will increase the permits to 10,
+        // Finally the first thread will fetch 10 messages at most,
+        // but actually only 5 messages should be fetched at most.
+        // I have met this issue when write unit test MaxUnackedMessagesTest.testMaxUnackedMessagesOnExclusiveConsumer.
+        if (consumer.getMaxUnackedMessages() > 0) {
+            availablePermits = Math.min(consumer.getAvailablePermits(),
+                    consumer.getMaxUnackedMessages() - consumer.getUnackedMessages());
+        }
+
         int messagesToRead = Math.min(availablePermits, readBatchSize);
         long bytesToRead = serviceConfig.getDispatcherMaxReadSizeBytes();
         // if turn of precise dispatcher flow control, adjust the records to read
