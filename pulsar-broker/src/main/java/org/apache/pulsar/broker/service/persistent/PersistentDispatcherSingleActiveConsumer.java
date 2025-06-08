@@ -437,8 +437,9 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             messagesToRead = Math.min((int) Math.ceil(availablePermits * 1.0 / avgMessagesPerEntry), readBatchSize);
         }
         // We need to ensure that we don't exceed the max unacked messages.
-        if (consumer.getMaxUnackedMessages() > 0) {
-            messagesToRead = Math.min(messagesToRead, consumer.getMaxUnackedMessages() - consumer.getUnackedMessages());
+        int maxUnackedMessages = consumer.getMaxUnackedMessages();
+        if (maxUnackedMessages > 0) {
+            messagesToRead = Math.min(messagesToRead, maxUnackedMessages - consumer.getUnackedMessages());
         }
 
         // throttle only if: (1) cursor is not active (or flag for throttle-nonBacklogConsumer is enabled) bcz
