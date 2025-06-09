@@ -2663,7 +2663,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     ReadHandle readHandle = ledger.join();
                     if (readHandle instanceof OffloadedLedgerHandle offloadedLedgerHandle) {
                         int pendingRead = offloadedLedgerHandle.getPendingRead();
-                        if (pendingRead == 0) {
+                        long lastAccessTimestamp = offloadedLedgerHandle.lastAccessTimestamp();
+                        if (lastAccessTimestamp >= 0 && pendingRead == 0) {
                             long delta = now - offloadedLedgerHandle.lastAccessTimestamp();
                             if (delta >= inactiveOffloadedLedgerEvictionTimeMs) {
                                 log.info("[{}] Offloaded ledger {} can be released ({} ms elapsed since last access)",
