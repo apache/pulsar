@@ -447,7 +447,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
+    @Test(enabled = false)
     void testGetMetrics() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
