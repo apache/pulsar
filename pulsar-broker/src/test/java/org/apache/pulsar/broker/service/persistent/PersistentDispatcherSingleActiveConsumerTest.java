@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import com.google.common.collect.ImmutableList;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -141,7 +141,7 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
         // we will check unacked messages every 20 messages
         int checkStep = 20;
 
-        for(SubscriptionType subscription : ImmutableList.of(SubscriptionType.Exclusive, SubscriptionType.Failover)) {
+        for(SubscriptionType subscription : List.of(SubscriptionType.Exclusive, SubscriptionType.Failover)) {
             String topicName = topicNamePrefix + subscription.name();
             String subscriptionName = subscriptionNamePrefix + subscription.name();
             @Cleanup
