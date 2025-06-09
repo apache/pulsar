@@ -488,6 +488,16 @@ public class ManagedLedgerConfig {
         return maxBatchDeletedIndexToPersist;
     }
 
+    /**
+     * Set max batch deleted index that will be persisted and recovered.
+     *
+     * @param maxBatchDeletedIndexToPersist
+     *            max batch deleted index that will be persisted and recovered.
+     */
+    public void setMaxBatchDeletedIndexToPersist(int maxBatchDeletedIndexToPersist) {
+        this.maxBatchDeletedIndexToPersist = maxBatchDeletedIndexToPersist;
+    }
+
     public boolean isPersistentUnackedRangesWithMultipleEntriesEnabled() {
         return persistentUnackedRangesWithMultipleEntriesEnabled;
     }
