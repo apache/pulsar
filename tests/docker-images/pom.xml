@@ -50,7 +50,6 @@
         <module>java-test-functions</module>
         <module>java-test-plugins</module>
         <module>latest-version-image</module>
-        <module>java-test-image</module>
       </modules>
       <build>
         <plugins>
