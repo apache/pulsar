@@ -2044,6 +2044,8 @@ public class BrokerService implements Closeable {
 
             managedLedgerConfig
                     .setMaxUnackedRangesToPersist(serviceConfig.getManagedLedgerMaxUnackedRangesToPersist());
+            managedLedgerConfig.setMaxBatchDeletedIndexToPersist(
+                    serviceConfig.getManagedLedgerMaxBatchDeletedIndexToPersist());
             managedLedgerConfig
                     .setPersistIndividualAckAsLongArray(serviceConfig.isManagedLedgerPersistIndividualAckAsLongArray());
             managedLedgerConfig.setPersistentUnackedRangesWithMultipleEntriesEnabled(
