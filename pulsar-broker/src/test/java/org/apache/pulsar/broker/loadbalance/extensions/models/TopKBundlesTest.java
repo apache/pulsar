@@ -124,8 +124,10 @@ public class TopKBundlesTest {
         stats1.msgRateIn = 500;
         stats1.msgThroughputOut = 10;
         bundleStats.put("pulsar/system/0x00000000_0x0FFFFFFF", stats1);
+
         NamespaceBundleStats stats2 = new NamespaceBundleStats();
         stats2.msgRateIn = 10000;
+        stats2.msgThroughputOut = 10;
         bundleStats.put(bundle1, stats2);
 
         topKBundles.update(bundleStats, 2);
