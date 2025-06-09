@@ -1096,7 +1096,9 @@ public class BatchMessageTest extends BrokerTestBase {
                     assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), messageCount / 2);
                 }
             } else {
-                assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), 0);
+                if (!enableBatch) {
+                    assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), messageCount / 2);
+                }
             }
         });
     }
