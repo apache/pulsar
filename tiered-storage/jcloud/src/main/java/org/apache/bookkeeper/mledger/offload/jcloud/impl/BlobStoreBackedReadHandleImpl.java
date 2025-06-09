@@ -135,8 +135,8 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
         // is better.
         PENDING_READ_UPDATER.incrementAndGet(this);
         promise.whenComplete((__, ex) -> {
-            PENDING_READ_UPDATER.decrementAndGet(BlobStoreBackedReadHandleImpl.this);
             lastAccessTimestamp = System.currentTimeMillis();
+            PENDING_READ_UPDATER.decrementAndGet(BlobStoreBackedReadHandleImpl.this);
         });
         executor.execute(() -> {
             if (state == State.Closed) {
