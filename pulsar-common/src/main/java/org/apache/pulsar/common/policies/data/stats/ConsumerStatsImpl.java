@@ -161,6 +161,8 @@ public class ConsumerStatsImpl implements ConsumerStats {
         this.keyHashRanges = stats.keyHashRanges;
         this.keyHashRangeArrays = stats.keyHashRangeArrays;
         this.consumerName = stats.consumerName;
+        this.firstConsumedTimestamp = stats.firstConsumedTimestamp;
+        this.firstConsumedFlowTimestamp = stats.firstConsumedFlowTimestamp;
         return this;
     }
 
