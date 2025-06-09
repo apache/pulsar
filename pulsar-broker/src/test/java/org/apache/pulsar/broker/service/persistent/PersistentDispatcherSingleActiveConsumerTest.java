@@ -184,11 +184,7 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
             Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
 
             consumer.negativeAcknowledge(msg);
-
-            // sleep for a while to wait for the negative ack to be processed
-            Thread.sleep(1000);
-            topicStats = admin.topics().getStats(topicName);
-            assertThat(topicStats.getSubscriptions().get(subscriptionName).getUnackedMessages()).isEqualTo(1);
+            assertUnackedMessage(topicName, subscriptionName, 1);
 
             consumer.acknowledge(msg);
             assertUnackedMessage(topicName, subscriptionName, 0);
