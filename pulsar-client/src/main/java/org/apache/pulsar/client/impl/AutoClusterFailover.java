@@ -128,9 +128,9 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         try {
             resolver.updateServiceUrl(url);
             InetSocketAddress endpoint = resolver.resolveHost();
-            Socket socket = new Socket();
-            socket.connect(new InetSocketAddress(endpoint.getHostName(), endpoint.getPort()), TIMEOUT);
-            socket.close();
+            try (Socket socket = new Socket()) {
+                socket.connect(new InetSocketAddress(endpoint.getHostName(), endpoint.getPort()), TIMEOUT);
+            }
             return true;
         } catch (Exception e) {
             log.warn("Failed to probe available, url: {}", url, e);

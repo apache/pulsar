@@ -1283,8 +1283,9 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             if (worker().getWorkerConfig().isFunctionsWorkerEnablePackageManagement()) {
                 File tempFile = createPkgTempFile();
                 tempFile.deleteOnExit();
-                FileOutputStream out = new FileOutputStream(tempFile);
-                IOUtils.copy(uploadedInputStream, out);
+                try (FileOutputStream out = new FileOutputStream(tempFile)) {
+                    IOUtils.copy(uploadedInputStream, out);
+                }
                 PackageMetadata metadata = PackageMetadata.builder().createTime(System.currentTimeMillis()).build();
                 worker().getBrokerAdmin().packages().upload(metadata, path, tempFile.getAbsolutePath());
             } else {
