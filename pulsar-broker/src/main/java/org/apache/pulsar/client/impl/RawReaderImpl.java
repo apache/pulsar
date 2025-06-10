@@ -67,18 +67,6 @@ public class RawReaderImpl implements RawReader {
                 retryOnRecoverableErrors);
     }
 
-//<<<<<<< HEAD
-//=======
-//    public RawReaderImpl(PulsarClientImpl client, ConsumerConfigurationData<byte[]> consumerConfiguration,
-//                         CompletableFuture<Consumer<byte[]>> consumerFuture,
-//                         boolean createTopicIfDoesNotExist, boolean retryOnRecoverableErrors) {
-//        this.consumerConfiguration = consumerConfiguration;
-//        consumer = new RawConsumerImpl(client, consumerConfiguration, consumerFuture, createTopicIfDoesNotExist,
-//                retryOnRecoverableErrors);
-//    }
-//
-//
-//>>>>>>> 37e160f78f ([fix][broker]Fix deadlock when compaction and topic deletion execute concurrently (#24366))
     @Override
     public String getTopic() {
         return consumerConfiguration.getTopicNames().stream()
