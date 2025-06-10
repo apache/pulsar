@@ -33,24 +33,23 @@ public interface RawReader {
      */
 
     static CompletableFuture<RawReader> create(PulsarClient client, String topic, String subscription) {
-        return create(client, topic, subscription, true, true);
+        return create(client, topic, subscription, true);
     }
 
     static CompletableFuture<RawReader> create(PulsarClient client, String topic, String subscription,
-                                               boolean createTopicIfDoesNotExist, boolean retryOnRecoverableErrors) {
+                                               boolean createTopicIfDoesNotExist) {
         CompletableFuture<Consumer<byte[]>> future = new CompletableFuture<>();
         RawReader r =
-                new RawReaderImpl((PulsarClientImpl) client, topic, subscription, future, createTopicIfDoesNotExist,
-                        retryOnRecoverableErrors);
+                new RawReaderImpl((PulsarClientImpl) client, topic, subscription, future, createTopicIfDoesNotExist);
         return future.thenApply(__ -> r);
     }
 
     static CompletableFuture<RawReader> create(PulsarClient client,
                                                ConsumerConfigurationData<byte[]> consumerConfiguration,
-                                               boolean createTopicIfDoesNotExist, boolean retryOnRecoverableErrors) {
+                                               boolean createTopicIfDoesNotExist) {
         CompletableFuture<Consumer<byte[]>> future = new CompletableFuture<>();
         RawReader r = new RawReaderImpl((PulsarClientImpl) client,
-                consumerConfiguration, future, createTopicIfDoesNotExist, retryOnRecoverableErrors);
+                consumerConfiguration, future, createTopicIfDoesNotExist);
         return future.thenApply(__ -> r);
     }
 

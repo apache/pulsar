@@ -90,7 +90,7 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
     }
 
     @Override
-    public boolean connectionFailed(PulsarClientException exception) {
+    public void connectionFailed(PulsarClientException exception) {
         boolean nonRetriableError = !PulsarClientException.isRetriableError(exception);
         if (nonRetriableError) {
             exception.setPreviousExceptions(previousExceptions);
@@ -99,12 +99,10 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
                 log.info("[{}] Watcher creation failed for {} with non-retriable error {}",
                         topic, name, exception.getMessage());
                 deregisterFromClientCnx();
-                return false;
             }
         } else {
             previousExceptions.add(exception);
         }
-        return true;
     }
 
     @Override
