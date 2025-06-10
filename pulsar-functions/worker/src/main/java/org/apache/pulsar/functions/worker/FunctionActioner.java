@@ -265,13 +265,11 @@ public class FunctionActioner {
         } else if (downloadFromPackageManagementService) {
             getPulsarAdmin().packages().download(pkgLocationPath, tempPkgFile.getPath());
         } else {
-            FileOutputStream tempPkgFos = new FileOutputStream(tempPkgFile);
-            WorkerUtils.downloadFromBookkeeper(
-                    dlogNamespace,
-                    tempPkgFos,
-                    pkgLocationPath);
-            if (tempPkgFos != null) {
-                tempPkgFos.close();
+            try (FileOutputStream tempPkgFos = new FileOutputStream(tempPkgFile)) {
+                WorkerUtils.downloadFromBookkeeper(
+                        dlogNamespace,
+                        tempPkgFos,
+                        pkgLocationPath);
             }
         }
 
