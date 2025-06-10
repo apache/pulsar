@@ -59,6 +59,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ResetCursorData;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.naming.PartitionedManagedLedgerInfo;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -1714,7 +1715,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             // "public/default/tp/a/b", then the broker will assume it is a topic that
             // using the old rule "{tenant}/{cluster}/{namespace}/{topic}/{subscription}".
             // So denied to create a subscription that contains "/".
-            if (decodedSubName.contains("/")) {
+            if (pulsar().getConfig().isStrictlyVerifySubscriptionName()
+                    && !NamedEntity.isAllowed(decodedSubName)) {
                 throw new RestException(Response.Status.BAD_REQUEST, "Subscription does not allow containing '/'");
             }
             if (!topicName.isPersistent()) {

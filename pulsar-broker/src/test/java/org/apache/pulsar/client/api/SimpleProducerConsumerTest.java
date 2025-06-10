@@ -285,6 +285,12 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     @Test(timeOut = 30000)
     public void testSlashSubscriptionName() throws Exception {
+        // Enable strictlyVerifySubscriptionName.
+        admin.brokers().updateDynamicConfiguration("strictlyVerifySubscriptionName", "false");
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(pulsar.getConfiguration().isStrictlyVerifySubscriptionName());
+        });
+
         final String topic = BrokerTestUtil.newUniqueName("my-property/my-ns/tp");
         admin.topics().createNonPartitionedTopic(topic);
         try {
@@ -302,8 +308,13 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             // Expected.
         }
         assertEquals(admin.topics().getStats(topic).getSubscriptions().size(), 0);
+
         // cleanup.
         admin.topics().delete(topic);
+        admin.brokers().updateDynamicConfiguration("strictlyVerifySubscriptionName", "false");
+        Awaitility.await().untilAsserted(() -> {
+            assertFalse(pulsar.getConfiguration().isStrictlyVerifySubscriptionName());
+        });
     }
 
     @Test(timeOut = 100000)

@@ -2163,6 +2163,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "the topic cannot be automatically created."
     )
     private boolean allowAutoTopicCreationWithLegacyNamingScheme = true;
+    @FieldContext(category = CATEGORY_SERVER, dynamic = true,
+            doc = "If 'strictSubscriptionNameVerification' is true, the new subscription name can only contain"
+                + " (a-zA-Z_0-9) and these special chars -=:."
+    )
+    private boolean strictlyVerifySubscriptionName = false;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         dynamic = true,

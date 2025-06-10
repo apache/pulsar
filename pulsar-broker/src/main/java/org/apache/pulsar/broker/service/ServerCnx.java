@@ -156,6 +156,7 @@ import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.intercept.InterceptException;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.Metadata;
+import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
@@ -1357,7 +1358,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                         // "public/default/tp/a/b", then the broker will assume it is a topic that
                                         // using the old rule "{tenant}/{cluster}/{namespace}/{topic}/{subscription}".
                                         // So denied to create a subscription that contains "/".
-                                        if (!subscriptionExists && subscriptionName.contains("/")) {
+                                        if (getBrokerService().pulsar().getConfig().isStrictlyVerifySubscriptionName()
+                                                && !subscriptionExists
+                                                && !NamedEntity.isAllowed(subscriptionName)) {
                                             return FutureUtil.failedFuture(
                                                             new BrokerServiceException.NamingException(
                                                                     "Subscription does not allow containing '/'"));
