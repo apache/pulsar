@@ -2974,6 +2974,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean loadBalancerSheddingBundlesWithPoliciesEnabled = false;
 
     @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "The namespaces to be excluded from load shedding"
+    )
+    private Set<String> loadBalancerSheddingExcludedNamespaces = new HashSet<>();
+
+    @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
             doc = "Time to wait before fixing any stuck in-flight service unit states. "
                     + "The leader monitor fixes any in-flight service unit(bundle) states "
