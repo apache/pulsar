@@ -1362,8 +1362,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                 && !subscriptionExists
                                                 && !NamedEntity.isAllowed(subscriptionName)) {
                                             return FutureUtil.failedFuture(
-                                                            new BrokerServiceException.NamingException(
-                                                                    "Subscription does not allow containing '/'"));
+                                                new BrokerServiceException.NamingException(
+                                                 "Please let the subscription only contains '/w(a-zA-Z_0-9)' or '_',"
+                                                 + " the current value is " + subscriptionName));
                                         }
 
                                         boolean rejectSubscriptionIfDoesNotExist = isDurable

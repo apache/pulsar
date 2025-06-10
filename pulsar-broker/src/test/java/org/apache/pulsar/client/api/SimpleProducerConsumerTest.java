@@ -286,7 +286,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     @Test(timeOut = 30000)
     public void testSlashSubscriptionName() throws Exception {
         // Enable strictlyVerifySubscriptionName.
-        admin.brokers().updateDynamicConfiguration("strictlyVerifySubscriptionName", "false");
+        admin.brokers().updateDynamicConfiguration("strictlyVerifySubscriptionName", "true");
         Awaitility.await().untilAsserted(() -> {
             assertTrue(pulsar.getConfiguration().isStrictlyVerifySubscriptionName());
         });
@@ -297,14 +297,14 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             admin.topics().createSubscription(topic, "a/b", MessageId.earliest);
             fail("The creation for the subscription that contains '/' should fail");
         } catch (PulsarAdminException ex) {
-            assertTrue(ex.getMessage().contains("Subscription does not allow containing"));
+            assertTrue(ex.getMessage().contains("Please let the subscription only contains"));
             // Expected.
         }
         try {
             pulsarClient.newConsumer().topic(topic).subscriptionName("b/c").subscribe();
             fail("The creation for the subscription that contains '/' should fail");
         } catch (PulsarClientException ex) {
-            assertTrue(ex.getMessage().contains("Subscription does not allow containing"));
+            assertTrue(ex.getMessage().contains("Please let the subscription only contains"));
             // Expected.
         }
         assertEquals(admin.topics().getStats(topic).getSubscriptions().size(), 0);

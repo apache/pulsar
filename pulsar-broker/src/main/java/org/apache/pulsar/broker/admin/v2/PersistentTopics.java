@@ -1717,7 +1717,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             // So denied to create a subscription that contains "/".
             if (pulsar().getConfig().isStrictlyVerifySubscriptionName()
                     && !NamedEntity.isAllowed(decodedSubName)) {
-                throw new RestException(Response.Status.BAD_REQUEST, "Subscription does not allow containing '/'");
+                throw new RestException(Response.Status.BAD_REQUEST, "Please let the subscription only contains"
+                    + " '/w(a-zA-Z_0-9)' or '_', the current value is " + decodedSubName);
             }
             if (!topicName.isPersistent()) {
                 throw new RestException(Response.Status.BAD_REQUEST, "Create subscription on non-persistent topic "
