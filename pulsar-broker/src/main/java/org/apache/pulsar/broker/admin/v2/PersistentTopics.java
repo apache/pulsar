@@ -59,6 +59,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ResetCursorData;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.naming.PartitionedManagedLedgerInfo;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -1708,6 +1709,17 @@ public class PersistentTopics extends PersistentTopicsBase {
     ) {
         try {
             validateTopicName(tenant, namespace, topic);
+            String decodedSubName = decode(encodedSubName);
+            // If subscription is as "a/b". The url of HTTP API that defined as
+            // "{tenant}/{namespace}/{topic}/{subscription}" will be like below:
+            // "public/default/tp/a/b", then the broker will assume it is a topic that
+            // using the old rule "{tenant}/{cluster}/{namespace}/{topic}/{subscription}".
+            // So denied to create a subscription that contains "/".
+            if (pulsar().getConfig().isStrictlyVerifySubscriptionName()
+                    && !NamedEntity.isAllowed(decodedSubName)) {
+                throw new RestException(Response.Status.BAD_REQUEST, "Please let the subscription only contains"
+                    + " '/w(a-zA-Z_0-9)' or '_', the current value is " + decodedSubName);
+            }
             if (!topicName.isPersistent()) {
                 throw new RestException(Response.Status.BAD_REQUEST, "Create subscription on non-persistent topic "
                         + "can only be done through client");
