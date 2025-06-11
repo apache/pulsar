@@ -169,7 +169,10 @@ public class TransactionTest extends TransactionTestBase {
 
     @BeforeClass
     protected void setup() throws Exception {
-       setUpBase(NUM_BROKERS, NUM_PARTITIONS, NAMESPACE1 + "/test", 0);
+        // Use a single transaction thread to reproduce possible deadlock easily
+        conf.setNumTransactionReplayThreadPoolSize(1);
+        conf.setManagedLedgerNumSchedulerThreads(1);
+        setUpBase(NUM_BROKERS, NUM_PARTITIONS, NAMESPACE1 + "/test", 0);
     }
 
     @AfterClass(alwaysRun = true)
