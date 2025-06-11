@@ -241,6 +241,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final AtomicReference<ClientCnx> clientCnxUsedForConsumerRegistration = new AtomicReference<>();
     private final AtomicInteger previousExceptionCount = new AtomicInteger();
     private volatile boolean hasSoughtByTimestamp = false;
+    // This field will be set after the state becomes Failed, then the following operations will fail immediately
+    private volatile Throwable failReason = null;
 
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
                                                String topic,
@@ -980,11 +982,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 } else if (!subscribeFuture.isDone()) {
                     // unable to create new consumer, fail operation
                     setState(State.Failed);
+                    final Throwable throwable = PulsarClientException.wrap(e, String.format("Failed to subscribe the "
+                            + "topic %s with subscription name %s when connecting to the broker", topicName.toString(),
+                            subscription));
+                    fail(throwable);
+
                     closeConsumerTasks();
-                    subscribeFuture.completeExceptionally(
-                            PulsarClientException.wrap(e, String.format("Failed to subscribe the topic %s "
-                                            + "with subscription name %s when connecting to the broker",
-                                    topicName.toString(), subscription)));
+                    subscribeFuture.completeExceptionally(throwable);
                     client.cleanupConsumer(this);
                 } else if (isUnrecoverableError(e.getCause())) {
                     closeWhenReceivedUnrecoverableError(e.getCause(), cnx);
@@ -1025,7 +1029,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 topic, subscription, cnxStr, t.getClass().getName(), t.getMessage());
         closeAsync().whenComplete((__, ex) -> {
             if (ex == null) {
-                setState(State.Failed);
+                fail(t);
                 return;
             }
             log.error("[{}][{}] {} Failed to close consumer after got an error that does not support to retry: {} {}",
@@ -1119,7 +1123,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (nonRetriableError || timeout) {
             exception.setPreviousExceptionCount(previousExceptionCount);
             if (subscribeFuture.completeExceptionally(exception)) {
-                setState(State.Failed);
+                fail(exception);
                 if (nonRetriableError) {
                     log.info("[{}] Consumer creation failed for consumer {} with unretriableError {}",
                             topic, consumerId, exception.getMessage());
@@ -2870,6 +2874,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return null;
             });
         } else {
+            if (failReason != null) {
+                future.completeExceptionally(failReason);
+                return;
+            }
             long nextDelay = Math.min(backoff.next(), remainingTime.get());
             if (nextDelay <= 0) {
                 future.completeExceptionally(
@@ -3300,5 +3308,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @VisibleForTesting
     public Producer<byte[]> getDeadLetterProducer() throws ExecutionException, InterruptedException {
         return (deadLetterProducer == null || !deadLetterProducer.isDone()) ? null : deadLetterProducer.get();
+    }
+
+    private void fail(Throwable throwable) {
+        setState(State.Failed);
+        failReason = throwable;
     }
 }
