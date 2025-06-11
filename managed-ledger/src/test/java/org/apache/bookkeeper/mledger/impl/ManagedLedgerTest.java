@@ -46,6 +46,9 @@ import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import it.unimi.dsi.fastutil.longs.LongAVLTreeSet;
+import it.unimi.dsi.fastutil.longs.LongLongPair;
+import it.unimi.dsi.fastutil.longs.LongSortedSet;
 import java.lang.reflect.Field;
 import java.nio.ReadOnlyBufferException;
 import java.nio.charset.Charset;
@@ -65,8 +68,6 @@ import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -4481,7 +4482,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testToRanges() {
-        SortedSet<Long> set = new TreeSet<>();
+        LongSortedSet set = new LongAVLTreeSet();
         set.add(1L);
         set.add(2L);
         set.add(4L);
@@ -4490,24 +4491,24 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         set.add(8L);
         set.add(10L);
 
-        List<Pair<Long, Long>> ranges = ManagedLedgerImpl.toRanges(set);
+        List<LongLongPair> ranges = ManagedLedgerImpl.toRanges(set);
         assertEquals(ranges.size(), 4);
 
-        Pair<Long, Long> pair0 = ranges.get(0);
-        assertEquals(pair0.getLeft().longValue(), 1L);
-        assertEquals(pair0.getRight().longValue(), 2L);
+        LongLongPair pair0 = ranges.get(0);
+        assertEquals(pair0.firstLong(), 1L);
+        assertEquals(pair0.secondLong(), 2L);
 
-        Pair<Long, Long> pair1 = ranges.get(1);
-        assertEquals(pair1.getLeft().longValue(), 4L);
-        assertEquals(pair1.getRight().longValue(), 4L);
+        LongLongPair pair1 = ranges.get(1);
+        assertEquals(pair1.firstLong(), 4L);
+        assertEquals(pair1.secondLong(), 4L);
 
-        Pair<Long, Long> pair2 = ranges.get(2);
-        assertEquals(pair2.getLeft().longValue(), 6L);
-        assertEquals(pair2.getRight().longValue(), 8L);
+        LongLongPair pair2 = ranges.get(2);
+        assertEquals(pair2.firstLong(), 6L);
+        assertEquals(pair2.secondLong(), 8L);
 
-        Pair<Long, Long> pair3 = ranges.get(3);
-        assertEquals(pair3.getLeft().longValue(), 10L);
-        assertEquals(pair3.getRight().longValue(), 10L);
+        LongLongPair pair3 = ranges.get(3);
+        assertEquals(pair3.firstLong(), 10L);
+        assertEquals(pair3.secondLong(), 10L);
     }
 
 
@@ -4539,7 +4540,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             }
         }, null, ledger.lastConfirmedEntry, position -> position.getEntryId() % 2 == 0);
 
-        SortedSet<Long> entryIds = new TreeSet<>();
+        LongSortedSet entryIds = new LongAVLTreeSet();
         entryIds.add(1L);
         entryIds.add(3L);
         entryIds.add(5L);

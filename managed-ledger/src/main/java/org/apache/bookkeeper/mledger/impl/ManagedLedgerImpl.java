@@ -31,12 +31,14 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import it.unimi.dsi.fastutil.longs.LongAVLTreeSet;
+import it.unimi.dsi.fastutil.longs.LongLongPair;
+import it.unimi.dsi.fastutil.longs.LongSortedSet;
 import java.io.IOException;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -48,8 +50,6 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.Random;
 import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -2222,9 +2222,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         // Skip entries that don't match the predicate
-        SortedSet<Long> entryIds = new TreeSet<>();
+        LongSortedSet entryIds = new LongAVLTreeSet();
+        MutablePositionImpl position = PositionFactory.createMutable(-1L, -1L);
         for (long entryId = firstEntry; entryId <= lastEntry; entryId++) {
-            Position position = PositionFactory.create(ledger.getId(), entryId);
+            position.transfer(ledger.getId(), entryId);
             if (skipCondition.test(position)) {
                 continue;
             }
@@ -2238,43 +2239,43 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
-        List<Pair<Long, Long>> ranges = toRanges(entryIds);
+        List<LongLongPair> ranges = toRanges(entryIds);
         ReadEntriesCallback callback = new BatchReadEntriesCallback(entryIds, opReadEntry, lastReadPosition);
-        for (Pair<Long, Long> pair : ranges) {
-            long start = pair.getLeft();
-            long end = pair.getRight();
+        for (LongLongPair pair : ranges) {
+            long start = pair.firstLong();
+            long end = pair.secondLong();
             asyncReadEntry(ledger, start, end, opReadEntry.cursor.isCacheReadEntry(), callback, opReadEntry.ctx);
         }
     }
 
     @VisibleForTesting
-    public static List<Pair<Long, Long>> toRanges(SortedSet<Long> entryIds) {
-        List<Pair<Long, Long>> ranges = new ArrayList<>();
-        long start = entryIds.first();
+    public static List<LongLongPair> toRanges(LongSortedSet entryIds) {
+        List<LongLongPair> ranges = new ArrayList<>();
+        long start = entryIds.firstLong();
         long end = start;
         for (long entryId : entryIds) {
             if (entryId - end > 1) {
-                ranges.add(Pair.of(start, end));
+                ranges.add(LongLongPair.of(start, end));
                 start = entryId;
                 end = start;
             } else {
                 end = entryId;
             }
         }
-        ranges.add(Pair.of(start, end));
+        ranges.add(LongLongPair.of(start, end));
         return ranges;
     }
 
     @VisibleForTesting
     public static class BatchReadEntriesCallback implements ReadEntriesCallback {
-        private final SortedSet<Long> entryIds;
+        private final LongSortedSet entryIds;
         private final List<Entry> entries;
         private final OpReadEntry callback;
         private volatile boolean completed = false;
         private final Position lastReadPosition;
 
         @VisibleForTesting
-        public BatchReadEntriesCallback(SortedSet<Long> entryIdSet, OpReadEntry callback,
+        public BatchReadEntriesCallback(LongSortedSet entryIdSet, OpReadEntry callback,
                                         Position lastReadPosition) {
             this.entryIds = entryIdSet;
             this.entries = new ArrayList<>(entryIdSet.size());
@@ -2296,7 +2297,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
             completed = true;
             // Make sure the entries are in the correct order
-            entries.sort(Comparator.comparingLong(Entry::getEntryId));
+            entries.sort(ManagedCursorImpl.ENTRY_COMPARATOR);
             // If we want to read [1, 2, 3, 4, 5], but we only read [1, 2, 3], [4,5] are filtered, so we need to pass
             // the `lastReadPosition([5])` to make sure the cursor read position is correct.
             callback.internalReadEntriesComplete(entries, ctx, lastReadPosition);
@@ -2334,7 +2335,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (entries.isEmpty()) {
                 return Collections.emptyList();
             }
-            entries.sort(Comparator.comparingLong(Entry::getEntryId));
+            entries.sort(ManagedCursorImpl.ENTRY_COMPARATOR);
             List<Entry> entries0 = new ArrayList<>();
             for (long entryId : entryIds) {
                 if (this.entries.isEmpty()) {
