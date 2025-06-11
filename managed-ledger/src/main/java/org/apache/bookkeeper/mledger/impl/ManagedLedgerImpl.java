@@ -2217,7 +2217,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 log.debug("[{}] Reading entries from ledger {} - first={} last={}", name, ledger.getId(), firstEntry,
                         lastEntry);
             }
-            asyncReadEntry(ledger, firstEntry, lastEntry, opReadEntry, opReadEntry.ctx);
+            asyncReadEntry(ledger, firstEntry, lastEntry, opReadEntry.cursor.isCacheReadEntry(),
+                    opReadEntry, opReadEntry.ctx);
             return;
         }
 
@@ -2387,22 +2388,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    protected void asyncReadEntry(ReadHandle ledger, long firstEntry, long lastEntry, OpReadEntry opReadEntry,
-            Object ctx) {
-        if (config.getReadEntryTimeoutSeconds() > 0) {
-            // set readOpCount to uniquely validate if ReadEntryCallbackWrapper is already recycled
-            long readOpCount = READ_OP_COUNT_UPDATER.incrementAndGet(this);
-            long createdTime = System.nanoTime();
-            ReadEntryCallbackWrapper readCallback = ReadEntryCallbackWrapper.create(name, ledger.getId(), firstEntry,
-                    opReadEntry, readOpCount, createdTime, ctx);
-            lastReadCallback = readCallback;
-            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, opReadEntry.cursor.isCacheReadEntry(),
-                    readCallback, readOpCount);
-        } else {
-            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, opReadEntry.cursor.isCacheReadEntry(), opReadEntry,
-                    ctx);
-        }
-    }
+
 
     static final class ReadEntryCallbackWrapper implements ReadEntryCallback, ReadEntriesCallback {
 
