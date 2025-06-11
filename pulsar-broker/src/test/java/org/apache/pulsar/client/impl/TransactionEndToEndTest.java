@@ -46,6 +46,7 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
@@ -487,23 +488,25 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         }
 
         txn.commit().get();
-        boolean flag = false;
-        String topic = TopicName.get(topicName).toString();
-        for (int i = 0; i < getPulsarServiceList().size(); i++) {
-            CompletableFuture<Optional<Topic>> topicFuture = getPulsarServiceList().get(i)
-                    .getBrokerService().getTopic(topic, false);
+        MutableBoolean flag = new MutableBoolean(false);
+        Awaitility.await().untilAsserted(() -> {
+            String topic = TopicName.get(topicName).toString();
+            for (int i = 0; i < getPulsarServiceList().size(); i++) {
+                CompletableFuture<Optional<Topic>> topicFuture = getPulsarServiceList().get(i)
+                        .getBrokerService().getTopic(topic, false);
 
-            if (topicFuture != null) {
-                Optional<Topic> topicOptional = topicFuture.get();
-                if (topicOptional.isPresent()) {
-                    PersistentSubscription persistentSubscription =
-                            (PersistentSubscription) topicOptional.get().getSubscription(subName);
-                    assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), messageCount / 2);
-                    flag = true;
+                if (topicFuture != null) {
+                    Optional<Topic> topicOptional = topicFuture.get();
+                    if (topicOptional.isPresent()) {
+                        PersistentSubscription persistentSubscription =
+                                (PersistentSubscription) topicOptional.get().getSubscription(subName);
+                        assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), messageCount / 2);
+                        flag.setTrue();
+                    }
                 }
             }
-        }
-        assertTrue(flag);
+        });
+        assertTrue(flag.booleanValue());
 
         // cleanup.
         producer.close();
