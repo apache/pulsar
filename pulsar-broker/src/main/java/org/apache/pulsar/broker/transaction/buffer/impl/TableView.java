@@ -58,6 +58,16 @@ public class TableView<T> {
     }
 
     public T readLatest(String topic) throws Exception {
+        try {
+            return internalReadLatest(topic);
+        } catch (Exception e) {
+            final var namespace = TopicName.get(topic).getNamespaceObject();
+            readers.remove(namespace);
+            throw e;
+        }
+    }
+
+    private T internalReadLatest(String topic) throws Exception {
         final var reader = getReader(topic);
         while (wait(reader.hasMoreEventsAsync(), "has more events")) {
             final var msg = wait(reader.readNextAsync(), "read message");
