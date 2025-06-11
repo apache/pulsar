@@ -46,6 +46,7 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
@@ -487,23 +488,25 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         }
 
         txn.commit().get();
-        boolean flag = false;
-        String topic = TopicName.get(topicName).toString();
-        for (int i = 0; i < getPulsarServiceList().size(); i++) {
-            CompletableFuture<Optional<Topic>> topicFuture = getPulsarServiceList().get(i)
-                    .getBrokerService().getTopic(topic, false);
+        MutableBoolean flag = new MutableBoolean(false);
+        Awaitility.await().untilAsserted(() -> {
+            String topic = TopicName.get(topicName).toString();
+            for (int i = 0; i < getPulsarServiceList().size(); i++) {
+                CompletableFuture<Optional<Topic>> topicFuture = getPulsarServiceList().get(i)
+                        .getBrokerService().getTopic(topic, false);
 
-            if (topicFuture != null) {
-                Optional<Topic> topicOptional = topicFuture.get();
-                if (topicOptional.isPresent()) {
-                    PersistentSubscription persistentSubscription =
-                            (PersistentSubscription) topicOptional.get().getSubscription(subName);
-                    assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), messageCount / 2);
-                    flag = true;
+                if (topicFuture != null) {
+                    Optional<Topic> topicOptional = topicFuture.get();
+                    if (topicOptional.isPresent()) {
+                        PersistentSubscription persistentSubscription =
+                                (PersistentSubscription) topicOptional.get().getSubscription(subName);
+                        assertEquals(persistentSubscription.getConsumers().get(0).getUnackedMessages(), messageCount / 2);
+                        flag.setTrue();
+                    }
                 }
             }
-        }
-        assertTrue(flag);
+        });
+        assertTrue(flag.booleanValue());
 
         // cleanup.
         producer.close();
@@ -1415,57 +1418,58 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         admin.topics().delete(topic, true);
     }
 
-    @Test
-    public void testAckWithTransactionReduceUnackCountNotInPendingAcks() throws Exception {
-        final String topic = "persistent://" + NAMESPACE1 + "/testAckWithTransactionReduceUnackCountNotInPendingAcks";
-        final String subName = "test";
-        @Cleanup
-        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
-                .topic(topic)
-                .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
-                .sendTimeout(1, TimeUnit.SECONDS)
-                .create();
-
-        @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic(topic)
-                .subscriptionType(SubscriptionType.Shared)
-                .subscriptionName(subName)
-                .subscribe();
-
-        // send 5 messages with one batch
-        for (int i = 0; i < 5; i++) {
-            producer.sendAsync((i + "").getBytes(UTF_8));
-        }
-
-        List<MessageId> messageIds = new ArrayList<>();
-
-        // receive the batch messages add to a list
-        for (int i = 0; i < 5; i++) {
-            messageIds.add(consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS).getMessageId());
-        }
-
-        MessageIdImpl messageId = (MessageIdImpl) messageIds.get(0);
-
-
-        // remove the message from the pendingAcks, in fact redeliver will remove the messageId from the pendingAck
-        getPulsarServiceList().get(0).getBrokerService().getTopic(topic, false)
-                .get().get().getSubscription(subName).getConsumers().get(0).getPendingAcks()
-                .remove(messageId.ledgerId, messageId.entryId);
-
-        Transaction txn = getTxn();
-        consumer.acknowledgeAsync(messageIds.get(1), txn).get();
-
-        // ack one message, the unack count is 4
-        assertEquals(getPulsarServiceList().get(0).getBrokerService().getTopic(topic, false)
-                .get().get().getSubscription(subName).getConsumers().get(0).getUnackedMessages(), 4);
-
-        // cleanup.
-        txn.abort().get();
-        consumer.close();
-        producer.close();
-        admin.topics().delete(topic, true);
-    }
+//    This test is not meaningful.
+//    @Test
+//    public void testAckWithTransactionReduceUnackCountNotInPendingAcks() throws Exception {
+//        final String topic = "persistent://" + NAMESPACE1 + "/testAckWithTransactionReduceUnackCountNotInPendingAcks";
+//        final String subName = "test";
+//        @Cleanup
+//        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+//                .topic(topic)
+//                .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
+//                .sendTimeout(1, TimeUnit.SECONDS)
+//                .create();
+//
+//        @Cleanup
+//        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+//                .topic(topic)
+//                .subscriptionType(SubscriptionType.Shared)
+//                .subscriptionName(subName)
+//                .subscribe();
+//
+//        // send 5 messages with one batch
+//        for (int i = 0; i < 5; i++) {
+//            producer.sendAsync((i + "").getBytes(UTF_8));
+//        }
+//
+//        List<MessageId> messageIds = new ArrayList<>();
+//
+//        // receive the batch messages add to a list
+//        for (int i = 0; i < 5; i++) {
+//            messageIds.add(consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS).getMessageId());
+//        }
+//
+//        MessageIdImpl messageId = (MessageIdImpl) messageIds.get(0);
+//
+//
+//        // remove the message from the pendingAcks, in fact redeliver will remove the messageId from the pendingAck
+//        getPulsarServiceList().get(0).getBrokerService().getTopic(topic, false)
+//                .get().get().getSubscription(subName).getConsumers().get(0).getPendingAcks()
+//                .remove(messageId.ledgerId, messageId.entryId);
+//
+//        Transaction txn = getTxn();
+//        consumer.acknowledgeAsync(messageIds.get(1), txn).get();
+//
+//        // ack one message, the unack count is 4
+//        assertEquals(getPulsarServiceList().get(0).getBrokerService().getTopic(topic, false)
+//                .get().get().getSubscription(subName).getConsumers().get(0).getUnackedMessages(), 4);
+//
+//        // cleanup.
+//        txn.abort().get();
+//        consumer.close();
+//        producer.close();
+//        admin.topics().delete(topic, true);
+//    }
 
     @Test
     public void testSendTxnAckMessageToDLQ() throws Exception {

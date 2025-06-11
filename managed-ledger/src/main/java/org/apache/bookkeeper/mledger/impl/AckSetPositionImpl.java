@@ -19,6 +19,8 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import java.util.Optional;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 
@@ -31,6 +33,11 @@ public class AckSetPositionImpl implements Position, AckSetState {
     protected final long ledgerId;
     protected final long entryId;
     protected volatile long[] ackSet;
+    @Getter
+    @Setter
+    private volatile int batchMessagesAckedCount;
+    @Getter
+    private volatile boolean positionRemovedFromCursor;
 
     public AckSetPositionImpl(long ledgerId, long entryId, long[] ackSet) {
         this.ledgerId = ledgerId;
@@ -61,6 +68,10 @@ public class AckSetPositionImpl implements Position, AckSetState {
         } else {
             return PositionFactory.create(ledgerId, entryId + 1);
         }
+    }
+
+    public void markPositionRemovedFromCursor() {
+        this.positionRemovedFromCursor = true;
     }
 
     @Override
