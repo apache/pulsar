@@ -672,7 +672,10 @@ public class PersistentSubscription extends AbstractSubscription {
                         ackFrom == null ? "null" : ackFrom.consumerId(),
                         ackFrom == null ? "null" : ackFrom.consumerName(),
                         actualAcked, owner.getUnackedMessages(), ledgerId, entryId,
-                        batchMessagesAckedCount, ledgerId, entryId, positionRemovedFromCursor);
+                        batchMessagesAckedCount >= 0 ? "batch_particularly_ack " + batchMessagesAckedCount
+                        : batchMessagesAckedCount == BATCH_MESSAGE_ACKED_AT_ONCE
+                        ? "ack_all_messages_at_once & batch_size " + batchSizeAndHashPair.firstInt()
+                        : "first_part_ack", ledgerId, entryId, positionRemovedFromCursor);
             }
         }
         // Consumer metrics.

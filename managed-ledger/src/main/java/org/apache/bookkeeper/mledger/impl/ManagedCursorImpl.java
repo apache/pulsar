@@ -105,6 +105,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo.Builder;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.StringProperty;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
@@ -2363,7 +2364,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         Position newMarkDeletePosition = null;
 
         lock.writeLock().lock();
-
+        final MutableBoolean cbHasExecuted = new MutableBoolean(false);
         try {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Deleting individual messages at {}. Current status: {} - md-position: {}",
@@ -2490,6 +2491,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             lock.writeLock().unlock();
             if (empty) {
                 callback.deleteComplete(ctx);
+                cbHasExecuted.setTrue();
             }
         }
 
@@ -2497,7 +2499,9 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (markDeleteLimiter != null && !markDeleteLimiter.tryAcquire()) {
             isDirty = true;
             updateLastMarkDeleteEntryToLatest(newMarkDeletePosition, null);
-            callback.deleteComplete(ctx);
+            if (!cbHasExecuted.booleanValue()) {
+                callback.deleteComplete(ctx);
+            }
             return;
         }
 
@@ -2508,12 +2512,18 @@ public class ManagedCursorImpl implements ManagedCursor {
             internalAsyncMarkDelete(newMarkDeletePosition, properties, new MarkDeleteCallback() {
                 @Override
                 public void markDeleteComplete(Object ctx) {
-                    callback.deleteComplete(ctx);
+                    if (!cbHasExecuted.booleanValue()) {
+                        callback.deleteComplete(ctx);
+                        cbHasExecuted.setTrue();
+                    }
                 }
 
                 @Override
                 public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
-                    callback.deleteFailed(exception, ctx);
+                    if (!cbHasExecuted.booleanValue()) {
+                        callback.deleteFailed(exception, ctx);
+                        cbHasExecuted.setTrue();
+                    }
                 }
 
             }, ctx);
@@ -2524,7 +2534,9 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.debug("[{}] Consumer {} cursor asyncDelete error, counters: consumed {} mdPos {} rdPos {}",
                         ledger.getName(), name, messagesConsumedCounter, markDeletePosition, readPosition);
             }
-            callback.deleteFailed(new ManagedLedgerException(e), ctx);
+            if (!cbHasExecuted.booleanValue()) {
+                callback.deleteFailed(new ManagedLedgerException(e), ctx);
+            }
         }
     }
 
