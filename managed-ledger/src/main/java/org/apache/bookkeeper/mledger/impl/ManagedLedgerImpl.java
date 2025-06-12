@@ -2224,9 +2224,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         // Skip entries that don't match the predicate
         LongSortedSet entryIds = new LongAVLTreeSet();
-        MutablePositionImpl position = PositionFactory.createMutable(-1L, -1L);
+        MutablePositionImpl position = new MutablePositionImpl();
         for (long entryId = firstEntry; entryId <= lastEntry; entryId++) {
-            position.transfer(ledger.getId(), entryId);
+            position.changePositionTo(ledger.getId(), entryId);
             if (skipCondition.test(position)) {
                 continue;
             }

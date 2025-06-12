@@ -20,17 +20,28 @@ package org.apache.bookkeeper.mledger.impl;
 
 import org.apache.bookkeeper.mledger.Position;
 
-public final class MutablePositionImpl implements Position {
+final class MutablePositionImpl implements Position {
 
     private volatile long ledgerId;
     private volatile long entryId;
 
-    public MutablePositionImpl(long ledgerId, long entryId) {
+    MutablePositionImpl(long ledgerId, long entryId) {
         this.ledgerId = ledgerId;
         this.entryId = entryId;
     }
 
-    public void transfer(long ledgerId, long entryId) {
+    MutablePositionImpl() {
+        this.ledgerId = -1;
+        this.entryId = -1;
+    }
+
+    /**
+     * Change the ledgerId and entryId.
+     *
+     * @param ledgerId
+     * @param entryId
+     */
+    public void changePositionTo(long ledgerId, long entryId) {
         this.ledgerId = ledgerId;
         this.entryId = entryId;
     }

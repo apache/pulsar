@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.mledger;
 
 import org.apache.bookkeeper.mledger.impl.ImmutablePositionImpl;
-import org.apache.bookkeeper.mledger.impl.MutablePositionImpl;
 
 /**
  * Factory for creating {@link Position} instances.
@@ -48,17 +47,6 @@ public final class PositionFactory {
         return new ImmutablePositionImpl(ledgerId, entryId);
     }
 
-
-    /**
-     * Create a mutable position.
-     *
-     * @param ledgerId
-     * @param entryId
-     * @return
-     */
-    public static MutablePositionImpl createMutable(long ledgerId, long entryId) {
-        return new MutablePositionImpl(ledgerId, entryId);
-    }
 
     /**
      * Create a new position.
