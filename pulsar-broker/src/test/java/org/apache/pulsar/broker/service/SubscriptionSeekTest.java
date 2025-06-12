@@ -64,6 +64,7 @@ import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.proto.CommandError;
 import org.apache.pulsar.common.naming.TopicName;
@@ -461,6 +462,23 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             consumer.seek(MessageId.latest);
         } catch (PulsarClientException e) {
             fail("Should not have exception");
+        }
+    }
+
+    @Test
+    public void testSeekWithNonOwnerTopicMessage() throws Exception {
+        final String topicName = "persistent://prop/use/ns-abc/testNonOwnerTopicMessage";
+
+        admin.topics().createPartitionedTopic(topicName, 2);
+        @Cleanup
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("my-subscription").subscribe();
+        try {
+            // seek a TopicMessageIdImpl with topic is null
+            consumer.seek(new TopicMessageIdImpl(null, new BatchMessageIdImpl(123L, 345L, 566, 789)));
+        } catch (PulsarClientException e) {
+            // should fail with exception "The owner topic is null"
+            assertEquals(e.getMessage(),"The owner topic is null");
         }
     }
 
