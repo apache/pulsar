@@ -5290,6 +5290,34 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testCallbackTimes() throws Exception {
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("testCallbackTimes");
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ml.openCursor("c1");
+        Position position1 = ml.addEntry(new byte[1]);
+        Position position2 = ml.addEntry(new byte[2]);
+        AtomicInteger executedCallbackTimes = new AtomicInteger();
+        cursor.asyncDelete(Arrays.asList(position1, position2), new DeleteCallback() {
+            @Override
+            public void deleteComplete(Object ctx) {
+                executedCallbackTimes.incrementAndGet();
+            }
+
+            @Override
+            public void deleteFailed(ManagedLedgerException exception, Object ctx) {
+                executedCallbackTimes.incrementAndGet();
+            }
+        }, new Object());
+        // Verify that the executed count of callback is "1".
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(executedCallbackTimes.get() > 0);
+        });
+        Thread.sleep(2000);
+        assertEquals(executedCallbackTimes.get(), 1);
+        // cleanup.
+        ml.delete();
+    }
+
+    @Test
     void testForceCursorRecovery() throws Exception {
         TestPulsarMockBookKeeper bk = new TestPulsarMockBookKeeper(executor);
         factory.shutdown();
