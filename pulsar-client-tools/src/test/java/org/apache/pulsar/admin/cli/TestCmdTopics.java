@@ -267,4 +267,39 @@ public class TestCmdTopics {
         verify(mockTopics, times(1)).setRetention("persistent://public/default/topic",
                 new RetentionPolicies(200 * 24 * 60, 2 * 1024 * 1024));
     }
+
+    @Test
+    public void testCancelDelayedMessage() throws Exception {
+        String topic = "persistent://public/default/testCancelDelayed";
+        long ledgerId = 123L;
+        long entryId = 45L;
+
+        // Test case 1: No specific subscriptions (should apply to all)
+        cmdTopics.run(new String[]{
+                "cancel-delayed-message", topic,
+                "-l", String.valueOf(ledgerId),
+                "-e", String.valueOf(entryId),
+        });
+        verify(mockTopics).cancelDelayedMessage(eq(topic), eq(ledgerId), eq(entryId), eq(new ArrayList<>()));
+
+        // Test case 2: Specific subscriptions
+        List<String> subs = Lists.newArrayList("sub1", "sub2");
+        cmdTopics.run(new String[]{
+                "cancel-delayed-message", topic,
+                "-l", String.valueOf(ledgerId),
+                "-e", String.valueOf(entryId),
+                "-s", "sub1", "-s", "sub2"
+        });
+        verify(mockTopics).cancelDelayedMessage(eq(topic), eq(ledgerId), eq(entryId), eq(subs));
+
+        // Test case 3: Single specific subscription
+        List<String> singleSub = Lists.newArrayList("sub-single");
+        cmdTopics.run(new String[]{
+                "cancel-delayed-message", topic,
+                "-l", String.valueOf(ledgerId),
+                "-e", String.valueOf(entryId),
+                "-s", "sub-single"
+        });
+        verify(mockTopics).cancelDelayedMessage(eq(topic), eq(ledgerId), eq(entryId), eq(singleSub));
+    }
 }

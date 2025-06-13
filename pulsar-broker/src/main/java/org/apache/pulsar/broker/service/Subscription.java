@@ -114,6 +114,19 @@ public interface Subscription extends MessageExpirer {
 
     CompletableFuture<AnalyzeBacklogResult> analyzeBacklog(Optional<Position> position);
 
+    /**
+     * Cancels a specific delayed message for subscriptions.
+     *
+     * @param ledgerId The ledger ID of the message to cancel.
+     * @param entryId The entry ID of the message to cancel.
+     * @return A CompletableFuture that resolves to true if the cancellation was successfully
+     *         requested from the tracker, false otherwise (e.g., message not found in tracker, tracker not present,
+     *         or already delivered/cancelled).
+     */
+    default CompletableFuture<Boolean> cancelDelayedMessage(long ledgerId, long entryId) {
+        return CompletableFuture.completedFuture(false);
+    }
+
     default int getNumberOfSameAddressConsumers(final String clientAddress) {
         int count = 0;
         if (clientAddress != null) {
