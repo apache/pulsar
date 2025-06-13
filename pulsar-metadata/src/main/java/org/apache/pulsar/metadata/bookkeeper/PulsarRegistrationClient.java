@@ -174,7 +174,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
                         return waitForAll(bookieInfoUpdated)
                                 .thenApply(___ -> bookieIds);
                     }
-                })
+                }, executor)
                 .thenApply(s -> new Versioned<>(s, Version.NEW));
     }
 
