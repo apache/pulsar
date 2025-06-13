@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -473,13 +474,12 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         @Cleanup
         org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-subscription").subscribe();
-        try {
-            // seek a TopicMessageIdImpl with topic is null
-            consumer.seek(new TopicMessageIdImpl(null, new BatchMessageIdImpl(123L, 345L, 566, 789)));
-        } catch (PulsarClientException e) {
-            // should fail with exception "The owner topic is null"
-            assertEquals(e.getMessage(),"The owner topic is null");
-        }
+        assertThatThrownBy(
+                // seek with a TopicMessageIdImpl that has a null topic.
+                () -> consumer.seek(new TopicMessageIdImpl(null, new BatchMessageIdImpl(123L, 345L, 566, 789)))
+            )
+            .isInstanceOf(PulsarClientException.class)
+            .hasMessage("The owner topic is null");
     }
 
     @Test
