@@ -75,6 +75,14 @@
     <Bug pattern="EI_EXPOSE_REP2"/>
   </Match>
   <Match>
+    <Class name="org.apache.pulsar.websocket.data.ProducerMessage"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.data.ProducerMessage"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
     <Class name="org.apache.pulsar.websocket.ProducerHandler"/>
     <Method name="onWebSocketText"/>
     <Bug pattern="DCN_NULLPOINTER_EXCEPTION"/>

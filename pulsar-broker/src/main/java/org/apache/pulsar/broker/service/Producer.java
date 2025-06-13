@@ -135,7 +135,7 @@ public class Producer {
         stats.setConnectedSince(DateFormatter.now());
         stats.setClientVersion(cnx.getClientVersion());
         stats.setProducerName(producerName);
-        stats.producerId = producerId;
+        stats.setProducerId(producerId);
         if (serviceConf.isAggregatePublisherStatsByProducerName() && stats.getProducerName() != null) {
             // If true and the client supports partial producer,
             // aggregate publisher stats of PartitionedTopicStats by producerName.
@@ -145,8 +145,8 @@ public class Producer {
             // aggregate publisher stats of PartitionedTopicStats by list index.
             stats.setSupportsPartialProducer(false);
         }
-        stats.metadata = this.metadata;
-        stats.accessMode = Commands.convertProducerAccessMode(accessMode);
+        stats.setMetadata(this.metadata);
+        stats.setAccessMode(Commands.convertProducerAccessMode(accessMode));
 
 
         String replicatorPrefix = serviceConf.getReplicatorPrefix() + ".";
