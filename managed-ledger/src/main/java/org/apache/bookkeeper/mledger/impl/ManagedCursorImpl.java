@@ -2390,7 +2390,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     continue;
                 }
                 long[] ackSet = AckSetStateUtil.getAckSetArrayOrNull(position);
-                if (ackSet == null) {
+                if (ackSet == null || ackSet.length == 0) {
                     if (batchDeletedIndexes != null) {
                         batchDeletedIndexes.remove(position);
                     }
