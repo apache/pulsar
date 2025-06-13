@@ -136,6 +136,9 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
                     try {
                         GetResult res = optRes.get();
+                        if (res.getValue().length == 0) {
+                            return FutureUtils.value(Optional.of(new CacheGetResult<>(null, res.getStat())));
+                        }
                         T obj = serde.deserialize(path, res.getValue(), res.getStat());
                         return FutureUtils
                                 .value(Optional.of(new CacheGetResult<>(obj, res.getStat())));
@@ -180,10 +183,14 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                         try {
                             // Use clone and CAS zk to ensure thread safety
                             clone = serde.deserialize(path, serde.serialize(path, entry.getValue()), entry.getStat());
+                            if (clone == null) {
+                                currentValue = Optional.empty();
+                            } else {
+                                currentValue = Optional.of(clone);
+                            }
                         } catch (IOException e) {
                             return FutureUtils.exception(e);
                         }
-                        currentValue = Optional.of(clone);
                         expectedVersion = entry.getStat().getVersion();
                     } else {
                         currentValue = Optional.empty();
