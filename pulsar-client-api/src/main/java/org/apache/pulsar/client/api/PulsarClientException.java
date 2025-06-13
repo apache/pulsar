@@ -146,6 +146,15 @@ public class PulsarClientException extends IOException {
     }
 
     /**
+     * Clients are unable to connect to the broker.
+     */
+    public static class ConnectFailedException extends PulsarClientException {
+        public ConnectFailedException(String msg) {
+            super(msg);
+        }
+    }
+
+    /**
      * Invalid Configuration exception thrown by Pulsar client.
      */
     public static class InvalidConfigurationException extends PulsarClientException {
@@ -1138,6 +1147,8 @@ public class PulsarClientException extends IOException {
             newException = new NotFoundException(msg);
         } else if (cause instanceof TransactionHasOperationFailedException) {
             newException = new TransactionHasOperationFailedException(msg);
+        } else if (cause instanceof ConnectFailedException) {
+            newException = new ConnectFailedException(msg);
         } else {
             newException = new PulsarClientException(t);
         }
