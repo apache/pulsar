@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.storage;
 
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.stats.StatsProvider;
+import org.apache.pulsar.broker.BookKeeperClientFactory;
 
 /**
  * ManagedLedgerStorageClass represents a configured instance of ManagedLedgerFactory for managed ledgers.
@@ -39,4 +40,9 @@ public interface BookkeeperManagedLedgerStorageClass extends ManagedLedgerStorag
      * @return the stats provider.
      */
     StatsProvider getStatsProvider();
+
+    /**
+     * Return the bookkeeper client factory instance that can be used to create a bookkeeper client instance.
+     */
+    BookKeeperClientFactory getBookKeeperClientFactory();
 }
