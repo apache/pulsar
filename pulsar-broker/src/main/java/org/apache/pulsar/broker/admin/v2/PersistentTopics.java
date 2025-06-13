@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.Encoded;
@@ -46,6 +47,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -2339,13 +2341,34 @@ public class PersistentTopics extends PersistentTopicsBase {
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "List of replication clusters", required = true) List<String> clusterIds) {
         validateTopicName(tenant, namespace, encodedTopic);
         validateTopicPolicyOperationAsync(topicName, PolicyName.REPLICATION, PolicyOperation.WRITE)
-                .thenCompose(__ -> preValidation(authoritative))
-                .thenCompose(__ -> internalSetReplicationClusters(clusterIds))
+                .thenCompose(__ -> preValidation(authoritative, metadata -> {
+                    // There are only two cases that will remove local clusters.
+                    // 1. Using global metadata store, created a namespace which will be shared cross multi clusters,
+                    //    but users want the namespace only exists in one cluster.
+                    // 2. Using global metadata store, created a partitioned topic which will be shared cross multi
+                    //    clusters, but users want the namespace only exists in one cluster.
+                    // Since non-partitioned topic does not need this feature, we deny it to decrease complexity.
+                    boolean clustersDoesNotContainsLocal = CollectionUtils.isEmpty(clusterIds)
+                            || !clusterIds.contains(pulsar().getConfig().getClusterName());
+                    if (metadata.partitions < 1 && clustersDoesNotContainsLocal) {
+                        return FutureUtil.failedFuture(new RestException(Response.Status.PRECONDITION_FAILED,
+                            "Non-partitioned topic can not remove local cluster from the topic-level replication"
+                            + " clusters policies"));
+                    }
+                    if (clustersDoesNotContainsLocal && !isGlobal) {
+                        return FutureUtil.failedFuture(new RestException(Response.Status.PRECONDITION_FAILED,
+                            "Topics can not remove local cluster from a local(non-global) topic-level replication"
+                            + " clusters, please call the api with isGlobal=true"));
+                    }
+                    return CompletableFuture.completedFuture(null);
+                }))
+                .thenCompose(__ -> internalSetReplicationClusters(clusterIds, isGlobal))
                 .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     handleTopicPolicyException("setReplicationClusters", ex, asyncResponse);

@@ -47,6 +47,11 @@ public interface TopicPoliciesService extends AutoCloseable {
      */
     CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName);
 
+    default CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName,
+                                                             boolean keepGlobalPoliciesAfterDeleting) {
+        return deleteTopicPoliciesAsync(topicName);
+    }
+
     /**
      * Update policies for a topic asynchronously.
      *
