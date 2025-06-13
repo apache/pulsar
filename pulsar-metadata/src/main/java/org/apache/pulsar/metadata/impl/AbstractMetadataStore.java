@@ -121,6 +121,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         CacheMetricsCollector.CAFFEINE.addCache(metadataStoreName + "-children", childrenCache);
 
         this.existsCache = Caffeine.newBuilder()
+                .recordStats()
                 .refreshAfterWrite(CACHE_REFRESH_TIME_MILLIS, TimeUnit.MILLISECONDS)
                 .expireAfterWrite(CACHE_REFRESH_TIME_MILLIS * 2, TimeUnit.MILLISECONDS)
                 .buildAsync(new AsyncCacheLoader<String, Boolean>() {
@@ -140,7 +141,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                         }
                     }
                 });
-        CacheMetricsCollector.CAFFEINE.addCache(metadataStoreName + "-exists", childrenCache);
+        CacheMetricsCollector.CAFFEINE.addCache(metadataStoreName + "-exists", existsCache);
 
         this.metadataStoreName = metadataStoreName;
         this.metadataStoreStats = new MetadataStoreStats(metadataStoreName, openTelemetry);
