@@ -57,7 +57,7 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
     private ManagedLedgerFactory managedLedgerFactory;
     private BookKeeper defaultBkClient;
     private final AsyncCache<EnsemblePlacementPolicyConfig, BookKeeper>
-            bkEnsemblePolicyToBkClientMap = Caffeine.newBuilder().buildAsync();
+            bkEnsemblePolicyToBkClientMap = Caffeine.newBuilder().recordStats().buildAsync();
     private StatsProvider statsProvider = new NullStatsProvider();
 
     public ManagedLedgerClientFactory() {

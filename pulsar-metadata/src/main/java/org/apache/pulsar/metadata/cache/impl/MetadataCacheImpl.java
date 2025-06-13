@@ -97,6 +97,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
             cacheBuilder.expireAfterWrite(cacheConfig.getExpireAfterWriteMillis(), TimeUnit.MILLISECONDS);
         }
         this.objCache = cacheBuilder
+                .recordStats()
                 .buildAsync(new AsyncCacheLoader<String, Optional<CacheGetResult<T>>>() {
                     @Override
                     public CompletableFuture<Optional<CacheGetResult<T>>> asyncLoad(String key, Executor executor) {

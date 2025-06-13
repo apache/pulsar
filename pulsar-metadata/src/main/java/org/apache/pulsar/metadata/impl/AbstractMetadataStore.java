@@ -98,6 +98,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         registerListener(this);
 
         this.childrenCache = Caffeine.newBuilder()
+                .recordStats()
                 .refreshAfterWrite(CACHE_REFRESH_TIME_MILLIS, TimeUnit.MILLISECONDS)
                 .expireAfterWrite(CACHE_REFRESH_TIME_MILLIS * 2, TimeUnit.MILLISECONDS)
                 .buildAsync(new AsyncCacheLoader<String, List<String>>() {
