@@ -36,9 +36,12 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -48,6 +51,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -505,5 +509,42 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
             assertTrue(persistentTopic1.getReplicators().isEmpty()
                     || !persistentTopic1.getReplicators().get(targetCluster.getConfig().getClusterName()).isConnected());
         });
+    }
+
+    protected void waitChangeEventsReplicated(String ns) {
+        String topicName = "persistent://" + ns + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
+        TopicName topicNameObj = TopicName.get(topicName);
+        Optional<PartitionedTopicMetadata> metadata = pulsar1.getPulsarResources().getNamespaceResources()
+                .getPartitionedTopicResources()
+                .getPartitionedTopicMetadataAsync(topicNameObj).join();
+        Function<Replicator, Boolean> ensureNoBacklog = new Function<Replicator,Boolean>() {
+
+            @Override
+            public Boolean apply(Replicator replicator) {
+                if (!replicator.getRemoteCluster().equals("c2")) {
+                    return true;
+                }
+                PersistentReplicator persistentReplicator = (PersistentReplicator) replicator;
+                Position lac = persistentReplicator.getCursor().getManagedLedger().getLastConfirmedEntry();
+                Position mdPos = persistentReplicator.getCursor().getMarkDeletedPosition();
+                return mdPos.compareTo(lac) >= 0;
+            }
+        };
+        if (metadata.isPresent()) {
+            for (int index = 0; index < metadata.get().partitions; index++) {
+                String partitionName = topicNameObj.getPartition(index).toString();
+                PersistentTopic persistentTopic =
+                        (PersistentTopic) pulsar1.getBrokerService().getTopic(partitionName, false).join().get();
+                persistentTopic.getReplicators().values().forEach(replicator -> {
+                    assertTrue(ensureNoBacklog.apply(replicator));
+                });
+            }
+        } else {
+            PersistentTopic persistentTopic =
+                    (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
+            persistentTopic.getReplicators().values().forEach(replicator -> {
+               assertTrue(ensureNoBacklog.apply(replicator));
+            });
+        }
     }
 }
