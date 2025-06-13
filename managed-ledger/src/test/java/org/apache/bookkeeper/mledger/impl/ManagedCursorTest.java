@@ -5192,6 +5192,21 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testDeleteBatchedMessageWithEmptyAckSet() throws Exception {
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        managedLedgerConfig.setDeletionAtBatchIndexLevelEnabled(false);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("testDeleteBatchedMessageWithEmptyAckSet",
+            managedLedgerConfig);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ml.openCursor("c1");
+        Position position = ml.addEntry(new byte[1]);
+        Position positionWithEmptyAckSet =
+                AckSetStateUtil.createPositionWithAckSet(position.getLedgerId(), position.getEntryId(), new long[]{});
+        cursor.delete(positionWithEmptyAckSet);
+        assertEquals(cursor.markDeletePosition, position);
+        ml.delete();
+    }
+
+    @Test
     public void testEstimateEntryCountBySize() throws Exception {
         final String mlName = "ml-" + UUID.randomUUID().toString().replaceAll("-", "");
         ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName);
