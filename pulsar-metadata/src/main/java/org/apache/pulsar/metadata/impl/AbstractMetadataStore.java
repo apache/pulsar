@@ -98,6 +98,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         registerListener(this);
 
         this.childrenCache = Caffeine.newBuilder()
+                .recordStats()
                 .refreshAfterWrite(CACHE_REFRESH_TIME_MILLIS, TimeUnit.MILLISECONDS)
                 .expireAfterWrite(CACHE_REFRESH_TIME_MILLIS * 2, TimeUnit.MILLISECONDS)
                 .buildAsync(new AsyncCacheLoader<String, List<String>>() {
@@ -120,6 +121,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         CacheMetricsCollector.CAFFEINE.addCache(metadataStoreName + "-children", childrenCache);
 
         this.existsCache = Caffeine.newBuilder()
+                .recordStats()
                 .refreshAfterWrite(CACHE_REFRESH_TIME_MILLIS, TimeUnit.MILLISECONDS)
                 .expireAfterWrite(CACHE_REFRESH_TIME_MILLIS * 2, TimeUnit.MILLISECONDS)
                 .buildAsync(new AsyncCacheLoader<String, Boolean>() {
@@ -139,7 +141,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                         }
                     }
                 });
-        CacheMetricsCollector.CAFFEINE.addCache(metadataStoreName + "-exists", childrenCache);
+        CacheMetricsCollector.CAFFEINE.addCache(metadataStoreName + "-exists", existsCache);
 
         this.metadataStoreName = metadataStoreName;
         this.metadataStoreStats = new MetadataStoreStats(metadataStoreName, openTelemetry);
@@ -240,7 +242,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     @Override
     public <T> MetadataCache<T> getMetadataCache(Class<T> clazz, MetadataCacheConfig cacheConfig) {
         JavaType typeRef = TypeFactory.defaultInstance().constructSimpleType(clazz, null);
-        String cacheName = String.format("%s-%s", metadataStoreName, typeRef.getTypeName());
+        String cacheName = StringUtils.isNotBlank(metadataStoreName) ? metadataStoreName : getClass().getSimpleName();
         MetadataCacheImpl<T> metadataCache =
                 new MetadataCacheImpl<T>(cacheName, this, typeRef, cacheConfig, this.executor);
         metadataCaches.add(metadataCache);
@@ -249,7 +251,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef, MetadataCacheConfig cacheConfig) {
-        String cacheName = String.format("%s-%s", metadataStoreName, typeRef.getType().getTypeName());
+        String cacheName = StringUtils.isNotBlank(metadataStoreName) ? metadataStoreName : getClass().getSimpleName();
         MetadataCacheImpl<T> metadataCache =
                 new MetadataCacheImpl<T>(cacheName, this, typeRef, cacheConfig, this.executor);
         metadataCaches.add(metadataCache);
@@ -260,7 +262,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     public <T> MetadataCache<T> getMetadataCache(String cacheName, MetadataSerde<T> serde,
                                                  MetadataCacheConfig cacheConfig) {
         MetadataCacheImpl<T> metadataCache =
-                new MetadataCacheImpl<>(String.format("%s-%s", metadataStoreName, cacheName), this, serde, cacheConfig,
+                new MetadataCacheImpl<>(cacheName, this, serde, cacheConfig,
                         this.executor);
         metadataCaches.add(metadataCache);
         return metadataCache;

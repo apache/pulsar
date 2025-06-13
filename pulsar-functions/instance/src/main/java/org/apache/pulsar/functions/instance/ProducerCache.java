@@ -64,6 +64,7 @@ public class ProducerCache implements Closeable {
 
     public ProducerCache() {
         Caffeine<ProducerCacheKey, Producer<?>> builder = Caffeine.newBuilder()
+                .recordStats()
                 .scheduler(Scheduler.systemScheduler())
                 .<ProducerCacheKey, Producer<?>>removalListener((key, producer, cause) -> {
                     log.info("Closing producer for topic {}, cause {}", key.topic(), cause);
