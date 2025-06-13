@@ -122,6 +122,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         log.error("[{}] Close writer error.", namespaceName, e);
                     }
                 })
+                .recordStats()
                 .executor(pulsarService.getExecutor())
                 .buildAsync((namespaceName, executor) -> {
                     if (closed.get()) {

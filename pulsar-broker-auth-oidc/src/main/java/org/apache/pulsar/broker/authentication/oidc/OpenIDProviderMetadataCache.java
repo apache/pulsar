@@ -78,6 +78,7 @@ class OpenIDProviderMetadataCache {
             }
         };
         this.cache = Caffeine.newBuilder()
+                .recordStats()
                 .maximumSize(maxSize)
                 .refreshAfterWrite(refreshAfterWriteSeconds, TimeUnit.SECONDS)
                 .expireAfterWrite(expireAfterSeconds, TimeUnit.SECONDS)
