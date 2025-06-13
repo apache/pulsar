@@ -254,6 +254,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         pulsar.getConfiguration().setBrokerShutdownTimeoutMs(0);
         adminTls.close();
         otheradmin.close();
+        bundleFactory.close();
         super.internalCleanup();
         mockPulsarSetup.cleanup();
     }

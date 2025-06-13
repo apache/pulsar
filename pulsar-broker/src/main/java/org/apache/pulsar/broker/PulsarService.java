@@ -306,6 +306,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private String brokerId;
     private final CompletableFuture<Void> readyForIncomingRequestsFuture = new CompletableFuture<>();
     private final List<Runnable> pendingTasksBeforeReadyForIncomingRequests = new ArrayList<>();
+    private volatile Runnable cancelSessionListener;
+    private volatile Runnable cancelMetadataStoreListener;
 
     public enum State {
         Init, Started, Closing, Closed
@@ -500,6 +502,15 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
             // It only tells the Pulsar clients that this service is not ready to serve for the lookup requests
             state = State.Closing;
+
+            if (cancelMetadataStoreListener != null) {
+                cancelMetadataStoreListener.run();
+                cancelMetadataStoreListener = null;
+            }
+            if (cancelSessionListener != null) {
+                cancelSessionListener.run();
+                cancelSessionListener = null;
+            }
 
             if (healthChecker != null) {
                 healthChecker.close();
@@ -862,7 +873,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     : null;
             localMetadataStore = createLocalMetadataStore(localMetadataSynchronizer,
                     openTelemetry.getOpenTelemetryService().getOpenTelemetry());
-            localMetadataStore.registerSessionListener(this::handleMetadataSessionEvent);
+            cancelSessionListener =
+                    localMetadataStore.registerCancellableSessionListener(this::handleMetadataSessionEvent);
 
             coordinationService = new CoordinationServiceImpl(localMetadataStore);
 
@@ -1123,7 +1135,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         PulsarResources pulsarResources = new PulsarResources(localMetadataStore, configurationMetadataStore,
                 config.getMetadataStoreOperationTimeoutSeconds(), getExecutor());
 
-        pulsarResources.getClusterResources().getStore().registerListener(this::handleDeleteCluster);
+        cancelMetadataStoreListener =
+                pulsarResources.getClusterResources().getStore().registerCancellableListener(this::handleDeleteCluster);
         return pulsarResources;
     }
 
