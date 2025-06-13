@@ -2377,7 +2377,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     }
                     continue;
                 }
-                if (position.ackSet == null) {
+                if (position.ackSet == null || position.ackSet.length == 0) {
                     if (batchDeletedIndexes != null) {
                         batchDeletedIndexes.remove(position);
                     }
