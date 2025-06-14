@@ -42,15 +42,21 @@ public class DebeziumMongoDbSourceTester extends SourceTester<DebeziumMongoDbCon
         this.pulsarCluster = cluster;
         pulsarServiceUrl = "pulsar://pulsar-proxy:" + PulsarContainer.BROKER_PORT;
 
-        sourceConfig.put("mongodb.hosts", "rs0/" + DebeziumMongoDbContainer.NAME + ":27017");
+        /*
+         *The `mongodb.connection.string` property replaces the deprecated `mongodb.hosts` property in release 2.2
+         * that was used to provide earlier versions of the connector with the host address of the configuration server replica.
+         * In the current release, use mongodb.connection.string to provide the connector with the addresses of MongoDB routers,
+         * also known as mongos.
+         */
+        sourceConfig.put("connector.class", "io.debezium.connector.mongodb.MongoDbConnector");
+        sourceConfig.put("mongodb.connection.string", "mongodb://" + DebeziumMongoDbContainer.NAME + ":27017/?replicaSet=rs0");
         sourceConfig.put("mongodb.name", "dbserver1");
         sourceConfig.put("mongodb.user", "debezium");
         sourceConfig.put("mongodb.password", "dbz");
-        sourceConfig.put("mongodb.task.id","1");
-        sourceConfig.put("database.include.list", "inventory");
-        sourceConfig.put("database.history.pulsar.service.url", pulsarServiceUrl);
+        sourceConfig.put("mongodb.task.id", "1");
+        sourceConfig.put("schema.history.internal.pulsar.service.url", pulsarServiceUrl);
         sourceConfig.put("topic.namespace", "debezium/mongodb");
-        sourceConfig.put("capture.mode", "oplog");
+        sourceConfig.put("topic.prefix", "dbserver1");
     }
 
     @Override
@@ -66,13 +72,16 @@ public class DebeziumMongoDbSourceTester extends SourceTester<DebeziumMongoDbCon
         log.info("debezium mongodb server already contains preconfigured data.");
     }
 
+    /*
+     * mongo is deprecated in 2.6.1.Final release and now we have use mongosh instead
+     */
     @Override
     public void prepareInsertEvent() throws Exception {
         this.debeziumMongoDbContainer.execCmd("/bin/bash", "-c",
-                "mongo -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
+                "mongosh -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
                         "--eval 'db.products.find()'");
         this.debeziumMongoDbContainer.execCmd("/bin/bash", "-c",
-                "mongo -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
+                "mongosh -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
                         "--eval 'db.products.insert({ " +
                         "_id : NumberLong(\"110\")," +
                         "name : \"test-debezium\"," +
@@ -84,20 +93,20 @@ public class DebeziumMongoDbSourceTester extends SourceTester<DebeziumMongoDbCon
     @Override
     public void prepareDeleteEvent() throws Exception {
         this.debeziumMongoDbContainer.execCmd("/bin/bash", "-c",
-                "mongo -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
+                "mongosh -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
                         "--eval 'db.products.find()'");
         this.debeziumMongoDbContainer.execCmd("/bin/bash", "-c",
-                "mongo -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
+                "mongosh -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
                         "--eval 'db.products.deleteOne({name : \"test-debezium-update\"})'");
     }
 
     @Override
     public void prepareUpdateEvent() throws Exception {
         this.debeziumMongoDbContainer.execCmd("/bin/bash", "-c",
-                "mongo -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
+                "mongosh -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
                         "--eval 'db.products.find()'");
         this.debeziumMongoDbContainer.execCmd("/bin/bash", "-c",
-                "mongo -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
+                "mongosh -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory " +
                         "--eval 'db.products.update({" +
                         "_id : 110}," +
                         "{$set:{name:\"test-debezium-update\", description: \"this is update description\"}})'");
