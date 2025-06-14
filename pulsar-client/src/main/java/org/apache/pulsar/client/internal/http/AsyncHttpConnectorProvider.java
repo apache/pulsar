@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.admin.internal.http;
+package org.apache.pulsar.client.internal.http;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.core.Configuration;
+import org.apache.pulsar.client.impl.ServiceNameResolver;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.glassfish.jersey.client.spi.Connector;
 import org.glassfish.jersey.client.spi.ConnectorProvider;
@@ -30,29 +31,32 @@ import org.glassfish.jersey.client.spi.ConnectorProvider;
 public class AsyncHttpConnectorProvider implements ConnectorProvider {
 
     private final ClientConfigurationData conf;
+    private final ServiceNameResolver serviceNameResolver;
     private Connector connector;
     private final int autoCertRefreshTimeSeconds;
     private final boolean acceptGzipCompression;
 
     public AsyncHttpConnectorProvider(ClientConfigurationData conf, int autoCertRefreshTimeSeconds,
-                                      boolean acceptGzipCompression) {
+                                      boolean acceptGzipCompression, ServiceNameResolver serviceNameResolver) {
         this.conf = conf;
         this.autoCertRefreshTimeSeconds = autoCertRefreshTimeSeconds;
         this.acceptGzipCompression = acceptGzipCompression;
+        this.serviceNameResolver = serviceNameResolver;
     }
 
     @Override
     public Connector getConnector(Client client, Configuration runtimeConfig) {
         if (connector == null) {
-            connector = new AsyncHttpConnector(client, conf, autoCertRefreshTimeSeconds, acceptGzipCompression);
+            connector = new AsyncHttpConnector(client, conf, autoCertRefreshTimeSeconds, acceptGzipCompression,
+                    serviceNameResolver);
         }
         return connector;
     }
 
 
     public AsyncHttpConnector getConnector(int connectTimeoutMs, int readTimeoutMs, int requestTimeoutMs,
-            int autoCertRefreshTimeSeconds) {
+                                           int autoCertRefreshTimeSeconds) {
         return new AsyncHttpConnector(connectTimeoutMs, readTimeoutMs, requestTimeoutMs, autoCertRefreshTimeSeconds,
-                conf, acceptGzipCompression);
+                conf, acceptGzipCompression, this.serviceNameResolver);
     }
 }
