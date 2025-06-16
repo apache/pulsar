@@ -340,7 +340,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
             log.debug("[{}] Read entries complete of {} messages", replicatorId, entries.size());
         }
         InFlightTask inFlightTask = (InFlightTask) ctx;
-        inFlightTask.setReadoutEntries(entries);
+        inFlightTask.setEntries(entries);
 
         // After the replicator starts, the speed will be gradually increased.
         int maxReadBatchSize = topic.getBrokerService().pulsar().getConfiguration().getDispatcherMaxReadBatchSize();
@@ -754,13 +754,13 @@ public abstract class PersistentReplicator extends AbstractReplicator
     protected static class InFlightTask {
         Position readPos;
         int readingEntries;
-        volatile List<Entry> readoutEntries;
+        volatile List<Entry> entries;
         volatile int completedEntries;
-        volatile boolean skipReadResultDueToCursorRewound;
+        volatile boolean skipReadResultDueToCursorRewind;
         final String replicatorId;
 
         public synchronized void incCompletedEntries() {
-            if (!CollectionUtils.isEmpty(readoutEntries) && completedEntries < readoutEntries.size()) {
+            if (!CollectionUtils.isEmpty(entries) && completedEntries < entries.size()) {
                 completedEntries++;
             } else {
                 log.error("Unexpected calling of increase completed entries. {}", this.toString());
@@ -770,9 +770,9 @@ public abstract class PersistentReplicator extends AbstractReplicator
         synchronized void recycle(Position readStart, int readingEntries) {
             this.readPos = readStart;
             this.readingEntries = readingEntries;
-            this.readoutEntries = null;
+            this.entries = null;
             this.completedEntries = 0;
-            this.skipReadResultDueToCursorRewound = false;
+            this.skipReadResultDueToCursorRewind = false;
         }
 
         public InFlightTask(Position readPos, int readingEntries, String replicatorId) {
@@ -782,13 +782,13 @@ public abstract class PersistentReplicator extends AbstractReplicator
         }
 
         public boolean isDone() {
-            if (readoutEntries == null) {
+            if (entries == null) {
                 return false;
             }
-            if (readoutEntries != null && readoutEntries.isEmpty()) {
+            if (entries != null && entries.isEmpty()) {
                 return true;
             }
-            return completedEntries >= readoutEntries.size();
+            return completedEntries >= entries.size();
         }
 
         @Override
@@ -797,9 +797,9 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 + "{replicatorId=" + replicatorId
                 + ", readPos=" + readPos
                 + ", readingEntries=" + readingEntries
-                + ", readoutEntries=" + (readoutEntries == null ? "-1" : readoutEntries.size())
+                + ", readoutEntries=" + (entries == null ? "-1" : entries.size())
                 + ", completedEntries=" + completedEntries
-                + ", skipReadResultDueToCursorRewound=" + skipReadResultDueToCursorRewound
+                + ", skipReadResultDueToCursorRewound=" + skipReadResultDueToCursorRewind
                 + "}";
         }
     }
@@ -851,7 +851,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
     protected int getPermitsIfNoPendingRead() {
         synchronized (inFlightTasks) {
             for (InFlightTask task : inFlightTasks) {
-                boolean hasPendingCursorRead = task.readPos != null && task.readoutEntries == null;
+                boolean hasPendingCursorRead = task.readPos != null && task.entries == null;
                 if (hasPendingCursorRead) {
                     // Skip the current reading if there is a pending cursor reading.
                     return 0;
@@ -868,11 +868,11 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 if (task.isDone()) {
                     continue;
                 }
-                if (task.readoutEntries == null) {
+                if (task.entries == null) {
                     inFlight += task.readingEntries;
                     continue;
                 }
-                inFlight += Math.max(task.readoutEntries.size() - task.completedEntries, 0);
+                inFlight += Math.max(task.entries.size() - task.completedEntries, 0);
             }
         }
         return inFlight;
@@ -901,7 +901,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
             boolean hasCanceledPendingRead = cursor.cancelPendingReadRequest();
             reasonOfWaitForCursorRewinding = reason;
             waitForCursorRewindingRefCnf += 1;
-            cancelFollowingReadingTasks(hasCanceledPendingRead);
+            cancelPendingReadTasks(hasCanceledPendingRead);
         }
     }
 
@@ -916,12 +916,12 @@ public abstract class PersistentReplicator extends AbstractReplicator
         }
     }
 
-    private void cancelFollowingReadingTasks(boolean canceledPendingRead) {
+    private void cancelPendingReadTasks(boolean canceledPendingRead) {
         InFlightTask readingTask = null;
         synchronized (inFlightTasks) {
             for (InFlightTask task : inFlightTasks) {
-                task.setSkipReadResultDueToCursorRewound(true);
-                if (task.readoutEntries == null) {
+                task.setSkipReadResultDueToCursorRewind(true);
+                if (task.entries == null) {
                     if (readingTask != null) {
                         log.error("Unexpected state because there are more than one tasks' state is pending read. {}",
                             inFlightTasks);
@@ -933,7 +933,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
             // There is at most one reading task.
             // The task will never receive a read completed callback if cancel pending reading successfully.
             if (canceledPendingRead && readingTask != null) {
-                readingTask.setReadoutEntries(Collections.emptyList());
+                readingTask.setEntries(Collections.emptyList());
             }
         }
     }
@@ -946,7 +946,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
     protected boolean hasPendingRead() {
         synchronized (inFlightTasks) {
             for (InFlightTask task : inFlightTasks) {
-                if (task.readPos != null && task.readoutEntries == null) {
+                if (task.readPos != null && task.entries == null) {
                     // Skip the current reading if there is a pending cursor reading.
                     return true;
                 }
