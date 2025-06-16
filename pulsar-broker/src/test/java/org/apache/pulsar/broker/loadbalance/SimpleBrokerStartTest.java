@@ -103,12 +103,7 @@ public class SimpleBrokerStartTest {
         if (!hasNicSpeeds) {
             @Cleanup
             PulsarService pulsarService = new PulsarService(config);
-            try {
-                pulsarService.start();
-                fail("unexpected behaviour");
-            } catch (PulsarServerException ex) {
-                assertTrue(ex.getCause() instanceof IllegalStateException);
-            }
+            pulsarService.start();
         }
     }
 
