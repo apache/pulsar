@@ -2355,7 +2355,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         PositionImpl newMarkDeletePosition = null;
 
         lock.writeLock().lock();
-
+        boolean skipMarkDeleteBecauseAckedNothing = false;
         try {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Deleting individual messages at {}. Current status: {} - md-position: {}",
@@ -2424,6 +2424,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             if (individualDeletedMessages.isEmpty()) {
                 // No changes to individually deleted messages, so nothing to do at this point
+                skipMarkDeleteBecauseAckedNothing = true;
                 return;
             }
 
@@ -2441,6 +2442,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             if (range == null) {
                 // The set was completely cleaned up now
+                skipMarkDeleteBecauseAckedNothing = true;
                 return;
             }
 
@@ -2467,9 +2469,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             callback.deleteFailed(getManagedLedgerException(e), ctx);
             return;
         } finally {
-            boolean empty = individualDeletedMessages.isEmpty();
             lock.writeLock().unlock();
-            if (empty) {
+            if (skipMarkDeleteBecauseAckedNothing) {
                 callback.deleteComplete(ctx);
             }
         }
