@@ -90,7 +90,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
             // This flag is set to true when we skip at least one local message,
             // in order to skip remaining local messages.
             boolean isLocalMessageSkippedOnce = false;
-            boolean skipRemainingMessages = inFlightTask.isSkipReadResultDueToCursorRewound();
+            boolean skipRemainingMessages = inFlightTask.isSkipReadResultDueToCursorRewind();
             for (int i = 0; i < entries.size(); i++) {
                 Entry entry = entries.get(i);
                 // Skip the messages since the replicator need to fetch the schema info to replicate the schema to the
