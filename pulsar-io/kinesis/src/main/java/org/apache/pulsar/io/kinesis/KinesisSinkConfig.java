@@ -20,7 +20,11 @@ package org.apache.pulsar.io.kinesis;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.Map;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -178,4 +182,76 @@ public class KinesisSinkConfig extends BaseKinesisConfig implements Serializable
             help = "Enable aggregation. With aggregation, multiple user records could be packed into a single\n"
                     + " KinesisRecord. If disabled, each user record is sent in its own KinesisRecord.")
     private boolean aggregationEnabled = true;
+
+    @FieldDoc(
+            defaultValue = "500",
+            help = "Maximum number of items to pack into an PutRecords request.")
+    private long collectionMaxCount = 500L;
+
+    @FieldDoc(
+            defaultValue = "5242880",
+            help = "Maximum amount of data to send with a PutRecords request. Records larger than the limit will\n"
+                    + "still be sent, but will not be grouped with others.")
+    private long collectionMaxSize = 5242880L;
+
+    @FieldDoc(
+            defaultValue = "6000",
+            help = "Timeout (milliseconds) for establishing TLS connections.")
+    private long connectTimeout = 6000L;
+
+    @FieldDoc(
+            defaultValue = "5000",
+            help = "How often to refresh credentials (in milliseconds). During a refresh, credentials are retrieved\n"
+                    + "from any SDK credentials providers attached to the wrapper and pushed to the core.")
+    private long credentialsRefreshDelay = 5000L;
+
+    @FieldDoc(
+            defaultValue = "24",
+            help = "Maximum number of connections to open to the backend. HTTP requests are sent in parallel\n"
+                    + "over multiple connections.")
+    private long maxConnections = 24L;
+
+    @FieldDoc(
+            defaultValue = "1",
+            help = "Minimum number of connections to keep open to the backend.")
+    private long minConnections = 1L;
+
+    @FieldDoc(
+            defaultValue = "150",
+            help = """
+                    Limits the maximum allowed put rate for a shard, as a percentage of the backend limits. The
+                    default value of 150% is chosen to allow a single producer instance to completely saturate the
+                    allowance for a shard. This is an aggressive setting. If you prefer to reduce throttling
+                    errors rather than completely saturate the shard, consider reducing this setting.""")
+    private long rateLimit = 150L;
+
+    @FieldDoc(
+            defaultValue = "30000",
+            help = """
+                    Set a time-to-live on records (milliseconds). Records that do not get successfully put within the
+                    limit are failed and retried by KinesisSink. This should be set lower than the Pulsar source's
+                    timeoutMs to minimize the risk of duplicate records and to control heap memory usage in the Kinesis
+                    sink, especially during re-deliveries.""")
+    private long recordTtl = 30000L;
+
+    @FieldDoc(
+            defaultValue = "6000",
+            help = """
+                    The maximum total time (milliseconds) elapsed between when we begin a HTTP request and receiving
+                    all of the response. If it goes over, the request will be timed-out. Note that a timed-out
+                    request may actually succeed at the backend. Retrying then leads to duplicates. Setting the
+                    timeout too low will therefore increase the probability of duplicates.""")
+    private long requestTimeout = 6000L;
+
+    @FieldDoc(
+            defaultValue = "",
+            help = "Extra KinesisProducerConfiguration parameters. See https://javadoc.io/static/com.amazonaws/amazon-kinesis-producer/0.14.0/index.html?com/amazonaws/services/kinesis/producer/KinesisProducerConfiguration.html for all the available parameters."
+                    + "Parameters that are explicitly set take preference over extra config.")
+    private Map<String, String> extraKinesisProducerConfig = new HashMap<>();
+
+    public static KinesisProducerConfiguration loadExtraKinesisProducerConfig(Map<String, String> map)
+            throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        return mapper.readValue(mapper.writeValueAsString(map), KinesisProducerConfiguration.class);
+    }
 }
