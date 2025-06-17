@@ -791,10 +791,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         final ConsumerImpl<T> internalConsumer;
         if (messageId instanceof TopicMessageId) {
             TopicMessageId topicMessageId = (TopicMessageId) messageId;
-            internalConsumer = consumers.get(topicMessageId.getOwnerTopic());
+            String ownerTopic = topicMessageId.getOwnerTopic();
+            if (ownerTopic == null) {
+                return FutureUtil.failedFuture(new PulsarClientException.NotAllowedException(
+                        "The owner topic is null"));
+            }
+            internalConsumer = consumers.get(ownerTopic);
             if (internalConsumer == null) {
                 return FutureUtil.failedFuture(new PulsarClientException.NotAllowedException(
-                        "The owner topic " + topicMessageId.getOwnerTopic() + " is not subscribed"));
+                        "The owner topic " + ownerTopic + " is not subscribed"));
             }
         } else {
             internalConsumer = null;
