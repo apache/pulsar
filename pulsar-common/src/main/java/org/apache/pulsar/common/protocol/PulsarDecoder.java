@@ -22,8 +22,10 @@ import static com.google.common.base.Preconditions.checkArgument;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelOutboundBuffer;
 import io.netty.channel.ChannelOutboundInvoker;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
+import java.util.LinkedList;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandAckResponse;
@@ -106,6 +108,50 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
 
     private final BaseCommand cmd = new BaseCommand();
 
+    protected int maxPendingWriteBytes = -1;
+    private boolean isPendingCmd;
+    private final LinkedList<ByteBuf> pendingCmds = new LinkedList<>();
+
+    private boolean getOrUpdatePendingCmdState(ChannelHandlerContext ctx) {
+        if (maxPendingWriteBytes < 0) {
+            return false;
+        }
+        if (isPendingCmd) {
+            return true;
+        }
+        final ChannelOutboundBuffer outboundBuffer = ctx.channel().unsafe().outboundBuffer();
+        final BaseCommand.Type cmdType = cmd.getType();
+        if (!ctx.channel().isWritable() && cmdType != BaseCommand.Type.PONG
+                && outboundBuffer != null && outboundBuffer.totalPendingWriteBytes() > maxPendingWriteBytes) {
+            isPendingCmd = true;
+            log.warn("[{}] is not writable, pending output bytes: {}", this, outboundBuffer.totalPendingWriteBytes());
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
+        if (isPendingCmd && ctx.channel().isWritable()) {
+            isPendingCmd = false;
+            // Maybe there are too many pending commands, eventually causing the second time of switching state to
+            // "pending". So we only loop "queueSize" times, which also guarantees the order of commands handling.
+            int queueSize = pendingCmds.size();
+            log.info("[{}] is writable now, flushing pending commands {}", this, queueSize);
+            for (int i = 0; i < queueSize; i++) {
+                ByteBuf cmd = pendingCmds.pop();
+                // Since "ctx" and "handler" have a one-to-one relationship, such a call is safe. And ctx will handle
+                // the exception.
+                try {
+                    channelRead(ctx, cmd);
+                } catch (Exception e) {
+                    ctx.fireExceptionCaught(e);
+                }
+            }
+        }
+        ctx.fireChannelWritabilityChanged();
+    }
+
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof HAProxyMessage) {
@@ -116,6 +162,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
         }
         // Get a buffer that contains the full frame
         ByteBuf buffer = (ByteBuf) msg;
+        int originalReaderIndex = buffer.readerIndex();
         try {
             // De-serialize the command
             int cmdSize = (int) buffer.readUnsignedInt();
@@ -125,6 +172,18 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 log.debug("[{}] Received cmd {}", ctx.channel(), cmd.getType());
             }
             messageReceived();
+
+            if (getOrUpdatePendingCmdState(ctx)) {
+                buffer.readerIndex(originalReaderIndex);
+                // Since there is a "buffer.release()" in the finally block, we retain once to avoid over-release.
+                buffer.retain();
+                pendingCmds.add(buffer);
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Since the connection is pending, append cmd {} into pending queue, queue-size: {}",
+                            ctx.channel(), cmd.getType(), pendingCmds.size());
+                }
+                return;
+            }
 
             switch (cmd.getType()) {
             case PARTITIONED_METADATA:
