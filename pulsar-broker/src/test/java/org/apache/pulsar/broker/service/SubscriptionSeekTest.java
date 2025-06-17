@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -64,6 +65,7 @@ import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.proto.CommandError;
 import org.apache.pulsar.common.naming.TopicName;
@@ -462,6 +464,22 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         } catch (PulsarClientException e) {
             fail("Should not have exception");
         }
+    }
+
+    @Test
+    public void testSeekWithNonOwnerTopicMessage() throws Exception {
+        final String topicName = "persistent://prop/use/ns-abc/testNonOwnerTopicMessage";
+
+        admin.topics().createPartitionedTopic(topicName, 2);
+        @Cleanup
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("my-subscription").subscribe();
+        assertThatThrownBy(
+                // seek with a TopicMessageIdImpl that has a null topic.
+                () -> consumer.seek(new TopicMessageIdImpl(null, new BatchMessageIdImpl(123L, 345L, 566, 789)))
+            )
+            .isInstanceOf(PulsarClientException.class)
+            .hasMessage("The owner topic is null");
     }
 
     @Test
