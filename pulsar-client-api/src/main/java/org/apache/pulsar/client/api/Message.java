@@ -102,11 +102,11 @@ public interface Message<T> {
 
     /**
      * Get the event time associated with this message. It is typically set by the applications via
-     * {@link MessageBuilder#setEventTime(long)}.
+     * {@link TypedMessageBuilder#eventTime(long)}.
      *
      * <p>If there isn't any event time associated with this event, it will return 0.
      *
-     * @see MessageBuilder#setEventTime(long)
+     * @see TypedMessageBuilder#eventTime(long)
      * @since 1.20.0
      * @return the message event time or 0 if event time wasn't set
      */
@@ -114,10 +114,10 @@ public interface Message<T> {
 
     /**
      * Get the sequence id associated with this message. It is typically set by the applications via
-     * {@link MessageBuilder#setSequenceId(long)}.
+     * {@link TypedMessageBuilder#sequenceId(long)}.
      *
      * @return sequence id associated with this message.
-     * @see MessageBuilder#setEventTime(long)
+     * @see TypedMessageBuilder#sequenceId(long)
      * @since 1.22.0
      */
     long getSequenceId();
