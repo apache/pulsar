@@ -42,7 +42,7 @@ import org.testcontainers.utility.DockerImageName;
  */
 @Slf4j
 public class KafkaSinkTester extends SinkTester<KafkaContainer> {
-    public static final String CONFLUENT_PLATFORM_VERSION = System.getProperty("confluent.version", "6.2.8");
+    public static final String CONFLUENT_PLATFORM_VERSION = System.getProperty("confluent.version", "7.8.2");
 
     private final String kafkaTopicName;
     private KafkaConsumer<String, String> kafkaConsumer;
@@ -78,8 +78,8 @@ public class KafkaSinkTester extends SinkTester<KafkaContainer> {
         ExecResult execResult = serviceContainer.execInContainer(
                 "/usr/bin/kafka-topics",
                 "--create",
-                "--zookeeper",
-                "localhost:2181",
+                "--bootstrap-server",
+                "localhost:9092",
                 "--partitions",
                 "1",
                 "--replication-factor",

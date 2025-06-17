@@ -48,6 +48,7 @@ import org.apache.pulsar.shell.config.FileConfigStore;
 import org.jline.console.impl.SystemRegistryImpl;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
+import org.jline.reader.Parser;
 import org.jline.reader.impl.DefaultParser;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
@@ -290,7 +291,7 @@ public class PulsarShell {
 
                 @Override
                 public List<String> parseLine(String line) {
-                    return reader.getParser().parse(line, 0).words();
+                    return reader.getParser().parse(line, 0, Parser.ParseContext.SPLIT_LINE).words();
                 }
             };
         }, () -> terminal);

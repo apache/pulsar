@@ -29,6 +29,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
@@ -40,6 +41,7 @@ import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.OffloadedLedgerHandle;
 import org.apache.bookkeeper.mledger.offload.jcloud.BackedInputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
@@ -52,8 +54,11 @@ import org.jclouds.blobstore.domain.Blob;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class BlobStoreBackedReadHandleImpl implements ReadHandle {
+public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedgerHandle {
     private static final Logger log = LoggerFactory.getLogger(BlobStoreBackedReadHandleImpl.class);
+
+    protected static final AtomicIntegerFieldUpdater<BlobStoreBackedReadHandleImpl> PENDING_READ_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(BlobStoreBackedReadHandleImpl.class, "pendingRead");
 
     private final long ledgerId;
     private final OffloadIndexBlock index;
@@ -69,6 +74,10 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
     }
 
     private volatile State state = null;
+
+    private volatile int pendingRead;
+
+    private volatile long lastAccessTimestamp = System.currentTimeMillis();
 
     private BlobStoreBackedReadHandleImpl(long ledgerId, OffloadIndexBlock index,
                                           BackedInputStream inputStream, ExecutorService executor,
@@ -119,6 +128,16 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                     getId(), firstEntry, lastEntry, (1 + lastEntry - firstEntry));
         }
         CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
+
+        // Ledger handles will be only marked idle when "pendingRead" is "0", it is not needed to update
+        // "lastAccessTimestamp" if "pendingRead" is larger than "0".
+        // Rather than update "lastAccessTimestamp" when starts a reading, updating it when a reading task is finished
+        // is better.
+        PENDING_READ_UPDATER.incrementAndGet(this);
+        promise.whenComplete((__, ex) -> {
+            lastAccessTimestamp = System.currentTimeMillis();
+            PENDING_READ_UPDATER.decrementAndGet(BlobStoreBackedReadHandleImpl.this);
+        });
         executor.execute(() -> {
             if (state == State.Closed) {
                 log.warn("Reading a closed read handler. Ledger ID: {}, Read range: {}-{}",
@@ -311,5 +330,15 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
     @VisibleForTesting
     State getState() {
         return this.state;
+    }
+
+    @Override
+    public long lastAccessTimestamp() {
+        return lastAccessTimestamp;
+    }
+
+    @Override
+    public int getPendingRead() {
+        return PENDING_READ_UPDATER.get(this);
     }
 }

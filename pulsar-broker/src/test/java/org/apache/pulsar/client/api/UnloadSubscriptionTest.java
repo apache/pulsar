@@ -60,7 +60,6 @@ public class UnloadSubscriptionTest extends ProducerConsumerBase {
         super.doInitConf();
         conf.setSystemTopicEnabled(false);
         conf.setTransactionCoordinatorEnabled(false);
-        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
     }
 
     @AfterClass(alwaysRun = true)
@@ -243,7 +242,6 @@ public class UnloadSubscriptionTest extends ProducerConsumerBase {
                 .subscriptionName(subName)
                 .subscriptionType(subType)
                 .isAckReceiptEnabled(true)
-                .enableBatchIndexAcknowledgment(true)
                 .subscribe();
         return consumer;
     }

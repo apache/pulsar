@@ -57,6 +57,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.sasl.JAASCredentialsContainer;
 import org.apache.pulsar.common.sasl.SaslConstants;
+import org.apache.pulsar.common.stats.CacheMetricsCollector;
 
 /**
  * Authentication Provider for SASL (Simple Authentication and Security Layer).
@@ -120,8 +121,10 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
         }
         this.signer = new SaslRoleTokenSigner(secret);
         this.authStates = Caffeine.newBuilder()
+                .recordStats()
                 .maximumSize(config.getMaxInflightSaslContext())
                 .expireAfterWrite(config.getInflightSaslContextExpiryMs(), TimeUnit.MILLISECONDS).build();
+        CacheMetricsCollector.CAFFEINE.addCache("auth-sasl-states-cache", authStates);
     }
 
     @Override

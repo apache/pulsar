@@ -68,7 +68,6 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import lombok.Getter;
 import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
@@ -118,6 +117,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.MetadataNotFoundExce
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.ManagedLedgerMXBean;
+import org.apache.bookkeeper.mledger.OffloadedLedgerHandle;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionBound;
 import org.apache.bookkeeper.mledger.PositionFactory;
@@ -149,6 +149,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.LazyLoadableValue;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.metadata.api.Stat;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -342,6 +343,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      */
     @VisibleForTesting
     Map<String, byte[]> createdLedgerCustomMetadata;
+
+    private long lastEvictOffloadedLedgers;
+    private static final int MINIMUM_EVICTION_INTERVAL_DIVIDER = 10;
 
     public ManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
             ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
@@ -1360,6 +1364,96 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
+    public CompletableFuture<Void> asyncAddLedgerProperty(long ledgerId, String key, String value) {
+        if (state.isFenced()) {
+            return CompletableFuture.failedFuture(new ManagedLedgerFencedException());
+        }
+        LedgerInfo li = ledgers.get(ledgerId);
+        if (li == null) {
+            return CompletableFuture.failedFuture(new ManagedLedgerNotFoundException("Ledger not found"));
+        }
+
+        CompletableFuture<Void> f = new CompletableFuture<>();
+        transformLedgerInfo(ledgerId,
+                oldInfo -> {
+                    List<MLDataFormats.KeyValue> oldProperties = oldInfo.getPropertiesList();
+                    Map<String, String> newPropertiesMap = new HashMap<>();
+                    oldProperties.forEach(kv -> newPropertiesMap.put(kv.getKey(), kv.getValue()));
+                    newPropertiesMap.put(key, value);
+                    List<MLDataFormats.KeyValue> newProperties = newPropertiesMap.entrySet().stream()
+                            .map(e -> MLDataFormats.KeyValue.newBuilder()
+                                    .setKey(e.getKey()).setValue(e.getValue()).build()).toList();
+                    return oldInfo.toBuilder().clearProperties().addAllProperties(newProperties).build();
+                })
+                .thenAccept(v -> f.complete(null))
+                .exceptionally(t -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(t);
+                    if (cause instanceof OffloadConflict) {
+                        f.completeExceptionally(new ManagedLedgerNotFoundException(cause.getMessage()));
+                    } else {
+                        f.completeExceptionally(cause);
+                    }
+                    return null;
+                });
+        return f;
+    }
+
+    @Override
+    public CompletableFuture<Void> asyncRemoveLedgerProperty(long ledgerId, String key) {
+        if (state.isFenced()) {
+            return CompletableFuture.failedFuture(new ManagedLedgerFencedException());
+        }
+        LedgerInfo li = ledgers.get(ledgerId);
+        if (li == null) {
+            return CompletableFuture.failedFuture(new ManagedLedgerNotFoundException("Ledger not found"));
+        }
+
+        CompletableFuture<Void> f = new CompletableFuture<>();
+        transformLedgerInfo(ledgerId,
+                oldInfo -> {
+                    List<MLDataFormats.KeyValue> oldProperties = oldInfo.getPropertiesList();
+                    Map<String, String> newPropertiesMap = new HashMap<>();
+                    oldProperties.forEach(kv -> newPropertiesMap.put(kv.getKey(), kv.getValue()));
+                    newPropertiesMap.remove(key);
+                    List<MLDataFormats.KeyValue> newProperties = newPropertiesMap.entrySet().stream()
+                            .map(e -> MLDataFormats.KeyValue.newBuilder()
+                                    .setKey(e.getKey()).setValue(e.getValue()).build()).toList();
+                    return oldInfo.toBuilder().clearProperties().addAllProperties(newProperties).build();
+                })
+                .thenAccept(v -> f.complete(null))
+                .exceptionally(t -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(t);
+                    if (cause instanceof OffloadConflict) {
+                        f.completeExceptionally(new ManagedLedgerNotFoundException(cause.getMessage()));
+                    } else {
+                        f.completeExceptionally(cause);
+                    }
+                    return null;
+                });
+        return f;
+    }
+
+    @Override
+    public CompletableFuture<String> asyncGetLedgerProperty(long ledgerId, String key) {
+        if (state.isFenced()) {
+            return FutureUtil.failedFuture(new ManagedLedgerFencedException());
+        }
+        LedgerInfo li = ledgers.get(ledgerId);
+        if (li == null) {
+            return FutureUtil.failedFuture(new ManagedLedgerNotFoundException("Ledger not found"));
+        }
+        if (li.getPropertiesCount() <= 0) {
+            return CompletableFuture.completedFuture(null);
+        }
+        for (MLDataFormats.KeyValue kv : li.getPropertiesList()) {
+            if (kv.getKey().equals(key)) {
+                return CompletableFuture.completedFuture(kv.getValue());
+            }
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
     public synchronized void asyncTerminate(TerminateCallback callback, Object ctx) {
         if (state.isFenced()) {
             callback.terminateFailed(new ManagedLedgerFencedException(), ctx);
@@ -1988,6 +2082,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 // TODO: improve this to load ledger offloader by driver name recorded in metadata
                 Map<String, String> offloadDriverMetadata = OffloadUtils.getOffloadDriverMetadata(info);
                 offloadDriverMetadata.put("ManagedLedgerName", name);
+                log.info("[{}] Opening ledger {} from offload driver {} with uid {}", name, ledgerId,
+                        config.getLedgerOffloader().getOffloadDriverName(), uid);
                 openFuture = config.getLedgerOffloader().readOffloaded(ledgerId, uid,
                         offloadDriverMetadata);
             } else {
@@ -2013,11 +2109,20 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     void invalidateReadHandle(long ledgerId) {
         CompletableFuture<ReadHandle> rhf = ledgerCache.remove(ledgerId);
         if (rhf != null) {
-            rhf.thenAccept(ReadHandle::closeAsync)
-                    .exceptionally(ex -> {
-                        log.warn("[{}] Failed to close a Ledger ReadHandle:", name, ex);
-                        return null;
-                    });
+            rhf.thenCompose(r -> {
+                if (r instanceof OffloadedLedgerHandle) {
+                    log.info("[{}] Closing ledger {} from offload driver {}", name, ledgerId,
+                            config.getLedgerOffloader().getOffloadDriverName());
+                }
+                return r.closeAsync().exceptionally(ex -> {
+                    log.warn("[{}] Failed to close ledger {} ReadHandle with type {}", name, ledgerId,
+                            r.getClass().getName(), ex);
+                    return null;
+                });
+            }).exceptionally(ex -> {
+                log.warn("[{}] Failed to close Ledger ReadHandle {}:", name, ledgerId, ex);
+                return null;
+            });
         }
     }
 
@@ -2626,7 +2731,61 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return Optional.ofNullable(ledgerOffloader.getOffloadPolicies());
     }
 
+    @VisibleForTesting
+    synchronized List<Long> internalEvictOffloadedLedgers() {
+        long inactiveOffloadedLedgerEvictionTimeMs = config.getInactiveOffloadedLedgerEvictionTimeMs();
+        if (inactiveOffloadedLedgerEvictionTimeMs <= 0) {
+            return Collections.emptyList();
+        }
+
+        long now = clock.millis();
+        long minimumEvictionIntervalMs = inactiveOffloadedLedgerEvictionTimeMs / MINIMUM_EVICTION_INTERVAL_DIVIDER;
+        if (now - lastEvictOffloadedLedgers < minimumEvictionIntervalMs) {
+            // skip eviction if we have done it recently
+            return Collections.emptyList();
+        }
+
+        try {
+            List<Long> ledgersToRelease = new ArrayList<>();
+
+            ledgerCache.forEach((ledgerId, ledger) -> {
+                if (ledger.isDone() && !ledger.isCompletedExceptionally()) {
+                    ReadHandle readHandle = ledger.join();
+                    if (readHandle instanceof OffloadedLedgerHandle offloadedLedgerHandle) {
+                        int pendingRead = offloadedLedgerHandle.getPendingRead();
+                        long lastAccessTimestamp = offloadedLedgerHandle.lastAccessTimestamp();
+                        if (lastAccessTimestamp >= 0 && pendingRead == 0) {
+                            long delta = now - offloadedLedgerHandle.lastAccessTimestamp();
+                            if (delta >= inactiveOffloadedLedgerEvictionTimeMs) {
+                                log.info("[{}] Offloaded ledger {} can be released ({} ms elapsed since last access)",
+                                        name, ledgerId, delta);
+                                ledgersToRelease.add(ledgerId);
+                            } else if (log.isDebugEnabled()) {
+                                log.debug(
+                                        "[{}] Offloaded ledger {} cannot be released ({} ms elapsed since last access)",
+                                        name, ledgerId, delta);
+                            }
+                        } else if (pendingRead < 0) {
+                            log.error("[{}] Offloaded ledger {} went to a wrong state because its pending read is a"
+                                + " negative value {}. Please raise an issue to https://github.com/apache/pulsar", name,
+                                ledgerId, pendingRead);
+                        }
+                    }
+                }
+            });
+            for (Long ledgerId : ledgersToRelease) {
+                invalidateReadHandle(ledgerId);
+            }
+            return ledgersToRelease;
+        } finally {
+            lastEvictOffloadedLedgers = now;
+        }
+    }
+
     void internalTrimLedgers(boolean isTruncate, CompletableFuture<?> promise) {
+
+        internalEvictOffloadedLedgers();
+
         if (!factory.isMetadataServiceAvailable()) {
             // Defer trimming of ledger if we cannot connect to metadata service
             promise.completeExceptionally(new MetaStoreException("Metadata service is not available"));
@@ -4486,6 +4645,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                     info.underReplicated = !bookies.contains(ensemble);
                                 }
                             }
+                        }
+                        if (li.getPropertiesCount() > 0) {
+                            Map<String, String> properties = new HashMap<>(li.getPropertiesCount());
+                            for (MLDataFormats.KeyValue kv : li.getPropertiesList()) {
+                                properties.put(kv.getKey(), kv.getValue());
+                            }
+                            info.properties = properties;
                         }
                         stats.ledgers.add(info);
                     });

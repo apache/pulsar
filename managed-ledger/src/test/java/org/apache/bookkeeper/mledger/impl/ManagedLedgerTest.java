@@ -3324,7 +3324,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         List<OpAddEntry> oldOps = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
             OpAddEntry op = OpAddEntry.createNoRetainBuffer(ledger,
-                    ByteBufAllocator.DEFAULT.buffer(128).retain(), null, null, new AtomicBoolean());
+                    ByteBufAllocator.DEFAULT.buffer(128), null, null, new AtomicBoolean());
             if (i > 4) {
                 op.setLedger(mock(LedgerHandle.class));
             }
@@ -3341,6 +3341,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             } else {
                 Assert.assertSame(oldOp, newOp);
             }
+            oldOp.getData().release();
         }
     }
 
@@ -3869,7 +3870,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < entries; i++) {
             ledger.addEntry(data);
         }
-        assertEquals(ledger.ledgers.size(), 10);
+        Awaitility.await().untilAsserted(() -> assertEquals(ledger.ledgers.size(), 11));
 
         // Set a new offloader to cleanup the execution times of getOffloadPolicies()
         ledgerOffloader = mock(NullLedgerOffloader.class);
@@ -4424,5 +4425,55 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             assertNotEquals(currentLedgerID, ml.currentLedger.getId());
             assertEquals(ml.currentLedgerEntries, 0);
         });
+    }
+
+    @Test
+    public void testSetLedgerProperty() throws Exception {
+        testSetLedgerProperty0("testSetLedgerProperty");
+    }
+
+
+    private ManagedLedger testSetLedgerProperty0(String name) throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(2);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(name, config);
+        ml.addEntry("entry-1".getBytes());
+        ml.addEntry("entry-2".getBytes());
+        ml.addEntry("entry-3".getBytes());
+
+        Assert.assertEquals(ml.getLedgersInfo().size(), 2);
+        long firstLedger = ml.getLedgersInfo().firstKey();
+        LedgerInfo firstLedgerInfo = ml.getLedgersInfo().get(firstLedger);
+        Assert.assertEquals(firstLedgerInfo.getPropertiesCount(), 0);
+        long lastLedger = ml.getLedgersInfo().lastKey();
+        LedgerInfo lastLedgerInfo = ml.getLedgersInfo().get(lastLedger);
+        Assert.assertEquals(lastLedgerInfo.getPropertiesCount(), 0);
+
+        ml.asyncAddLedgerProperty(firstLedger, "key1", "value1").get();
+        ml.asyncAddLedgerProperty(lastLedger, "key2", "value2").get();
+
+        firstLedgerInfo = ml.getLedgersInfo().get(firstLedger);
+        Assert.assertEquals(firstLedgerInfo.getPropertiesCount(), 1);
+        Assert.assertEquals(ml.asyncGetLedgerProperty(firstLedger, "key1").get(), "value1");
+
+        lastLedgerInfo = ml.getLedgersInfo().get(lastLedger);
+        Assert.assertEquals(lastLedgerInfo.getPropertiesCount(), 1);
+        Assert.assertEquals(ml.asyncGetLedgerProperty(lastLedger, "key2").get(), "value2");
+
+        return ml;
+    }
+
+    @Test
+    public void testRemoveLedgerProperty() throws Exception {
+        ManagedLedger ml = testSetLedgerProperty0("testRemoveLedgerProperty");
+
+        long firstLedger = ml.getLedgersInfo().firstKey();
+        long lastLedger = ml.getLedgersInfo().lastKey();
+
+        ml.asyncRemoveLedgerProperty(firstLedger, "key1").get();
+        ml.asyncRemoveLedgerProperty(lastLedger, "key2").get();
+
+        Assert.assertEquals(ml.getLedgersInfo().get(firstLedger).getPropertiesCount(), 0);
+        Assert.assertEquals(ml.getLedgersInfo().get(lastLedger).getPropertiesCount(), 0);
     }
 }

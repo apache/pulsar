@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.intercept;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.nio.charset.StandardCharsets;
@@ -52,7 +51,7 @@ import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
 import org.apache.pulsar.common.intercept.ManagedLedgerPayloadProcessor;
 import org.apache.pulsar.common.protocol.Commands;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -125,10 +124,12 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
         assertEquals(19, ((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex());
         List<Entry> entryList = cursor.readEntries(numberOfEntries);
         for (int i = 0 ; i < numberOfEntries; i ++) {
+            Entry entry = entryList.get(i);
             BrokerEntryMetadata metadata =
-                    Commands.parseBrokerEntryMetadataIfExist(entryList.get(i).getDataBuffer());
+                    Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
             assertNotNull(metadata);
             assertEquals(metadata.getIndex(), (i + 1) * MOCK_BATCH_SIZE - 1);
+            entry.release();
         }
 
         cursor.close();
@@ -152,7 +153,9 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
         ledger.addEntry("Test Message".getBytes());
         factory.getEntryCacheManager().clear();
         List<Entry> entryList = cursor.readEntries(1);
-        String message = new String(entryList.get(0).getData());
+        Entry entry = entryList.get(0);
+        String message = new String(entry.getData());
+        entry.release();
         Assert.assertTrue(message.equals("Test Message"));
         cursor.close();
         ledger.close();

@@ -64,7 +64,15 @@ public class ConnectionHandler {
          * @apiNote If the returned future is completed exceptionally, reconnectLater will be called.
          */
         CompletableFuture<Void> connectionOpened(ClientCnx cnx);
-        default void connectionFailed(PulsarClientException e) {
+
+        /**
+         *
+         * @param e What error happened when tries to get a connection
+         * @return If "true", the connection handler will retry to get a connection, otherwise, it stops to get a new
+         * connection. If it returns "false", you should release resources that consumers/producers occupied.
+         */
+        default boolean connectionFailed(PulsarClientException e) {
+            return true;
         }
     }
 
@@ -142,22 +150,24 @@ public class ConnectionHandler {
     }
 
     private Void handleConnectionError(Throwable exception) {
+        boolean toRetry = true;
         try {
             log.warn("[{}] [{}] Error connecting to broker: {}",
                     state.topic, state.getHandlerName(), exception.getMessage());
             if (exception instanceof PulsarClientException) {
-                connection.connectionFailed((PulsarClientException) exception);
+                toRetry = connection.connectionFailed((PulsarClientException) exception);
             } else if (exception.getCause() instanceof PulsarClientException) {
-                connection.connectionFailed((PulsarClientException) exception.getCause());
+                toRetry = connection.connectionFailed((PulsarClientException) exception.getCause());
             } else {
-                connection.connectionFailed(new PulsarClientException(exception));
+                toRetry = connection.connectionFailed(new PulsarClientException(exception));
             }
         } catch (Throwable throwable) {
             log.error("[{}] [{}] Unexpected exception after the connection",
                     state.topic, state.getHandlerName(), throwable);
         }
-
-        reconnectLater(exception);
+        if (toRetry) {
+            reconnectLater(exception);
+        }
         return null;
     }
 

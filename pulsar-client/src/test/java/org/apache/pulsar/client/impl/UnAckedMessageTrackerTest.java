@@ -33,6 +33,7 @@ import java.time.Duration;
 import java.util.HashSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
@@ -47,6 +48,7 @@ public class UnAckedMessageTrackerTest  {
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         when(client.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
         when(client.getCnxPool()).thenReturn(connectionPool);
+        @Cleanup("stop")
         Timer timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-timer", Thread.currentThread().isDaemon()),
                 1, TimeUnit.MILLISECONDS);
         when(client.timer()).thenReturn(timer);
@@ -78,8 +80,6 @@ public class UnAckedMessageTrackerTest  {
         assertTrue(tracker.remove(mid));
         assertTrue(tracker.isEmpty());
         assertEquals(tracker.size(), 0);
-
-        timer.stop();
     }
 
     @Test
@@ -88,6 +88,7 @@ public class UnAckedMessageTrackerTest  {
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         when(client.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
         when(client.getCnxPool()).thenReturn(connectionPool);
+        @Cleanup("stop")
         Timer timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-timer", Thread.currentThread().isDaemon()),
                 1, TimeUnit.MILLISECONDS);
         when(client.timer()).thenReturn(timer);
@@ -124,8 +125,6 @@ public class UnAckedMessageTrackerTest  {
 
         // Assert that all chunk message ID are removed from unAckedChunkedMessageIdSequenceMap
         assertEquals(consumer.unAckedChunkedMessageIdSequenceMap.size(), 0);
-
-        timer.stop();
     }
 
 }

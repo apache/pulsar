@@ -50,7 +50,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.annotation.Nullable;
 import lombok.Builder;
 import lombok.Getter;
 import org.apache.commons.lang3.tuple.Pair;
@@ -96,6 +95,7 @@ import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.BackoffBuilder;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -202,6 +202,10 @@ public class PulsarClientImpl implements PulsarClient {
         EventLoopGroup eventLoopGroupReference = null;
         ConnectionPool connectionPoolReference = null;
         try {
+            if (conf == null || isBlank(conf.getServiceUrl())) {
+                throw new PulsarClientException.InvalidConfigurationException("Invalid client configuration");
+            }
+            this.conf = conf;
             this.createdEventLoopGroup = eventLoopGroup == null;
             this.createdCnxPool = connectionPool == null;
             if ((externalExecutorProvider == null) != (internalExecutorProvider == null)) {
@@ -213,10 +217,6 @@ public class PulsarClientImpl implements PulsarClient {
             this.createdLookupProviders = lookupExecutorProvider == null;
             eventLoopGroupReference = eventLoopGroup != null ? eventLoopGroup : getEventLoopGroup(conf);
             this.eventLoopGroup = eventLoopGroupReference;
-            if (conf == null || isBlank(conf.getServiceUrl())) {
-                throw new PulsarClientException.InvalidConfigurationException("Invalid client configuration");
-            }
-            this.conf = conf;
             this.instrumentProvider = new InstrumentProvider(conf.getOpenTelemetry());
             clientClock = conf.getClock();
             conf.getAuthentication().start();

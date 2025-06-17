@@ -16,4 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.stats;
+package org.apache.pulsar.broker.loadbalance.extensions.strategy;
+
+import java.util.Optional;
+import java.util.Set;
+import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
+import org.apache.pulsar.broker.loadbalance.impl.RoundRobinBrokerSelector;
+import org.apache.pulsar.common.naming.ServiceUnitId;
+
+/**
+ * Simple Round Robin Broker Selection Strategy.
+ */
+public class RoundRobinBrokerSelectionStrategy implements BrokerSelectionStrategy {
+    private final RoundRobinBrokerSelector selector = new RoundRobinBrokerSelector();
+
+    @Override
+    public Optional<String> select(Set<String> brokers, ServiceUnitId bundle, LoadManagerContext context) {
+        return selector.selectBroker(brokers, null, null, context.brokerConfiguration());
+    }
+}

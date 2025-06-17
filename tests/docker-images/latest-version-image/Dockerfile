@@ -64,6 +64,9 @@ RUN chmod g+rx /pulsar/examples/python-examples/
 # copy java test examples
 COPY target/java-test-functions.jar /pulsar/examples/
 
+# copy buildtools.jar to /pulsar/lib so that org.apache.pulsar.tests.ExtendedNettyLeakDetector can be used
+COPY target/buildtools.jar /pulsar/lib/
+
 # copy go test examples
 COPY --from=pulsar-function-go /go/bin /pulsar/examples/go-examples
 

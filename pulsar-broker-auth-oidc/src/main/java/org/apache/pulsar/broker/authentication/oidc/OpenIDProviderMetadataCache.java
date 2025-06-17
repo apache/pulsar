@@ -40,11 +40,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nonnull;
 import javax.naming.AuthenticationException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
+import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.asynchttpclient.AsyncHttpClient;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Class used to cache metadata responses from OpenID Providers.
@@ -77,10 +78,12 @@ class OpenIDProviderMetadataCache {
             }
         };
         this.cache = Caffeine.newBuilder()
+                .recordStats()
                 .maximumSize(maxSize)
                 .refreshAfterWrite(refreshAfterWriteSeconds, TimeUnit.SECONDS)
                 .expireAfterWrite(expireAfterSeconds, TimeUnit.SECONDS)
                 .buildAsync(loader);
+        CacheMetricsCollector.CAFFEINE.addCache("open-id-provider-metadata", cache);
     }
 
     /**
@@ -94,7 +97,7 @@ class OpenIDProviderMetadataCache {
      * @return the {@link OpenIDProviderMetadata} for the given issuer. Fail the completable future with
      * AuthenticationException if any exceptions occur while retrieving the metadata.
      */
-    CompletableFuture<OpenIDProviderMetadata> getOpenIDProviderMetadataForIssuer(@Nonnull String issuer) {
+    CompletableFuture<OpenIDProviderMetadata> getOpenIDProviderMetadataForIssuer(@NonNull String issuer) {
         return cache.get(Optional.of(issuer));
     }
 
@@ -221,7 +224,7 @@ class OpenIDProviderMetadataCache {
      * @param isK8s - whether the issuer is represented by the Kubernetes API server. This affects error reporting.
      * @throws AuthenticationException if the issuer does not exactly match the metadata issuer
      */
-    private void verifyIssuer(@Nonnull String issuer, OpenIDProviderMetadata metadata,
+    private void verifyIssuer(@NonNull String issuer, OpenIDProviderMetadata metadata,
                               boolean isK8s) throws AuthenticationException {
         if (!issuer.equals(metadata.getIssuer())) {
             if (isK8s) {

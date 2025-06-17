@@ -52,7 +52,6 @@ import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
@@ -114,6 +113,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1409,9 +1409,26 @@ public class NamespaceService implements AutoCloseable {
     }
 
     /***
-     * Check topic exists( partitioned or non-partitioned ).
+     * Checks whether the topic exists( partitioned or non-partitioned ).
      */
+    public CompletableFuture<TopicExistsInfo> checkTopicExistsAsync(TopicName topic) {
+        return checkTopicExists(topic);
+    }
+
+    /**
+     * Checks whether the topic exists( partitioned or non-partitioned ).
+     *
+     * @deprecated This method uses a misleading synchronous name for an asynchronous operation.
+     *             Use {@link #checkTopicExistsAsync(TopicName topic)} instead.
+     *
+     * @see #checkTopicExistsAsync(TopicName topic)
+     */
+    @Deprecated
     public CompletableFuture<TopicExistsInfo> checkTopicExists(TopicName topic) {
+        // Exclude the heartbeat topic.
+        if (isHeartbeatNamespace(topic)) {
+            return CompletableFuture.completedFuture(TopicExistsInfo.newNonPartitionedTopicExists());
+        }
         // For non-persistent/persistent partitioned topic, which has metadata.
         return pulsar.getBrokerService().fetchPartitionedTopicMetadataAsync(
                         topic.isPartitioned() ? TopicName.get(topic.getPartitionedTopicName()) : topic)

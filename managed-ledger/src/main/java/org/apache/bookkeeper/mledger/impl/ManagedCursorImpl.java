@@ -63,7 +63,6 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
-import javax.annotation.Nullable;
 import lombok.Getter;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
@@ -113,6 +112,7 @@ import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPairConsumer;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet.RangeBoundConsumer;
 import org.apache.pulsar.metadata.api.Stat;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -642,6 +642,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             recoverIndividualDeletedMessages(positionInfo.getIndividualDeletedMessagesList());
         } else if (positionInfo.getIndividualDeletedMessageRangesCount() > 0) {
             List<LongListMap> rangeList = positionInfo.getIndividualDeletedMessageRangesList();
+            lock.writeLock().lock();
             try {
                 Map<Long, long[]> rangeMap = rangeList.stream().collect(Collectors.toMap(LongListMap::getKey,
                         list -> list.getValuesList().stream().mapToLong(i -> i).toArray()));
@@ -664,6 +665,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             } catch (Exception e) {
                 log.warn("[{}]-{} Failed to recover individualDeletedMessages from serialized data", ledger.getName(),
                         name, e);
+            } finally {
+                lock.writeLock().unlock();
             }
         }
     }
@@ -1460,8 +1463,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                                 ledger.getName(), newReadPosition, name);
                     }
                 }
-                callback.resetComplete(newReadPosition);
                 updateLastActive();
+                callback.resetComplete(newReadPosition);
             }
 
             @Override
@@ -2358,7 +2361,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         Position newMarkDeletePosition = null;
 
         lock.writeLock().lock();
-
+        boolean skipMarkDeleteBecauseAckedNothing = false;
         try {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Deleting individual messages at {}. Current status: {} - md-position: {}",
@@ -2387,7 +2390,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     continue;
                 }
                 long[] ackSet = AckSetStateUtil.getAckSetArrayOrNull(position);
-                if (ackSet == null) {
+                if (ackSet == null || ackSet.length == 0) {
                     if (batchDeletedIndexes != null) {
                         batchDeletedIndexes.remove(position);
                     }
@@ -2428,6 +2431,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             if (individualDeletedMessages.isEmpty()) {
                 // No changes to individually deleted messages, so nothing to do at this point
+                skipMarkDeleteBecauseAckedNothing = true;
                 return;
             }
 
@@ -2445,6 +2449,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             if (range == null) {
                 // The set was completely cleaned up now
+                skipMarkDeleteBecauseAckedNothing = true;
                 return;
             }
 
@@ -2471,9 +2476,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             callback.deleteFailed(getManagedLedgerException(e), ctx);
             return;
         } finally {
-            boolean empty = individualDeletedMessages.isEmpty();
             lock.writeLock().unlock();
-            if (empty) {
+            if (skipMarkDeleteBecauseAckedNothing) {
                 callback.deleteComplete(ctx);
             }
         }
@@ -3259,10 +3263,13 @@ public class ManagedCursorImpl implements ManagedCursor {
          * and deserialization error.
          */
         if (getConfig().isUnackedRangesOpenCacheSetEnabled() && getConfig().isPersistIndividualAckAsLongArray()) {
+            lock.readLock().lock();
             try {
                 internalRanges = individualDeletedMessages.toRanges(getConfig().getMaxUnackedRangesToPersist());
             } catch (Exception e) {
                 log.warn("[{}]-{} Failed to serialize individualDeletedMessages", ledger.getName(), name, e);
+            } finally {
+                lock.readLock().unlock();
             }
         }
         if (internalRanges != null && !internalRanges.isEmpty()) {

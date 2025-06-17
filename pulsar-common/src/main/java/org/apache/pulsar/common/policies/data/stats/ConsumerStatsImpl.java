@@ -155,6 +155,7 @@ public class ConsumerStatsImpl implements ConsumerStats {
         this.drainingHashes = stats.drainingHashes;
         this.keyHashRanges = stats.keyHashRanges;
         this.keyHashRangeArrays = stats.keyHashRangeArrays;
+        this.consumerName = stats.consumerName;
         return this;
     }
 

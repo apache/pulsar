@@ -50,7 +50,9 @@ public class ZKReconnectTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testGetPartitionMetadataFailAlsoCanProduceMessage() throws Exception {
-
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
+        }
         pulsarClient = PulsarClient.builder().
                 serviceUrl(pulsar.getBrokerServiceUrl())
                 .build();

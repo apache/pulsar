@@ -52,6 +52,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -3629,29 +3630,37 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         String namespace = "prop-xyz/ns1";
         //test size check.
         admin.namespaces().setRetention(namespace, new RetentionPolicies(-1, 10));
-        admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitSize(9 * 1024 * 1024).build());
+        admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitSize(9 * 1024 * 1024)
+                .retentionPolicy(RetentionPolicy.producer_request_hold).build());
         Assert.expectThrows(PulsarAdminException.PreconditionFailedException.class, () -> {
-            admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitSize(100 * 1024 * 1024).build());
+            admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitSize(100 * 1024 * 1024)
+                    .retentionPolicy(RetentionPolicy.producer_request_hold).build());
         });
 
         //test time check
         admin.namespaces().setRetention(namespace, new RetentionPolicies(10, -1));
-        admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitTime(9 * 60).build());
+        admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitTime(9 * 60)
+                .retentionPolicy(RetentionPolicy.producer_request_hold).build());
         Assert.expectThrows(PulsarAdminException.PreconditionFailedException.class, () -> {
-            admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitTime(11 * 60).build());
+            admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitTime(11 * 60)
+                    .retentionPolicy(RetentionPolicy.producer_request_hold).build());
         });
 
         // test both size and time.
         admin.namespaces().setRetention(namespace, new RetentionPolicies(10, 10));
-        admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitSize(9 * 1024 * 1024).build());
-        admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitTime(9 * 60).build());
+        admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitSize(9 * 1024 * 1024)
+                .retentionPolicy(RetentionPolicy.producer_request_hold).build());
+        admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitTime(9 * 60)
+                .retentionPolicy(RetentionPolicy.producer_request_hold).build());
         admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitSize(9 * 1024 * 1024).
-                limitTime(9 * 60).build());
+                limitTime(9 * 60).retentionPolicy(RetentionPolicy.producer_request_hold).build());
         Assert.expectThrows(PulsarAdminException.PreconditionFailedException.class, () -> {
-            admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitSize(100 * 1024 * 1024).build());
+            admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitSize(100 * 1024 * 1024)
+                    .retentionPolicy(RetentionPolicy.producer_request_hold).build());
         });
         Assert.expectThrows(PulsarAdminException.PreconditionFailedException.class, () -> {
-            admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitTime(100 * 60).build());
+            admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitTime(100 * 60)
+                    .retentionPolicy(RetentionPolicy.producer_request_hold).build());
         });
 
     }
@@ -3685,5 +3694,23 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             // reset config
             pulsar.getConfiguration().setAllowAclChangesOnNonExistentTopics(false);
         }
+    }
+
+    @Test
+    public void testRecreatePartitionedTopicAfterMetadataLoss()
+            throws PulsarAdminException, ExecutionException, InterruptedException {
+        String namespace = "prop-xyz/ns1/";
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://" + namespace + random;
+        admin.topics().createPartitionedTopic(topic, 5);
+
+        // Delete the topic metadata.
+        pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                .deletePartitionedTopicAsync(TopicName.get(topic)).get();
+        List<String> partitionedTopicList = admin.topics().getPartitionedTopicList(namespace);
+        assertThat(partitionedTopicList).doesNotContain(topic);
+
+        // Create the partitioned topic again.
+        admin.topics().createPartitionedTopic(topic, 5);
     }
 }

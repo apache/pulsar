@@ -35,7 +35,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
-import javax.annotation.Nullable;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
@@ -53,6 +52,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.impl.RawMessageImpl;
 import org.apache.pulsar.common.api.proto.MessageIdData;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,13 +84,20 @@ public class CompactedTopicImpl implements CompactedTopic {
 
             // delete the ledger from the old context once the new one is open
             return compactedTopicContext.thenCompose(ctx -> {
-                if (ctx != null && ctx.getLedger() != null && ctx.getLedger().getId() == compactedLedgerId) {
-                    // Print an error log here, which is not expected.
-                    log.error("[__compaction] Using the same compacted ledger to override the old one, which is not"
-                                    + " expected and it may cause a ledger lost error. {} -> {}", compactedLedgerId,
-                            ctx.getLedger().getId());
+                if (previousContext != null) {
+                    previousContext.thenAccept(previousCtx -> {
+                        // Print an error log here, which is not expected.
+                        if (previousCtx != null && previousCtx.getLedger() != null
+                                && previousCtx.getLedger().getId() == compactedLedgerId) {
+                            log.error("[__compaction] Using the same compacted ledger to override the old one, which is"
+                                + " not expected and it may cause a ledger lost error. {} -> {}", compactedLedgerId,
+                                ctx.getLedger().getId());
+                        }
+                    });
+                    return previousContext;
+                } else {
+                    return CompletableFuture.completedFuture(null);
                 }
-                return previousContext != null ? previousContext : CompletableFuture.completedFuture(null);
             });
         }
     }

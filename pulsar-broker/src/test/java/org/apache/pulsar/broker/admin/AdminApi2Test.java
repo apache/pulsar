@@ -227,8 +227,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
         for (String tenant : admin.tenants().getTenants()) {
             for (String namespace : admin.namespaces().getNamespaces(tenant)) {
-                deleteNamespaceWithRetry(namespace, true, admin, pulsar,
-                        mockPulsarSetup.getPulsar());
+                deleteNamespaceWithRetry(namespace, true, admin);
             }
             try {
                 admin.tenants().deleteTenant(tenant, true);
@@ -1868,6 +1867,29 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
     }
 
+
+    @Test
+    public void testPartitionedTopicStatsIncludeConsumerName() throws PulsarClientException, PulsarAdminException {
+        final String topic = "persistent://" + defaultNamespace + "/" + UUID.randomUUID();
+        admin.topics().createPartitionedTopic(topic, 2);
+        final String subName = "sub-name";
+        final String consumerName = "consumer-name";
+
+        @Cleanup
+        final PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
+
+        @Cleanup
+        final Consumer<byte[]> consumer = client.newConsumer()
+                .topic(topic)
+                .subscriptionName(subName)
+                .consumerName(consumerName)
+                .subscribe();
+
+        final TopicStats topicStats = admin.topics().getPartitionedStats(topic, false);
+
+        assertEquals(topicStats.getSubscriptions().get(subName).getConsumers().get(0).getConsumerName(), consumerName);
+    }
+
     @Test
     public void testPreciseBacklogForPartitionedTopic() throws PulsarClientException, PulsarAdminException {
         final String topic = "persistent://" + defaultNamespace + "/precise-back-log-for-partitioned-topic";
@@ -3409,6 +3431,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.namespaces().setRetention(ns, new RetentionPolicies(1800, 10000));
         // set backlog quota.
         admin.namespaces().setBacklogQuota(ns, BacklogQuota.builder()
+                .retentionPolicy(BacklogQuota.RetentionPolicy.producer_request_hold)
                 .limitSize(backlogQuotaLimitSize).limitTime(backlogQuotaLimitTime).build());
         // Verify result.
         Map<BacklogQuota.BacklogQuotaType, BacklogQuota> map = admin.namespaces().getBacklogQuotaMap(ns);
@@ -3417,6 +3440,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         BacklogQuota backlogQuota = map.get(BacklogQuota.BacklogQuotaType.destination_storage);
         assertEquals(backlogQuota.getLimitSize(), backlogQuotaLimitSize);
         assertEquals(backlogQuota.getLimitTime(), backlogQuotaLimitTime);
+        assertEquals(backlogQuota.getPolicy(), BacklogQuota.RetentionPolicy.producer_request_hold);
         // cleanup.
         admin.namespaces().deleteNamespace(ns);
     }
