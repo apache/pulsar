@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import io.netty.channel.Channel;
 import io.netty.util.ReferenceCountUtil;
 import java.util.List;
 import java.util.Optional;
@@ -242,6 +243,13 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
     private boolean isReplicationMarker(OpSendMsg op) {
         return op.msg != null && op.msg.getMessageBuilder().hasMarkerType()
                 && Markers.isReplicationMarker(op.msg.getMessageBuilder().getMarkerType());
+    }
+
+    @Override
+    public void printWarnLogWhenCanNotDetermineDeduplication(Channel channel, long sourceLId, long sourceEId) {
+        log.warn("[{}] producer [id:{}, name:{}, channel: {}] message with source entry {}-{} published by has been"
+            + " dropped because Broker can not determine whether is duplicate or not",
+            topic, producerId, producerName, channel, sourceLId, sourceEId);
     }
 
     private boolean isReplicationMarker(long highestSeq) {
