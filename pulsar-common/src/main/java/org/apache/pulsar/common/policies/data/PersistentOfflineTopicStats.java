@@ -23,19 +23,27 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import lombok.Getter;
+import lombok.Setter;
 
 /**
  * This object is populated using meta data in zookeeper without actually bringing the topic online.
  */
 public class PersistentOfflineTopicStats {
     /** Space used to store the messages for the topic (bytes). */
-    public long storageSize;
+    @Getter
+    @Setter
+    private long storageSize;
 
     /** Total number of messages. */
-    public long totalMessages;
+    @Getter
+    @Setter
+    private long totalMessages;
 
     /** Total backlog. */
-    public long messageBacklog;
+    @Getter
+    @Setter
+    private long messageBacklog;
 
     /** Broker host where this stat was generated. */
     public final String brokerName;

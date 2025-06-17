@@ -93,7 +93,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         }
         // calculate rates and due to throttling rate should be < total per-second
         prod.updateRates();
-        double rateIn = prod.getStats().msgRateIn;
+        double rateIn = prod.getStats().getMsgRateIn();
         assertTrue(rateIn < total);
 
         // disable throttling
@@ -107,7 +107,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         }
 
         prod.updateRates();
-        rateIn = prod.getStats().msgRateIn;
+        rateIn = prod.getStats().getMsgRateIn();
         assertTrue(rateIn > total);
 
         producer.close();
@@ -145,7 +145,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         }
         // calculate rates and due to throttling rate should be < total per-second
         prod.updateRates();
-        double rateIn = prod.getStats().msgRateIn;
+        double rateIn = prod.getStats().getMsgRateIn();
         assertTrue(rateIn < total);
 
         // disable throttling
@@ -159,7 +159,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         }
 
         prod.updateRates();
-        rateIn = prod.getStats().msgRateIn;
+        rateIn = prod.getStats().getMsgRateIn();
         assertTrue(rateIn > total);
 
         producer.close();
@@ -207,7 +207,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         }
         // calculate rates and due to throttling rate should be < total per-second
         prod.updateRates();
-        double rateIn = prod.getStats().msgRateIn;
+        double rateIn = prod.getStats().getMsgRateIn();
         log.info("1-st rate in: {}, total: {} ", rateIn, total);
         assertTrue(rateIn < total);
 
@@ -222,7 +222,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         }
 
         prod.updateRates();
-        rateIn = prod.getStats().msgRateIn;
+        rateIn = prod.getStats().getMsgRateIn();
         log.info("2-nd rate in: {}, total: {} ", rateIn, total);
         assertTrue(rateIn > total);
 
@@ -271,7 +271,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         }
         // calculate rates and due to throttling rate should be < total per-second
         prod.updateRates();
-        double rateIn = prod.getStats().msgThroughputIn;
+        double rateIn = prod.getStats().getMsgThroughputIn();
         log.info("1-st byte rate in: {}, total: {} ", rateIn, numMessage * msgBytes);
         assertTrue(rateIn < numMessage * msgBytes);
 
@@ -291,7 +291,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         }
 
         prod.updateRates();
-        rateIn = prod.getStats().msgThroughputIn;
+        rateIn = prod.getStats().getMsgThroughputIn();
         log.info("2-nd byte rate in: {}, total: {} ", rateIn, numMessage * msgBytes);
         assertTrue(rateIn > numMessage * msgBytes);
 
@@ -349,7 +349,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         }
         // calculate rates and due to throttling rate should be < total per-second
         prod.updateRates();
-        double rateIn = prod.getStats().msgThroughputIn;
+        double rateIn = prod.getStats().getMsgThroughputIn();
         log.info("1-st byte rate in 1: {}, total: {} ", rateIn, numMessage * msgBytes);
         assertTrue(rateIn < numMessage * msgBytes);
 
@@ -395,7 +395,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
                     iProducer.send(new byte[msgBytes]);
                 }
                 iProd.updateRates();
-                topicsRateIn.addAndGet(iProd.getStats().msgThroughputIn);
+                topicsRateIn.addAndGet(iProd.getStats().getMsgThroughputIn());
                 latch.countDown();
                 return null;
             });
@@ -417,7 +417,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         }
         // calculate rates and due to use broker throttling, expected rateIn bigger than topic throttling.
         prod.updateRates();
-        double rateIn2 = prod.getStats().msgThroughputIn;
+        double rateIn2 = prod.getStats().getMsgThroughputIn();
         log.info("3-rd byte rate in: {}, rate in 2: {},  total: {} ", rateIn, rateIn2, numMessage * msgBytes);
         assertTrue(rateIn < rateIn2);
         assertTrue(rateIn2 < numMessage * msgBytes);
@@ -438,7 +438,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         }
 
         prod.updateRates();
-        rateIn = prod.getStats().msgThroughputIn;
+        rateIn = prod.getStats().getMsgThroughputIn();
         log.info("4-th byte rate in: {}, total: {} ", rateIn, numMessage * msgBytes);
         assertTrue(rateIn > numMessage * msgBytes);
     }

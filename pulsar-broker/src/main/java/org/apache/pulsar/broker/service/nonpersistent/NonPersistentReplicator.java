@@ -141,23 +141,23 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
     public void updateRates() {
         msgOut.calculateRate();
         msgDrop.calculateRate();
-        stats.msgRateOut = msgOut.getRate();
-        stats.msgThroughputOut = msgOut.getValueRate();
-        stats.msgDropRate = msgDrop.getRate();
+        stats.setMsgRateOut(msgOut.getRate());
+        stats.setMsgThroughputOut(msgOut.getValueRate());
+        stats.setMsgDropRate(msgDrop.getRate());
     }
 
     @Override
     public NonPersistentReplicatorStatsImpl computeStats() {
         ProducerImpl producer = this.producer;
-        stats.connected = isConnected();
-        stats.replicationDelayInSeconds = TimeUnit.MILLISECONDS.toSeconds(getReplicationDelayMs());
+        stats.setConnected(isConnected());
+        stats.setReplicationDelayInSeconds(TimeUnit.MILLISECONDS.toSeconds(getReplicationDelayMs()));
 
         if (producer != null) {
-            stats.outboundConnection = producer.getConnectionId();
-            stats.outboundConnectedSince = producer.getConnectedSince();
+            stats.setOutboundConnection(producer.getConnectionId());
+            stats.setOutboundConnectedSince(producer.getConnectedSince());
         } else {
-            stats.outboundConnection = null;
-            stats.outboundConnectedSince = null;
+            stats.setOutboundConnection(null);
+            stats.setOutboundConnectedSince(null);
         }
 
         return stats;

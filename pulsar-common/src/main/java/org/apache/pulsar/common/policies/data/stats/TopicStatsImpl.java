@@ -49,52 +49,52 @@ public class TopicStatsImpl implements TopicStats {
     private int count;
 
     /** Total rate of messages published on the topic (msg/s). */
-    public double msgRateIn;
+    private double msgRateIn;
 
     /** Total throughput of messages published on the topic (byte/s). */
-    public double msgThroughputIn;
+    private double msgThroughputIn;
 
     /** Total rate of messages dispatched for the topic (msg/s). */
-    public double msgRateOut;
+    private double msgRateOut;
 
     /** Total throughput of messages dispatched for the topic (byte/s). */
-    public double msgThroughputOut;
+    private double msgThroughputOut;
 
     /** Total bytes published to the topic (bytes). */
-    public long bytesInCounter;
+    private long bytesInCounter;
 
     /** Total messages published to the topic (msg). */
-    public long msgInCounter;
+    private long msgInCounter;
 
     /** Total bytes published to the system topic (bytes). */
-    public long systemTopicBytesInCounter;
+    private long systemTopicBytesInCounter;
 
     /** Total bytes delivered to consumer (bytes). */
-    public long bytesOutCounter;
+    private long bytesOutCounter;
 
     /** Total messages delivered to consumer (msg). */
-    public long msgOutCounter;
+    private long msgOutCounter;
 
     /** Total bytes delivered to internal cursors. */
-    public long bytesOutInternalCounter;
+    private long bytesOutInternalCounter;
 
     /** Average size of published messages (bytes). */
-    public double averageMsgSize;
+    private double averageMsgSize;
 
     /** Topic has chunked message published on it. */
-    public boolean msgChunkPublished;
+    private boolean msgChunkPublished;
 
     /** Space used to store the messages for the topic (bytes). */
-    public long storageSize;
+    private long storageSize;
 
     /** Get estimated total unconsumed or backlog size in bytes. */
-    public long backlogSize;
+    private long backlogSize;
 
     /** the size in bytes of the topic backlog quota. */
-    public long backlogQuotaLimitSize;
+    private long backlogQuotaLimitSize;
 
     /** the topic backlog age quota, in seconds. */
-    public long backlogQuotaLimitTime;
+    private long backlogQuotaLimitTime;
 
     /**
      * Age of oldest unacknowledged message, as recorded in last backlog quota check interval.
@@ -104,7 +104,7 @@ public class TopicStatsImpl implements TopicStats {
      * seen in the last check.
      * </p>
      */
-    public long oldestBacklogMessageAgeSeconds;
+    private long oldestBacklogMessageAgeSeconds;
 
     /**
      * The subscription name containing oldest unacknowledged message as recorded in last backlog quota check.
@@ -113,29 +113,29 @@ public class TopicStatsImpl implements TopicStats {
      * quota check interval, hence it represents the value seen in the last check.
      * </p>
      */
-    public String oldestBacklogMessageSubscriptionName;
+    private String oldestBacklogMessageSubscriptionName;
 
     /** The number of times the publishing rate limit was triggered. */
-    public long publishRateLimitedTimes;
+    private long publishRateLimitedTimes;
 
     /** Get the publish time of the earliest message over all the backlogs. */
-    public long earliestMsgPublishTimeInBacklogs;
+    private long earliestMsgPublishTimeInBacklogs;
 
     /** Space used to store the offloaded messages for the topic/. */
-    public long offloadedStorageSize;
+    private long offloadedStorageSize;
 
     /** record last successful offloaded ledgerId. If no offload ledger, the value should be 0 */
-    public long lastOffloadLedgerId;
+    private long lastOffloadLedgerId;
 
     /** record last successful offloaded timestamp. If no successful offload, the value should be 0 */
-    public long lastOffloadSuccessTimeStamp;
+    private long lastOffloadSuccessTimeStamp;
 
     /** record last failed offloaded timestamp. If no failed offload, the value should be 0 */
-    public long lastOffloadFailureTimeStamp;
+    private long lastOffloadFailureTimeStamp;
 
-    public long ongoingTxnCount;
-    public long abortedTxnCount;
-    public long committedTxnCount;
+    private long ongoingTxnCount;
+    private long abortedTxnCount;
+    private long committedTxnCount;
 
     /** List of connected publishers on this topic w/ their stats. */
     @Getter(AccessLevel.NONE)
@@ -146,7 +146,7 @@ public class TopicStatsImpl implements TopicStats {
     @Setter(AccessLevel.NONE)
     private Map<String, PublisherStatsImpl> publishersMap;
 
-    public int waitingPublishers;
+    private int waitingPublishers;
 
     /** Map of subscriptions with their individual statistics. */
     @Getter(AccessLevel.NONE)
@@ -156,29 +156,29 @@ public class TopicStatsImpl implements TopicStats {
     @Getter(AccessLevel.NONE)
     public Map<String, ReplicatorStatsImpl> replication;
 
-    public String deduplicationStatus;
+    private String deduplicationStatus;
 
     /** The topic epoch or empty if not set. */
-    public Long topicEpoch;
+    private Long topicEpoch;
 
     /** The number of non-contiguous deleted messages ranges. */
-    public int nonContiguousDeletedMessagesRanges;
+    private int nonContiguousDeletedMessagesRanges;
 
     /** The serialized size of non-contiguous deleted messages ranges. */
-    public int nonContiguousDeletedMessagesRangesSerializedSize;
+    private int nonContiguousDeletedMessagesRangesSerializedSize;
 
     /** The size of DelayedDeliveryTracer memory usage. */
-    public long delayedMessageIndexSizeInBytes;
+    private long delayedMessageIndexSizeInBytes;
 
     /** Map of bucket delayed index statistics. */
     @JsonIgnore
     public Map<String, TopicMetricBean> bucketDelayedIndexStats;
 
     /** The compaction stats. */
-    public CompactionStatsImpl compaction;
+    private CompactionStatsImpl compaction;
 
     /** The broker that owns this topic. */
-    public String ownerBroker;
+    private String ownerBroker;
 
     public List<? extends PublisherStats> getPublishers() {
         return Stream.concat(publishers.stream().sorted(

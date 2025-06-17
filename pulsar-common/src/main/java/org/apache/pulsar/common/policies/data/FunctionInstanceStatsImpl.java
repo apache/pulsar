@@ -30,7 +30,7 @@ import lombok.Data;
 @JsonPropertyOrder({ "instanceId", "metrics" })
 public class FunctionInstanceStatsImpl implements FunctionInstanceStats {
     /** Instance Id of function instance. **/
-    public int instanceId;
+    private int instanceId;
 
-    public FunctionInstanceStatsData metrics = new FunctionInstanceStatsDataImpl();
+    private FunctionInstanceStatsData metrics = new FunctionInstanceStatsDataImpl();
 }

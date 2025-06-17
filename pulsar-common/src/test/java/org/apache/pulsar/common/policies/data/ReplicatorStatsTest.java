@@ -38,22 +38,22 @@ public class ReplicatorStatsTest {
     @Test
     public void testReplicatorStatsAdd() {
         ReplicatorStatsImpl replicatorStats = new ReplicatorStatsImpl();
-        replicatorStats.msgRateIn = 5;
-        replicatorStats.msgThroughputIn = 10;
-        replicatorStats.msgRateOut = 5;
-        replicatorStats.msgThroughputOut = 10;
-        replicatorStats.msgRateExpired = 3;
-        replicatorStats.replicationBacklog = 4;
-        replicatorStats.connected = true;
-        replicatorStats.replicationDelayInSeconds = 3;
+        replicatorStats.setMsgRateIn(5);
+        replicatorStats.setMsgThroughputIn(10);
+        replicatorStats.setMsgRateOut(5);
+        replicatorStats.setMsgThroughputOut(10);
+        replicatorStats.setMsgRateExpired(3);
+        replicatorStats.setReplicationBacklog(4);
+        replicatorStats.setConnected(true);
+        replicatorStats.setReplicationDelayInSeconds(3);
         replicatorStats.add(replicatorStats);
-        Assert.assertEquals(replicatorStats.msgRateIn, 10.0);
-        Assert.assertEquals(replicatorStats.msgThroughputIn, 20.0);
-        Assert.assertEquals(replicatorStats.msgRateOut, 10.0);
-        Assert.assertEquals(replicatorStats.msgThroughputOut, 20.0);
-        Assert.assertEquals(replicatorStats.msgRateExpired, 6.0);
-        Assert.assertEquals(replicatorStats.replicationBacklog, 8);
-        Assert.assertTrue(replicatorStats.connected);
-        Assert.assertEquals(replicatorStats.replicationDelayInSeconds, 3);
+        Assert.assertEquals(replicatorStats.getMsgRateIn(), 10.0);
+        Assert.assertEquals(replicatorStats.getMsgThroughputIn(), 20.0);
+        Assert.assertEquals(replicatorStats.getMsgRateOut(), 10.0);
+        Assert.assertEquals(replicatorStats.getMsgThroughputOut(), 20.0);
+        Assert.assertEquals(replicatorStats.getMsgRateExpired(), 6.0);
+        Assert.assertEquals(replicatorStats.getReplicationBacklog(), 8);
+        Assert.assertTrue(replicatorStats.isConnected());
+        Assert.assertEquals(replicatorStats.getReplicationDelayInSeconds(), 3);
     }
 }

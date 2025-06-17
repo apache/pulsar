@@ -38,15 +38,15 @@ public class FunctionInstanceStatsDataImpl
         extends FunctionInstanceStatsDataBaseImpl
         implements FunctionInstanceStatsData {
     @JsonProperty("1min")
-    public FunctionInstanceStatsDataBaseImpl oneMin = new FunctionInstanceStatsDataBaseImpl();
+    private FunctionInstanceStatsDataBaseImpl oneMin = new FunctionInstanceStatsDataBaseImpl();
 
     /**
      * Timestamp of when the function was last invoked for instance.
      **/
-    public Long lastInvocation;
+    private Long lastInvocation;
 
     /**
      * Map of user defined metrics.
      **/
-    public Map<String, Double> userMetrics = new HashMap<>();
+    private Map<String, Double> userMetrics = new HashMap<>();
 }

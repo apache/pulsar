@@ -32,36 +32,36 @@ import org.apache.pulsar.common.util.DateFormatter;
 @Data
 public class ConsumerStatsImpl implements ConsumerStats {
     /** the app id. */
-    public String appId;
+    private String appId;
 
     /** Total rate of messages delivered to the consumer (msg/s). */
-    public double msgRateOut;
+    private double msgRateOut;
 
     /** Total throughput delivered to the consumer (bytes/s). */
-    public double msgThroughputOut;
+    private double msgThroughputOut;
 
     /** Total bytes delivered to consumer (bytes). */
-    public long bytesOutCounter;
+    private long bytesOutCounter;
 
     /** Total messages delivered to consumer (msg). */
-    public long msgOutCounter;
+    private long msgOutCounter;
 
     /** Total rate of messages redelivered by this consumer (msg/s). */
-    public double msgRateRedeliver;
+    private double msgRateRedeliver;
 
     /**
      * Total rate of message ack (msg/s).
      */
-    public double messageAckRate;
+    private double messageAckRate;
 
     /** The total rate of chunked messages delivered to this consumer. */
-    public double chunkedMessageRate;
+    private double chunkedMessageRate;
 
     /** Name of the consumer. */
-    public String consumerName;
+    private String consumerName;
 
     /** Number of available message permits for the consumer. */
-    public int availablePermits;
+    private int availablePermits;
 
     /**
      * Number of unacknowledged messages for the consumer, where an unacknowledged message is one that has been
@@ -70,32 +70,32 @@ public class ConsumerStatsImpl implements ConsumerStats {
      * {@link org.apache.pulsar.client.api.SubscriptionType#Shared} or
      * {@link org.apache.pulsar.client.api.SubscriptionType#Key_Shared}.
      */
-    public int unackedMessages;
+    private int unackedMessages;
 
     /** Number of average messages per entry for the consumer consumed. */
-    public int avgMessagesPerEntry;
+    private int avgMessagesPerEntry;
 
     /** Flag to verify if consumer is blocked due to reaching threshold of unacked messages. */
-    public boolean blockedConsumerOnUnackedMsgs;
+    private boolean blockedConsumerOnUnackedMsgs;
 
     /** The read position of the cursor when the consumer joining. */
-    public String readPositionWhenJoining;
+    private String readPositionWhenJoining;
 
     /**
      * For Key_Shared AUTO_SPLIT ordered subscriptions: The current number of hashes in the draining state.
      */
-    public int drainingHashesCount;
+    private int drainingHashesCount;
 
     /**
      * For Key_Shared AUTO_SPLIT ordered subscriptions: The total number of hashes cleared from the draining state for
      * the consumer.
      */
-    public long drainingHashesClearedTotal;
+    private long drainingHashesClearedTotal;
 
     /**
      * For Key_Shared AUTO_SPLIT ordered subscriptions: The total number of unacked messages for all draining hashes.
      */
-    public int drainingHashesUnackedMessages;
+    private int drainingHashesUnackedMessages;
 
     /**
      * For Key_Shared subscription in AUTO_SPLIT ordered mode:
@@ -103,7 +103,7 @@ public class ConsumerStatsImpl implements ConsumerStats {
      *
      * @return a list of draining hashes for this consumer
      */
-    public List<DrainingHash> drainingHashes;
+    private List<DrainingHash> drainingHashes;
 
     /** Address of this consumer. */
     private String address;
@@ -114,28 +114,28 @@ public class ConsumerStatsImpl implements ConsumerStats {
 
     // ignore this json field to skip from stats in future release. replaced with readable #getLastAckedTime().
     @Deprecated
-    public long lastAckedTimestamp;
+    private long lastAckedTimestamp;
     // ignore this json field to skip from stats in future release. replaced with readable #getLastConsumedTime().
     @Deprecated
-    public long lastConsumedTimestamp;
+    private long lastConsumedTimestamp;
 
-    public long lastConsumedFlowTimestamp;
+    private long lastConsumedFlowTimestamp;
 
     /**
      * Hash ranges assigned to this consumer if in Key_Shared subscription mode.
      * This format and field is used when `subscriptionKeySharedUseClassicPersistentImplementation` is set to `false`
      * (default).
      */
-    public List<int[]> keyHashRangeArrays;
+    private List<int[]> keyHashRangeArrays;
 
     /**
      * Hash ranges assigned to this consumer if in Key_Shared subscription mode.
      * This format and field is used when `subscriptionKeySharedUseClassicPersistentImplementation` is set to `true`.
      */
-    public List<String> keyHashRanges;
+    private List<String> keyHashRanges;
 
     /** Metadata (key/value strings) associated with this consumer. */
-    public Map<String, String> metadata;
+    private Map<String, String> metadata;
 
     public ConsumerStatsImpl add(ConsumerStatsImpl stats) {
         Objects.requireNonNull(stats);

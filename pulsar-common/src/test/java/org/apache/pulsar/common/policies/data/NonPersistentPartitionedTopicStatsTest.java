@@ -33,24 +33,24 @@ public class NonPersistentPartitionedTopicStatsTest {
     @Test
     public void testPartitionedTopicStats() {
         NonPersistentPartitionedTopicStatsImpl nonPersistentPartitionedTopicStats = new NonPersistentPartitionedTopicStatsImpl();
-        nonPersistentPartitionedTopicStats.msgRateIn = 1;
-        nonPersistentPartitionedTopicStats.msgThroughputIn = 1;
-        nonPersistentPartitionedTopicStats.msgRateOut = 1;
-        nonPersistentPartitionedTopicStats.msgThroughputOut = 1;
-        nonPersistentPartitionedTopicStats.averageMsgSize = 1;
-        nonPersistentPartitionedTopicStats.storageSize = 1;
+        nonPersistentPartitionedTopicStats.setMsgRateIn(1);
+        nonPersistentPartitionedTopicStats.setMsgThroughputIn(1);
+        nonPersistentPartitionedTopicStats.setMsgRateOut(1);
+        nonPersistentPartitionedTopicStats.setMsgThroughputOut(1);
+        nonPersistentPartitionedTopicStats.setAverageMsgSize(1);
+        nonPersistentPartitionedTopicStats.setStorageSize(1);
         nonPersistentPartitionedTopicStats.getPublishers().add(new NonPersistentPublisherStatsImpl());
         nonPersistentPartitionedTopicStats.getSubscriptions().put("test_ns", new NonPersistentSubscriptionStatsImpl());
         nonPersistentPartitionedTopicStats.getReplication().put("test_ns", new NonPersistentReplicatorStatsImpl());
         nonPersistentPartitionedTopicStats.metadata.partitions = 1;
         nonPersistentPartitionedTopicStats.partitions.put("test", nonPersistentPartitionedTopicStats);
         nonPersistentPartitionedTopicStats.reset();
-        assertEquals(nonPersistentPartitionedTopicStats.msgRateIn, 0.0);
-        assertEquals(nonPersistentPartitionedTopicStats.msgThroughputIn, 0.0);
-        assertEquals(nonPersistentPartitionedTopicStats.msgRateOut, 0.0);
-        assertEquals(nonPersistentPartitionedTopicStats.msgThroughputOut, 0.0);
-        assertEquals(nonPersistentPartitionedTopicStats.averageMsgSize, 0.0);
-        assertEquals(nonPersistentPartitionedTopicStats.storageSize, 0);
+        assertEquals(nonPersistentPartitionedTopicStats.getMsgRateIn(), 0.0);
+        assertEquals(nonPersistentPartitionedTopicStats.getMsgThroughputIn(), 0.0);
+        assertEquals(nonPersistentPartitionedTopicStats.getMsgRateOut(), 0.0);
+        assertEquals(nonPersistentPartitionedTopicStats.getMsgThroughputOut(), 0.0);
+        assertEquals(nonPersistentPartitionedTopicStats.getAverageMsgSize(), 0.0);
+        assertEquals(nonPersistentPartitionedTopicStats.getStorageSize(), 0);
         assertEquals(nonPersistentPartitionedTopicStats.getPublishers().size(), 0);
         assertEquals(nonPersistentPartitionedTopicStats.getSubscriptions().size(), 0);
         assertEquals(nonPersistentPartitionedTopicStats.getReplication().size(), 0);

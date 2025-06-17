@@ -80,7 +80,7 @@ public class LookupDataTest {
         final SystemResourceUsage simpleLmSystemResourceUsage = new SystemResourceUsage();
         final double usage = 55.0;
         final ResourceUsage resource = new ResourceUsage(usage, 0);
-        simpleLmSystemResourceUsage.bandwidthIn = resource;
+        simpleLmSystemResourceUsage.setBandwidthIn(resource);
 
         LoadReport simpleReport = getSimpleLoadManagerLoadReport(simpleLmBrokerUrl, simpleLmReportName,
                 simpleLmSystemResourceUsage);
@@ -95,7 +95,7 @@ public class LookupDataTest {
         assertEquals(simpleLoadReport.getWebServiceUrl(), simpleLmBrokerUrl);
         assertTrue(simpleLoadReport instanceof LoadReport);
         assertEquals(((LoadReport) simpleLoadReport).getName(), simpleLmReportName);
-        assertEquals(((LoadReport) simpleLoadReport).getSystemResourceUsage().bandwidthIn.usage, usage);
+        assertEquals(((LoadReport) simpleLoadReport).getSystemResourceUsage().getBandwidthIn().usage, usage);
 
         assertEquals(modularLoadReport.getWebServiceUrl(), modularLmBrokerUrl);
         assertTrue(modularLoadReport instanceof LocalBrokerData);
