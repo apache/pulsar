@@ -2013,9 +2013,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                             }
 
                                     });
-                                    // TODO regarding the topic level policies, it will be deleted at a seperate PR.
-                                    //   Because there is an issue related to Global policies has not been solved so
-                                    //   far.
+                                    // There are only one cases that will remove local clusters: using global metadata
+                                    // store, namespaces will share policies cross multi clusters, including
+                                    // "replicated clusters" and "partitioned topic metadata", we can hardly delete
+                                    // partitioned topic from one cluster and keep it exists in another. Removing
+                                    // local cluster from the namespace level "replicated clusters" can do this.
+                                    // TODO: there is no way to delete a specify partitioned topic if users have enabled
+                                    //  Geo-Replication with a global metadata store, a PIP is needed.
+                                    // Since the system topic "__change_events" under the namespace will also be
+                                    // deleted, we can skip to delete topic-level policies.
                                 }
                             }
                         });
