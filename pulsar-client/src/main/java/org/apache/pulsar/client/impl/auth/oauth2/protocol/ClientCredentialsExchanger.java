@@ -33,4 +33,16 @@ public interface ClientCredentialsExchanger extends AutoCloseable {
      */
     TokenResult exchangeClientCredentials(ClientCredentialsExchangeRequest req)
             throws TokenExchangeException, IOException;
+
+    /**
+     * Requests an exchange of client credentials for a JWT Bearer token.
+     * @param req the request details.
+     * @return an access token.
+     * @throws TokenExchangeException if the OAuth server returned a detailed error.
+     * @throws IOException if a general IO error occurred.
+     */
+    default TokenResult exchangeClientCredentials(JwtBearerExchangeRequest req)
+            throws TokenExchangeException, IOException {
+        throw new UnsupportedOperationException("JWT Bearer exchange is not supported by this exchanger");
+    }
 }

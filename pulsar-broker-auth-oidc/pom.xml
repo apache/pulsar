@@ -34,10 +34,6 @@
   <description>Open ID Connect authentication plugin for broker</description>
   <name>Pulsar Broker Auth OIDC</name>
 
-  <properties>
-    <jsonwebtoken.version>0.11.5</jsonwebtoken.version>
-  </properties>
-
   <dependencies>
 
     <dependency>
@@ -106,13 +102,11 @@
     <dependency>
       <groupId>io.jsonwebtoken</groupId>
       <artifactId>jjwt-api</artifactId>
-      <version>${jsonwebtoken.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>io.jsonwebtoken</groupId>
       <artifactId>jjwt-impl</artifactId>
-      <version>${jsonwebtoken.version}</version>
       <scope>test</scope>
     </dependency>
 

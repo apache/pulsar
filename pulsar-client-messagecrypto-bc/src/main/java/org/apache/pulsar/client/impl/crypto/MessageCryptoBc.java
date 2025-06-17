@@ -238,7 +238,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         return publicKey;
     }
 
-    private PrivateKey loadPrivateKey(byte[] keyBytes) throws Exception {
+    public static PrivateKey loadPrivateKey(byte[] keyBytes) throws Exception {
 
         Reader keyReader = new StringReader(new String(keyBytes));
         PrivateKey privateKey = null;
