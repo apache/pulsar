@@ -235,7 +235,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
     }
 
     /**
-     * Since {@link NonPersistentReplicator} never implement the rate limitation
+     * Since {@link NonPersistentReplicator} never implement the rate limitation, the config
+     * "replicationProducerQueueSize" should not affect {@link NonPersistentReplicator}.
      */
     @Test
     public void testNonPersistentReplicatorQueueSize() throws Exception {
@@ -258,8 +259,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         assertEquals(nonPersistentReplicator.getProducer().getConfiguration().getMaxPendingMessages(), 2000);
         // cleanup.
         producer1.close();
-        admin1.brokers().deleteDynamicConfiguration("replicationProducerQueueSize");
-        assertEquals(pulsar1.getConfig().getReplicationProducerQueueSize(), 1000);
+        admin1.brokers().updateDynamicConfiguration("replicationProducerQueueSize", "1000");
     }
 
     @Test(timeOut = 45 * 1000)
