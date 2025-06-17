@@ -23,8 +23,10 @@ import java.lang.reflect.Method;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -88,6 +90,7 @@ public class ReplicatorRemoveClusterTest extends ReplicatorTestBase {
                 .build();
 
         final String topicName = "persistent://pulsar1/ns1/testRemoveClusterFromNamespace-" + UUID.randomUUID();
+        admin1.topics().createPartitionedTopic(topicName, 1);
 
         Producer<byte[]> producer = client.newProducer()
                 .topic(topicName)
@@ -98,8 +101,11 @@ public class ReplicatorRemoveClusterTest extends ReplicatorTestBase {
         producer.close();
         client.close();
 
-        Replicator replicator = pulsar1.getBrokerService().getTopicReference(topicName)
+        Replicator replicator = pulsar1.getBrokerService()
+                .getTopicReference(TopicName.get(topicName).getPartition(0).toString())
                 .get().getReplicators().get("r3");
+
+        PulsarAdmin replicatorAdmin = pulsar1.getBrokerService().getClusterAdmins().get("r3");
 
         Awaitility.await().untilAsserted(() -> Assert.assertTrue(replicator.isConnected()));
 
@@ -110,5 +116,13 @@ public class ReplicatorRemoveClusterTest extends ReplicatorTestBase {
 
         Awaitility.await().untilAsserted(() -> Assert.assertNull(
                 pulsar1.getBrokerService().getReplicationClients().get("r3")));
+        Awaitility.await().untilAsserted(() -> Assert.assertNull(
+                pulsar1.getBrokerService().getClusterAdmins().get("r3")));
+        try {
+            replicatorAdmin.clusters().getClusters();
+            Assert.fail("Should get an error that pulsarAdmin has been closed");
+        } catch (Exception e) {
+            Assert.assertTrue(e.getMessage().contains("has been closed"));
+        }
     }
 }
