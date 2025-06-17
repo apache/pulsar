@@ -246,7 +246,7 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
     }
 
     @Override
-    public void printWarnLogThatCanNotDetermineDeduplication(Channel channel, long sourceLId, long sourceEId) {
+    public void printWarnLogWhenCanNotDetermineDeduplication(Channel channel, long sourceLId, long sourceEId) {
         log.warn("[{}] producer [id:{}, name:{}, channel: {}] message with source entry {}-{} published by has been"
             + " dropped because Broker can not determine whether is duplicate or not",
             topic, producerId, producerName, channel, sourceLId, sourceEId);
