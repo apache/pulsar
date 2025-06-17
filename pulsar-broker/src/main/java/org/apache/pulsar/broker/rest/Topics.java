@@ -104,7 +104,8 @@ public class Topics extends TopicsBase {
 
     @POST
     @Path("/non-persistent/{tenant}/{namespace}/{topic}")
-    @ApiOperation(value = "Produce message to a non-persistent topic.", response = String.class, responseContainer = "List")
+    @ApiOperation(value = "Produce message to a non-persistent topic.", response = String.class,
+            responseContainer = "List")
     @ApiResponses(value = {
             @ApiResponse(code = 401, message = "Client is not authorized to perform operation"),
             @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
