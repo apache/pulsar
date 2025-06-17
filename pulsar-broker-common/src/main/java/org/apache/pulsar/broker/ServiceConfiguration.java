@@ -920,6 +920,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        doc = "The maximum number of pending write bytes of per connection when the connection is unwritable because"
+            + " the client can not handle too many response. Using a value of -1, is disabling it."
+    )
+    private int connectionMaxPendingWriteBytes = -1;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
         doc = "The maximum number of connections per IP. If it exceeds, new connections are rejected."
     )
     private int brokerMaxConnectionsPerIp = 0;
