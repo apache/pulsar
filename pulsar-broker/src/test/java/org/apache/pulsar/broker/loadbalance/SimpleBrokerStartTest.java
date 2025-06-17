@@ -18,15 +18,12 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 import com.google.common.io.Resources;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Optional;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
