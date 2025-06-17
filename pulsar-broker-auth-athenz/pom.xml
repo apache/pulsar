@@ -32,6 +32,7 @@
   <artifactId>pulsar-broker-auth-athenz</artifactId>
   <packaging>jar</packaging>
   <description>Athenz authentication plugin for broker</description>
+  <name>Pulsar Broker Auth Athenz</name>
 
   <dependencies>
 
