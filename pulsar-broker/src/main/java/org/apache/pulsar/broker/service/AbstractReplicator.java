@@ -60,7 +60,8 @@ public abstract class AbstractReplicator implements Replicator {
     protected String replicatorId;
     @Getter
     protected final Topic localTopic;
-
+    @VisibleForTesting
+    @Getter
     protected volatile ProducerImpl producer;
     public static final String REPL_PRODUCER_NAME_DELIMITER = "-->";
 

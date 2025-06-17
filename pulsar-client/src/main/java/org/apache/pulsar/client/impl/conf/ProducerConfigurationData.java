@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl.conf;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import io.swagger.annotations.ApiModelProperty;
 import java.io.Serializable;
@@ -30,6 +31,7 @@ import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.BatcherBuilder;
@@ -94,6 +96,8 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
                     + "By default, when the queue is full, all calls to the `Send` and `SendAsync` methods fail"
                     + " **unless** you set `BlockIfQueueFull` to `true`."
     )
+    @VisibleForTesting
+    @Getter
     private int maxPendingMessages = DEFAULT_MAX_PENDING_MESSAGES;
 
     @ApiModelProperty(

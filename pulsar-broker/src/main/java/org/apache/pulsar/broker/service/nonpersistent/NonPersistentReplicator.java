@@ -54,8 +54,8 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
         super(localCluster, topic, remoteCluster, topic.getName(), topic.getReplicatorPrefix(), brokerService,
                 replicationClient);
 
+        producerBuilder.maxPendingMessages(2000);
         producerBuilder.blockIfQueueFull(false);
-
         startProducer();
     }
 
