@@ -32,6 +32,7 @@
   <artifactId>pulsar-client-messagecrypto-bc</artifactId>
   <packaging>jar</packaging>
   <description>Message crypto for End to End encryption with BouncyCastleProvider</description>
+  <name>Pulsar Client Messagecrypto BC</name>
 
   <dependencies>
     <dependency>

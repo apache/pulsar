@@ -32,6 +32,7 @@
   <artifactId>pulsar-broker-auth-sasl</artifactId>
   <packaging>jar</packaging>
   <description>SASL authentication plugin for broker</description>
+  <name>Pulsar Broker Auth SASL</name>
 
   <dependencies>
 

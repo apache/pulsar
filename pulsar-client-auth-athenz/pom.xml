@@ -32,6 +32,7 @@
   <artifactId>pulsar-client-auth-athenz</artifactId>
   <packaging>jar</packaging>
   <description>Athenz authentication plugin for java client</description>
+  <name>Pulsar Client Auth Athenz</name>
 
   <dependencies>
 
