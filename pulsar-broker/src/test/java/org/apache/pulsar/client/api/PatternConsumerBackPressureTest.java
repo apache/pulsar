@@ -59,7 +59,7 @@ public class PatternConsumerBackPressureTest extends MockedPulsarServiceBaseTest
     }
 
     @Test(timeOut = 60 * 1000)
-    public void testInfiniteRequests() throws PulsarAdminException, InterruptedException {
+    public void testInfiniteGetThousandsTopics() throws PulsarAdminException, InterruptedException {
         final int topicCount = 8192;
         final int requests = 10_000;
         final String topicName = UUID.randomUUID().toString();
