@@ -405,7 +405,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return future;
     }
 
-    public void printWarnLogThatCanNotDetermineDeduplication(Channel channel, long sequenceId, long highestSequenceId) {
+    public void printWarnLogWhenCanNotDetermineDeduplication(Channel channel, long sequenceId,
+                                                             long highestSequenceId) {
         log.warn("[{}] producer [id:{}, name:{}, channel: {}] message with sequence-id {}-{} published by has been"
                         + " dropped because Broker can not determine whether is duplicate or not",
                 topic, producerId, producerName, channel, sequenceId, highestSequenceId);
