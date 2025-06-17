@@ -225,4 +225,10 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         admin2.topics().delete(topic);
         admin2.namespaces().deleteNamespace(ns1);
     }
+
+    @Override
+    @Test
+    public void testTopicPoliciesReplicationRule() throws Exception {
+        super.testTopicPoliciesReplicationRule();
+    }
 }

@@ -33,9 +33,11 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.PublishRate;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicType;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.protocol.schema.StoredSchema;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.awaitility.Awaitility;
@@ -181,6 +183,12 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
         admin1.namespaces().createNamespace(ns1);
         admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster1, cluster2)));
         admin1.topics().createPartitionedTopic(topic, 2);
+        PublishRate publishRateAddGlobal = new PublishRate(100, 10000);
+        admin1.topicPolicies(true).setPublishRate(topic, publishRateAddGlobal);
+        PublishRate publishRateAddLocal1 = new PublishRate(200, 20000);
+        admin1.topicPolicies(false).setPublishRate(topic, publishRateAddLocal1);
+        PublishRate publishRateAddLocal2 = new PublishRate(300, 30000);
+        admin2.topicPolicies(false).setPublishRate(topic, publishRateAddLocal2);
         Awaitility.await().untilAsserted(() -> {
            assertTrue(pulsar2.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
                    .partitionedTopicExists(TopicName.get(topic)));
@@ -190,6 +198,10 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
             List<CompletableFuture<StoredSchema>> schemaList21
                     = pulsar2.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
             assertEquals(schemaList21.size(), 0);
+            PublishRate valueGlobal = admin2.topicPolicies(true).getPublishRate(topic);
+            assertEquals(valueGlobal, publishRateAddGlobal);
+            PublishRate valueLocal = admin2.topicPolicies(false).getPublishRate(topic);
+            assertEquals(valueLocal, publishRateAddLocal2);
         });
 
         // Wait for copying messages.
@@ -202,6 +214,11 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
             assertTrue(tps.containsKey(topicP0));
             assertTrue(tps.containsKey(topicP1));
             assertTrue(tps.containsKey(topicChangeEvents));
+            ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> tps2 =
+                    pulsar2.getBrokerService().getTopics();
+            assertTrue(tps2.containsKey(topicP0));
+            assertTrue(tps2.containsKey(topicP1));
+            assertTrue(tps2.containsKey(topicChangeEvents));
             List<CompletableFuture<StoredSchema>> schemaList12
                     = pulsar1.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
             assertEquals(schemaList12.size(), 1);
@@ -229,10 +246,27 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
             List<CompletableFuture<StoredSchema>> schemaList23
                     = pulsar2.getSchemaStorage().getAll(TopicName.get(topic).getSchemaName()).get();
             assertEquals(schemaList23.size(), 1);
+            // Verify: the topic policies will be removed in local cluster, but remote cluster will not.
+            Optional<TopicPolicies> globalPolicies2 = pulsar2.getTopicPoliciesService()
+                    .getTopicPoliciesAsync(TopicName.get(topic), true).join();
+            assertTrue(globalPolicies2.isPresent(), "Remote cluster should have global policies.");
+            assertEquals(globalPolicies2.get().getPublishRate(), publishRateAddGlobal,
+                "Remote cluster should have global policies: publish rate.");
+            Optional<TopicPolicies> localPolicies2 = pulsar2.getTopicPoliciesService()
+                    .getTopicPoliciesAsync(TopicName.get(topic), false).join();
+            assertTrue(localPolicies2.isPresent(), "Remote cluster should have local policies.");
+            assertEquals(localPolicies2.get().getPublishRate(), publishRateAddLocal2,
+                "Remote cluster should have local policies: publish rate.");
         });
 
         // cleanup.
         admin2.topics().deletePartitionedTopic(topic);
         admin2.namespaces().deleteNamespace(ns1);
+    }
+
+    @Override
+    @Test
+    public void testTopicPoliciesReplicationRule() throws Exception {
+        super.testTopicPoliciesReplicationRule();
     }
 }
