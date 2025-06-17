@@ -32,6 +32,7 @@
   <artifactId>pulsar-client-auth-sasl</artifactId>
   <packaging>jar</packaging>
   <description>SASL authentication plugin for java client</description>
+  <name>Pulsar Client Auth SASL</name>
 
   <dependencies>
 
