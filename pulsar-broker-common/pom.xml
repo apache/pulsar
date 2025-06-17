@@ -31,6 +31,7 @@
 
   <artifactId>pulsar-broker-common</artifactId>
   <description>Common classes used in multiple broker modules</description>
+  <name>Pulsar Broker Common</name>
 
   <dependencies>
     <dependency>

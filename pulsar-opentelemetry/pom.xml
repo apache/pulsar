@@ -31,6 +31,7 @@
 
   <artifactId>pulsar-opentelemetry</artifactId>
   <description>OpenTelemetry Integration</description>
+  <name>Pulsar OpenTelemetry</name>
 
   <dependencies>
     <!-- OpenTelemetry dependencies -->
