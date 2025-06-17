@@ -237,4 +237,10 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
     public void testReplicatorWhenPartitionCountsDiffer() throws Exception {
         super.testReplicatorWhenPartitionCountsDiffer();
     }
+
+    @Override
+    @Test
+    public void testTopicPoliciesReplicationRule() throws Exception {
+        super.testTopicPoliciesReplicationRule();
+    }
 }
