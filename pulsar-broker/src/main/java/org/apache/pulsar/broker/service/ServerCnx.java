@@ -313,7 +313,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         super(pulsar.getBrokerService() != null ? pulsar.getBrokerService().getKeepAliveIntervalSeconds() : 0,
                 TimeUnit.SECONDS);
         super.maxPendingWriteBytes = pulsar.getConfig().getConnectionMaxPendingWriteBytes();
-        super.maxPendingCommandBytes = 0;
         this.service = pulsar.getBrokerService();
         this.schemaService = pulsar.getSchemaRegistryService();
         this.listenerName = listenerName;
