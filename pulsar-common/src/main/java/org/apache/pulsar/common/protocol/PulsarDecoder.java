@@ -109,8 +109,10 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     private final BaseCommand cmd = new BaseCommand();
 
     protected int maxPendingWriteBytes = -1;
-    private boolean isPendingCmd;
-    private final LinkedList<ByteBuf> pendingCmds = new LinkedList<>();
+    protected int maxPendingCommandBytes = -1;
+    protected boolean isPendingCmd;
+    protected final LinkedList<ByteBuf> pendingCmds = new LinkedList<>();
+    protected int pendingCmdByes = 0;
 
     private boolean getOrUpdatePendingCmdState(ChannelHandlerContext ctx) {
         if (maxPendingWriteBytes < 0) {
@@ -130,16 +132,26 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
         return false;
     }
 
+    protected void pendCmd(ChannelHandlerContext ctx, ByteBuf buffer) {
+        pendingCmds.add(buffer);
+        pendingCmdByes += buffer.readableBytes();
+        if (maxPendingCommandBytes >= 0 && pendingCmdByes > maxPendingCommandBytes) {
+            ctx.channel().config().setAutoRead(false);
+        }
+    }
+
     @Override
     public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
         if (isPendingCmd && ctx.channel().isWritable()) {
             isPendingCmd = false;
+            ctx.channel().config().setAutoRead(true);
             // Maybe there are too many pending commands, eventually causing the second time of switching state to
             // "pending". So we only loop "queueSize" times, which also guarantees the order of commands handling.
             int queueSize = pendingCmds.size();
             log.info("[{}] is writable now, flushing pending commands {}", this, queueSize);
             for (int i = 0; i < queueSize; i++) {
                 ByteBuf cmd = pendingCmds.pop();
+                pendingCmdByes -= cmd.readableBytes();
                 // Since "ctx" and "handler" have a one-to-one relationship, such a call is safe. And ctx will handle
                 // the exception.
                 try {
@@ -177,7 +189,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 buffer.readerIndex(originalReaderIndex);
                 // Since there is a "buffer.release()" in the finally block, we retain once to avoid over-release.
                 buffer.retain();
-                pendingCmds.add(buffer);
+                pendCmd(ctx, buffer);
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Since the connection is pending, append cmd {} into pending queue, queue-size: {}",
                             ctx.channel(), cmd.getType(), pendingCmds.size());
