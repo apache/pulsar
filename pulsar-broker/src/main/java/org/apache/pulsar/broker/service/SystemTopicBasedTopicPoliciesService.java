@@ -245,11 +245,16 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                                     isGlobalPolicy);
                                         })
                                         .thenCompose(messageId -> {
-                                            if (messageId == null && actionType != ActionType.DELETE) {
-                                                throw new RuntimeException("Got message id is null.");
+                                            if (messageId == null) {
+                                                if (actionType != ActionType.DELETE) {
+                                                    throw new RuntimeException("Got message id is null.");
+                                                }
+                                                return CompletableFuture.completedFuture(null);
+                                            } else {
+                                                // asynchronously wait until the message ID is read by the reader
+                                                return untilMessageIdHasBeenRead(topicName.getNamespaceObject(),
+                                                        messageId);
                                             }
-                                            // asynchronously wait until the message ID is read by the reader
-                                            return untilMessageIdHasBeenRead(topicName.getNamespaceObject(), messageId);
                                         });
                             }));
         }).whenComplete((res, ex) -> {
