@@ -77,5 +77,5 @@ And the change will not affect any existing namespaces.
 <!--
 Updated afterwards
 -->
-* Mailing List discussion thread:
+* Mailing List discussion thread: https://lists.apache.org/thread/j9vx6zkkgnz08sfgp14swylb8wv6djzs
 * Mailing List voting thread:
