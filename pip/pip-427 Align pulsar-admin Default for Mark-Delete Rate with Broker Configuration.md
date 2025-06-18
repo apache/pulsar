@@ -13,7 +13,7 @@ THIS COMMENTS
 Please remove them when done.
 -->
 
-# PIP-412: Align pulsar-admin Default for Mark-Delete Rate with Broker Configuration
+# PIP-427: Align pulsar-admin Default for Mark-Delete Rate with Broker Configuration
 
 # Motivation
 
