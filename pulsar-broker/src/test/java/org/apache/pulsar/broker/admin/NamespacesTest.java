@@ -2108,14 +2108,15 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.topicPolicies().setMaxConsumers(systemTopic, 5);
         Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
             final var policies = TopicPolicyTestUtils.getTopicPoliciesBypassCache(pulsar.getTopicPoliciesService(),
-                    TopicName.get(systemTopic));
+                    TopicName.get(systemTopic), false);
             Assert.assertTrue(policies.isPresent());
             Assert.assertEquals(policies.get().getMaxConsumerPerTopic(), 5);
         });
 
         admin.topics().delete(systemTopic, true);
         Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> assertTrue(
-                TopicPolicyTestUtils.getTopicPoliciesBypassCache(pulsar.getTopicPoliciesService(), TopicName.get(systemTopic))
+                TopicPolicyTestUtils.getTopicPoliciesBypassCache(pulsar.getTopicPoliciesService(), TopicName.get(systemTopic),
+                                false)
                         .isEmpty()));
     }
 
