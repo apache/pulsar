@@ -215,7 +215,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     ? CompletableFuture.completedFuture(null)
                     : existingFuture;
 
-            return chain.thenComposeAsync(v ->
+            return chain.thenCompose(v ->
                     pulsarService.getPulsarResources().getNamespaceResources()
                             .getPoliciesAsync(topicName.getNamespaceObject())
                             .thenCompose(namespacePolicies -> {
@@ -226,7 +226,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                 }
                                 return getTopicPoliciesAsync(partitionedTopicName,
                                         isGlobalPolicy ? GetType.GLOBAL_ONLY : GetType.LOCAL_ONLY)
-                                        .thenComposeAsync(currentPolicies -> {
+                                        .thenCompose(currentPolicies -> {
                                             if (currentPolicies.isEmpty() && skipUpdateWhenTopicPolicyDoesntExist) {
                                                 log.debug("[{}] No existing policies, skipping update as requested",
                                                         topicName);
