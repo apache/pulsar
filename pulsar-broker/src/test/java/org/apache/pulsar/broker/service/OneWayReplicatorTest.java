@@ -256,7 +256,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
 
         NonPersistentTopic topic = (NonPersistentTopic) broker1.getTopic(topicName, false).get().get();
         NonPersistentReplicator nonPersistentReplicator = topic.getReplicators().get(cluster2);
-        assertEquals(nonPersistentReplicator.getProducer().getConfiguration().getMaxPendingMessages(), 2000);
+        assertEquals(nonPersistentReplicator.getProducer().getConfiguration().getMaxPendingMessages(), 1000);
         // cleanup.
         producer1.close();
         admin1.brokers().updateDynamicConfiguration("replicationProducerQueueSize", "1000");
