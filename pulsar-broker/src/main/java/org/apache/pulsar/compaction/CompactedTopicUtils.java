@@ -21,7 +21,6 @@ package org.apache.pulsar.compaction;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.apache.pulsar.compaction.Compactor.RETAINED_MESSAGE_COUNT_PROPERTY;
-
 import com.google.common.annotations.Beta;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
