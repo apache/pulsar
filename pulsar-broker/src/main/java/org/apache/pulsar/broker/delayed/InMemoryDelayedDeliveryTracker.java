@@ -66,7 +66,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     // The bit count to trim to reduce memory occupation.
     private final int timestampPrecisionBitCnt;
 
-    // 添加一个原子类型的计数器
+    // Count of delayed messages in the tracker.
     private final AtomicLong delayedMessagesCount = new AtomicLong(0);
 
     InMemoryDelayedDeliveryTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher, Timer timer,
