@@ -518,12 +518,15 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         if (NamespaceService.isHeartbeatNamespace(namespace)) {
             return;
         }
-        synchronized (this) {
-            if (readerCaches.get(namespace) != null) {
-                ownedBundlesCountPerNamespace.get(namespace).incrementAndGet();
-            } else {
-                prepareInitPoliciesCacheAsync(namespace);
-            }
+        AtomicInteger bundlesCount = ownedBundlesCountPerNamespace.get(namespace);
+        if (bundlesCount != null) {
+            bundlesCount.incrementAndGet();
+        } else {
+            prepareInitPoliciesCacheAsync(namespace).exceptionally(t -> {
+                log.warn("Failed to prepare policies cache for namespace {} due to previously logged error ({}).",
+                        namespace, t.getMessage());
+                return null;
+            }).join();
         }
     }
 
@@ -593,8 +596,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     private void removeOwnedNamespaceBundleAsync(NamespaceBundle namespaceBundle) {
         NamespaceName namespace = namespaceBundle.getNamespaceObject();
-        if (NamespaceService.checkHeartbeatNamespace(namespace) != null
-                || NamespaceService.checkHeartbeatNamespaceV2(namespace) != null) {
+        if (NamespaceService.isHeartbeatNamespace(namespace)) {
             return;
         }
         AtomicInteger bundlesCount = ownedBundlesCountPerNamespace.get(namespace);
@@ -611,12 +613,14 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
                     @Override
                     public void onLoad(NamespaceBundle bundle) {
-                        addOwnedNamespaceBundleAsync(bundle);
+                        pulsarService.getOrderedExecutor().executeOrdered(bundle.getNamespaceObject(),
+                                () -> addOwnedNamespaceBundleAsync(bundle));
                     }
 
                     @Override
                     public void unLoad(NamespaceBundle bundle) {
-                        removeOwnedNamespaceBundleAsync(bundle);
+                        pulsarService.getOrderedExecutor().executeOrdered(bundle.getNamespaceObject(),
+                                () -> removeOwnedNamespaceBundleAsync(bundle));
                     }
 
                     @Override
