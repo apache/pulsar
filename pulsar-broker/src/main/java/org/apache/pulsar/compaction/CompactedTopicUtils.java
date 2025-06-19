@@ -20,7 +20,11 @@ package org.apache.pulsar.compaction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
+import static org.apache.pulsar.compaction.Compactor.RETAINED_MESSAGE_COUNT_PROPERTY;
+
 import com.google.common.annotations.Beta;
+import io.netty.buffer.ByteBuf;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -33,6 +37,13 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
+import org.apache.pulsar.common.api.proto.CompressionType;
+import org.apache.pulsar.common.api.proto.KeyValue;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
+import org.apache.pulsar.common.compression.CompressionCodec;
+import org.apache.pulsar.common.compression.CompressionCodecProvider;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.jspecify.annotations.Nullable;
 
@@ -104,4 +115,60 @@ public class CompactedTopicUtils {
             return null;
         });
     }
+
+    public static int calculateTheLastBatchIndexInBatch(MessageMetadata metadata, ByteBuf payload) throws IOException {
+        int retainedMessageCount = getRetainedMessageCount(metadata);
+        if (retainedMessageCount > 0) {
+            return retainedMessageCount;
+        }
+        if (retainedMessageCount == 0) {
+            return -1;
+        }
+
+        int batchSize = metadata.getNumMessagesInBatch();
+        if (batchSize <= 1){
+            return -1;
+        }
+        if (metadata.hasCompression()) {
+            var tmp = payload;
+            CompressionType compressionType = metadata.getCompression();
+            CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
+            int uncompressedSize = metadata.getUncompressedSize();
+            payload = codec.decode(payload, uncompressedSize);
+            tmp.release();
+        }
+        SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
+        int lastBatchIndexInBatch = -1;
+        for (int i = 0; i < batchSize; i++){
+            ByteBuf singleMessagePayload =
+                    Commands.deSerializeSingleMessageInBatch(payload, singleMessageMetadata, i, batchSize);
+            singleMessagePayload.release();
+            if (singleMessageMetadata.isCompactedOut()){
+                continue;
+            }
+            lastBatchIndexInBatch = i;
+        }
+        return lastBatchIndexInBatch;
+    }
+
+    /**
+     * Use `-1` as default value if the property is not set or cannot be parsed.
+     */
+    private static int getRetainedMessageCount(MessageMetadata metadata) {
+        if (CollectionUtils.isEmpty(metadata.getPropertiesList())) {
+            return -1;
+        }
+        for (KeyValue kv : metadata.getPropertiesList()) {
+            if (RETAINED_MESSAGE_COUNT_PROPERTY.equals(kv.getKey())) {
+                try {
+                    return Integer.parseInt(kv.getValue());
+                } catch (NumberFormatException e) {
+                    // Ignore and return default value
+                    return -1;
+                }
+            }
+        }
+        return -1;
+    }
+
 }
