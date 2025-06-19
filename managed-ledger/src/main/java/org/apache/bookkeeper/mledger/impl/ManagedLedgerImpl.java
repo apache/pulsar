@@ -2980,10 +2980,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     for (LedgerInfo ls : offloadedLedgersToDelete) {
                         log.info("[{}] Deleting offloaded ledger {} from bookkeeper - size: {}", name, ls.getLedgerId(),
                                 ls.getSize());
+                        invalidateReadHandle(ls.getLedgerId());
                         asyncDeleteLedgerFromBookKeeper(ls.getLedgerId()).thenAccept(__ -> {
                             log.info("[{}] Deleted and invalidated offloaded ledger {} from bookkeeper - size: {}",
                                     name, ls.getLedgerId(), ls.getSize());
-                            invalidateReadHandle(ls.getLedgerId());
                         }).exceptionally(ex -> {
                             log.error("[{}] Failed to delete offloaded ledger {} from bookkeeper - size: {}",
                                     name, ls.getLedgerId(), ls.getSize(), ex);
