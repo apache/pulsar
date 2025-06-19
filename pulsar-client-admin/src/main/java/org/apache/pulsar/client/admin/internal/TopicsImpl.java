@@ -1241,20 +1241,30 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public CompletableFuture<Void> triggerOffloadAsync(String topic, long sizeThreshold) {
         CompletableFuture<Void> future = new CompletableFuture<>();
-        try {
-            PersistentTopicInternalStats stats = getInternalStats(topic);
-            if (stats.ledgers.size() < 1) {
-                throw new PulsarAdminException("Topic doesn't have any data");
-            }
-            LinkedList<PersistentTopicInternalStats.LedgerInfo> ledgers = new LinkedList(stats.ledgers);
-            MessageId messageId = findFirstLedgerWithinThreshold(ledgers, sizeThreshold);
-            if (messageId == null) {
-                return CompletableFuture.completedFuture(null);
-            }
-            future = triggerOffloadAsync(topic, messageId);
-        } catch (PulsarAdminException e) {
-            future.completeExceptionally(getApiException(e));
-        }
+        getInternalStatsAsync(topic)
+                .thenAccept(stats -> {
+                    if (stats.ledgers.size() < 1) {
+                        future.completeExceptionally(new PulsarAdminException("Topic doesn't have any data"));
+                        return;
+                    }
+                    LinkedList<PersistentTopicInternalStats.LedgerInfo> ledgers = new LinkedList<>(stats.ledgers);
+                    MessageId messageId = findFirstLedgerWithinThreshold(ledgers, sizeThreshold);
+                    if (messageId == null) {
+                        future.complete(null);
+                    } else {
+                        triggerOffloadAsync(topic, messageId).whenComplete((v, ex) -> {
+                            if (ex != null) {
+                                future.completeExceptionally(ex);
+                            } else {
+                                future.complete(null);
+                            }
+                        });
+                    }
+                })
+                .exceptionally(ex -> {
+                    future.completeExceptionally(getApiException(ex));
+                    return null;
+                });
         return future;
     }
 
