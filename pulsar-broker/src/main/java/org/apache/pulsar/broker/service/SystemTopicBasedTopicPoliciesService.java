@@ -400,7 +400,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         return writerCaches.get(topicName.getNamespaceObject())
                 .thenCompose(writer -> {
                     PulsarEvent event = getPulsarEvent(topicName, actionType, policies, isGlobalPolicy);
-                    String eventKey = getEventKey(topicName, isGlobalPolicy);
+                    String eventKey = getEventKey(event, isGlobalPolicy);
 
                     if (actionType == ActionType.DELETE) {
                         return writer.deleteAsync(eventKey, event)

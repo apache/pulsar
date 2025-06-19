@@ -147,13 +147,6 @@ public interface TopicPoliciesService extends AutoCloseable {
             event.getTopicPoliciesEvent().getTopic()).toString(), isGlobal);
     }
 
-    static String getEventKey(TopicName topicName, boolean isGlobal) {
-        return wrapEventKey(TopicName.get(topicName.getDomain().toString(),
-            topicName.getTenant(),
-            topicName.getNamespacePortion(),
-            TopicName.get(topicName.getPartitionedTopicName()).getLocalName()).toString(), isGlobal);
-    }
-
     static String wrapEventKey(String originalKey, boolean isGlobalPolicies) {
         if (!isGlobalPolicies) {
             return originalKey;
