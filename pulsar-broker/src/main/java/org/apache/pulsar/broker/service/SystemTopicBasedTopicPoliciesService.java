@@ -940,4 +940,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         final var index = localName.lastIndexOf(TopicName.PARTITIONED_TOPIC_SUFFIX);
         return localName.substring(0, index).equals(SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
     }
+
+    @VisibleForTesting
+    public int getTopicPolicyUpdateSequencerSize() {
+        return topicPolicyUpdateSequencer.size();
+    }
 }

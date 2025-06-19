@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
@@ -139,5 +140,11 @@ public class TopicPoliciesUpdateTest extends MockedPulsarServiceBaseTest {
                 assertEquals(admin.topics().getReplicationClusters(topic, true), Set.of(clusterId));
             }
         }
+
+        // verify that there aren't any pending updates in the sequencer
+        SystemTopicBasedTopicPoliciesService policyService =
+                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        assertEquals(policyService.getTopicPolicyUpdateSequencerSize(), 0,
+                "There should be no pending updates after completing all updates");
     }
 }
