@@ -79,7 +79,7 @@ import org.slf4j.LoggerFactory;
 public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesService {
 
     private final PulsarService pulsarService;
-    private final HashSet localCluster;
+    private final HashSet<String> localCluster;
     private final String clusterName;
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
