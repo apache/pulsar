@@ -30,6 +30,8 @@ import java.time.Clock;
 import java.util.NavigableSet;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicLong;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
@@ -63,6 +65,9 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
 
     // The bit count to trim to reduce memory occupation.
     private final int timestampPrecisionBitCnt;
+
+    // 添加一个原子类型的计数器
+    private final AtomicLong delayedMessagesCount = new AtomicLong(0);
 
     InMemoryDelayedDeliveryTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher, Timer timer,
                                    long tickTimeMillis,
@@ -125,6 +130,8 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
         delayedMessageMap.computeIfAbsent(timestamp, k -> new Long2ObjectRBTreeMap<>())
                 .computeIfAbsent(ledgerId, k -> new Roaring64Bitmap())
                 .add(entryId);
+        delayedMessagesCount.incrementAndGet();
+
         updateTimer();
 
         checkAndUpdateHighest(deliverAt);
@@ -183,6 +190,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
                         positions.add(PositionFactory.create(ledgerId, entryId));
                     });
                     n -= cardinality;
+                    delayedMessagesCount.addAndGet(-cardinality);
                     ledgerIdToDelete.add(ledgerId);
                 } else {
                     long[] entryIdsArray = entryIds.toArray();
@@ -190,6 +198,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
                         positions.add(PositionFactory.create(ledgerId, entryIdsArray[i]));
                         entryIds.removeLong(entryIdsArray[i]);
                     }
+                    delayedMessagesCount.addAndGet(-n);
                     n = 0;
                 }
                 if (n <= 0) {
@@ -221,14 +230,13 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     @Override
     public CompletableFuture<Void> clear() {
         this.delayedMessageMap.clear();
+        this.delayedMessagesCount.set(0);
         return CompletableFuture.completedFuture(null);
     }
 
     @Override
     public long getNumberOfDelayedMessages() {
-        return delayedMessageMap.values().stream().mapToLong(
-                ledgerMap -> ledgerMap.values().stream().mapToLong(
-                        Roaring64Bitmap::getLongCardinality).sum()).sum();
+        return delayedMessagesCount.get();
     }
 
     /**
