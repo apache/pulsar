@@ -34,12 +34,10 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Method;
 import java.time.Clock;
 import java.util.NavigableMap;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
-import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -95,7 +93,7 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
                             false, 0)
             }};
             case "testAddMessageWithStrictDelay" -> new Object[][]{{
-                    new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock,
+                    new InMemoryDelayedDeliveryTracker(dispatcher, timer, 100, clock,
                             true, 0)
             }};
             case "testAddMessageWithDeliverAtTimeAfterNowBeforeTickTimeFrequencyWithStrict" -> new Object[][]{{
@@ -103,7 +101,7 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
                             true, 0)
             }};
             case "testAddMessageWithDeliverAtTimeAfterNowAfterTickTimeFrequencyWithStrict" -> new Object[][]{{
-                    new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock,
+                    new InMemoryDelayedDeliveryTracker(dispatcher, timer, 100000, clock,
                             true, 0)
             }};
             case "testAddMessageWithDeliverAtTimeAfterFullTickTimeWithStrict" -> new Object[][]{{
@@ -111,7 +109,7 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
                             true, 0)
             }};
             case "testWithFixedDelays", "testWithMixedDelays","testWithNoDelays" -> new Object[][]{{
-                    new InMemoryDelayedDeliveryTracker(dispatcher, timer, 8, clock,
+                    new InMemoryDelayedDeliveryTracker(dispatcher, timer, 500, clock,
                             true, 100)
             }};
             default -> new Object[][]{{
@@ -234,7 +232,7 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
                     return;
                 }
                 try {
-                    this.delayedMessageMap.firstLongKey();
+                    this.priorityQueue.peekN1();
                 } catch (Exception e) {
                     e.printStackTrace();
                     exceptions[0] = e;
@@ -251,27 +249,4 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
 
         assertNull(exceptions[0]);
     }
-
-    @Test(dataProvider = "delayedTracker")
-    public void testDelaySequence(InMemoryDelayedDeliveryTracker tracker) throws Exception {
-        assertFalse(tracker.hasMessageAvailable());
-
-        int messageCount = 5;
-        for(int i = 1; i <= messageCount; i++) {
-            assertTrue(tracker.addMessage(i, i, 1));
-        }
-        clockTime.set(10);
-        assertTrue(tracker.hasMessageAvailable());
-        assertEquals(tracker.getNumberOfDelayedMessages(), messageCount);
-
-        for (int i = 1; i <= messageCount; i++) {
-            Set<Position> scheduled = tracker.getScheduledMessages(1);
-            assertEquals(scheduled.size(), 1);
-            Position position = scheduled.iterator().next();
-            assertEquals(position.getLedgerId(), i);
-            assertEquals(position.getEntryId(), i);
-        }
-        tracker.close();
-    }
-
 }
