@@ -71,14 +71,23 @@ public class TopicPolicyTestUtils {
         while (reader.hasMoreEvents()) {
             @Cleanup("release")
             Message<PulsarEvent> message = reader.readNext();
-            TopicPoliciesEvent topicPoliciesEvent = message.getValue().getTopicPoliciesEvent();
-            if (topicPoliciesEvent != null) {
-                TopicName eventTopicName =
-                        TopicName.get(topicPoliciesEvent.getDomain(), topicPoliciesEvent.getTenant(),
-                                topicPoliciesEvent.getNamespace(), topicPoliciesEvent.getTopic());
-                if (eventTopicName.equals(topicName)
-                        && topicPoliciesEvent.getPolicies().isGlobalPolicies() == isGlobal) {
-                    lastTopicPoliciesEvent = topicPoliciesEvent;
+            if (message.getValue() == null) {
+                boolean isGlobalPolicy = TopicPoliciesService.isGlobalPolicy(message);
+                TopicName eventTopicName = TopicName.get(TopicPoliciesService.unwrapEventKey(message.getKey())
+                        .getPartitionedTopicName());
+                if (eventTopicName.equals(topicName) && isGlobalPolicy == isGlobal) {
+                    lastTopicPoliciesEvent = null;
+                }
+            } else {
+                TopicPoliciesEvent topicPoliciesEvent = message.getValue().getTopicPoliciesEvent();
+                if (topicPoliciesEvent != null) {
+                    TopicName eventTopicName =
+                            TopicName.get(topicPoliciesEvent.getDomain(), topicPoliciesEvent.getTenant(),
+                                    topicPoliciesEvent.getNamespace(), topicPoliciesEvent.getTopic());
+                    if (eventTopicName.equals(topicName)
+                            && topicPoliciesEvent.getPolicies().isGlobalPolicies() == isGlobal) {
+                        lastTopicPoliciesEvent = topicPoliciesEvent;
+                    }
                 }
             }
         }
