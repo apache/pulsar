@@ -36,7 +36,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -79,7 +78,6 @@ import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
-import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
@@ -1320,22 +1318,6 @@ public class CmdTopics extends CmdBase {
         }
     }
 
-    static MessageId findFirstLedgerWithinThreshold(List<PersistentTopicInternalStats.LedgerInfo> ledgers,
-                                                    long sizeThreshold) {
-        long suffixSize = 0L;
-
-        ledgers = Lists.reverse(ledgers);
-        long previousLedger = ledgers.get(0).ledgerId;
-        for (PersistentTopicInternalStats.LedgerInfo l : ledgers) {
-            suffixSize += l.size;
-            if (suffixSize > sizeThreshold) {
-                return new MessageIdImpl(previousLedger, 0L, -1);
-            }
-            previousLedger = l.ledgerId;
-        }
-        return null;
-    }
-
     public static void printMessages(List<Message<byte[]>> messages, boolean showServerMarker, CliCommand cli) {
         if (messages == null) {
             return;
@@ -1399,23 +1381,9 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
-
-            PersistentTopicInternalStats stats = getTopics().getInternalStats(persistentTopic, false);
-            if (stats.ledgers.size() < 1) {
-                throw new PulsarAdminException("Topic doesn't have any data");
-            }
-
-            LinkedList<PersistentTopicInternalStats.LedgerInfo> ledgers = new LinkedList(stats.ledgers);
-            ledgers.get(ledgers.size() - 1).size = stats.currentLedgerSize; // doesn't get filled in now it seems
-            MessageId messageId = findFirstLedgerWithinThreshold(ledgers, sizeThreshold);
-
-            if (messageId == null) {
-                System.out.println("Nothing to offload");
-                return;
-            }
-
-            getTopics().triggerOffload(persistentTopic, messageId);
-            System.out.println("Offload triggered for " + persistentTopic + " for messages before " + messageId);
+            getTopics().triggerOffload(persistentTopic, sizeThreshold);
+            System.out.println("Offload triggered for " + persistentTopic + " which keep "
+                    + sizeThreshold + " bytes on bookkeeper");
         }
     }
 

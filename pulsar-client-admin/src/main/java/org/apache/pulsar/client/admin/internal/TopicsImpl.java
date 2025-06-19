@@ -1268,7 +1268,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         return future;
     }
 
-    private MessageId findFirstLedgerWithinThreshold(List<PersistentTopicInternalStats.LedgerInfo> ledgers,
+    static MessageId findFirstLedgerWithinThreshold(List<PersistentTopicInternalStats.LedgerInfo> ledgers,
                                                      long sizeThreshold) {
         long suffixSize = 0L;
 
