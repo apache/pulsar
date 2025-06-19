@@ -518,15 +518,16 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         if (NamespaceService.isHeartbeatNamespace(namespace)) {
             return;
         }
-        AtomicInteger bundlesCount = ownedBundlesCountPerNamespace.get(namespace);
-        if (bundlesCount != null) {
-            bundlesCount.incrementAndGet();
-        } else {
+        AtomicInteger bundlesCount =
+                ownedBundlesCountPerNamespace.computeIfAbsent(namespace, k -> new AtomicInteger(0));
+        int previousCount = bundlesCount.getAndIncrement();
+        if (previousCount == 0) {
+            // initialize policies cache asynchronously on the first bundle load
             prepareInitPoliciesCacheAsync(namespace).exceptionally(t -> {
                 log.warn("Failed to prepare policies cache for namespace {} due to previously logged error ({}).",
                         namespace, t.getMessage());
                 return null;
-            }).join();
+            });
         }
     }
 
@@ -548,7 +549,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                 final CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture =
                                         createSystemTopicClient(namespace);
                                 readerCaches.put(namespace, readerCompletableFuture);
-                                ownedBundlesCountPerNamespace.putIfAbsent(namespace, new AtomicInteger(1));
                                 final CompletableFuture<Void> initFuture = readerCompletableFuture
                                         .thenCompose(reader -> {
                                             final CompletableFuture<Void> stageFuture = new CompletableFuture<>();
