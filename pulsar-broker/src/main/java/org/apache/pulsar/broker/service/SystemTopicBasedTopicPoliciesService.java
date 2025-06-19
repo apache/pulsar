@@ -179,7 +179,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 log.info("Skip delete topic-level policies because {} has been removed before", changeEvents);
                 return CompletableFuture.completedFuture(null);
             }
-            return updateTopicPoliciesAsync(topicName, null, false, ActionType.DELETE, true);
+            // delete local policy
+            return updateTopicPoliciesAsync(topicName, null, false, ActionType.DELETE, true)
+                    .thenCompose(__ ->
+                            // delete global policy
+                            updateTopicPoliciesAsync(topicName, null, true, ActionType.DELETE, true));
         });
     }
 
