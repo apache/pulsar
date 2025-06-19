@@ -2980,7 +2980,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     for (LedgerInfo ls : offloadedLedgersToDelete) {
                         log.info("[{}] Deleting offloaded ledger {} from bookkeeper - size: {}", name, ls.getLedgerId(),
                                 ls.getSize());
-                        asyncDeleteLedgerFromBookKeeper(ls.getLedgerId());
+                        asyncDeleteLedgerFromBookKeeper(ls.getLedgerId()).thenAccept(__ -> {
+                            log.info("[{}] Deleted and invalidated offloaded ledger {} from bookkeeper - size: {}",
+                                    name, ls.getLedgerId(), ls.getSize());
+                            invalidateReadHandle(ls.getLedgerId());
+                        }).exceptionally(ex -> {
+                            log.error("[{}] Failed to delete offloaded ledger {} from bookkeeper - size: {}",
+                                    name, ls.getLedgerId(), ls.getSize(), ex);
+                            return null;
+                        });
                     }
                     promise.complete(null);
                 }
@@ -3201,8 +3209,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    private void asyncDeleteLedgerFromBookKeeper(long ledgerId) {
-        asyncDeleteLedger(ledgerId, DEFAULT_LEDGER_DELETE_RETRIES);
+    private CompletableFuture<Void> asyncDeleteLedgerFromBookKeeper(long ledgerId) {
+        return asyncDeleteLedger(ledgerId, DEFAULT_LEDGER_DELETE_RETRIES);
     }
 
     private void asyncDeleteLedger(long ledgerId, LedgerInfo info) {
@@ -3219,22 +3227,31 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    private void asyncDeleteLedger(long ledgerId, long retry) {
-        if (retry <= 0) {
-            log.warn("[{}] Failed to delete ledger after retries {}", name, ledgerId);
-            return;
-        }
+    private CompletableFuture<Void> asyncDeleteLedger(long ledgerId, long retry) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        asyncDeleteLedgerWithRetry(future, ledgerId, retry);
+        return future;
+    }
+
+    private void asyncDeleteLedgerWithRetry(CompletableFuture<Void> future, long ledgerId, long retry) {
         bookKeeper.asyncDeleteLedger(ledgerId, (rc, ctx) -> {
             if (isNoSuchLedgerExistsException(rc)) {
                 log.warn("[{}] Ledger was already deleted {}", name, ledgerId);
+                future.complete(null);
             } else if (rc != BKException.Code.OK) {
                 log.error("[{}] Error deleting ledger {} : {}", name, ledgerId, BKException.getMessage(rc));
+                if (retry <= 1) {
+                    // The latest once of retry has failed
+                    log.warn("[{}] Failed to delete ledger after retries {}, code: {}", name, ledgerId, rc);
+                    future.completeExceptionally(BKException.create(rc));
+                }
                 scheduledExecutor.schedule(() -> asyncDeleteLedger(ledgerId, retry - 1),
                         DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC, TimeUnit.SECONDS);
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Deleted ledger {}", name, ledgerId);
                 }
+                future.complete(null);
             }
         }, null);
     }
