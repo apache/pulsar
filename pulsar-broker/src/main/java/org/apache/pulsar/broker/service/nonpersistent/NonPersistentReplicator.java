@@ -182,7 +182,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
             if (exception != null) {
                 Throwable actEx = FutureUtil.unwrapCompletionException(exception);
                 if (actEx instanceof PulsarClientException.ProducerQueueIsFullError) {
-                    log.error("[{}] Discard to replicate non-persistent messages to the remote cluster because the"
+                    log.warn("[{}] Discard to replicate non-persistent messages to the remote cluster because the"
                         + " producer pending queue is full", replicator.replicatorId);
                 } else {
                     log.error("[{}] Error producing on remote broker", replicator.replicatorId, exception);
