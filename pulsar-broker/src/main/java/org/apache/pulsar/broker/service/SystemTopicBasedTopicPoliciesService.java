@@ -228,8 +228,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                         isGlobalPolicy ? GetType.GLOBAL_ONLY : GetType.LOCAL_ONLY)
                                         .thenCompose(currentPolicies -> {
                                             if (currentPolicies.isEmpty() && skipUpdateWhenTopicPolicyDoesntExist) {
-                                                log.debug("[{}] No existing policies, skipping update as requested",
-                                                        topicName);
+                                                log.debug("[{}] No existing policies, skipping sending event as "
+                                                        + "requested", topicName);
                                                 return CompletableFuture.completedFuture(null);
                                             }
                                             TopicPolicies policiesToUpdate;
@@ -246,9 +246,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                         })
                                         .thenCompose(messageId -> {
                                             if (messageId == null) {
-                                                if (actionType != ActionType.DELETE) {
-                                                    throw new RuntimeException("Got message id is null.");
-                                                }
                                                 return CompletableFuture.completedFuture(null);
                                             } else {
                                                 // asynchronously wait until the message ID is read by the reader
