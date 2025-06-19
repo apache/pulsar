@@ -712,6 +712,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
         policyCacheInitMap.compute(namespace, (k, v) -> {
             policiesCache.entrySet().removeIf(entry -> Objects.equals(entry.getKey().getNamespaceObject(), namespace));
+            globalPoliciesCache.entrySet()
+                    .removeIf(entry -> Objects.equals(entry.getKey().getNamespaceObject(), namespace));
             return null;
         });
     }
