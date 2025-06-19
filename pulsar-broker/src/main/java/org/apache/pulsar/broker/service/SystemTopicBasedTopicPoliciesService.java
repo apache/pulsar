@@ -695,7 +695,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
         TopicPolicyMessageHandlerTracker topicPolicyMessageHandlerTracker =
                 topicPolicyMessageHandlerTrackers.remove(namespace);
-        topicPolicyMessageHandlerTracker.close();
+        if (topicPolicyMessageHandlerTracker != null) {
+            topicPolicyMessageHandlerTracker.close();
+        }
 
         if (cleanOwnedBundlesCount) {
             ownedBundlesCountPerNamespace.remove(namespace);
