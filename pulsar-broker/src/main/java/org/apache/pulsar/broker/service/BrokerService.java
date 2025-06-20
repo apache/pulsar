@@ -2372,7 +2372,7 @@ public class BrokerService implements Closeable {
                         return CompletableFuture.completedFuture(null);
                     } else {
                         String msg = String.format("Namespace bundle (%s) for topic (%s) not served by this instance:"
-                                + "%s", bundle, topic, pulsar.getBrokerId());
+                                + "%s. Please redo the lookup.", bundle, topic, pulsar.getBrokerId());
                         log.warn(msg);
                         return FutureUtil.failedFuture(new ServiceUnitNotReadyException(msg));
                     }
