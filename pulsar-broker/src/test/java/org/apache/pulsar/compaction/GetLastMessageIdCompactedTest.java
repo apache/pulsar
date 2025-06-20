@@ -523,13 +523,15 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
     @Test
     public void testGetLastMessageIdForEncryptedMessage() throws Exception {
         final var topic = BrokerTestUtil.newUniqueName("tp");
-        final var keyFile = "file:./src/test/resources/certificate/public-key.client-ecdsa.pem";
+        final var ecdsaPublickeyFile = "file:./src/test/resources/certificate/public-key.client-ecdsa.pem";
+        final String ecdsaPrivateKeyFile = "file:./src/test/resources/certificate/private-key.client-ecdsa.pem";
         @Cleanup final var producer = pulsarClient.newProducer(Schema.STRING).topic(topic)
                 .batchingMaxBytes(Integer.MAX_VALUE)
                 .batchingMaxMessages(Integer.MAX_VALUE)
                 .batchingMaxPublishDelay(1, TimeUnit.HOURS)
                 .addEncryptionKey("client-ecdsa.pem")
-                .defaultCryptoKeyReader(keyFile)
+                .compressionType(CompressionType.LZ4)
+                .defaultCryptoKeyReader(ecdsaPublickeyFile)
                 .create();
         producer.newMessage().key("k0").value("v0").sendAsync();
         producer.newMessage().key("k0").value("v1").sendAsync();
@@ -539,7 +541,7 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
         triggerCompactionAndWait(topic);
 
         @Cleanup final var consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic).subscriptionName("sub")
-                .defaultCryptoKeyReader(keyFile).readCompacted(true).subscribe();
+                .defaultCryptoKeyReader(ecdsaPrivateKeyFile).readCompacted(true).subscribe();
         final var msgId = (MessageIdAdv) consumer.getLastMessageIds().get(0);
         Assert.assertEquals(msgId.getEntryId(), 1);
     }

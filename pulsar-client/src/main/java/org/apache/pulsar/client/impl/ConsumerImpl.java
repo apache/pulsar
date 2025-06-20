@@ -138,6 +138,7 @@ import org.apache.pulsar.common.util.SafeCollectionUtils;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentBitSetRecyclable;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1417,6 +1418,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             for (int i = 0; i < cmdMessage.getAckSetsCount(); i++) {
                 ackSet.add(cmdMessage.getAckSetAt(i));
             }
+
         }
         int redeliveryCount = cmdMessage.getRedeliveryCount();
         MessageIdData messageId = cmdMessage.getMessageId();
@@ -2001,7 +2003,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private DecryptResult decryptPayloadIfNeeded(MessageIdData messageId, int redeliveryCount,
                                                  MessageMetadata msgMetadata,
-                                                 ByteBuf payload, ClientCnx currentCnx) {
+                                                 ByteBuf payload, @Nullable ClientCnx currentCnx) {
 
         if (msgMetadata.getEncryptionKeysCount() == 0) {
             return DecryptResult.success(payload.retain());
@@ -2026,7 +2028,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return handleCryptoFailure(payload, messageId, currentCnx, redeliveryCount, batchSize, false);
     }
 
-    private DecryptResult handleCryptoFailure(ByteBuf payload, MessageIdData messageId, ClientCnx currentCnx,
+    private DecryptResult handleCryptoFailure(ByteBuf payload, MessageIdData messageId, @Nullable ClientCnx currentCnx,
             int redeliveryCount, int batchSize, boolean cryptoReaderNotExist) {
 
         switch (conf.getCryptoFailureAction()) {
@@ -2078,7 +2080,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     private ByteBuf uncompressPayloadIfNeeded(MessageIdData messageId, MessageMetadata msgMetadata, ByteBuf payload,
-            ClientCnx currentCnx, boolean checkMaxMessageSize) {
+            @Nullable ClientCnx currentCnx, boolean checkMaxMessageSize) {
         CompressionType compressionType = msgMetadata.getCompression();
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
         int uncompressedSize = msgMetadata.getUncompressedSize();
@@ -2130,15 +2132,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         stats.incrementNumReceiveFailed();
     }
 
-    private void discardCorruptedMessage(MessageIdData messageId, ClientCnx currentCnx,
+    private void discardCorruptedMessage(MessageIdData messageId, @Nullable ClientCnx currentCnx,
             ValidationError validationError) {
         log.error("[{}][{}] Discarding corrupted message at {}:{}", topic, subscription, messageId.getLedgerId(),
                 messageId.getEntryId());
         discardMessage(messageId, currentCnx, validationError, 1);
     }
 
-    private void discardMessage(MessageIdData messageId, ClientCnx currentCnx, ValidationError validationError,
-            int batchMessages) {
+    private void discardMessage(MessageIdData messageId, @Nullable ClientCnx currentCnx,
+                                ValidationError validationError, int batchMessages) {
+        if (currentCnx == null) {
+            return;
+        }
         ByteBuf cmd = Commands.newAck(consumerId, messageId.getLedgerId(), messageId.getEntryId(), null,
                 AckType.Individual, validationError, Collections.emptyMap(), -1);
         currentCnx.ctx().writeAndFlush(cmd, currentCnx.ctx().voidPromise());
@@ -2849,8 +2854,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
             cnx.sendGetLastMessageId(getLastIdCmd, requestId).thenAccept(pair -> {
                 final CommandGetLastMessageIdResponse cmd = pair.getKey();
-                // TODO: handle buf
-                final ByteBuf buf = pair.getValue();
                 MessageIdData lastMessageId = cmd.getLastMessageId();
                 MessageIdImpl markDeletePosition = null;
                 if (cmd.hasConsumerMarkDeletePosition()) {
@@ -2862,12 +2865,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         topic, subscription, lastMessageId.getLedgerId(), lastMessageId.getEntryId());
                 }
 
-                MessageId lastMsgId = lastMessageId.getBatchIndex() <= 0
-                        ? new MessageIdImpl(lastMessageId.getLedgerId(),
-                                lastMessageId.getEntryId(), lastMessageId.getPartition())
-                        : new BatchMessageIdImpl(lastMessageId.getLedgerId(), lastMessageId.getEntryId(),
-                                lastMessageId.getPartition(), lastMessageId.getBatchIndex());
-
+                final ByteBuf buf = pair.getValue();
+                final MessageId lastMsgId = getLastMessageIdFromResponse(lastMessageId, buf);
                 future.complete(new GetLastMessageIdResponse(lastMsgId, markDeletePosition));
             }).exceptionally(e -> {
                 log.error("[{}][{}] Failed getLastMessageId command", topic, subscription);
@@ -2897,6 +2896,68 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 remainingTime.addAndGet(-nextDelay);
                 internalGetLastMessageIdAsync(backoff, remainingTime, future);
             }, nextDelay, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    private MessageId getLastMessageIdFromResponse(MessageIdData lastMessageId, ByteBuf buf) {
+        try {
+            if (buf.readableBytes() <= 0) {
+                if (lastMessageId.getBatchIndex() <= 0) {
+                    return new MessageIdImpl(lastMessageId.getLedgerId(), lastMessageId.getEntryId(),
+                            lastMessageId.getPartition());
+                } else {
+                    return new BatchMessageIdImpl(lastMessageId.getLedgerId(), lastMessageId.getEntryId(),
+                            lastMessageId.getPartition(), lastMessageId.getBatchIndex());
+                }
+            }
+            checkArgument(conf.isReadCompacted());
+
+            final MessageMetadata messageMetadata = Commands.parseMessageMetadata(buf);
+            int batchSize = messageMetadata.getNumMessagesInBatch();
+            if (batchSize <= 1) {
+                return new MessageIdImpl(lastMessageId.getLedgerId(), lastMessageId.getEntryId(),
+                        lastMessageId.getPartition());
+            }
+
+            // Parse the correct batch index from buffer
+            if (!verifyChecksum(buf, lastMessageId)) {
+                throw new RuntimeException("checksum mismatch in the last message's buffer");
+            }
+            DecryptResult decryptResult = decryptPayloadIfNeeded(lastMessageId, 0, messageMetadata, buf, null);
+            if (decryptResult.shouldDiscard() || !decryptResult.success) {
+                throw new RuntimeException("Failed to decrypt last message's buffer");
+            }
+            final ByteBuf uncompressedBuf = uncompressPayloadIfNeeded(lastMessageId, messageMetadata,
+                    decryptResult.payload, null, false);
+            decryptResult.payload.release();
+            if (uncompressedBuf == null) {
+                throw new RuntimeException("Failed to uncompress last message's buffer");
+            }
+            try {
+                // TODO: support payload processor
+                int batchIndex = -1;
+                for (int i = 0; i < batchSize; i++) {
+                    final SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
+                    ByteBuf payload = Commands.deSerializeSingleMessageInBatch(uncompressedBuf, singleMessageMetadata,
+                            i, batchSize);
+                    try {
+                        if (singleMessageMetadata.isCompactedOut()) {
+                            continue;
+                        }
+                        batchIndex = i;
+                    } finally {
+                        payload.release();
+                    }
+                }
+                return new BatchMessageIdImpl(lastMessageId.getLedgerId(), lastMessageId.getEntryId(),
+                        lastMessageId.getPartition(), batchIndex);
+            } finally {
+                uncompressedBuf.release();
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        } finally {
+            buf.release();
         }
     }
 

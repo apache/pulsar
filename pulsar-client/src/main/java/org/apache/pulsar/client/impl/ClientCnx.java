@@ -579,7 +579,8 @@ public class ClientCnx extends PulsarHandler {
         CompletableFuture<Pair<CommandGetLastMessageIdResponse, ByteBuf>> requestFuture =
                 (CompletableFuture<Pair<CommandGetLastMessageIdResponse, ByteBuf>>) pendingRequests.remove(requestId);
         if (requestFuture != null) {
-            requestFuture.complete(Pair.of(new CommandGetLastMessageIdResponse().copyFrom(success), buf));
+            requestFuture.complete(Pair.of(new CommandGetLastMessageIdResponse().copyFrom(success),
+                    buf.retainedDuplicate()));
         } else {
             duplicatedResponseCounter.incrementAndGet();
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), success.getRequestId());
