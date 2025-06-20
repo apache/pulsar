@@ -30,6 +30,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -60,6 +61,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@Slf4j
 @Test(groups = "broker-impl")
 public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
 
@@ -530,7 +532,7 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
         };
     }
 
-    @Test(dataProvider = "encryptionAndCompression")
+    @Test(dataProvider = "encryptionAndCompression", timeOut = 30000)
     public void testGetLastMessageIdForEncryptedMessage(boolean encryption, CompressionType compressionType)
             throws Exception {
         final var topic = BrokerTestUtil.newUniqueName("tp");
@@ -565,5 +567,19 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
         } else {
             Assert.assertEquals(msgId.getBatchIndex(), 1);
         }
+
+        final var readerBuilder = pulsarClient.newReader(Schema.STRING).topic(topic).startMessageId(MessageId.earliest)
+                .topic(topic).readCompacted(true);
+        if (encryption) {
+            readerBuilder.defaultCryptoKeyReader(ecdsaPrivateKeyFile);
+        }
+        @Cleanup final var reader = readerBuilder.create();
+        MessageIdAdv readMsgId = (MessageIdAdv) MessageId.earliest;
+        while (reader.hasMessageAvailable()) {
+            final var msg = reader.readNext();
+            log.info("Read key: {}, value: {}", msg.getKey(), Optional.ofNullable(msg.getValue()).orElse("(null)"));
+            readMsgId = (MessageIdAdv) msg.getMessageId();
+        }
+        assertEquals(readMsgId, msgId);
     }
 }
