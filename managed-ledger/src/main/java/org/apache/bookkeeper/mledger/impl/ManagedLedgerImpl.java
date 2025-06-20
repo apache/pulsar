@@ -3244,6 +3244,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     // The latest once of retry has failed
                     log.warn("[{}] Failed to delete ledger after retries {}, code: {}", name, ledgerId, rc);
                     future.completeExceptionally(BKException.create(rc));
+                    return;
                 }
                 scheduledExecutor.schedule(() -> asyncDeleteLedger(ledgerId, retry - 1),
                         DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC, TimeUnit.SECONDS);
