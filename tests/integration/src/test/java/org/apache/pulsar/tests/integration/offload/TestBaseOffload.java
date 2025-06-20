@@ -27,7 +27,6 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeperAdmin;
 import org.apache.bookkeeper.conf.ClientConfiguration;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -98,9 +97,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
 
             String output = pulsarCluster.runAdminCommandOnAnyBroker("topics",
                     "offload", "--size-threshold", "100G", topic).getStdout();
-
-            System.out.println("******:" + output);
-            Assert.assertTrue(StringUtils.isEmpty(output));
+            Assert.assertTrue(output.contains("which keep 107374182400 bytes on bookkeeper"));
 
             output = pulsarCluster.runAdminCommandOnAnyBroker( "topics",
                     "offload-status", topic).getStdout();
