@@ -42,10 +42,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
-import io.streamnative.oxia.client.ClientConfig;
-import io.streamnative.oxia.client.api.AsyncOxiaClient;
-import io.streamnative.oxia.client.session.SessionFactory;
-import io.streamnative.oxia.client.session.SessionManager;
+import io.oxia.client.ClientConfig;
+import io.oxia.client.api.AsyncOxiaClient;
+import io.oxia.client.session.SessionFactory;
+import io.oxia.client.session.SessionManager;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;

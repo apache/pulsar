@@ -19,15 +19,15 @@
 package org.apache.pulsar.metadata.impl.oxia;
 
 import io.opentelemetry.api.OpenTelemetry;
-import io.streamnative.oxia.client.api.AsyncOxiaClient;
-import io.streamnative.oxia.client.api.DeleteOption;
-import io.streamnative.oxia.client.api.Notification;
-import io.streamnative.oxia.client.api.OxiaClientBuilder;
-import io.streamnative.oxia.client.api.PutOption;
-import io.streamnative.oxia.client.api.PutResult;
-import io.streamnative.oxia.client.api.Version;
-import io.streamnative.oxia.client.api.exceptions.KeyAlreadyExistsException;
-import io.streamnative.oxia.client.api.exceptions.UnexpectedVersionIdException;
+import io.oxia.client.api.AsyncOxiaClient;
+import io.oxia.client.api.DeleteOption;
+import io.oxia.client.api.Notification;
+import io.oxia.client.api.OxiaClientBuilder;
+import io.oxia.client.api.PutOption;
+import io.oxia.client.api.PutResult;
+import io.oxia.client.api.Version;
+import io.oxia.client.api.exceptions.KeyAlreadyExistsException;
+import io.oxia.client.api.exceptions.UnexpectedVersionIdException;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -125,7 +125,7 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     }
 
     Optional<GetResult> convertGetResult(
-            String path, io.streamnative.oxia.client.api.GetResult result) {
+            String path, io.oxia.client.api.GetResult result) {
         if (result == null) {
             return Optional.empty();
         }
