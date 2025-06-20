@@ -322,7 +322,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
 
             case GET_LAST_MESSAGE_ID_RESPONSE:
                 checkArgument(cmd.hasGetLastMessageIdResponse());
-                handleGetLastMessageIdSuccess(cmd.getGetLastMessageIdResponse());
+                handleGetLastMessageIdSuccess(cmd.getGetLastMessageIdResponse(), buffer);
                 break;
 
             case ACTIVE_CONSUMER_CHANGE:
@@ -628,7 +628,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     protected void handleGetLastMessageId(CommandGetLastMessageId getLastMessageId) {
         throw new UnsupportedOperationException();
     }
-    protected void handleGetLastMessageIdSuccess(CommandGetLastMessageIdResponse success) {
+    protected void handleGetLastMessageIdSuccess(CommandGetLastMessageIdResponse success, ByteBuf buf) {
         throw new UnsupportedOperationException();
     }
 

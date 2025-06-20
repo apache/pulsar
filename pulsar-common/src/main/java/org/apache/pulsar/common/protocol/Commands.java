@@ -2100,4 +2100,19 @@ public class Commands {
     public static boolean peerSupportsBrokerMetadata(int peerVersion) {
         return peerVersion >= ProtocolVersion.v16.getValue();
     }
+
+    public static ByteBufPair newGetLastMessageIdResponse(long requestId, long lastPositionLedgerId,
+                                                          long lastPositionEntryId, int partitionIndex,
+                                                          long markDeleteLedgerId, long markDeleteEntryId,
+                                                          ByteBuf lastEntryBuffer) {
+        BaseCommand cmd = localCmd(Type.GET_LAST_MESSAGE_ID_RESPONSE);
+        CommandGetLastMessageIdResponse response = cmd.setGetLastMessageIdResponse()
+                .setRequestId(requestId);
+        response.setLastMessageId().setLedgerId(lastPositionLedgerId).setEntryId(lastPositionEntryId)
+                .setPartition(partitionIndex).setBatchIndex(-1);
+        if (markDeleteLedgerId >= 0) {
+            response.setConsumerMarkDeletePosition().setLedgerId(markDeleteLedgerId).setEntryId(markDeleteEntryId);
+        }
+        return serializeCommandMessageWithSize(cmd, lastEntryBuffer);
+    }
 }

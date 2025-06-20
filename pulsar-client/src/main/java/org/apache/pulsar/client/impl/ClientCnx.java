@@ -568,7 +568,7 @@ public class ClientCnx extends PulsarHandler {
     }
 
     @Override
-    protected void handleGetLastMessageIdSuccess(CommandGetLastMessageIdResponse success) {
+    protected void handleGetLastMessageIdSuccess(CommandGetLastMessageIdResponse success, ByteBuf buf) {
         checkArgument(state == State.Ready);
 
         if (log.isDebugEnabled()) {
@@ -576,10 +576,10 @@ public class ClientCnx extends PulsarHandler {
                     ctx.channel(), success.getRequestId());
         }
         long requestId = success.getRequestId();
-        CompletableFuture<CommandGetLastMessageIdResponse> requestFuture =
-                (CompletableFuture<CommandGetLastMessageIdResponse>) pendingRequests.remove(requestId);
+        CompletableFuture<Pair<CommandGetLastMessageIdResponse, ByteBuf>> requestFuture =
+                (CompletableFuture<Pair<CommandGetLastMessageIdResponse, ByteBuf>>) pendingRequests.remove(requestId);
         if (requestFuture != null) {
-            requestFuture.complete(new CommandGetLastMessageIdResponse().copyFrom(success));
+            requestFuture.complete(Pair.of(new CommandGetLastMessageIdResponse().copyFrom(success), buf));
         } else {
             duplicatedResponseCounter.incrementAndGet();
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), success.getRequestId());
@@ -1062,7 +1062,8 @@ public class ClientCnx extends PulsarHandler {
         return future;
     }
 
-    public CompletableFuture<CommandGetLastMessageIdResponse> sendGetLastMessageId(ByteBuf request, long requestId) {
+    public CompletableFuture<Pair<CommandGetLastMessageIdResponse, ByteBuf>> sendGetLastMessageId(
+            ByteBuf request, long requestId) {
         return sendRequestAndHandleTimeout(request, requestId, RequestType.GetLastMessageId, true);
     }
 

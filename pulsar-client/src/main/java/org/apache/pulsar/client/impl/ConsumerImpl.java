@@ -113,6 +113,7 @@ import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandAck.ValidationError;
+import org.apache.pulsar.common.api.proto.CommandGetLastMessageIdResponse;
 import org.apache.pulsar.common.api.proto.CommandMessage;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CompressionType;
@@ -2846,7 +2847,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 log.debug("[{}][{}] Get topic last message Id", topic, subscription);
             }
 
-            cnx.sendGetLastMessageId(getLastIdCmd, requestId).thenAccept(cmd -> {
+            cnx.sendGetLastMessageId(getLastIdCmd, requestId).thenAccept(pair -> {
+                final CommandGetLastMessageIdResponse cmd = pair.getKey();
+                // TODO: handle buf
+                final ByteBuf buf = pair.getValue();
                 MessageIdData lastMessageId = cmd.getLastMessageId();
                 MessageIdImpl markDeletePosition = null;
                 if (cmd.hasConsumerMarkDeletePosition()) {
