@@ -285,19 +285,19 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
 
         Awaitility.await().untilAsserted(() -> {
             try {
-                factory.getBookKeeper().get().openLedger(ledger3, ml.digestType, ml.config.getPassword());
+                factory.getBookKeeper().openLedger(ledger3, ml.digestType, ml.config.getPassword());
                 Assert.fail("Should fail: the ledger has been deleted");
             } catch (BKException.BKNoSuchLedgerExistsException ex) {
                 // Expected.
             }
             try {
-                factory.getBookKeeper().get().openLedger(ledger2, ml.digestType, ml.config.getPassword());
+                factory.getBookKeeper().openLedger(ledger2, ml.digestType, ml.config.getPassword());
                 Assert.fail("Should fail: the ledger has been deleted");
             } catch (BKException.BKNoSuchLedgerExistsException ex) {
                 // Expected.
             }
             try {
-                factory.getBookKeeper().get().openLedger(ledger1, ml.digestType, ml.config.getPassword());
+                factory.getBookKeeper().openLedger(ledger1, ml.digestType, ml.config.getPassword());
                 Assert.fail("Should fail: the ledger has been deleted");
             } catch (BKException.BKNoSuchLedgerExistsException ex) {
                 // Expected.
