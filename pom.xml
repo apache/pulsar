@@ -102,7 +102,6 @@ flexible messaging model and an intuitive client API.</description>
     -->
     <docker.platforms></docker.platforms>
     <docker.skip.push>true</docker.skip.push>
-    <docker.skip.tag>false</docker.skip.tag>
 
     <!-- required for running tests on JDK11+ -->
     <test.additional.args>
@@ -167,7 +166,8 @@ flexible messaging model and an intuitive client API.</description>
     <surefire.shutdown>kill</surefire.shutdown>
     <docker.organization>apachepulsar</docker.organization>
     <docker.image>pulsar</docker.image>
-    <docker.tag>latest</docker.tag>
+    <!-- git.commit.id.abbrev will be injected by git-commit-id-plugin-->
+    <docker.tag>${project.version}-${git.commit.id.abbrev}</docker.tag>
     <skipSourceReleaseAssembly>false</skipSourceReleaseAssembly>
     <skipBuildDistribution>false</skipBuildDistribution>
     <skipDeployConnector>false</skipDeployConnector>
@@ -2410,6 +2410,17 @@ flexible messaging model and an intuitive client API.</description>
   </build>
 
   <profiles>
+    <profile>
+      <id>git-commit-id-no-git</id>
+      <activation>
+        <file>
+          <missing>${basedir}/.git</missing>
+        </file>
+      </activation>
+      <properties>
+        <docker.tag>${project.version}-no-git</docker.tag>
+      </properties>
+    </profile>
     <profile>
       <!-- used for running integration tests on Java 8 -->
       <id>integration-test-java8</id>
