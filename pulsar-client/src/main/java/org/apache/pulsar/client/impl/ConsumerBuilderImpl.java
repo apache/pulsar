@@ -634,4 +634,10 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         builderConsumer.accept(topicConfiguration(topicsPattern));
         return this;
     }
+
+    @Override
+    public ConsumerBuilder<T> payloadToMessageIdFunction(PayloadToMessageIdConverter converter) {
+        conf.setPayloadToMessageIdConverter(converter);
+        return this;
+    }
 }

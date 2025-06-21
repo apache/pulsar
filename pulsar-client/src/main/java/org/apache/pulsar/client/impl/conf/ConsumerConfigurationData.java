@@ -37,6 +37,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -51,6 +52,7 @@ import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.ConsumerImpl;
 
 @Data
 @NoArgsConstructor
@@ -414,6 +416,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private boolean autoScaledReceiverQueueSizeEnabled = false;
 
     private List<TopicConsumerConfigurationData> topicConfigurations = new ArrayList<>();
+    private ConsumerBuilder.PayloadToMessageIdConverter payloadToMessageIdConverter =
+            ConsumerImpl::convertBufferToMessageId;
 
     public TopicConsumerConfigurationData getMatchingTopicConfiguration(String topicName) {
         return topicConfigurations.stream()

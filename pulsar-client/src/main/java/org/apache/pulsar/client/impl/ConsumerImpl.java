@@ -28,6 +28,7 @@ import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Iterables;
 import com.scurrilous.circe.checksum.Crc32cIntChecksum;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
@@ -75,6 +76,7 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.DeadLetterProducerBuilderContext;
@@ -2866,8 +2868,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
 
                 final ByteBuf buf = pair.getValue();
-                final MessageId lastMsgId = getLastMessageIdFromResponse(lastMessageId, buf);
-                future.complete(new GetLastMessageIdResponse(lastMsgId, markDeletePosition));
+                try {
+                    final MessageId lastMsgId = getLastMessageIdFromResponse(lastMessageId, buf);
+                    future.complete(new GetLastMessageIdResponse(lastMsgId, markDeletePosition));
+                } catch (IOException e) {
+                    future.completeExceptionally(e);
+                } finally {
+                    buf.release();
+                }
             }).exceptionally(e -> {
                 log.error("[{}][{}] Failed getLastMessageId command", topic, subscription);
                 future.completeExceptionally(
@@ -2899,65 +2907,98 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
-    private MessageId getLastMessageIdFromResponse(MessageIdData lastMessageId, ByteBuf buf) {
+    public static MessageId convertBufferToMessageId(ConsumerBuilder.LastEntry lastEntry) throws IOException {
+        final ByteBuf metadataBuf = Unpooled.wrappedBuffer(lastEntry.getMetadataBuffer());
+        final ByteBuf buf = Unpooled.wrappedBuffer(lastEntry.getPayloadBuffer());
         try {
-            if (buf.readableBytes() <= 0) {
-                if (lastMessageId.getBatchIndex() <= 0) {
-                    return new MessageIdImpl(lastMessageId.getLedgerId(), lastMessageId.getEntryId(),
-                            lastMessageId.getPartition());
-                } else {
-                    return new BatchMessageIdImpl(lastMessageId.getLedgerId(), lastMessageId.getEntryId(),
-                            lastMessageId.getPartition(), lastMessageId.getBatchIndex());
+            final MessageMetadata metadata = Commands.parseMessageMetadata(metadataBuf);
+            final int batchSize = metadata.getNumMessagesInBatch();
+            int batchIndex = -1;
+            for (int i = 0; i < batchSize; i++) {
+                final SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
+                ByteBuf payload = Commands.deSerializeSingleMessageInBatch(buf, singleMessageMetadata,
+                        i, batchSize);
+                try {
+                    if (singleMessageMetadata.isCompactedOut()) {
+                        continue;
+                    }
+                    batchIndex = i;
+                } finally {
+                    payload.release();
                 }
             }
-            checkArgument(conf.isReadCompacted());
+            return new BatchMessageIdImpl(lastEntry.getLedgerId(), lastEntry.getEntryId(),
+                    lastEntry.getPartitionIndex(), batchIndex);
+        } finally {
+            metadataBuf.release();
+            buf.release();
+        }
+    }
 
-            final MessageMetadata messageMetadata = Commands.parseMessageMetadata(buf);
-            int batchSize = messageMetadata.getNumMessagesInBatch();
-            if (batchSize <= 1) {
+    private MessageId getLastMessageIdFromResponse(MessageIdData lastMessageId, ByteBuf buf) throws IOException {
+        if (buf.readableBytes() <= 0) {
+            if (lastMessageId.getBatchIndex() <= 0) {
                 return new MessageIdImpl(lastMessageId.getLedgerId(), lastMessageId.getEntryId(),
                         lastMessageId.getPartition());
-            }
-
-            // Parse the correct batch index from buffer
-            if (!verifyChecksum(buf, lastMessageId)) {
-                throw new RuntimeException("checksum mismatch in the last message's buffer");
-            }
-            DecryptResult decryptResult = decryptPayloadIfNeeded(lastMessageId, 0, messageMetadata, buf, null);
-            if (decryptResult.shouldDiscard() || !decryptResult.success) {
-                throw new RuntimeException("Failed to decrypt last message's buffer");
-            }
-            final ByteBuf uncompressedBuf = uncompressPayloadIfNeeded(lastMessageId, messageMetadata,
-                    decryptResult.payload, null, false);
-            decryptResult.payload.release();
-            if (uncompressedBuf == null) {
-                throw new RuntimeException("Failed to uncompress last message's buffer");
-            }
-            try {
-                // TODO: support payload processor
-                int batchIndex = -1;
-                for (int i = 0; i < batchSize; i++) {
-                    final SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
-                    ByteBuf payload = Commands.deSerializeSingleMessageInBatch(uncompressedBuf, singleMessageMetadata,
-                            i, batchSize);
-                    try {
-                        if (singleMessageMetadata.isCompactedOut()) {
-                            continue;
-                        }
-                        batchIndex = i;
-                    } finally {
-                        payload.release();
-                    }
-                }
+            } else {
                 return new BatchMessageIdImpl(lastMessageId.getLedgerId(), lastMessageId.getEntryId(),
-                        lastMessageId.getPartition(), batchIndex);
-            } finally {
-                uncompressedBuf.release();
+                        lastMessageId.getPartition(), lastMessageId.getBatchIndex());
             }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        }
+        checkArgument(conf.isReadCompacted());
+
+        int startReaderIndex = buf.readerIndex();
+        final MessageMetadata messageMetadata = Commands.parseMessageMetadata(buf);
+        final ByteBuf metadataBuf = buf.slice(startReaderIndex, buf.readerIndex() - startReaderIndex);
+        int batchSize = messageMetadata.getNumMessagesInBatch();
+        if (batchSize <= 1) {
+            return new MessageIdImpl(lastMessageId.getLedgerId(), lastMessageId.getEntryId(),
+                    lastMessageId.getPartition());
+        }
+
+        // Parse the correct batch index from buffer
+        if (!verifyChecksum(buf, lastMessageId)) {
+            throw new IOException("checksum mismatch in the last message's buffer");
+        }
+        DecryptResult decryptResult = decryptPayloadIfNeeded(lastMessageId, 0, messageMetadata, buf, null);
+        if (decryptResult.shouldDiscard() || !decryptResult.success) {
+            throw new IOException("Failed to decrypt last message's buffer");
+        }
+        final ByteBuf uncompressedBuf = uncompressPayloadIfNeeded(lastMessageId, messageMetadata,
+                decryptResult.payload, null, false);
+        decryptResult.payload.release();
+        if (uncompressedBuf == null) {
+            throw new RuntimeException("Failed to uncompress last message's buffer");
+        }
+        try {
+            return conf.getPayloadToMessageIdConverter().convert(new ConsumerBuilder.LastEntry() {
+                @Override
+                public long getLedgerId() {
+                    return lastMessageId.getLedgerId();
+                }
+
+                @Override
+                public long getEntryId() {
+                    return lastMessageId.getEntryId();
+                }
+
+                @Override
+                public int getPartitionIndex() {
+                    return lastMessageId.getPartition();
+                }
+
+                @Override
+                public ByteBuffer getMetadataBuffer() {
+                    return metadataBuf.nioBuffer();
+                }
+
+                @Override
+                public ByteBuffer getPayloadBuffer() {
+                    return uncompressedBuf.nioBuffer();
+                }
+            });
         } finally {
-            buf.release();
+            uncompressedBuf.release();
         }
     }
 
