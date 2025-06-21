@@ -2335,19 +2335,19 @@ public class BrokerService implements Closeable {
 
     public CompletableFuture<Void> checkTopicNsOwnership(final String topic) {
         TopicName topicName = TopicName.get(topic);
+        final var namespaceService = pulsar.getNamespaceService();
 
-        return pulsar.getNamespaceService().checkTopicOwnership(topicName)
-                .thenCompose(ownedByThisInstance -> {
+        return namespaceService.getBundleAsync(topicName).thenCompose(bundle ->
+                namespaceService.checkBundleOwnership(topicName, bundle).thenCompose(ownedByThisInstance -> {
                     if (ownedByThisInstance) {
                         return CompletableFuture.completedFuture(null);
                     } else {
-                        String msg = String.format("Namespace bundle for topic (%s) not served by this instance:%s. "
-                                        + "Please redo the lookup. Request is denied: namespace=%s",
-                                topic, pulsar.getBrokerId(), topicName.getNamespace());
+                        String msg = String.format("Namespace bundle (%s) for topic (%s) not served by this instance:"
+                                + "%s. Please redo the lookup.", bundle, topic, pulsar.getBrokerId());
                         log.warn(msg);
                         return FutureUtil.failedFuture(new ServiceUnitNotReadyException(msg));
                     }
-                });
+                }));
     }
 
     public CompletableFuture<Integer> unloadServiceUnit(NamespaceBundle serviceUnit,
