@@ -182,7 +182,7 @@
     </dependency>
 
     <dependency>
-      <groupId>io.streamnative.oxia</groupId>
+      <groupId>io.github.oxia-db</groupId>
       <artifactId>oxia-testcontainers</artifactId>
       <scope>test</scope>
     </dependency>
