@@ -118,7 +118,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    private void testOffload(String topicName, String mlName) throws Exception {
+    private void testOffloadWithMessageId(String topicName, String mlName) throws Exception {
         LedgerOffloader offloader = mock(LedgerOffloader.class);
         when(offloader.getOffloadDriverName()).thenReturn("mock");
 
@@ -194,19 +194,107 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
                 attributes, actual -> assertThat(actual).isPositive());
     }
 
+    private void testOffloadWithSizeThreshold(String topicName, String mlName) throws Exception {
+        LedgerOffloader offloader = mock(LedgerOffloader.class);
+        when(offloader.getOffloadDriverName()).thenReturn("mock");
 
-    @Test
-    public void testOffloadV2() throws Exception {
-        String topicName = "persistent://prop-xyz/ns1/topic1";
-        String mlName = "prop-xyz/ns1/persistent/topic1";
-        testOffload(topicName, mlName);
+        doReturn(offloader).when(pulsar).getManagedLedgerOffloader(any(), any());
+
+        CompletableFuture<Void> promise = new CompletableFuture<>();
+        doReturn(promise).when(offloader).offload(any(), any(), any());
+        doReturn(true).when(offloader).isAppendable();
+
+        try (Producer<byte[]> p = pulsarClient.newProducer().topic(topicName).enableBatching(false).create()) {
+            for (int i = 0; i < 15; i++) {
+                p.send("Foobar".getBytes());
+            }
+        }
+
+        ManagedLedgerInfo info = pulsar.getDefaultManagedLedgerFactory().getManagedLedgerInfo(mlName);
+        assertEquals(info.ledgers.size(), 2);
+
+        assertEquals(admin.topics().offloadStatus(topicName).getStatus(), LongRunningProcessStatus.Status.NOT_RUN);
+        var topicNameObject = TopicName.get(topicName);
+        var attributes = Attributes.builder()
+                .put(OpenTelemetryAttributes.PULSAR_DOMAIN, topicNameObject.getDomain().toString())
+                .put(OpenTelemetryAttributes.PULSAR_TENANT, topicNameObject.getTenant())
+                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, topicNameObject.getNamespace())
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicNameObject.getPartitionedTopicName())
+                .build();
+        // Verify the respective metric is 0 before the offload begins.
+        var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        BrokerOpenTelemetryTestUtil.assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_OFFLOADED_COUNTER,
+                attributes, actual -> assertThat(actual).isZero());
+
+        admin.topics().triggerOffload(topicName, 50L);
+
+        assertEquals(admin.topics().offloadStatus(topicName).getStatus(),
+                LongRunningProcessStatus.Status.RUNNING);
+
+        try {
+            admin.topics().triggerOffload(topicName, 50L);
+            Assert.fail("Should have failed");
+        } catch (ConflictException e) {
+            // expected
+        }
+
+        // fail first time
+        promise.completeExceptionally(new Exception("Some random failure"));
+
+        assertEquals(admin.topics().offloadStatus(topicName).getStatus(),
+                LongRunningProcessStatus.Status.ERROR);
+        Assert.assertTrue(admin.topics().offloadStatus(topicName).getLastError().contains("Some random failure"));
+
+        // Try again
+        doReturn(CompletableFuture.completedFuture(null))
+                .when(offloader).offload(any(), any(), any());
+
+        admin.topics().triggerOffload(topicName, 30L);
+
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.topics().offloadStatus(topicName).getStatus(),
+                        LongRunningProcessStatus.Status.SUCCESS));
+        MessageId firstUnoffloaded = admin.topics().offloadStatus(topicName).getFirstUnoffloadedMessage();
+        assertTrue(firstUnoffloaded instanceof MessageIdImpl);
+        MessageIdImpl firstUnoffloadedMessage = (MessageIdImpl) firstUnoffloaded;
+        // First unoffloaded is the first entry of current ledger
+        assertEquals(firstUnoffloadedMessage.getLedgerId(), info.ledgers.get(1).ledgerId);
+        assertEquals(firstUnoffloadedMessage.getEntryId(), 0);
+
+        verify(offloader, times(2)).offload(any(), any(), any());
+
+        // Verify the metrics have been updated.
+        metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        BrokerOpenTelemetryTestUtil.assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_OFFLOADED_COUNTER,
+                attributes, actual -> assertThat(actual).isPositive());
     }
 
     @Test
-    public void testOffloadV1() throws Exception {
+    public void testOffloadWithMessageIdV2() throws Exception {
+        String topicName = "persistent://prop-xyz/ns1/topic1";
+        String mlName = "prop-xyz/ns1/persistent/topic1";
+        testOffloadWithMessageId(topicName, mlName);
+    }
+
+    @Test
+    public void testOffloadWithSizeThresholdV2() throws Exception {
+        String topicName = "persistent://prop-xyz/ns1/topic1";
+        String mlName = "prop-xyz/ns1/persistent/topic1";
+        testOffloadWithSizeThreshold(topicName, mlName);
+    }
+
+    @Test
+    public void testOffloadWithMessageIdV1() throws Exception {
         String topicName = "persistent://prop-xyz/test/ns1/topic2";
         String mlName = "prop-xyz/test/ns1/persistent/topic2";
-        testOffload(topicName, mlName);
+        testOffloadWithMessageId(topicName, mlName);
+    }
+
+    @Test
+    public void testOffloadWithSizeThresholdV1() throws Exception {
+        String topicName = "persistent://prop-xyz/test/ns1/topic2";
+        String mlName = "prop-xyz/test/ns1/persistent/topic2";
+        testOffloadWithSizeThreshold(topicName, mlName);
     }
 
     @Test
