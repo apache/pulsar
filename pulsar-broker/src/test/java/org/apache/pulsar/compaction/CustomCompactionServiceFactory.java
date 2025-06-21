@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -35,9 +36,12 @@ import org.apache.pulsar.client.api.MessagePayloadContext;
 import org.apache.pulsar.client.api.MessagePayloadProcessor;
 import org.apache.pulsar.client.api.PayloadToMessageIdConverter;
 import org.apache.pulsar.client.api.RawMessage;
+import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.RawMessageImpl;
+import org.apache.pulsar.client.impl.RawReaderImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
@@ -99,6 +103,14 @@ public class CustomCompactionServiceFactory extends PulsarCompactionServiceFacto
         public CustomCompactor(PulsarService pulsarService) throws PulsarServerException {
             super(pulsarService.getConfiguration(), pulsarService.getClient(), pulsarService.getBookKeeperClient(),
                     pulsarService.getCompactorExecutor());
+        }
+
+        @Override
+        protected CompletableFuture<RawReader> createRawReader(String topic) {
+            final var future = new CompletableFuture<org.apache.pulsar.client.api.Consumer<byte[]>>();
+            final var reader = new RawReaderImpl((PulsarClientImpl) pulsar, topic, COMPACTION_SUBSCRIPTION, future,
+                    false, false, CustomCompactionServiceFactory::convertPayloadToMessageId);
+            return future.thenApply(__ -> reader);
         }
 
         // This is a simple implementation that assumes all messages are not compressed and have partition keys

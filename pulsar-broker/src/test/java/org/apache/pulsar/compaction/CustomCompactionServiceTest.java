@@ -99,6 +99,11 @@ public class CustomCompactionServiceTest extends ProducerConsumerBase {
         final var lastMsgId = reader.getLastMessageIds().get(0);
         log.info("Last msg id: {}", lastMsgId);
         Assert.assertEquals(msg.getMessageId(), lastMsgId);
+
+        // Trigger the RawReader#getLastMessageId function and ensure no exception will be thrown
+        admin.namespaces().unload("public/default");
+        triggerCompactionAndWait(topic);
+        Assert.assertEquals(reader.getLastMessageIds().get(0), lastMsgId);
     }
 
     private void triggerCompactionAndWait(String topicName) throws Exception {

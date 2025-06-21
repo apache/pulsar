@@ -55,7 +55,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.MockZooKeeper;
 import org.awaitility.Awaitility;
-import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -563,9 +562,9 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
         final var msgId = (MessageIdAdv) consumer.getLastMessageIds().get(0);
         if (encryption) {
             // Compaction does not work for encrypted messages
-            Assert.assertEquals(msgId.getBatchIndex(), 3);
+            assertEquals(msgId.getBatchIndex(), 3);
         } else {
-            Assert.assertEquals(msgId.getBatchIndex(), 1);
+            assertEquals(msgId.getBatchIndex(), 1);
         }
 
         final var readerBuilder = pulsarClient.newReader(Schema.STRING).topic(topic).startMessageId(MessageId.earliest)
