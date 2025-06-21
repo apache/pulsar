@@ -56,8 +56,9 @@ public interface TopicPoliciesService extends AutoCloseable {
      * @param topicName       topic name
      * @param isGlobalPolicy  true if the global policy is to be updated, false for local
      * @param skipUpdateWhenTopicPolicyDoesntExist when true, skips the update if the topic policy does not already
-     *                                             exist.
-     * @param policyUpdater   a consumer that modifies the TopicPolicies
+     *                                             exist. This is useful for cases when the policyUpdater is removing
+     *                                             a setting in the policy.
+     * @param policyUpdater   a function that modifies the TopicPolicies
      * @return a CompletableFuture that completes when the update has been completed with read-your-writes consistency.
      */
     CompletableFuture<Void> updateTopicPoliciesAsync(TopicName topicName,
