@@ -636,7 +636,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
-    public ConsumerBuilder<T> payloadToMessageIdFunction(PayloadToMessageIdConverter converter) {
+    public ConsumerBuilder<T> payloadToMessageIdConverter(PayloadToMessageIdConverter converter) {
         conf.setPayloadToMessageIdConverter(converter);
         return this;
     }

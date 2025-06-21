@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Data;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageCrypto;
@@ -163,6 +164,8 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
     private SubscriptionMode subscriptionMode = SubscriptionMode.NonDurable;
 
     private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
+
+    private ConsumerBuilder.PayloadToMessageIdConverter payloadToMessageIdConverter;
 
     @JsonIgnore
     public String getTopicName() {

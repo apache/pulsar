@@ -27,6 +27,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.RawMessage;
@@ -42,6 +43,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,6 +56,13 @@ public class RawReaderImpl implements RawReader {
     public RawReaderImpl(PulsarClientImpl client, String topic, String subscription,
                          CompletableFuture<Consumer<byte[]>> consumerFuture,
                          boolean createTopicIfDoesNotExist, boolean retryOnRecoverableErrors) {
+        this(client, topic, subscription, consumerFuture, createTopicIfDoesNotExist, retryOnRecoverableErrors, null);
+    }
+
+    public RawReaderImpl(PulsarClientImpl client, String topic, String subscription,
+                         CompletableFuture<Consumer<byte[]>> consumerFuture,
+                         boolean createTopicIfDoesNotExist, boolean retryOnRecoverableErrors,
+                         ConsumerBuilder.PayloadToMessageIdConverter payloadToMessageIdConverter) {
         consumerConfiguration = new ConsumerConfigurationData<>();
         consumerConfiguration.getTopicNames().add(topic);
         consumerConfiguration.setSubscriptionName(subscription);
@@ -62,6 +71,7 @@ public class RawReaderImpl implements RawReader {
         consumerConfiguration.setReadCompacted(true);
         consumerConfiguration.setSubscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
         consumerConfiguration.setAckReceiptEnabled(true);
+        consumerConfiguration.setPayloadToMessageIdConverter(payloadToMessageIdConverter);
 
         consumer = new RawConsumerImpl(client, consumerConfiguration, consumerFuture, createTopicIfDoesNotExist,
                 retryOnRecoverableErrors);

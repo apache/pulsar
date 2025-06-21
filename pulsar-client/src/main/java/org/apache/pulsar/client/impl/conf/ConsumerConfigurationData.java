@@ -463,4 +463,10 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     public boolean isReplicateSubscriptionState() {
         return replicateSubscriptionState != null && replicateSubscriptionState;
     }
+
+    public void setPayloadToMessageIdConverter(ConsumerBuilder.PayloadToMessageIdConverter converter) {
+        if (converter != null) {
+            this.payloadToMessageIdConverter = converter;
+        }
+    }
 }

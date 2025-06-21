@@ -965,7 +965,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * If `converter` throws an exception, the corresponding {@link Consumer#getLastMessageIdsAsync()}'s result will
      * fail with that exception.
      */
-    ConsumerBuilder<T> payloadToMessageIdFunction(PayloadToMessageIdConverter converter);
+    ConsumerBuilder<T> payloadToMessageIdConverter(PayloadToMessageIdConverter converter);
 
     interface LastEntry {
 

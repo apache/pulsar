@@ -30,6 +30,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NonNull;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageCrypto;
@@ -280,4 +281,9 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
         return this;
     }
 
+    @Override
+    public ReaderBuilder<T> payloadToMessageIdConverter(ConsumerBuilder.PayloadToMessageIdConverter converter) {
+        conf.setPayloadToMessageIdConverter(converter);
+        return this;
+    }
 }
