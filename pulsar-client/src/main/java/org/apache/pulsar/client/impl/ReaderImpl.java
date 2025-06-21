@@ -134,7 +134,12 @@ public class ReaderImpl<T> implements Reader<T> {
                             .ranges(readerConfiguration.getKeyHashRanges())
             );
         }
-        consumerConfiguration.setPayloadToMessageIdConverter(readerConfiguration.getPayloadToMessageIdConverter());
+        if (readerConfiguration.getPayloadProcessor() != null) {
+            consumerConfiguration.setPayloadProcessor(readerConfiguration.getPayloadProcessor());
+        }
+        if (readerConfiguration.getPayloadToMessageIdConverter() != null) {
+            consumerConfiguration.setPayloadToMessageIdConverter(readerConfiguration.getPayloadToMessageIdConverter());
+        }
 
         ConsumerInterceptors<T> consumerInterceptors =
                 ReaderInterceptorUtil.convertToConsumerInterceptors(

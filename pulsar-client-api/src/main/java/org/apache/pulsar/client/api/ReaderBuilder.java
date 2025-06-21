@@ -377,6 +377,11 @@ public interface ReaderBuilder<T> extends Cloneable {
     ReaderBuilder<T> expireTimeOfIncompleteChunkedMessage(long duration, TimeUnit unit);
 
     /**
+     * @see ConsumerBuilder#messagePayloadProcessor
+     */
+    ReaderBuilder<T> messagePayloadProcessor(MessagePayloadProcessor payloadProcessor);
+
+    /**
      * @see ConsumerBuilder#payloadToMessageIdConverter
      */
     ReaderBuilder<T> payloadToMessageIdConverter(ConsumerBuilder.PayloadToMessageIdConverter converter);
