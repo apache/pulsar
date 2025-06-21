@@ -950,4 +950,26 @@ public interface ConsumerBuilder<T> extends Cloneable {
      */
     ConsumerBuilder<T> topicConfiguration(Pattern topicsPattern,
                                           java.util.function.Consumer<TopicConsumerBuilder<T>> builderConsumer);
+
+    /**
+     * Configures a custom `PayloadToMessageIdConverter` to handle the parsing of the last entry's buffer when
+     * {@link ConsumerBuilder#readCompacted(boolean)} is set to `true`.
+     *
+     * When compaction is enabled, the `GetLastMessageId` response may include the buffer of the last entry from the
+     * compaction service. In such cases, the last message's message ID must be extracted from the buffer, as the entry
+     * may contain messages that have been compacted out and will not be delivered to the consumer.
+     *
+     * If the broker's topic compaction service uses the built-in implementation, users do not need to configure this
+     * explicitly, as the default conversion function handles the parsing correctly. However, if the broker is
+     * configured with a custom topic compaction service, you must provide a `converter` with an appropriate function to
+     * parse the buffer correctly based on the behavior of the custom compaction service.
+     *
+     * If the provided `converter` throws an exception during parsing, the corresponding result of
+     * {@link Consumer#getLastMessageIdsAsync()} will fail with that exception.
+     *
+     * @param converter The custom `PayloadToMessageIdConverter` to parse the last entry's buffer.
+     * @return The updated `ConsumerBuilder` instance.
+     */
+    ConsumerBuilder<T> payloadToMessageIdConverter(PayloadToMessageIdConverter converter);
+
 }

@@ -47,6 +47,7 @@ import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.MessageListenerExecutor;
 import org.apache.pulsar.client.api.MessagePayloadProcessor;
+import org.apache.pulsar.client.api.PayloadToMessageIdConverter;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidConfigurationException;
 import org.apache.pulsar.client.api.RedeliveryBackoff;
@@ -632,6 +633,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     public ConsumerBuilder<T> topicConfiguration(Pattern topicsPattern,
                                                  java.util.function.Consumer<TopicConsumerBuilder<T>> builderConsumer) {
         builderConsumer.accept(topicConfiguration(topicsPattern));
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> payloadToMessageIdConverter(PayloadToMessageIdConverter converter) {
+        conf.setPayloadToMessageIdConverter(converter);
         return this;
     }
 }

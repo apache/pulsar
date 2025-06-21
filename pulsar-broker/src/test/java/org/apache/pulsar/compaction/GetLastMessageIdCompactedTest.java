@@ -29,6 +29,8 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -39,6 +41,7 @@ import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
@@ -57,6 +60,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@Slf4j
 @Test(groups = "broker-impl")
 public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
 
@@ -515,5 +519,66 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
             Message<String> message = reader.readNext(5, TimeUnit.SECONDS);
             assertNotEquals(message, null);
         }
+    }
+
+    @DataProvider(name = "encryptionAndCompression")
+    public Object[][] encryptionAndCompression(){
+        return new Object[][]{
+                { true, CompressionType.NONE },
+                { true, CompressionType.LZ4 },
+                { false, CompressionType.NONE },
+                { false, CompressionType.LZ4 },
+        };
+    }
+
+    @Test(dataProvider = "encryptionAndCompression", timeOut = 30000)
+    public void testGetLastMessageIdForEncryptedMessage(boolean encryption, CompressionType compressionType)
+            throws Exception {
+        final var topic = BrokerTestUtil.newUniqueName("tp");
+        final var ecdsaPublickeyFile = "file:./src/test/resources/certificate/public-key.client-ecdsa.pem";
+        final String ecdsaPrivateKeyFile = "file:./src/test/resources/certificate/private-key.client-ecdsa.pem";
+        final var producerBuilder = pulsarClient.newProducer(Schema.STRING).topic(topic)
+                .batchingMaxBytes(Integer.MAX_VALUE)
+                .batchingMaxMessages(Integer.MAX_VALUE)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .compressionType(compressionType);
+        if (encryption) {
+            producerBuilder.addEncryptionKey("client-ecdsa.pem").defaultCryptoKeyReader(ecdsaPublickeyFile);
+        }
+        @Cleanup final var producer = producerBuilder.create();
+        producer.newMessage().key("k0").value("v0").sendAsync();
+        producer.newMessage().key("k0").value("v1").sendAsync();
+        producer.newMessage().key("k1").value("v0").sendAsync();
+        producer.newMessage().key("k1").value(null).sendAsync();
+        producer.flush();
+        triggerCompactionAndWait(topic);
+
+        final var consumerBuilder = pulsarClient.newConsumer(Schema.STRING).topic(topic).subscriptionName("sub")
+                .readCompacted(true);
+        if (encryption) {
+            consumerBuilder.defaultCryptoKeyReader(ecdsaPrivateKeyFile);
+        }
+        @Cleanup final var consumer = consumerBuilder.subscribe();
+        final var msgId = (MessageIdAdv) consumer.getLastMessageIds().get(0);
+        if (encryption) {
+            // Compaction does not work for encrypted messages
+            assertEquals(msgId.getBatchIndex(), 3);
+        } else {
+            assertEquals(msgId.getBatchIndex(), 1);
+        }
+
+        final var readerBuilder = pulsarClient.newReader(Schema.STRING).topic(topic).startMessageId(MessageId.earliest)
+                .topic(topic).readCompacted(true);
+        if (encryption) {
+            readerBuilder.defaultCryptoKeyReader(ecdsaPrivateKeyFile);
+        }
+        @Cleanup final var reader = readerBuilder.create();
+        MessageIdAdv readMsgId = (MessageIdAdv) MessageId.earliest;
+        while (reader.hasMessageAvailable()) {
+            final var msg = reader.readNext();
+            log.info("Read key: {}, value: {}", msg.getKey(), Optional.ofNullable(msg.getValue()).orElse("(null)"));
+            readMsgId = (MessageIdAdv) msg.getMessageId();
+        }
+        assertEquals(readMsgId, msgId);
     }
 }

@@ -27,6 +27,7 @@ import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.unsafeGet
 import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.getMigratedClusterUrl;
 import static org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.ignoreUnrecoverableBKException;
+import static org.apache.pulsar.common.api.proto.ProtocolVersion.v22;
 import static org.apache.pulsar.common.api.proto.ProtocolVersion.v5;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
@@ -2283,7 +2284,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                  .thenApply(lastPosition -> {
                      int partitionIndex = TopicName.getPartitionIndex(topic.getName());
 
-                     Position markDeletePosition = null;
+                     Position markDeletePosition = PositionFactory.EARLIEST;
                      if (consumer.getSubscription() instanceof PersistentSubscription) {
                          markDeletePosition = ((PersistentSubscription) consumer.getSubscription()).getCursor()
                                  .getMarkDeletedPosition();
@@ -2344,8 +2345,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 } else {
                     // if readCompacted is false, we need to return MessageId.earliest
                     writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, -1, -1, partitionIndex, -1,
-                            markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
-                            markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
+                            markDeletePosition.getLedgerId(), markDeletePosition.getEntryId()));
                 }
                 return;
             }
@@ -2404,8 +2404,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
                     writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, lastPosition.getLedgerId(),
                             lastPosition.getEntryId(), partitionIndex, largestBatchIndex,
-                            markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
-                            markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
+                            markDeletePosition.getLedgerId(), markDeletePosition.getEntryId()));
                 }
             });
         });
@@ -2415,6 +2414,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                           int partitionIndex, Position markDeletePosition) {
         persistentTopic.getTopicCompactionService().readLastCompactedEntry().thenAccept(entry -> {
             if (entry != null) {
+                if (getRemoteEndpointProtocolVersion() >= v22.getValue()) {
+                    sendGetLastMessageIdResponseWithBuffer(requestId, partitionIndex, entry, markDeletePosition);
+                    return;
+                }
                 try {
                     // in this case, all the data has been compacted, so return the last position
                     // in the compacted ledger to the client
@@ -2451,6 +2454,29 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             + ex.getCause().getMessage()));
             return null;
         });
+    }
+
+    private void sendGetLastMessageIdResponseWithBuffer(long requestId, int partitionIndex, Entry entry,
+                                                        Position markDeletePosition) {
+        try {
+            final var buffer = entry.getDataBuffer().retain();
+            final ByteBufPair response;
+            try {
+                response = Commands.newGetLastMessageIdResponse(requestId, entry.getLedgerId(),
+                        entry.getEntryId(), partitionIndex, markDeletePosition.getLedgerId(),
+                        markDeletePosition.getEntryId(), buffer);
+            } catch (Throwable throwable) {
+                buffer.release();
+                entry.release();
+                log.error("Unexpected exception when getLastMessageId for compacted consumer (request id: {})",
+                        requestId, throwable);
+                writeAndFlush(Commands.newError(requestId, ServerError.UnknownError, throwable.getMessage()));
+                return;
+            }
+            ctx.writeAndFlush(response, ctx.voidPromise());
+        } finally {
+            entry.release();
+        }
     }
 
     private int calculateTheLastBatchIndexInBatch(MessageMetadata metadata, ByteBuf payload) throws IOException {

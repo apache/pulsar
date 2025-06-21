@@ -34,6 +34,8 @@ import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessagePayloadProcessor;
+import org.apache.pulsar.client.api.PayloadToMessageIdConverter;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.Reader;
@@ -280,4 +282,15 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
         return this;
     }
 
+    @Override
+    public ReaderBuilder<T> messagePayloadProcessor(MessagePayloadProcessor payloadProcessor) {
+        conf.setPayloadProcessor(payloadProcessor);
+        return this;
+    }
+
+    @Override
+    public ReaderBuilder<T> payloadToMessageIdConverter(PayloadToMessageIdConverter converter) {
+        conf.setPayloadToMessageIdConverter(converter);
+        return this;
+    }
 }

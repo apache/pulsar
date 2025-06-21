@@ -46,11 +46,13 @@ import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.MessageListenerExecutor;
 import org.apache.pulsar.client.api.MessagePayloadProcessor;
+import org.apache.pulsar.client.api.PayloadToMessageIdConverter;
 import org.apache.pulsar.client.api.RedeliveryBackoff;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.ConsumerImpl;
 
 @Data
 @NoArgsConstructor
@@ -414,6 +416,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private boolean autoScaledReceiverQueueSizeEnabled = false;
 
     private List<TopicConsumerConfigurationData> topicConfigurations = new ArrayList<>();
+    private PayloadToMessageIdConverter payloadToMessageIdConverter =
+            ConsumerImpl::convertBufferToMessageId;
 
     public TopicConsumerConfigurationData getMatchingTopicConfiguration(String topicName) {
         return topicConfigurations.stream()
@@ -458,5 +462,11 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     @Deprecated
     public boolean isReplicateSubscriptionState() {
         return replicateSubscriptionState != null && replicateSubscriptionState;
+    }
+
+    public void setPayloadToMessageIdConverter(PayloadToMessageIdConverter converter) {
+        if (converter != null) {
+            this.payloadToMessageIdConverter = converter;
+        }
     }
 }

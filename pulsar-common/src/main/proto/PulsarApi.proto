@@ -265,6 +265,7 @@ enum ProtocolVersion {
     v19 = 19; // Add CommandTcClientConnectRequest and CommandTcClientConnectResponse
     v20 = 20; // Add client support for topic migration redirection CommandTopicMigrated
     v21 = 21; // Carry the AUTO_CONSUME schema to the Broker after this version
+    v22 = 22; // Send the last entry's payload buffer to the consumer if the consumer's read_compacted field is true
 }
 
 message CommandConnect {

@@ -31,6 +31,8 @@ import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessagePayloadProcessor;
+import org.apache.pulsar.client.api.PayloadToMessageIdConverter;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.ReaderInterceptor;
 import org.apache.pulsar.client.api.ReaderListener;
@@ -163,6 +165,12 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
     private SubscriptionMode subscriptionMode = SubscriptionMode.NonDurable;
 
     private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
+
+    @JsonIgnore
+    private PayloadToMessageIdConverter payloadToMessageIdConverter;
+
+    @JsonIgnore
+    private MessagePayloadProcessor payloadProcessor;
 
     @JsonIgnore
     public String getTopicName() {
