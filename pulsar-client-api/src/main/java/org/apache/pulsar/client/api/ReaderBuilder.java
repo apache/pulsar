@@ -384,5 +384,5 @@ public interface ReaderBuilder<T> extends Cloneable {
     /**
      * @see ConsumerBuilder#payloadToMessageIdConverter
      */
-    ReaderBuilder<T> payloadToMessageIdConverter(ConsumerBuilder.PayloadToMessageIdConverter converter);
+    ReaderBuilder<T> payloadToMessageIdConverter(PayloadToMessageIdConverter converter);
 }

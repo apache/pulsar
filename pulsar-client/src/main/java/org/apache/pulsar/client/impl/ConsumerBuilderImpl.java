@@ -47,6 +47,7 @@ import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.MessageListenerExecutor;
 import org.apache.pulsar.client.api.MessagePayloadProcessor;
+import org.apache.pulsar.client.api.PayloadToMessageIdConverter;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidConfigurationException;
 import org.apache.pulsar.client.api.RedeliveryBackoff;

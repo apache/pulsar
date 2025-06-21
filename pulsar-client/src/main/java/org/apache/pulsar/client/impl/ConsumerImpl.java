@@ -76,7 +76,6 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.DeadLetterProducerBuilderContext;
@@ -86,6 +85,7 @@ import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Messages;
+import org.apache.pulsar.client.api.PayloadToMessageIdConverter;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -2907,7 +2907,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
-    public static MessageId convertBufferToMessageId(ConsumerBuilder.LastEntry lastEntry) throws IOException {
+    public static MessageId convertBufferToMessageId(PayloadToMessageIdConverter.LastEntry lastEntry)
+            throws IOException {
         final ByteBuf metadataBuf = Unpooled.wrappedBuffer(lastEntry.getMetadataBuffer());
         final ByteBuf buf = Unpooled.wrappedBuffer(lastEntry.getPayloadBuffer());
         try {
@@ -2971,7 +2972,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             throw new RuntimeException("Failed to uncompress last message's buffer");
         }
         try {
-            return conf.getPayloadToMessageIdConverter().convert(new ConsumerBuilder.LastEntry() {
+            return conf.getPayloadToMessageIdConverter().convert(new PayloadToMessageIdConverter.LastEntry() {
                 @Override
                 public long getLedgerId() {
                     return lastMessageId.getLedgerId();

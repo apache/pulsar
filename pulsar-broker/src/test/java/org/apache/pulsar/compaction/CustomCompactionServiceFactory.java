@@ -28,12 +28,12 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessagePayload;
 import org.apache.pulsar.client.api.MessagePayloadContext;
 import org.apache.pulsar.client.api.MessagePayloadProcessor;
+import org.apache.pulsar.client.api.PayloadToMessageIdConverter;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
@@ -52,7 +52,7 @@ public class CustomCompactionServiceFactory extends PulsarCompactionServiceFacto
         return new CustomCompactor(getPulsarService());
     }
 
-    public static MessageId convertPayloadToMessageId(ConsumerBuilder.LastEntry lastEntry) {
+    public static MessageId convertPayloadToMessageId(PayloadToMessageIdConverter.LastEntry lastEntry) {
         final var buf = Unpooled.wrappedBuffer(lastEntry.getMetadataBuffer());
         try {
             final var metadata = Commands.parseMessageMetadata(buf);

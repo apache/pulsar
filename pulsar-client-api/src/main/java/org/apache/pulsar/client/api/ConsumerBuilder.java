@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -954,40 +952,24 @@ public interface ConsumerBuilder<T> extends Cloneable {
                                           java.util.function.Consumer<TopicConsumerBuilder<T>> builderConsumer);
 
     /**
-     * When {@link ConsumerBuilder#readCompacted(boolean)} is true, the GetLastMessageId response could include the
-     * last entry's buffer from the compaction service. In this case, the last message's message id should be parsed
-     * from the buffer because the entry could include messages that have been compacted out, which won't be received
-     * by the consumer.
-     * When the broker's topic compaction service is the built-in one, users don't need to configure it because the
-     * built-in convert function works well. But if the broker configures a customized topic compaction service, you
-     * must configure `converter` with a proper function to parse the buffer correctly according to the compaction
-     * service's behavior.
-     * If `converter` throws an exception, the corresponding {@link Consumer#getLastMessageIdsAsync()}'s result will
-     * fail with that exception.
+     * Configures a custom `PayloadToMessageIdConverter` to handle the parsing of the last entry's buffer when
+     * {@link ConsumerBuilder#readCompacted(boolean)} is set to `true`.
+     *
+     * When compaction is enabled, the `GetLastMessageId` response may include the buffer of the last entry from the
+     * compaction service. In such cases, the last message's message ID must be extracted from the buffer, as the entry
+     * may contain messages that have been compacted out and will not be delivered to the consumer.
+     *
+     * If the broker's topic compaction service uses the built-in implementation, users do not need to configure this
+     * explicitly, as the default conversion function handles the parsing correctly. However, if the broker is
+     * configured with a custom topic compaction service, you must provide a `converter` with an appropriate function to
+     * parse the buffer correctly based on the behavior of the custom compaction service.
+     *
+     * If the provided `converter` throws an exception during parsing, the corresponding result of
+     * {@link Consumer#getLastMessageIdsAsync()} will fail with that exception.
+     *
+     * @param converter The custom `PayloadToMessageIdConverter` to parse the last entry's buffer.
+     * @return The updated `ConsumerBuilder` instance.
      */
     ConsumerBuilder<T> payloadToMessageIdConverter(PayloadToMessageIdConverter converter);
 
-    interface LastEntry {
-
-        long getLedgerId();
-
-        long getEntryId();
-
-        int getPartitionIndex();
-
-        /**
-         * @return the buffer that can be parsed to the `MessageMetadata` defined in `PulsarApi.proto`
-         */
-        ByteBuffer getMetadataBuffer();
-
-        /**
-         * @return the uncompressed and unencrypted payload buffer of the last entry
-         */
-        ByteBuffer getPayloadBuffer();
-    }
-
-    interface PayloadToMessageIdConverter {
-
-        MessageId convert(LastEntry lastEntry) throws IOException;
-    }
 }

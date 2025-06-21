@@ -27,8 +27,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PayloadToMessageIdConverter;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
@@ -61,7 +61,7 @@ public class RawReaderImpl implements RawReader {
     public RawReaderImpl(PulsarClientImpl client, String topic, String subscription,
                          CompletableFuture<Consumer<byte[]>> consumerFuture,
                          boolean createTopicIfDoesNotExist, boolean retryOnRecoverableErrors,
-                         ConsumerBuilder.PayloadToMessageIdConverter payloadToMessageIdConverter) {
+                         PayloadToMessageIdConverter payloadToMessageIdConverter) {
         consumerConfiguration = new ConsumerConfigurationData<>();
         consumerConfiguration.getTopicNames().add(topic);
         consumerConfiguration.setSubscriptionName(subscription);

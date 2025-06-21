@@ -37,7 +37,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
-import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -47,6 +46,7 @@ import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.MessageListenerExecutor;
 import org.apache.pulsar.client.api.MessagePayloadProcessor;
+import org.apache.pulsar.client.api.PayloadToMessageIdConverter;
 import org.apache.pulsar.client.api.RedeliveryBackoff;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
@@ -416,7 +416,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private boolean autoScaledReceiverQueueSizeEnabled = false;
 
     private List<TopicConsumerConfigurationData> topicConfigurations = new ArrayList<>();
-    private ConsumerBuilder.PayloadToMessageIdConverter payloadToMessageIdConverter =
+    private PayloadToMessageIdConverter payloadToMessageIdConverter =
             ConsumerImpl::convertBufferToMessageId;
 
     public TopicConsumerConfigurationData getMatchingTopicConfiguration(String topicName) {
@@ -464,7 +464,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
         return replicateSubscriptionState != null && replicateSubscriptionState;
     }
 
-    public void setPayloadToMessageIdConverter(ConsumerBuilder.PayloadToMessageIdConverter converter) {
+    public void setPayloadToMessageIdConverter(PayloadToMessageIdConverter converter) {
         if (converter != null) {
             this.payloadToMessageIdConverter = converter;
         }
