@@ -324,6 +324,7 @@ public class ProcessRuntimeTest {
         String expectedArgs = "java -cp " + classpath
                 + extraDepsEnv
                 + " -Dpulsar.functions.instance.classpath=/pulsar/lib/*"
+                + " -Dpulsar.log.level=info"
                 + " -Dlog4j.configurationFile=java_instance_log4j2.xml "
                 + "-Dpulsar.function.log.dir=" + logDirectory + "/functions/" + FunctionCommon.getFullyQualifiedName(config.getFunctionDetails())
                 + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-" + config.getInstanceId()

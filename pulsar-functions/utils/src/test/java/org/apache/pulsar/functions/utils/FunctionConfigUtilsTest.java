@@ -596,6 +596,7 @@ public class FunctionConfigUtilsTest {
                 .build();
         boolean autoAck = true;
         String logTopic = "log-topic1";
+        String logLevel = "debug";
         Function.Resources resources = Function.Resources.newBuilder().setCpu(1.5).setDisk(1024 * 20).setRam(1024 * 10).build();
         String packageUrl = "http://package.url";
         Map<String, String> secretsMap = new HashMap<>();
@@ -616,6 +617,7 @@ public class FunctionConfigUtilsTest {
                 .setSource(sourceSpec)
                 .setAutoAck(autoAck)
                 .setLogTopic(logTopic)
+                .setLogLevel(logLevel)
                 .setResources(resources)
                 .setPackageUrl(packageUrl)
                 .setSecretsMap(new Gson().toJson(secretsMap))
@@ -629,6 +631,7 @@ public class FunctionConfigUtilsTest {
         assertEquals(functionConfig.getName(), name);
         assertEquals(functionConfig.getClassName(), classname);
         assertEquals(functionConfig.getLogTopic(), logTopic);
+        assertEquals(functionConfig.getLogLevel(), logLevel);
         assertEquals((Object) functionConfig.getResources().getCpu(), resources.getCpu());
         assertEquals(functionConfig.getResources().getDisk().longValue(), resources.getDisk());
         assertEquals(functionConfig.getResources().getRam().longValue(), resources.getRam());
