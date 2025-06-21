@@ -4623,7 +4623,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalRemoveDispatchRate(boolean isGlobal) {
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, isGlobal, false, policies -> {
+        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, isGlobal, true, policies -> {
             policies.setDispatchRate(null);
         });
     }
@@ -4652,7 +4652,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalRemoveSubscriptionDispatchRate(boolean isGlobal) {
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, isGlobal, false, policies -> {
+        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, isGlobal, true, policies -> {
             policies.setSubscriptionDispatchRate(null);
         });
     }
@@ -4687,7 +4687,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalRemoveSubscriptionLevelDispatchRate(String subName, boolean isGlobal) {
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, isGlobal, false, policies -> {
+        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, isGlobal, true, policies -> {
             SubscriptionPolicies sp = policies.getSubscriptionPolicies().get(subName);
             if (sp != null) {
                 sp.setDispatchRate(null);
@@ -4716,7 +4716,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalRemoveMaxConsumersPerSubscription(boolean isGlobal) {
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, isGlobal, false, policies -> {
+        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, isGlobal, true, policies -> {
             policies.setMaxConsumersPerSubscription(null);
         });
     }
@@ -4746,7 +4746,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalRemoveCompactionThreshold(boolean isGlobal) {
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, isGlobal, false, policies -> {
+        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, isGlobal, true, policies -> {
             policies.setCompactionThreshold(null);
         });
     }
@@ -4787,7 +4787,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalRemovePublishRate(boolean isGlobal) {
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, isGlobal, false, policies -> {
+        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, isGlobal, true, policies -> {
             policies.setPublishRate(null);
         });
     }
@@ -4815,7 +4815,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalRemoveSubscribeRate(boolean isGlobal) {
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, isGlobal, false, policies -> {
+        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, isGlobal, true, policies -> {
             policies.setSubscribeRate(null);
         });
     }
@@ -5159,10 +5159,12 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected CompletableFuture<Void> internalSetSchemaCompatibilityStrategy(
             SchemaCompatibilityStrategy strategyToSet) {
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, false, false, policies -> {
-            policies.setSchemaCompatibilityStrategy(
-                    strategyToSet == SchemaCompatibilityStrategy.UNDEFINED ? null : strategyToSet);
-        }); // Schema strategy is typically a local policy
+        return pulsar().getTopicPoliciesService()
+                .updateTopicPoliciesAsync(topicName, false, strategyToSet == SchemaCompatibilityStrategy.UNDEFINED,
+                        policies -> {
+                            policies.setSchemaCompatibilityStrategy(
+                                    strategyToSet == SchemaCompatibilityStrategy.UNDEFINED ? null : strategyToSet);
+                        });
     }
 
     protected CompletableFuture<Boolean> internalGetSchemaValidationEnforced(boolean applied) {
@@ -5270,16 +5272,18 @@ public class PersistentTopicsBase extends AdminResource {
     protected CompletableFuture<Void> internalDeleteShadowTopics() {
         return validatePoliciesReadOnlyAccessAsync()
                 .thenCompose(__ -> pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, false,
-                        false, policies -> {
+                        true, policies -> {
                     policies.setShadowTopics(null);
                 })); // Shadow topics are local policy
     }
 
     protected CompletableFuture<Void> internalSetAutoSubscriptionCreation(
             AutoSubscriptionCreationOverrideImpl autoSubscriptionCreationOverrideToSet, boolean isGlobal) {
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, isGlobal, false, policies -> {
-            policies.setAutoSubscriptionCreationOverride(autoSubscriptionCreationOverrideToSet);
-        });
+        return pulsar().getTopicPoliciesService()
+                .updateTopicPoliciesAsync(topicName, isGlobal, autoSubscriptionCreationOverrideToSet == null,
+                        policies -> {
+                            policies.setAutoSubscriptionCreationOverride(autoSubscriptionCreationOverrideToSet);
+                        });
     }
 
     protected CompletableFuture<AutoSubscriptionCreationOverride> internalGetAutoSubscriptionCreation(boolean applied,
