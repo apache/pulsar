@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.compaction;
 
+import static org.apache.pulsar.compaction.CompactedTopicUtils.calculateTheLastBatchIndexInBatch;
+import static org.apache.pulsar.compaction.Compactor.RETAINED_MESSAGE_COUNT_PROPERTY;
+
+import io.netty.buffer.Unpooled;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -29,6 +34,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -78,4 +84,38 @@ public class CompactedTopicUtilsTest {
         Assert.assertNull(throwableRef.get());
         Assert.assertEquals(readPositionRef.get(), lastCompactedPosition.getNext());
     }
+
+    @Test
+    public void testCalculateTheLastBatchIndex() throws IOException {
+        MessageMetadata metadata = new MessageMetadata();
+        metadata.setProducerName("producer");
+        metadata.setSequenceId(1L);
+        metadata.setPublishTime(1L);
+
+        MessageMetadata parsedMetadata = setRetainedMessageCount(metadata, null);
+        Assert.assertEquals(calculateTheLastBatchIndexInBatch(parsedMetadata, Unpooled.buffer()), -1);
+
+        parsedMetadata = setRetainedMessageCount(metadata, "abc");
+        Assert.assertEquals(calculateTheLastBatchIndexInBatch(parsedMetadata, Unpooled.buffer()), -1);
+
+        parsedMetadata = setRetainedMessageCount(metadata, "10");
+        Assert.assertEquals(calculateTheLastBatchIndexInBatch(parsedMetadata, Unpooled.buffer()), 10);
+
+        parsedMetadata = setRetainedMessageCount(metadata, "0");
+        Assert.assertEquals(calculateTheLastBatchIndexInBatch(parsedMetadata, Unpooled.buffer()), -1);
+    }
+
+    private MessageMetadata setRetainedMessageCount(MessageMetadata metadata, String count) {
+        if (count != null) {
+            metadata.clearProperties();
+            metadata.addProperty().setKey(RETAINED_MESSAGE_COUNT_PROPERTY).setValue(count);
+        } else {
+            metadata.getPropertiesList().clear();
+        }
+        byte[] bytes = metadata.toByteArray();
+        MessageMetadata parsedMetadata = new MessageMetadata();
+        parsedMetadata.parseFrom(bytes);
+        return parsedMetadata;
+    }
+
 }
