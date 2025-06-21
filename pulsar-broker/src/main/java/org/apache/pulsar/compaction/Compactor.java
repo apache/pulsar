@@ -56,8 +56,11 @@ public abstract class Compactor {
     }
 
     public CompletableFuture<Long> compact(String topic) {
-        return RawReader.create(pulsar, topic, COMPACTION_SUBSCRIPTION, false, false).thenComposeAsync(
-                this::compactAndCloseReader, scheduler);
+        return createRawReader(topic).thenComposeAsync(this::compactAndCloseReader, scheduler);
+    }
+
+    protected CompletableFuture<RawReader> createRawReader(String topic) {
+        return RawReader.create(pulsar, topic, COMPACTION_SUBSCRIPTION, false, false);
     }
 
     private CompletableFuture<Long> compactAndCloseReader(RawReader reader) {
