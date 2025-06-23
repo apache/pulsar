@@ -83,6 +83,10 @@ public class PulsarClientBasedHandler implements ProtocolHandler {
             final var port = service.getPulsar().getListenPortHTTP().orElseThrow();
             @Cleanup final var admin = PulsarAdmin.builder().serviceHttpUrl("http://localhost:" + port).build();
             try {
+                admin.topics().createPartitionedTopic(topic, partitions);
+            } catch (PulsarAdminException ignored) {
+            }
+            try {
                 admin.clusters().createCluster(cluster, ClusterData.builder()
                         .serviceUrl(service.getPulsar().getWebServiceAddress())
                         .serviceUrlTls(service.getPulsar().getWebServiceAddressTls())
