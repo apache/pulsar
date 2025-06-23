@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import com.google.common.collect.Range;
 import java.util.Optional;
 import java.util.function.Predicate;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +28,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionBound;
+import org.apache.bookkeeper.mledger.PositionFactory;
 
 @Slf4j
 class OpFindNewest implements ReadEntryCallback {
@@ -44,6 +46,7 @@ class OpFindNewest implements ReadEntryCallback {
     Position searchPosition;
     long min;
     long max;
+    long mid;
     Position lastMatchedPosition = null;
     State state;
 
@@ -58,6 +61,7 @@ class OpFindNewest implements ReadEntryCallback {
 
         this.min = 0;
         this.max = numberOfEntries;
+        this.mid = mid();
 
         this.searchPosition = startPosition;
         this.state = State.checkFirst;
@@ -115,7 +119,8 @@ class OpFindNewest implements ReadEntryCallback {
             } else {
                 // start binary search
                 state = State.searching;
-                searchPosition = ledger.getPositionAfterN(startPosition, mid(), PositionBound.startExcluded);
+                this.mid = mid();
+                searchPosition = ledger.getPositionAfterN(startPosition, this.mid, PositionBound.startExcluded);
                 find();
             }
             break;
@@ -123,23 +128,84 @@ class OpFindNewest implements ReadEntryCallback {
             if (condition.test(entry)) {
                 // mid - last
                 lastMatchedPosition = position;
-                min = mid();
+                min = mid;
             } else {
                 // start - mid
-                max = mid() - 1;
+                max = mid - 1;
             }
+            this.mid = mid();
 
             if (max <= min) {
                 callback.findEntryComplete(lastMatchedPosition, OpFindNewest.this.ctx);
                 return;
             }
-            searchPosition = ledger.getPositionAfterN(startPosition, mid(), PositionBound.startExcluded);
+            searchPosition = ledger.getPositionAfterN(startPosition, this.mid, PositionBound.startExcluded);
             find();
         }
     }
 
     @Override
     public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+        if (exception instanceof ManagedLedgerException.NonRecoverableLedgerException
+            && ledger.getConfig().isAutoSkipNonRecoverableData()) {
+            log.info("[{}] Ledger {} is not recoverable, skip non-recoverable data, state:{}", ledger.getName(),
+                searchPosition, state);
+            Position nextPosition = null;
+            if (exception instanceof ManagedLedgerException.LedgerNotExistException) {
+                Long nextLedgerId = ledger.getNextValidLedger(searchPosition.getLedgerId());
+                if (nextLedgerId != null) {
+                    nextPosition = PositionFactory.create(nextLedgerId, 0);
+                }
+            } else {
+                nextPosition = ledger.getNextValidPosition(searchPosition);
+            }
+            switch (state) {
+                case checkFirst:
+                    // If we failed to read the first entry, try next valid ledger
+                    if (nextPosition != null && nextPosition.getEntryId() != -1) {
+                        long numberOfEntries =
+                            ledger.getNumberOfEntries(Range.closedOpen(searchPosition, nextPosition));
+                        searchPosition = nextPosition;
+                        min += numberOfEntries;
+                        find();
+                        return;
+                    }
+                    break;
+                case checkLast:
+                    // If we failed to read the last entry, try previous ledger's last entry
+                    Position prevPosition;
+                    if (exception instanceof ManagedLedgerException.LedgerNotExistException) {
+                        prevPosition =
+                            ledger.getPreviousPosition(PositionFactory.create(searchPosition.getLedgerId(), -1L));
+                    } else {
+                        prevPosition = ledger.getPreviousPosition(searchPosition);
+                    }
+                    if (prevPosition.getEntryId() != -1) {
+                        long numberOfEntries =
+                            ledger.getNumberOfEntries(Range.openClosed(prevPosition, searchPosition));
+                        searchPosition = prevPosition;
+                        max -= numberOfEntries;
+                        find();
+                        return;
+                    }
+                    break;
+                case searching:
+                    // In searching state, if we failed to read the mid entry, try next valid ledger
+                    if (nextPosition != null && nextPosition.getEntryId() != -1) {
+                        searchPosition = nextPosition;
+                        find();
+                        return;
+                    }
+                    break;
+            }
+
+            // If don't find any entry, return the last matched position
+            log.warn("[{}] Failed to find next valid entry. Returning last matched position: {}", ledger.getName(),
+                lastMatchedPosition);
+            callback.findEntryComplete(lastMatchedPosition, OpFindNewest.this.ctx);
+            return;
+        }
+
         callback.findEntryFailed(exception, Optional.ofNullable(searchPosition), OpFindNewest.this.ctx);
     }
 
