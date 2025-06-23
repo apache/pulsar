@@ -5533,8 +5533,7 @@ public class PersistentTopicsBase extends AdminResource {
                     ManagedLedger managedLedger = persistentTopic.getManagedLedger();
                     Position lastPosition = managedLedger.getLastConfirmedEntry();
                     Position firstPosition = managedLedger.getFirstPosition();
-                    if (firstPosition == null || lastPosition == null ||
-                            firstPosition.equals(lastPosition)) {
+                    if (firstPosition == null || lastPosition == null || firstPosition.equals(lastPosition)) {
                         return FutureUtil.failedFuture(new RestException(Status.NOT_FOUND,
                                 "No messages found in topic " + topicName));
                     }

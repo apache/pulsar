@@ -44,9 +44,9 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.assertj.core.api.ThrowableAssert;
 import org.assertj.core.util.Sets;
 import org.awaitility.Awaitility;
-import org.junit.jupiter.api.function.Executable;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -507,10 +507,10 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
                 PulsarAdminException.class, NotFoundException.class);
     }
 
-    private void assertThrowsWithCause(Executable executable,
+    private void assertThrowsWithCause(ThrowableAssert.ThrowingCallable executable,
                                        Class<? extends Throwable> expectedException,
                                        Class<? extends Throwable> expectedCause) {
-        assertThatThrownBy(executable::execute)
+        assertThatThrownBy(executable)
                 .isInstanceOf(expectedException)
                 .hasRootCauseInstanceOf(expectedCause);
     }
