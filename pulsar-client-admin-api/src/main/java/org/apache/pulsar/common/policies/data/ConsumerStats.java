@@ -120,7 +120,7 @@ public interface ConsumerStats {
     long getLastAckedTimestamp();
     long getLastConsumedTimestamp();
     long getLastConsumedFlowTimestamp();
-    long getFirstConsumedTimestamp();
+    long getFirstMessagesSentTimestamp();
     long getFirstConsumedFlowTimestamp();
 
     /**

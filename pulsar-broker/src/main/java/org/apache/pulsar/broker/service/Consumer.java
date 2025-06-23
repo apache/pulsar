@@ -101,7 +101,7 @@ public class Consumer {
     private final LongAdder messageAckCounter;
     private final Rate messageAckRate;
 
-    private volatile long firstConsumedTimestamp;
+    private volatile long firstMessagesSentTimestamp;
     private volatile long lastConsumedTimestamp;
     private volatile long lastAckedTimestamp;
     private volatile long firstConsumedFlowTimestamp;
@@ -434,8 +434,8 @@ public class Consumer {
         writeAndFlushPromise.addListener(status -> {
             // only increment counters after the messages have been successfully written to the TCP/IP connection
             if (status.isSuccess()) {
-                if (firstConsumedTimestamp == 0) {
-                    firstConsumedTimestamp =  System.currentTimeMillis();
+                if (firstMessagesSentTimestamp == 0) {
+                    firstMessagesSentTimestamp =  System.currentTimeMillis();
                 }
                 msgOut.recordMultipleEvents(totalMessages, totalBytes);
                 msgOutCounter.add(totalMessages);
@@ -983,7 +983,7 @@ public class Consumer {
         stats.lastAckedTimestamp = lastAckedTimestamp;
         stats.lastConsumedTimestamp = lastConsumedTimestamp;
         stats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
-        stats.firstConsumedTimestamp = firstConsumedTimestamp;
+        stats.firstMessagesSentTimestamp = firstMessagesSentTimestamp;
         stats.firstConsumedFlowTimestamp = firstConsumedFlowTimestamp;
         stats.availablePermits = getAvailablePermits();
         stats.unackedMessages = unackedMessages;
