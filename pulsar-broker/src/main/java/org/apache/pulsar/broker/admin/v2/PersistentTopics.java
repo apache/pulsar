@@ -5095,5 +5095,38 @@ public class PersistentTopics extends PersistentTopicsBase {
                 });
     }
 
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/getMessageIdByIndex")
+    @ApiOperation(hidden = true, value = "Get Message ID by index.",
+            notes = "If the specified index is a system message, "
+                    + "it will return the message id of the later message.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or partitioned topic does not exist, "
+                    + "or the index is invalid"),
+            @ApiResponse(code = 406, message = "The topic is not a persistent topic"),
+            @ApiResponse(code = 412, message = "The broker is not enable broker entry metadata"),
+    })
+    public void getMessageIDByIndex(@Suspended final AsyncResponse asyncResponse,
+                                    @PathParam("tenant") String tenant,
+                                    @PathParam("namespace") String namespace,
+                                    @PathParam("topic") @Encoded String encodedTopic,
+                                    @QueryParam("index") long index,
+                                    @QueryParam("authoritative") @DefaultValue("false")
+                                                   boolean authoritative){
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalGetMessageIDByIndexAsync(index, authoritative)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to get message id by index for topic {}, partition id {}, index {}",
+                                clientAppId(), topicName, index, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
     private static final Logger log = LoggerFactory.getLogger(PersistentTopics.class);
 }
