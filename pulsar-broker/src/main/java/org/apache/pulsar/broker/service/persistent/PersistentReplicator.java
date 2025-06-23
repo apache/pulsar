@@ -808,7 +808,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
     InFlightTask createOrRecycleInFlightTaskIntoQueue(Position readPos, int readingEntries) {
         synchronized (inFlightTasks) {
             // Reuse projects that has done.
-            if (inFlightTasks.size() > 0) {
+            if (!inFlightTasks.isEmpty()) {
                 InFlightTask first = inFlightTasks.peek();
                 if (first.isDone()) {
                     // Remove from the first index, and add to the latest index.
