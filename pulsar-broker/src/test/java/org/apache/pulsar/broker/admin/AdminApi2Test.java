@@ -1505,7 +1505,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         consumerStats = subscriptionStats.getConsumers().get(0);
         long consumedTimestamp = consumerStats.getLastConsumedTimestamp();
         long ackedTimestamp = consumerStats.getLastAckedTimestamp();
-        final long firstConsumedTimestamp = consumerStats.getFirstConsumedTimestamp();
+        final long firstMessagesSentTimestamp = consumerStats.getFirstMessagesSentTimestamp();
         final long firstConsumedFlowTimestamp = consumerStats.getFirstConsumedFlowTimestamp();
 
 
@@ -1516,7 +1516,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertNotEquals(0, consumedFlowTimestamp);
         assertTrue(startAckedTimestampInSubStats < ackedTimestampInSubStats);
         assertNotEquals(0, firstConsumedFlowTimestamp);
-        assertNotEquals(0, firstConsumedTimestamp);
+        assertNotEquals(0, firstMessagesSentTimestamp);
 
         // d. Send another messages. The lastConsumedTimestamp should be updated.
         producer.send("message-2".getBytes(StandardCharsets.UTF_8));
@@ -1542,7 +1542,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         consumerStats = subscriptionStats.getConsumers().get(0);
         long lastConsumedTimestamp = consumerStats.getLastConsumedTimestamp();
         long lastAckedTimestamp = consumerStats.getLastAckedTimestamp();
-        final long firstConsumedTimestamp2 = consumerStats.getFirstConsumedTimestamp();
+        final long firstMessageSentTimestamp2 = consumerStats.getFirstMessagesSentTimestamp();
         final long firstConsumedFlowTimestamp2 = consumerStats.getFirstConsumedFlowTimestamp();
 
         assertTrue(consumedTimestamp < lastConsumedTimestamp);
@@ -1552,7 +1552,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertTrue(ackedTimestampInSubStats < lastAckedTimestampInSubStats);
         assertEquals(lastConsumedTimestamp, lastConsumedTimestampInSubStats);
         assertEquals(firstConsumedFlowTimestamp, firstConsumedFlowTimestamp2);
-        assertEquals(firstConsumedTimestamp, firstConsumedTimestamp2);
+        assertEquals(firstMessagesSentTimestamp, firstMessageSentTimestamp2);
 
         consumer.close();
         producer.close();
