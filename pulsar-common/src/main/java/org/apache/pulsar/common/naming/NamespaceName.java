@@ -20,6 +20,8 @@ package org.apache.pulsar.common.naming;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
+import com.google.common.collect.Interner;
+import com.google.common.collect.Interners;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Objects;
 import java.util.Optional;
@@ -37,10 +39,11 @@ public class NamespaceName implements ServiceUnitId {
     private final String cluster;
     private final String localName;
 
+    private static final Interner<NamespaceName> namespaceNameInterner = Interners.newWeakInterner();
     private static final LoadingCache<String, NamespaceName> cache = Caffeine.newBuilder()
             .maximumSize(100000)
             .expireAfterAccess(30, TimeUnit.MINUTES)
-            .build(name -> new NamespaceName(name));
+            .build(name -> namespaceNameInterner.intern(new NamespaceName(name)));
 
     public static final NamespaceName SYSTEM_NAMESPACE = NamespaceName.get("pulsar/system");
 

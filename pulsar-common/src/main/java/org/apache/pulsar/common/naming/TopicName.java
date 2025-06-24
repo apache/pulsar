@@ -21,6 +21,8 @@ package org.apache.pulsar.common.naming;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.base.Splitter;
+import com.google.common.collect.Interner;
+import com.google.common.collect.Interners;
 import com.google.re2j.Pattern;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.List;
@@ -52,10 +54,11 @@ public class TopicName implements ServiceUnitId {
 
     private final int partitionIndex;
 
+    private static final Interner<TopicName> topicNameInterner = Interners.newWeakInterner();
     private static final LoadingCache<String, TopicName> cache = Caffeine.newBuilder()
             .maximumSize(100000)
             .expireAfterAccess(30, TimeUnit.MINUTES)
-            .build(name -> new TopicName(name));
+            .build(name -> topicNameInterner.intern(new TopicName(name)));
 
     public static TopicName get(String domain, NamespaceName namespaceName, String topic) {
         String name = domain + "://" + namespaceName.toString() + '/' + topic;
