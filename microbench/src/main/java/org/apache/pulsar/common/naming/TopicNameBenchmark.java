@@ -27,6 +27,7 @@ import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
@@ -44,6 +45,8 @@ import org.openjdk.jmh.annotations.Warmup;
 public class TopicNameBenchmark {
     @State(Scope.Thread)
     public static class TestState {
+        @Param({"false", "true"})
+        private boolean invalidateCache;
         private long counter = 0;
         private String[] topicNames;
 
@@ -57,8 +60,10 @@ public class TopicNameBenchmark {
 
         @TearDown(Level.Iteration)
         public void tearDown() {
-            TopicName.invalidateCache();
-            NamespaceName.invalidateCache();
+            if (invalidateCache) {
+                TopicName.invalidateCache();
+                NamespaceName.invalidateCache();
+            }
             counter = 0;
         }
 
@@ -74,7 +79,7 @@ public class TopicNameBenchmark {
     @Measurement(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
     @Warmup(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
     @Threads(1)
-    public TopicName coldTopicLookup001(TestState state) {
+    public TopicName topicLookup001(TestState state) {
         return TopicName.get(state.getNextTopicName());
     }
 
@@ -84,7 +89,7 @@ public class TopicNameBenchmark {
     @Measurement(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
     @Warmup(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
     @Threads(10)
-    public TopicName coldTopicLookup010(TestState state) {
+    public TopicName topicLookup010(TestState state) {
         return TopicName.get(state.getNextTopicName());
     }
 
@@ -94,7 +99,7 @@ public class TopicNameBenchmark {
     @Measurement(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
     @Warmup(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
     @Threads(100)
-    public TopicName coldTopicLookup100(TestState state) {
+    public TopicName topicLookup100(TestState state) {
         return TopicName.get(state.getNextTopicName());
     }
 }
