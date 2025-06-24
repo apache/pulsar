@@ -138,7 +138,6 @@ abstract class NameCache<V> {
                 if (ref != null) {
                     ref.clear();
                 }
-                iterator.remove();
                 reduceSizeBy--;
             }
         }
