@@ -22,7 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import io.etcd.jetcd.launcher.EtcdCluster;
 import io.etcd.jetcd.test.EtcdClusterExtension;
-import io.streamnative.oxia.testcontainers.OxiaContainer;
+import io.oxia.testcontainers.OxiaContainer;
 import java.io.File;
 import java.net.URI;
 import java.util.Arrays;
