@@ -41,6 +41,7 @@ public class NamespaceName implements ServiceUnitId {
 
     private static final Interner<NamespaceName> namespaceNameInterner = Interners.newWeakInterner();
     private static final LoadingCache<String, NamespaceName> cache = Caffeine.newBuilder()
+            .softValues()
             .maximumSize(100000)
             .expireAfterAccess(30, TimeUnit.MINUTES)
             .build(name -> namespaceNameInterner.intern(new NamespaceName(name)));

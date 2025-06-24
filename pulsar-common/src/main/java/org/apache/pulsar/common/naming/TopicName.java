@@ -56,6 +56,7 @@ public class TopicName implements ServiceUnitId {
 
     private static final Interner<TopicName> topicNameInterner = Interners.newWeakInterner();
     private static final LoadingCache<String, TopicName> cache = Caffeine.newBuilder()
+            .softValues()
             .maximumSize(100000)
             .expireAfterAccess(30, TimeUnit.MINUTES)
             .build(name -> topicNameInterner.intern(new TopicName(name)));
