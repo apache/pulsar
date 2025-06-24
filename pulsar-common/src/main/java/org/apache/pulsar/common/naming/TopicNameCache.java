@@ -78,7 +78,7 @@ class TopicNameCache {
             topicName = cache.computeIfAbsent(topic, key -> {
                 return createSoftReferenceTopicName(key);
             }).get();
-            if (cache.size() >= cacheMaxSize) {
+            if (cache.size() > cacheMaxSize) {
                 cacheShrinkNeeded.compareAndSet(false, true);
             }
         }
@@ -91,7 +91,7 @@ class TopicNameCache {
                 }
                 return existingRef;
             }).get();
-            if (cache.size() >= cacheMaxSize) {
+            if (cache.size() > cacheMaxSize) {
                 cacheShrinkNeeded.compareAndSet(false, true);
             }
         }
@@ -118,7 +118,7 @@ class TopicNameCache {
     }
 
     private void shrinkCacheSize() {
-        if (cache.size() >= cacheMaxSize) {
+        if (cache.size() > cacheMaxSize) {
             // Reduce the cache size after reaching the maximum size
             int reduceSizeBy =
                     cache.size() - (int) (cacheMaxSize * ((100 - reduceSizeByPercentage) / 100.0));
