@@ -18,15 +18,9 @@
  */
 package org.apache.pulsar.common.naming;
 
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.LoadingCache;
-import com.github.benmanes.caffeine.cache.Scheduler;
-import com.google.common.collect.Interner;
-import com.google.common.collect.Interners;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.common.util.StringInterner;
 
 /**
@@ -40,20 +34,8 @@ public class NamespaceName implements ServiceUnitId {
     private final String cluster;
     private final String localName;
 
-    // Deduplicates NamespaceName instances when the cached entry isn't in the actual cache.
-    // Holds weak references to NamespaceName so it won't prevent garbage collection.
-    private static final Interner<NamespaceName> namespaceNameInterner = Interners.newWeakInterner();
-    // Cache for NamespaceName instances that uses Caffeine to provide fast access and expiration.
-    // Soft references allow the garbage collector to reclaim memory when needed.
-    private static final LoadingCache<String, NamespaceName> cache = Caffeine.newBuilder()
-            .softValues()
-            .maximumSize(100000)
-            .expireAfterWrite(30, TimeUnit.MINUTES)
-            .scheduler(Scheduler.systemScheduler())
-            .build(name -> namespaceNameInterner.intern(new NamespaceName(name)));
-
     public static void invalidateCache() {
-        cache.invalidateAll();
+        NamespaceNameCache.INSTANCE.invalidateCache();
     }
 
     public static final NamespaceName SYSTEM_NAMESPACE = NamespaceName.get("pulsar/system");
@@ -72,11 +54,11 @@ public class NamespaceName implements ServiceUnitId {
         if (namespace == null || namespace.isEmpty()) {
             throw new IllegalArgumentException("Invalid null namespace: " + namespace);
         }
-        return cache.get(namespace);
+        return NamespaceNameCache.INSTANCE.get(namespace);
     }
 
     public static Optional<NamespaceName> getIfValid(String namespace) {
-        NamespaceName ns = cache.getIfPresent(namespace);
+        NamespaceName ns = NamespaceNameCache.INSTANCE.getIfPresent(namespace);
         if (ns != null) {
             return Optional.of(ns);
         }
@@ -94,7 +76,7 @@ public class NamespaceName implements ServiceUnitId {
     }
 
     @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
-    private NamespaceName(String namespace) {
+    NamespaceName(String namespace) {
         // Verify it's a proper namespace
         // The namespace name is composed of <tenant>/<namespace>
         // or in the legacy format with the cluster name:

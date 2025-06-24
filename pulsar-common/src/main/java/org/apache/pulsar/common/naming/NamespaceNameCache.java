@@ -19,17 +19,17 @@
 package org.apache.pulsar.common.naming;
 
 /**
- * A cache for TopicName instances that allows deduplication and efficient memory usage.
- * It uses soft references to allow garbage collection of unused TopicName instances under heavy memory pressure.
+ * An efficient cache for NamespaceName instances that allows deduplication and efficient memory usage.
+ * It uses soft references to allow garbage collection of unused NamespaceName instances under heavy memory pressure.
  * This cache uses ConcurrentHashMap for lookups for performance over Guava Cache and Caffeine Cache
  * since there was a concern in https://github.com/apache/pulsar/pull/23052 about high CPU usage for cache lookups.
  */
-class TopicNameCache extends NameCache<TopicName> {
-    static final TopicNameCache INSTANCE = new TopicNameCache();
+class NamespaceNameCache extends NameCache<NamespaceName> {
+    static final NamespaceNameCache INSTANCE = new NamespaceNameCache();
     static int cacheMaxSize = 100000;
     static int reduceSizeByPercentage = 25;
 
-    TopicNameCache() {
-        super(() -> cacheMaxSize, () -> reduceSizeByPercentage, topic -> new TopicName(topic));
+    NamespaceNameCache() {
+        super(() -> cacheMaxSize, () -> reduceSizeByPercentage, namespace -> new NamespaceName(namespace));
     }
 }
