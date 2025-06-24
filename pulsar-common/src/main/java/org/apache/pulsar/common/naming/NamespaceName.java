@@ -40,7 +40,11 @@ public class NamespaceName implements ServiceUnitId {
     private final String cluster;
     private final String localName;
 
+    // Deduplicates NamespaceName instances when the cached entry isn't in the actual cache.
+    // Holds weak references to NamespaceName so it won't prevent garbage collection.
     private static final Interner<NamespaceName> namespaceNameInterner = Interners.newWeakInterner();
+    // Cache for NamespaceName instances that uses Caffeine to provide fast access and expiration.
+    // Soft references allow the garbage collector to reclaim memory when needed.
     private static final LoadingCache<String, NamespaceName> cache = Caffeine.newBuilder()
             .softValues()
             .maximumSize(100000)

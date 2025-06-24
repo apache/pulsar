@@ -55,7 +55,11 @@ public class TopicName implements ServiceUnitId {
 
     private final int partitionIndex;
 
+    // Deduplicates TopicName instances when the cached entry isn't in the actual cache.
+    // Holds weak references to TopicName so it won't prevent garbage collection.
     private static final Interner<TopicName> topicNameInterner = Interners.newWeakInterner();
+    // Cache for TopicName instances that uses Caffeine to provide fast access and expiration.
+    // Soft references allow the garbage collector to reclaim memory when needed.
     private static final LoadingCache<String, TopicName> cache = Caffeine.newBuilder()
             .softValues()
             .maximumSize(100000)
