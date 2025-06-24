@@ -4041,9 +4041,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public synchronized CompletableFuture<Void> triggerCompactionWithCheckHasMoreMessages() {
         return getLastDispatchablePosition().thenCombine(topicCompactionService.getLastCompactedPosition(),
             (lastDispatchablePosition, lastCompactedPosition) -> {
+                if (lastDispatchablePosition == null) {
+                    lastDispatchablePosition = PositionFactory.EARLIEST;
+                }
                 return lastCompactedPosition == null || lastDispatchablePosition.compareTo(lastCompactedPosition) > 0;
-            }).thenAccept(hasMoreMessages -> {
-            if (!hasMoreMessages) {
+            }).thenAccept(hasMoreMessagesToBeCompacted -> {
+            if (!hasMoreMessagesToBeCompacted) {
                 log.info("[{}] No more messages to compact, skip triggering compaction", topic);
                 return;
             }
