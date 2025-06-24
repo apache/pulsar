@@ -22,14 +22,10 @@ import com.google.common.collect.Interner;
 import com.google.common.collect.Interners;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
-import java.util.Iterator;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Function;
-import java.util.function.IntSupplier;
-import java.util.function.LongSupplier;
 import org.apache.pulsar.common.util.StringInterner;
 
 /**
@@ -39,11 +35,6 @@ import org.apache.pulsar.common.util.StringInterner;
  * since there was a concern in https://github.com/apache/pulsar/pull/23052 about high CPU usage for TopicName lookups.
  */
 abstract class NameCache<V> {
-    private final IntSupplier cacheMaxSize;
-    private final IntSupplier reduceSizeByPercentage;
-    private final LongSupplier referenceQueuePurgeIntervalNanos;
-    private final Function<String, V> valueFactory;
-
     // Cache instances using ConcurrentHashMap and SoftReference to allow garbage collection to clear unreferenced
     // entries when heap memory is running low.
     private final ConcurrentMap<String, SoftReferenceValue> cache = new ConcurrentHashMap<>();
@@ -71,13 +62,13 @@ abstract class NameCache<V> {
         }
     }
 
-    NameCache(IntSupplier cacheMaxSize, IntSupplier reduceSizeByPercentage,
-              LongSupplier referenceQueuePurgeIntervalNanos, Function<String, V> valueFactory) {
-        this.cacheMaxSize = cacheMaxSize;
-        this.reduceSizeByPercentage = reduceSizeByPercentage;
-        this.referenceQueuePurgeIntervalNanos = referenceQueuePurgeIntervalNanos;
-        this.valueFactory = valueFactory;
-    }
+    protected abstract V createValue(String key);
+
+    protected abstract int getCacheMaxSize();
+
+    protected abstract int getReduceSizeByPercentage();
+
+    protected abstract long getReferenceQueuePurgeIntervalNanos();
 
     public void invalidateCache() {
         cache.clear();
@@ -100,7 +91,7 @@ abstract class NameCache<V> {
                 }
                 return existingRef;
             }).get();
-            if (cache.size() > cacheMaxSize.getAsInt()) {
+            if (cache.size() > getCacheMaxSize()) {
                 cacheShrinkNeeded.compareAndSet(false, true);
             }
         }
@@ -115,31 +106,30 @@ abstract class NameCache<V> {
         long localNextReferenceQueuePurge = nextReferenceQueuePurge.get();
         if (localNextReferenceQueuePurge == 0 || System.nanoTime() > localNextReferenceQueuePurge) {
             if (nextReferenceQueuePurge.compareAndSet(localNextReferenceQueuePurge,
-                    System.nanoTime() + referenceQueuePurgeIntervalNanos.getAsLong())) {
+                    System.nanoTime() + getReferenceQueuePurgeIntervalNanos())) {
                 purgeReferenceQueue();
             }
         }
     }
 
     private SoftReferenceValue createSoftReferenceValue(String key) {
-        V valueInstance = valueInterner.intern(valueFactory.apply(key));
+        V valueInstance = valueInterner.intern(createValue(key));
         return new SoftReferenceValue(key, valueInstance, referenceQueue);
     }
 
     private void shrinkCacheSize() {
-        int cacheMaxSizeAsInt = cacheMaxSize.getAsInt();
+        int cacheMaxSizeAsInt = getCacheMaxSize();
         if (cache.size() > cacheMaxSizeAsInt) {
             // Reduce the cache size after reaching the maximum size
             int reduceSizeBy =
-                    cache.size() - (int) (cacheMaxSizeAsInt * ((100 - reduceSizeByPercentage.getAsInt()) / 100.0));
+                    cache.size() - (int) (cacheMaxSizeAsInt * ((100 - getReduceSizeByPercentage()) / 100.0));
             // this doesn't remove the oldest entries, but rather reduces the size by a percentage
             // keeping the order of added entries would add more overhead and Caffeine Cache would be a better fit
             // in that case.
-            for (Iterator<String> iterator = cache.keySet().iterator(); iterator.hasNext(); ) {
+            for (String key : cache.keySet()) {
                 if (reduceSizeBy <= 0) {
                     break;
                 }
-                String key = iterator.next();
                 SoftReferenceValue ref = cache.remove(key);
                 if (ref != null) {
                     ref.clear();

@@ -33,8 +33,23 @@ class TopicNameCache extends NameCache<TopicName> {
     static int reduceSizeByPercentage = 25;
     static long referenceQueuePurgeIntervalNanos = TimeUnit.SECONDS.toNanos(10);
 
-    TopicNameCache() {
-        super(() -> cacheMaxSize, () -> reduceSizeByPercentage, () -> referenceQueuePurgeIntervalNanos,
-                topic -> new TopicName(topic));
+    @Override
+    protected TopicName createValue(String key) {
+        return new TopicName(key);
+    }
+
+    @Override
+    protected int getCacheMaxSize() {
+        return cacheMaxSize;
+    }
+
+    @Override
+    protected int getReduceSizeByPercentage() {
+        return reduceSizeByPercentage;
+    }
+
+    @Override
+    protected long getReferenceQueuePurgeIntervalNanos() {
+        return referenceQueuePurgeIntervalNanos;
     }
 }

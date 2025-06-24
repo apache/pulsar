@@ -33,8 +33,23 @@ class NamespaceNameCache extends NameCache<NamespaceName> {
     static int reduceSizeByPercentage = 25;
     static long referenceQueuePurgeIntervalNanos = TimeUnit.SECONDS.toNanos(10);
 
-    NamespaceNameCache() {
-        super(() -> cacheMaxSize, () -> reduceSizeByPercentage, () -> referenceQueuePurgeIntervalNanos,
-                namespace -> new NamespaceName(namespace));
+    @Override
+    protected NamespaceName createValue(String key) {
+        return new NamespaceName(key);
+    }
+
+    @Override
+    protected int getCacheMaxSize() {
+        return cacheMaxSize;
+    }
+
+    @Override
+    protected int getReduceSizeByPercentage() {
+        return reduceSizeByPercentage;
+    }
+
+    @Override
+    protected long getReferenceQueuePurgeIntervalNanos() {
+        return referenceQueuePurgeIntervalNanos;
     }
 }
