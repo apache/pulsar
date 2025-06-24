@@ -47,6 +47,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
@@ -461,8 +462,76 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         log.info("finished test partitionAbortTest");
     }
 
+    @DataProvider
+    public Object[][] unackMessagesCountParams() {
+        return new Object[][] {
+                // batchSend, batchAck, asyncAck
+                {Boolean.TRUE, Boolean.TRUE, Boolean.TRUE},
+                {Boolean.TRUE, Boolean.TRUE, Boolean.FALSE},
+                {Boolean.TRUE, Boolean.FALSE, Boolean.TRUE},
+                {Boolean.TRUE, Boolean.FALSE, Boolean.FALSE},
+                {Boolean.FALSE, Boolean.TRUE, Boolean.TRUE},
+                {Boolean.FALSE, Boolean.TRUE, Boolean.FALSE},
+                {Boolean.FALSE, Boolean.FALSE, Boolean.TRUE},
+                {Boolean.FALSE, Boolean.FALSE, Boolean.FALSE}
+        };
+    }
+
+    @Test(dataProvider= "unackMessagesCountParams")
+    public void testUnackMessageAfterAckAllMessages(boolean batchSend, boolean batchAck, boolean asyncAck)
+            throws Exception {
+        final int messageCount = 50;
+        final String subName = "s1";
+        final String topicName = BrokerTestUtil.newUniqueName(NAMESPACE1 + "/tp");
+        // Create producer and consumer.
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared).isAckReceiptEnabled(true).subscribe();
+        Awaitility.await().until(consumer::isConnected);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(batchSend)
+                .batchingMaxMessages(10).create();
+        Awaitility.await().until(producer::isConnected);
+        // Publish messages.
+        CompletableFuture<MessageId> latestSendFuture = null;
+        for (int i = 0; i < messageCount; i++) {
+            latestSendFuture = producer.sendAsync((i + "").getBytes());
+        }
+        latestSendFuture.join();
+
+        // Ack messages with TXN.
+        Transaction txn = getTxn();
+        List<MessageId> msgIds = new ArrayList<>();
+        for (int i = 0; i < messageCount; i++) {
+            Message<byte[]> message = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS);
+            msgIds.add(message.getMessageId());
+        }
+        if (batchAck) {
+            consumer.acknowledgeAsync(msgIds, txn).get();
+        } else if (asyncAck) {
+            CompletableFuture<Void> latestAckFuture = null;
+            for (MessageId msgId : msgIds) {
+                latestAckFuture = consumer.acknowledgeAsync(msgId, txn);
+            }
+            latestAckFuture.join();
+        } else {
+            for (MessageId msgId : msgIds) {
+                consumer.acknowledgeAsync(msgId, txn).get();
+            }
+        }
+        txn.commit().get();
+
+        // Verify: the quantity of un-ack messages is 0.
+        int unAckMsgs = admin.topics().getStats(topicName).getSubscriptions().get(subName).getConsumers().get(0)
+                .getUnackedMessages();
+        assertEquals(unAckMsgs, 0);
+
+        // cleanup.
+        producer.close();
+        consumer.close();
+        admin.topics().delete(topicName, true);
+    }
+
     @Test(dataProvider="enableBatch")
-    private void testAckWithTransactionReduceUnAckMessageCount(boolean enableBatch) throws Exception {
+    public void testAckWithTransactionReduceUnAckMessageCount(boolean enableBatch) throws Exception {
 
         final int messageCount = 50;
         final String subName = "testAckWithTransactionReduceUnAckMessageCount";
