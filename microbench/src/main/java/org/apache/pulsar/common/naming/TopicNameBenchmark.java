@@ -23,55 +23,76 @@ import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
+import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
-import org.openjdk.jmh.infra.Blackhole;
 
 /**
- * Running benchmarks on Linux is recommended due timer issues on MacOS.
+ * Benchmark TopicName.get performance.
  */
 @Fork(3)
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.SECONDS)
 @State(Scope.Thread)
 public class TopicNameBenchmark {
+    @State(Scope.Thread)
+    public static class ColdLookupState {
+        private int counter = 0;
+        private String[] topicNames;
+
+        @Setup(Level.Trial)
+        public void setup() {
+            topicNames = new String[100000];
+            for (int i = 0; i < topicNames.length; i++) {
+                topicNames[i] = String.format("persistent://tenant-%d/ns-%d/topic-%d",
+                        i % 100, i % 1000, i);
+            }
+        }
+
+        @TearDown(Level.Iteration)
+        public void tearDown() {
+            TopicName.invalidateCache();
+            NamespaceName.invalidateCache();
+        }
+    }
+
+    @Benchmark
+    @BenchmarkMode(Mode.Throughput)
+    @OutputTimeUnit(TimeUnit.SECONDS)
+    @Measurement(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
+    @Warmup(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
     @Threads(1)
-    @Benchmark
-    @Measurement(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
-    @Warmup(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
-    public void topicCacheLookups001Threads(Blackhole blackhole) {
-        topicCacheLookups(blackhole);
+    public TopicName coldTopicLookup001(ColdLookupState state) {
+        String topicName = state.topicNames[state.counter++ % state.topicNames.length];
+        return TopicName.get(topicName);
     }
 
+    @Benchmark
+    @BenchmarkMode(Mode.Throughput)
+    @OutputTimeUnit(TimeUnit.SECONDS)
+    @Measurement(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
+    @Warmup(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
     @Threads(10)
-    @Benchmark
-    @Measurement(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
-    @Warmup(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
-    public void topicCacheLookups010Threads(Blackhole blackhole) {
-        topicCacheLookups(blackhole);
+    public TopicName coldTopicLookup010(ColdLookupState state) {
+        String topicName = state.topicNames[state.counter++ % state.topicNames.length];
+        return TopicName.get(topicName);
     }
 
+    @Benchmark
+    @BenchmarkMode(Mode.Throughput)
+    @OutputTimeUnit(TimeUnit.SECONDS)
+    @Measurement(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
+    @Warmup(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
     @Threads(100)
-    @Benchmark
-    @Measurement(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
-    @Warmup(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
-    public void topicCacheLookups100Threads(Blackhole blackhole) {
-        topicCacheLookups(blackhole);
-    }
-
-    private void topicCacheLookups(Blackhole blackhole) {
-        for (int i = 0; i < 100_000; i++) {
-            blackhole.consume(
-                    TopicName.get("persistent", "tenant-" + (i % 1000), "ns-" + (i % 10000), "my-topic-" + i));
-        }
-        for (int i = 0; i < 100_000; i++) {
-            blackhole.consume(
-                    TopicName.get("persistent", "tenant-" + (i % 1000), "ns-" + (i % 10000), "my-topic-" + i));
-        }
+    public TopicName coldTopicLookup100(ColdLookupState state) {
+        String topicName = state.topicNames[state.counter++ % state.topicNames.length];
+        return TopicName.get(topicName);
     }
 }
