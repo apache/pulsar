@@ -46,6 +46,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
@@ -128,6 +129,14 @@ public class WebSocketService implements Closeable {
                 throw new PulsarServerException(e);
             }
         }
+        // Start the task the clean topic name object cache.
+        final int maxSecondsToClearTopicNameCache = config.getMaxSecondsToClearTopicNameCache();
+        executor.scheduleAtFixedRate(
+            () -> TopicName.clearIfReachedMaxCapacity(config.getTopicNameCacheMaxCapacity()),
+            maxSecondsToClearTopicNameCache,
+            maxSecondsToClearTopicNameCache,
+            TimeUnit.SECONDS);
+        TopicName.setEvictCacheByScheduledTask(true);
 
         log.info("Pulsar WebSocket Service started");
     }

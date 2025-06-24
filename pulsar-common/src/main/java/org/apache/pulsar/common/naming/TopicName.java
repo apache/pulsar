@@ -24,6 +24,8 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.Codec;
 
@@ -36,6 +38,8 @@ public class TopicName implements ServiceUnitId {
     public static final String DEFAULT_NAMESPACE = "default";
 
     public static final String PARTITIONED_TOPIC_SUFFIX = "-partition-";
+
+    public static final int CLIENT_MAX_TOPIC_NAME_CACHE = 10_000;
 
     private final String completeTopicName;
 
@@ -50,6 +54,10 @@ public class TopicName implements ServiceUnitId {
     private final int partitionIndex;
 
     private static final ConcurrentHashMap<String, TopicName> cache = new ConcurrentHashMap<>();
+
+    @Getter
+    @Setter
+    private static boolean evictCacheByScheduledTask = false;
 
     public static void clearIfReachedMaxCapacity(int maxCapacity) {
         if (maxCapacity < 0) {
@@ -82,7 +90,11 @@ public class TopicName implements ServiceUnitId {
         if (tp != null) {
             return tp;
         }
-        return cache.computeIfAbsent(topic, k -> new TopicName(k));
+        tp = cache.computeIfAbsent(topic, k -> new TopicName(k));
+        if (!evictCacheByScheduledTask) {
+            clearIfReachedMaxCapacity(CLIENT_MAX_TOPIC_NAME_CACHE);
+        }
+        return tp;
     }
 
     public static TopicName getPartitionedTopicName(String topic) {

@@ -66,6 +66,7 @@ import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.netty.DnsResolverUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -236,7 +237,6 @@ public class ProxyService implements Closeable {
         bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
         bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
                 new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
-
         Class<? extends ServerSocketChannel> serverSocketChannelClass =
                 EventLoopUtil.getServerSocketChannelClass(workerGroup);
         bootstrap.channel(serverSocketChannelClass);
@@ -246,6 +246,14 @@ public class ProxyService implements Closeable {
                 && EpollServerSocketChannel.class.isAssignableFrom(serverSocketChannelClass)) {
             proxyZeroCopyModeEnabled = true;
         }
+        // Start the task the clean topic name object cache.
+        final int maxSecondsToClearTopicNameCache = proxyConfig.getMaxSecondsToClearTopicNameCache();
+        workerGroup.scheduleAtFixedRate(
+                () -> TopicName.clearIfReachedMaxCapacity(proxyConfig.getTopicNameCacheMaxCapacity()),
+                maxSecondsToClearTopicNameCache,
+                maxSecondsToClearTopicNameCache,
+                TimeUnit.SECONDS);
+        TopicName.setEvictCacheByScheduledTask(true);
 
         bootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, false, null));
         // Bind and start to accept incoming connections.

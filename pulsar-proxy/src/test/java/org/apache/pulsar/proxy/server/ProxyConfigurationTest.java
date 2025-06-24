@@ -73,6 +73,8 @@ public class ProxyConfigurationTest {
             printWriter.println("zookeeperSessionTimeoutMs=60");
             printWriter.println("zooKeeperCacheExpirySeconds=500");
             printWriter.println("httpMaxRequestHeaderSize=1234");
+            printWriter.println("topicNameCacheMaxCapacity=20000");
+            printWriter.println("maxSecondsToClearTopicNameCache=1800");
         }
         testConfigFile.deleteOnExit();
         InputStream stream = new FileInputStream(testConfigFile);
@@ -81,6 +83,8 @@ public class ProxyConfigurationTest {
         assertEquals(serviceConfig.getMetadataStoreSessionTimeoutMillis(), 60);
         assertEquals(serviceConfig.getMetadataStoreCacheExpirySeconds(), 500);
         assertEquals(serviceConfig.getHttpMaxRequestHeaderSize(), 1234);
+        assertEquals(serviceConfig.getTopicNameCacheMaxCapacity(), 20000);
+        assertEquals(serviceConfig.getMaxSecondsToClearTopicNameCache(), 1800);
 
         testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
         if (testConfigFile.exists()) {
@@ -91,6 +95,8 @@ public class ProxyConfigurationTest {
             printWriter.println("metadataStoreCacheExpirySeconds=500");
             printWriter.println("zooKeeperSessionTimeoutMillis=-1");
             printWriter.println("zooKeeperCacheExpirySeconds=-1");
+            printWriter.println("topicNameCacheMaxCapacity=200");
+            printWriter.println("maxSecondsToClearTopicNameCache=900");
         }
         testConfigFile.deleteOnExit();
         stream = new FileInputStream(testConfigFile);
@@ -98,6 +104,8 @@ public class ProxyConfigurationTest {
         stream.close();
         assertEquals(serviceConfig.getMetadataStoreSessionTimeoutMillis(), 60);
         assertEquals(serviceConfig.getMetadataStoreCacheExpirySeconds(), 500);
+        assertEquals(serviceConfig.getTopicNameCacheMaxCapacity(), 200);
+        assertEquals(serviceConfig.getMaxSecondsToClearTopicNameCache(), 900);
 
         testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
         if (testConfigFile.exists()) {
@@ -108,6 +116,8 @@ public class ProxyConfigurationTest {
             printWriter.println("metadataStoreCacheExpirySeconds=30");
             printWriter.println("zookeeperSessionTimeoutMs=100");
             printWriter.println("zooKeeperCacheExpirySeconds=300");
+            printWriter.println("topicNameCacheMaxCapacity=100");
+            printWriter.println("maxSecondsToClearTopicNameCache=100");
         }
         testConfigFile.deleteOnExit();
         stream = new FileInputStream(testConfigFile);
@@ -115,6 +125,8 @@ public class ProxyConfigurationTest {
         stream.close();
         assertEquals(serviceConfig.getMetadataStoreSessionTimeoutMillis(), 100);
         assertEquals(serviceConfig.getMetadataStoreCacheExpirySeconds(), 300);
+        assertEquals(serviceConfig.getTopicNameCacheMaxCapacity(), 100);
+        assertEquals(serviceConfig.getMaxSecondsToClearTopicNameCache(), 100);
     }
 
 
