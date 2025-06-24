@@ -79,7 +79,7 @@ public class SameAuthParamsLookupAutoClusterFailoverTest extends OneWayReplicato
                 .failoverThreshold(5)
                 .recoverThreshold(5)
                 .checkHealthyIntervalMs(300)
-                .testTopic("a/b/c")
+                .testTopic("public/ns1/c")
                 .markTopicNotFoundAsAvailable(true)
                 .build();
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrlProvider(failover);
