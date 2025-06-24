@@ -18,14 +18,11 @@
  */
 package org.apache.pulsar.common.naming;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.util.concurrent.UncheckedExecutionException;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -39,13 +36,10 @@ public class NamespaceName implements ServiceUnitId {
     private final String cluster;
     private final String localName;
 
-    private static final LoadingCache<String, NamespaceName> cache = CacheBuilder.newBuilder().maximumSize(100000)
-            .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<String, NamespaceName>() {
-                @Override
-                public NamespaceName load(String name) throws Exception {
-                    return new NamespaceName(name);
-                }
-            });
+    private static final LoadingCache<String, NamespaceName> cache = Caffeine.newBuilder()
+            .maximumSize(100000)
+            .expireAfterAccess(30, TimeUnit.MINUTES)
+            .build(name -> new NamespaceName(name));
 
     public static final NamespaceName SYSTEM_NAMESPACE = NamespaceName.get("pulsar/system");
 
@@ -63,13 +57,7 @@ public class NamespaceName implements ServiceUnitId {
         if (namespace == null || namespace.isEmpty()) {
             throw new IllegalArgumentException("Invalid null namespace: " + namespace);
         }
-        try {
-            return cache.get(namespace);
-        } catch (ExecutionException e) {
-            throw (RuntimeException) e.getCause();
-        } catch (UncheckedExecutionException e) {
-            throw (RuntimeException) e.getCause();
-        }
+        return cache.get(namespace);
     }
 
     public static Optional<NamespaceName> getIfValid(String namespace) {
