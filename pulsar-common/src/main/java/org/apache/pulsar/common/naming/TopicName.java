@@ -20,6 +20,7 @@ package org.apache.pulsar.common.naming;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
+import com.github.benmanes.caffeine.cache.Scheduler;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Interner;
 import com.google.common.collect.Interners;
@@ -58,7 +59,8 @@ public class TopicName implements ServiceUnitId {
     private static final LoadingCache<String, TopicName> cache = Caffeine.newBuilder()
             .softValues()
             .maximumSize(100000)
-            .expireAfterAccess(30, TimeUnit.MINUTES)
+            .expireAfterWrite(30, TimeUnit.MINUTES)
+            .scheduler(Scheduler.systemScheduler())
             .build(name -> topicNameInterner.intern(new TopicName(name)));
 
     public static TopicName get(String domain, NamespaceName namespaceName, String topic) {

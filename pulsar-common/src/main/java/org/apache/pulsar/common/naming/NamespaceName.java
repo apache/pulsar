@@ -20,6 +20,7 @@ package org.apache.pulsar.common.naming;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
+import com.github.benmanes.caffeine.cache.Scheduler;
 import com.google.common.collect.Interner;
 import com.google.common.collect.Interners;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -43,7 +44,8 @@ public class NamespaceName implements ServiceUnitId {
     private static final LoadingCache<String, NamespaceName> cache = Caffeine.newBuilder()
             .softValues()
             .maximumSize(100000)
-            .expireAfterAccess(30, TimeUnit.MINUTES)
+            .expireAfterWrite(30, TimeUnit.MINUTES)
+            .scheduler(Scheduler.systemScheduler())
             .build(name -> namespaceNameInterner.intern(new NamespaceName(name)));
 
     public static final NamespaceName SYSTEM_NAMESPACE = NamespaceName.get("pulsar/system");
