@@ -44,14 +44,18 @@ abstract class NameCache<V> {
     private final LongSupplier referenceQueuePurgeIntervalNanos;
     private final Function<String, V> valueFactory;
 
-    // Deduplicates TopicName instances when the cached entry isn't in the actual cache.
-    // Holds weak references to TopicName so it won't prevent garbage collection.
-    private final Interner<V> valueInterner = Interners.newWeakInterner();
-    // Cache for TopicName instances using ConcurrentHashMap and SoftReference to allow
+    // Cache instances using ConcurrentHashMap and SoftReference to allow garbage collection to clear unreferenced
+    // entries when heap memory is running low.
     private final ConcurrentMap<String, SoftReferenceValue> cache = new ConcurrentHashMap<>();
+    // Reference queue to hold cleared soft references, which will be used to remove entries from the cache.
     private final ReferenceQueue<? super V> referenceQueue = new ReferenceQueue<>();
+    // Flag to indicate if the cache size needs to be reduced. This is set when the cache exceeds the maximum size.
     private final AtomicBoolean cacheShrinkNeeded = new AtomicBoolean(false);
+    // Next timestamp to run reference queue purging to remove cleared references. Handled when cache is accessed.
     private final AtomicLong nextReferenceQueuePurge = new AtomicLong();
+    // Deduplicates instances when the cached entry isn't in the actual cache.
+    // Holds weak references to the value so it won't prevent garbage collection.
+    private final Interner<V> valueInterner = Interners.newWeakInterner();
 
     // Values are held as soft references to allow garbage collection when memory is low.
     private final class SoftReferenceValue extends SoftReference<V> {
