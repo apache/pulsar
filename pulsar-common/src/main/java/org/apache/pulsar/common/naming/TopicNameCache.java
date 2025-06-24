@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit;
  */
 class TopicNameCache extends NameCache<TopicName> {
     static final TopicNameCache INSTANCE = new TopicNameCache();
+    // Configuration for the cache. These settings aren't currently exposed to end users.
     static int cacheMaxSize = 100000;
     static int reduceSizeByPercentage = 25;
     static long referenceQueuePurgeIntervalNanos = TimeUnit.SECONDS.toNanos(10);

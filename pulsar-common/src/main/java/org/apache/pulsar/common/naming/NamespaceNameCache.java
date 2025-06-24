@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit;
  */
 class NamespaceNameCache extends NameCache<NamespaceName> {
     static final NamespaceNameCache INSTANCE = new NamespaceNameCache();
+    // Configuration for the cache. These settings aren't currently exposed to end users.
     static int cacheMaxSize = 100000;
     static int reduceSizeByPercentage = 25;
     static long referenceQueuePurgeIntervalNanos = TimeUnit.SECONDS.toNanos(10);
