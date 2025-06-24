@@ -466,16 +466,16 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < totalEntries; i++) {
             ledger.addEntry(createMessageWrittenToLedger("msg" + i, initTimeMillis + i));
         }
-        // {0、1、2、3、4} (0) 3 x
-        // {5、6、7、8、9} (1) 4
-        // {10、11、12、13、14} (2) 5
-        // {15、16、17、18、19} (3) 6
-        // {20、21、22、23、24} (4) 7 x
-        // {25、26、27、28、29} (5) 8 x
-        // {30、31、32、33、34} (6) 9
-        // {35、36、37、38、39} (7) 10
-        // {40、41、42、43、44} (8) 11
-        // {45、46、47、48、49} (9) 12 x
+        // {0,1,2,3,4} (0) 3 x
+        // {5,6,7,8,9} (1) 4
+        // {10,11,12,13,14} (2) 5
+        // {15,16,17,18,19} (3) 6
+        // {20,21,22,23,24} (4) 7 x
+        // {25,26,27,28,29} (5) 8 x
+        // {30,31,32,33,34} (6) 9
+        // {35,36,37,38,39} (7) 10
+        // {40,41,42,43,44} (8) 11
+        // {45,46,47,48,49} (9) 12 x
         Awaitility.await().untilAsserted(() ->
                 assertEquals(ledger.getState(), ManagedLedgerImpl.State.LedgerOpened));
 
@@ -529,16 +529,16 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < totalEntries; i++) {
             ledger.addEntry(createMessageWrittenToLedger("msg" + i, initTimeMillis + i));
         }
-        // {0、1、2、3、4} (0) 3 x
-        // {5、6、7、8、9} (1) 4
-        // {10、11、12、13、14} (2) 5
-        // {15、16、17、18、19} (3) 6
-        // {20、21、22、23、24} (4) 7 x
-        // {25、26、27、28、29} (5) 8 x
-        // {30、31、32、33、34} (6) 9
-        // {35、36、37、38、39} (7) 10
-        // {40、41、42、43、44} (8) 11
-        // {45、46、47、48、49} (9) 12 x
+        // {0,1,2,3,4} (0) 3 x
+        // {5,6,7,8,9} (1) 4
+        // {10,11,12,13,14} (2) 5
+        // {15,16,17,18,19} (3) 6
+        // {20,21,22,23,24} (4) 7 x
+        // {25,26,27,28,29} (5) 8 x
+        // {30,31,32,33,34} (6) 9
+        // {35,36,37,38,39} (7) 10
+        // {40,41,42,43,44} (8) 11
+        // {45,46,47,48,49} (9) 12 x
         Awaitility.await().untilAsserted(() ->
                 assertEquals(ledger.getState(), ManagedLedgerImpl.State.LedgerOpened));
 

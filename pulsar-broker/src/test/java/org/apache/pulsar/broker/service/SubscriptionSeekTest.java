@@ -580,8 +580,6 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             Thread.sleep(10);
         }
 
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).get().get();
-
         Map<Long, MessageIdImpl> timestampToMessageId = new HashMap<>();
         List<Long> ledgerIds = new ArrayList<>();
         @Cleanup
@@ -610,7 +608,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             log.info("delete ledger: {}", deletedLedgerId);
         }
 
-        restartBroker();
+        admin.topics().unload(topicName);
 
         @Cleanup
         org.apache.pulsar.client.api.Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
@@ -625,7 +623,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         final int lastNonRecoverableEntryNums = 5;
 
         for (int i = 0; i < timestamps.length - lastNonRecoverableEntryNums; i++) {
-            MessageIdImpl nextValidMessageId = (MessageIdImpl) timestampToMessageId.get(timestamps[i]);
+            MessageIdImpl nextValidMessageId = timestampToMessageId.get(timestamps[i]);
             int l = i;
             while (nextValidMessageId == null) {
                 nextValidMessageId = timestampToMessageId.get(timestamps[l++]);
