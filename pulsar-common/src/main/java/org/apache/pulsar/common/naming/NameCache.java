@@ -153,4 +153,8 @@ abstract class NameCache<V> {
             cache.remove(ref.getKey());
         }
     }
+
+    public int size() {
+        return cache.size();
+    }
 }
