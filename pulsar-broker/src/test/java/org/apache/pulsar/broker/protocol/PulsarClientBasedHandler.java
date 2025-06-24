@@ -82,28 +82,16 @@ public class PulsarClientBasedHandler implements ProtocolHandler {
         try {
             final var port = service.getPulsar().getListenPortHTTP().orElseThrow();
             @Cleanup final var admin = PulsarAdmin.builder().serviceHttpUrl("http://localhost:" + port).build();
-            try {
-                admin.topics().createPartitionedTopic(topic, partitions);
-            } catch (PulsarAdminException ignored) {
-            }
-            try {
-                admin.clusters().createCluster(cluster, ClusterData.builder()
-                        .serviceUrl(service.getPulsar().getWebServiceAddress())
-                        .serviceUrlTls(service.getPulsar().getWebServiceAddressTls())
-                        .brokerServiceUrl(service.getPulsar().getBrokerServiceUrl())
-                        .brokerServiceUrlTls(service.getPulsar().getBrokerServiceUrlTls())
-                        .build());
-            } catch (PulsarAdminException ignored) {
-            }
-            try {
-                admin.tenants().createTenant("public", TenantInfo.builder().allowedClusters(Set.of(cluster)).build());
-            } catch (PulsarAdminException ignored) {
-            }
-            try {
-                admin.namespaces().createNamespace("public/default");
-            } catch (PulsarAdminException ignored) {
-            }
-        } catch (PulsarClientException e) {
+            admin.clusters().createCluster(cluster, ClusterData.builder()
+                    .serviceUrl(service.getPulsar().getWebServiceAddress())
+                    .serviceUrlTls(service.getPulsar().getWebServiceAddressTls())
+                    .brokerServiceUrl(service.getPulsar().getBrokerServiceUrl())
+                    .brokerServiceUrlTls(service.getPulsar().getBrokerServiceUrlTls())
+                    .build());
+            admin.tenants().createTenant("public", TenantInfo.builder().allowedClusters(Set.of(cluster)).build());
+            admin.namespaces().createNamespace("public/default");
+            admin.topics().createPartitionedTopic(topic, partitions);
+        } catch (PulsarClientException | PulsarAdminException e) {
             throw new RuntimeException(e);
         }
         try {
