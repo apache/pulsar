@@ -67,6 +67,10 @@ public class TopicName implements ServiceUnitId {
             .scheduler(Scheduler.systemScheduler())
             .build(name -> topicNameInterner.intern(new TopicName(name)));
 
+    public static void invalidateCache() {
+        cache.invalidateAll();
+    }
+
     public static TopicName get(String domain, NamespaceName namespaceName, String topic) {
         String name = domain + "://" + namespaceName.toString() + '/' + topic;
         return TopicName.get(name);

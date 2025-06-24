@@ -52,6 +52,10 @@ public class NamespaceName implements ServiceUnitId {
             .scheduler(Scheduler.systemScheduler())
             .build(name -> namespaceNameInterner.intern(new NamespaceName(name)));
 
+    public static void invalidateCache() {
+        cache.invalidateAll();
+    }
+
     public static final NamespaceName SYSTEM_NAMESPACE = NamespaceName.get("pulsar/system");
 
     public static NamespaceName get(String tenant, String namespace) {
