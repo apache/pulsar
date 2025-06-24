@@ -3251,6 +3251,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             if (MessageIdAdvUtils.isBatch(messageIdAdv)) {
                 final BitSetRecyclable bitSetRecyclable = BitSetRecyclable.create();
                 bitSetRecyclable.set(0, messageIdAdv.getBatchSize());
+                messageIdData.setBatchSize(messageIdAdv.getBatchSize());
                 if (ackType == AckType.Cumulative) {
                     MessageIdAdvUtils.acknowledge(messageIdAdv, false);
                     bitSetRecyclable.clear(0, messageIdAdv.getBatchIndex() + 1);
