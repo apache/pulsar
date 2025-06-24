@@ -41,12 +41,19 @@ public class NamespaceName implements ServiceUnitId {
     public static final NamespaceName SYSTEM_NAMESPACE = NamespaceName.get("pulsar/system");
 
     public static NamespaceName get(String tenant, String namespace) {
-        validateNamespaceName(tenant, namespace);
+        if ((tenant == null || tenant.isEmpty()) || (namespace == null || namespace.isEmpty())) {
+            throw new IllegalArgumentException(
+                    String.format("Invalid namespace format. namespace: %s/%s", tenant, namespace));
+        }
         return get(tenant + '/' + namespace);
     }
 
     public static NamespaceName get(String tenant, String cluster, String namespace) {
-        validateNamespaceName(tenant, cluster, namespace);
+        if ((tenant == null || tenant.isEmpty()) || (cluster == null || cluster.isEmpty())
+                || (namespace == null || namespace.isEmpty())) {
+            throw new IllegalArgumentException(
+                    String.format("Invalid namespace format. namespace: %s/%s/%s", tenant, cluster, namespace));
+        }
         return get(tenant + '/' + cluster + '/' + namespace);
     }
 
