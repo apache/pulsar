@@ -23,7 +23,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
 import java.io.ByteArrayInputStream;
@@ -75,8 +74,6 @@ public class ServiceConfigurationTest {
         assertEquals(config.getBacklogQuotaDefaultLimitGB(), 0.05);
         assertEquals(config.getHttpMaxRequestHeaderSize(), 1234);
         assertEquals(config.isDispatcherPauseOnAckStatePersistentEnabled(), true);
-        assertEquals(config.getMaxSecondsToClearTopicNameCache(), 1);
-        assertEquals(config.getTopicNameCacheMaxCapacity(), 200);
         assertEquals(config.isCreateTopicToRemoteClusterForReplication(), false);
         OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create(config.getProperties());
         assertEquals(offloadPolicies.getManagedLedgerOffloadedReadPriority().getValue(), "bookkeeper-first");
@@ -382,17 +379,6 @@ public class ServiceConfigurationTest {
         properties.setProperty("allowAutoTopicCreationType", "non-partitioned");
         conf = PulsarConfigurationLoader.create(properties, ServiceConfiguration.class);
         assertEquals(conf.getAllowAutoTopicCreationType(), TopicType.NON_PARTITIONED);
-    }
-
-    @Test
-    public void testTopicNameCacheConfiguration() throws Exception {
-        ServiceConfiguration conf;
-        final Properties properties = new Properties();
-        properties.setProperty("maxSecondsToClearTopicNameCache", "2");
-        properties.setProperty("topicNameCacheMaxCapacity", "100");
-        conf = PulsarConfigurationLoader.create(properties, ServiceConfiguration.class);
-        assertEquals(conf.getMaxSecondsToClearTopicNameCache(), 2);
-        assertEquals(conf.getTopicNameCacheMaxCapacity(), 100);
     }
 
     @Test

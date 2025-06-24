@@ -19,11 +19,16 @@
 package org.apache.pulsar.common.naming;
 
 import com.google.common.base.Splitter;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.google.re2j.Pattern;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.Codec;
 
@@ -49,17 +54,13 @@ public class TopicName implements ServiceUnitId {
 
     private final int partitionIndex;
 
-    private static final ConcurrentHashMap<String, TopicName> cache = new ConcurrentHashMap<>();
-
-    public static void clearIfReachedMaxCapacity(int maxCapacity) {
-        if (maxCapacity < 0) {
-            // Unlimited cache.
-            return;
-        }
-        if (cache.size() > maxCapacity) {
-            cache.clear();
-        }
-    }
+    private static final LoadingCache<String, TopicName> cache = CacheBuilder.newBuilder().maximumSize(100000)
+            .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<String, TopicName>() {
+                @Override
+                public TopicName load(String name) throws Exception {
+                    return new TopicName(name);
+                }
+            });
 
     public static TopicName get(String domain, NamespaceName namespaceName, String topic) {
         String name = domain + "://" + namespaceName.toString() + '/' + topic;
@@ -78,11 +79,11 @@ public class TopicName implements ServiceUnitId {
     }
 
     public static TopicName get(String topic) {
-        TopicName tp = cache.get(topic);
-        if (tp != null) {
-            return tp;
+        try {
+            return cache.get(topic);
+        } catch (ExecutionException | UncheckedExecutionException e) {
+            throw (RuntimeException) e.getCause();
         }
-        return cache.computeIfAbsent(topic, k -> new TopicName(k));
     }
 
     public static TopicName getPartitionedTopicName(String topic) {
