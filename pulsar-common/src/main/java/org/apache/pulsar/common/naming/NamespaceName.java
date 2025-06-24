@@ -24,6 +24,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.common.util.StringInterner;
 
 /**
  * Parser of a value from the namespace field provided in configuration.
@@ -91,16 +92,16 @@ public class NamespaceName implements ServiceUnitId {
                 // New style namespace : <tenant>/<namespace>
                 validateNamespaceName(parts[0], parts[1]);
 
-                tenant = parts[0];
+                tenant = StringInterner.intern(parts[0]);
                 cluster = null;
-                localName = parts[1];
+                localName = StringInterner.intern(parts[1]);
             } else if (parts.length == 3) {
                 // Old style namespace: <tenant>/<cluster>/<namespace>
                 validateNamespaceName(parts[0], parts[1], parts[2]);
 
-                tenant = parts[0];
-                cluster = parts[1];
-                localName = parts[2];
+                tenant = StringInterner.intern(parts[0]);
+                cluster = StringInterner.intern(parts[1]);
+                localName = StringInterner.intern(parts[2]);
             } else {
                 throw new IllegalArgumentException("Invalid namespace format. namespace: " + namespace);
             }
@@ -109,7 +110,7 @@ public class NamespaceName implements ServiceUnitId {
                     + " expected <tenant>/<namespace> or <tenant>/<cluster>/<namespace> "
                     + "but got: " + namespace, e);
         }
-        this.namespace = namespace;
+        this.namespace = StringInterner.intern(namespace);
     }
 
     public String getTenant() {

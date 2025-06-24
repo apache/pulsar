@@ -28,6 +28,7 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.StringInterner;
 
 /**
  * Encapsulate the parsing of the completeTopicName name.
@@ -143,18 +144,18 @@ public class TopicName implements ServiceUnitId {
             parts = Splitter.on("/").limit(4).splitToList(rest);
             if (parts.size() == 3) {
                 // New topic name without cluster name
-                this.tenant = parts.get(0);
+                this.tenant = StringInterner.intern(parts.get(0));
                 this.cluster = null;
-                this.namespacePortion = parts.get(1);
-                this.localName = parts.get(2);
+                this.namespacePortion = StringInterner.intern(parts.get(1));
+                this.localName = StringInterner.intern(parts.get(2));
                 this.partitionIndex = getPartitionIndex(completeTopicName);
                 this.namespaceName = NamespaceName.get(tenant, namespacePortion);
             } else if (parts.size() == 4) {
                 // Legacy topic name that includes cluster name
-                this.tenant = parts.get(0);
-                this.cluster = parts.get(1);
-                this.namespacePortion = parts.get(2);
-                this.localName = parts.get(3);
+                this.tenant = StringInterner.intern(parts.get(0));
+                this.cluster = StringInterner.intern(parts.get(1));
+                this.namespacePortion = StringInterner.intern(parts.get(2));
+                this.localName = StringInterner.intern(parts.get(3));
                 this.partitionIndex = getPartitionIndex(completeTopicName);
                 this.namespaceName = NamespaceName.get(tenant, cluster, namespacePortion);
             } else {
@@ -170,12 +171,12 @@ public class TopicName implements ServiceUnitId {
             throw new IllegalArgumentException("Invalid topic name: " + completeTopicName, e);
         }
         if (isV2()) {
-            this.completeTopicName = String.format("%s://%s/%s/%s",
-                                                   domain, tenant, namespacePortion, localName);
+            this.completeTopicName = StringInterner.intern(String.format("%s://%s/%s/%s",
+                                                   domain, tenant, namespacePortion, localName));
         } else {
-            this.completeTopicName = String.format("%s://%s/%s/%s/%s",
+            this.completeTopicName = StringInterner.intern(String.format("%s://%s/%s/%s/%s",
                                                    domain, tenant, cluster,
-                                                   namespacePortion, localName);
+                                                   namespacePortion, localName));
         }
     }
 
