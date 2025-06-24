@@ -23,7 +23,6 @@ import com.google.common.collect.Interners;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
 import java.util.Iterator;
-import java.util.LinkedHashSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
@@ -45,7 +44,6 @@ class TopicNameCache {
     private final Interner<TopicName> topicNameInterner = Interners.newWeakInterner();
     // Cache for TopicName instances using ConcurrentHashMap and SoftReference to allow
     private final ConcurrentMap<String, SoftReferenceTopicName> cache = new ConcurrentHashMap<>();
-    private final LinkedHashSet<String> keysInAddedOrder = new LinkedHashSet<>();
     private final ReferenceQueue<? super TopicName> referenceQueue = new ReferenceQueue<>();
     private final AtomicBoolean cacheShrinkNeeded = new AtomicBoolean(false);
     private final AtomicLong nextReferenceQueuePurge = new AtomicLong();
@@ -66,9 +64,6 @@ class TopicNameCache {
 
     public void invalidateCache() {
         cache.clear();
-        synchronized (keysInAddedOrder) {
-            keysInAddedOrder.clear();
-        }
     }
 
     public TopicName get(String topic) {
@@ -104,49 +99,41 @@ class TopicNameCache {
 
     private SoftReferenceTopicName createSoftReferenceTopicName(String topic) {
         TopicName topicName = topicNameInterner.intern(new TopicName(topic));
-        synchronized (keysInAddedOrder) {
-            keysInAddedOrder.add(topic);
-            if (keysInAddedOrder.size() >= cacheMaxSize) {
-                cacheShrinkNeeded.compareAndSet(false, true);
-            }
+        if (cache.size() >= cacheMaxSize) {
+            cacheShrinkNeeded.compareAndSet(false, true);
         }
         return new SoftReferenceTopicName(topic, topicName, referenceQueue);
     }
 
     private void shrinkCacheSize() {
-        synchronized (keysInAddedOrder) {
-            if (keysInAddedOrder.size() >= cacheMaxSize) {
-                // Reduce the cache size after reaching the maximum size
-                int reduceSizeBy =
-                        keysInAddedOrder.size() - (int) (cacheMaxSize * ((100 - reduceSizeByPercentage) / 100.0));
-                for (Iterator<String> iterator = keysInAddedOrder.iterator(); iterator.hasNext(); ) {
-                    if (reduceSizeBy == 0) {
-                        break;
-                    }
-                    String oldestKey = iterator.next();
-                    SoftReferenceTopicName ref = cache.remove(oldestKey);
-                    if (ref != null) {
-                        ref.clear();
-                    }
-                    iterator.remove();
-                    reduceSizeBy--;
+        if (cache.size() >= cacheMaxSize) {
+            // Reduce the cache size after reaching the maximum size
+            int reduceSizeBy =
+                    cache.size() - (int) (cacheMaxSize * ((100 - reduceSizeByPercentage) / 100.0));
+            for (Iterator<String> iterator = cache.keySet().iterator(); iterator.hasNext(); ) {
+                if (reduceSizeBy == 0) {
+                    break;
                 }
+                String oldestKey = iterator.next();
+                SoftReferenceTopicName ref = cache.remove(oldestKey);
+                if (ref != null) {
+                    ref.clear();
+                }
+                iterator.remove();
+                reduceSizeBy--;
             }
         }
     }
 
     private void purgeReferenceQueue() {
         // Clean up the reference queue to remove any cleared references
-        synchronized (keysInAddedOrder) {
-            while (true) {
-                SoftReferenceTopicName ref = (SoftReferenceTopicName) referenceQueue.poll();
-                if (ref == null) {
-                    break;
-                }
-                String topic = ref.getTopic();
-                cache.remove(topic);
-                keysInAddedOrder.remove(topic);
+        while (true) {
+            SoftReferenceTopicName ref = (SoftReferenceTopicName) referenceQueue.poll();
+            if (ref == null) {
+                break;
             }
+            String topic = ref.getTopic();
+            cache.remove(topic);
         }
     }
 }
