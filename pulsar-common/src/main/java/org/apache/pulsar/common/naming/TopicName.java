@@ -18,17 +18,11 @@
  */
 package org.apache.pulsar.common.naming;
 
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.LoadingCache;
-import com.github.benmanes.caffeine.cache.Scheduler;
 import com.google.common.base.Splitter;
-import com.google.common.collect.Interner;
-import com.google.common.collect.Interners;
 import com.google.re2j.Pattern;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.StringInterner;
@@ -37,7 +31,6 @@ import org.apache.pulsar.common.util.StringInterner;
  * Encapsulate the parsing of the completeTopicName name.
  */
 public class TopicName implements ServiceUnitId {
-
     public static final String PUBLIC_TENANT = "public";
     public static final String DEFAULT_NAMESPACE = "default";
 
@@ -55,20 +48,8 @@ public class TopicName implements ServiceUnitId {
 
     private final int partitionIndex;
 
-    // Deduplicates TopicName instances when the cached entry isn't in the actual cache.
-    // Holds weak references to TopicName so it won't prevent garbage collection.
-    private static final Interner<TopicName> topicNameInterner = Interners.newWeakInterner();
-    // Cache for TopicName instances that uses Caffeine to provide fast access and expiration.
-    // Soft references allow the garbage collector to reclaim memory when needed.
-    private static final LoadingCache<String, TopicName> cache = Caffeine.newBuilder()
-            .softValues()
-            .maximumSize(100000)
-            .expireAfterWrite(30, TimeUnit.MINUTES)
-            .scheduler(Scheduler.systemScheduler())
-            .build(name -> topicNameInterner.intern(new TopicName(name)));
-
     public static void invalidateCache() {
-        cache.invalidateAll();
+        TopicNameCache.INSTANCE.invalidateCache();
     }
 
     public static TopicName get(String domain, NamespaceName namespaceName, String topic) {
@@ -88,7 +69,7 @@ public class TopicName implements ServiceUnitId {
     }
 
     public static TopicName get(String topic) {
-        return cache.get(topic);
+        return TopicNameCache.INSTANCE.get(topic);
     }
 
     public static TopicName getPartitionedTopicName(String topic) {
@@ -117,7 +98,7 @@ public class TopicName implements ServiceUnitId {
     }
 
     @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
-    private TopicName(String completeTopicName) {
+    TopicName(String completeTopicName) {
         try {
             // The topic name can be in two different forms, one is fully qualified topic name,
             // the other one is short topic name
