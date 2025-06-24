@@ -71,20 +71,12 @@ class TopicNameCache {
 
     public TopicName get(String topic) {
         // first do a quick lookup in the cache
-        TopicName topicName = cache.get(topic).get();
+        SoftReferenceTopicName softReferenceTopicName = cache.get(topic);
+        TopicName topicName = softReferenceTopicName != null ? softReferenceTopicName.get() : null;
         if (topicName == null) {
-            // intern the topic name to deduplicate topic names used as keys
+            // intern the topic name to deduplicate topic names used as keys, since this will reduce heap memory usage
             topic = StringInterner.intern(topic);
-            topicName = cache.computeIfAbsent(topic, key -> {
-                return createSoftReferenceTopicName(key);
-            }).get();
-            if (cache.size() > cacheMaxSize) {
-                cacheShrinkNeeded.compareAndSet(false, true);
-            }
-        }
-        // There has been a garbage collection and the soft reference has been cleared.
-        if (topicName == null) {
-            // remove the possible stale entry from the cache
+            // add new entry or replace the possible stale entry
             topicName = cache.compute(topic, (key, existingRef) -> {
                 if (existingRef == null || existingRef.get() == null) {
                     return createSoftReferenceTopicName(key);
