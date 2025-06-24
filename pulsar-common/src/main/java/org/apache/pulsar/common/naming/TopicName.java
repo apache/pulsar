@@ -31,8 +31,8 @@ import org.apache.pulsar.common.util.StringInterner;
  * Encapsulate the parsing of the completeTopicName name.
  */
 public class TopicName implements ServiceUnitId {
-    public static final String PUBLIC_TENANT = "public";
-    public static final String DEFAULT_NAMESPACE = "default";
+    public static final String PUBLIC_TENANT = StringInterner.intern("public");
+    public static final String DEFAULT_NAMESPACE = StringInterner.intern("default");
 
     public static final String PARTITIONED_TOPIC_SUFFIX = "-partition-";
 
