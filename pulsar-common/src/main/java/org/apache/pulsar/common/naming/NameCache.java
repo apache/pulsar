@@ -133,8 +133,8 @@ abstract class NameCache<V> {
                 if (reduceSizeBy <= 0) {
                     break;
                 }
-                String oldestKey = iterator.next();
-                SoftReferenceValue ref = cache.remove(oldestKey);
+                String key = iterator.next();
+                SoftReferenceValue ref = cache.remove(key);
                 if (ref != null) {
                     ref.clear();
                 }
