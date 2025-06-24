@@ -43,16 +43,15 @@ import org.openjdk.jmh.annotations.Warmup;
 @State(Scope.Thread)
 public class TopicNameBenchmark {
     @State(Scope.Thread)
-    public static class ColdLookupState {
-        private int counter = 0;
+    public static class TestState {
+        private long counter = 0;
         private String[] topicNames;
 
         @Setup(Level.Trial)
         public void setup() {
             topicNames = new String[100000];
             for (int i = 0; i < topicNames.length; i++) {
-                topicNames[i] = String.format("persistent://tenant-%d/ns-%d/topic-%d",
-                        i % 100, i % 1000, i);
+                topicNames[i] = String.format("persistent://tenant-%d/ns-%d/topic-%d", i % 100, i % 1000, i);
             }
         }
 
@@ -60,6 +59,12 @@ public class TopicNameBenchmark {
         public void tearDown() {
             TopicName.invalidateCache();
             NamespaceName.invalidateCache();
+            counter = 0;
+        }
+
+        public String getNextTopicName() {
+            String topicName = topicNames[(int) (counter++ % topicNames.length)];
+            return topicName;
         }
     }
 
@@ -69,9 +74,8 @@ public class TopicNameBenchmark {
     @Measurement(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
     @Warmup(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
     @Threads(1)
-    public TopicName coldTopicLookup001(ColdLookupState state) {
-        String topicName = state.topicNames[state.counter++ % state.topicNames.length];
-        return TopicName.get(topicName);
+    public TopicName coldTopicLookup001(TestState state) {
+        return TopicName.get(state.getNextTopicName());
     }
 
     @Benchmark
@@ -80,9 +84,8 @@ public class TopicNameBenchmark {
     @Measurement(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
     @Warmup(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
     @Threads(10)
-    public TopicName coldTopicLookup010(ColdLookupState state) {
-        String topicName = state.topicNames[state.counter++ % state.topicNames.length];
-        return TopicName.get(topicName);
+    public TopicName coldTopicLookup010(TestState state) {
+        return TopicName.get(state.getNextTopicName());
     }
 
     @Benchmark
@@ -91,8 +94,7 @@ public class TopicNameBenchmark {
     @Measurement(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
     @Warmup(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
     @Threads(100)
-    public TopicName coldTopicLookup100(ColdLookupState state) {
-        String topicName = state.topicNames[state.counter++ % state.topicNames.length];
-        return TopicName.get(topicName);
+    public TopicName coldTopicLookup100(TestState state) {
+        return TopicName.get(state.getNextTopicName());
     }
 }
