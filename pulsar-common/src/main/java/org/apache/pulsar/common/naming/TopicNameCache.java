@@ -28,6 +28,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.pulsar.common.util.StringInterner;
 
 /**
  * A cache for TopicName instances that allows deduplication and efficient memory usage.
@@ -50,6 +51,7 @@ class TopicNameCache {
     private final AtomicLong nextReferenceQueuePurge = new AtomicLong();
     private static final long REFERENCE_QUEUE_PURGE_INTERVAL_NANOS = TimeUnit.SECONDS.toNanos(10);
 
+    // Values are held as soft references to allow garbage collection when memory is low.
     private static final class SoftReferenceTopicName extends SoftReference<TopicName> {
         private final String topic;
 
@@ -68,9 +70,18 @@ class TopicNameCache {
     }
 
     public TopicName get(String topic) {
-        TopicName topicName = cache.computeIfAbsent(topic, __ -> {
-            return createSoftReferenceTopicName(topic);
-        }).get();
+        // first do a quick lookup in the cache
+        TopicName topicName = cache.get(topic).get();
+        if (topicName == null) {
+            // intern the topic name to deduplicate topic names used as keys
+            topic = StringInterner.intern(topic);
+            topicName = cache.computeIfAbsent(topic, key -> {
+                return createSoftReferenceTopicName(key);
+            }).get();
+            if (cache.size() >= cacheMaxSize) {
+                cacheShrinkNeeded.compareAndSet(false, true);
+            }
+        }
         // There has been a garbage collection and the soft reference has been cleared.
         if (topicName == null) {
             // remove the possible stale entry from the cache
@@ -80,7 +91,15 @@ class TopicNameCache {
                 }
                 return existingRef;
             }).get();
+            if (cache.size() >= cacheMaxSize) {
+                cacheShrinkNeeded.compareAndSet(false, true);
+            }
         }
+        doCacheMaintenance();
+        return topicName;
+    }
+
+    private void doCacheMaintenance() {
         if (cacheShrinkNeeded.compareAndSet(true, false)) {
             shrinkCacheSize();
         }
@@ -91,14 +110,10 @@ class TopicNameCache {
                 purgeReferenceQueue();
             }
         }
-        return topicName;
     }
 
     private SoftReferenceTopicName createSoftReferenceTopicName(String topic) {
         TopicName topicName = topicNameInterner.intern(new TopicName(topic));
-        if (cache.size() >= cacheMaxSize) {
-            cacheShrinkNeeded.compareAndSet(false, true);
-        }
         return new SoftReferenceTopicName(topic, topicName, referenceQueue);
     }
 
@@ -107,8 +122,9 @@ class TopicNameCache {
             // Reduce the cache size after reaching the maximum size
             int reduceSizeBy =
                     cache.size() - (int) (cacheMaxSize * ((100 - reduceSizeByPercentage) / 100.0));
-            // removes entries from the cache until the size is reduced
             // this doesn't remove the oldest entries, but rather reduces the size by a percentage
+            // keeping the order of added entries would add more overhead and Caffeine Cache would be a better fit
+            // in that case.
             for (Iterator<String> iterator = cache.keySet().iterator(); iterator.hasNext(); ) {
                 if (reduceSizeBy <= 0) {
                     break;
@@ -125,7 +141,7 @@ class TopicNameCache {
     }
 
     private void purgeReferenceQueue() {
-        // Clean up the reference queue to remove any cleared references
+        // Clean up the reference queue to remove any references cleared by the garbage collector.
         while (true) {
             SoftReferenceTopicName ref = (SoftReferenceTopicName) referenceQueue.poll();
             if (ref == null) {
