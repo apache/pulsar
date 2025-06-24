@@ -153,7 +153,7 @@ class OpFindNewest implements ReadEntryCallback {
                 searchPosition, state);
             checkArgument(state == State.checkFirst || state == State.checkLast || state == State.searching);
             if (state == State.checkFirst) {
-                // If we failed to read the first entry, try next valid ledger
+                // If we failed to read the first entry, try next valid position
                 Position nextPosition = findNextValidPosition(searchPosition, exception);
                 if (nextPosition != null && nextPosition.getEntryId() != -1) {
                     long numberOfEntries =
@@ -181,7 +181,7 @@ class OpFindNewest implements ReadEntryCallback {
                     find();
                     return;
                 } else {
-                    // If we can't find next valid position, try previous ledger's last entry
+                    // If we can't find next valid position, try previous valid position
                     Position prevPosition = findPreviousValidPosition(searchPosition, exception);
                     if (prevPosition != null && prevPosition.getEntryId() != -1) {
                         searchPosition = prevPosition;
@@ -212,7 +212,7 @@ class OpFindNewest implements ReadEntryCallback {
         if (prevPosition.getEntryId() != -1) {
             var minPosition = ledger.getPositionAfterN(startPosition, min, PositionBound.startExcluded);
             if (minPosition.compareTo(prevPosition) > 0) {
-                // If the prev position is out of the min position, an invalid position is returned
+                // If the previous position is out of the min position, an invalid position is returned
                 prevPosition = null;
             }
         }
