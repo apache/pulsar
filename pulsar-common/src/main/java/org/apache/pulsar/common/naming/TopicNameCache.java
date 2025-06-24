@@ -81,10 +81,6 @@ class TopicNameCache {
                 return existingRef;
             }).get();
         }
-        // retry if the topicName is still null
-        if (topicName == null) {
-            return get(topic);
-        }
         if (cacheShrinkNeeded.compareAndSet(true, false)) {
             shrinkCacheSize();
         }
@@ -111,8 +107,10 @@ class TopicNameCache {
             // Reduce the cache size after reaching the maximum size
             int reduceSizeBy =
                     cache.size() - (int) (cacheMaxSize * ((100 - reduceSizeByPercentage) / 100.0));
+            // removes entries from the cache until the size is reduced
+            // this doesn't remove the oldest entries, but rather reduces the size by a percentage
             for (Iterator<String> iterator = cache.keySet().iterator(); iterator.hasNext(); ) {
-                if (reduceSizeBy == 0) {
+                if (reduceSizeBy <= 0) {
                     break;
                 }
                 String oldestKey = iterator.next();
