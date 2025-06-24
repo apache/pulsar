@@ -25,11 +25,11 @@ import java.lang.ref.SoftReference;
 import java.util.Iterator;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.function.IntSupplier;
+import java.util.function.LongSupplier;
 import org.apache.pulsar.common.util.StringInterner;
 
 /**
@@ -41,6 +41,7 @@ import org.apache.pulsar.common.util.StringInterner;
 abstract class NameCache<V> {
     private final IntSupplier cacheMaxSize;
     private final IntSupplier reduceSizeByPercentage;
+    private final LongSupplier referenceQueuePurgeIntervalNanos;
     private final Function<String, V> valueFactory;
 
     // Deduplicates TopicName instances when the cached entry isn't in the actual cache.
@@ -51,7 +52,6 @@ abstract class NameCache<V> {
     private final ReferenceQueue<? super V> referenceQueue = new ReferenceQueue<>();
     private final AtomicBoolean cacheShrinkNeeded = new AtomicBoolean(false);
     private final AtomicLong nextReferenceQueuePurge = new AtomicLong();
-    private static final long REFERENCE_QUEUE_PURGE_INTERVAL_NANOS = TimeUnit.SECONDS.toNanos(10);
 
     // Values are held as soft references to allow garbage collection when memory is low.
     private final class SoftReferenceValue extends SoftReference<V> {
@@ -67,9 +67,11 @@ abstract class NameCache<V> {
         }
     }
 
-    NameCache(IntSupplier cacheMaxSize, IntSupplier reduceSizeByPercentage, Function<String, V> valueFactory) {
+    NameCache(IntSupplier cacheMaxSize, IntSupplier reduceSizeByPercentage,
+              LongSupplier referenceQueuePurgeIntervalNanos, Function<String, V> valueFactory) {
         this.cacheMaxSize = cacheMaxSize;
         this.reduceSizeByPercentage = reduceSizeByPercentage;
+        this.referenceQueuePurgeIntervalNanos = referenceQueuePurgeIntervalNanos;
         this.valueFactory = valueFactory;
     }
 
@@ -109,7 +111,7 @@ abstract class NameCache<V> {
         long localNextReferenceQueuePurge = nextReferenceQueuePurge.get();
         if (localNextReferenceQueuePurge == 0 || System.nanoTime() > localNextReferenceQueuePurge) {
             if (nextReferenceQueuePurge.compareAndSet(localNextReferenceQueuePurge,
-                    System.nanoTime() + REFERENCE_QUEUE_PURGE_INTERVAL_NANOS)) {
+                    System.nanoTime() + referenceQueuePurgeIntervalNanos.getAsLong())) {
                 purgeReferenceQueue();
             }
         }

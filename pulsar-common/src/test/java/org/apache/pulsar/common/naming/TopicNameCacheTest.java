@@ -20,6 +20,8 @@ package org.apache.pulsar.common.naming;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
+import java.util.concurrent.TimeUnit;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.testng.annotations.Test;
 
 public class TopicNameCacheTest {
@@ -42,5 +44,19 @@ public class TopicNameCacheTest {
         assertThat(cache.size()).isEqualTo(
                         (int) (TopicNameCache.cacheMaxSize * ((100 - TopicNameCache.reduceSizeByPercentage) / 100.0)))
                 .as("Cache size should be reduced after adding an extra topic beyond the max size");
+    }
+
+    @Test
+    public void softReferenceHandling() {
+        TopicNameCache cache = TopicNameCache.INSTANCE;
+        TopicNameCache.cacheMaxSize = Integer.MAX_VALUE;
+        TopicNameCache.referenceQueuePurgeIntervalNanos = TimeUnit.MILLISECONDS.toNanos(10);
+
+        for (int i = 0; i < 2_000_000; i++) {
+            cache.get("persistent://tenant/namespace/topic" + RandomStringUtils.randomAlphabetic(100));
+            if (i % 100_000 == 0) {
+               System.out.println(i + " topics added to cache. Current size: " + cache.size());
+            }
+        }
     }
 }

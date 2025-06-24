@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.common.naming;
 
+import java.util.concurrent.TimeUnit;
+
 /**
  * An efficient cache for NamespaceName instances that allows deduplication and efficient memory usage.
  * It uses soft references to allow garbage collection of unused NamespaceName instances under heavy memory pressure.
@@ -28,8 +30,10 @@ class NamespaceNameCache extends NameCache<NamespaceName> {
     static final NamespaceNameCache INSTANCE = new NamespaceNameCache();
     static int cacheMaxSize = 100000;
     static int reduceSizeByPercentage = 25;
+    static long referenceQueuePurgeIntervalNanos = TimeUnit.SECONDS.toNanos(10);
 
     NamespaceNameCache() {
-        super(() -> cacheMaxSize, () -> reduceSizeByPercentage, namespace -> new NamespaceName(namespace));
+        super(() -> cacheMaxSize, () -> reduceSizeByPercentage, () -> referenceQueuePurgeIntervalNanos,
+                namespace -> new NamespaceName(namespace));
     }
 }

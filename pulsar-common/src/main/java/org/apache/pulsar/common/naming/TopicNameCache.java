@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.common.naming;
 
+import java.util.concurrent.TimeUnit;
+
 /**
  * A cache for TopicName instances that allows deduplication and efficient memory usage.
  * It uses soft references to allow garbage collection of unused TopicName instances under heavy memory pressure.
@@ -28,8 +30,10 @@ class TopicNameCache extends NameCache<TopicName> {
     static final TopicNameCache INSTANCE = new TopicNameCache();
     static int cacheMaxSize = 100000;
     static int reduceSizeByPercentage = 25;
+    static long referenceQueuePurgeIntervalNanos = TimeUnit.SECONDS.toNanos(10);
 
     TopicNameCache() {
-        super(() -> cacheMaxSize, () -> reduceSizeByPercentage, topic -> new TopicName(topic));
+        super(() -> cacheMaxSize, () -> reduceSizeByPercentage, () -> referenceQueuePurgeIntervalNanos,
+                topic -> new TopicName(topic));
     }
 }
