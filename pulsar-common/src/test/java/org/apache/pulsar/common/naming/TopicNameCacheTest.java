@@ -48,15 +48,23 @@ public class TopicNameCacheTest {
 
     @Test
     public void softReferenceHandling() {
-        TopicNameCache cache = TopicNameCache.INSTANCE;
-        TopicNameCache.cacheMaxSize = Integer.MAX_VALUE;
-        TopicNameCache.referenceQueuePurgeIntervalNanos = TimeUnit.MILLISECONDS.toNanos(10);
+        int defaultCacheMaxSize = TopicNameCache.cacheMaxSize;
+        long defaultPurgeIntervalNanos = TopicNameCache.referenceQueuePurgeIntervalNanos;
+        try {
+            TopicNameCache.cacheMaxSize = Integer.MAX_VALUE;
+            TopicNameCache.referenceQueuePurgeIntervalNanos = TimeUnit.MILLISECONDS.toNanos(10);
 
-        for (int i = 0; i < 2_000_000; i++) {
-            cache.get("persistent://tenant/namespace/topic" + RandomStringUtils.randomAlphabetic(100));
-            if (i % 100_000 == 0) {
-               System.out.println(i + " topics added to cache. Current size: " + cache.size());
+            TopicNameCache cache = TopicNameCache.INSTANCE;
+            for (int i = 0; i < 2_000_000; i++) {
+                cache.get("persistent://tenant/namespace/topic" + RandomStringUtils.randomAlphabetic(100));
+                if (i % 100_000 == 0) {
+                    System.out.println(i + " topics added to cache. Current size: " + cache.size());
+                }
             }
+        } finally {
+            // Reset the cache settings to default after the test
+            TopicNameCache.cacheMaxSize = defaultCacheMaxSize;
+            TopicNameCache.referenceQueuePurgeIntervalNanos = defaultPurgeIntervalNanos;
         }
     }
 }
