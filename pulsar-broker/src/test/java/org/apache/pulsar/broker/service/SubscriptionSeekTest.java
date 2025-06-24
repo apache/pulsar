@@ -622,7 +622,9 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
         timestampToMessageId.values().removeIf(messageId -> deletedLedgerIds.contains(messageId.getLedgerId()));
 
-        for (int i = 0; i < timestamps.length - 5; i++) {
+        final int lastNonRecoverableEntryNums = 5;
+
+        for (int i = 0; i < timestamps.length - lastNonRecoverableEntryNums; i++) {
             MessageIdImpl nextValidMessageId = (MessageIdImpl) timestampToMessageId.get(timestamps[i]);
             int l = i;
             while (nextValidMessageId == null) {
@@ -635,6 +637,17 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             MessageIdImpl msgId = (MessageIdImpl) receive.getMessageId();
             Assert.assertEquals(msgId.getLedgerId(), nextValidMessageId.getLedgerId());
             Assert.assertEquals(msgId.getEntryId(), nextValidMessageId.getEntryId());
+        }
+
+        MessageIdImpl lastMessageId = (MessageIdImpl) producer.send(("message-last"));
+
+        for (int i = timestamps.length - lastNonRecoverableEntryNums; i < timestamps.length; i++) {
+            consumer.seek(timestamps[i]);
+            Message<String> receive = consumer.receive();
+
+            MessageIdImpl msgId = (MessageIdImpl) receive.getMessageId();
+            Assert.assertEquals(msgId.getLedgerId(), lastMessageId.getLedgerId());
+            Assert.assertEquals(msgId.getEntryId(), lastMessageId.getEntryId());
         }
     }
 
