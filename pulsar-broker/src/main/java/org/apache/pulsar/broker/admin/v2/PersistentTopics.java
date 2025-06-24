@@ -5120,7 +5120,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     if (!isRedirectException(ex)) {
-                        log.error("[{}] Failed to get message id by index for topic {}, partition id {}, index {}",
+                        log.error("[{}] Failed to get message id by index for topic {}, index {}",
                                 clientAppId(), topicName, index, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);

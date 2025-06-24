@@ -3106,7 +3106,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws Exception {
             String topic = validateTopicName(topicName);
-            getAdmin().topics().getMessageIdByIndex(topic, index);
+            System.out.println(getAdmin().topics().getMessageIdByIndex(topic, index));
         }
     }
 }
