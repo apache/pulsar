@@ -32,7 +32,8 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * A cache for TopicName instances that allows deduplication and efficient memory usage.
  * It uses soft references to allow garbage collection of unused TopicName instances under heavy memory pressure.
- * This cache uses ConcurrentHashMap for lookups for performance over Guava Cache and Caffeine Cache.
+ * This cache uses ConcurrentHashMap for lookups for performance over Guava Cache and Caffeine Cache
+ * since there was a concern in https://github.com/apache/pulsar/pull/23052 about high CPU usage for TopicName lookups.
  */
 class TopicNameCache {
     static final TopicNameCache INSTANCE = new TopicNameCache();
