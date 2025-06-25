@@ -54,20 +54,21 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
     private volatile Set<InetSocketAddress> allAddressSet;
     private volatile List<InetSocketAddress> availableAddressList;
     private final Map<InetSocketAddress, EndpointStatus> hostAvailabilityMap = new HashMap<>();
-    private final long serviceUrlRecoveryInitBackoffIntervalMs;
-    private final long serviceUrlRecoveryMaxBackoffIntervalMs;
-    private final boolean enableServiceUrlBackoffRecovery;
+    private final long serviceUrlQuarantineInitDurationMs;
+    private final long serviceUrlQuarantineMaxDurationMs;
+    private final boolean enableServiceUrlQuarantine;
 
     public PulsarServiceNameResolver() {
-        this.serviceUrlRecoveryInitBackoffIntervalMs = 0;
-        this.serviceUrlRecoveryMaxBackoffIntervalMs = 0;
-        this.enableServiceUrlBackoffRecovery = false;
+        this.serviceUrlQuarantineInitDurationMs = 0;
+        this.serviceUrlQuarantineMaxDurationMs = 0;
+        this.enableServiceUrlQuarantine = false;
     }
 
-    public PulsarServiceNameResolver(long initialBackoffTimeMs, long maxBackoffTimeMs) {
-        this.serviceUrlRecoveryInitBackoffIntervalMs = initialBackoffTimeMs;
-        this.serviceUrlRecoveryMaxBackoffIntervalMs = maxBackoffTimeMs;
-        this.enableServiceUrlBackoffRecovery = initialBackoffTimeMs > 0 && maxBackoffTimeMs > 0;
+    public PulsarServiceNameResolver(long serviceUrlQuarantineInitDurationMs, long serviceUrlQuarantineMaxDurationMs) {
+        this.serviceUrlQuarantineInitDurationMs = serviceUrlQuarantineInitDurationMs;
+        this.serviceUrlQuarantineMaxDurationMs = serviceUrlQuarantineMaxDurationMs;
+        this.enableServiceUrlQuarantine =
+                serviceUrlQuarantineInitDurationMs > 0 && serviceUrlQuarantineMaxDurationMs > 0;
     }
 
     @Override
@@ -136,7 +137,7 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
         this.serviceUrl = serviceUrl;
         this.serviceUri = uri;
         this.currentIndex = randomIndex(addresses.size());
-        if (enableServiceUrlBackoffRecovery) {
+        if (enableServiceUrlQuarantine) {
             this.availableAddressList = new ArrayList<>(addresses);
             hostAvailabilityMap.keySet().removeIf(host -> !allAddressSet.contains(host));
             addresses.forEach(address -> hostAvailabilityMap.putIfAbsent(address, createEndpointStatus(true, address)));
@@ -156,7 +157,7 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
      */
     @Override
     public synchronized void markHostAvailability(InetSocketAddress address, boolean isAvailable) {
-        if (!enableServiceUrlBackoffRecovery) {
+        if (!enableServiceUrlQuarantine) {
             return;
         }
 
@@ -208,15 +209,15 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
      * @return a new {@link EndpointStatus} instance
      */
     private EndpointStatus createEndpointStatus(boolean isAvailable, InetSocketAddress inetSocketAddress) {
-        Backoff recoverBackoff = new BackoffBuilder()
-                .setInitialTime(serviceUrlRecoveryInitBackoffIntervalMs, TimeUnit.MILLISECONDS)
-                .setMax(serviceUrlRecoveryMaxBackoffIntervalMs, TimeUnit.MILLISECONDS)
+        Backoff backoff = new BackoffBuilder()
+                .setInitialTime(serviceUrlQuarantineInitDurationMs, TimeUnit.MILLISECONDS)
+                .setMax(serviceUrlQuarantineMaxDurationMs, TimeUnit.MILLISECONDS)
                 .create();
         EndpointStatus endpointStatus =
-                new EndpointStatus(inetSocketAddress, recoverBackoff, System.currentTimeMillis(), 0,
+                new EndpointStatus(inetSocketAddress, backoff, System.currentTimeMillis(), 0,
                         isAvailable);
         if (!isAvailable) {
-            endpointStatus.setNextDelayMsToRecover(endpointStatus.getRecoverBackoff().next());
+            endpointStatus.setNextDelayMsToRecover(endpointStatus.getQuarantineBackoff().next());
         }
         return endpointStatus;
     }
@@ -238,20 +239,20 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
                             Duration.ofMillis(elapsedTimeMsSinceLast));
                     status.setAvailable(true);
                     status.setLastUpdateTimeStampMs(System.currentTimeMillis());
-                    status.setNextDelayMsToRecover(status.getRecoverBackoff().next());
+                    status.setNextDelayMsToRecover(status.getQuarantineBackoff().next());
                 }
             } else {
                 // from available to unavailable
                 status.setAvailable(false);
                 status.setLastUpdateTimeStampMs(System.currentTimeMillis());
-                status.setNextDelayMsToRecover(status.getRecoverBackoff().next());
+                status.setNextDelayMsToRecover(status.getQuarantineBackoff().next());
             }
         } else if (!status.isAvailable()) {
             // from unavailable to available
             status.setAvailable(true);
             status.setLastUpdateTimeStampMs(System.currentTimeMillis());
             status.setNextDelayMsToRecover(0);
-            status.getRecoverBackoff().reset();
+            status.getQuarantineBackoff().reset();
         }
 
         return newIsAvailable != status.isAvailable();

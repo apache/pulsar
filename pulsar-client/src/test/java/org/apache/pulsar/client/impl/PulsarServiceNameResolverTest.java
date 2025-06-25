@@ -36,13 +36,13 @@ import org.testng.annotations.Test;
  * Unit test {@link PulsarServiceNameResolver}.
  */
 public class PulsarServiceNameResolverTest {
-    private static final int INIT_BACKOFF_TIME_MS = 1000;
-    private static final int MAX_BACKOFF_TIME_MS = 10000;
+    private static final int INIT_QUARANTINE_TIME_MS = 1000;
+    private static final int MAX_QUARANTINE_TIME_MS = 10000;
     private PulsarServiceNameResolver resolver;
 
     @BeforeMethod
     public void setup() {
-        this.resolver = new PulsarServiceNameResolver(INIT_BACKOFF_TIME_MS, MAX_BACKOFF_TIME_MS);
+        this.resolver = new PulsarServiceNameResolver(INIT_QUARANTINE_TIME_MS, MAX_QUARANTINE_TIME_MS);
         assertNull(resolver.getServiceUrl());
         assertNull(resolver.getServiceUri());
     }
@@ -156,7 +156,7 @@ public class PulsarServiceNameResolverTest {
         }
 
         // After backoff time, host1 should be recovery from the unavailable hosts
-        Uninterruptibles.sleepUninterruptibly(INIT_BACKOFF_TIME_MS, java.util.concurrent.TimeUnit.MILLISECONDS);
+        Uninterruptibles.sleepUninterruptibly(INIT_QUARANTINE_TIME_MS, java.util.concurrent.TimeUnit.MILLISECONDS);
         // trigger the recovery of host1
         resolver.markHostAvailability(InetSocketAddress.createUnresolved("host2", 6651), true);
 
