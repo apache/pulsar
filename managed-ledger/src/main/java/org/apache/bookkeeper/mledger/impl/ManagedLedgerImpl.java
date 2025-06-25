@@ -303,7 +303,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private volatile boolean migrated = false;
 
     @Getter
-    private final OrderedScheduler scheduledExecutor;
+    protected final OrderedScheduler scheduledExecutor;
 
     @Getter
     protected final Executor executor;
