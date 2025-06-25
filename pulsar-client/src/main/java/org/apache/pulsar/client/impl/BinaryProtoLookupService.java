@@ -116,8 +116,8 @@ public class BinaryProtoLookupService implements LookupService {
         this.scheduleExecutor = scheduleExecutor;
         this.maxLookupRedirects = client.getConfiguration().getMaxLookupRedirects();
         this.serviceNameResolver =
-                new PulsarServiceNameResolver(client.getConfiguration().getServiceUrlRecoveryInitBackoffIntervalMs(),
-                        client.getConfiguration().getServiceUrlRecoveryMaxBackoffIntervalMs());
+                new PulsarServiceNameResolver(client.getConfiguration().getServiceUrlQuarantineInitDurationMs(),
+                        client.getConfiguration().getServiceUrlQuarantineMaxDurationMs());
         this.listenerName = listenerName;
         updateServiceUrl(serviceUrl);
 

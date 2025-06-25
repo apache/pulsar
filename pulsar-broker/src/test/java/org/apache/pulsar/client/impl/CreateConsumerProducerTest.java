@@ -54,9 +54,9 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
     private String binaryServiceUrlWithUnavailableNodes;
     private String httpServiceUrlWithUnavailableNodes;
     private PulsarClientImpl pulsarClientWithBinaryServiceUrl;
-    private PulsarClientImpl pulsarClientWithBinaryServiceUrlDisableBackoff;
+    private PulsarClientImpl pulsarClientWithBinaryServiceUrlDisableQuarantine;
     private PulsarClientImpl pulsarClientWithHttpServiceUrl;
-    private PulsarClientImpl pulsarClientWithHttpServiceUrlDisableBackoff;
+    private PulsarClientImpl pulsarClientWithHttpServiceUrlDisableQuarantine;
     private static final int BROKER_SERVICE_PORT = 6666;
     private static final int WEB_SERVICE_PORT = 8888;
     private static final int UNAVAILABLE_NODES = 20;
@@ -80,20 +80,20 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
                 (PulsarClientImpl) newPulsarClient(binaryServiceUrlWithUnavailableNodes, 0);
         this.pulsarClientWithHttpServiceUrl = (PulsarClientImpl) newPulsarClient(
                 httpServiceUrlWithUnavailableNodes, 0);
-        this.pulsarClientWithBinaryServiceUrlDisableBackoff =
+        this.pulsarClientWithBinaryServiceUrlDisableQuarantine =
                 (PulsarClientImpl)
                         PulsarClient.builder()
                                 .serviceUrl(binaryServiceUrlWithUnavailableNodes)
-                                .serviceUrlRecoveryInitBackoffInterval(0, TimeUnit.MILLISECONDS)
-                                .serviceUrlRecoveryMaxBackoffInterval(0, TimeUnit.MILLISECONDS)
+                                .serviceUrlQuarantineInitDuration(0, TimeUnit.MILLISECONDS)
+                                .serviceUrlQuarantineMaxDuration(0, TimeUnit.MILLISECONDS)
                                 .operationTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
                                 .lookupTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
                                 .build();
-        this.pulsarClientWithHttpServiceUrlDisableBackoff =
+        this.pulsarClientWithHttpServiceUrlDisableQuarantine =
                 (PulsarClientImpl) PulsarClient.builder()
                         .serviceUrl(httpServiceUrlWithUnavailableNodes)
-                        .serviceUrlRecoveryInitBackoffInterval(0, TimeUnit.MILLISECONDS)
-                        .serviceUrlRecoveryMaxBackoffInterval(0, TimeUnit.MILLISECONDS)
+                        .serviceUrlQuarantineInitDuration(0, TimeUnit.MILLISECONDS)
+                        .serviceUrlQuarantineMaxDuration(0, TimeUnit.MILLISECONDS)
                         .operationTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
                         .lookupTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
                         .build();
@@ -178,14 +178,14 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
         if (pulsarClientWithBinaryServiceUrl != null) {
             pulsarClientWithBinaryServiceUrl.close();
         }
-        if (pulsarClientWithBinaryServiceUrlDisableBackoff != null) {
-            pulsarClientWithBinaryServiceUrlDisableBackoff.close();
+        if (pulsarClientWithBinaryServiceUrlDisableQuarantine != null) {
+            pulsarClientWithBinaryServiceUrlDisableQuarantine.close();
         }
         if (pulsarClientWithHttpServiceUrl != null) {
             pulsarClientWithHttpServiceUrl.close();
         }
-        if (pulsarClientWithHttpServiceUrlDisableBackoff != null) {
-            pulsarClientWithHttpServiceUrlDisableBackoff.close();
+        if (pulsarClientWithHttpServiceUrlDisableQuarantine != null) {
+            pulsarClientWithHttpServiceUrlDisableQuarantine.close();
         }
     }
 
@@ -206,12 +206,12 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
         assertEquals(successCount, createCount,
                 "Expected all subscription creations to succeed, but only " + successCount + " succeeded.");
 
-        // test binary service url with disable backoff
-        successCount = creatConsumerAndProducers(pulsarClientWithBinaryServiceUrlDisableBackoff, createCount, topic);
+        // test binary service url with disable quarantine
+        successCount = creatConsumerAndProducers(pulsarClientWithBinaryServiceUrlDisableQuarantine, createCount, topic);
         assertTrue(successCount < createCount,
                 "Expected some creations to fail due to unavailable nodes, but all succeeded.");
         // no unavailable nodes should be removed since backoff is disabled
-        successCount = creatConsumerAndProducers(pulsarClientWithBinaryServiceUrlDisableBackoff, createCount, topic);
+        successCount = creatConsumerAndProducers(pulsarClientWithBinaryServiceUrlDisableQuarantine, createCount, topic);
         assertTrue(successCount < createCount,
                 "Expected all subscription creations to succeed, but only " + successCount + " succeeded.");
 
@@ -225,12 +225,12 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
         assertEquals(successCount, createCount,
                 "Expected some creations to fail due to unavailable nodes, but all succeeded.");
 
-        // test http service url with disable backoff
-        successCount = creatConsumerAndProducers(pulsarClientWithHttpServiceUrlDisableBackoff, createCount, topic);
+        // test http service url with disable quarantine
+        successCount = creatConsumerAndProducers(pulsarClientWithHttpServiceUrlDisableQuarantine, createCount, topic);
         assertTrue(successCount < createCount,
                 "Expected some creations to fail due to unavailable nodes, but all succeeded.");
         // no unavailable nodes should be removed since backoff is disabled
-        successCount = creatConsumerAndProducers(pulsarClientWithHttpServiceUrlDisableBackoff, createCount, topic);
+        successCount = creatConsumerAndProducers(pulsarClientWithHttpServiceUrlDisableQuarantine, createCount, topic);
         assertTrue(successCount < createCount,
                 "Expected some creations to fail due to unavailable nodes, but all succeeded.");
     }
@@ -266,16 +266,16 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
                 "http://host1:6651,host2:6651,127.0.0.1:" + WEB_SERVICE_PORT,
                 InetSocketAddress.createUnresolved("127.0.0.1", WEB_SERVICE_PORT), true);
 
-        doTestServiceUrlResolve(pulsarClientWithBinaryServiceUrlDisableBackoff,
+        doTestServiceUrlResolve(pulsarClientWithBinaryServiceUrlDisableQuarantine,
                 "pulsar+ssl://host1:6651,host2:6651,127.0.0.1:" + BROKER_SERVICE_PORT,
                 InetSocketAddress.createUnresolved("127.0.0.1", BROKER_SERVICE_PORT), false);
-        doTestServiceUrlResolve(pulsarClientWithHttpServiceUrlDisableBackoff,
+        doTestServiceUrlResolve(pulsarClientWithHttpServiceUrlDisableQuarantine,
                 "http://host1:6651,host2:6651,127.0.0.1:" + WEB_SERVICE_PORT,
                 InetSocketAddress.createUnresolved("127.0.0.1", WEB_SERVICE_PORT), false);
     }
 
     private void doTestServiceUrlResolve(PulsarClientImpl pulsarClient, String serviceUrl,
-                                         InetSocketAddress healthyAddress, boolean enableBackoff)
+                                         InetSocketAddress healthyAddress, boolean enableQuarantine)
             throws Exception {
         LookupService resolver = pulsarClient.getLookup();
         resolver.updateServiceUrl(serviceUrl);
@@ -322,14 +322,14 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
 
         Set<InetSocketAddress> resolvedAddresses = new HashSet<>();
         for (int i = 0; i < 100; i++) {
-            if (enableBackoff) {
+            if (enableQuarantine) {
                 assertTrue(expectedHealthyAddresses.contains(resolver.resolveHost()));
             } else {
                 resolvedAddresses.add(resolver.resolveHost());
             }
         }
 
-        if (!enableBackoff) {
+        if (!enableQuarantine) {
             assertEquals(resolvedAddresses, originAllAddresses,
                     "Expected all addresses to be healthy, but found: " + resolvedAddresses);
         }

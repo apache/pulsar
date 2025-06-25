@@ -27,7 +27,7 @@ import org.apache.pulsar.common.util.Backoff;
 @AllArgsConstructor
 class EndpointStatus {
     private InetSocketAddress socketAddress;
-    private Backoff recoverBackoff;
+    private Backoff quarantineBackoff;
     private long lastUpdateTimeStampMs;
     private long nextDelayMsToRecover;
     private boolean isAvailable;
