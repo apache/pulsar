@@ -690,7 +690,7 @@ public class Consumer {
 
     private void checkAckValidationError(CommandAck ack, PositionImpl position) {
         if (ack.hasValidationError()) {
-            log.error("[{}] [{}] Received ack for corrupted message at {} - Reason: {}", subscription,
+            log.warn("[{}] [{}] Received ack for corrupted message at {} - Reason: {}", subscription,
                     consumerId, position, ack.getValidationError());
         }
     }
