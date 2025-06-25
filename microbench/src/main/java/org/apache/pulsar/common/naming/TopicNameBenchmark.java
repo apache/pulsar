@@ -41,7 +41,7 @@ import org.openjdk.jmh.runner.IterationType;
 /**
  * Benchmark TopicName.get performance.
  */
-@Fork(value = 3, jvmArgs = {"-Xms2g", "-Xmx2g", "-XX:+UseG1GC"})
+@Fork(value = 3, jvmArgs = {"-Xms500m", "-Xmx500m", "-XX:+UseG1GC"})
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.SECONDS)
 @State(Scope.Thread)
