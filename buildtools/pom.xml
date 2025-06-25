@@ -62,6 +62,8 @@
     <snakeyaml.version>2.0</snakeyaml.version>
     <mockito.version>5.17.0</mockito.version>
     <byte-buddy.version>1.15.11</byte-buddy.version>
+    <wagon-ssh-external.version>3.5.3</wagon-ssh-external.version>
+
     <!-- required for running tests on JDK11+ -->
     <test.additional.args>
       --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
@@ -295,7 +297,7 @@
       <extension>
         <groupId>org.apache.maven.wagon</groupId>
         <artifactId>wagon-ssh-external</artifactId>
-        <version>3.5.3</version>
+        <version>${wagon-ssh-external.version}</version>
       </extension>
     </extensions>
   </build>
