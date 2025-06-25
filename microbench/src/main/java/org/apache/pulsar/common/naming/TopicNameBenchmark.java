@@ -19,7 +19,10 @@
 
 package org.apache.pulsar.common.naming;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -34,27 +37,48 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.IterationParams;
+import org.openjdk.jmh.runner.IterationType;
 
 /**
  * Benchmark TopicName.get performance.
  */
-@Fork(3)
+@Fork(value = 3, jvmArgs = {"-Xms200M", "-Xmx200M", "-XX:+UseG1GC"})
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.SECONDS)
 @State(Scope.Thread)
 public class TopicNameBenchmark {
     @State(Scope.Thread)
     public static class TestState {
+        public static final int MAX_TOPICS = 100000;
+        public static final int PAUSE_MILLIS_BEFORE_MEASUREMENT = 5000;
         @Param({"false", "true"})
         private boolean invalidateCache;
+        @Param({"false", "true"})
+        private boolean strongReferences;
+        // Used to hold strong references to TopicName objects when strongReferences is true.
+        // This is to prevent them from being garbage collected during the benchmark since the cache holds soft refs.
+        private List<TopicName> strongTopicNameReferences = new ArrayList<>();
         private long counter = 0;
         private String[] topicNames;
 
         @Setup(Level.Trial)
         public void setup() {
-            topicNames = new String[100000];
+            topicNames = new String[MAX_TOPICS];
             for (int i = 0; i < topicNames.length; i++) {
                 topicNames[i] = String.format("persistent://tenant-%d/ns-%d/topic-%d", i % 100, i % 1000, i);
+            }
+        }
+
+        private static final AtomicBoolean paused = new AtomicBoolean(false);
+
+        @Setup(Level.Iteration)
+        public void pauseBetweenWarmupAndMeasurement(IterationParams params) throws InterruptedException {
+            if (params.getType() == IterationType.MEASUREMENT && paused.compareAndSet(false, true)) {
+                System.out.println("Pausing before starting measurement iterations...");
+                // pause to allow JIT compilation to happen before measurement starts
+                Thread.sleep(PAUSE_MILLIS_BEFORE_MEASUREMENT);
+                System.out.println("Starting measurement iterations...");
             }
         }
 
@@ -68,7 +92,14 @@ public class TopicNameBenchmark {
         }
 
         public String getNextTopicName() {
-            String topicName = topicNames[(int) (counter++ % topicNames.length)];
+            return topicNames[(int) (counter++ % topicNames.length)];
+        }
+
+        public TopicName runTest() {
+            TopicName topicName = TopicName.get(getNextTopicName());
+            if (strongReferences) {
+                strongTopicNameReferences.add(topicName);
+            }
             return topicName;
         }
     }
@@ -80,7 +111,7 @@ public class TopicNameBenchmark {
     @Warmup(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
     @Threads(1)
     public TopicName topicLookup001(TestState state) {
-        return TopicName.get(state.getNextTopicName());
+        return state.runTest();
     }
 
     @Benchmark
@@ -90,7 +121,7 @@ public class TopicNameBenchmark {
     @Warmup(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
     @Threads(10)
     public TopicName topicLookup010(TestState state) {
-        return TopicName.get(state.getNextTopicName());
+        return state.runTest();
     }
 
     @Benchmark
@@ -100,6 +131,6 @@ public class TopicNameBenchmark {
     @Warmup(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
     @Threads(100)
     public TopicName topicLookup100(TestState state) {
-        return TopicName.get(state.getNextTopicName());
+        return state.runTest();
     }
 }
