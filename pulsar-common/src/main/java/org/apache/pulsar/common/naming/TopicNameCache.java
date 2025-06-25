@@ -31,7 +31,7 @@ class TopicNameCache extends NameCache<TopicName> {
     // Configuration for the cache. These settings aren't currently exposed to end users.
     static int cacheMaxSize = 100000;
     static int reduceSizeByPercentage = 25;
-    static long cacheMaintenanceTaskIntervalMillis = TimeUnit.SECONDS.toMillis(10);
+    static long cacheMaintenanceTaskIntervalMillis = TimeUnit.SECONDS.toMillis(5);
 
     @Override
     protected TopicName createValue(String key) {
