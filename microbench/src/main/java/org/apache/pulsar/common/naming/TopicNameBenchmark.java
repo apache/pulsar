@@ -19,8 +19,6 @@
 
 package org.apache.pulsar.common.naming;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -43,24 +41,25 @@ import org.openjdk.jmh.runner.IterationType;
 /**
  * Benchmark TopicName.get performance.
  */
-@Fork(value = 3, jvmArgs = {"-Xms200M", "-Xmx200M", "-XX:+UseG1GC"})
+@Fork(value = 3, jvmArgs = {"-Xms2g", "-Xmx2g", "-XX:+UseG1GC"})
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.SECONDS)
 @State(Scope.Thread)
 public class TopicNameBenchmark {
-    @State(Scope.Thread)
-    public static class TestState {
-        public static final int MAX_TOPICS = 100000;
+    public static final int MAX_TOPICS = 100000;
+
+    @State(Scope.Benchmark)
+    public static class BenchmarkState {
         public static final int PAUSE_MILLIS_BEFORE_MEASUREMENT = 5000;
+        private static final AtomicBoolean paused = new AtomicBoolean(false);
         @Param({"false", "true"})
         private boolean invalidateCache;
+        private String[] topicNames;
         @Param({"false", "true"})
         private boolean strongReferences;
         // Used to hold strong references to TopicName objects when strongReferences is true.
         // This is to prevent them from being garbage collected during the benchmark since the cache holds soft refs.
-        private List<TopicName> strongTopicNameReferences = new ArrayList<>();
-        private long counter = 0;
-        private String[] topicNames;
+        private TopicName[] strongTopicNameReferences;
 
         @Setup(Level.Trial)
         public void setup() {
@@ -68,9 +67,13 @@ public class TopicNameBenchmark {
             for (int i = 0; i < topicNames.length; i++) {
                 topicNames[i] = String.format("persistent://tenant-%d/ns-%d/topic-%d", i % 100, i % 1000, i);
             }
+            if (strongReferences) {
+                strongTopicNameReferences = new TopicName[MAX_TOPICS];
+                for (int i = 0; i < topicNames.length; i++) {
+                    strongTopicNameReferences[i] = TopicName.get(topicNames[i]);
+                }
+            }
         }
-
-        private static final AtomicBoolean paused = new AtomicBoolean(false);
 
         @Setup(Level.Iteration)
         public void pauseBetweenWarmupAndMeasurement(IterationParams params) throws InterruptedException {
@@ -88,19 +91,24 @@ public class TopicNameBenchmark {
                 TopicName.invalidateCache();
                 NamespaceName.invalidateCache();
             }
+        }
+
+        public String getNextTopicName(long counter) {
+            return topicNames[(int) (counter % topicNames.length)];
+        }
+    }
+
+    @State(Scope.Thread)
+    public static class TestState {
+        private long counter = 0;
+
+        @TearDown(Level.Iteration)
+        public void tearDown() {
             counter = 0;
         }
 
-        public String getNextTopicName() {
-            return topicNames[(int) (counter++ % topicNames.length)];
-        }
-
-        public TopicName runTest() {
-            TopicName topicName = TopicName.get(getNextTopicName());
-            if (strongReferences) {
-                strongTopicNameReferences.add(topicName);
-            }
-            return topicName;
+        public TopicName runTest(BenchmarkState benchmarkState) {
+            return TopicName.get(benchmarkState.getNextTopicName(counter++));
         }
     }
 
@@ -110,8 +118,8 @@ public class TopicNameBenchmark {
     @Measurement(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
     @Warmup(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
     @Threads(1)
-    public TopicName topicLookup001(TestState state) {
-        return state.runTest();
+    public TopicName topicLookup001(BenchmarkState benchmarkState, TestState state) {
+        return state.runTest(benchmarkState);
     }
 
     @Benchmark
@@ -120,8 +128,8 @@ public class TopicNameBenchmark {
     @Measurement(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
     @Warmup(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
     @Threads(10)
-    public TopicName topicLookup010(TestState state) {
-        return state.runTest();
+    public TopicName topicLookup010(BenchmarkState benchmarkState, TestState state) {
+        return state.runTest(benchmarkState);
     }
 
     @Benchmark
@@ -130,7 +138,7 @@ public class TopicNameBenchmark {
     @Measurement(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
     @Warmup(iterations = 1, time = 10, timeUnit = TimeUnit.SECONDS)
     @Threads(100)
-    public TopicName topicLookup100(TestState state) {
-        return state.runTest();
+    public TopicName topicLookup100(BenchmarkState benchmarkState, TestState state) {
+        return state.runTest(benchmarkState);
     }
 }
