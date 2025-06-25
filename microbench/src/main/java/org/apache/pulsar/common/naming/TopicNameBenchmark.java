@@ -48,15 +48,20 @@ import org.openjdk.jmh.runner.IterationType;
 public class TopicNameBenchmark {
     public static final int MAX_TOPICS = 100000;
 
+    public enum TestMode {
+        basic,
+        invalidateCache,
+        strongReferences
+    }
+
+
     @State(Scope.Benchmark)
     public static class BenchmarkState {
         public static final int PAUSE_MILLIS_BEFORE_MEASUREMENT = 5000;
         private static final AtomicBoolean paused = new AtomicBoolean(false);
-        @Param({"false", "true"})
-        private boolean invalidateCache;
+        @Param
+        private TestMode testMode;
         private String[] topicNames;
-        @Param({"false", "true"})
-        private boolean strongReferences;
         // Used to hold strong references to TopicName objects when strongReferences is true.
         // This is to prevent them from being garbage collected during the benchmark since the cache holds soft refs.
         private TopicName[] strongTopicNameReferences;
@@ -67,14 +72,10 @@ public class TopicNameBenchmark {
             for (int i = 0; i < topicNames.length; i++) {
                 topicNames[i] = String.format("persistent://tenant-%d/ns-%d/topic-%d", i % 100, i % 1000, i);
             }
-            if (strongReferences) {
+            if (testMode == TestMode.strongReferences) {
                 strongTopicNameReferences = new TopicName[MAX_TOPICS];
                 for (int i = 0; i < topicNames.length; i++) {
                     strongTopicNameReferences[i] = TopicName.get(topicNames[i]);
-                }
-                if (invalidateCache) {
-                    TopicName.invalidateCache();
-                    NamespaceName.invalidateCache();
                 }
             }
         }
@@ -91,7 +92,7 @@ public class TopicNameBenchmark {
 
         @TearDown(Level.Iteration)
         public void tearDown() {
-            if (invalidateCache) {
+            if (testMode == TestMode.invalidateCache) {
                 TopicName.invalidateCache();
                 NamespaceName.invalidateCache();
             }
