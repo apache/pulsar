@@ -72,6 +72,10 @@ public class TopicNameBenchmark {
                 for (int i = 0; i < topicNames.length; i++) {
                     strongTopicNameReferences[i] = TopicName.get(topicNames[i]);
                 }
+                if (invalidateCache) {
+                    TopicName.invalidateCache();
+                    NamespaceName.invalidateCache();
+                }
             }
         }
 
