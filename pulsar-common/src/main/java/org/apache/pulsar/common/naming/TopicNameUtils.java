@@ -41,7 +41,7 @@ public class TopicNameUtils {
      */
     public static String toFullTopicName(String topic) {
         final int index = topic.indexOf("://");
-        if (index > 0) {
+        if (index >= 0) {
             TopicDomain.getEnum(topic.substring(0, index));
             final List<String> parts = splitBySlash(topic, 4);
             if (parts.size() != 3 && parts.size() != 4) {
