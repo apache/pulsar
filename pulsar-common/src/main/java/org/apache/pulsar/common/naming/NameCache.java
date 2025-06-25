@@ -92,7 +92,7 @@ abstract class NameCache<V> {
                 return existingRef;
             }).get();
             if (cache.size() > getCacheMaxSize()) {
-                cacheShrinkNeeded.compareAndSet(false, true);
+                cacheShrinkNeeded.set(true);
             }
         }
         doCacheMaintenance();
