@@ -63,7 +63,6 @@
     <mockito.version>5.17.0</mockito.version>
     <byte-buddy.version>1.15.11</byte-buddy.version>
     <wagon-ssh-external.version>3.5.3</wagon-ssh-external.version>
-
     <!-- required for running tests on JDK11+ -->
     <test.additional.args>
       --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
