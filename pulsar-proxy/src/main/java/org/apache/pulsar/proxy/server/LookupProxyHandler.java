@@ -25,6 +25,8 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Semaphore;
 import org.apache.commons.lang3.StringUtils;
@@ -36,7 +38,7 @@ import org.apache.pulsar.common.api.proto.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.ServerError;
-import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.naming.TopicNameUtils;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -84,6 +86,9 @@ public class LookupProxyHandler {
                     "Counter of getTopicsOfNamespace requests rejected due to throttling")
             .create().register();
     private final Semaphore lookupRequestSemaphore;
+
+    // Maps the topic name from the request to the full topic name
+    private final Map<String, String> topicNameCache = new HashMap<>();
 
     public LookupProxyHandler(ProxyService proxy, ProxyConnection proxyConnection) {
         this.discoveryProvider = proxy.getDiscoveryProvider();
@@ -221,7 +226,8 @@ public class LookupProxyHandler {
      **/
     private void handlePartitionMetadataResponse(CommandPartitionedTopicMetadata partitionMetadata,
             long clientRequestId) {
-        TopicName topicName = TopicName.get(partitionMetadata.getTopic());
+        String topicName = topicNameCache.computeIfAbsent(partitionMetadata.getTopic(),
+                TopicNameUtils::toFullTopicName);
 
         String serviceUrl = getBrokerServiceUrl(clientRequestId);
         if (serviceUrl == null) {
@@ -235,7 +241,7 @@ public class LookupProxyHandler {
 
         if (log.isDebugEnabled()) {
             log.debug("Getting connections to '{}' for Looking up topic '{}' with clientReq Id '{}'", addr,
-                    topicName.getPartitionedTopicName(), clientRequestId);
+                    topicName, clientRequestId);
         }
         proxyConnection.getConnectionPool().getConnection(addr).thenAccept(clientCnx -> {
             // Connected to backend broker
@@ -245,7 +251,7 @@ public class LookupProxyHandler {
                     partitionMetadata.isMetadataAutoCreationEnabled());
             clientCnx.newLookup(command, requestId).whenComplete((r, t) -> {
                 if (t != null) {
-                    log.warn("[{}] failed to get Partitioned metadata : {}", topicName.toString(),
+                    log.warn("[{}] failed to get Partitioned metadata : {}", topicName,
                         t.getMessage(), t);
                     PulsarClientException pce = PulsarClientException.unwrap(t);
                     writeAndFlush(Commands.newLookupErrorResponse(clientCnx.revertClientExToErrorCode(pce),

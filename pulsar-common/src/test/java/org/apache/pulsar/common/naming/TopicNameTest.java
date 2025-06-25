@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import org.apache.pulsar.common.util.Codec;
@@ -52,9 +53,8 @@ public class TopicNameTest {
 
         assertEquals(TopicName.get("persistent://tenant/cluster/namespace/topic").toString(),
                 "persistent://tenant/cluster/namespace/topic");
-
-        assertNotEquals(TopicName.get("persistent://tenant/cluster/namespace/topic"),
-            "persistent://tenant/cluster/namespace/topic");
+        assertEquals(TopicNameUtils.toFullTopicName("persistent://tenant/cluster/namespace/topic"),
+                "persistent://tenant/cluster/namespace/topic");
 
         assertEquals(TopicName.get("persistent://tenant/cluster/namespace/topic").getDomain(),
                 TopicDomain.persistent);
@@ -103,6 +103,8 @@ public class TopicNameTest {
         } catch (IllegalArgumentException e) {
             // Ok
         }
+        assertThrows(IllegalArgumentException.class,
+                () -> TopicNameUtils.toFullTopicName("://tenant.namespace:my-topic"));
 
         try {
             TopicName.get("://tenant.namespace");
@@ -110,6 +112,7 @@ public class TopicNameTest {
         } catch (IllegalArgumentException e) {
             // Ok
         }
+        assertThrows(IllegalArgumentException.class, () -> TopicNameUtils.toFullTopicName("://tenant.namespace"));
 
         try {
             TopicName.get("invalid://tenant/cluster/namespace/topic");
@@ -117,6 +120,8 @@ public class TopicNameTest {
         } catch (IllegalArgumentException e) {
             // Ok
         }
+        assertThrows(IllegalArgumentException.class,
+                () -> TopicNameUtils.toFullTopicName("invalid://tenant/cluster/namespace/topic"));
 
         try {
             TopicName.get("tenant/cluster/namespace/topic");
@@ -124,6 +129,8 @@ public class TopicNameTest {
         } catch (IllegalArgumentException e) {
             // Ok
         }
+        assertThrows(IllegalArgumentException.class,
+                () -> TopicNameUtils.toFullTopicName("tenant/cluster/namespace/topic"));
 
         try {
             TopicName.get("persistent:///cluster/namespace/mydest-1");
@@ -131,6 +138,8 @@ public class TopicNameTest {
         } catch (IllegalArgumentException e) {
             // Ok
         }
+        assertThrows(IllegalArgumentException.class,
+                () -> TopicNameUtils.toFullTopicName("persistent:///cluster/namespace/mydest-1"));
 
         try {
             TopicName.get("persistent://pulsar//namespace/mydest-1");
@@ -138,6 +147,8 @@ public class TopicNameTest {
         } catch (IllegalArgumentException e) {
             // Ok
         }
+        assertThrows(IllegalArgumentException.class,
+                () -> TopicNameUtils.toFullTopicName("persistent://pulsar//namespace/mydest-1"));
 
         try {
             TopicName.get("persistent://pulsar/cluster//mydest-1");
@@ -145,6 +156,8 @@ public class TopicNameTest {
         } catch (IllegalArgumentException e) {
             // Ok
         }
+        assertThrows(IllegalArgumentException.class,
+                () -> TopicNameUtils.toFullTopicName("persistent://pulsar/cluster//mydest-1"));
 
         try {
             TopicName.get("persistent://pulsar/cluster/namespace/");
@@ -152,6 +165,8 @@ public class TopicNameTest {
         } catch (IllegalArgumentException e) {
             // Ok
         }
+        assertThrows(IllegalArgumentException.class,
+                () -> TopicNameUtils.toFullTopicName("persistent://pulsar/cluster/namespace/"));
 
         try {
             TopicName.get("://pulsar/cluster/namespace/");
@@ -159,6 +174,8 @@ public class TopicNameTest {
         } catch (IllegalArgumentException e) {
             // Ok
         }
+        assertThrows(IllegalArgumentException.class,
+                () -> TopicNameUtils.toFullTopicName("://pulsar/cluster/namespace/"));
 
         assertEquals(TopicName.get("persistent://tenant/cluster/namespace/topic")
                 .getPersistenceNamingEncoding(), "tenant/cluster/namespace/persistent/topic");
@@ -169,6 +186,7 @@ public class TopicNameTest {
         } catch (IllegalArgumentException e) {
             // Ok
         }
+        assertThrows(IllegalArgumentException.class, () -> TopicNameUtils.toFullTopicName("://tenant.namespace"));
 
         try {
             TopicName.get("://tenant/cluster/namespace");
@@ -176,6 +194,8 @@ public class TopicNameTest {
         } catch (IllegalArgumentException e) {
             // Ok
         }
+        assertThrows(IllegalArgumentException.class,
+                () -> TopicNameUtils.toFullTopicName("://tenant//cluster/namespace"));
 
         try {
             TopicName.get(" ");
@@ -183,6 +203,7 @@ public class TopicNameTest {
         } catch (IllegalArgumentException e) {
             // Ok
         }
+        assertThrows(IllegalArgumentException.class, () -> TopicNameUtils.toFullTopicName(" "));
 
         TopicName nameWithSlash = TopicName.get("persistent://tenant/cluster/namespace/ns-abc/table/1");
         assertEquals(nameWithSlash.getEncodedLocalName(), Codec.encode("ns-abc/table/1"));
@@ -343,5 +364,15 @@ public class TopicNameTest {
         TopicName tp2 = tp1.getPartition(0);
         assertNotEquals(tp2.toString(), tp1.toString());
         assertEquals(tp2.toString(), "persistent://tenant1/namespace1/tp1-partition-0-DLQ-partition-0");
+    }
+
+    @Test
+    public void testToFullTopicName() {
+        // There is no constraint for local topic name
+        assertEquals("persistent://public/default/tp???xx=", TopicNameUtils.toFullTopicName("tp???xx="));
+        assertEquals("persistent://tenant/ns/tp???xx=", TopicNameUtils.toFullTopicName("tenant/ns/tp???xx="));
+        assertThrows(IllegalArgumentException.class, () -> TopicNameUtils.toFullTopicName("ns/topic"));
+        // v1 format is not supported when the domain is not included
+        assertThrows(IllegalArgumentException.class, () -> TopicNameUtils.toFullTopicName("tenant/cluster/ns/topic"));
     }
 }
