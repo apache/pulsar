@@ -110,19 +110,16 @@ public class TopicName implements ServiceUnitId {
         return "^" + Pattern.quote(get(topic).getPartitionedTopicName().toString()) + "$";
     }
 
-    private TopicName(String completeTopicName) {
-        this(completeTopicName, true);
-    }
-
     /**
-     * The constructor from a topic name string. You can leverage {@link TopicName#get(String)} to get benefits from
-     * the built-in cache mechanism.
+     * The constructor from a topic name string. The difference from {@link TopicName#get(String)} is that the `get`
+     * method can leverage the built-in cache mechanism, which can be slightly faster, but at the cost of higher JVM
+     * memory usage that could lead to unnecessary GC, as well as potentially OOM in extreme cases.
+     * You can benchmark `TopicName.get(topic)` and `new TopicName(topic)` to see the actual performance gap.
      *
      * @param completeTopicName the topic name
-     * @param initializeNamespaceName whether to initializing the internal {@link NamespaceName} field
      */
     @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
-    public TopicName(String completeTopicName, boolean initializeNamespaceName) {
+    public TopicName(String completeTopicName) {
         try {
             // The topic name can be in two different forms, one is fully qualified topic name,
             // the other one is short topic name
@@ -177,10 +174,6 @@ public class TopicName implements ServiceUnitId {
                 }
                 this.completeTopicName = completeTopicName;
                 this.domain = TopicDomain.getEnum(completeTopicName.substring(0, index));
-            }
-
-            if (initializeNamespaceName) {
-                getNamespaceObject();
             }
 
             if (StringUtils.isBlank(localName)) {

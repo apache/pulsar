@@ -62,19 +62,7 @@ public class TopicNameBenchmark {
     public void testConstruct(Blackhole blackhole) {
         for (int i = 0; i < 10000; i++) {
             for (final var topicBase : topicBases) {
-                blackhole.consume(new TopicName(topicBase + i, false));
-            }
-        }
-    }
-
-    @Threads(1)
-    @Benchmark
-    @Warmup(time = 5, iterations = 1)
-    @Measurement(time = 5, iterations = 1)
-    public void testConstructWithNamespaceInitialized(Blackhole blackhole) {
-        for (int i = 0; i < 10000; i++) {
-            for (final var topicBase : topicBases) {
-                blackhole.consume(new TopicName(topicBase + i, true));
+                blackhole.consume(new TopicName(topicBase + i));
             }
         }
     }
