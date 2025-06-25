@@ -42,8 +42,8 @@ abstract class NameCache<V> {
     private final ReferenceQueue<? super V> referenceQueue = new ReferenceQueue<>();
     // Flag to indicate if the cache size needs to be reduced. This is set when the cache exceeds the maximum size.
     private final AtomicBoolean cacheShrinkNeeded = new AtomicBoolean(false);
-    // Next timestamp to run reference queue purging to remove cleared references. Handled when cache is accessed.
-    private final AtomicLong nextReferenceQueuePurge = new AtomicLong();
+    // Next timestamp to run cache maintenance. Handled when cache is accessed.
+    private final AtomicLong nextCacheMaintenance = new AtomicLong();
     // Deduplicates instances when the cached entry isn't in the actual cache.
     // Holds weak references to the value so it won't prevent garbage collection.
     private final Interner<V> valueInterner = Interners.newWeakInterner();
@@ -68,7 +68,7 @@ abstract class NameCache<V> {
 
     protected abstract int getReduceSizeByPercentage();
 
-    protected abstract long getReferenceQueuePurgeIntervalNanos();
+    protected abstract long getMaintenanceTaskIntervalMillis();
 
     public void invalidateCache() {
         cache.clear();
@@ -100,13 +100,14 @@ abstract class NameCache<V> {
     }
 
     private void doCacheMaintenance() {
-        if (cacheShrinkNeeded.compareAndSet(true, false)) {
-            shrinkCacheSize();
-        }
-        long localNextReferenceQueuePurge = nextReferenceQueuePurge.get();
-        if (localNextReferenceQueuePurge == 0 || System.nanoTime() > localNextReferenceQueuePurge) {
-            if (nextReferenceQueuePurge.compareAndSet(localNextReferenceQueuePurge,
-                    System.nanoTime() + getReferenceQueuePurgeIntervalNanos())) {
+        long localNextCacheMaintenance = nextCacheMaintenance.get();
+        long now = System.currentTimeMillis();
+        if (now > localNextCacheMaintenance) {
+            if (cacheShrinkNeeded.compareAndSet(true, false)) {
+                shrinkCacheSize();
+            }
+            if (nextCacheMaintenance.compareAndSet(localNextCacheMaintenance,
+                    now + getMaintenanceTaskIntervalMillis())) {
                 purgeReferenceQueue();
             }
         }

@@ -20,7 +20,6 @@ package org.apache.pulsar.common.naming;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
-import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.testng.annotations.Test;
 
@@ -49,10 +48,10 @@ public class TopicNameCacheTest {
     @Test
     public void softReferenceHandling() {
         int defaultCacheMaxSize = TopicNameCache.cacheMaxSize;
-        long defaultPurgeIntervalNanos = TopicNameCache.referenceQueuePurgeIntervalNanos;
+        long defaultCacheMaintenceTaskIntervalMillis = TopicNameCache.cacheMaintenanceTaskIntervalMillis;
         try {
             TopicNameCache.cacheMaxSize = Integer.MAX_VALUE;
-            TopicNameCache.referenceQueuePurgeIntervalNanos = TimeUnit.MILLISECONDS.toNanos(10);
+            TopicNameCache.cacheMaintenanceTaskIntervalMillis = 10L;
 
             TopicNameCache cache = TopicNameCache.INSTANCE;
             for (int i = 0; i < 2_000_000; i++) {
@@ -64,7 +63,7 @@ public class TopicNameCacheTest {
         } finally {
             // Reset the cache settings to default after the test
             TopicNameCache.cacheMaxSize = defaultCacheMaxSize;
-            TopicNameCache.referenceQueuePurgeIntervalNanos = defaultPurgeIntervalNanos;
+            TopicNameCache.cacheMaintenanceTaskIntervalMillis = defaultCacheMaintenceTaskIntervalMillis;
         }
     }
 }
