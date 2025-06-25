@@ -220,6 +220,10 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
             // Reset to initial state
             highestDeliveryTimeTracked = 0;
             messagesHaveFixedDelay = true;
+            if (delayedMessagesCount.get() != 0) {
+                log.warn("[{}] Delayed message tracker is empty, but delayedMessagesCount is {}",
+                        dispatcher.getName(), delayedMessagesCount.get());
+            }
         }
 
         updateTimer();
