@@ -3011,5 +3011,15 @@ flexible messaging model and an intuitive client API.</description>
         <enabled>false</enabled>
       </snapshots>
     </repository>
+
+    <!-- [tmp-prepare-release] add the respository source for bk-staging(this commit will be deleted later) -->
+    <repository>
+      <id>org.apache.bookkeeper</id>
+      <name>org.apache.bookkeeper</name>
+      <url>https://repository.apache.org/content/repositories/orgapachebookkeeper-1100/</url>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
   </repositories>
 </project>
