@@ -70,9 +70,12 @@ java -jar microbench/target/microbenchmarks.jar ".*BenchmarkName.*" -lp
 Profiling benchmarks with [async-profiler](https://github.com/async-profiler/async-profiler):
 
 ```shell
-# example of profiling with async-profiler
-# download async-profiler from https://github.com/async-profiler/async-profiler/releases
+# example of profiling with async-profiler 4.0
+# download async-profiler 4.0 from https://github.com/async-profiler/async-profiler/releases
+# macos
 LIBASYNCPROFILER_PATH=$HOME/async-profiler/lib/libasyncProfiler.dylib
-java -jar microbench/target/microbenchmarks.jar -prof async:libPath=$LIBASYNCPROFILER_PATH\;output=flamegraph\;dir=profile-results ".*BenchmarkName.*"
+# linux
+LIBASYNCPROFILER_PATH=$HOME/async-profiler/lib/libasyncProfiler.so
+java -jar microbench/target/microbenchmarks.jar -prof async:libPath=$LIBASYNCPROFILER_PATH\;output=flamegraph\;dir=profile-results\;rawCommand=cstack=vmx ".*BenchmarkName.*"
 ```
 
