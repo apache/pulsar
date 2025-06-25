@@ -219,10 +219,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * This lock is held while the ledgers list or propertiesMap is updated asynchronously on the metadata store.
      * Since we use the store version, we cannot have multiple concurrent updates.
      */
-    private final CallbackMutex metadataMutex = new CallbackMutex();
-    private final CallbackMutex trimmerMutex = new CallbackMutex();
+    protected final CallbackMutex metadataMutex = new CallbackMutex();
+    protected final CallbackMutex trimmerMutex = new CallbackMutex();
 
-    private final CallbackMutex offloadMutex = new CallbackMutex();
+    protected final CallbackMutex offloadMutex = new CallbackMutex();
     public static final CompletableFuture<Position> NULL_OFFLOAD_PROMISE = CompletableFuture
             .completedFuture(PositionFactory.LATEST);
     @VisibleForTesting
