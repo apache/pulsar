@@ -371,6 +371,8 @@ public class TopicNameTest {
         // There is no constraint for local topic name
         assertEquals("persistent://public/default/tp???xx=", TopicNameUtils.toFullTopicName("tp???xx="));
         assertEquals("persistent://tenant/ns/tp???xx=", TopicNameUtils.toFullTopicName("tenant/ns/tp???xx="));
+        assertEquals("persistent://tenant/ns/test",
+                TopicNameUtils.toFullTopicName("persistent://tenant/ns/test"));
         assertThrows(IllegalArgumentException.class, () -> TopicNameUtils.toFullTopicName("ns/topic"));
         // v1 format is not supported when the domain is not included
         assertThrows(IllegalArgumentException.class, () -> TopicNameUtils.toFullTopicName("tenant/cluster/ns/topic"));

@@ -43,7 +43,7 @@ public class TopicNameUtils {
         final int index = topic.indexOf("://");
         if (index >= 0) {
             TopicDomain.getEnum(topic.substring(0, index));
-            final List<String> parts = splitBySlash(topic, 4);
+            final List<String> parts = splitBySlash(topic.substring(index + "://".length()), 4);
             if (parts.size() != 3 && parts.size() != 4) {
                 throw new IllegalArgumentException(topic + " is invalid");
             }
