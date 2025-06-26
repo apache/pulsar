@@ -196,9 +196,8 @@ class OpFindNewest implements ReadEntryCallback {
                 callback.findEntryComplete(lastMatchedPosition, OpFindNewest.this.ctx);
                 return;
             } catch (Exception e) {
-                log.error("[{}] Failed to skip non-recoverable data at position {}: {}", ledger.getName(),
-                    searchPosition, e.getMessage(), e);
-                callback.findEntryFailed(new ManagedLedgerException("Failed to skip non-recoverable data", e),
+                callback.findEntryFailed(
+                    new ManagedLedgerException("Failed to skip non-recoverable data during search position", e),
                     Optional.ofNullable(searchPosition), OpFindNewest.this.ctx);
                 return;
             }
