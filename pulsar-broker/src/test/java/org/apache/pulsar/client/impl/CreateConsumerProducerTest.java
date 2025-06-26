@@ -235,7 +235,7 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
                 "Expected some creations to fail due to unavailable nodes, but all succeeded.");
     }
 
-    private int creatConsumerAndProducers(PulsarClientImpl pulsarClient, int createCount, String topic) {
+    private int createConsumerAndProducers(PulsarClientImpl pulsarClient, int createCount, String topic) {
         int successCount = 0;
         for (int i = 0; i < createCount; i++) {
             String subName = "my-sub" + UUID.randomUUID();
