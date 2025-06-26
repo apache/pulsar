@@ -147,53 +147,61 @@ class OpFindNewest implements ReadEntryCallback {
     public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
         if (exception instanceof ManagedLedgerException.NonRecoverableLedgerException
             && ledger.getConfig().isAutoSkipNonRecoverableData()) {
-            log.info("[{}] Ledger {} is not recoverable, skip non-recoverable data, state:{}", ledger.getName(),
-                searchPosition, state);
-            checkArgument(state == State.checkFirst || state == State.checkLast || state == State.searching);
-            if (state == State.checkFirst) {
-                // If we failed to read the first entry, try next valid position
-                Position nextPosition = findNextValidPosition(searchPosition, exception);
-                if (nextPosition != null && nextPosition.getEntryId() != -1) {
-                    long numberOfEntries =
-                        ledger.getNumberOfEntries(Range.closedOpen(searchPosition, nextPosition));
-                    searchPosition = nextPosition;
-                    min += numberOfEntries;
-                    find();
-                    return;
-                }
-            } else if (state == State.checkLast) {
-                Position prevPosition = findPreviousValidPosition(searchPosition, exception);
-                if (prevPosition != null && prevPosition.getEntryId() != -1) {
-                    long numberOfEntries =
-                        ledger.getNumberOfEntries(Range.openClosed(prevPosition, searchPosition));
-                    searchPosition = prevPosition;
-                    max -= numberOfEntries;
-                    find();
-                    return;
-                }
-            } else if (state == State.searching) {
-                // In searching state, if we failed to read the mid entry, try next valid position
-                Position nextPosition = findNextValidPosition(searchPosition, exception);
-                if (nextPosition != null && nextPosition.getEntryId() != -1) {
-                    searchPosition = nextPosition;
-                    find();
-                    return;
-                } else {
-                    // If we can't find next valid position, try previous valid position
-                    Position prevPosition = findPreviousValidPosition(searchPosition, exception);
-                    if (prevPosition != null && prevPosition.getEntryId() != -1) {
-                        searchPosition = prevPosition;
+            try {
+                log.info("[{}] Ledger {} is not recoverable, skip non-recoverable data, state:{}", ledger.getName(),
+                    searchPosition, state);
+                checkArgument(state == State.checkFirst || state == State.checkLast || state == State.searching);
+                if (state == State.checkFirst) {
+                    // If we failed to read the first entry, try next valid position
+                    Position nextPosition = findNextValidPosition(searchPosition, exception);
+                    if (nextPosition != null && nextPosition.getEntryId() != -1) {
+                        long numberOfEntries =
+                            ledger.getNumberOfEntries(Range.closedOpen(searchPosition, nextPosition));
+                        searchPosition = nextPosition;
+                        min += numberOfEntries;
                         find();
                         return;
                     }
+                } else if (state == State.checkLast) {
+                    Position prevPosition = findPreviousValidPosition(searchPosition, exception);
+                    if (prevPosition != null && prevPosition.getEntryId() != -1) {
+                        long numberOfEntries =
+                            ledger.getNumberOfEntries(Range.openClosed(prevPosition, searchPosition));
+                        searchPosition = prevPosition;
+                        max -= numberOfEntries;
+                        find();
+                        return;
+                    }
+                } else if (state == State.searching) {
+                    // In searching state, if we failed to read the mid entry, try next valid position
+                    Position nextPosition = findNextValidPosition(searchPosition, exception);
+                    if (nextPosition != null && nextPosition.getEntryId() != -1) {
+                        searchPosition = nextPosition;
+                        find();
+                        return;
+                    } else {
+                        // If we can't find next valid position, try previous valid position
+                        Position prevPosition = findPreviousValidPosition(searchPosition, exception);
+                        if (prevPosition != null && prevPosition.getEntryId() != -1) {
+                            searchPosition = prevPosition;
+                            find();
+                            return;
+                        }
+                    }
                 }
-            }
 
-            // If don't find any entry, return the last matched position
-            log.warn("[{}] Failed to find next valid entry. Returning last matched position: {}", ledger.getName(),
-                lastMatchedPosition);
-            callback.findEntryComplete(lastMatchedPosition, OpFindNewest.this.ctx);
-            return;
+                // If don't find any entry, return the last matched position
+                log.warn("[{}] Failed to find next valid entry. Returning last matched position: {}", ledger.getName(),
+                    lastMatchedPosition);
+                callback.findEntryComplete(lastMatchedPosition, OpFindNewest.this.ctx);
+                return;
+            } catch (Exception e) {
+                log.error("[{}] Failed to skip non-recoverable data at position {}: {}", ledger.getName(),
+                    searchPosition, e.getMessage(), e);
+                callback.findEntryFailed(new ManagedLedgerException("Failed to skip non-recoverable data", e),
+                    Optional.ofNullable(searchPosition), OpFindNewest.this.ctx);
+                return;
+            }
         }
 
         callback.findEntryFailed(exception, Optional.ofNullable(searchPosition), OpFindNewest.this.ctx);
