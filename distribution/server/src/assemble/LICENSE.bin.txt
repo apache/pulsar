@@ -263,7 +263,7 @@ The Apache Software License, Version 2.0
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.9.1.jar
  * Conscrypt -- org.conscrypt-conscrypt-openjdk-uber-2.5.2.jar
  * Fastutil -- it.unimi.dsi-fastutil-8.5.14.jar
- * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-2.17.0.jar
+ * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-2.51.0.jar
  * Bitbucket -- org.bitbucket.b_c-jose4j-0.9.4.jar
  * Gson
     - com.google.code.gson-gson-2.8.9.jar
@@ -433,29 +433,31 @@ The Apache Software License, Version 2.0
      - org.jetbrains.kotlin-kotlin-stdlib-jdk8-1.8.20.jar
      - org.jetbrains-annotations-13.0.jar
  * gRPC
-    - io.grpc-grpc-all-1.56.1.jar
-    - io.grpc-grpc-auth-1.56.1.jar
-    - io.grpc-grpc-context-1.56.1.jar
-    - io.grpc-grpc-core-1.56.1.jar
-    - io.grpc-grpc-protobuf-1.56.1.jar
-    - io.grpc-grpc-protobuf-lite-1.56.1.jar
-    - io.grpc-grpc-stub-1.56.1.jar
-    - io.grpc-grpc-alts-1.56.1.jar
-    - io.grpc-grpc-api-1.56.1.jar
-    - io.grpc-grpc-grpclb-1.56.1.jar
-    - io.grpc-grpc-netty-shaded-1.56.1.jar
-    - io.grpc-grpc-services-1.56.1.jar
-    - io.grpc-grpc-xds-1.56.1.jar
-    - io.grpc-grpc-rls-1.56.1.jar
-    - io.grpc-grpc-servlet-1.56.1.jar
-    - io.grpc-grpc-servlet-jakarta-1.56.1.jar
+    - io.grpc-grpc-all-1.72.0.jar
+    - io.grpc-grpc-auth-1.72.0.jar
+    - io.grpc-grpc-context-1.72.0.jar
+    - io.grpc-grpc-core-1.72.0.jar
+    - io.grpc-grpc-protobuf-1.72.0.jar
+    - io.grpc-grpc-protobuf-lite-1.72.0.jar
+    - io.grpc-grpc-stub-1.72.0.jar
+    - io.grpc-grpc-alts-1.72.0.jar
+    - io.grpc-grpc-api-1.72.0.jar
+    - io.grpc-grpc-grpclb-1.72.0.jar
+    - io.grpc-grpc-netty-shaded-1.72.0.jar
+    - io.grpc-grpc-services-1.72.0.jar
+    - io.grpc-grpc-xds-1.72.0.jar
+    - io.grpc-grpc-rls-1.72.0.jar
+    - io.grpc-grpc-servlet-1.72.0.jar
+    - io.grpc-grpc-servlet-jakarta-1.72.0.jar
     - io.grpc-grpc-util-1.60.0.jar
+    - io.grpc-grpc-opentelemetry-1.72.0.jar
+    - io.grpc-grpc-gcp-csm-observability-1.72.0.jar
+    - io.grpc-grpc-inprocess-1.72.0.jar
   * Perfmark
     - io.perfmark-perfmark-api-0.26.0.jar
   * OpenCensus
     - io.opencensus-opencensus-api-0.28.0.jar
     - io.opencensus-opencensus-contrib-http-util-0.28.0.jar
-    - io.opencensus-opencensus-proto-0.2.0.jar
   * Jodah
     - net.jodah-typetools-0.5.0.jar
     - dev.failsafe-failsafe-3.3.2.jar
@@ -509,7 +511,7 @@ The Apache Software License, Version 2.0
   * Google HTTP Client
     - com.google.http-client-google-http-client-gson-1.41.0.jar
     - com.google.http-client-google-http-client-1.41.0.jar
-    - com.google.auto.value-auto-value-annotations-1.10.1.jar
+    - com.google.auto.value-auto-value-annotations-1.11.0.jar
     - com.google.re2j-re2j-1.7.jar
   * Jetcd - shaded
   * IPAddress
@@ -540,6 +542,8 @@ The Apache Software License, Version 2.0
     - io.opentelemetry.instrumentation-opentelemetry-runtime-telemetry-java17-1.33.6-alpha.jar
     - io.opentelemetry.instrumentation-opentelemetry-runtime-telemetry-java8-1.33.6-alpha.jar
     - io.opentelemetry.semconv-opentelemetry-semconv-1.29.0-alpha.jar
+    - com.google.cloud.opentelemetry-detector-resources-support-0.33.0.jar
+    - io.opentelemetry.contrib-opentelemetry-gcp-resources-1.43.0-alpha.jar
   * Spotify completable-futures
     - com.spotify-completable-futures-0.3.6.jar
   * JSpecify
@@ -547,8 +551,8 @@ The Apache Software License, Version 2.0
 
 BSD 3-clause "New" or "Revised" License
  * Google auth library
-    - com.google.auth-google-auth-library-credentials-1.4.0.jar -- ../licenses/LICENSE-google-auth-library.txt
-    - com.google.auth-google-auth-library-oauth2-http-1.4.0.jar -- ../licenses/LICENSE-google-auth-library.txt
+    - com.google.auth-google-auth-library-credentials-1.24.1.jar -- ../licenses/LICENSE-google-auth-library.txt
+    - com.google.auth-google-auth-library-oauth2-http-1.24.1.jar -- ../licenses/LICENSE-google-auth-library.txt
  * LevelDB -- (included in org.rocksdb.*.jar) -- ../licenses/LICENSE-LevelDB.txt
  * JSR305 -- com.google.code.findbugs-jsr305-3.0.2.jar -- ../licenses/LICENSE-JSR305.txt
  * JLine -- jline-jline-2.14.6.jar -- ../licenses/LICENSE-JLine.txt
