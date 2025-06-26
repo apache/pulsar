@@ -66,7 +66,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import okhttp3.Call;
 import okhttp3.Response;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.JavaVersion;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
