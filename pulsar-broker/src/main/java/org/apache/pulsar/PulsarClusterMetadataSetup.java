@@ -304,7 +304,6 @@ public class PulsarClusterMetadataSetup {
         // Format BookKeeper ledger storage metadata
         if (arguments.existingBkMetadataServiceUri == null && arguments.bookieMetadataServiceUri == null) {
             ServerConfiguration bkConf = new ServerConfiguration();
-            bkConf.setDelimiterParsingDisabled(true);
             bkConf.setMetadataServiceUri("metadata-store:" + arguments.metadataStoreUrl);
             bkConf.setZkTimeout(arguments.zkSessionTimeoutMillis);
             // only format if /ledgers doesn't exist
