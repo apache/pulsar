@@ -36,7 +36,7 @@ import org.apache.pulsar.common.api.proto.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.ServerError;
-import org.apache.pulsar.common.naming.TopicNameUtils;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -221,7 +221,7 @@ public class LookupProxyHandler {
      **/
     private void handlePartitionMetadataResponse(CommandPartitionedTopicMetadata partitionMetadata,
             long clientRequestId) {
-        String topicName = TopicNameUtils.toFullTopicName(partitionMetadata.getTopic());
+        String topicName = TopicName.toFullTopicName(partitionMetadata.getTopic());
 
         String serviceUrl = getBrokerServiceUrl(clientRequestId);
         if (serviceUrl == null) {

@@ -35,7 +35,7 @@ import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.raw.MessageParser;
 import org.apache.pulsar.common.api.raw.RawMessage;
-import org.apache.pulsar.common.naming.TopicNameUtils;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.proxy.stats.TopicStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -131,7 +131,7 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
                         logging(ctx.channel(), cmd.getType(), "", null);
                         break;
                     }
-                    topicName = TopicNameUtils.toFullTopicName(ParserProxyHandler.producerHashMap.get(
+                    topicName = TopicName.toFullTopicName(ParserProxyHandler.producerHashMap.get(
                             cmd.getSend().getProducerId() + "," + ctx.channel().id()));
                     MutableLong msgBytes = new MutableLong(0);
                     MessageParser.parseMessage(topicName, -1L,
@@ -159,7 +159,7 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
                         logging(ctx.channel(), cmd.getType(), "", null);
                         break;
                     }
-                    topicName = TopicNameUtils.toFullTopicName(ParserProxyHandler.consumerHashMap.get(
+                    topicName = TopicName.toFullTopicName(ParserProxyHandler.consumerHashMap.get(
                             cmd.getMessage().getConsumerId() + "," + peerChannelId));
 
                     msgBytes = new MutableLong(0);
