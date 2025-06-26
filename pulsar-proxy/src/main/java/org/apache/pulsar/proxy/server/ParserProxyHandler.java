@@ -28,7 +28,6 @@ import io.netty.channel.ChannelId;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -55,8 +54,6 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
     private final int maxMessageSize;
     private final ChannelId peerChannelId;
     private final ProxyService service;
-    // Maps the topic name from the request to the full topic name
-    private final Map<String, String> topicNameCache = new HashMap<>();
 
 
     /**
@@ -134,9 +131,8 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
                         logging(ctx.channel(), cmd.getType(), "", null);
                         break;
                     }
-                    key = ParserProxyHandler.producerHashMap.get(cmd.getSend().getProducerId() + ","
-                            + ctx.channel().id());
-                    topicName = topicNameCache.computeIfAbsent(key, TopicNameUtils::toFullTopicName);
+                    topicName = TopicNameUtils.toFullTopicName(ParserProxyHandler.producerHashMap.get(
+                            cmd.getSend().getProducerId() + "," + ctx.channel().id()));
                     MutableLong msgBytes = new MutableLong(0);
                     MessageParser.parseMessage(topicName, -1L,
                             -1L, buffer, (message) -> {
@@ -163,9 +159,8 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
                         logging(ctx.channel(), cmd.getType(), "", null);
                         break;
                     }
-                    key = ParserProxyHandler.consumerHashMap.get(cmd.getMessage().getConsumerId() + ","
-                            + peerChannelId);
-                    topicName = topicNameCache.computeIfAbsent(key, TopicNameUtils::toFullTopicName);
+                    topicName = TopicNameUtils.toFullTopicName(ParserProxyHandler.consumerHashMap.get(
+                            cmd.getMessage().getConsumerId() + "," + peerChannelId));
 
                     msgBytes = new MutableLong(0);
                     MessageParser.parseMessage(topicName, -1L,

@@ -25,8 +25,6 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Semaphore;
 import org.apache.commons.lang3.StringUtils;
@@ -86,9 +84,6 @@ public class LookupProxyHandler {
                     "Counter of getTopicsOfNamespace requests rejected due to throttling")
             .create().register();
     private final Semaphore lookupRequestSemaphore;
-
-    // Maps the topic name from the request to the full topic name
-    private final Map<String, String> topicNameCache = new HashMap<>();
 
     public LookupProxyHandler(ProxyService proxy, ProxyConnection proxyConnection) {
         this.discoveryProvider = proxy.getDiscoveryProvider();
@@ -226,8 +221,7 @@ public class LookupProxyHandler {
      **/
     private void handlePartitionMetadataResponse(CommandPartitionedTopicMetadata partitionMetadata,
             long clientRequestId) {
-        String topicName = topicNameCache.computeIfAbsent(partitionMetadata.getTopic(),
-                TopicNameUtils::toFullTopicName);
+        String topicName = TopicNameUtils.toFullTopicName(partitionMetadata.getTopic());
 
         String serviceUrl = getBrokerServiceUrl(clientRequestId);
         if (serviceUrl == null) {
