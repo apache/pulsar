@@ -97,7 +97,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
 
             String output = pulsarCluster.runAdminCommandOnAnyBroker("topics",
                     "offload", "--size-threshold", "100G", topic).getStdout();
-            Assert.assertTrue(output.contains("Nothing to offload"));
+            Assert.assertTrue(output.contains("which keep 107374182400 bytes on bookkeeper"));
 
             output = pulsarCluster.runAdminCommandOnAnyBroker( "topics",
                     "offload-status", topic).getStdout();
