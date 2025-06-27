@@ -216,8 +216,8 @@ public class ClusterResources extends BaseResources<ClusterData> {
             setWithCreate(joinPath(BASE_CLUSTERS_PATH, clusterName, FAILURE_DOMAIN, domainName), createFunction);
         }
 
-        public void registerListener(Consumer<Notification> listener) {
-            getStore().registerListener(n -> {
+        public Runnable registerListener(Consumer<Notification> listener) {
+            return getStore().registerCancellableListener(n -> {
                 // Prefilter the notification just for failure domains
                 if (n.getPath().startsWith(BASE_CLUSTERS_PATH)
                         && n.getPath().contains("/" + FAILURE_DOMAIN)) {

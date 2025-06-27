@@ -60,6 +60,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
 
     private final MetadataStore store;
     private final OrderedExecutor executor;
+    private final Runnable cancelMetadataStoreListener;
 
     private static final int MAGIC_MANAGED_INFO_METADATA = 0x4778; // 0100 0111 0111 1000
     private final MetadataCompressionConfig ledgerInfoCompressionConfig;
@@ -74,7 +75,9 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
         this.cursorInfoCompressionConfig = MetadataCompressionConfig.noCompression;
         managedLedgerInfoUpdateCallbackMap = new ConcurrentHashMap<>();
         if (store != null) {
-            store.registerListener(this);
+            cancelMetadataStoreListener = store.registerCancellableListener(this);
+        } else {
+            cancelMetadataStoreListener = null;
         }
     }
 
@@ -87,7 +90,9 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
         this.cursorInfoCompressionConfig = cursorInfoCompressionConfig;
         managedLedgerInfoUpdateCallbackMap = new ConcurrentHashMap<>();
         if (store != null) {
-            store.registerListener(this);
+            cancelMetadataStoreListener = store.registerCancellableListener(this);
+        } else {
+            cancelMetadataStoreListener = null;
         }
     }
 
@@ -548,4 +553,9 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                 org.apache.pulsar.common.api.proto.CompressionType.valueOf(compressionType.name()));
     }
 
+    public void close() {
+        if (cancelMetadataStoreListener != null) {
+            cancelMetadataStoreListener.run();
+        }
+    }
 }

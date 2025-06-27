@@ -53,6 +53,8 @@ class LockManagerImpl<T> implements LockManager<T> {
     private final MetadataSerde<T> serde;
     private final FutureUtil.Sequencer<Void> sequencer;
     private final ScheduledExecutorService executor;
+    private Runnable cancelSessionListener;
+    private Runnable cancelMetadataListener;
 
     private enum State {
         Ready, Closed
@@ -72,8 +74,8 @@ class LockManagerImpl<T> implements LockManager<T> {
         this.serde = serde;
         this.executor = executor;
         this.sequencer = FutureUtil.Sequencer.create();
-        store.registerSessionListener(this::handleSessionEvent);
-        store.registerListener(this::handleDataNotification);
+        cancelSessionListener = store.registerCancellableSessionListener(this::handleSessionEvent);
+        cancelMetadataListener = store.registerCancellableListener(this::handleDataNotification);
     }
 
     @Override
@@ -167,6 +169,9 @@ class LockManagerImpl<T> implements LockManager<T> {
     public CompletableFuture<Void> asyncClose() {
         Map<String, ResourceLock<T>> locks;
         synchronized (this) {
+            cancelSessionListener.run();
+            cancelMetadataListener.run();
+
             if (state != State.Ready) {
                 return CompletableFuture.completedFuture(null);
             }
