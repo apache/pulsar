@@ -227,7 +227,7 @@ public class PendingReadsManager {
             this.ledgerCache = ledgerCache;
         }
 
-        public synchronized void attach(CompletableFuture<List<EntryImpl>> handle) {
+        public synchronized void attach(CompletableFuture<List<Entry>> handle) {
             if (state != PendingReadState.INITIALISED) {
                 // this shouldn't ever happen. this is here to prevent misuse in future changes
                 throw new IllegalStateException("Unexpected state " + state + " for PendingRead for key " + key);
@@ -269,7 +269,7 @@ public class PendingReadsManager {
 
         // this method isn't synchronized since that could lead to deadlocks
         private void readEntriesComplete(List<ReadEntriesCallbackWithContext> callbacks,
-                                         List<EntryImpl> entriesToReturn) {
+                                         List<Entry> entriesToReturn) {
             if (callbacks.size() == 1) {
                 ReadEntriesCallbackWithContext first = callbacks.get(0);
                 if (first.startEntry == key.startEntry
@@ -285,7 +285,7 @@ public class PendingReadsManager {
                     callback.callback.readEntriesComplete(
                             copyEntries(entriesToReturn, callback.startEntry, callback.endEntry), callback.ctx);
                 }
-                for (EntryImpl entry : entriesToReturn) {
+                for (Entry entry : entriesToReturn) {
                     entry.release();
                 }
             }
@@ -299,9 +299,9 @@ public class PendingReadsManager {
             }
         }
 
-        private static List<Entry> keepEntries(List<EntryImpl> list, long startEntry, long endEntry) {
+        private static List<Entry> keepEntries(List<Entry> list, long startEntry, long endEntry) {
             List<Entry> result = new ArrayList<>((int) (endEntry - startEntry + 1));
-            for (EntryImpl entry : list) {
+            for (Entry entry : list) {
                 long entryId = entry.getEntryId();
                 if (startEntry <= entryId && entryId <= endEntry) {
                     result.add(entry);
@@ -312,9 +312,9 @@ public class PendingReadsManager {
             return result;
         }
 
-        private static List<Entry> copyEntries(List<EntryImpl> entriesToReturn, long startEntry, long endEntry) {
+        private static List<Entry> copyEntries(List<Entry> entriesToReturn, long startEntry, long endEntry) {
             List<Entry> result = new ArrayList<>((int) (endEntry - startEntry + 1));
-            for (EntryImpl entry : entriesToReturn) {
+            for (Entry entry : entriesToReturn) {
                 long entryId = entry.getEntryId();
                 if (startEntry <= entryId && entryId <= endEntry) {
                     EntryImpl entryCopy = EntryImpl.create(entry);
@@ -350,7 +350,8 @@ public class PendingReadsManager {
                 CompletableFuture<List<Entry>> readFromLeftFuture =
                         recursiveReadMissingEntriesAsync(lh, shouldCacheEntry, findBestCandidateOutcome.missingOnLeft);
                 CompletableFuture<List<Entry>> readFromRightFuture =
-                        recursiveReadMissingEntriesAsync(lh, shouldCacheEntry, findBestCandidateOutcome.missingOnRight);
+                        recursiveReadMissingEntriesAsync(lh, shouldCacheEntry,
+                                findBestCandidateOutcome.missingOnRight);
                 readFromLeftFuture
                         .thenCombine(readFromMidFuture, (left, mid) -> {
                             List<Entry> result = new ArrayList<>(left);
@@ -376,7 +377,7 @@ public class PendingReadsManager {
             }
 
             if (createdByThisThread.get()) {
-                CompletableFuture<List<EntryImpl>> readResult = rangeEntryCache.readFromStorage(lh, firstEntry,
+                CompletableFuture<List<Entry>> readResult = rangeEntryCache.readFromStorage(lh, firstEntry,
                         lastEntry, shouldCacheEntry);
                 pendingRead.attach(readResult);
             }

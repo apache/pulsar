@@ -31,7 +31,6 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
-import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * Implementation of cache that always read from BookKeeper.
@@ -51,7 +50,7 @@ public class EntryCacheDisabled implements EntryCache {
     }
 
     @Override
-    public boolean insert(EntryImpl entry) {
+    public boolean insert(Entry entry) {
         return false;
     }
 
@@ -68,16 +67,7 @@ public class EntryCacheDisabled implements EntryCache {
     }
 
     @Override
-    public Pair<Integer, Long> evictEntries(long sizeToFree) {
-        return Pair.of(0, (long) 0);
-    }
-
-    @Override
-    public void invalidateEntriesBeforeTimestamp(long timestamp) {
-    }
-
-    @Override
-    public void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, boolean isSlowestReader,
+    public void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, boolean shouldCacheEntry,
                                final AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
         ReadEntryUtils.readAsync(ml, lh, firstEntry, lastEntry).thenAcceptAsync(
                 ledgerEntries -> {
@@ -86,7 +76,7 @@ public class EntryCacheDisabled implements EntryCache {
                     try {
                         for (LedgerEntry e : ledgerEntries) {
                             // Insert the entries at the end of the list (they will be unsorted for now)
-                            EntryImpl entry = RangeEntryCacheManagerImpl.create(e, interceptor);
+                            EntryImpl entry = EntryImpl.create(e, interceptor);
                             entries.add(entry);
                             totalSize += entry.getLength();
                         }
@@ -119,7 +109,7 @@ public class EntryCacheDisabled implements EntryCache {
                         Iterator<LedgerEntry> iterator = ledgerEntries.iterator();
                         if (iterator.hasNext()) {
                             LedgerEntry ledgerEntry = iterator.next();
-                            EntryImpl returnEntry = RangeEntryCacheManagerImpl.create(ledgerEntry, interceptor);
+                            EntryImpl returnEntry = EntryImpl.create(ledgerEntry, interceptor);
 
                             ml.getMbean().recordReadEntriesOpsCacheMisses(1, returnEntry.getLength());
                             ml.getFactory().getMbean().recordCacheMiss(1, returnEntry.getLength());
@@ -139,10 +129,4 @@ public class EntryCacheDisabled implements EntryCache {
     public long getSize() {
         return 0;
     }
-
-    @Override
-    public int compareTo(EntryCache other) {
-        return Long.compare(getSize(), other.getSize());
-    }
-
 }

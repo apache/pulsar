@@ -19,13 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.util.HashMap;
@@ -36,10 +30,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.cache.PendingReadsManager;
-import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -1117,93 +1108,5 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
         consumer.close();
         producer.close();
         log.info("-- Exiting {} test --", methodName);
-    }
-
-    /**
-     * Validates that backlog consumers cache the reads and reused by other backlog consumers while draining the
-     * backlog.
-     *
-     * @throws Exception
-     */
-    @Test
-    public void testBacklogConsumerCacheReads() throws Exception {
-        log.info("-- Starting {} test --", methodName);
-
-        conf.setManagedLedgerMinimumBacklogCursorsForCaching(2);
-        conf.setManagedLedgerMinimumBacklogEntriesForCaching(10);
-        conf.setManagedLedgerCacheEvictionTimeThresholdMillis(60 * 1000);
-        restartBroker();
-        final long totalMessages = 200;
-        final int receiverSize = 10;
-        final String topicName = "cache-read";
-        final String sub1 = "sub";
-        int totalSub = 10;
-        Consumer<byte[]>[] consumers = new Consumer[totalSub];
-
-        for (int i = 0; i < totalSub; i++) {
-            consumers[i] = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/" + topicName)
-                    .subscriptionName(sub1 + "-" + i).subscriptionType(SubscriptionType.Shared)
-                    .receiverQueueSize(receiverSize).subscribe();
-        }
-        for (int i = 0; i < totalSub; i++) {
-            consumers[i].close();
-        }
-
-        final String topic = "persistent://my-property/my-ns/" + topicName;
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic);
-
-        producerBuilder.enableBatching(false);
-        @Cleanup
-        Producer<byte[]> producer = producerBuilder.create();
-
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) topicRef.getManagedLedger();
-        Field cacheField = ManagedLedgerImpl.class.getDeclaredField("entryCache");
-        cacheField.setAccessible(true);
-        RangeEntryCacheImpl entryCache = spy((RangeEntryCacheImpl) cacheField.get(ledger));
-        cacheField.set(ledger, entryCache);
-
-        Field pendingReadsManagerField = RangeEntryCacheImpl.class.getDeclaredField("pendingReadsManager");
-        pendingReadsManagerField.setAccessible(true);
-        PendingReadsManager pendingReadsManager = (PendingReadsManager) pendingReadsManagerField.get(entryCache);
-        Field cacheFieldInManager = PendingReadsManager.class.getDeclaredField("rangeEntryCache");
-        cacheFieldInManager.setAccessible(true);
-        cacheFieldInManager.set(pendingReadsManager, entryCache);
-
-        // 2. Produce messages
-        for (int i = 0; i < totalMessages; i++) {
-            String message = "my-message-" + i;
-            producer.send(message.getBytes());
-        }
-        ledger.checkCursorsToCacheEntries();
-
-        ledger.getCursors().forEach(cursor -> {
-            assertTrue(((ManagedCursorImpl) cursor).isCacheReadEntry());
-        });
-
-        // 3. Consume messages
-        CountDownLatch latch = new CountDownLatch((int) (totalSub * totalMessages));
-        for (int i = 0; i < totalSub; i++) {
-            consumers[i] = (Consumer<byte[]>) pulsarClient.newConsumer()
-                    .topic("persistent://my-property/my-ns/" + topicName).subscriptionName(sub1 + "-" + i)
-                    .subscriptionType(SubscriptionType.Shared).receiverQueueSize(receiverSize)
-                    .messageListener((c, m) -> {
-                        latch.countDown();
-                        try {
-                            c.acknowledge(m);
-                        } catch (PulsarClientException e) {
-                            fail("failed to ack message");
-                        }
-                    }).subscribe();
-        }
-
-        latch.await();
-
-        // Verify: EntryCache has been invalidated
-        verify(entryCache, atLeastOnce()).insert(any());
-
-        for (int i = 0; i < totalSub; i++) {
-            consumers[i].close();
-        }
     }
 }
