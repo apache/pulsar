@@ -106,7 +106,7 @@ public interface Subscription extends MessageExpirer {
 
     boolean isSubscriptionMigrated();
 
-    default void processReplicatedSubscriptionSnapshot(ReplicatedSubscriptionsSnapshot snapshot) {
+    default void processReplicatedSubscriptionSnapshot(ReplicatedSubscriptionsSnapshot snapshot, long publishTime) {
         // Default is no-op
     }
 

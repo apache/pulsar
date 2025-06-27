@@ -211,7 +211,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
                 if (Markers.isReplicatedSubscriptionSnapshotMarker(msgMetadata)) {
                     final int readerIndex = metadataAndPayload.readerIndex();
-                    processReplicatedSubscriptionSnapshot(pos, metadataAndPayload);
+                    processReplicatedSubscriptionSnapshot(pos, metadataAndPayload, msgMetadata.getPublishTime());
                     metadataAndPayload.readerIndex(readerIndex);
                 }
 
@@ -358,13 +358,13 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 && maxConsumersPerSubscription <= consumerSize;
     }
 
-    private void processReplicatedSubscriptionSnapshot(Position pos, ByteBuf headersAndPayload) {
+    private void processReplicatedSubscriptionSnapshot(Position pos, ByteBuf headersAndPayload, long publishTime) {
         // Remove the protobuf headers
         Commands.skipMessageMetadata(headersAndPayload);
 
         try {
             ReplicatedSubscriptionsSnapshot snapshot = Markers.parseReplicatedSubscriptionsSnapshot(headersAndPayload);
-            subscription.processReplicatedSubscriptionSnapshot(snapshot);
+            subscription.processReplicatedSubscriptionSnapshot(snapshot, publishTime);
         } catch (Throwable t) {
             log.warn("Failed to process replicated subscription snapshot at {} -- {}", pos, t.getMessage(), t);
             return;
