@@ -113,6 +113,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
+import org.assertj.core.util.Streams;
 import org.awaitility.Awaitility;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -3845,14 +3846,44 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         cursor.close();
         ledger.close();
+
+        // test recover cursor by ledger.openCursor(string)
+
         ledger = factory.open("test_batch_indexes_deletion_persistent", managedLedgerConfig);
         cursor = ledger.openCursor("c1");
 
+        // check delete batch index state after recover
         List<IntRange> deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesAsLongArray(positions[5]), 10);
         Assert.assertEquals(deletedIndexes.size(), 1);
         Assert.assertEquals(deletedIndexes.get(0).getStart(), 3);
         Assert.assertEquals(deletedIndexes.get(0).getEnd(), 6);
         Assert.assertEquals(cursor.getMarkDeletedPosition(), positions[4]);
+
+        cursor.close();
+        ledger.close();
+
+        // test recover cursor by ledger recover
+
+        // depend on this to trigger cursor recover when open ledger.
+        assertFalse(managedLedgerConfig.isLazyCursorRecovery());
+
+        ledger = factory.open("test_batch_indexes_deletion_persistent", managedLedgerConfig);
+
+        // cursor should be recovered when ledger open
+        Iterable<ManagedCursor> cursors = ledger.getCursors();
+        Optional<ManagedCursor> c1 = Streams.stream(cursors).filter(c -> c.getName().equals("c1")).findFirst();
+
+        assertTrue(c1.isPresent());
+
+        cursor = c1.get();
+
+        // check delete batch index state after recover again
+        deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesAsLongArray((PositionImpl) positions[5]), 10);
+        Assert.assertEquals(deletedIndexes.size(), 1);
+        Assert.assertEquals(deletedIndexes.get(0).getStart(), 3);
+        Assert.assertEquals(deletedIndexes.get(0).getEnd(), 6);
+        Assert.assertEquals(cursor.getMarkDeletedPosition(), positions[4]);
+
         deleteBatchIndex(cursor, positions[5], 10, Lists.newArrayList(new IntRange().setStart(0).setEnd(9)));
         deletedIndexes = getAckedIndexRange(cursor.getDeletedBatchIndexesAsLongArray(positions[5]), 10);
         Assert.assertNull(deletedIndexes);
