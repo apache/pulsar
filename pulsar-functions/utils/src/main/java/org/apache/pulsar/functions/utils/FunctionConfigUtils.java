@@ -32,6 +32,7 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import java.io.File;
 import java.lang.reflect.Type;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -70,6 +71,7 @@ public class FunctionConfigUtils {
 
     static final Integer MAX_PENDING_ASYNC_REQUESTS_DEFAULT = 1000;
     static final Boolean FORWARD_SOURCE_MESSAGE_PROPERTY_DEFAULT = Boolean.TRUE;
+    private static final List<String> VALID_LOG_LEVELS = Arrays.asList("OFF", "FATAL", "ERROR", "WARN", "INFO", "DEBUG", "TRACE", "ALL");
 
     private static final ObjectMapper OBJECT_MAPPER = ObjectMapperFactory.create();
 
@@ -276,6 +278,9 @@ public class FunctionConfigUtils {
         if (functionConfig.getLogTopic() != null) {
             functionDetailsBuilder.setLogTopic(functionConfig.getLogTopic());
         }
+        if (functionConfig.getLogLevel() != null) {
+            functionDetailsBuilder.setLogLevel(functionConfig.getLogLevel());
+        }
         if (functionConfig.getRuntime() != null) {
             functionDetailsBuilder.setRuntime(FunctionCommon.convertRuntime(functionConfig.getRuntime()));
         }
@@ -454,6 +459,9 @@ public class FunctionConfigUtils {
         }
         if (!isEmpty(functionDetails.getLogTopic())) {
             functionConfig.setLogTopic(functionDetails.getLogTopic());
+        }
+        if (!isEmpty(functionDetails.getLogLevel())) {
+            functionConfig.setLogLevel(functionDetails.getLogLevel());
         }
         if (functionDetails.getSink().getForwardSourceMessageProperty()) {
             functionConfig.setForwardSourceMessageProperty(functionDetails.getSink().getForwardSourceMessageProperty());
@@ -824,6 +832,13 @@ public class FunctionConfigUtils {
             }
         }
 
+        if (!isEmpty(functionConfig.getLogLevel())) {
+            if (!VALID_LOG_LEVELS.contains(functionConfig.getLogLevel().toUpperCase())) {
+                throw new IllegalArgumentException(
+                        String.format("LogLevel %s is invalid", functionConfig.getLogLevel()));
+            }
+        }
+
         if (functionConfig.getParallelism() != null && functionConfig.getParallelism() <= 0) {
             throw new IllegalArgumentException("Function parallelism must be a positive number");
         }
@@ -1049,6 +1064,9 @@ public class FunctionConfigUtils {
         }
         if (!StringUtils.isEmpty(newConfig.getLogTopic())) {
             mergedConfig.setLogTopic(newConfig.getLogTopic());
+        }
+        if (!StringUtils.isEmpty(newConfig.getLogLevel())) {
+            mergedConfig.setLogLevel(newConfig.getLogLevel());
         }
         if (newConfig.getProcessingGuarantees() != null && !newConfig.getProcessingGuarantees()
                 .equals(existingConfig.getProcessingGuarantees())) {
