@@ -125,7 +125,6 @@ import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.broker.stats.prometheus.PulsarPrometheusMetricsServlet;
 import org.apache.pulsar.broker.storage.BookkeeperManagedLedgerStorageClass;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
-import org.apache.pulsar.broker.storage.ManagedLedgerStorageClass;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
@@ -166,6 +165,7 @@ import org.apache.pulsar.common.util.ThreadDumpUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.compaction.DisabledTopicCompactionService;
 import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
 import org.apache.pulsar.compaction.StrategicTwoPhaseCompactor;
 import org.apache.pulsar.compaction.TopicCompactionService;
@@ -218,7 +218,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private WebService webService = null;
     private WebSocketService webSocketService = null;
     private TopicPoliciesService topicPoliciesService = TopicPoliciesService.DISABLED;
-    private BookKeeperClientFactory bkClientFactory;
     protected CompactionServiceFactory compactionServiceFactory;
     private StrategicTwoPhaseCompactor strategicCompactor;
     private ResourceUsageTransportManager resourceUsageTransportManager;
@@ -594,11 +593,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 this.managedLedgerStorage = null;
             }
 
-            if (bkClientFactory != null) {
-                this.bkClientFactory.close();
-                this.bkClientFactory = null;
-            }
-
             closeLeaderElectionService();
 
             if (adminClient != null) {
@@ -886,8 +880,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             protocolHandlers.initialize(config);
 
             // Now we are ready to start services
-            this.bkClientFactory = newBookKeeperClientFactory();
-
             managedLedgerStorage = newManagedLedgerStorage();
 
             this.brokerService = newBrokerService(this);
@@ -1112,10 +1104,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     @VisibleForTesting
     protected ManagedLedgerStorage newManagedLedgerStorage() throws Exception {
-        return ManagedLedgerStorage.create(
-                config, localMetadataStore,
-                bkClientFactory, ioEventLoopGroup, openTelemetry.getOpenTelemetryService().getOpenTelemetry()
-        );
+        final var openTelemetry = this.openTelemetry.getOpenTelemetryService().getOpenTelemetry();
+        if (config.getManagedLedgerStorageClassName().equals(ManagedLedgerClientFactory.class.getName())) {
+            return new ManagedLedgerClientFactory(config, localMetadataStore, ioEventLoopGroup, openTelemetry);
+        } else {
+            return ManagedLedgerStorage.create(config, localMetadataStore, openTelemetry);
+        }
     }
 
     @VisibleForTesting
@@ -1523,14 +1517,17 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 + "is not enabled, probably functionsWorkerEnabled is set to false"));
     }
 
-    public BookKeeper getBookKeeperClient() {
-        ManagedLedgerStorageClass defaultStorageClass = getManagedLedgerStorage().getDefaultStorageClass();
-        if (defaultStorageClass instanceof BookkeeperManagedLedgerStorageClass bkStorageClass) {
-            return bkStorageClass.getBookKeeperClient();
+    public Optional<BookKeeper> getOptionalBookKeeperClient() {
+        final var defaultStorage = managedLedgerStorage.getDefaultStorageClass();
+        if (defaultStorage instanceof BookkeeperManagedLedgerStorageClass bkStorage) {
+            return Optional.of(bkStorage.getBookKeeperClient());
         } else {
-            // TODO: Refactor code to support other than default bookkeeper based storage class
-            throw new UnsupportedOperationException("BookKeeper client is not available");
+            return Optional.empty();
         }
+    }
+
+    public BookKeeper getBookKeeperClient() throws PulsarServerException {
+        return getOptionalBookKeeperClient().orElseThrow(PulsarServerException.BookKeeperNotSupportedException::new);
     }
 
     public ManagedLedgerFactory getDefaultManagedLedgerFactory() {
@@ -1616,12 +1613,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return schemaStorage;
     }
 
-    public BookKeeperClientFactory newBookKeeperClientFactory() {
-        return new BookKeeperClientFactoryImpl();
-    }
-
-    public BookKeeperClientFactory getBookKeeperClientFactory() {
-        return bkClientFactory;
+    public BookKeeperClientFactory getBookKeeperClientFactory() throws PulsarServerException {
+        if (managedLedgerStorage.getDefaultStorageClass() instanceof BookkeeperManagedLedgerStorageClass bkStorage) {
+            return bkStorage.getBookKeeperClientFactory();
+        } else {
+            throw new PulsarServerException.BookKeeperNotSupportedException();
+        }
     }
 
     public synchronized ScheduledExecutorService getCompactorExecutor() {
@@ -1644,17 +1641,15 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return null;
     }
 
-    public StrategicTwoPhaseCompactor newStrategicCompactor() throws PulsarServerException {
-        return new StrategicTwoPhaseCompactor(this.getConfiguration(),
-                getClient(), getBookKeeperClient(),
-                getCompactorExecutor());
-    }
-
-    public synchronized StrategicTwoPhaseCompactor getStrategicCompactor() throws PulsarServerException {
-        if (this.strategicCompactor == null) {
-            this.strategicCompactor = newStrategicCompactor();
+    public synchronized Optional<StrategicTwoPhaseCompactor> getStrategicCompactor() throws PulsarServerException {
+        if (getOptionalBookKeeperClient().isEmpty()) {
+            return Optional.empty();
         }
-        return this.strategicCompactor;
+        if (this.strategicCompactor == null) {
+            this.strategicCompactor = new StrategicTwoPhaseCompactor(this.getConfiguration(), getClient(),
+                    getOptionalBookKeeperClient().get(), getCompactorExecutor());
+        }
+        return Optional.of(this.strategicCompactor);
     }
 
     protected synchronized OrderedScheduler getOffloaderScheduler(OffloadPoliciesImpl offloadPolicies) {
@@ -2083,6 +2078,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         var compactionServiceFactory =
                 Reflections.createInstance(compactionServiceFactoryClassName, CompactionServiceFactory.class,
                         Thread.currentThread().getContextClassLoader());
+        if (getOptionalBookKeeperClient().isEmpty()
+                && PulsarCompactionServiceFactory.class.isAssignableFrom(compactionServiceFactory.getClass())) {
+            LOG.warn("BookKeeper client is not available, fallback to a disabled compaction service");
+            return new DisabledTopicCompactionService();
+        }
         compactionServiceFactory.initialize(this).join();
         return compactionServiceFactory;
     }
