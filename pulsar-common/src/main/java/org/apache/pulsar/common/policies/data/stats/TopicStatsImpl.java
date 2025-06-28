@@ -180,6 +180,12 @@ public class TopicStatsImpl implements TopicStats {
     /** The broker that owns this topic. */
     public String ownerBroker;
 
+    /** The topic creation timestamp in epoch milliseconds. */
+    public long topicCreationTimeStamp;
+
+    /** The last publish timestamp in epoch milliseconds. */
+    public long lastPublishTimeStamp;
+
     public List<? extends PublisherStats> getPublishers() {
         return Stream.concat(publishers.stream().sorted(
                                 Comparator.comparing(PublisherStatsImpl::getProducerName, nullsLast(naturalOrder()))),
@@ -256,6 +262,8 @@ public class TopicStatsImpl implements TopicStats {
         this.backlogQuotaLimitTime = 0;
         this.oldestBacklogMessageAgeSeconds = -1;
         this.oldestBacklogMessageSubscriptionName = null;
+        this.topicCreationTimeStamp = 0;
+        this.lastPublishTimeStamp = 0;
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
@@ -291,6 +299,16 @@ public class TopicStatsImpl implements TopicStats {
             this.oldestBacklogMessageAgeSeconds = stats.oldestBacklogMessageAgeSeconds;
             this.oldestBacklogMessageSubscriptionName = stats.oldestBacklogMessageSubscriptionName;
         }
+
+        // Handle topicCreationTimeStamp - use the earliest (minimum) value
+        if (this.topicCreationTimeStamp != 0 && stats.topicCreationTimeStamp != 0) {
+            this.topicCreationTimeStamp = Math.min(this.topicCreationTimeStamp, stats.topicCreationTimeStamp);
+        } else {
+            this.topicCreationTimeStamp = Math.max(this.topicCreationTimeStamp, stats.topicCreationTimeStamp);
+        }
+
+        // Handle lastPublishTimeStamp - use the latest (maximum) value
+        this.lastPublishTimeStamp = Math.max(this.lastPublishTimeStamp, stats.lastPublishTimeStamp);
 
         stats.bucketDelayedIndexStats.forEach((k, v) -> {
             TopicMetricBean topicMetricBean =
@@ -354,5 +372,20 @@ public class TopicStatsImpl implements TopicStats {
             );
         }
         return this;
+    }
+
+    @Override
+    public long getTopicCreationTimeStamp() {
+        return topicCreationTimeStamp;
+    }
+
+    @Override
+    public long getLastPublishTimeStamp() {
+        return lastPublishTimeStamp;
+    }
+
+    @Override
+    public long getDelayedMessageIndexSizeInBytes() {
+        return delayedMessageIndexSizeInBytes;
     }
 }
