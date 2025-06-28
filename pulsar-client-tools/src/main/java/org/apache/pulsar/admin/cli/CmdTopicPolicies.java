@@ -1190,9 +1190,9 @@ public class CmdTopicPolicies extends CmdBase {
 
         @Option(names = { "-r",
                 "--ml-mark-delete-max-rate" },
-                description = "Throttling rate of mark-delete operation " +
-                        "(0 means no throttle, -1 means unset which will use " +
-                        "the configuration from namespace or broker)")
+                description = "Throttling rate of mark-delete operation "
+                        + "(0 means no throttle, -1 means unset which will use "
+                        + "the configuration from namespace or broker)")
         private double managedLedgerMaxMarkDeleteRate = -1;
 
         @Option(names = { "--global", "-g" }, description = "Whether to set this policy globally. "

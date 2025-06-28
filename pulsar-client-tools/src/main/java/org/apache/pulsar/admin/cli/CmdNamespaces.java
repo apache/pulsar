@@ -1376,8 +1376,8 @@ public class CmdNamespaces extends CmdBase {
 
         @Option(names = { "-r",
                 "--ml-mark-delete-max-rate" },
-                description = "Throttling rate of mark-delete operation " +
-                        "(0 means no throttle, -1 means unset which will use the default configuration from broker)")
+                description = "Throttling rate of mark-delete operation "
+                        + "(0 means no throttle, -1 means unset which will use the default configuration from broker)")
         private double managedLedgerMaxMarkDeleteRate = -1;
 
         @Option(names = { "-c",

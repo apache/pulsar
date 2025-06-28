@@ -2152,8 +2152,8 @@ public class CmdTopics extends CmdBase {
         private int bookkeeperAckQuorum = 2;
 
         @Option(names = { "-r",
-                "--ml-mark-delete-max-rate" }, description = "Throttling rate of mark-delete operation " +
-                "(0 means no throttle, -1 means unset which will use the configuration from namespace or broker)")
+                "--ml-mark-delete-max-rate" }, description = "Throttling rate of mark-delete operation "
+                + "(0 means no throttle, -1 means unset which will use the configuration from namespace or broker)")
         private double managedLedgerMaxMarkDeleteRate = -1;
 
         @Option(names = { "-c",
