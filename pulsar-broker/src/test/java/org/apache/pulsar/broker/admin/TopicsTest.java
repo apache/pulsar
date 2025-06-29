@@ -170,6 +170,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
     @DataProvider(name = "partitionNumbers")
     public Object[][] partitionNumbers() {
         return new Object[][] {
+            //produce to single-partitioned topic
             {1},
             {5},
         };
