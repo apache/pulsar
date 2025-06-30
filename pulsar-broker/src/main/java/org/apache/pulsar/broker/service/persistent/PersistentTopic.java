@@ -413,6 +413,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     .getTransactionBufferProvider().newTransactionBuffer(this);
         } else {
             this.transactionBuffer = new TransactionBufferDisable(this);
+            // When disable transaction, update ml.maxReadPosition to PositionImpl.LATEST
+            // Therefore ManagedCursorImpl#hasMoreEntriesByMaxReadPosition always return true,
+            // and it retain the same read entry step as before the pr's modification.
+            this.ledger.updateMaxReadPosition(PositionFactory.LATEST);
         }
         transactionBuffer.syncMaxReadPositionForNormalPublish(ledger.getLastConfirmedEntry(), true);
         if (ledger.getConfig().getShadowSource() != null) {
