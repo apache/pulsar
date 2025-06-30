@@ -149,6 +149,71 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         }
     }
 
+    @Test
+    public void testUpdateTxnStatusConcurrently() throws Exception {
+        TxnLogBufferedWriterConfig disabled = new TxnLogBufferedWriterConfig();
+        disabled.setBatchEnabled(false);
+
+        ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
+        factoryConf.setMaxCacheSize(0);
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConf);
+        TransactionCoordinatorID transactionCoordinatorID = new TransactionCoordinatorID(1);
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        MLTransactionSequenceIdGenerator mlTransactionSequenceIdGenerator = new MLTransactionSequenceIdGenerator();
+        managedLedgerConfig.setManagedLedgerInterceptor(mlTransactionSequenceIdGenerator);
+        MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
+                managedLedgerConfig, disabled, transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
+        mlTransactionLog.initialize().get(2, TimeUnit.SECONDS);
+        MLTransactionMetadataStore transactionMetadataStore =
+                new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
+                        new TransactionTimeoutTrackerImpl(),
+                        mlTransactionSequenceIdGenerator, 0L);
+        transactionMetadataStore.init(new TransactionRecoverTrackerImpl()).get();
+
+        if (transactionMetadataStore.checkIfReady()) {
+            TxnID txnID = transactionMetadataStore.newTransaction(5000, null).get();
+            assertEquals(transactionMetadataStore.getTxnStatus(txnID).get(), TxnStatus.OPEN);
+
+            List<String> partitions = new ArrayList<>();
+            partitions.add("pt-1");
+            partitions.add("pt-2");
+            transactionMetadataStore.addProducedPartitionToTxn(txnID, partitions).get();
+            assertEquals(transactionMetadataStore.getTxnMeta(txnID).get().producedPartitions(), partitions);
+
+            // update txn status OPEN->COMMITTING concurrently
+            List<CompletableFuture<Void>> list = new ArrayList<>();
+            list.add(transactionMetadataStore.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN, false));
+            list.add(transactionMetadataStore.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN, false));
+
+            try {
+                FutureUtil.waitForAll(list).get();
+            } catch (ExecutionException e) {
+                fail();
+            }
+            Assert.assertEquals(transactionMetadataStore.getTxnStatus(txnID).get(), TxnStatus.COMMITTING);
+
+            // update txn status COMMITTING->COMMITTED concurrently
+            List<CompletableFuture<Void>> list2 = new ArrayList<>();
+            list2.add(transactionMetadataStore.updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.COMMITTING, false));
+            list2.add(transactionMetadataStore.updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.COMMITTING, false));
+
+            try {
+                FutureUtil.waitForAll(list2).get();
+            } catch (ExecutionException e) {
+                fail();
+            }
+
+            try {
+                transactionMetadataStore.getTxnMeta(txnID).get();
+                fail();
+            } catch (ExecutionException e) {
+                Assert.assertTrue(e.getCause() instanceof TransactionNotFoundException);
+            }
+        }
+    }
+
     @DataProvider(name = "isUseManagedLedgerProperties")
     public Object[][] versions() {
         return new Object[][] { { true }, { false }};
