@@ -528,7 +528,10 @@ public class ManagedCursorImpl implements ManagedCursor {
                             recoveredProperties.put(property.getName(), property.getValue());
                         }
                     }
-
+                    if (config.isDeletionAtBatchIndexLevelEnabled()
+                            && info.getBatchedEntryDeletionIndexInfoCount() > 0) {
+                        recoverBatchDeletedIndexes(info.getBatchedEntryDeletionIndexInfoList());
+                    }
                     recoveredCursor(recoveredPosition, recoveredProperties, recoveredCursorProperties, null);
                     callback.operationComplete();
                 } else {
