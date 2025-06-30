@@ -179,7 +179,8 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
         boolean allowReadOnlyMode = false;
         String configPath = null;
 
-        private Builder() {}
+        private Builder() {
+        }
 
         public Builder connectString(String connectString) {
             this.connectString = connectString;
@@ -255,8 +256,9 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
             // Create a watcher manager
             StatsLogger watcherStatsLogger = statsLogger.scope("watcher");
             ZooKeeperWatcherBase watcherManager =
-                    null == watchers ? new ZooKeeperWatcherBase(sessionTimeoutMs, watcherStatsLogger) :
-                            new ZooKeeperWatcherBase(sessionTimeoutMs, watchers, watcherStatsLogger);
+                    null == watchers
+                            ? new ZooKeeperWatcherBase(sessionTimeoutMs, allowReadOnlyMode, watcherStatsLogger) :
+                            new ZooKeeperWatcherBase(sessionTimeoutMs, allowReadOnlyMode, watchers, watcherStatsLogger);
             PulsarZooKeeperClient client = new PulsarZooKeeperClient(
                     connectString,
                     sessionTimeoutMs,
