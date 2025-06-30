@@ -371,8 +371,12 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
     }
 
     protected void waitReplicatorStarted(String topicName) {
+        waitReplicatorStarted(topicName, pulsar2);
+    }
+
+    protected void waitReplicatorStarted(String topicName, PulsarService remoteCluster) {
         Awaitility.await().untilAsserted(() -> {
-            Optional<Topic> topicOptional2 = pulsar2.getBrokerService().getTopic(topicName, false).get();
+            Optional<Topic> topicOptional2 = remoteCluster.getBrokerService().getTopic(topicName, false).get();
             assertTrue(topicOptional2.isPresent());
             PersistentTopic persistentTopic2 = (PersistentTopic) topicOptional2.get();
             assertFalse(persistentTopic2.getProducers().isEmpty());
