@@ -651,6 +651,7 @@ public class BrokerService implements Closeable {
             maxSecondsToClearTopicNameCache,
             maxSecondsToClearTopicNameCache,
             TimeUnit.SECONDS);
+        TopicName.setEvictCacheByScheduledTask(true);
     }
 
     protected void startStatsUpdater(int statsUpdateInitialDelayInSecs, int statsUpdateFrequencyInSecs) {

@@ -174,6 +174,21 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private boolean zooKeeperAllowReadOnlyOperations;
 
     @FieldContext(
+            dynamic = true,
+            category = CATEGORY_SERVER,
+            doc = "Max capacity of the topic name cache. -1 means unlimited cache; 0 means broker will clear all cache"
+                    + " per maxSecondsToClearTopicNameCache, it does not mean broker will not cache TopicName."
+    )
+    private int topicNameCacheMaxCapacity = 100_000;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "A Specifies the minimum number of seconds that the topic name stays in memory, to avoid clear cache"
+                    + " frequently when there are too many topics are in use."
+    )
+    private int maxSecondsToClearTopicNameCache = 3600 * 2;
+
+    @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
         doc = "If does not set metadataStoreUrl or configurationMetadataStoreUrl, this url should point to the"
                 + " discovery service provider."
