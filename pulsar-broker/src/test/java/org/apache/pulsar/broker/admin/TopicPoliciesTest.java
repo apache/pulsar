@@ -50,6 +50,7 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ConfigHelper;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -69,6 +70,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -3882,5 +3884,197 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         } else {
             admin.topics().deletePartitionedTopic(topic, false);
         }
+    }
+
+    /**
+     * Test topic level persistence policies and verify that the internal managed ledger
+     * has applied the correct managedLedgerMaxMarkDeleteRate.
+     *
+     * This test verifies:
+     * 1. Setting topic persistence policies with managedLedgerMaxMarkDeleteRate
+     * 2. Creating a topic and verifying the managed ledger config is applied correctly
+     * 3. Verifying that cursors have the correct throttle mark delete rate
+     * 4. Testing policy updates and verifying they are applied to existing topics
+     * 5. Testing policy removal and fallback to broker defaults
+     * 6. Testing managedLedgerMaxMarkDeleteRate=-1 which should fall back to broker defaults
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testTopicPersistencePoliciesWithManagedLedgerMaxMarkDeleteRate() throws Exception {
+        final String topicName = "persistent://" + myNamespace + "/test-topic-persistence-policies";
+        
+        // Create topic
+        admin.topics().createNonPartitionedTopic(topicName);
+        
+        // Test 1: Set initial topic persistence policies with managedLedgerMaxMarkDeleteRate
+        final double initialMarkDeleteRate = 25;
+        final int initialEnsembleSize = 4;
+        final int initialWriteQuorum = 3;
+        final int initialAckQuorum = 2;
+        
+        PersistencePolicies initialPolicies = new PersistencePolicies(
+            initialEnsembleSize, initialWriteQuorum, initialAckQuorum, initialMarkDeleteRate);
+        
+        admin.topicPolicies().setPersistence(topicName, initialPolicies);
+        
+        // Verify the policies are set correctly
+        Awaitility.await().untilAsserted(() -> {
+            PersistencePolicies retrievedPolicies = admin.topicPolicies().getPersistence(topicName);
+            assertEquals(retrievedPolicies, initialPolicies);
+            assertEquals(retrievedPolicies.getManagedLedgerMaxMarkDeleteRate(), initialMarkDeleteRate);
+        });
+        
+        // Test 2: Create producer and consumer to load the topic and verify managed ledger config
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+            .topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+            .topic(topicName)
+            .subscriptionName("test-sub")
+            .subscribe();
+        
+        // Get the topic and managed ledger
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) topic.getManagedLedger();
+        
+        // Verify managed ledger config has the correct settings
+        assertEquals(managedLedger.getConfig().getEnsembleSize(), initialEnsembleSize);
+        assertEquals(managedLedger.getConfig().getWriteQuorumSize(), initialWriteQuorum);
+        assertEquals(managedLedger.getConfig().getAckQuorumSize(), initialAckQuorum);
+        assertEquals(managedLedger.getConfig().getThrottleMarkDelete(), initialMarkDeleteRate, 0.0001);
+        
+        // Test 3: Verify cursor has the correct throttle mark delete rate
+        ManagedCursorImpl cursor = (ManagedCursorImpl) managedLedger.getCursors().iterator().next();
+        assertEquals(cursor.getThrottleMarkDelete(), initialMarkDeleteRate, 0.0001);
+        
+        // Test 4: Update topic persistence policies and verify they are applied
+        final double updatedMarkDeleteRate = 75;
+        final int updatedEnsembleSize = 3;
+        final int updatedWriteQuorum = 2;
+        final int updatedAckQuorum = 1;
+        
+        PersistencePolicies updatedPolicies = new PersistencePolicies(
+            updatedEnsembleSize, updatedWriteQuorum, updatedAckQuorum, updatedMarkDeleteRate);
+        
+        admin.topicPolicies().setPersistence(topicName, updatedPolicies);
+
+        // Verify the policies are updated correctly
+        Awaitility.await().untilAsserted(() -> {
+            PersistencePolicies retrievedPolicies = admin.topicPolicies().getPersistence(topicName);
+            assertEquals(retrievedPolicies, updatedPolicies);
+            assertEquals(retrievedPolicies.getManagedLedgerMaxMarkDeleteRate(), updatedMarkDeleteRate);
+        });
+        
+        // Wait for the managed ledger config to be updated
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(managedLedger.getConfig().getEnsembleSize(), updatedEnsembleSize);
+            assertEquals(managedLedger.getConfig().getWriteQuorumSize(), updatedWriteQuorum);
+            assertEquals(managedLedger.getConfig().getAckQuorumSize(), updatedAckQuorum);
+            assertEquals(managedLedger.getConfig().getThrottleMarkDelete(), updatedMarkDeleteRate, 0.0001);
+            assertEquals(cursor.getThrottleMarkDelete(), updatedMarkDeleteRate, 0.0001);
+        });
+        
+        // Test 5: Test managedLedgerMaxMarkDeleteRate=-1 which should fall back to namespace/broker defaults
+        final double fallbackMarkDeleteRate = -1.0;
+        final int fallbackEnsembleSize = 5;
+        final int fallbackWriteQuorum = 3;
+        final int fallbackAckQuorum = 2;
+        
+        PersistencePolicies fallbackPolicies = new PersistencePolicies(
+            fallbackEnsembleSize, fallbackWriteQuorum, fallbackAckQuorum, fallbackMarkDeleteRate);
+        
+        admin.topicPolicies().setPersistence(topicName, fallbackPolicies);
+        
+        // Verify the policies are set correctly
+        Awaitility.await().untilAsserted(() -> {
+            PersistencePolicies retrievedPolicies = admin.topicPolicies().getPersistence(topicName);
+            assertEquals(retrievedPolicies, fallbackPolicies);
+            assertEquals(retrievedPolicies.getManagedLedgerMaxMarkDeleteRate(), fallbackMarkDeleteRate);
+        });
+        
+        // Wait for the managed ledger config to be updated with fallback values
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(managedLedger.getConfig().getEnsembleSize(), fallbackEnsembleSize);
+            assertEquals(managedLedger.getConfig().getWriteQuorumSize(), fallbackWriteQuorum);
+            assertEquals(managedLedger.getConfig().getAckQuorumSize(), fallbackAckQuorum);
+            // Should fall back to broker default for mark delete rate
+            assertEquals(managedLedger.getConfig().getThrottleMarkDelete(), 
+                pulsar.getConfiguration().getManagedLedgerDefaultMarkDeleteRateLimit(), 0.0001);
+            assertEquals(cursor.getThrottleMarkDelete(), 
+                pulsar.getConfiguration().getManagedLedgerDefaultMarkDeleteRateLimit(), 0.0001);
+        });
+        
+        // Test 6: Set namespace level persistence policies and verify topic level takes precedence
+        final double namespaceMarkDeleteRate = 55;
+        final int namespaceEnsembleSize = 3;
+        final int namespaceWriteQuorum = 2;
+        final int namespaceAckQuorum = 1;
+        
+        PersistencePolicies namespacePolicies = new PersistencePolicies(
+            namespaceEnsembleSize, namespaceWriteQuorum, namespaceAckQuorum, namespaceMarkDeleteRate);
+        
+        admin.namespaces().setPersistence(myNamespace, namespacePolicies);
+        
+        // Set topic level policies that should override namespace level
+        final double topicMarkDeleteRate = 95;
+        final int topicEnsembleSize = 3;
+        final int topicWriteQuorum = 2;
+        final int topicAckQuorum = 1;
+        
+        PersistencePolicies topicPolicies = new PersistencePolicies(
+            topicEnsembleSize, topicWriteQuorum, topicAckQuorum, topicMarkDeleteRate);
+        
+        admin.topicPolicies().setPersistence(topicName, topicPolicies);
+        
+        // Verify topic level policies take precedence over namespace level
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(managedLedger.getConfig().getEnsembleSize(), topicEnsembleSize);
+            assertEquals(managedLedger.getConfig().getWriteQuorumSize(), topicWriteQuorum);
+            assertEquals(managedLedger.getConfig().getAckQuorumSize(), topicAckQuorum);
+            assertEquals(managedLedger.getConfig().getThrottleMarkDelete(), topicMarkDeleteRate, 0.0001);
+            assertEquals(cursor.getThrottleMarkDelete(), topicMarkDeleteRate, 0.0001);
+        });
+        
+        // Test 7: Remove topic persistence policies and verify fallback to namespace level
+        admin.topicPolicies().removePersistence(topicName);
+        
+        // Verify topic policies are removed
+        Awaitility.await().untilAsserted(() -> 
+            assertNull(admin.topicPolicies().getPersistence(topicName)));
+        
+        // Verify managed ledger config falls back to namespace level policies
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(managedLedger.getConfig().getEnsembleSize(), namespaceEnsembleSize);
+            assertEquals(managedLedger.getConfig().getWriteQuorumSize(), namespaceWriteQuorum);
+            assertEquals(managedLedger.getConfig().getAckQuorumSize(), namespaceAckQuorum);
+            assertEquals(managedLedger.getConfig().getThrottleMarkDelete(), namespaceMarkDeleteRate, 0.0001);
+            assertEquals(cursor.getThrottleMarkDelete(), namespaceMarkDeleteRate, 0.0001);
+        });
+        
+        // Test 8: Remove namespace persistence policies and verify fallback to broker defaults
+        admin.namespaces().removePersistence(myNamespace);
+        
+        // Verify namespace policies are removed
+        Awaitility.await().untilAsserted(() -> 
+            assertNull(admin.namespaces().getPersistence(myNamespace)));
+        
+        // Verify managed ledger config falls back to broker defaults
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(managedLedger.getConfig().getEnsembleSize(), 
+                pulsar.getConfiguration().getManagedLedgerDefaultEnsembleSize());
+            assertEquals(managedLedger.getConfig().getWriteQuorumSize(), 
+                pulsar.getConfiguration().getManagedLedgerDefaultWriteQuorum());
+            assertEquals(managedLedger.getConfig().getAckQuorumSize(), 
+                pulsar.getConfiguration().getManagedLedgerDefaultAckQuorum());
+            assertEquals(managedLedger.getConfig().getThrottleMarkDelete(), 
+                pulsar.getConfiguration().getManagedLedgerDefaultMarkDeleteRateLimit(), 0.0001);
+            assertEquals(cursor.getThrottleMarkDelete(), 
+                pulsar.getConfiguration().getManagedLedgerDefaultMarkDeleteRateLimit(), 0.0001);
+        });
     }
 }

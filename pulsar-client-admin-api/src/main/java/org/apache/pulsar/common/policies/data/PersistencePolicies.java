@@ -33,7 +33,7 @@ public class PersistencePolicies {
     private String managedLedgerStorageClassName;
 
     public PersistencePolicies() {
-        this(2, 2, 2, 0.0, null);
+        this(2, 2, 2, -1, null);
     }
 
     public PersistencePolicies(int bookkeeperEnsemble, int bookkeeperWriteQuorum, int bookkeeperAckQuorum,
