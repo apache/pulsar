@@ -119,7 +119,12 @@ public class ConsumerStatsImpl implements ConsumerStats {
     @Deprecated
     public long lastConsumedTimestamp;
 
+    // The first timestamp of successfully sending a message to the consumer
+    public long firstMessagesSentTimestamp;
     public long lastConsumedFlowTimestamp;
+    // The first timestamp of consumer flow request
+    public long firstConsumedFlowTimestamp;
+
 
     /**
      * Hash ranges assigned to this consumer if in Key_Shared subscription mode.
@@ -156,6 +161,8 @@ public class ConsumerStatsImpl implements ConsumerStats {
         this.keyHashRanges = stats.keyHashRanges;
         this.keyHashRangeArrays = stats.keyHashRangeArrays;
         this.consumerName = stats.consumerName;
+        this.firstMessagesSentTimestamp = stats.firstMessagesSentTimestamp;
+        this.firstConsumedFlowTimestamp = stats.firstConsumedFlowTimestamp;
         return this;
     }
 

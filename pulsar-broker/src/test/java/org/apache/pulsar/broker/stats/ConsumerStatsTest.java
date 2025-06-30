@@ -268,6 +268,8 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
                 "lastAckedTimestamp",
                 "lastConsumedTime",
                 "lastConsumedTimestamp",
+                "firstMessagesSentTimestamp",
+                "firstConsumedFlowTimestamp",
                 "lastConsumedFlowTimestamp",
                 "metadata",
                 "address",
