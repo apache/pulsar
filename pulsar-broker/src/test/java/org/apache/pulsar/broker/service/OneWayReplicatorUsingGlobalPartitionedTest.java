@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.service.TopicPoliciesService.GetType.GLOB
 import static org.apache.pulsar.broker.service.TopicPoliciesService.GetType.LOCAL_ONLY;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import java.time.Duration;
 import java.util.Arrays;
@@ -29,9 +30,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
@@ -77,6 +81,18 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
     @Test(enabled = false)
     public void testReplicatorProducerStatInTopic() throws Exception {
         super.testReplicatorProducerStatInTopic();
+    }
+
+    @Override
+    @Test(enabled = false)
+    public void testDeleteRemoteTopicByGlobalPolicy() throws Exception {
+        super.testDeleteRemoteTopicByGlobalPolicy();
+    }
+
+    @Override
+    @Test(enabled = false)
+    public void testPoliciesOverWrite() throws Exception {
+        super.testPoliciesOverWrite();
     }
 
     @Override
