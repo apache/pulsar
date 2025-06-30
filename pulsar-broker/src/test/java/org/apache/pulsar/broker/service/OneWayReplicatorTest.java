@@ -140,47 +140,6 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         super.cleanup();
     }
 
-    private void waitReplicatorStopped(String topicName, boolean remoteTopicExpectedDeleted) {
-        waitReplicatorStopped(topicName, pulsar1, pulsar2, remoteTopicExpectedDeleted);
-    }
-
-    private void waitReplicatorStopped(String topicName, PulsarService sourceCluster, PulsarService remoteCluster,
-                                       boolean remoteTopicExpectedDeleted) {
-        Awaitility.await().untilAsserted(() -> {
-            Optional<Topic> remoteTp = remoteCluster.getBrokerService().getTopic(topicName, false).get();
-            if (remoteTopicExpectedDeleted) {
-                assertTrue(remoteTp.isEmpty());
-            } else {
-                assertTrue(remoteTp.isPresent());
-            }
-            if (remoteTp.isPresent()) {
-                PersistentTopic remoteTp_ = (PersistentTopic) remoteTp.get();
-                for (org.apache.pulsar.broker.service.Producer p : remoteTp_.getProducers().values()) {
-                    assertFalse(p.getProducerName().startsWith(remoteCluster.getConfig().getReplicatorPrefix()));
-                }
-            }
-            Optional<Topic> sourceTp = sourceCluster.getBrokerService().getTopic(topicName, false).get();
-            assertTrue(sourceTp.isPresent());
-            PersistentTopic sourceTp_ = (PersistentTopic) sourceTp.get();
-            assertTrue(sourceTp_.getReplicators().isEmpty()
-                    || !sourceTp_.getReplicators().get(remoteCluster.getConfig().getClusterName()).isConnected());
-        });
-    }
-
-    /**
-     * Override "AbstractReplicator.producer" by {@param producer} and return the original value.
-     */
-    private ProducerImpl overrideProducerForReplicator(AbstractReplicator replicator, ProducerImpl newProducer)
-            throws Exception {
-        Field producerField = AbstractReplicator.class.getDeclaredField("producer");
-        producerField.setAccessible(true);
-        ProducerImpl originalValue = (ProducerImpl) producerField.get(replicator);
-        synchronized (replicator) {
-            producerField.set(replicator, newProducer);
-        }
-        return originalValue;
-    }
-
     @Test(timeOut = 45 * 1000)
     public void testReplicatorProducerStatInTopic() throws Exception {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
@@ -247,10 +206,20 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         Producer<byte[]> producer1 = client1.newProducer().topic(topicName).create();
         producer1.close();
         waitReplicatorStarted(subTopic, pulsar2);
+        Set<String> clustersApplied = admin1.topicPolicies().getReplicationClusters(topicName, true);
+        assertTrue(clustersApplied.contains(cluster1));
+        assertTrue(clustersApplied.contains(cluster2));
 
         // Remove topic from a cluster.
         admin1.topicPolicies(true).setReplicationClusters(topicName, Arrays.asList(cluster1));
         Awaitility.await().untilAsserted(() -> {
+            Set<String> clustersApplied1 = admin1.topicPolicies().getReplicationClusters(topicName, true);
+            assertTrue(clustersApplied1.contains(cluster1));
+            assertFalse(clustersApplied1.contains(cluster2));
+            Set<String> clustersApplied2 = admin2.topicPolicies().getReplicationClusters(topicName, true);
+            assertTrue(clustersApplied2.contains(cluster1));
+            assertFalse(clustersApplied2.contains(cluster2));
+
             Set<String> local1 = admin1.topicPolicies(false).getReplicationClusters(topicName, false);
             assertTrue(CollectionUtils.isEmpty(local1));
             Set<String> local2 = admin2.topicPolicies(false).getReplicationClusters(topicName, false);
@@ -273,6 +242,13 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         Producer<byte[]> producer2 = client1.newProducer().topic(topicName).create();
         producer2.close();
         Awaitility.await().untilAsserted(() -> {
+            Set<String> clustersApplied1 = admin1.topicPolicies().getReplicationClusters(topicName, true);
+            assertTrue(clustersApplied1.contains(cluster1));
+            assertTrue(clustersApplied1.contains(cluster2));
+            Set<String> clustersApplied2 = admin2.topicPolicies().getReplicationClusters(topicName, true);
+            assertFalse(clustersApplied2.contains(cluster1));
+            assertTrue(clustersApplied2.contains(cluster2));
+
             Set<String> clusters1 = admin1.topicPolicies(true).getReplicationClusters(topicName, false);
             assertTrue(CollectionUtils.isEmpty(clusters1));
             Set<String> clusters2 = admin2.topicPolicies(true).getReplicationClusters(topicName, false);
@@ -284,25 +260,44 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         admin2.topics().unload(subTopic);
     }
 
+    /**
+     * Test: policies overwrite and applied policies.
+     */
     @Test
-    public void testLocalPolicyOverWriteGlobals() throws Exception {
+    public void testPoliciesOverWrite() throws Exception {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_123");
         final String subTopic = TopicName.get(topicName).getPartition(0).toString();
         admin1.topics().createPartitionedTopic(topicName, 1);
         Producer<byte[]> producer1 = client1.newProducer().topic(topicName).create();
         producer1.close();
         waitReplicatorStarted(subTopic, pulsar2);
+        Set<String> clustersApplied1 = admin1.topicPolicies().getReplicationClusters(topicName, true);
+        assertTrue(clustersApplied1.contains(cluster1));
+        assertTrue(clustersApplied1.contains(cluster2));
         // Set clusters for cluster2 to avoid topic deleting. This feature is needed for the following situation,
         // - There are 3 clusters using shared metadata store
         // - The user want to delete topic on the cluster "c2", and to stop replication on the cluster "c3 -> c1"
         // - The user will do the following configurations
         //    - Set a global policy: [c1, c3].
         //    - Set a local policy for the cluster "c3": [c3].
-        admin2.topics().setReplicationClusters(topicName, Arrays.asList(cluster2));
+        Awaitility.await().untilAsserted(() -> {
+            admin2.topics().setReplicationClusters(topicName, Arrays.asList(cluster2));
+            Set<String> clustersApplied2 = admin2.topicPolicies().getReplicationClusters(topicName, true);
+            assertFalse(clustersApplied2.contains(cluster1));
+            assertTrue(clustersApplied2.contains(cluster2));
+        });
 
-        // Remove topic from a cluster.
+        // Cluster1: Global policy overwrite namespace policy.
+        // Cluster2: Global policy never overwrite namespace policy.
         admin1.topicPolicies(true).setReplicationClusters(topicName, Arrays.asList(cluster1));
         Awaitility.await().untilAsserted(() -> {
+            Set<String> clustersApplied1_ = admin1.topicPolicies().getReplicationClusters(topicName, true);
+            assertTrue(clustersApplied1_.contains(cluster1));
+            assertFalse(clustersApplied1_.contains(cluster2));
+            Set<String> clustersApplied2_ = admin2.topicPolicies().getReplicationClusters(topicName, true);
+            assertFalse(clustersApplied2_.contains(cluster1));
+            assertTrue(clustersApplied2_.contains(cluster2));
+
             Set<String> local1 = admin1.topicPolicies(false).getReplicationClusters(topicName, false);
             assertTrue(CollectionUtils.isEmpty(local1));
             Set<String> local2 = admin2.topicPolicies(false).getReplicationClusters(topicName, false);
@@ -325,6 +320,13 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         Producer<byte[]> producer2 = client1.newProducer().topic(topicName).create();
         producer2.close();
         Awaitility.await().untilAsserted(() -> {
+            Set<String> clustersApplied1_ = admin1.topicPolicies().getReplicationClusters(topicName, true);
+            assertTrue(clustersApplied1_.contains(cluster1));
+            assertTrue(clustersApplied1_.contains(cluster2));
+            Set<String> clustersApplied2_ = admin2.topicPolicies().getReplicationClusters(topicName, true);
+            assertFalse(clustersApplied2_.contains(cluster1));
+            assertTrue(clustersApplied2_.contains(cluster2));
+
             Set<String> local2 = admin2.topicPolicies(false).getReplicationClusters(topicName, false);
             assertTrue(CollectionUtils.isNotEmpty(local2));
             assertTrue(local2.contains(cluster2));
@@ -336,11 +338,19 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         });
         waitReplicatorStarted(subTopic, pulsar2);
 
-        // Stop replication by local policy.
+        // Cluster1: Local policy overwrite namespace policy.
+        // Cluster2: Global policy never overwrite namespace policy.
         admin1.topicPolicies(false).setReplicationClusters(topicName, Arrays.asList(cluster1));
         Producer<byte[]> producer3 = client1.newProducer().topic(topicName).create();
         producer3.close();
         Awaitility.await().untilAsserted(() -> {
+            Set<String> clustersApplied1_ = admin1.topicPolicies().getReplicationClusters(topicName, true);
+            assertTrue(clustersApplied1_.contains(cluster1));
+            assertFalse(clustersApplied1_.contains(cluster2));
+            Set<String> clustersApplied2_ = admin2.topicPolicies().getReplicationClusters(topicName, true);
+            assertFalse(clustersApplied2_.contains(cluster1));
+            assertTrue(clustersApplied2_.contains(cluster2));
+
             Set<String> global1 = admin1.topicPolicies(true).getReplicationClusters(topicName, false);
             assertTrue(CollectionUtils.isEmpty(global1));
             Set<String> global2 = admin2.topicPolicies(true).getReplicationClusters(topicName, false);
