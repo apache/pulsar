@@ -1927,7 +1927,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return CompletableFuture.completedFuture(null);
         }
 
-        String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
+        final String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
 
         return checkAllowedCluster(localCluster).thenCompose(success -> {
             if (!success) {
@@ -1978,7 +1978,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
     }
 
+    /**
+     * There are only one cases that will remove local clusters: using global metadata store, which means that
+     * namespaces will share policies cross multi clusters, including "replicated clusters" and "partitioned topic
+     * metadata", we can hardly delete partitioned topic from one cluster and keep it exists in another.
+     * Users removes local cluster "replicated clusters" to delete topic from one of clusters.
+     */
     CompletableFuture<Void> deleteSchemaAndPoliciesIfClusterRemoved() {
+        final String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
         TopicName tName = TopicName.get(topic);
         if (!tName.isPartitioned()) {
             return CompletableFuture.completedFuture(null);
@@ -2016,15 +2023,36 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                             }
 
                                     });
-                                    // There are only one cases that will remove local clusters: using global metadata
-                                    // store, namespaces will share policies cross multi clusters, including
-                                    // "replicated clusters" and "partitioned topic metadata", we can hardly delete
-                                    // partitioned topic from one cluster and keep it exists in another. Removing
-                                    // local cluster from the namespace level "replicated clusters" can do this.
-                                    // TODO: there is no way to delete a specify partitioned topic if users have enabled
-                                    //  Geo-Replication with a global metadata store, a PIP is needed.
-                                    // Since the system topic "__change_events" under the namespace will also be
-                                    // deleted, we can skip to delete topic-level policies.
+
+                                    // Two cases that can run up to here：
+                                    // 1. Namespace level removing local cluster: all topic policies will be removed
+                                    // when the system topic "__change_events" is deleting.
+                                    // 2. Global topic level removing local cluster: we need to remove local topic-level
+                                    // policies here, but leave global topic-level policies there to avoid the namespace
+                                    // level policies take effect, whose policies still contains local cluster.
+                                    boolean changeEventsAlsoBeingDeleted = !topicPolicies.getReplicationClusters()
+                                            .getNamespaceValue().contains(localCluster);
+                                    if (changeEventsAlsoBeingDeleted) {
+                                        log.info("Skip to deleted topic policies[{}] after all partitions[{}] were"
+                                                + " removed because the system topic __change_events will be removed.",
+                                                partitionedName, metadataOp.get().partitions);
+                                        return;
+                                    }
+                                    brokerService.getPulsar().getTopicPoliciesService()
+                                        .deleteTopicPoliciesAsync(partitionedName, true)
+                                            .whenComplete((__, ex) -> {
+                                            if (ex == null) {
+                                                log.info("Deleted topic policies[{}] after all partitions[{}] were"
+                                                    + " removed because the current cluster has bee removed from"
+                                                    + " topic policies. Global policies will not be deleted.",
+                                                    partitionedName, metadataOp.get().partitions);
+                                            } else {
+                                                log.error("Failed to delete topic policies[{}] after all partitions[{}]"
+                                                    + " were removed,  when the current cluster has bee removed from"
+                                                    + " topic policies",
+                                                    partitionedName, metadataOp.get().partitions, ex);
+                                            }
+                                    });
                                 }
                             }
                         });
