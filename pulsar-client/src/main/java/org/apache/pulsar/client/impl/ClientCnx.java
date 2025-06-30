@@ -644,10 +644,12 @@ public class ClientCnx extends PulsarHandler {
             if (!lookupResult.hasResponse()
                     || CommandLookupTopicResponse.LookupType.Failed.equals(lookupResult.getResponse())) {
                 if (lookupResult.hasError()) {
-                    checkServerError(lookupResult.getError(), lookupResult.getMessage());
+                    checkServerError(lookupResult.getError(),
+                            lookupResult.hasMessage() ? lookupResult.getMessage() : lookupResult.getError().name());
                     requestFuture.completeExceptionally(
                             getPulsarClientException(lookupResult.getError(),
-                                    buildError(lookupResult.getRequestId(), lookupResult.getMessage())));
+                                    buildError(lookupResult.getRequestId(),
+                                            lookupResult.hasMessage() ? lookupResult.getMessage() : null)));
                 } else {
                     requestFuture
                             .completeExceptionally(new PulsarClientException.LookupException("Empty lookup response"));
