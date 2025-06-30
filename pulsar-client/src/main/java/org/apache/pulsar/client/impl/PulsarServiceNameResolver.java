@@ -22,12 +22,22 @@ import static com.google.common.base.Preconditions.checkState;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidServiceURL;
 import org.apache.pulsar.common.net.ServiceURI;
+import org.apache.pulsar.common.util.Backoff;
+import org.apache.pulsar.common.util.BackoffBuilder;
 
 /**
  * The default implementation of {@link ServiceNameResolver}.
@@ -40,11 +50,37 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
     private static final AtomicIntegerFieldUpdater<PulsarServiceNameResolver> CURRENT_INDEX_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(PulsarServiceNameResolver.class, "currentIndex");
     private volatile int currentIndex;
-    private volatile List<InetSocketAddress> addressList;
+    private volatile List<InetSocketAddress> allAddressList;
+    private volatile Set<InetSocketAddress> allAddressSet;
+    private volatile List<InetSocketAddress> availableAddressList;
+    private final Map<InetSocketAddress, EndpointStatus> hostAvailabilityMap = new HashMap<>();
+    private final long serviceUrlQuarantineInitDurationMs;
+    private final long serviceUrlQuarantineMaxDurationMs;
+    private final boolean enableServiceUrlQuarantine;
+
+    public PulsarServiceNameResolver() {
+        this.serviceUrlQuarantineInitDurationMs = 0;
+        this.serviceUrlQuarantineMaxDurationMs = 0;
+        this.enableServiceUrlQuarantine = false;
+    }
+
+    public PulsarServiceNameResolver(long serviceUrlQuarantineInitDurationMs, long serviceUrlQuarantineMaxDurationMs) {
+        this.serviceUrlQuarantineInitDurationMs = serviceUrlQuarantineInitDurationMs;
+        this.serviceUrlQuarantineMaxDurationMs = serviceUrlQuarantineMaxDurationMs;
+        this.enableServiceUrlQuarantine =
+                serviceUrlQuarantineInitDurationMs > 0 && serviceUrlQuarantineMaxDurationMs > 0;
+    }
 
     @Override
     public InetSocketAddress resolveHost() {
-        List<InetSocketAddress> list = addressList;
+        final List<InetSocketAddress> list;
+        List<InetSocketAddress> availableAddresses = availableAddressList;
+        if (availableAddresses != null && !availableAddresses.isEmpty()) {
+            list = availableAddresses;
+        } else {
+            // if no available address, use the original address list
+            list = allAddressList;
+        }
         checkState(
             list != null, "No service url is provided yet");
         checkState(
@@ -75,7 +111,7 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
     }
 
     @Override
-    public void updateServiceUrl(String serviceUrl) throws InvalidServiceURL {
+    public synchronized void updateServiceUrl(String serviceUrl) throws InvalidServiceURL {
         ServiceURI uri;
         try {
             uri = ServiceURI.create(serviceUrl);
@@ -96,15 +132,129 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
                 throw new InvalidServiceURL(e);
             }
         }
-        this.addressList = addresses;
+        this.allAddressList = addresses;
+        this.allAddressSet = new HashSet<>(addresses);
         this.serviceUrl = serviceUrl;
         this.serviceUri = uri;
         this.currentIndex = randomIndex(addresses.size());
+        if (enableServiceUrlQuarantine) {
+            this.availableAddressList = new ArrayList<>(addresses);
+            hostAvailabilityMap.keySet().removeIf(host -> !allAddressSet.contains(host));
+            addresses.forEach(address -> hostAvailabilityMap.putIfAbsent(address, createEndpointStatus(true, address)));
+        }
     }
 
     private static int randomIndex(int numAddresses) {
         return numAddresses == 1
                 ?
                 0 : io.netty.util.internal.PlatformDependent.threadLocalRandom().nextInt(numAddresses);
+    }
+
+    /**
+     * The method is executed under a synchronized lock and cannot execute code that may block, such as network io.
+     * @param address the host address to mark availability for
+     * @param isAvailable true if the host is available, false otherwise
+     */
+    @Override
+    public synchronized void markHostAvailability(InetSocketAddress address, boolean isAvailable) {
+        if (!enableServiceUrlQuarantine) {
+            return;
+        }
+
+        if (!allAddressSet.contains(address)) {
+            // If the address is not part of the original service URL, we ignore it.
+            log.debug("Address {} is not part of the original service URL, ignoring availability update", address);
+            return;
+        }
+
+        AtomicBoolean availableHostsChanged = new AtomicBoolean(false);
+        hostAvailabilityMap.compute(address, (key, oldStatus) -> {
+            if (oldStatus == null) {
+                EndpointStatus endpointStatus = createEndpointStatus(isAvailable, key);
+                availableHostsChanged.set(true);
+                return endpointStatus;
+            }
+            if (oldStatus.isAvailable() != isAvailable) {
+                availableHostsChanged.set(true);
+            }
+            computeEndpointStatus(isAvailable, oldStatus);
+            return oldStatus;
+        });
+
+        hostAvailabilityMap.forEach((__, endpointStatus) -> {
+            if (!endpointStatus.isAvailable()) {
+                boolean changed = computeEndpointStatus(false, endpointStatus);
+                if (!availableHostsChanged.get()) {
+                    availableHostsChanged.set(changed);
+                }
+            }
+        });
+
+        if (availableHostsChanged.get()) {
+            availableAddressList = hostAvailabilityMap.entrySet()
+                    .stream()
+                    .filter(entry -> entry.getValue().isAvailable())
+                    .filter(entry -> allAddressSet.contains(entry.getKey()))
+                    .map(Map.Entry::getKey)
+                    .collect(Collectors.toList());
+            log.info("service name resolver available hosts changed, current available hosts: {}",
+                    availableAddressList);
+        }
+    }
+
+    /**
+     * Create an {@link EndpointStatus} for the given address.
+     * @param isAvailable the availability status of the endpoint
+     * @param inetSocketAddress the address of the endpoint
+     * @return a new {@link EndpointStatus} instance
+     */
+    private EndpointStatus createEndpointStatus(boolean isAvailable, InetSocketAddress inetSocketAddress) {
+        Backoff backoff = new BackoffBuilder()
+                .setInitialTime(serviceUrlQuarantineInitDurationMs, TimeUnit.MILLISECONDS)
+                .setMax(serviceUrlQuarantineMaxDurationMs, TimeUnit.MILLISECONDS)
+                .create();
+        EndpointStatus endpointStatus =
+                new EndpointStatus(inetSocketAddress, backoff, System.currentTimeMillis(), 0,
+                        isAvailable);
+        if (!isAvailable) {
+            endpointStatus.setNextDelayMsToRecover(endpointStatus.getQuarantineBackoff().next());
+        }
+        return endpointStatus;
+    }
+
+    /**
+     * Compute the endpoint status based on the new availability status.
+     * @param newIsAvailable the new availability status of the endpoint
+     * @param status the current status of the endpoint
+     * @return true if the availability status has changed, false otherwise
+     */
+    private boolean computeEndpointStatus(boolean newIsAvailable, EndpointStatus status) {
+        if (!newIsAvailable) {
+            if (!status.isAvailable()) {
+                // from unavailable to unavailable, check if we need to try to recover
+                long elapsedTimeMsSinceLast = System.currentTimeMillis() - status.getLastUpdateTimeStampMs();
+                boolean needTryRecover = elapsedTimeMsSinceLast >= status.getNextDelayMsToRecover();
+                if (needTryRecover) {
+                    log.info("service name resolver try to recover host {} after {}", status.getSocketAddress(),
+                            Duration.ofMillis(elapsedTimeMsSinceLast));
+                    status.setAvailable(true);
+                    status.setLastUpdateTimeStampMs(System.currentTimeMillis());
+                    status.setNextDelayMsToRecover(status.getQuarantineBackoff().next());
+                }
+            } else {
+                // from available to unavailable
+                status.setAvailable(false);
+                status.setLastUpdateTimeStampMs(System.currentTimeMillis());
+                status.setNextDelayMsToRecover(status.getQuarantineBackoff().next());
+            }
+        } else if (!status.isAvailable()) {
+            // from unavailable to available
+            status.setAvailable(true);
+            status.setLastUpdateTimeStampMs(System.currentTimeMillis());
+            status.setNextDelayMsToRecover(0);
+            status.getQuarantineBackoff().reset();
+        }
+
+        return newIsAvailable != status.isAvailable();
     }
 }
