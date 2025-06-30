@@ -296,7 +296,11 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
         });
 
         // cleanup.
+        if ("topic".equals(removeClusterLevel)) {
+            admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster2)));
+        }
         admin2.topics().deletePartitionedTopic(topic);
+        assertEquals(admin2.topics().getList(ns1).size(), 0);
         admin2.namespaces().deleteNamespace(ns1);
     }
 

@@ -358,6 +358,24 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         });
         waitReplicatorStopped(subTopic, false);
 
+        // Remove local policy.
+        admin1.topicPolicies(false).removeReplicationClusters(topicName);
+        Producer<byte[]> producer4 = client1.newProducer().topic(topicName).create();
+        producer4.close();
+        Awaitility.await().untilAsserted(() -> {
+            Set<String> local1 = admin1.topicPolicies(false).getReplicationClusters(topicName, false);
+            assertTrue(CollectionUtils.isEmpty(local1));
+            Set<String> local2 = admin2.topicPolicies(false).getReplicationClusters(topicName, false);
+            assertTrue(CollectionUtils.isNotEmpty(local2));
+            assertTrue(local2.contains(cluster2));
+
+            Set<String> global1 = admin1.topicPolicies(true).getReplicationClusters(topicName, false);
+            assertTrue(CollectionUtils.isEmpty(global1));
+            Set<String> global2 = admin2.topicPolicies(true).getReplicationClusters(topicName, false);
+            assertTrue(CollectionUtils.isEmpty(global2));
+        });
+        waitReplicatorStarted(subTopic, pulsar2);
+
         admin1.topics().unload(subTopic);
         admin2.topics().unload(subTopic);
     }

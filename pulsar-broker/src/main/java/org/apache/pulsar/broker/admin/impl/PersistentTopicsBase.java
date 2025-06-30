@@ -47,7 +47,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.ws.rs.WebApplicationException;
@@ -3374,6 +3373,47 @@ public class PersistentTopicsBase extends AdminResource {
                                 "Cannot specify global in the list of replication clusters");
                     }
                 })
+                .thenCompose(__ -> {
+                    // Set a topic-level replicated clusters that do not contain local cluster is not meaningful, except
+                    // the following scenario: User has two clusters, which enabled Geo-Replication through a global
+                    // metadata store, the resources named partitioned topic metadata and the resource namespace-level
+                    // "replicated clusters" are shared between multi clusters. Pulsar can hardly delete a specify
+                    // partitioned topic. To support this use case, the following steps can implement it:
+                    // 1. set a global topic-level replicated clusters that do not contain local cluster.
+                    // 2. the local cluster will remove the subtopics automatically, and remove the schemas and local
+                    //    topic policies. Just leave the global topic policies there, which prevents the namespace level
+                    //    replicated clusters policy taking affect.
+                    boolean clustersDoesNotContainsLocal = CollectionUtils.isEmpty(clusterIds)
+                            || !clusterIds.contains(pulsar().getConfig().getClusterName());
+                    if (clustersDoesNotContainsLocal && !isGlobal) {
+                        return FutureUtil.failedFuture(new RestException(Response.Status.PRECONDITION_FAILED,
+                                "Can not remove local cluster from the local topic-level replication clusters policy"));
+                    }
+                    if (isGlobal) {
+                        return getNamespacePoliciesAsync(namespaceName).thenCompose(v -> {
+                            // Since global policies depends on namespace level replication, users only can set global
+                            // policies when namespace level replication exists. Otherwise, the policies will never be
+                            // copied to the remote side, which is meaningless.
+                            if (v == null || v.replication_clusters.size() < 2) {
+                                return FutureUtil.failedFuture(new RestException(Response.Status.PRECONDITION_FAILED,
+                                    "Please do not use the global topic level policy when namespace-level replication"
+                                    + " is not enabled, because the global level policy relies on namespace-level"
+                                    + " replication"));
+                            }
+                            for (String clusterId : clusterIds) {
+                                if (v.replication_clusters.contains(clusterId)) {
+                                    continue;
+                                }
+                                return FutureUtil.failedFuture(new RestException(Response.Status.PRECONDITION_FAILED,
+                                    "The policies at the global topic level will only be copied to the clusters"
+                                    + " included in the namespace level replication. Therefore, please do not set the"
+                                    + " policies including other clusters"));
+                            }
+                            return CompletableFuture.completedFuture(null);
+                        });
+                    }
+                    return CompletableFuture.completedFuture(null);
+                })
                 .thenCompose(__ -> clustersAsync())
                 .thenCompose(clusters -> {
                     List<CompletableFuture<Void>> futures = new ArrayList<>(replicationClusters.size());
@@ -3427,9 +3467,12 @@ public class PersistentTopicsBase extends AdminResource {
         return validatePoliciesReadOnlyAccessAsync()
                 .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName, isGlobal))
                 .thenCompose(op -> {
+                    if (op.isEmpty()) {
+                        return CompletableFuture.completedFuture(null);
+                    }
                     TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
                     topicPolicies.setReplicationClusters(null);
-                    topicPolicies.setIsGlobal(true);
+                    topicPolicies.setIsGlobal(isGlobal);
                     return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
                             .thenRun(() -> {
                                 log.info("[{}] Successfully set replication clusters for namespace={}, "
@@ -3711,8 +3754,7 @@ public class PersistentTopicsBase extends AdminResource {
             });
     }
 
-    protected CompletableFuture<Void> preValidation(boolean authoritative,
-                                        Function<PartitionedTopicMetadata, CompletableFuture<Void>> additionalCheck) {
+    protected CompletableFuture<Void> preValidation(boolean authoritative) {
         if (!config().isTopicLevelPoliciesEnabled()) {
             return FutureUtil.failedFuture(new RestException(Status.METHOD_NOT_ALLOWED,
                     "Topic level policies is disabled, to enable the topic level policy and retry."));
@@ -3736,11 +3778,6 @@ public class PersistentTopicsBase extends AdminResource {
                     } else {
                         return getPartitionedTopicMetadataAsync(topicName, false, false)
                             .thenCompose(metadata -> {
-                                if (additionalCheck == null) {
-                                    return CompletableFuture.completedFuture(metadata);
-                                }
-                                return additionalCheck.apply(metadata).thenApply(__ -> metadata);
-                            }).thenCompose(metadata -> {
                                 if (metadata.partitions > 0) {
                                     return validateTopicOwnershipAsync(TopicName.get(topicName.toString()
                                     + PARTITIONED_TOPIC_SUFFIX + 0), authoritative);
@@ -3750,10 +3787,6 @@ public class PersistentTopicsBase extends AdminResource {
                         });
                     }
         });
-    }
-
-    protected CompletableFuture<Void> preValidation(boolean authoritative) {
-        return preValidation(authoritative, null);
     }
 
     protected CompletableFuture<Void> internalRemoveMaxProducers(boolean isGlobal) {
