@@ -20,7 +20,6 @@ package org.apache.pulsar.common.policies.data;
 
 import static org.apache.pulsar.common.util.FieldParser.value;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
