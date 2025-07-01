@@ -87,7 +87,7 @@ public class RawMessageImplTest {
         // Non-batched message's singleMessageMetadata is null
         RawMessage msg = RawMessageImpl.get(refCntMsgMetadata, null, null, 0, 0, 0);
         assertTrue(msg.hasBase64EncodedKey());
-        assertEquals(msg.getProperties(), ImmutableMap.of("key1", "value1"));
+        assertEquals(msg.getProperties(), Map.of("key1", "value1"));
         assertEquals(msg.getEventTime(), 100L);
     }
 
@@ -108,7 +108,7 @@ public class RawMessageImplTest {
 
         RawMessage msg = RawMessageImpl.get(refCntMsgMetadata, singleMessageMetadata, null, 0, 0, 0);
         assertFalse(msg.hasBase64EncodedKey());
-        assertEquals(msg.getProperties(), ImmutableMap.of("key2", "value2"));
+        assertEquals(msg.getProperties(), Map.of("key2", "value2"));
         assertEquals(msg.getEventTime(), 200L);
     }
 }
