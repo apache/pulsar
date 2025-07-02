@@ -31,10 +31,12 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.MetadataSessionExpiredPolicy;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreTableView;
+import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 import org.apache.pulsar.metadata.tableview.impl.MetadataStoreTableViewImpl;
 
 @Slf4j
@@ -54,13 +56,23 @@ public class ServiceUnitStateMetadataStoreTableViewImpl extends ServiceUnitState
     private ServiceUnitStateDataConflictResolver conflictResolver;
     private volatile MetadataStoreTableView<ServiceUnitStateData> tableview;
 
+    @Override
     public void start(PulsarService pulsar,
                       BiConsumer<String, ServiceUnitStateData> tailItemListener,
-                      BiConsumer<String, ServiceUnitStateData> existingItemListener)
+                      BiConsumer<String, ServiceUnitStateData> existingItemListener,
+                      BiConsumer<String, ServiceUnitStateData> itemOutdatedListeners)
             throws MetadataStoreException {
         init(pulsar);
         conflictResolver = new ServiceUnitStateDataConflictResolver();
         conflictResolver.setStorageType(MetadataStore);
+        if (!(pulsar.getLocalMetadataStore() instanceof AbstractMetadataStore)
+            && !MetadataSessionExpiredPolicy.shutdown.equals(pulsar.getConfig().getZookeeperSessionExpiredPolicy())) {
+            String errorMsg = "Your current metadata store does not support the registration of session event"
+                    + " listeners. Please set \"zookeeperSessionExpiredPolicy\" to \"SHUTDOWN\"; otherwise, you will"
+                    + " encounter the issue that messages lost because of conflicted topic loading";
+            log.error(errorMsg);
+            throw new IllegalStateException(errorMsg);
+        }
         tableview = new MetadataStoreTableViewImpl<>(ServiceUnitStateData.class,
                 pulsar.getBrokerId(),
                 pulsar.getLocalMetadataStore(),
@@ -69,10 +81,19 @@ public class ServiceUnitStateMetadataStoreTableViewImpl extends ServiceUnitState
                 this::validateServiceUnitPath,
                 List.of(this::updateOwnedServiceUnits, tailItemListener),
                 List.of(this::updateOwnedServiceUnits, existingItemListener),
-                TimeUnit.SECONDS.toMillis(pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds())
+                List.of(this::invalidateOwnedServiceUnits, itemOutdatedListeners),
+                true,
+                TimeUnit.SECONDS.toMillis(pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds()),
+                t -> handleTableViewShutDownEvent(t)
         );
         tableview.start();
 
+    }
+
+    protected void handleTableViewShutDownEvent(Throwable throwable) {
+        log.error("The component of load-balance, which named metadata store table view has shutdown. This Broker can"
+                    + " not work anymore, start tp shutdow,");
+        pulsar.shutdownNow();
     }
 
     protected boolean resolveConflict(ServiceUnitStateData prev, ServiceUnitStateData cur) {
@@ -129,6 +150,11 @@ public class ServiceUnitStateMetadataStoreTableViewImpl extends ServiceUnitState
     @Override
     public void flush(long waitDurationInMillis) {
         // no-op
+    }
+
+    @Override
+    public boolean isMetadataStoreBased() {
+        return true;
     }
 
     @Override
