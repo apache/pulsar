@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.functions.instance;
 
-import static org.apache.commons.lang.StringUtils.isEmpty;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
 import com.google.common.annotations.VisibleForTesting;
 import java.security.Security;
 import java.util.concurrent.TimeUnit;

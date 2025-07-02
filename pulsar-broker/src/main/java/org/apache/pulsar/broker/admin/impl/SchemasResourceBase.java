@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.admin.impl;
 
 import static java.util.Objects.isNull;
-import static org.apache.commons.lang.StringUtils.defaultIfEmpty;
+import static org.apache.commons.lang3.StringUtils.defaultIfEmpty;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.nio.ByteBuffer;

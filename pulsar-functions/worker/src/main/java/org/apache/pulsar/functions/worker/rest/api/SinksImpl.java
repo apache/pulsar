@@ -676,7 +676,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
         List<ConnectorDefinition> connectorDefinitions = getListOfConnectors();
         List<ConnectorDefinition> retval = new ArrayList<>();
         for (ConnectorDefinition connectorDefinition : connectorDefinitions) {
-            if (!org.apache.commons.lang.StringUtils.isEmpty(connectorDefinition.getSinkClass())) {
+            if (!org.apache.commons.lang3.StringUtils.isEmpty(connectorDefinition.getSinkClass())) {
                 retval.add(connectorDefinition);
             }
         }
