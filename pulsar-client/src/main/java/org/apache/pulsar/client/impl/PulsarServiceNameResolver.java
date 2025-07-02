@@ -224,7 +224,8 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
      * Updates the endpoint's availability status based on the given input flag and internal quarantine logic.
      *
      * <p>This method applies the input flag directly, and includes a time-based self-healing mechanism: if the
-     * endpoint has been marked unavailable for a sufficient cooldown period (quarantine), it automatically transitions back to available even when {@code newIsAvailable} is {@code false}.
+     * endpoint has been marked unavailable for a sufficient cooldown period (quarantine), it automatically transitions
+     * back to available even when {@code newIsAvailable} is {@code false}.
      *
      * <p>This allows the system to retry endpoints that were previously marked as unavailable.
      * If the endpoint fails again after recovery, it is marked unavailable and re-enters quarantine
