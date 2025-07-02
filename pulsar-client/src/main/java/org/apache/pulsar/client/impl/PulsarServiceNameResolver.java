@@ -221,9 +221,17 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
     }
 
     /**
-     * Compute the endpoint status based on the new availability status.
+     * Updates the endpoint's availability status based on the given input flag and internal timing logic.
+     *
+     * <p>This method applies the input flag directly, and includes a time-based self-healing mechanism: if the
+     * endpoint has been marked unavailable for long enough, it may automatically transition back to {@code available}
+     * even when {@code newIsAvailable} is {@code false}.
+     *
+     * <p>This dual behavior—accepting input and triggering recovery based on cooldown time—can be non-obvious.
+     * Callers should be aware that the availability status may change independently of the input flag.
+     *
      * @param newIsAvailable the new availability status of the endpoint
-     * @param status the current status of the endpoint
+     * @param status         the current status of the endpoint
      */
     private void computeEndpointStatus(boolean newIsAvailable, EndpointStatus status) {
         if (!newIsAvailable) {
