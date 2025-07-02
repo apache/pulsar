@@ -18,39 +18,9 @@
  */
 package org.apache.pulsar.broker.service;
 
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
-import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
+public class BrokerServiceInternalMethodInvoker {
 
-public interface Replicator {
-
-    void startProducer();
-
-    ReplicatorStatsImpl getStats();
-
-    CompletableFuture<Void> terminate();
-
-    CompletableFuture<Void> disconnect();
-
-    void updateRates();
-
-    String getRemoteCluster();
-
-    default void initializeDispatchRateLimiterIfNeeded() {
-        //No-op
+    public static void replicatorSetState(AbstractReplicator replicator, AbstractReplicator.State state) {
+        replicator.state = state;
     }
-
-    default void updateRateLimiter() {
-    }
-
-    default Optional<DispatchRateLimiter> getRateLimiter() {
-        return Optional.empty();
-    }
-
-    boolean isConnected();
-
-    long getNumberOfEntriesInBacklog();
-
-    boolean isTerminated();
 }
