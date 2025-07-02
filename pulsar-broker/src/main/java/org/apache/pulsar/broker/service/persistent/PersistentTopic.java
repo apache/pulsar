@@ -649,7 +649,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 decrementPendingWriteOpsAndCheck();
                 break;
             default:
-                publishContext.completed(new MessageDeduplication.MessageDupUnknownException(), -1, -1);
+                publishContext.completed(
+                        new MessageDeduplication.MessageDupUnknownException(
+                                topic, publishContext.getProducerName()), -1, -1);
                 decrementPendingWriteOpsAndCheck();
 
         }
@@ -887,8 +889,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private synchronized CompletableFuture<Void> closeReplProducersIfNoBacklog() {
         List<CompletableFuture<Void>> closeFutures = new ArrayList<>();
-        replicators.forEach((region, replicator) -> closeFutures.add(replicator.disconnect(true, true)));
-        shadowReplicators.forEach((__, replicator) -> closeFutures.add(replicator.disconnect(true, true)));
+        replicators.forEach((region, replicator) -> closeFutures.add(replicator.disconnect()));
+        shadowReplicators.forEach((__, replicator) -> closeFutures.add(replicator.disconnect()));
         return FutureUtil.waitForAll(closeFutures);
     }
 
@@ -4329,7 +4331,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 decrementPendingWriteOpsAndCheck();
                 break;
             default:
-                publishContext.completed(new MessageDeduplication.MessageDupUnknownException(), -1, -1);
+                publishContext.completed(new MessageDeduplication.MessageDupUnknownException(
+                        topic, publishContext.getProducerName()), -1, -1);
                 decrementPendingWriteOpsAndCheck();
 
         }

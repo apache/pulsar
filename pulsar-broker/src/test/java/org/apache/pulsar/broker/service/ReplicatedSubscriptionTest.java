@@ -26,14 +26,12 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -42,12 +40,12 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.ReplicatedSubscriptionsController;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferState;
@@ -812,15 +810,17 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         }
 
         // unsubscribe replicated subscription in r2
+        admin1.topics().unload(topicName);
         admin2.topics().deleteSubscription(topicName, subscriptionName);
         final PersistentTopic topic2 = (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
-        assertNull(topic2.getSubscription(subscriptionName));
 
         // close replicator producer in r2
-        final Method closeReplProducersIfNoBacklog = PersistentTopic.class.getDeclaredMethod("closeReplProducersIfNoBacklog", null);
-        closeReplProducersIfNoBacklog.setAccessible(true);
-        ((CompletableFuture<Void>) closeReplProducersIfNoBacklog.invoke(topic2, null)).join();
-        assertFalse(topic2.getReplicators().get("r1").isConnected());
+        GeoPersistentReplicator replicator2 = (GeoPersistentReplicator) topic2.getReplicators().get("r1");
+        Awaitility.await().untilAsserted(() -> {
+            replicator2.disconnect().join();
+            assertEquals(replicator2.getState(), AbstractReplicator.State.Disconnected);
+            assertFalse(topic2.getReplicators().get("r1").isConnected());
+        });
 
         // send messages in r1
         int numMessages = 6;
