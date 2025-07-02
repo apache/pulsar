@@ -138,7 +138,8 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
         if (enableServiceUrlQuarantine) {
             this.availableAddressList = new ArrayList<>(addresses);
             hostAvailabilityMap.keySet().removeIf(host -> !allAddressSet.contains(host));
-            allAddressSet.forEach(address -> hostAvailabilityMap.putIfAbsent(address, createEndpointStatus(true, address)));
+            allAddressSet.forEach(
+                    address -> hostAvailabilityMap.putIfAbsent(address, createEndpointStatus(true, address)));
         }
     }
 
