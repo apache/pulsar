@@ -25,7 +25,7 @@
   <parent>
     <artifactId>pulsar</artifactId>
     <groupId>com.datastax.oss</groupId>
-    <version>3.1.4.17-SNAPSHOT</version>
+    <version>3.1.4.17</version>
   </parent>
 
   <artifactId>testmocks</artifactId>

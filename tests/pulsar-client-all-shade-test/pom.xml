@@ -26,7 +26,7 @@
     <parent>
         <groupId>com.datastax.oss.tests</groupId>
         <artifactId>tests-parent</artifactId>
-        <version>3.1.4.17-SNAPSHOT</version>
+        <version>3.1.4.17</version>
     </parent>
 
     <artifactId>pulsar-client-all-shade-test</artifactId>
