@@ -198,39 +198,39 @@ public class CreateConsumerProducerTest extends ProducerConsumerBase {
         int createCount = 20;
         // 1. test binary service url
         // trigger unhealthy address removal by creating consumers and producers
-        int successCount = creatConsumerAndProducers(pulsarClientWithBinaryServiceUrl, createCount, topic);
+        int successCount = createConsumerAndProducers(pulsarClientWithBinaryServiceUrl, createCount, topic);
         assertTrue(successCount < createCount,
                 "Expected some creations to fail due to unavailable nodes, but all succeeded.");
         // all unavailable nodes should have been removed
-        successCount = creatConsumerAndProducers(pulsarClientWithBinaryServiceUrl, createCount, topic);
+        successCount = createConsumerAndProducers(pulsarClientWithBinaryServiceUrl, createCount, topic);
         assertEquals(successCount, createCount,
                 "Expected all subscription creations to succeed, but only " + successCount + " succeeded.");
 
         // test binary service url with disable quarantine
-        successCount = creatConsumerAndProducers(pulsarClientWithBinaryServiceUrlDisableQuarantine, createCount, topic);
+        successCount = createConsumerAndProducers(pulsarClientWithBinaryServiceUrlDisableQuarantine, createCount, topic);
         assertTrue(successCount < createCount,
                 "Expected some creations to fail due to unavailable nodes, but all succeeded.");
         // no unavailable nodes should be removed since backoff is disabled
-        successCount = creatConsumerAndProducers(pulsarClientWithBinaryServiceUrlDisableQuarantine, createCount, topic);
+        successCount = createConsumerAndProducers(pulsarClientWithBinaryServiceUrlDisableQuarantine, createCount, topic);
         assertTrue(successCount < createCount,
                 "Expected all subscription creations to succeed, but only " + successCount + " succeeded.");
 
         // 2. test http service url
         // trigger unhealthy address removal by creating consumers and producers
-        successCount = creatConsumerAndProducers(pulsarClientWithHttpServiceUrl, createCount, topic);
+        successCount = createConsumerAndProducers(pulsarClientWithHttpServiceUrl, createCount, topic);
         assertTrue(successCount < createCount,
                 "Expected some creations to fail due to unavailable nodes, but all succeeded.");
         // all unavailable nodes should have been removed
-        successCount = creatConsumerAndProducers(pulsarClientWithHttpServiceUrl, createCount, topic);
+        successCount = createConsumerAndProducers(pulsarClientWithHttpServiceUrl, createCount, topic);
         assertEquals(successCount, createCount,
                 "Expected some creations to fail due to unavailable nodes, but all succeeded.");
 
         // test http service url with disable quarantine
-        successCount = creatConsumerAndProducers(pulsarClientWithHttpServiceUrlDisableQuarantine, createCount, topic);
+        successCount = createConsumerAndProducers(pulsarClientWithHttpServiceUrlDisableQuarantine, createCount, topic);
         assertTrue(successCount < createCount,
                 "Expected some creations to fail due to unavailable nodes, but all succeeded.");
         // no unavailable nodes should be removed since backoff is disabled
-        successCount = creatConsumerAndProducers(pulsarClientWithHttpServiceUrlDisableQuarantine, createCount, topic);
+        successCount = createConsumerAndProducers(pulsarClientWithHttpServiceUrlDisableQuarantine, createCount, topic);
         assertTrue(successCount < createCount,
                 "Expected some creations to fail due to unavailable nodes, but all succeeded.");
     }
