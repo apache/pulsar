@@ -101,7 +101,8 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
     private final BaseCommand cmd = new BaseCommand();
 
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
-        TopicName topicName;
+        String key;
+        String topicName;
         List<RawMessage> messages = new ArrayList<>();
         ByteBuf buffer = (ByteBuf) (msg);
 
@@ -130,8 +131,8 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
                         logging(ctx.channel(), cmd.getType(), "", null);
                         break;
                     }
-                    topicName = TopicName.get(ParserProxyHandler.producerHashMap.get(cmd.getSend().getProducerId() + ","
-                            + ctx.channel().id()));
+                    topicName = TopicName.toFullTopicName(ParserProxyHandler.producerHashMap.get(
+                            cmd.getSend().getProducerId() + "," + ctx.channel().id()));
                     MutableLong msgBytes = new MutableLong(0);
                     MessageParser.parseMessage(topicName, -1L,
                             -1L, buffer, (message) -> {
@@ -139,7 +140,7 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
                                 msgBytes.add(message.getData().readableBytes());
                             }, maxMessageSize);
                     // update topic stats
-                    TopicStats topicStats = this.service.getTopicStats().computeIfAbsent(topicName.toString(),
+                    TopicStats topicStats = this.service.getTopicStats().computeIfAbsent(topicName,
                         topic -> new TopicStats());
                     topicStats.getMsgInRate().recordMultipleEvents(messages.size(), msgBytes.longValue());
                     logging(ctx.channel(), cmd.getType(), "", messages);
@@ -158,8 +159,9 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
                         logging(ctx.channel(), cmd.getType(), "", null);
                         break;
                     }
-                    topicName = TopicName.get(ParserProxyHandler.consumerHashMap.get(cmd.getMessage().getConsumerId()
-                            + "," + peerChannelId));
+                    topicName = TopicName.toFullTopicName(ParserProxyHandler.consumerHashMap.get(
+                            cmd.getMessage().getConsumerId() + "," + peerChannelId));
+
                     msgBytes = new MutableLong(0);
                     MessageParser.parseMessage(topicName, -1L,
                             -1L, buffer, (message) -> {

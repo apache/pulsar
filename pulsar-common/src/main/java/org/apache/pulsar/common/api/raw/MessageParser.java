@@ -55,11 +55,17 @@ public class MessageParser {
         void process(RawMessage message) throws IOException;
     }
 
+    @Deprecated
+    public static void parseMessage(TopicName topicName, long ledgerId, long entryId, ByteBuf headersAndPayload,
+                                    MessageProcessor processor, int maxMessageSize) throws IOException {
+        parseMessage(topicName.toString(), ledgerId, entryId, headersAndPayload, processor, maxMessageSize);
+    }
+
     /**
      * Parse a raw Pulsar entry payload and extract all the individual message that may be included in the batch. The
      * provided {@link MessageProcessor} will be invoked for each individual message.
      */
-    public static void parseMessage(TopicName topicName, long ledgerId, long entryId, ByteBuf headersAndPayload,
+    public static void parseMessage(String topicName, long ledgerId, long entryId, ByteBuf headersAndPayload,
             MessageProcessor processor, int maxMessageSize) throws IOException {
         ByteBuf payload = headersAndPayload;
         ByteBuf uncompressedPayload = null;
@@ -117,7 +123,7 @@ public class MessageParser {
         }
     }
 
-    public static boolean verifyChecksum(TopicName topic, ByteBuf headersAndPayload, long ledgerId, long entryId) {
+    public static boolean verifyChecksum(String topic, ByteBuf headersAndPayload, long ledgerId, long entryId) {
         if (hasChecksum(headersAndPayload)) {
             int checksum = readChecksum(headersAndPayload);
             int computedChecksum = computeChecksum(headersAndPayload);
@@ -132,7 +138,14 @@ public class MessageParser {
         return true;
     }
 
-    public static ByteBuf uncompressPayloadIfNeeded(TopicName topic, MessageMetadata msgMetadata,
+    @Deprecated
+    public static ByteBuf uncompressPayloadIfNeeded(TopicName topicName, MessageMetadata msgMetadata,
+                                                    ByteBuf payload, long ledgerId, long entryId, int maxMessageSize) {
+        return uncompressPayloadIfNeeded(topicName.toString(), msgMetadata, payload, ledgerId, entryId,
+                maxMessageSize);
+    }
+
+    public static ByteBuf uncompressPayloadIfNeeded(String topic, MessageMetadata msgMetadata,
             ByteBuf payload, long ledgerId, long entryId, int maxMessageSize) {
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(msgMetadata.getCompression());
         int uncompressedSize = msgMetadata.getUncompressedSize();
