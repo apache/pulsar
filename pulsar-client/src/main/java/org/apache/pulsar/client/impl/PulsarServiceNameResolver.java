@@ -59,9 +59,7 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
     private final boolean enableServiceUrlQuarantine;
 
     public PulsarServiceNameResolver() {
-        this.serviceUrlQuarantineInitDurationMs = 0;
-        this.serviceUrlQuarantineMaxDurationMs = 0;
-        this.enableServiceUrlQuarantine = false;
+        this(0, 0);
     }
 
     public PulsarServiceNameResolver(long serviceUrlQuarantineInitDurationMs, long serviceUrlQuarantineMaxDurationMs) {
