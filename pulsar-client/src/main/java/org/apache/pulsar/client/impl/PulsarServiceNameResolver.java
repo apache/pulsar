@@ -138,7 +138,7 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
         if (enableServiceUrlQuarantine) {
             this.availableAddressList = new ArrayList<>(addresses);
             hostAvailabilityMap.keySet().removeIf(host -> !allAddressSet.contains(host));
-            addresses.forEach(address -> hostAvailabilityMap.putIfAbsent(address, createEndpointStatus(true, address)));
+            allAddressSet.forEach(address -> hostAvailabilityMap.putIfAbsent(address, createEndpointStatus(true, address)));
         }
     }
 
@@ -181,9 +181,9 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
 
         hostAvailabilityMap.forEach((__, endpointStatus) -> {
             if (!endpointStatus.isAvailable()) {
-                boolean changed = computeEndpointStatus(false, endpointStatus);
-                if (!availableHostsChanged.get()) {
-                    availableHostsChanged.set(changed);
+                computeEndpointStatus(false, endpointStatus);
+                if (!availableHostsChanged.get() && endpointStatus.isAvailable()) {
+                    availableHostsChanged.set(true);
                 }
             }
         });
@@ -214,7 +214,7 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
                 new EndpointStatus(inetSocketAddress, backoff, System.currentTimeMillis(), 0,
                         isAvailable);
         if (!isAvailable) {
-            endpointStatus.setNextDelayMsToRecover(endpointStatus.getQuarantineBackoff().next());
+            computeEndpointStatus(false, endpointStatus);
         }
         return endpointStatus;
     }
@@ -223,9 +223,8 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
      * Compute the endpoint status based on the new availability status.
      * @param newIsAvailable the new availability status of the endpoint
      * @param status the current status of the endpoint
-     * @return true if the availability status has changed, false otherwise
      */
-    private boolean computeEndpointStatus(boolean newIsAvailable, EndpointStatus status) {
+    private void computeEndpointStatus(boolean newIsAvailable, EndpointStatus status) {
         if (!newIsAvailable) {
             if (!status.isAvailable()) {
                 // from unavailable to unavailable, check if we need to try to recover
@@ -251,7 +250,5 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
             status.setNextDelayMsToRecover(0);
             status.getQuarantineBackoff().reset();
         }
-
-        return newIsAvailable != status.isAvailable();
     }
 }
