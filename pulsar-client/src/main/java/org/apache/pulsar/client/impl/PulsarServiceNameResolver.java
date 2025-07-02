@@ -191,8 +191,7 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
         if (availableHostsChanged.get()) {
             availableAddressList = hostAvailabilityMap.entrySet()
                     .stream()
-                    .filter(entry -> entry.getValue().isAvailable())
-                    .filter(entry -> allAddressSet.contains(entry.getKey()))
+                    .filter(entry -> entry.getValue().isAvailable() && allAddressSet.contains(entry.getKey()))
                     .map(Map.Entry::getKey)
                     .collect(Collectors.toList());
             log.info("service name resolver available hosts changed, current available hosts: {}",
