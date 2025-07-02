@@ -30,7 +30,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -47,7 +46,6 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
-import org.apache.commons.lang3.ArraySorter;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -90,7 +88,6 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         conf.setManagedLedgerMaxEntriesPerLedger(10);
         conf.setDefaultRetentionSizeInMB(100);
         conf.setDefaultRetentionTimeInMinutes(100);
-        conf.setAutoSkipNonRecoverableData(true);
         super.baseSetup();
         conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
     }
@@ -564,89 +561,6 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             Position readPosition = cursor.getReadPosition();
             Assert.assertEquals(readPosition.getLedgerId(), messageId.getLedgerId());
             Assert.assertEquals(readPosition.getEntryId(), messageId.getEntryId());
-        }
-    }
-
-    @Test(timeOut = 30_000)
-    public void testSeekByTimestampWithSkipNonRecoverableData() throws Exception {
-        String topicName = "persistent://prop/use/ns-abc/testSeekByTimestampWithSkipNonRecoverableData";
-        admin.topics().createNonPartitionedTopic(topicName);
-        admin.topics().createSubscription(topicName, "my-sub", MessageId.earliest);
-
-        @Cleanup
-        Producer<String> producer =
-            pulsarClient.newProducer(Schema.STRING).topic(topicName).enableBatching(false).create();
-        for (int i = 0; i < 55; i++) {
-            producer.send(("message-" + i));
-            Thread.sleep(10);
-        }
-
-        Map<Long, MessageIdImpl> timestampToMessageId = new HashMap<>();
-        List<Long> ledgerIds = new ArrayList<>();
-        @Cleanup
-        Reader<String> reader =
-            pulsarClient.newReader(Schema.STRING).topic(topicName).startMessageId(MessageId.earliest).create();
-        while (reader.hasMessageAvailable()) {
-            Message<String> message = reader.readNext();
-            log.info("message: {} ----- {}", message.getMessageId(), message.getPublishTime());
-            timestampToMessageId.put(message.getPublishTime(), (MessageIdImpl) message.getMessageId());
-            long ledgerId = ((MessageIdImpl) message.getMessageId()).getLedgerId();
-            if (!ledgerIds.contains(ledgerId)) {
-                ledgerIds.add(ledgerId);
-            }
-        }
-
-        Assert.assertEquals(timestampToMessageId.size(), 55);
-
-        LinkedHashSet<Long> deletedLedgerIds = new LinkedHashSet<>();
-        deletedLedgerIds.add(ledgerIds.get(0));
-        deletedLedgerIds.add(ledgerIds.get(ledgerIds.size() - 1));
-        int mid = ledgerIds.size() / 2;
-        deletedLedgerIds.add(ledgerIds.get(mid));
-
-        for (Long deletedLedgerId : deletedLedgerIds) {
-            pulsar.getBookKeeperClient().deleteLedger(deletedLedgerId);
-            log.info("delete ledger: {}", deletedLedgerId);
-        }
-
-        admin.topics().unload(topicName);
-
-        @Cleanup
-        org.apache.pulsar.client.api.Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-            .receiverQueueSize(0)
-            .topic(topicName).subscriptionName("my-sub")
-            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe();
-        long[] timestamps = timestampToMessageId.keySet().stream().mapToLong(Long::longValue).toArray();
-        ArraySorter.sort(timestamps);
-
-        timestampToMessageId.values().removeIf(messageId -> deletedLedgerIds.contains(messageId.getLedgerId()));
-
-        final int lastNonRecoverableEntryNums = 5;
-
-        for (int i = 0; i < timestamps.length - lastNonRecoverableEntryNums; i++) {
-            MessageIdImpl nextValidMessageId = timestampToMessageId.get(timestamps[i]);
-            int l = i;
-            while (nextValidMessageId == null) {
-                nextValidMessageId = timestampToMessageId.get(timestamps[l++]);
-            }
-
-            consumer.seek(timestamps[i]);
-            Message<String> receive = consumer.receive();
-
-            MessageIdImpl msgId = (MessageIdImpl) receive.getMessageId();
-            Assert.assertEquals(msgId.getLedgerId(), nextValidMessageId.getLedgerId());
-            Assert.assertEquals(msgId.getEntryId(), nextValidMessageId.getEntryId());
-        }
-
-        MessageIdImpl lastMessageId = (MessageIdImpl) producer.send(("message-last"));
-
-        for (int i = timestamps.length - lastNonRecoverableEntryNums; i < timestamps.length; i++) {
-            consumer.seek(timestamps[i]);
-            Message<String> receive = consumer.receive();
-
-            MessageIdImpl msgId = (MessageIdImpl) receive.getMessageId();
-            Assert.assertEquals(msgId.getLedgerId(), lastMessageId.getLedgerId());
-            Assert.assertEquals(msgId.getEntryId(), lastMessageId.getEntryId());
         }
     }
 
