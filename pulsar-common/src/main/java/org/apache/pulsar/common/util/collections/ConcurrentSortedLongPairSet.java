@@ -24,8 +24,8 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.commons.lang.mutable.MutableInt;
-import org.apache.commons.lang.mutable.MutableLong;
+import org.apache.commons.lang3.mutable.MutableInt;
+import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet.LongPair;
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet.LongPairConsumer;
 
