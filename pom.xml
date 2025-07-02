@@ -2411,20 +2411,6 @@ flexible messaging model and an intuitive client API.</description>
 
   <profiles>
     <profile>
-      <!-- used for running integration tests on Java 8 -->
-      <id>integration-test-java8</id>
-      <activation>
-        <jdk>1.8</jdk>
-      </activation>
-      <properties>
-        <test.additional.args/>
-        <maven.compiler.source>8</maven.compiler.source>
-        <maven.compiler.target>8</maven.compiler.target>
-        <pulsar.broker.compiler.release/>
-        <pulsar.client.compiler.release>17</pulsar.client.compiler.release>
-      </properties>
-    </profile>
-    <profile>
       <id>coverage</id>
       <properties>
         <testJacocoAgentArgument>@{jacoco.agent.argument}</testJacocoAgentArgument>
