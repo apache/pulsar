@@ -96,8 +96,9 @@ public class MessageDeduplication {
     }
 
     public static class MessageDupUnknownException extends RuntimeException {
-        public MessageDupUnknownException() {
-            super("Cannot determine whether the message is a duplicate at this time");
+        public MessageDupUnknownException(String topicName, String producerName) {
+            super(String.format("[%s][%s]Cannot determine whether the message is a duplicate at this time", topicName,
+                    producerName));
         }
     }
 

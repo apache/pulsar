@@ -464,9 +464,13 @@ public class ClientCnx extends PulsarHandler {
         }
         ProducerImpl<?> producer = producers.get(producerId);
         if (ledgerId == -1 && entryId == -1) {
-            log.warn("{} Message with sequence-id {}-{} published by producer [id:{}, name:{}] has been dropped",
-                    ctx.channel(), sequenceId, highestSequenceId, producerId,
-                    producer != null ? producer.getProducerName() : "null");
+            if (producer == null) {
+                log.warn("{} Message with sequence-id {}-{} published by producer [id:{}, name:{}] has been dropped",
+                        ctx.channel(), sequenceId, highestSequenceId, producerId, "null");
+            } else {
+                producer.printWarnLogWhenCanNotDetermineDeduplication(ctx.channel(), sequenceId, highestSequenceId);
+            }
+
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("{} Got receipt for producer: [id:{}, name:{}] -- sequence-id: {}-{} -- entry-id: {}:{}",
@@ -957,7 +961,8 @@ public class ClientCnx extends PulsarHandler {
         return ctx;
     }
 
-    Channel channel() {
+    @VisibleForTesting
+    protected Channel channel() {
         return ctx.channel();
     }
 

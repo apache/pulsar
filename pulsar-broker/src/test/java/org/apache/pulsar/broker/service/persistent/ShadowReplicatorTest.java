@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static org.testng.Assert.assertEquals;
+import static org.apache.pulsar.broker.service.persistent.BrokerServicePersistInternalMethodInvoker.ensureNoBacklogByInflightTask;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -43,7 +43,6 @@ import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.schema.Schemas;
 import org.awaitility.Awaitility;
-import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -123,7 +122,7 @@ public class ShadowReplicatorTest extends BrokerTestBase {
             replicator.msgOut.calculateRate();
             return replicator.msgOut.getCount() >= 1;
         });
-        Awaitility.await().until(() -> PersistentReplicator.PENDING_MESSAGES_UPDATER.get(replicator) == 0);
+        ensureNoBacklogByInflightTask(replicator);
 
         PersistentTopic shadowTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(shadowTopicName).get().get();
@@ -134,7 +133,9 @@ public class ShadowReplicatorTest extends BrokerTestBase {
         Assert.assertEquals(shadowMessage.getData(), sourceMessage.getData());
         Assert.assertEquals(shadowMessage.getSequenceId(), sourceMessage.getSequenceId());
         Assert.assertEquals(shadowMessage.getEventTime(), sourceMessage.getEventTime());
-        Assert.assertEquals(shadowMessage.getProperties(), sourceMessage.getProperties());
+        // Since branch-3.0 does not contain https://github.com/apache/pulsar/pull/23236, this test is not the same as
+        // master-branch.
+        Assert.assertEquals(shadowMessage.getProperties().get("PK"), "PV");
         Assert.assertEquals(shadowMessage.getKey(), sourceMessage.getKey());
         Assert.assertEquals(shadowMessage.getOrderingKey(), sourceMessage.getOrderingKey());
         Assert.assertEquals(shadowMessage.getSchemaVersion(), sourceMessage.getSchemaVersion());
@@ -164,7 +165,7 @@ public class ShadowReplicatorTest extends BrokerTestBase {
     }
 
     @Test
-    public void testCounterOfPengdingMessagesCorrect() throws Exception {
+    public void testCounterOfPendingMessagesCorrect() throws Exception {
         TopicName sourceTopicName = TopicName
                 .get(BrokerTestUtil.newUniqueName("persistent://prop1/ns-source/source-topic"));
         TopicName shadowTopicName = TopicName
@@ -191,11 +192,11 @@ public class ShadowReplicatorTest extends BrokerTestBase {
             producer.send(new Schemas.PersonOne(i));
         }
 
-        // Verify "pendingMessages" still is correct even if error occurs.
+        // Verify "inflight replication tasks" are correct.
         PersistentReplicator replicator = getAnyShadowReplicator(sourceTopicName, pulsar);
         waitReplicateFinish(sourceTopicName, admin);
-        Awaitility.await().untilAsserted(() -> {
-            assertEquals((int) WhiteboxImpl.getInternalState(replicator, "pendingMessages"), 0);
-        });
+        ensureNoBacklogByInflightTask(replicator);
     }
+
+
 }
