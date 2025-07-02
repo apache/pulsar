@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.service.persistent.BrokerServicePersistInternalMethodInvoker.ensureNoBacklogByInflightTask;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -34,6 +35,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
+import io.netty.channel.Channel;
 import io.netty.util.concurrent.FastThreadLocalThread;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -73,11 +75,13 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
+import org.apache.pulsar.broker.service.persistent.BrokerServicePersistInternalMethodInvoker;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.InjectedClientCnxClientBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -85,10 +89,14 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.impl.ClientBuilderImpl;
+import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
+import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
@@ -1177,141 +1185,6 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         admin2.namespaces().deleteNamespace(ns);
     }
 
-    /**
-     * This test used to confirm the "start replicator retry task" will be skipped after the topic is closed.
-     */
-    @Test
-    public void testCloseTopicAfterStartReplicationFailed() throws Exception {
-        Field fieldTopicNameCache = TopicName.class.getDeclaredField("cache");
-        fieldTopicNameCache.setAccessible(true);
-        ConcurrentHashMap<String, TopicName> topicNameCache =
-                (ConcurrentHashMap<String, TopicName>) fieldTopicNameCache.get(null);
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + nonReplicatedNamespace + "/tp_");
-        // 1.Create topic, does not enable replication now.
-        admin1.topics().createNonPartitionedTopic(topicName);
-        Producer<byte[]> producer1 = client1.newProducer().topic(topicName).create();
-        PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
-
-        // We inject an error to make "start replicator" to fail.
-        AsyncLoadingCache<String, Boolean> existsCache =
-                WhiteboxImpl.getInternalState(pulsar1.getConfigurationMetadataStore(), "existsCache");
-        String path = "/admin/partitioned-topics/" + TopicName.get(topicName).getPersistenceNamingEncoding();
-        existsCache.put(path, CompletableFuture.completedFuture(true));
-
-        // 2.Enable replication and unload topic after failed to start replicator.
-        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
-        Thread.sleep(3000);
-        producer1.close();
-        existsCache.synchronous().invalidate(path);
-        admin1.topics().unload(topicName);
-        // Verify: the "start replicator retry task" will be skipped after the topic is closed.
-        // - Retry delay is "PersistentTopic.POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS": 60s, so wait for 70s.
-        // - Since the topic should not be touched anymore, we use "TopicName" to confirm whether it be used by
-        //   Replication again.
-        Thread.sleep(10 * 1000);
-        topicNameCache.remove(topicName);
-        Thread.sleep(60 * 1000);
-        assertTrue(!topicNameCache.containsKey(topicName));
-
-        // cleanup.
-        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
-        admin1.topics().delete(topicName, false);
-    }
-
-    @DataProvider
-    public Object[][] enableDeduplication() {
-        return new Object[][] {
-            {false},
-            {true},
-        };
-    }
-
-    @Test(dataProvider = "enableDeduplication")
-    public void testIncompatibleMultiVersionSchema(boolean enableDeduplication) throws Exception {
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://"
-                + sourceClusterAlwaysSchemaCompatibleNamespace + "/tp_");
-        final String subscriptionName = "s1";
-        // 1.Create topic.
-        admin1.topics().createNonPartitionedTopic(topicName);
-        Producer<byte[]> producer1 = client1.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topicName).create();
-        waitReplicatorStarted(topicName);
-        admin1.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
-        admin2.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
-        if (enableDeduplication) {
-            admin2.topicPolicies().setDeduplicationStatus(topicName, true);
-        }
-        // 2. Publish messages with multiple schemas.
-        producer1.newMessage(Schema.STRING).value("msg1").send();
-        producer1.newMessage(Schema.BOOL).value(false).send();
-        producer1.newMessage(Schema.STRING).value("msg3").send();
-        // 3. several unloading, which causes replicator internal producer reconnects.
-        for (int i = 0; i < 3; i++) {
-            Thread.sleep(2000);
-            admin2.topics().unload(topicName);
-            waitReplicatorStarted(topicName);
-        }
-        // Verify: no individual acks.
-        Awaitility.await().untilAsserted(() -> {
-           PersistentTopic persistentTopic2 =
-                   (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
-           assertTrue(
-           persistentTopic2.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(true) > 0);
-            PersistentTopic persistentTopic1 =
-                    (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
-            ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic1.getManagedLedger();
-            ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().get("pulsar.repl.r2");
-            assertEquals(cursor.getTotalNonContiguousDeletedMessagesRange(), 0);
-            assertTrue(transferToPosImpl(cursor.getMarkDeletedPosition())
-                    .compareTo(transferToPosImpl(ml.getLastConfirmedEntry())) < 0);
-        });
-        // 4. Adjust schema compatibility and unload topic on the remote side, which will solve the replication stuck
-        // issue.
-        admin2.namespaces().setSchemaCompatibilityStrategy(sourceClusterAlwaysSchemaCompatibleNamespace,
-                SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
-        admin2.topics().unload(topicName);
-        admin1.topics().unload(topicName);
-        Awaitility.await().untilAsserted(() -> {
-            PersistentTopic persistentTopic1 =
-                    (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
-            ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic1.getManagedLedger();
-            ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().get("pulsar.repl.r2");
-            assertTrue(transferToPosImpl(cursor.getMarkDeletedPosition())
-                    .compareTo(transferToPosImpl(ml.getLastConfirmedEntry())) >= 0);
-        });
-        // Verify: no out-of-order; schemas are as expected.
-        Consumer<GenericRecord> consumer2 = client2.newConsumer(Schema.AUTO_CONSUME()).topic(topicName)
-                .subscriptionName(subscriptionName).subscribe();
-        Collection<String> msgReceived;
-        if (enableDeduplication) {
-            msgReceived = new ArrayList<>();
-        } else {
-            msgReceived = new LinkedHashSet<>();
-        }
-        while (true) {
-            Message<GenericRecord> message = consumer2.receive(2, TimeUnit.SECONDS);
-            if (message == null) {
-                break;
-            }
-            SchemaType schemaType = message.getValue().getSchemaType();
-            assertTrue(schemaType.equals(SchemaType.STRING) || schemaType.equals(SchemaType.BOOLEAN));
-            msgReceived.add(message.getValue().getNativeObject().toString());
-            log.info("received msg: {}", message.getValue().getNativeObject().toString());
-        }
-        assertEquals(msgReceived, Arrays.asList("msg1", "false", "msg3"));
-        List<SchemaInfo> schemaInfoList = admin2.schemas().getAllSchemas(topicName);
-        assertEquals(schemaInfoList.size(), 2);
-        assertEquals(schemaInfoList.get(0).getType(), SchemaType.STRING);
-        assertEquals(schemaInfoList.get(1).getType(), SchemaType.BOOLEAN);
-
-        // cleanup.
-        consumer2.close();
-        producer1.close();
-        admin2.topics().deleteSubscription(topicName, subscriptionName);
-        admin2.namespaces().setSchemaCompatibilityStrategy(sourceClusterAlwaysSchemaCompatibleNamespace,
-                SchemaCompatibilityStrategy.FORWARD);
-    }
-
     static PositionImpl transferToPosImpl(Position position) {
         return new PositionImpl(position.getLedgerId(), position.getEntryId());
     }
@@ -1515,5 +1388,278 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         waitReplicatorStopped(topicName);
         admin1.topics().delete(topicName, false);
         admin2.topics().delete(topicName, false);
+    }
+
+    /**
+     * This test used to confirm the "start replicator retry task" will be skipped after the topic is closed.
+     */
+    @Test
+    public void testCloseTopicAfterStartReplicationFailed() throws Exception {
+        Field fieldTopicNameCache = TopicName.class.getDeclaredField("cache");
+        fieldTopicNameCache.setAccessible(true);
+        ConcurrentHashMap<String, TopicName> topicNameCache =
+                (ConcurrentHashMap<String, TopicName>) fieldTopicNameCache.get(null);
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + nonReplicatedNamespace + "/tp_");
+        // 1.Create topic, does not enable replication now.
+        admin1.topics().createNonPartitionedTopic(topicName);
+        Producer<byte[]> producer1 = client1.newProducer().topic(topicName).create();
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
+
+        // We inject an error to make "start replicator" to fail.
+        AsyncLoadingCache<String, Boolean> existsCache =
+                WhiteboxImpl.getInternalState(pulsar1.getConfigurationMetadataStore(), "existsCache");
+        String path = "/admin/partitioned-topics/" + TopicName.get(topicName).getPersistenceNamingEncoding();
+        existsCache.put(path, CompletableFuture.completedFuture(true));
+
+        // 2.Enable replication and unload topic after failed to start replicator.
+        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
+        Thread.sleep(3000);
+        producer1.close();
+        existsCache.synchronous().invalidate(path);
+        admin1.topics().unload(topicName);
+        // Verify: the "start replicator retry task" will be skipped after the topic is closed.
+        // - Retry delay is "PersistentTopic.POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS": 60s, so wait for 70s.
+        // - Since the topic should not be touched anymore, we use "TopicName" to confirm whether it be used by
+        //   Replication again.
+        Thread.sleep(10 * 1000);
+        topicNameCache.remove(topicName);
+        Thread.sleep(60 * 1000);
+        assertTrue(!topicNameCache.containsKey(topicName));
+
+        // cleanup.
+        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
+        admin1.topics().delete(topicName, false);
+    }
+
+    @DataProvider
+    public Object[][] enableDeduplication() {
+        return new Object[][] {
+            {false},
+            {true},
+        };
+    }
+
+    @Test(dataProvider = "enableDeduplication")
+    public void testIncompatibleMultiVersionSchema(boolean enableDeduplication) throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://"
+                + sourceClusterAlwaysSchemaCompatibleNamespace + "/tp_");
+        final String subscriptionName = "s1";
+        // 1.Create topic.
+        admin1.topics().createNonPartitionedTopic(topicName);
+        Producer<byte[]> producer1 = client1.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topicName).create();
+        waitReplicatorStarted(topicName);
+        admin1.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+        admin2.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+        if (enableDeduplication) {
+            admin2.topicPolicies().setDeduplicationStatus(topicName, true);
+        }
+        // 2. Publish messages with multiple schemas.
+        producer1.newMessage(Schema.STRING).value("msg1").send();
+        producer1.newMessage(Schema.BOOL).value(false).send();
+        producer1.newMessage(Schema.STRING).value("msg3").send();
+        // 3. several unloading, which causes replicator internal producer reconnects.
+        for (int i = 0; i < 3; i++) {
+            Thread.sleep(2000);
+            admin2.topics().unload(topicName);
+            waitReplicatorStarted(topicName);
+        }
+        // Verify: no individual acks.
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic persistentTopic2 =
+                    (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
+            assertTrue(
+                    persistentTopic2.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(true) > 0);
+            PersistentTopic persistentTopic1 =
+                    (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
+            ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic1.getManagedLedger();
+            ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().get("pulsar.repl.r2");
+            assertEquals(cursor.getTotalNonContiguousDeletedMessagesRange(), 0);
+            assertTrue(((PositionImpl) cursor.getMarkDeletedPosition()).compareTo(
+                    (PositionImpl) ml.getLastConfirmedEntry()) < 0);
+        });
+        // 4. Adjust schema compatibility and unload topic on the remote side, which will solve the replication stuck
+        // issue.
+        admin2.namespaces().setSchemaCompatibilityStrategy(sourceClusterAlwaysSchemaCompatibleNamespace,
+                SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+        admin2.topics().unload(topicName);
+        admin1.topics().unload(topicName);
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic persistentTopic1 =
+                    (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
+            ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic1.getManagedLedger();
+            ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().get("pulsar.repl.r2");
+            assertTrue(((PositionImpl) cursor.getMarkDeletedPosition()).compareTo(
+                    (PositionImpl) ml.getLastConfirmedEntry()) >= 0);
+        });
+        // Verify: no out-of-order; schemas are as expected.
+        Consumer<GenericRecord> consumer2 = client2.newConsumer(Schema.AUTO_CONSUME()).topic(topicName)
+                .subscriptionName(subscriptionName).subscribe();
+        Collection<String> msgReceived;
+        if (enableDeduplication) {
+            msgReceived = new ArrayList<>();
+        } else {
+            msgReceived = new LinkedHashSet<>();
+        }
+        while (true) {
+            Message<GenericRecord> message = consumer2.receive(2, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            SchemaType schemaType = message.getValue().getSchemaType();
+            assertTrue(schemaType.equals(SchemaType.STRING) || schemaType.equals(SchemaType.BOOLEAN));
+            msgReceived.add(message.getValue().getNativeObject().toString());
+            log.info("received msg: {}", message.getValue().getNativeObject().toString());
+        }
+        assertEquals(msgReceived, Arrays.asList("msg1", "false", "msg3"));
+        List<SchemaInfo> schemaInfoList = admin2.schemas().getAllSchemas(topicName);
+        assertEquals(schemaInfoList.size(), 2);
+        assertEquals(schemaInfoList.get(0).getType(), SchemaType.STRING);
+        assertEquals(schemaInfoList.get(1).getType(), SchemaType.BOOLEAN);
+
+        // cleanup.
+        consumer2.close();
+        producer1.close();
+        admin2.topics().deleteSubscription(topicName, subscriptionName);
+        admin2.namespaces().setSchemaCompatibilityStrategy(sourceClusterAlwaysSchemaCompatibleNamespace,
+                SchemaCompatibilityStrategy.FORWARD);
+    }
+
+    @Test
+    public void testConcurrencyReplicationReadEntries() throws Exception {
+        String originalReplicationStartAt = pulsar1.getConfig().getReplicationStartAt();
+        int originalDispatcherMaxReadBatchSize = pulsar1.getConfig().getDispatcherMaxReadBatchSize();
+        int originalDispatcherMinReadBatchSize = pulsar1.getConfig().getDispatcherMinReadBatchSize();
+        int originalReplicationProducerQueueSize = pulsar1.getConfig().getReplicationProducerQueueSize();
+        admin1.brokers().updateDynamicConfiguration("replicationStartAt", "earliest");
+        admin1.brokers().updateDynamicConfiguration("dispatcherMaxReadBatchSize", "10");
+        admin1.brokers().updateDynamicConfiguration("dispatcherMinReadBatchSize", "10");
+        admin1.brokers().updateDynamicConfiguration("replicationProducerQueueSize", "10");
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(pulsar1.getConfig().getReplicationStartAt(), "earliest");
+            assertEquals(pulsar1.getConfig().getDispatcherMaxReadBatchSize(), 10);
+            assertEquals(pulsar1.getConfig().getDispatcherMinReadBatchSize(), 10);
+            assertEquals(pulsar1.getConfig().getReplicationProducerQueueSize(), 10);
+        });
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + nonReplicatedNamespace + "/tp_");
+        final String subscriptionName = "s1";
+        admin1.topics().createNonPartitionedTopic(topicName);
+        admin2.topics().createNonPartitionedTopic(topicName);
+        admin1.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+        admin2.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+
+        // Publish messages.
+        Producer<byte[]> producer1 = client1.newProducer().topic(topicName).enableBatching(false).create();
+        CompletableFuture<MessageId> latestSend = null;
+        for (int i = 0; i < 1000; i++) {
+            latestSend = producer1.sendAsync(new byte[]{1});
+        }
+        latestSend.join();
+        log.info("Cluster: {}, Publish finished", cluster1);
+
+        // Inject two delay:
+        // 1. delay publish responding,
+        // 2. delay switch concurrent mechanism of "replicator.readMoreEntries".
+        ClientBuilderImpl clientBuilder2 = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(url2.toString());
+        PulsarClient injectedReplClient2 = InjectedClientCnxClientBuilder.create(clientBuilder2,
+                (conf, eventLoopGroup) -> {
+           return new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
+
+               @Override
+               protected void handleSendReceipt(CommandSendReceipt sendReceipt) {
+                   ctx().executor().schedule(() -> super.handleSendReceipt(sendReceipt), 3600, TimeUnit.SECONDS);
+               }
+
+               @Override
+               protected Channel channel() {
+                   boolean delay = false;
+                   StackTraceElement[] stacks = Thread.currentThread().getStackTrace();
+                   for (StackTraceElement stack : stacks) {
+                       if (stack.toString().contains("readMoreEntries")) {
+                           delay = true;
+                           break;
+                       }
+                   }
+                   if (!delay) {
+                       return super.ctx().channel();
+                   }
+                   try {
+                       Thread.sleep(3000);
+                   } catch (InterruptedException e) {
+                       throw new RuntimeException(e);
+                   }
+                   return super.ctx().channel();
+               }
+            };
+        });
+        PulsarClient originalReplClient2 = pulsar1.getBrokerService().getReplicationClients()
+                .put(cluster2, injectedReplClient2);
+
+        // Start replication and inject race conditions of "replicator.readMoreEntries".
+        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
+        PersistentTopic persistentTopic1 =
+                (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
+        waitReplicatorStarted(topicName);
+        GeoPersistentReplicator replicator =
+                (GeoPersistentReplicator) persistentTopic1.getReplicators().values().iterator().next();
+        for (int i = 0; i < 10; i++) {
+            new Thread(() -> {
+                BrokerServicePersistInternalMethodInvoker.replicatorReadMoreEntries(replicator);
+            }).start();
+        }
+
+        // Verify: after a few seconds, there is no "pending queue is full" error.
+        Thread.sleep(10_000);
+        assertEquals(replicator.producer.getPendingQueueFullCount(), 0);
+
+        // cleanup.
+        producer1.close();
+        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
+        waitReplicatorStopped(topicName);
+        admin1.topics().delete(topicName, false);
+        if (originalReplClient2 == null) {
+            pulsar1.getBrokerService().getReplicationClients().remove(cluster2);
+        } else {
+            pulsar1.getBrokerService().getReplicationClients().put(cluster2, originalReplClient2);
+        }
+        injectedReplClient2.close();
+        admin1.brokers().updateDynamicConfiguration("replicationStartAt", originalReplicationStartAt);
+        admin1.brokers().updateDynamicConfiguration("dispatcherMaxReadBatchSize",
+                originalDispatcherMaxReadBatchSize + "");
+        admin1.brokers().updateDynamicConfiguration("dispatcherMinReadBatchSize",
+                originalDispatcherMinReadBatchSize + "");
+        admin1.brokers().updateDynamicConfiguration("replicationProducerQueueSize",
+                originalReplicationProducerQueueSize + "");
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(pulsar1.getConfig().getReplicationStartAt(), originalReplicationStartAt);
+            assertEquals(pulsar1.getConfig().getDispatcherMaxReadBatchSize(), originalDispatcherMaxReadBatchSize);
+            assertEquals(pulsar1.getConfig().getDispatcherMinReadBatchSize(), originalDispatcherMinReadBatchSize);
+            assertEquals(pulsar1.getConfig().getReplicationProducerQueueSize(), originalReplicationProducerQueueSize);
+        });
+    }
+
+    @Test
+    public void testReplicatorsInflightTaskListIsEmptyAfterReplicationFinished() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
+        final String subscriptionName = "s1";
+        admin2.topics().createNonPartitionedTopic(topicName);
+        admin2.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+        admin1.topics().createNonPartitionedTopic(topicName);
+        admin1.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+
+        // Publish messages.
+        Producer<byte[]> producer1 = client1.newProducer().topic(topicName).enableBatching(false).create();
+        CompletableFuture<MessageId> latestSend = null;
+        for (int i = 0; i < 100; i++) {
+            latestSend = producer1.sendAsync(new byte[]{1});
+        }
+        latestSend.join();
+        log.info("Cluster: {}, Publish finished", cluster1);
+        producer1.close();
+
+        // Start replication.
+        waitForReplicationTaskFinish(topicName);
+        // Verify: all inflight tasks are done.
+        ensureNoBacklogByInflightTask(getReplicator(topicName));
     }
 }

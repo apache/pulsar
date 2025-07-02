@@ -32,6 +32,7 @@ import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandler;
 import io.netty.channel.ChannelPromise;
@@ -192,6 +193,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private final Counter producersOpenedCounter;
     private final Counter producersClosedCounter;
     private final boolean pauseSendingToPreservePublishOrderOnSchemaRegFailure;
+    // This variable can be exposed as a metrics in the future, a PIP is needed.
+    private final AtomicInteger pendingQueueFullCounter;
 
     public ProducerImpl(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
                         CompletableFuture<Producer<T>> producerCreatedFuture, int partitionIndex, Schema<T> schema,
@@ -310,11 +313,17 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 "The number of producer sessions opened", topic, Attributes.empty());
         producersClosedCounter = ip.newCounter("pulsar.client.producer.closed", Unit.Sessions,
                 "The number of producer sessions closed", topic, Attributes.empty());
+        pendingQueueFullCounter = new AtomicInteger();
 
         this.connectionHandler = initConnectionHandler();
         setChunkMaxMessageSize();
         grabCnx();
         producersOpenedCounter.increment();
+    }
+
+    @VisibleForTesting
+    public int getPendingQueueFullCount() {
+        return pendingQueueFullCounter.get();
     }
 
     ConnectionHandler initConnectionHandler() {
@@ -395,6 +404,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         sendAsync(interceptorMessage, new DefaultSendMessageCallback(future, interceptorMessage, msgSize));
         return future;
+    }
+
+    public void printWarnLogWhenCanNotDetermineDeduplication(Channel channel, long sequenceId,
+                                                             long highestSequenceId) {
+        log.warn("[{}] producer [id:{}, name:{}, channel: {}] message with sequence-id {}-{} published by has been"
+                        + " dropped because Broker can not determine whether is duplicate or not",
+                topic, producerId, producerName, channel, sequenceId, highestSequenceId);
     }
 
     private class DefaultSendMessageCallback implements SendCallback {
@@ -1067,6 +1083,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 client.getMemoryLimitController().reserveMemory(payloadSize);
             } else {
                 if (!semaphore.map(Semaphore::tryAcquire).orElse(true)) {
+                    pendingQueueFullCounter.incrementAndGet();
                     callback.sendComplete(new PulsarClientException.ProducerQueueIsFullError(
                             "Producer send queue is full", sequenceId));
                     return false;

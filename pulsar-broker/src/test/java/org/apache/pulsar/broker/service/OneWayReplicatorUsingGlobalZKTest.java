@@ -226,8 +226,9 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         super.testIncompatibleMultiVersionSchema(enableDeduplication);
     }
 
-    @Override
+
     @Test
+    @Override
     public void testTopicPoliciesReplicationRule() throws Exception {
         super.testTopicPoliciesReplicationRule();
     }
@@ -236,5 +237,17 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
     @Override
     public void testReplicationCountMetrics() throws Exception {
         super.testReplicationCountMetrics();
+    }
+
+    @Override
+    @Test
+    public void testReplicatorsInflightTaskListIsEmptyAfterReplicationFinished() throws Exception {
+        super.testReplicatorsInflightTaskListIsEmptyAfterReplicationFinished();
+    }
+
+    @Override
+    @Test(enabled = false)
+    public void testConcurrencyReplicationReadEntries() throws Exception {
+        super.testConcurrencyReplicationReadEntries();
     }
 }

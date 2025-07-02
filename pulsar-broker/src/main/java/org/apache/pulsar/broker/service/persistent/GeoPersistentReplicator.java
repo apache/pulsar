@@ -82,7 +82,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
     }
 
     @Override
-    protected boolean replicateEntries(List<Entry> entries) {
+    protected boolean replicateEntries(List<Entry> entries, final InFlightTask inFlightTask) {
         boolean atLeastOneMessageSentForReplication = false;
         boolean isEnableReplicatedSubscriptions =
                 brokerService.pulsar().getConfiguration().isEnableReplicatedSubscriptions();
@@ -91,12 +91,13 @@ public class GeoPersistentReplicator extends PersistentReplicator {
             // This flag is set to true when we skip at least one local message,
             // in order to skip remaining local messages.
             boolean isLocalMessageSkippedOnce = false;
-            boolean skipRemainingMessages = false;
+            boolean skipRemainingMessages = inFlightTask.isSkipReadResultDueToCursorRewind();
             for (int i = 0; i < entries.size(); i++) {
                 Entry entry = entries.get(i);
                 // Skip the messages since the replicator need to fetch the schema info to replicate the schema to the
                 // remote cluster. Rewind the cursor first and continue the message read after fetched the schema.
                 if (skipRemainingMessages) {
+                    inFlightTask.incCompletedEntries();
                     entry.release();
                     continue;
                 }
@@ -109,12 +110,14 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     log.error("[{}] Failed to deserialize message at {} (buffer size: {}): {}", replicatorId,
                             entry.getPosition(), length, t.getMessage(), t);
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
+                    inFlightTask.incCompletedEntries();
                     entry.release();
                     continue;
                 }
 
                 if (Markers.isTxnMarker(msg.getMessageBuilder())) {
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
+                    inFlightTask.incCompletedEntries();
                     entry.release();
                     msg.recycle();
                     continue;
@@ -124,6 +127,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                             msg.getMessageBuilder().getTxnidLeastBits());
                     if (topic.isTxnAborted(tx, (PositionImpl) entry.getPosition())) {
                         cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
+                        inFlightTask.incCompletedEntries();
                         entry.release();
                         msg.recycle();
                         continue;
@@ -137,6 +141,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                 if (msg.isReplicated()) {
                     // Discard messages that were already replicated into this region
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
+                    inFlightTask.incCompletedEntries();
                     entry.release();
                     msg.recycle();
                     continue;
@@ -148,6 +153,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                                 entry.getPosition(), msg.getReplicateTo());
                     }
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
+                    inFlightTask.incCompletedEntries();
                     entry.release();
                     msg.recycle();
                     continue;
@@ -160,6 +166,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                                 replicatorId, entry.getPosition(), msg.getReplicateTo());
                     }
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
+                    inFlightTask.incCompletedEntries();
                     entry.release();
                     msg.recycle();
                     continue;
@@ -167,12 +174,13 @@ public class GeoPersistentReplicator extends PersistentReplicator {
 
                 if (STATE_UPDATER.get(this) != State.Started || isLocalMessageSkippedOnce) {
                     // The producer is not ready yet after having stopped/restarted. Drop the message because it will
-                    // recovered when the producer is ready
+                    // recover when the producer is ready
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Dropping read message at {} because producer is not ready",
                                 replicatorId, entry.getPosition());
                     }
                     isLocalMessageSkippedOnce = true;
+                    inFlightTask.incCompletedEntries();
                     entry.release();
                     msg.recycle();
                     continue;
@@ -185,14 +193,23 @@ public class GeoPersistentReplicator extends PersistentReplicator {
 
                 CompletableFuture<SchemaInfo> schemaFuture = getSchemaInfo(msg);
                 if (!schemaFuture.isDone() || schemaFuture.isCompletedExceptionally()) {
+                    /**
+                     * Skip in flight reading tasks.
+                     * Explain the result of the race-condition between:
+                     *   - {@link #readMoreEntries}
+                     *   - {@link #beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding)}
+                     * Since {@link #acquirePermitsIfNotFetchingSchema} and
+                     *   {@link #beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding)} acquire the
+                     * same lock, it is safe.
+                     */
+                    beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding.Fetching_Schema);
+                    inFlightTask.incCompletedEntries();
                     entry.release();
                     headersAndPayload.release();
                     msg.recycle();
                     // Mark the replicator is fetching the schema for now and rewind the cursor
                     // and trigger the next read after complete the schema fetching.
-                    fetchSchemaInProgress = true;
                     skipRemainingMessages = true;
-                    cursor.cancelPendingReadRequest();
                     log.info("[{}] Pause the data replication due to new detected schema", replicatorId);
                     schemaFuture.whenComplete((__, e) -> {
                         if (e != null) {
@@ -200,9 +217,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                                     replicatorId, e);
                         }
                         log.info("[{}] Resume the data replication after the schema fetching done", replicatorId);
-                        cursor.rewind();
-                        fetchSchemaInProgress = false;
-                        readMoreEntries();
+                        doRewindCursor(true);
                     });
                 } else {
                     msg.setSchemaInfoForReplicator(schemaFuture.get());
@@ -213,11 +228,10 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                             .setValue(String.format("%s:%s", entry.getLedgerId(), entry.getEntryId()));
                     msgOut.recordEvent(headersAndPayload.readableBytes());
                     // Increment pending messages for messages produced locally
-                    PENDING_MESSAGES_UPDATER.incrementAndGet(this);
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Publishing {}:{}", replicatorId, entry.getLedgerId(), entry.getEntryId());
                     }
-                    producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg));
+                    producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg, inFlightTask));
                     atLeastOneMessageSentForReplication = true;
                 }
             }

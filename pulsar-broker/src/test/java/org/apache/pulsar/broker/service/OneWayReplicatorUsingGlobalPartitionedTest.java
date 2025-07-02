@@ -271,4 +271,22 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
     public void testTopicPoliciesReplicationRule() throws Exception {
         super.testTopicPoliciesReplicationRule();
     }
+
+    @Test(enabled = false)
+    @Override
+    public void testReplicationCountMetrics() throws Exception {
+        super.testReplicationCountMetrics();
+    }
+
+    @Override
+    @Test
+    public void testReplicatorsInflightTaskListIsEmptyAfterReplicationFinished() throws Exception {
+        super.testReplicatorsInflightTaskListIsEmptyAfterReplicationFinished();
+    }
+
+    @Override
+    @Test(enabled = false)
+    public void testConcurrencyReplicationReadEntries() throws Exception {
+        super.testConcurrencyReplicationReadEntries();
+    }
 }
