@@ -53,7 +53,7 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
     private volatile List<InetSocketAddress> allAddressList;
     private volatile Set<InetSocketAddress> allAddressSet;
     private volatile List<InetSocketAddress> availableAddressList;
-    private final Map<InetSocketAddress, EndpointStatus> hostAvailabilityMap = new HashMap<>();
+    private final Map<InetSocketAddress, EndpointStatus> hostAvailabilityMap = new ConcurrentHashMap<>();
     private final long serviceUrlQuarantineInitDurationMs;
     private final long serviceUrlQuarantineMaxDurationMs;
     private final boolean enableServiceUrlQuarantine;
