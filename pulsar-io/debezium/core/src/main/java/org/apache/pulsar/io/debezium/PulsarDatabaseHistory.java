@@ -100,6 +100,8 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
         DatabaseHistory.NAME,
         READER_CONFIG);
 
+    protected static final String DURABLE_SUB_NAME = "durable-sub";
+
     private final ObjectMapper mapper = new ObjectMapper();
     private final DocumentReader reader = DocumentReader.defaultReader();
     private String topicName;
@@ -161,6 +163,15 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
         // try simple to publish an empty string to create topic
         try (Producer<String> p = pulsarClient.newProducer(Schema.STRING).topic(topicName).create()) {
             p.send("");
+        } catch (PulsarClientException pce) {
+            log.error("Failed to initialize storage", pce);
+            throw new RuntimeException("Failed to initialize storage", pce);
+        }
+        try (org.apache.pulsar.client.api.Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .subscriptionName(DURABLE_SUB_NAME).topic(topicName).subscribe()) {
+            String subscription = consumer.getSubscription();
+            log.info("Create a durable subscription: <{}> to make sure history topic data is retained: {}",
+                    subscription, topicName);
         } catch (PulsarClientException pce) {
             log.error("Failed to initialize storage", pce);
             throw new RuntimeException("Failed to initialize storage", pce);

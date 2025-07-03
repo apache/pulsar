@@ -158,6 +158,10 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
         ddlParser.parse(ddl, tables3);
         assertEquals(3, tables3.size());
 
+        // trim topic
+        admin.topics().unload(topicName);
+        admin.topics().trimTopic(topicName);
+
         // Stop the history (which should stop the producer) ...
         history.stop();
         history = new PulsarDatabaseHistory();
@@ -258,8 +262,9 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
         assertTrue(history.exists());
         try (Reader<String> ignored = history.createHistoryReader()) {
             List<String> subscriptions = admin.topics().getSubscriptions(topicName);
-            assertEquals(subscriptions.size(), 1);
+            assertEquals(subscriptions.size(), 2);
             assertTrue(subscriptions.contains("my-subscription"));
+            assertTrue(subscriptions.contains(PulsarDatabaseHistory.DURABLE_SUB_NAME));
         } catch (Exception e) {
             fail("Failed to create history reader");
         }
