@@ -218,7 +218,7 @@ public class AuthorizationService {
         if (!this.conf.isAuthorizationEnabled()) {
             return CompletableFuture.completedFuture(true);
         }
-        return provider.isSuperUser(role, authenticationData, conf).thenComposeAsync(isSuperUser -> {
+        return provider.isSuperUser(role, authenticationData, conf).thenCompose(isSuperUser -> {
             if (isSuperUser) {
                 return CompletableFuture.completedFuture(true);
             } else {
@@ -243,7 +243,7 @@ public class AuthorizationService {
         if (!this.conf.isAuthorizationEnabled()) {
             return CompletableFuture.completedFuture(true);
         }
-        return provider.isSuperUser(role, authenticationData, conf).thenComposeAsync(isSuperUser -> {
+        return provider.isSuperUser(role, authenticationData, conf).thenCompose(isSuperUser -> {
             if (isSuperUser) {
                 return CompletableFuture.completedFuture(true);
             } else {
@@ -325,7 +325,7 @@ public class AuthorizationService {
         if (!this.conf.isAuthorizationEnabled()) {
             return CompletableFuture.completedFuture(true);
         }
-        return provider.isSuperUser(role, authenticationData, conf).thenComposeAsync(isSuperUser -> {
+        return provider.isSuperUser(role, authenticationData, conf).thenCompose(isSuperUser -> {
             if (isSuperUser) {
                 return CompletableFuture.completedFuture(true);
             } else {
