@@ -41,6 +41,7 @@ import java.util.function.Supplier;
  * running.
  */
 public class PendingAcksMap {
+
     /**
      * Callback interface for handling the addition of pending acknowledgments.
      */
@@ -227,6 +228,15 @@ public class PendingAcksMap {
         }
     }
 
+    public void clear() {
+        try {
+            writeLock.lock();
+            pendingAcks.clear();
+        } finally {
+            writeLock.unlock();
+        }
+    }
+
     /**
      * Check if the map contains a pending ack for the given ledger ID and entry ID.
      *
@@ -330,9 +340,10 @@ public class PendingAcksMap {
      *
      * @param markDeleteLedgerId the ledger ID up to which to remove pending acks
      * @param markDeleteEntryId the entry ID up to which to remove pending acks
+     * @return the sum batchSize of removed pending acks
      */
-    public void removeAllUpTo(long markDeleteLedgerId, long markDeleteEntryId) {
-        internalRemoveAllUpTo(markDeleteLedgerId, markDeleteEntryId, false);
+    public int removeAllUpTo(long markDeleteLedgerId, long markDeleteEntryId) {
+        return internalRemoveAllUpTo(markDeleteLedgerId, markDeleteEntryId, false);
     }
 
     /**
@@ -345,8 +356,9 @@ public class PendingAcksMap {
      * @param markDeleteLedgerId the ledger ID up to which to remove pending acks
      * @param markDeleteEntryId the entry ID up to which to remove pending acks
      * @param useWriteLock true if the method should use a write lock, false otherwise
+     * @return the sum batchSize of removed pending acks
      */
-    private void internalRemoveAllUpTo(long markDeleteLedgerId, long markDeleteEntryId, boolean useWriteLock) {
+    private int internalRemoveAllUpTo(long markDeleteLedgerId, long markDeleteEntryId, boolean useWriteLock) {
         PendingAcksRemoveHandler pendingAcksRemoveHandler = pendingAcksRemoveHandlerSupplier.get();
         // track if the write lock was acquired
         boolean acquiredWriteLock = false;
@@ -354,6 +366,8 @@ public class PendingAcksMap {
         boolean batchStarted = false;
         // track if the method should retry with a write lock
         boolean retryWithWriteLock = false;
+        // the number of removed pending acks
+        int removeCount = 0;
         try {
             if (useWriteLock) {
                 writeLock.lock();
@@ -378,9 +392,10 @@ public class PendingAcksMap {
                 while (entryMapIterator.hasNext()) {
                     Long2ObjectMap.Entry<IntIntPair> intIntPairEntry = entryMapIterator.next();
                     long entryId = intIntPairEntry.getLongKey();
+                    int batchSize = intIntPairEntry.getValue().leftInt();
                     if (!acquiredWriteLock) {
                         retryWithWriteLock = true;
-                        return;
+                        break;
                     }
                     if (pendingAcksRemoveHandler != null) {
                         if (!batchStarted) {
@@ -390,12 +405,16 @@ public class PendingAcksMap {
                         int stickyKeyHash = intIntPairEntry.getValue().rightInt();
                         pendingAcksRemoveHandler.handleRemoving(consumer, ledgerId, entryId, stickyKeyHash, closed);
                     }
+                    removeCount += batchSize;
                     entryMapIterator.remove();
+                }
+                if (retryWithWriteLock) {
+                    break;
                 }
                 if (ledgerMap.isEmpty()) {
                     if (!acquiredWriteLock) {
                         retryWithWriteLock = true;
-                        return;
+                        break;
                     }
                     ledgerMapIterator.remove();
                 }
@@ -409,10 +428,11 @@ public class PendingAcksMap {
             } else {
                 readLock.unlock();
                 if (retryWithWriteLock) {
-                    internalRemoveAllUpTo(markDeleteLedgerId, markDeleteEntryId, true);
+                    removeCount = internalRemoveAllUpTo(markDeleteLedgerId, markDeleteEntryId, true);
                 }
             }
         }
+        return removeCount;
     }
 
     private void handleRemovePendingAck(long ledgerId, long entryId, int stickyKeyHash) {
