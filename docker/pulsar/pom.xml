@@ -49,17 +49,6 @@
 
   <profiles>
     <profile>
-      <id>git-commit-id-no-git</id>
-      <activation>
-        <file>
-          <missing>${basedir}/../../.git</missing>
-        </file>
-      </activation>
-      <properties>
-        <git.commit.id.abbrev>no-git</git.commit.id.abbrev>
-      </properties>
-    </profile>
-    <profile>
       <id>docker</id>
       <build>
         <plugins>
@@ -86,10 +75,6 @@
                           <IMAGE_JDK_MAJOR_VERSION>${IMAGE_JDK_MAJOR_VERSION}</IMAGE_JDK_MAJOR_VERSION>
                         </args>
                         <contextDir>${project.basedir}</contextDir>
-                        <skipTag>${docker.skip.tag}</skipTag>
-                        <tags>
-                          <tag>${project.version}-${git.commit.id.abbrev}</tag>
-                        </tags>
                         <buildx>
                           <platforms>
                             <platform>${docker.platforms}</platform>
@@ -127,7 +112,6 @@
       <id>docker-push</id>
       <properties>
         <docker.skip.push>false</docker.skip.push>
-        <docker.skip.tag>true</docker.skip.tag>
         <docker.platforms>linux/amd64,linux/arm64</docker.platforms>
       </properties>
     </profile>
