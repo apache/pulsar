@@ -2892,15 +2892,13 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         c1.delete(Lists.newArrayList(p1, p2, p3, p4));
 
-        EntryImpl entry1 = EntryImpl.create(p1, ByteBufAllocator.DEFAULT.buffer(0));
-        EntryImpl entry2 = EntryImpl.create(p2, ByteBufAllocator.DEFAULT.buffer(0));
-        EntryImpl entry3 = EntryImpl.create(p3, ByteBufAllocator.DEFAULT.buffer(0));
-        EntryImpl entry4 = EntryImpl.create(p4, ByteBufAllocator.DEFAULT.buffer(0));
-        EntryImpl entry5 = EntryImpl.create(markDeletedPosition.getLedgerId(), markDeletedPosition.getEntryId() + 7,
-                ByteBufAllocator.DEFAULT.buffer(0));
+        EntryImpl entry1 = createEntry(p1);
+        EntryImpl entry2 = createEntry(p2);
+        EntryImpl entry3 = createEntry(p3);
+        EntryImpl entry4 = createEntry(p4);
+        EntryImpl entry5 = createEntry(
+                PositionFactory.create(markDeletedPosition.getLedgerId(), markDeletedPosition.getEntryId() + 7));
         List<Entry> entries = Lists.newArrayList(entry1, entry2, entry3, entry4, entry5);
-        // release data buffers since EntryImpl.create will retain the buffer
-        entries.forEach(entry -> entry.getDataBuffer().release());
 
         c1.trimDeletedEntries(entries);
         assertEquals(entries.size(), 1);
@@ -2914,6 +2912,16 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         // release remaining entry
         entries.forEach(Entry::release);
+    }
+
+    private static EntryImpl createEntry(Position p1) {
+        return createEntryAndReleaseBuffer(p1, ByteBufAllocator.DEFAULT.buffer(0));
+    }
+
+    private static EntryImpl createEntryAndReleaseBuffer(Position p1, ByteBuf buffer) {
+        EntryImpl entry = EntryImpl.create(p1, buffer);
+        buffer.release();
+        return entry;
     }
 
     @Test(timeOut = 20000)
