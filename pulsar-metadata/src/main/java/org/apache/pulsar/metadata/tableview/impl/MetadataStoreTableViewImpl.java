@@ -70,7 +70,7 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
     private final BiPredicate<T, T> conflictResolver;
     private final List<BiConsumer<String, T>> tailItemListeners;
     private final List<BiConsumer<String, T>> existingItemListeners;
-    private final List<BiConsumer<String, T>> itemOutdatedListeners;
+    private final List<BiConsumer<String, T>> outdatedItemListeners;
     private final boolean clearUntrustedData;
     private final long timeoutInMillis;
     private final String pathPrefix;
@@ -103,7 +103,7 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
      * @param tailItemListeners     listener for tail item(recently updated) notifications
      * @param existingItemListeners listener for existing items in metadata store
      * @param timeoutInMillis       timeout duration for each sync operation.
-     * @param itemStateOutdatedListeners Let's introduce how to ensure the correct element values: 1. The table
+     * @param outdatedItemListeners Let's introduce how to ensure the correct element values: 1. The table
      *        view will try its best to ensure that the data is always the latest. When it cannot be guaranteed, see
      *        the next Article 2. If you get an old value, you will receive an update event later, ultimately ensuring
      *        the accuracy of the data. 3. You will receive this notification when the first two cannot be guaranteed
@@ -127,7 +127,7 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
                                       Predicate<String> listenPathValidator,
                                       List<BiConsumer<String, T>> tailItemListeners,
                                       List<BiConsumer<String, T>> existingItemListeners,
-                                      @Nullable List<BiConsumer<String, T>> itemStateOutdatedListeners,
+                                      @Nullable List<BiConsumer<String, T>> outdatedItemListeners,
                                       boolean clearUntrustedData,
                                       long timeoutInMillis,
                                       @Nullable Consumer<Throwable> tableViewShutDownListener) {
@@ -145,9 +145,9 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
         if (existingItemListeners != null) {
             this.existingItemListeners.addAll(existingItemListeners);
         }
-        this.itemOutdatedListeners = new ArrayList<>();
-        if (itemStateOutdatedListeners != null) {
-            this.itemOutdatedListeners.addAll(itemStateOutdatedListeners);
+        this.outdatedItemListeners = new ArrayList<>();
+        if (outdatedItemListeners != null) {
+            this.outdatedItemListeners.addAll(outdatedItemListeners);
         }
         this.clearUntrustedData = clearUntrustedData;
         this.timeoutInMillis = timeoutInMillis;
@@ -212,7 +212,7 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
     }
 
     public void handleSessionEvent(SessionEvent sessionEvent) {
-        if (CollectionUtils.isEmpty(itemOutdatedListeners)) {
+        if (CollectionUtils.isEmpty(outdatedItemListeners)) {
             log.warn("{} Skipped handle metadata store session event {} because does not set itemOutdatedListeners",
                 name, sessionEvent);
             return;
@@ -221,7 +221,7 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
             Map<String, T> snapshot = new HashMap<>(data);
             log.warn("{} clearing owned bundles because metadata store session lost {}",  name, snapshot);
             for (Map.Entry<String, T> entry : snapshot.entrySet()) {
-                for (var listener : itemOutdatedListeners) {
+                for (var listener : outdatedItemListeners) {
                     try {
                         listener.accept(entry.getKey(), entry.getValue());
                         if (clearUntrustedData) {

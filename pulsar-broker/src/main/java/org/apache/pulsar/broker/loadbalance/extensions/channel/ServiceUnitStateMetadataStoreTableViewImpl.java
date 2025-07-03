@@ -60,18 +60,18 @@ public class ServiceUnitStateMetadataStoreTableViewImpl extends ServiceUnitState
     public void start(PulsarService pulsar,
                       BiConsumer<String, ServiceUnitStateData> tailItemListener,
                       BiConsumer<String, ServiceUnitStateData> existingItemListener,
-                      BiConsumer<String, ServiceUnitStateData> itemOutdatedListeners)
+                      BiConsumer<String, ServiceUnitStateData> outdatedItemListeners)
             throws MetadataStoreException {
         init(pulsar);
         conflictResolver = new ServiceUnitStateDataConflictResolver();
         conflictResolver.setStorageType(MetadataStore);
         if (!(pulsar.getLocalMetadataStore() instanceof AbstractMetadataStore)
             && !MetadataSessionExpiredPolicy.shutdown.equals(pulsar.getConfig().getZookeeperSessionExpiredPolicy())) {
-            String errorMsg = "Your current metadata store does not support the registration of session event"
-                    + " listeners. Please set \"zookeeperSessionExpiredPolicy\" to \"SHUTDOWN\"; otherwise, you will"
-                    + " encounter the issue that messages lost because of conflicted topic loading";
-            log.error(errorMsg);
-            throw new IllegalStateException(errorMsg);
+            String errorMsg = String.format("Your current metadata store [%s] does not support the registration of "
+                    + "session event listeners. Please set \"zookeeperSessionExpiredPolicy\" to \"shutdown\";"
+                    + " otherwise, you will encounter the issue that messages lost because of conflicted topic loading",
+                    pulsar.getLocalMetadataStore().getClass().getName());
+            log.warn(errorMsg);
         }
         tableview = new MetadataStoreTableViewImpl<>(ServiceUnitStateData.class,
                 pulsar.getBrokerId(),
@@ -81,7 +81,7 @@ public class ServiceUnitStateMetadataStoreTableViewImpl extends ServiceUnitState
                 this::validateServiceUnitPath,
                 List.of(this::updateOwnedServiceUnits, tailItemListener),
                 List.of(this::updateOwnedServiceUnits, existingItemListener),
-                List.of(this::invalidateOwnedServiceUnits, itemOutdatedListeners),
+                List.of(this::invalidateOwnedServiceUnits, outdatedItemListeners),
                 true,
                 TimeUnit.SECONDS.toMillis(pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds()),
                 t -> handleTableViewShutDownEvent(t)
