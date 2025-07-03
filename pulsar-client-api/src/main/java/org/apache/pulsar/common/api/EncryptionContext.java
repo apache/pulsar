@@ -39,6 +39,7 @@ public class EncryptionContext {
     private CompressionType compressionType;
     private int uncompressedMessageSize;
     private Optional<Integer> batchSize;
+    private boolean isEncrypted;
 
     /**
      * Encryption key with metadata.
