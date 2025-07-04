@@ -31,6 +31,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
@@ -85,7 +86,7 @@ public abstract class AbstractWebSocketHandler extends PulsarWebsocketDecoder im
     protected final Map<String, String> queryParams;
     protected final ObjectReader consumerCommandReader =
             ObjectMapperFactory.getMapper().reader().forType(ConsumerCommand.class);
-    private final String anonymousUserRole;
+    private final Optional<String> anonymousUserRole;
 
     private AuthenticationState authState;
     private AuthenticationDataSource authData;
@@ -102,7 +103,7 @@ public abstract class AbstractWebSocketHandler extends PulsarWebsocketDecoder im
                                     ServletUpgradeResponse response) {
         this.service = service;
         this.request = new WebSocketHttpServletRequestWrapper(request);
-        this.anonymousUserRole = service.getConfig().getAnonymousUserRole();
+        this.anonymousUserRole = service.getAuthenticationService().getAnonymousUserRole();
 
         this.queryParams = new TreeMap<>();
         request.getParameterMap().forEach((key, values) -> {
@@ -170,8 +171,8 @@ public abstract class AbstractWebSocketHandler extends PulsarWebsocketDecoder im
                     }
                 }
 
-                if (StringUtils.isNotBlank(anonymousUserRole)) {
-                    authRole = anonymousUserRole;
+                if (StringUtils.isNotBlank(anonymousUserRole.orElse(""))) {
+                    authRole = anonymousUserRole.get();
                     if (log.isDebugEnabled()) {
                         log.debug("Anonymous authentication succeded");
                     }
