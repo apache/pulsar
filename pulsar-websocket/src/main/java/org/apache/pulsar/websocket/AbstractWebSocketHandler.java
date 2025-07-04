@@ -85,6 +85,7 @@ public abstract class AbstractWebSocketHandler extends PulsarWebsocketDecoder im
     protected final Map<String, String> queryParams;
     protected final ObjectReader consumerCommandReader =
             ObjectMapperFactory.getMapper().reader().forType(ConsumerCommand.class);
+    private final String anonymousUserRole;
 
     private AuthenticationState authState;
     private AuthenticationDataSource authData;
@@ -101,6 +102,7 @@ public abstract class AbstractWebSocketHandler extends PulsarWebsocketDecoder im
                                     ServletUpgradeResponse response) {
         this.service = service;
         this.request = new WebSocketHttpServletRequestWrapper(request);
+        this.anonymousUserRole = service.getConfig().getAnonymousUserRole();
 
         this.queryParams = new TreeMap<>();
         request.getParameterMap().forEach((key, values) -> {
@@ -166,6 +168,14 @@ public abstract class AbstractWebSocketHandler extends PulsarWebsocketDecoder im
                         // Ignore the exception because we don't know which authentication method is
                         // expected here.
                     }
+                }
+
+                if (StringUtils.isNotBlank(anonymousUserRole)) {
+                    authRole = anonymousUserRole;
+                    if (log.isDebugEnabled()) {
+                        log.debug("Anonymous authentication succeded");
+                    }
+                    return true;
                 }
             }
             log.info("[{}:{}] Authenticated WebSocket client {} on topic {}", request.getRemoteAddr(),
