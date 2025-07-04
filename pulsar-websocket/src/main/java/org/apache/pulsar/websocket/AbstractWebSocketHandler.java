@@ -173,13 +173,12 @@ public abstract class AbstractWebSocketHandler extends PulsarWebsocketDecoder im
         } catch (javax.naming.AuthenticationException e) {
             log.warn("[{}:{}] Failed to authenticated WebSocket client {} on topic {}: {}", request.getRemoteAddr(),
                     request.getRemotePort(), authRole, topic, e.getMessage());
-            try {
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Failed to authenticate");
-            } catch (IOException e1) {
-                log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
-                        e1.getMessage(), e1);
-            }
-            return false;
+        }
+        try {
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Failed to authenticate");
+        } catch (IOException e1) {
+            log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
+                    e1.getMessage(), e1);
         }
         return false;
     }
