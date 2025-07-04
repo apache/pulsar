@@ -29,6 +29,7 @@ import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.stream.storage.api.cluster.ClusterInitializer;
 import org.apache.bookkeeper.stream.storage.impl.cluster.ZkClusterInitializer;
 import org.apache.bookkeeper.util.BookKeeperConstants;
+import org.apache.commons.configuration2.convert.DisabledListDelimiterHandler;
 import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
@@ -304,7 +305,7 @@ public class PulsarClusterMetadataSetup {
         // Format BookKeeper ledger storage metadata
         if (arguments.existingBkMetadataServiceUri == null && arguments.bookieMetadataServiceUri == null) {
             ServerConfiguration bkConf = new ServerConfiguration();
-            bkConf.setDelimiterParsingDisabled(true);
+            bkConf.setListDelimiterHandler(new DisabledListDelimiterHandler());
             bkConf.setMetadataServiceUri("metadata-store:" + arguments.metadataStoreUrl);
             bkConf.setZkTimeout(arguments.zkSessionTimeoutMillis);
             // only format if /ledgers doesn't exist
