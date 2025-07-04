@@ -230,6 +230,8 @@ public class BrokerService implements Closeable {
     // Keep track of topics and partitions served by this broker for fast lookup.
     @Getter
     private final Map<String, Set<Integer>> owningTopics = new ConcurrentHashMap<>();
+    private final Runnable cancelLocalMetadataStoreListener;
+    private final Runnable cancelConfigurationMetadataStoreListener;
     private long numberOfNamespaceBundles = 0;
 
     private final EventLoopGroup acceptorGroup;
@@ -358,9 +360,13 @@ public class BrokerService implements Closeable {
                 pulsar.getConfiguration(), pulsar().getPulsarResources());
         this.entryFilterProvider = new EntryFilterProvider(pulsar.getConfiguration());
 
-        pulsar.getLocalMetadataStore().registerListener(this::handleMetadataChanges);
+        cancelLocalMetadataStoreListener =
+                pulsar.getLocalMetadataStore().registerCancellableListener(this::handleMetadataChanges);
         if (pulsar.getConfigurationMetadataStore() != pulsar.getLocalMetadataStore()) {
-            pulsar.getConfigurationMetadataStore().registerListener(this::handleMetadataChanges);
+            cancelConfigurationMetadataStoreListener =
+                    pulsar.getConfigurationMetadataStore().registerCancellableListener(this::handleMetadataChanges);
+        } else {
+            cancelConfigurationMetadataStoreListener = null;
         }
 
         this.inactivityMonitor = OrderedScheduler.newSchedulerBuilder()
@@ -849,6 +855,13 @@ public class BrokerService implements Closeable {
             //close entry filters
             if (entryFilterProvider != null) {
                 entryFilterProvider.close();
+            }
+
+            if (cancelLocalMetadataStoreListener != null) {
+                cancelLocalMetadataStoreListener.run();
+            }
+            if (cancelConfigurationMetadataStoreListener != null) {
+                cancelConfigurationMetadataStoreListener.run();
             }
 
             CompletableFuture<CompletableFuture<Void>> cancellableDownstreamFutureReference = new CompletableFuture<>();

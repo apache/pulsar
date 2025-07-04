@@ -327,7 +327,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         BlockingQueue<Notification> notifications = new LinkedBlockingDeque<>();
-        store.registerListener(n -> {
+        store.registerCancellableListener(n -> {
             notifications.add(n);
         });
 

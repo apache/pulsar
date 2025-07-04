@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
  * @see <a href="https://github.com/apache/pulsar/wiki/PIP-82%3A-Tenant-and-namespace-level-rate-limiting">Global-quotas</a>
  *
  */
-public class ResourceGroupNamespaceConfigListener implements Consumer<Notification> {
+public class ResourceGroupNamespaceConfigListener implements Consumer<Notification>, AutoCloseable {
 
     private static final Logger LOG = LoggerFactory.getLogger(ResourceGroupNamespaceConfigListener.class);
     private final ResourceGroupService rgService;
@@ -47,6 +47,7 @@ public class ResourceGroupNamespaceConfigListener implements Consumer<Notificati
     private final NamespaceResources namespaceResources;
     private final TenantResources tenantResources;
     private final ResourceGroupConfigListener rgConfigListener;
+    private final Runnable cancelMetadataStoreListener;
 
     public ResourceGroupNamespaceConfigListener(ResourceGroupService rgService, PulsarService pulsarService,
             ResourceGroupConfigListener rgConfigListener) {
@@ -56,7 +57,7 @@ public class ResourceGroupNamespaceConfigListener implements Consumer<Notificati
         this.tenantResources = pulsarService.getPulsarResources().getTenantResources();
         this.rgConfigListener = rgConfigListener;
         loadAllNamespaceResourceGroups();
-        this.namespaceResources.getStore().registerListener(this);
+        cancelMetadataStoreListener = this.namespaceResources.getStore().registerCancellableListener(this);
     }
 
     private void updateNamespaceResourceGroup(NamespaceName nsName) {
@@ -173,5 +174,10 @@ public class ResourceGroupNamespaceConfigListener implements Consumer<Notificati
                 break;
             }
         }
+    }
+
+    @Override
+    public void close() throws Exception {
+        cancelMetadataStoreListener.run();
     }
 }
