@@ -654,6 +654,220 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertNotNull(topic);
     }
 
+    /**
+     * Test namespace level persistence policies and verify that the internal managed ledger
+     * has applied the correct managedLedgerMaxMarkDeleteRate.
+     * 
+     * This test verifies:
+     * 1. Setting namespace persistence policies with managedLedgerMaxMarkDeleteRate
+     * 2. Creating a topic and verifying the managed ledger config is applied correctly
+     * 3. Verifying that cursors have the correct throttle mark delete rate
+     * 4. Testing policy updates and verifying they are applied to existing topics
+     * 5. Testing policy removal and fallback to broker defaults
+     * 6. Testing managedLedgerMaxMarkDeleteRate=-1 which should fall back to broker defaults
+     *
+     * @throws Exception
+     */
+    @Test()
+    public void testNamespacePersistencePoliciesWithManagedLedgerMaxMarkDeleteRate() throws Exception {
+        final String namespace = newUniqueName(defaultTenant + "/ns-persistence-test");
+        final String topicName = "persistent://" + namespace + "/test-topic";
+        
+        // Create namespace
+        admin.namespaces().createNamespace(namespace, Set.of("test"));
+        
+        // Test 1: Set initial persistence policies with managedLedgerMaxMarkDeleteRate
+        final double initialMarkDeleteRate = 25.0;
+        final int initialEnsembleSize = 3;
+        final int initialWriteQuorum = 2;
+        final int initialAckQuorum = 1;
+        
+        PersistencePolicies initialPolicies = new PersistencePolicies(
+            initialEnsembleSize, initialWriteQuorum, initialAckQuorum, initialMarkDeleteRate);
+        
+        admin.namespaces().setPersistence(namespace, initialPolicies);
+        
+        // Verify the policies are set correctly
+        PersistencePolicies retrievedPolicies = admin.namespaces().getPersistence(namespace);
+        assertEquals(retrievedPolicies, initialPolicies);
+        assertEquals(retrievedPolicies.getManagedLedgerMaxMarkDeleteRate(), initialMarkDeleteRate);
+        
+        // Test 2: Create a topic and verify managed ledger config is applied
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+            .topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+            .topic(topicName)
+            .subscriptionName("test-sub")
+            .subscribe();
+        
+        // Get the topic and managed ledger
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) topic.getManagedLedger();
+        
+        // Verify managed ledger config has the correct settings
+        assertEquals(managedLedger.getConfig().getEnsembleSize(), initialEnsembleSize);
+        assertEquals(managedLedger.getConfig().getWriteQuorumSize(), initialWriteQuorum);
+        assertEquals(managedLedger.getConfig().getAckQuorumSize(), initialAckQuorum);
+        assertEquals(managedLedger.getConfig().getThrottleMarkDelete(), initialMarkDeleteRate);
+        
+        // Test 3: Verify cursor has the correct throttle mark delete rate
+        ManagedCursorImpl cursor = (ManagedCursorImpl) managedLedger.getCursors().iterator().next();
+        assertEquals(cursor.getThrottleMarkDelete(), initialMarkDeleteRate);
+        
+        // Test 4: Update persistence policies and verify they are applied
+        final double updatedMarkDeleteRate = 75.0;
+        final int updatedEnsembleSize = 5;
+        final int updatedWriteQuorum = 3;
+        final int updatedAckQuorum = 2;
+        
+        PersistencePolicies updatedPolicies = new PersistencePolicies(
+            updatedEnsembleSize, updatedWriteQuorum, updatedAckQuorum, updatedMarkDeleteRate);
+        
+        admin.namespaces().setPersistence(namespace, updatedPolicies);
+
+        // Verify the policies are updated correctly
+        retrievedPolicies = admin.namespaces().getPersistence(namespace);
+        assertEquals(retrievedPolicies, updatedPolicies);
+        assertEquals(retrievedPolicies.getManagedLedgerMaxMarkDeleteRate(), updatedMarkDeleteRate);
+        
+        // Wait for the managed ledger config to be updated
+        retryStrategically((test) -> 
+            managedLedger.getConfig().getEnsembleSize() == updatedEnsembleSize &&
+            managedLedger.getConfig().getWriteQuorumSize() == updatedWriteQuorum &&
+            managedLedger.getConfig().getAckQuorumSize() == updatedAckQuorum &&
+            managedLedger.getConfig().getThrottleMarkDelete() == updatedMarkDeleteRate &&
+            cursor.getThrottleMarkDelete() == updatedMarkDeleteRate, 
+            10, 200);
+        
+        // Verify managed ledger config has been updated
+        assertEquals(managedLedger.getConfig().getEnsembleSize(), updatedEnsembleSize);
+        assertEquals(managedLedger.getConfig().getWriteQuorumSize(), updatedWriteQuorum);
+        assertEquals(managedLedger.getConfig().getAckQuorumSize(), updatedAckQuorum);
+        assertEquals(managedLedger.getConfig().getThrottleMarkDelete(), updatedMarkDeleteRate);
+        
+        // Verify cursor throttle mark delete rate has been updated
+        assertEquals(cursor.getThrottleMarkDelete(), updatedMarkDeleteRate);
+        
+        // Test 5: Create a new topic and verify it uses the updated policies
+        final String newTopicName = "persistent://" + namespace + "/new-test-topic";
+        @Cleanup
+        Producer<byte[]> newProducer = pulsarClient.newProducer()
+            .topic(newTopicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
+        @Cleanup
+        Consumer<byte[]> newConsumer = pulsarClient.newConsumer()
+            .topic(newTopicName)
+            .subscriptionName("new-test-sub")
+            .subscribe();
+        
+        PersistentTopic newTopic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(newTopicName).get();
+        ManagedLedgerImpl newManagedLedger = (ManagedLedgerImpl) newTopic.getManagedLedger();
+        ManagedCursorImpl newCursor = (ManagedCursorImpl) newManagedLedger.getCursors().iterator().next();
+        
+        // Verify new topic uses updated policies
+        assertEquals(newManagedLedger.getConfig().getEnsembleSize(), updatedEnsembleSize);
+        assertEquals(newManagedLedger.getConfig().getWriteQuorumSize(), updatedWriteQuorum);
+        assertEquals(newManagedLedger.getConfig().getAckQuorumSize(), updatedAckQuorum);
+        assertEquals(newManagedLedger.getConfig().getThrottleMarkDelete(), updatedMarkDeleteRate);
+        assertEquals(newCursor.getThrottleMarkDelete(), updatedMarkDeleteRate);
+        
+        // Test 6: Test managedLedgerMaxMarkDeleteRate=-1 which should fall back to broker defaults
+        final double fallbackMarkDeleteRate = -1.0;
+        final int fallbackEnsembleSize = 4;
+        final int fallbackWriteQuorum = 2;
+        final int fallbackAckQuorum = 1;
+        
+        PersistencePolicies fallbackPolicies = new PersistencePolicies(
+            fallbackEnsembleSize, fallbackWriteQuorum, fallbackAckQuorum, fallbackMarkDeleteRate);
+        
+        admin.namespaces().setPersistence(namespace, fallbackPolicies);
+        
+        // Verify the policies are set correctly
+        retrievedPolicies = admin.namespaces().getPersistence(namespace);
+        assertEquals(retrievedPolicies, fallbackPolicies);
+        assertEquals(retrievedPolicies.getManagedLedgerMaxMarkDeleteRate(), fallbackMarkDeleteRate);
+        
+        // Create a topic to verify it uses broker defaults for mark delete rate
+        final String fallbackTopicName = "persistent://" + namespace + "/fallback-test-topic";
+        @Cleanup
+        Producer<byte[]> fallbackProducer = pulsarClient.newProducer()
+            .topic(fallbackTopicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
+        @Cleanup
+        Consumer<byte[]> fallbackConsumer = pulsarClient.newConsumer()
+            .topic(fallbackTopicName)
+            .subscriptionName("fallback-test-sub")
+            .subscribe();
+        
+        PersistentTopic fallbackTopic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(fallbackTopicName).get();
+        ManagedLedgerImpl fallbackManagedLedger = (ManagedLedgerImpl) fallbackTopic.getManagedLedger();
+        ManagedCursorImpl fallbackCursor = (ManagedCursorImpl) fallbackManagedLedger.getCursors().iterator().next();
+        
+        // Verify new topic uses fallback policies (broker defaults for mark delete rate)
+        assertEquals(fallbackManagedLedger.getConfig().getEnsembleSize(), fallbackEnsembleSize);
+        assertEquals(fallbackManagedLedger.getConfig().getWriteQuorumSize(), fallbackWriteQuorum);
+        assertEquals(fallbackManagedLedger.getConfig().getAckQuorumSize(), fallbackAckQuorum);
+        assertEquals(fallbackManagedLedger.getConfig().getThrottleMarkDelete(), 
+            pulsar.getConfiguration().getManagedLedgerDefaultMarkDeleteRateLimit());
+        assertEquals(fallbackCursor.getThrottleMarkDelete(), 
+            pulsar.getConfiguration().getManagedLedgerDefaultMarkDeleteRateLimit());
+        
+        // Test 7: Remove namespace persistence policies and verify fallback to broker defaults
+        admin.namespaces().removePersistence(namespace);
+        
+        // Verify policies are removed
+        assertNull(admin.namespaces().getPersistence(namespace));
+        
+        // Create another topic to verify it uses broker defaults
+        final String defaultTopicName = "persistent://" + namespace + "/default-test-topic";
+        @Cleanup
+        Producer<byte[]> defaultProducer = pulsarClient.newProducer()
+            .topic(defaultTopicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
+        @Cleanup
+        Consumer<byte[]> defaultConsumer = pulsarClient.newConsumer()
+            .topic(defaultTopicName)
+            .subscriptionName("default-test-sub")
+            .subscribe();
+        
+        PersistentTopic defaultTopic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(defaultTopicName).get();
+        ManagedLedgerImpl defaultManagedLedger = (ManagedLedgerImpl) defaultTopic.getManagedLedger();
+        ManagedCursorImpl defaultCursor = (ManagedCursorImpl) defaultManagedLedger.getCursors().iterator().next();
+        
+        // Verify new topic uses broker defaults
+        assertEquals(defaultManagedLedger.getConfig().getEnsembleSize(), 
+            pulsar.getConfiguration().getManagedLedgerDefaultEnsembleSize());
+        assertEquals(defaultManagedLedger.getConfig().getWriteQuorumSize(), 
+            pulsar.getConfiguration().getManagedLedgerDefaultWriteQuorum());
+        assertEquals(defaultManagedLedger.getConfig().getAckQuorumSize(), 
+            pulsar.getConfiguration().getManagedLedgerDefaultAckQuorum());
+        assertEquals(defaultManagedLedger.getConfig().getThrottleMarkDelete(), 
+            pulsar.getConfiguration().getManagedLedgerDefaultMarkDeleteRateLimit());
+        assertEquals(defaultCursor.getThrottleMarkDelete(), 
+            pulsar.getConfiguration().getManagedLedgerDefaultMarkDeleteRateLimit());
+        
+        // Test 8: Verify that existing topic uses broker defaults
+        assertEquals(managedLedger.getConfig().getThrottleMarkDelete(),
+            pulsar.getConfiguration().getManagedLedgerDefaultMarkDeleteRateLimit());
+        assertEquals(cursor.getThrottleMarkDelete(),
+            pulsar.getConfiguration().getManagedLedgerDefaultMarkDeleteRateLimit());
+        assertEquals(newManagedLedger.getConfig().getThrottleMarkDelete(),
+            pulsar.getConfiguration().getManagedLedgerDefaultMarkDeleteRateLimit());
+        assertEquals(newCursor.getThrottleMarkDelete(),
+            pulsar.getConfiguration().getManagedLedgerDefaultMarkDeleteRateLimit());
+    }
+
     private void unloadTopic(String topicName) throws Exception {
         admin.topics().unload(topicName);
     }
