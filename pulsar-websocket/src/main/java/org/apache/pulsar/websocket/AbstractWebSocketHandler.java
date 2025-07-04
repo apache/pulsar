@@ -86,7 +86,6 @@ public abstract class AbstractWebSocketHandler extends PulsarWebsocketDecoder im
     protected final Map<String, String> queryParams;
     protected final ObjectReader consumerCommandReader =
             ObjectMapperFactory.getMapper().reader().forType(ConsumerCommand.class);
-    private final Optional<String> anonymousUserRole;
 
     private AuthenticationState authState;
     private AuthenticationDataSource authData;
@@ -103,7 +102,6 @@ public abstract class AbstractWebSocketHandler extends PulsarWebsocketDecoder im
                                     ServletUpgradeResponse response) {
         this.service = service;
         this.request = new WebSocketHttpServletRequestWrapper(request);
-        this.anonymousUserRole = service.getAuthenticationService().getAnonymousUserRole();
 
         this.queryParams = new TreeMap<>();
         request.getParameterMap().forEach((key, values) -> {
@@ -171,7 +169,8 @@ public abstract class AbstractWebSocketHandler extends PulsarWebsocketDecoder im
                     }
                 }
 
-                if (StringUtils.isNotBlank(anonymousUserRole.orElse(""))) {
+                Optional<String> anonymousUserRole = service.getAuthenticationService().getAnonymousUserRole();
+                if (anonymousUserRole.isPresent() && StringUtils.isNotBlank(anonymousUserRole.get())) {
                     authRole = anonymousUserRole.get();
                     if (log.isDebugEnabled()) {
                         log.debug("Anonymous authentication succeded");
