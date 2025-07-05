@@ -38,7 +38,6 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 import lombok.Cleanup;
 import org.apache.pulsar.client.admin.ListTopicsOptions;
@@ -47,7 +46,6 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.admin.Topics;
-import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.LedgerInfo;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -95,27 +93,6 @@ public class TestCmdTopics {
         l.entries = entries;
         l.size = size;
         return l;
-    }
-
-    @Test
-    public void testFindFirstLedgerWithinThreshold() throws Exception {
-        List<LedgerInfo> ledgers = new ArrayList<>();
-        ledgers.add(newLedger(0, 10, 1000));
-        ledgers.add(newLedger(1, 10, 2000));
-        ledgers.add(newLedger(2, 10, 3000));
-
-        // test huge threshold
-        Assert.assertNull(CmdTopics.findFirstLedgerWithinThreshold(ledgers, Long.MAX_VALUE));
-
-        // test small threshold
-        Assert.assertEquals(CmdTopics.findFirstLedgerWithinThreshold(ledgers, 0),
-                            new MessageIdImpl(2, 0, -1));
-
-        // test middling thresholds
-        Assert.assertEquals(CmdTopics.findFirstLedgerWithinThreshold(ledgers, 1000),
-                            new MessageIdImpl(2, 0, -1));
-        Assert.assertEquals(CmdTopics.findFirstLedgerWithinThreshold(ledgers, 5000),
-                            new MessageIdImpl(1, 0, -1));
     }
 
     @Test
