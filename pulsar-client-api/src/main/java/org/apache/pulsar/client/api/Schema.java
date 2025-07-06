@@ -46,7 +46,7 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public interface Schema<T> extends Cloneable {
+public interface Schema<T> extends Cloneable, AutoCloseable {
 
     /**
      * Check if the message is a valid object for this schema.
@@ -92,6 +92,10 @@ public interface Schema<T> extends Cloneable {
     }
 
     default void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {
+    }
+
+    default SchemaInfoProvider getSchemaInfoProvider() {
+        return null;
     }
 
     /**
@@ -183,6 +187,11 @@ public interface Schema<T> extends Cloneable {
      * @return The duplicated schema.
      */
     Schema<T> clone();
+
+    @Override
+    default void close() {
+        // no-op
+    }
 
     /**
      * Schema that doesn't perform any encoding on the message payloads. Accepts a byte array and it passes it through.

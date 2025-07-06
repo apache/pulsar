@@ -202,6 +202,12 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
 
     public void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {
         this.schemaInfoProvider = schemaInfoProvider;
+        if (this.keySchema.getSchemaInfo().getType() == SchemaType.EXTERNAL) {
+            this.keySchema.setSchemaInfoProvider(schemaInfoProvider);
+        }
+        if (this.valueSchema.getSchemaInfo().getType() == SchemaType.EXTERNAL) {
+            this.valueSchema.setSchemaInfoProvider(schemaInfoProvider);
+        }
     }
 
     @Override
@@ -247,43 +253,47 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
     }
 
     private void setSchemaInfoProviderOnSubschemas() {
-        this.keySchema.setSchemaInfoProvider(new SchemaInfoProvider() {
-            @Override
-            public CompletableFuture<SchemaInfo> getSchemaByVersion(byte[] schemaVersion) {
-                return schemaInfoProvider.getSchemaByVersion(schemaVersion)
-                    .thenApply(si -> KeyValueSchemaInfo.decodeKeyValueSchemaInfo(si).getKey());
-            }
+        if (this.keySchema.getSchemaInfo().getType() != SchemaType.EXTERNAL) {
+            this.keySchema.setSchemaInfoProvider(new SchemaInfoProvider() {
+                @Override
+                public CompletableFuture<SchemaInfo> getSchemaByVersion(byte[] schemaVersion) {
+                    return schemaInfoProvider.getSchemaByVersion(schemaVersion)
+                            .thenApply(si -> KeyValueSchemaInfo.decodeKeyValueSchemaInfo(si).getKey());
+                }
 
-            @Override
-            public CompletableFuture<SchemaInfo> getLatestSchema() {
-                return CompletableFuture.completedFuture(
-                    ((AbstractStructSchema<K>) keySchema).schemaInfo);
-            }
+                @Override
+                public CompletableFuture<SchemaInfo> getLatestSchema() {
+                    return CompletableFuture.completedFuture(
+                            ((AbstractStructSchema<K>) keySchema).schemaInfo);
+                }
 
-            @Override
-            public String getTopicName() {
-                return "key-schema";
-            }
-        });
+                @Override
+                public String getTopicName() {
+                    return "key-schema";
+                }
+            });
+        }
 
-        this.valueSchema.setSchemaInfoProvider(new SchemaInfoProvider() {
-            @Override
-            public CompletableFuture<SchemaInfo> getSchemaByVersion(byte[] schemaVersion) {
-                return schemaInfoProvider.getSchemaByVersion(schemaVersion)
-                    .thenApply(si -> KeyValueSchemaInfo.decodeKeyValueSchemaInfo(si).getValue());
-            }
+        if (this.valueSchema.getSchemaInfo().getType() != SchemaType.EXTERNAL) {
+            this.valueSchema.setSchemaInfoProvider(new SchemaInfoProvider() {
+                @Override
+                public CompletableFuture<SchemaInfo> getSchemaByVersion(byte[] schemaVersion) {
+                    return schemaInfoProvider.getSchemaByVersion(schemaVersion)
+                            .thenApply(si -> KeyValueSchemaInfo.decodeKeyValueSchemaInfo(si).getValue());
+                }
 
-            @Override
-            public CompletableFuture<SchemaInfo> getLatestSchema() {
-                return CompletableFuture.completedFuture(
-                    ((AbstractStructSchema<V>) valueSchema).schemaInfo);
-            }
+                @Override
+                public CompletableFuture<SchemaInfo> getLatestSchema() {
+                    return CompletableFuture.completedFuture(
+                            ((AbstractStructSchema<V>) valueSchema).schemaInfo);
+                }
 
-            @Override
-            public String getTopicName() {
-                return "value-schema";
-            }
-        });
+                @Override
+                public String getTopicName() {
+                    return "value-schema";
+                }
+            });
+        }
     }
 
     @Override

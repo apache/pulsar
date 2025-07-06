@@ -1196,6 +1196,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         closeConsumerTasks();
 
+        schema.close();
+
         long requestId = client.newRequestId();
 
         ClientCnx cnx = cnx();
