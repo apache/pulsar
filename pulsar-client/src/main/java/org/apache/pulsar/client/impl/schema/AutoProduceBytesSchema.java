@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkState;
 import java.util.Optional;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
+import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -115,4 +116,12 @@ public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
     public Schema<byte[]> clone() {
         return new AutoProduceBytesSchema<>(schema.clone());
     }
+
+    @Override
+    public void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {
+        if (schema != null && schema.getSchemaInfo().getType() == SchemaType.EXTERNAL) {
+            schema.setSchemaInfoProvider(schemaInfoProvider);
+        }
+    }
+
 }

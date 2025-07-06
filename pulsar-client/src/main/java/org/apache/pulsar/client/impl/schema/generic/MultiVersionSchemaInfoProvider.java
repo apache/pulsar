@@ -22,6 +22,8 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -43,6 +45,7 @@ public class MultiVersionSchemaInfoProvider implements SchemaInfoProvider {
 
     private final TopicName topicName;
     private final PulsarClientImpl pulsarClient;
+    private final Map<String, String> configs;
 
     private final LoadingCache<BytesSchemaVersion, CompletableFuture<SchemaInfo>> cache = CacheBuilder.newBuilder()
         .maximumSize(100000)
@@ -60,9 +63,11 @@ public class MultiVersionSchemaInfoProvider implements SchemaInfoProvider {
             }
         });
 
-    public MultiVersionSchemaInfoProvider(TopicName topicName, PulsarClientImpl pulsarClient) {
+    public MultiVersionSchemaInfoProvider(TopicName topicName, PulsarClientImpl pulsarClient,
+                                          Map<String, String> configs) {
         this.topicName = topicName;
         this.pulsarClient = pulsarClient;
+        this.configs = Collections.unmodifiableMap(configs);
     }
 
     @Override
@@ -100,4 +105,10 @@ public class MultiVersionSchemaInfoProvider implements SchemaInfoProvider {
     public PulsarClientImpl getPulsarClient() {
         return pulsarClient;
     }
+
+    @Override
+    public Map<String, String> getConfigs() {
+        return configs;
+    }
+
 }
