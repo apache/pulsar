@@ -94,10 +94,6 @@ public interface Schema<T> extends Cloneable, AutoCloseable {
     default void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {
     }
 
-    default SchemaInfoProvider getSchemaInfoProvider() {
-        return null;
-    }
-
     /**
      * Decode a byte array into an object using the schema definition and deserializer implementation.
      *
