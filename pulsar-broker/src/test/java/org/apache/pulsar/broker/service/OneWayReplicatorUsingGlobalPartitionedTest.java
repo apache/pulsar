@@ -168,6 +168,12 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
         super.testDifferentTopicCreationRule(replicationMode);
     }
 
+    @Test(enabled = false)
+    @Override
+    public void testNonPersistentReplicatorQueueSize() throws Exception {
+        super.testNonPersistentReplicatorQueueSize();
+    }
+
     @Test(timeOut = 60_000)
     public void testRemoveCluster() throws Exception {
         // Initialize.
