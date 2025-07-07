@@ -56,7 +56,8 @@ public abstract class AbstractReplicator implements Replicator {
     protected final PulsarClientImpl client;
     protected String replicatorId;
     protected final Topic localTopic;
-
+    @VisibleForTesting
+    @Getter
     protected volatile ProducerImpl producer;
     public static final String REPL_PRODUCER_NAME_DELIMITER = "-->";
 
