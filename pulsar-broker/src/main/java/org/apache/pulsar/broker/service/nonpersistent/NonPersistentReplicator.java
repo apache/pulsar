@@ -23,25 +23,26 @@ import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Replicator;
-import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.SendCallback;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentReplicatorStatsImpl;
 import org.apache.pulsar.common.stats.Rate;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.pulsar.common.util.FutureUtil;
 
+@Slf4j
 public class NonPersistentReplicator extends AbstractReplicator implements Replicator {
 
     private final Rate msgOut = new Rate();
@@ -54,9 +55,9 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
                                    PulsarAdmin replicationAdmin) throws PulsarServerException {
         super(localCluster, topic, remoteCluster, topic.getName(), topic.getReplicatorPrefix(), brokerService,
                 replicationClient, replicationAdmin);
-
+        // NonPersistentReplicator does not support limitation so far, so reset pending queue size to the default value.
+        producerBuilder.maxPendingMessages(1000);
         producerBuilder.blockIfQueueFull(false);
-
         startProducer();
     }
 
@@ -176,7 +177,13 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
         @Override
         public void sendComplete(Exception exception) {
             if (exception != null) {
-                log.error("[{}] Error producing on remote broker", replicator.replicatorId, exception);
+                Throwable actEx = FutureUtil.unwrapCompletionException(exception);
+                if (actEx instanceof PulsarClientException.ProducerQueueIsFullError) {
+                    log.warn("[{}] Discard to replicate non-persistent messages to the remote cluster because the"
+                        + " producer pending queue is full", replicator.replicatorId);
+                } else {
+                    log.error("[{}] Error producing on remote broker", replicator.replicatorId, exception);
+                }
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Message persisted on remote broker", replicator.replicatorId);
@@ -239,8 +246,6 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
             return CompletableFuture.completedFuture(null);
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(PersistentReplicator.class);
 
     @Override
     protected Position getReplicatorReadPosition() {
