@@ -4005,4 +4005,81 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         producer.close();
         admin.topics().deletePartitionedTopicAsync(topic, false).get();
     }
+
+    @Test
+    public void testTopicCreationAndLastPublishTimestamps() throws Exception {
+        final String topicName = "timestamp-test-topic";
+        final String partitionedTopicName = "timestamp-test-partitioned-topic";
+        final String topic = "persistent://" + defaultNamespace + "/" + topicName;
+        final String partitionedTopic = "persistent://" + defaultNamespace + "/" + partitionedTopicName;
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
+        
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer()
+            .topic(topic)
+            .enableBatching(false)
+            .create();
+
+        admin.topicPolicies().setRetention(topic,
+                new RetentionPolicies(-1, 10));
+
+        TopicStats initialStats = admin.topics().getStats(topic);
+        assertTrue(initialStats.getTopicCreationTimeStamp() > 0);
+        assertEquals(initialStats.getLastPublishTimeStamp(), 0L);
+        producer.send("test-message".getBytes(StandardCharsets.UTF_8));
+        TopicStats statsAfterPublish = admin.topics().getStats(topic);
+        assertTrue(statsAfterPublish.getLastPublishTimeStamp() > 0);
+        assertEquals(statsAfterPublish.getTopicCreationTimeStamp(), initialStats.getTopicCreationTimeStamp());
+
+        admin.topics().createPartitionedTopic(partitionedTopic, 3);
+        admin.topicPolicies().setRetention(partitionedTopic,
+                new RetentionPolicies(-1, 10));
+        
+        @Cleanup
+        Producer<byte[]> partitionedProducer = client.newProducer()
+            .topic(partitionedTopic)
+            .enableBatching(false)
+            .create();
+
+        TopicStats partitionedStats = admin.topics().getPartitionedStats(partitionedTopic, true);
+        assertTrue(partitionedStats.getTopicCreationTimeStamp() > 0);
+        partitionedProducer.send("test-partitioned-message".getBytes(StandardCharsets.UTF_8));
+        TopicStats partitionedStatsAfterPublish = admin.topics().getPartitionedStats(partitionedTopic, true);
+        assertTrue(partitionedStatsAfterPublish.getLastPublishTimeStamp() > 0);
+
+        for (int i = 0; i < 3; i++) {
+            String partitionTopic = partitionedTopic + "-partition-" + i;
+            TopicStats partitionStats = admin.topics().getStats(partitionTopic);
+            assertTrue(partitionStats.getTopicCreationTimeStamp() > 0);
+        }
+
+        TopicStats stats1 = admin.topics().getStats(topic);
+        TopicStats stats2 = admin.topics().getStats(topic);
+        assertEquals(stats1.getTopicCreationTimeStamp(), stats2.getTopicCreationTimeStamp());
+        assertEquals(stats1.getLastPublishTimeStamp(), stats2.getLastPublishTimeStamp());
+
+        admin.topics().unload(topic);
+        admin.topics().unload(partitionedTopic);
+
+        TopicStats statsAfterReload = admin.topics().getStats(topic);
+        TopicStats partitionedStatsAfterReload = admin.topics().getPartitionedStats(partitionedTopic, true);
+
+        assertTrue(statsAfterReload.getTopicCreationTimeStamp() > 0);
+        assertTrue(statsAfterReload.getLastPublishTimeStamp() > 0);
+        assertTrue(partitionedStatsAfterReload.getTopicCreationTimeStamp() > 0);
+        assertTrue(partitionedStatsAfterReload.getLastPublishTimeStamp() > 0);
+
+        admin.topics().truncate(topic);
+        admin.topics().truncate(partitionedTopic);
+
+        statsAfterReload = admin.topics().getStats(topic);
+        partitionedStatsAfterReload = admin.topics().getPartitionedStats(partitionedTopic, true);
+        assertTrue(statsAfterReload.getTopicCreationTimeStamp() > 0);
+        assertEquals(statsAfterReload.getLastPublishTimeStamp(), 0);
+        assertTrue(partitionedStatsAfterReload.getTopicCreationTimeStamp() > 0);
+        assertEquals(partitionedStatsAfterReload.getLastPublishTimeStamp(), 0);
+    }
+
 }
