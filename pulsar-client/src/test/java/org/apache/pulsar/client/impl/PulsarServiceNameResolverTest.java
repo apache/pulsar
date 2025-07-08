@@ -135,8 +135,8 @@ public class PulsarServiceNameResolverTest {
     public void testRemoveUnavailableHost() throws InvalidServiceURL {
         String serviceUrl = "pulsar+ssl://host1:6651,host2:6651,host3:6651";
         resolver.updateServiceUrl(serviceUrl);
-        assertEquals(serviceUrl, resolver.getServiceUrl());
-        assertEquals(ServiceURI.create(serviceUrl), resolver.getServiceUri());
+        assertEquals(resolver.getServiceUrl(), serviceUrl);
+        assertEquals(resolver.getServiceUri(), ServiceURI.create(serviceUrl));
 
         Set<InetSocketAddress> expectedAddresses = new HashSet<>();
         Set<URI> expectedHostUrls = new HashSet<>();
