@@ -55,6 +55,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
+import org.jspecify.annotations.Nullable;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -98,12 +99,10 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
         pulsar.getConfig().setTopicLoadTimeoutSeconds(topicLoadTimeoutSeconds);
 
         String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
-        String mlPath = BrokerService.MANAGED_LEDGER_PATH_ZNODE + "/" + TopicName.get(tpName).getPersistenceNamingEncoding();
 
         // Make topic load timeout 5 times.
-        AtomicInteger timeoutCounter = new AtomicInteger();
         for (int i = 0; i < 5; i++) {
-            delayMetadataOperation(i, tpName);
+            delayManagedLedgerCreation(i, TopicName.get(tpName), null);
         }
 
         // Load topic.
@@ -141,10 +140,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
         pulsar.getConfig().setTransactionCoordinatorEnabled(true);
         String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp2");
 
-        // Mock message deduplication recovery speed topicLoadTimeoutSeconds
-        String mlPath = BrokerService.MANAGED_LEDGER_PATH_ZNODE + "/" +
-                TopicName.get(tpName).getPersistenceNamingEncoding() + "/" + DEDUPLICATION_CURSOR_NAME;
-        delayMetadataOperation(0, tpName);
+        delayManagedLedgerCreation(0, TopicName.get(tpName), DEDUPLICATION_CURSOR_NAME);
 
         // First load topic will trigger timeout
         // The first topic load will trigger a timeout. When the topic closes, it will call transactionBuffer.close.
@@ -319,9 +315,9 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
         admin.topics().delete(tpName);
     }
 
-    private void delayMetadataOperation(int i, String topic) {
-        final var mlPath = BrokerService.MANAGED_LEDGER_PATH_ZNODE + "/"
-                + TopicName.get(topic).getPersistenceNamingEncoding() + "/" + DEDUPLICATION_CURSOR_NAME;
+    private void delayManagedLedgerCreation(int i, TopicName topicName, @Nullable String cursor) {
+        final var mlPath = BrokerService.MANAGED_LEDGER_PATH_ZNODE + "/" + topicName.getPersistenceNamingEncoding()
+                + (cursor == null ? "" : ("/" + cursor));
         mockZooKeeper.delay(conf.getTopicLoadTimeoutSeconds() * 1000 + 500, (__, path) -> {
             if (mlPath.equals(path)) {
                 log.info("Topic {} load timeout: {}", i, path);
