@@ -24,8 +24,10 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.List;
@@ -33,6 +35,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -53,6 +56,7 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferDisable;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
+import org.apache.zookeeper.MockZooKeeper;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.jspecify.annotations.Nullable;
@@ -69,6 +73,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
     @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
+        super.isTcpLookup = true;
         super.internalSetup();
         super.producerBaseSetup();
     }
@@ -361,5 +366,33 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
         final var msg = consumer.receive(3, TimeUnit.SECONDS);
         assertNotNull(msg);
         assertEquals(msg.getValue(), "msg");
+    }
+
+    @Test
+    public void testOrphanManagedLedgerRemovedAfterUnload() throws Exception {
+        final var topicName = TopicName.get("test-orphan-managed-ledger-removed-after-unload");
+        final var topic = topicName.toString();
+
+        conf.setTopicLoadTimeoutSeconds(1);
+        final var mlKey = topicName.getPersistenceNamingEncoding();
+        final var mlPath = BrokerService.MANAGED_LEDGER_PATH_ZNODE + "/" + mlKey;
+        mockZooKeeper.delay(conf.getTopicLoadTimeoutSeconds() * 1000 + 500, (op, path) ->
+                op == MockZooKeeper.Op.CREATE && mlPath.equals(path));
+
+        try {
+            pulsar.getBrokerService().getTopic(topic, true).get();
+            fail();
+        } catch (ExecutionException e) {
+            assertTrue(e.getMessage().contains("Failed to load topic within timeout"));
+        }
+
+        final var managedLedgers = pulsar.getManagedLedgerStorage().getDefaultStorageClass().getManagedLedgerFactory()
+                .getManagedLedgers();
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() ->
+                assertTrue(managedLedgers.containsKey(mlKey)));
+
+        admin.topics().unload(topic);
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() ->
+                assertFalse(managedLedgers.containsKey(mlKey)));
     }
 }

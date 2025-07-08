@@ -1846,8 +1846,8 @@ public class BrokerService implements Closeable {
                             try {
                                 if (topicFuture.isCompletedExceptionally()) {
                                     // Don't close the managed ledger because next time the topic is accessed, the
-                                    // managed ledger will be created again.
-                                    // TODO: prevent orphan managed ledgers
+                                    // managed ledger will be created again. The managed ledger will be removed if the
+                                    // ownership has been changed.
                                     return;
                                 }
                                 PersistentTopic persistentTopic = isSystemTopic(topic)
