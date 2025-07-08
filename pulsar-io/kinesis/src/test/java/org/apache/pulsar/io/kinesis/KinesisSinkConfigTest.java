@@ -20,6 +20,8 @@ package org.apache.pulsar.io.kinesis;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+
+import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -53,6 +55,9 @@ public class KinesisSinkConfigTest {
                 "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
         assertEquals(config.getExtraKinesisProducerConfig(), expectedExtraKinesisProducerConfig,
                 "ExtraKinesisProducerConfiguration Maps should match exactly");
+        KinesisProducerConfiguration kinesisProducerConfiguration = KinesisSinkConfig
+                .loadExtraKinesisProducerConfig(config.getExtraKinesisProducerConfig());
+        assertEquals(kinesisProducerConfiguration.getCredentialsRefreshDelay(), 6000);
     }
 
     @Test
