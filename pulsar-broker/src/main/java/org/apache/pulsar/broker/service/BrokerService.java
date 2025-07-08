@@ -86,7 +86,6 @@ import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
-import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
@@ -1848,7 +1847,7 @@ public class BrokerService implements Closeable {
                                 if (topicFuture.isCompletedExceptionally()) {
                                     // Don't close the managed ledger because next time the topic is accessed, the
                                     // managed ledger will be created again.
-                                    // TODO: add tests for it
+                                    // TODO: prevent orphan managed ledgers
                                     return;
                                 }
                                 PersistentTopic persistentTopic = isSystemTopic(topic)
