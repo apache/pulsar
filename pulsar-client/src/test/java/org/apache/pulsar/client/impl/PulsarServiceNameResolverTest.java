@@ -151,8 +151,13 @@ public class PulsarServiceNameResolverTest {
         resolver.markHostAvailability(InetSocketAddress.createUnresolved("host1", 6651), false);
         // Now host1 should be removed from the available hosts
         for (int i = 0; i < 10; i++) {
-            assertTrue(expectedAddresses.contains(resolver.resolveHost()));
-            assertTrue(expectedHostUrls.contains(resolver.resolveHostUri()));
+            InetSocketAddress inetSocketAddress = resolver.resolveHost();
+            assertNotEquals(inetSocketAddress.getHostName(), "host1");
+            assertTrue(expectedAddresses.contains(inetSocketAddress));
+
+            URI uri = resolver.resolveHostUri();
+            assertNotEquals(uri.getHost(), "host1");
+            assertTrue(expectedHostUrls.contains(uri));
         }
 
         // After backoff time, host1 should be recovery from the unavailable hosts
