@@ -752,4 +752,22 @@ public interface ManagedLedger {
     }
 
     Position getFirstPosition();
+
+    /**
+     * Get the timestamp in milliseconds of the last successful add entry operation.
+     *
+     * @return the last add entry time in milliseconds
+     */
+    default long getLastAddEntryTime() {
+        return 0;
+    }
+
+    /**
+     * Get the creation timestamp of the managed ledger metadata, or 0 if not available.
+     *
+     * @return the creation timestamp in milliseconds, or 0 if not available
+     */
+    default long getMetadataCreationTimestamp() {
+        return 0;
+    }
 }
