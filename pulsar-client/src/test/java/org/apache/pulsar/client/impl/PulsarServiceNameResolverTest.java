@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -179,6 +180,7 @@ public class PulsarServiceNameResolverTest {
         resolver.markHostAvailability(InetSocketAddress.createUnresolved("host3", 6651), false);
 
         // After marking all hosts as unavailable, resolver should fall back to select from all origin host
+        assertTrue(resolver.getAvailableAddressList().isEmpty());
         for (int i = 0; i < 10; i++) {
             InetSocketAddress address = resolver.resolveHost();
             resolverAddresses.add(address);
